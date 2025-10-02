@@ -266,9 +266,17 @@ npx prisma generate && npm run build
 
 ## 🗺️ Migration Status
 
-Current phase: **Phase 2 - Core Pages & Layouts**
+**Current Phase**: Phase 2 - UI/UX Design & Core Pages
 
-See [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) for detailed progress.
+**Completed**:
+- ✅ Phase 1: Foundation & Infrastructure
+- ✅ Stage 2.1: Layout System (Navigation, Announcements)
+- ✅ Stage 2.2: Homepage (Redesigned with modern UI)
+- ✅ Stage 2.3: 2v2 League Page (Redesigned with three-column layout)
+
+**Approach**: Design-first iteration - reimagining each page with modern UX/UI practices using mock data before connecting to real backend.
+
+See [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) for detailed progress and the design-first strategy.
 
 ### Completed Phases
 - [x] Planning & documentation

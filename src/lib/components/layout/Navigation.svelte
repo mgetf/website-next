@@ -148,7 +148,7 @@
 					<div class="flex items-center gap-3">
 						<NotificationDropdown {notifications} {notificationCount} />
 						
-						<a href="/player_page/{user.steamId}" class="flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/50 rounded-lg transition-all">
+						<a href="/player/{user.steamId}" class="flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/50 rounded-lg transition-all">
 							<img class="h-8 w-8 rounded-full ring-2 ring-zinc-700" src={user.steamAvatar} alt="User Avatar" />
 							<span class="hidden md:inline text-sm font-medium text-gray-300">{displayName()}</span>
 						</a>

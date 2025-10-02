@@ -68,29 +68,29 @@
 			name: 'Premier',
 			color: 'blue',
 			teams: [
-				{ rank: 1, name: 'WARHAMMER', wins: 2, losses: 0, points: 20.0, streak: 'W2' },
-				{ rank: 2, name: 'PRO PIRO', wins: 2, losses: 0, points: 20.0, streak: 'W2' },
-				{ rank: 3, name: 'мирин', wins: 2, losses: 0, points: 20.0, streak: 'W2' },
-				{ rank: 4, name: 'Team Alpha', wins: 1, losses: 1, points: 10.0, streak: 'L1' },
-				{ rank: 5, name: 'Apex Legends', wins: 0, losses: 2, points: 0.0, streak: 'L2' }
+				{ id: 5, rank: 1, name: 'WARHAMMER', wins: 2, losses: 0, points: 20.0, streak: 'W2' },
+				{ id: 6, rank: 2, name: 'PRO PIRO', wins: 2, losses: 0, points: 20.0, streak: 'W2' },
+				{ id: 7, rank: 3, name: 'мирин', wins: 2, losses: 0, points: 20.0, streak: 'W2' },
+				{ id: 8, rank: 4, name: 'Team Alpha', wins: 1, losses: 1, points: 10.0, streak: 'L1' },
+				{ id: 9, rank: 5, name: 'Apex Legends', wins: 0, losses: 2, points: 0.0, streak: 'L2' }
 			]
 		},
 		{
 			name: 'Intermediate',
 			color: 'purple',
 			teams: [
-				{ rank: 1, name: 'Rising Stars', wins: 3, losses: 0, points: 30.0, streak: 'W3' },
-				{ rank: 2, name: 'Team Beta', wins: 2, losses: 1, points: 20.0, streak: 'W1' },
-				{ rank: 3, name: 'The Grinders', wins: 1, losses: 2, points: 10.0, streak: 'L1' }
+				{ id: 10, rank: 1, name: 'Rising Stars', wins: 3, losses: 0, points: 30.0, streak: 'W3' },
+				{ id: 11, rank: 2, name: 'Team Beta', wins: 2, losses: 1, points: 20.0, streak: 'W1' },
+				{ id: 12, rank: 3, name: 'The Grinders', wins: 1, losses: 2, points: 10.0, streak: 'L1' }
 			]
 		},
 		{
 			name: 'Open',
 			color: 'green',
 			teams: [
-				{ rank: 1, name: 'Newbies United', wins: 2, losses: 0, points: 20.0, streak: 'W2' },
-				{ rank: 2, name: 'Team Gamma', wins: 1, losses: 1, points: 10.0, streak: 'W1' },
-				{ rank: 3, name: 'Fresh Faces', wins: 0, losses: 2, points: 0.0, streak: 'L2' }
+				{ id: 13, rank: 1, name: 'Newbies United', wins: 2, losses: 0, points: 20.0, streak: 'W2' },
+				{ id: 14, rank: 2, name: 'Team Gamma', wins: 1, losses: 1, points: 10.0, streak: 'W1' },
+				{ id: 15, rank: 3, name: 'Fresh Faces', wins: 0, losses: 2, points: 0.0, streak: 'L2' }
 			]
 		}
 	];
@@ -225,16 +225,16 @@
 								<tbody class="divide-y divide-zinc-800/50">
 									{#each division.teams as team}
 										<tr class="hover:bg-zinc-800/30 transition-colors">
-											<td class="px-4 py-2">
-												<a href="/team/{team.name}" class="flex items-center gap-2 text-white text-sm font-medium hover:text-blue-400 transition-colors">
-													<img 
-														src="https://picsum.photos/seed/{team.name}/32" 
-														alt="{team.name} logo" 
-														class="w-8 h-8 rounded object-cover"
-													/>
-													<span>{team.name}</span>
-												</a>
-											</td>
+									<td class="px-4 py-2">
+										<a href="/teams/{team.id}" class="flex items-center gap-2 text-white text-sm font-medium hover:text-blue-400 transition-colors">
+											<img 
+												src="https://picsum.photos/seed/{team.name}/32" 
+												alt="{team.name} logo" 
+												class="w-8 h-8 rounded object-cover"
+											/>
+											<span>{team.name}</span>
+										</a>
+									</td>
 											<td class="px-4 py-2">
 												<span class="text-gray-300 text-sm">{team.wins} - {team.losses}</span>
 											</td>
@@ -273,7 +273,7 @@
 								<div class="px-4 py-2 space-y-2">
 									{#each divisionStaff.staff as member}
 										<a 
-											href="/player_page/{member.steamId}"
+											href="/player/{member.steamId}"
 											class="flex items-center justify-between py-2 hover:bg-zinc-800/30 rounded px-2 -mx-2 transition-colors group"
 										>
 											<div class="flex items-center gap-2">

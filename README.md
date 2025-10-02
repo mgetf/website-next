@@ -266,18 +266,18 @@ npx prisma generate && npm run build
 
 ## 🗺️ Migration Status
 
-Current phase: **Phase 1 - Project Foundation**
+Current phase: **Phase 2 - Core Pages & Layouts**
 
 See [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) for detailed progress.
 
 ### Completed Phases
 - [x] Planning & documentation
+- [x] Phase 1: Foundation & Infrastructure ✅
 
 ### In Progress
-- [ ] Phase 1: Foundation & Infrastructure
+- [ ] Phase 2: Core Pages & Layouts
 
 ### Upcoming
-- [ ] Phase 2: Core Pages & Layouts
 - [ ] Phase 3: User System & Profiles
 - [ ] Phase 4: Match & Game Management
 - [ ] Phase 5: Payment Integration

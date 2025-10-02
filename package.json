@@ -34,6 +34,7 @@
 		"@prisma/client": "^6.16.3",
 		"@tailwindcss/vite": "^4.1.13",
 		"node-steam-openid": "^2.0.0",
-		"tailwindcss": "^4.1.13"
+		"tailwindcss": "^4.1.13",
+		"zod": "^4.1.11"
 	}
 }

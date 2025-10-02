@@ -6,6 +6,7 @@
 import type { SessionUser } from '../session';
 import { UserRole } from '@prisma/client';
 import { prisma } from '../db';
+import { unauthorized, forbidden } from '../utils/errors';
 
 /**
  * Check if user has at least the specified role
@@ -84,5 +85,69 @@ export async function getPermissionLevel(steamId: string): Promise<UserRole> {
 	});
 
 	return user?.permissionLevel ?? UserRole.GUEST;
+}
+
+// ===== Assertion Functions (Throw Errors) =====
+
+/**
+ * Require user to be authenticated
+ * Throws 401 if not authenticated
+ */
+export function requireAuth(user: SessionUser | null): asserts user is SessionUser {
+	if (!user) {
+		unauthorized('You must be logged in to access this resource');
+	}
+}
+
+/**
+ * Require user to be an admin (moderator or higher)
+ * Throws 401 if not authenticated, 403 if not admin
+ */
+export function requireAdmin(user: SessionUser | null): asserts user is SessionUser {
+	requireAuth(user);
+	if (!isAdmin(user)) {
+		forbidden('You must be an admin to access this resource');
+	}
+}
+
+/**
+ * Require user to be a strict admin (level 3+)
+ * Throws 401 if not authenticated, 403 if not strict admin
+ */
+export function requireStrictAdmin(user: SessionUser | null): asserts user is SessionUser {
+	requireAuth(user);
+	if (!isStrictAdmin(user)) {
+		forbidden('You must be a full administrator to access this resource');
+	}
+}
+
+/**
+ * Require user to have at least the specified role
+ * Throws 401 if not authenticated, 403 if insufficient permissions
+ */
+export function requireRole(
+	user: SessionUser | null,
+	minRole: UserRole,
+	message?: string
+): asserts user is SessionUser {
+	requireAuth(user);
+	if (!hasRole(user, minRole)) {
+		forbidden(message || `You must have ${minRole} role to access this resource`);
+	}
+}
+
+/**
+ * Require user to be team admin or global admin
+ * Throws 401 if not authenticated, 403 if not team admin
+ */
+export async function requireTeamAdmin(
+	user: SessionUser | null,
+	teamId: number
+): Promise<void> {
+	requireAuth(user);
+	const isTeamAdminUser = await isTeamAdmin(user, teamId);
+	if (!isTeamAdminUser) {
+		forbidden('You must be a team admin or global admin to perform this action');
+	}
 }
 

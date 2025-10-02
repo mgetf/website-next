@@ -15,6 +15,7 @@
 		"@sveltejs/adapter-auto": "^6.1.0",
 		"@sveltejs/kit": "^2.43.6",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@types/node": "^24.6.1",
 		"prisma": "^6.16.3",
 		"svelte": "^5.39.7",
 		"svelte-check": "^4.3.2",
@@ -23,12 +24,16 @@
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
-			"esbuild"
+			"@prisma/client",
+			"@prisma/engines",
+			"esbuild",
+			"prisma"
 		]
 	},
 	"dependencies": {
 		"@prisma/client": "^6.16.3",
 		"@tailwindcss/vite": "^4.1.13",
+		"node-steam-openid": "^2.0.0",
 		"tailwindcss": "^4.1.13"
 	}
 }

@@ -1,25 +1,33 @@
 <script lang="ts">
-	// Mock data for now - will connect to real data later
-	const mockLeagueData = {
-		season: 'Season 2',
-		topTeams: [
-			{ rank: 1, name: 'WARHAMMER', record: '2-0', points: 20.0 },
-			{ rank: 2, name: 'PRO PIRO', record: '2-0', points: 20.0 },
-			{ rank: 3, name: 'мирин', record: '2-0', points: 20.0 }
-		]
-	};
+	interface PageData {
+		leagueData: {
+			season: string;
+			topTeams: Array<{
+				rank: number;
+				name: string;
+				record: string;
+				points: number;
+				id: number;
+			}>;
+		};
+		tournamentData: {
+			next: string;
+			lastWinner: string;
+			lastWinnerDate: string;
+			prize: string;
+		};
+		championshipData: {
+			winner2024: string;
+			nextDate: string;
+		};
+	}
 
-	const mockTournamentData = {
-		next: 'May 15th',
-		lastWinner: 'Jonathan',
-		prize: '$250'
-	};
+	let { data } = $props<{ data: PageData }>();
 
-	const mockChampionshipData = {
-		winner2024: 'TeamX',
-		nextDate: 'TBD 2025'
-	};
-
+	// Destructure the data from the server with fallbacks
+	const leagueData = data.leagueData || { season: 'Season 1', topTeams: [] };
+	const tournamentData = data.tournamentData || { next: 'TBD', lastWinner: 'TBD', lastWinnerDate: 'TBD', prize: '$250' };
+	const championshipData = data.championshipData || { winner2024: 'TBD', nextDate: 'TBD 2025' };
 </script>
 
 <div class="min-h-screen">
@@ -51,24 +59,33 @@
 				
 				<div class="mb-6">
 					<p class="text-gray-400 text-sm mb-2">Current Season</p>
-					<p class="text-xl font-semibold text-white">{mockLeagueData.season}</p>
+					<p class="text-xl font-semibold text-white">{leagueData.season}</p>
 				</div>
 
 				<div class="mb-6">
 					<p class="text-gray-400 text-sm mb-3">Premier Division Top 3</p>
 					<div class="space-y-2">
-						{#each mockLeagueData.topTeams as team}
-							<div class="flex items-center justify-between bg-gray-800 bg-opacity-50 rounded p-2">
-								<div class="flex items-center gap-3">
-									<span class="text-gray-400 font-mono w-6">#{team.rank}</span>
-									<span class="text-white font-medium">{team.name}</span>
-								</div>
-								<div class="text-right">
-									<div class="text-sm text-gray-400">{team.record}</div>
-									<div class="text-xs text-gray-500">{team.points} pts</div>
-								</div>
+						{#if leagueData.topTeams.length > 0}
+							{#each leagueData.topTeams as team}
+								<a 
+									href="/teams/{team.id}"
+									class="flex items-center justify-between bg-gray-800 bg-opacity-50 rounded p-2 hover:bg-gray-700 transition-colors"
+								>
+									<div class="flex items-center gap-3">
+										<span class="text-gray-400 font-mono w-6">#{team.rank}</span>
+										<span class="text-white font-medium">{team.name}</span>
+									</div>
+									<div class="text-right">
+										<div class="text-sm text-gray-400">{team.record}</div>
+										<div class="text-xs text-gray-500">{team.points} ppg</div>
+									</div>
+								</a>
+							{/each}
+						{:else}
+							<div class="text-center py-4 text-gray-500">
+								No teams yet this season
 							</div>
-						{/each}
+						{/if}
 					</div>
 				</div>
 
@@ -91,12 +108,12 @@
 				
 				<div class="mb-6">
 					<p class="text-gray-400 text-sm mb-2">Next Tournament</p>
-					<p class="text-xl font-semibold text-white">{mockTournamentData.next}</p>
+					<p class="text-xl font-semibold text-white">{tournamentData.next}</p>
 				</div>
 
 				<div class="mb-6">
 					<p class="text-gray-400 text-sm mb-2">Prize Pool</p>
-					<p class="text-3xl font-bold text-yellow-400">{mockTournamentData.prize}</p>
+					<p class="text-3xl font-bold text-yellow-400">{tournamentData.prize}</p>
 				</div>
 
 				<div class="mb-6">
@@ -106,8 +123,8 @@
 							<span class="text-xl">🏆</span>
 						</div>
 						<div>
-							<p class="text-white font-semibold">{mockTournamentData.lastWinner}</p>
-							<p class="text-xs text-gray-400">December 2024</p>
+							<p class="text-white font-semibold">{tournamentData.lastWinner}</p>
+							<p class="text-xs text-gray-400">{tournamentData.lastWinnerDate}</p>
 						</div>
 					</div>
 				</div>
@@ -133,13 +150,13 @@
 					<p class="text-gray-400 text-sm mb-2">2024 Champion</p>
 					<div class="bg-gradient-to-r from-yellow-500 to-red-500 rounded-xl p-4 text-center shadow-lg">
 						<div class="text-4xl mb-2">👑</div>
-						<p class="text-xl font-bold text-white drop-shadow-lg">{mockChampionshipData.winner2024}</p>
+						<p class="text-xl font-bold text-white drop-shadow-lg">{championshipData.winner2024}</p>
 					</div>
 				</div>
 
 				<div class="mb-6">
 					<p class="text-gray-400 text-sm mb-2">Next Championship</p>
-					<p class="text-xl font-semibold text-white">{mockChampionshipData.nextDate}</p>
+					<p class="text-xl font-semibold text-white">{championshipData.nextDate}</p>
 				</div>
 
 				<div class="mb-6 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
@@ -162,7 +179,7 @@
 	<!-- What is MGE? Section -->
 	<section class="max-w-6xl mx-auto px-6 pb-20">
 		<div class="bg-zinc-900 rounded-xl p-12 border-2 border-zinc-800 shadow-2xl">
-			<h2 class="text-4xl font-bold text-white mb-8 text-center bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
+			<h2 class="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
 				What is MGE?
 			</h2>
 			

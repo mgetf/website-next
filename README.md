@@ -183,9 +183,14 @@ SESSION_SECRET=your_random_secret_string
 
 ## 📚 Documentation
 
-- **[Migration Plan](./MIGRATION_PLAN.md)** - Detailed phase-by-phase migration strategy
-- **[Development Rules](./DEV_RULES.md)** - Code style, Svelte 5 syntax, architecture patterns
-- **[Project Context](./PROJECT_CONTEXT.md)** - Quick reference for domain models and workflows
+**Start Here:**
+- **[Getting Started](./docs/GETTING_STARTED.md)** - Onboarding guide for developers and AI assistants
+
+**Core Documents:**
+- **[Feature Roadmap](./docs/FEATURE_ROADMAP.md)** ⭐ - All 30 features with estimates and dependencies
+- **[Project Context](./docs/PROJECT_CONTEXT.md)** - Domain models and business logic
+- **[Development Rules](./docs/DEV_RULES.md)** - Code patterns and Svelte 5 syntax rules
+- **[Migration Plan](./docs/MIGRATION_PLAN.md)** - High-level 11-phase strategy
 
 ---
 
@@ -266,35 +271,33 @@ npx prisma generate && npm run build
 
 ## 🗺️ Migration Status
 
-**Current Phase**: Phase 2 - UI/UX Design & Core Pages
+**Current Phase**: Phase 2 → Phase 3 (Connecting UI + Building Core Pages)
 
-**Completed**:
-- ✅ Phase 1: Foundation & Infrastructure
+### ✅ Major Milestones Completed
+- ✅ Phase 1: Foundation & Infrastructure (100%)
 - ✅ Stage 2.1: Layout System (Navigation, Announcements)
-- ✅ Stage 2.2: Homepage (Redesigned with modern UI)
-- ✅ Stage 2.3: 2v2 League Page (Redesigned with three-column layout)
+- ✅ Stage 2.2: Homepage (Redesigned with modern UI - mock data)
+- ✅ Stage 2.3: 2v2 League Page (Redesigned with three-column layout - mock data)
+- ✅ **Data Migration**: 100% of valid production data migrated to PostgreSQL
+  - 3,127 users, 788 teams, 505 matches, 6 seasons
+  - See `scripts/migrate-from-sqlite.ts` for details
 
-**Approach**: Design-first iteration - reimagining each page with modern UX/UI practices using mock data before connecting to real backend.
+### 🔄 Current Work
+- F1: Connect Homepage to real data (2-3 hours)
+- F2: Connect 2v2 League to real data (3-4 hours)
+- F3: Player Profile Page (4-6 hours)
 
-See [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) for detailed progress and the design-first strategy.
+### 📋 Next Steps
+See **[FEATURE_ROADMAP.md](./docs/FEATURE_ROADMAP.md)** for complete feature breakdown:
+- **30 features** total
+- **150-190 hours** estimated
+- **Priority 1-9** groupings
+- Complexity ratings and dependencies
 
-### Completed Phases
-- [x] Planning & documentation
-- [x] Phase 1: Foundation & Infrastructure ✅
+### Migration Approach
+**Design-First + Feature-by-Feature**: Each page is redesigned with modern UX, built with mock data, iterated based on feedback, then connected to real backend. We migrate one complete feature at a time (UI + backend + API).
 
-### In Progress
-- [ ] Phase 2: Core Pages & Layouts
-
-### Upcoming
-- [ ] Phase 3: User System & Profiles
-- [ ] Phase 4: Match & Game Management
-- [ ] Phase 5: Payment Integration
-- [ ] Phase 6: Tournaments & Events
-- [ ] Phase 7: Admin Panel
-- [ ] Phase 8: Community Features
-- [ ] Phase 9: Advanced Features & Polish
-- [ ] Phase 10: Testing & Migration Prep
-- [ ] Phase 11: Production Cutover
+See [MIGRATION_PLAN.md](./docs/MIGRATION_PLAN.md) for high-level phases.
 
 ---
 

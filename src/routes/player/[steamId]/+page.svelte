@@ -1,95 +1,74 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	// Get data from server load function (Svelte 5 syntax)
+	interface PlayerData {
+		player: {
+			steamId: string;
+			name: string;
+			avatar: string | null;
+			discordLinked: boolean;
+			permissionLevel: string;
+			memberSince: Date;
+		};
+		currentTeams: Array<{
+			teamId: number;
+			teamName: string;
+			division: string;
+			regionName: string;
+			seasonNum: number;
+			totalRecord: string;
+			joined: Date;
+		}>;
+		teamHistory: Array<{
+			teamId: number;
+			teamName: string;
+			division: string;
+			regionName: string;
+			seasonNum: number;
+			totalRecord: string;
+			joined: Date;
+			left: Date | null;
+		}>;
+		tournaments: Array<{
+			id: number;
+			name: string;
+			date: string | null;
+			placement: string;
+		}>;
+		fightNights: Array<{
+			id: number;
+			fightNightName: string;
+			opponent: string;
+			result: string;
+			score: string;
+			date: string | null;
+		}>;
+		achievements: Array<{
+			placement: string;
+			event: string;
+			date: string | null;
+		}>;
+	}
 	
-	// Get Steam ID from URL params
-	const steamId = $page.params.steamId;
+	let { data }: { data: PlayerData } = $props();
 	
-	// Mock player data - will be replaced with real data later
-	const player = {
-		steamId: '76561198000000001',
-		name: 'ry4n',
-		avatar: 'https://picsum.photos/seed/ry4n/200',
-		discordLinked: false,
-		memberSince: new Date('2024-01-15')
-	};
-	
-	// Achievements - tournament podium finishes
-	const achievements = [
-		{ placement: '1st', event: '1v1 NA Spire Tournament', date: new Date('2024-06-15') },
-		{ placement: '2nd', event: '1v1 EU Spire Tournament', date: new Date('2025-03-01') },
-		{ placement: '1st', event: 'Fight Night #5', date: new Date('2024-12-10') },
-		{ placement: '3rd', event: '2v2 Championship', date: new Date('2024-09-20') }
-	];
+	// Destructure data
+	const { player, currentTeams, teamHistory, tournaments, fightNights, achievements } = data;
 	
 	// External profile links
 	const externalLinks = [
-		{ name: 'Steam Profile', url: `https://steamcommunity.com/profiles/${steamId}`, icon: '🎮' },
-		{ name: 'logs.tf', url: `https://logs.tf/profile/${steamId}`, icon: '📊' },
-		{ name: 'RGL.gg', url: `https://rgl.gg/Public/PlayerProfile.aspx?p=${steamId}`, icon: '🏆' },
-		{ name: 'ETF2L', url: `https://etf2l.org/search/${steamId}/`, icon: '🇪🇺' },
-		{ name: 'UGC Gaming', url: `https://www.ugcleague.com/players_page.cfm?player_id=${steamId}`, icon: '🎯' },
-		{ name: 'SteamHistory', url: `https://steamhistory.net/id/${steamId}`, icon: '📜' }
-	];
-	
-	// Current teams (2v2)
-	const currentTeams = [
-		{
-			teamId: 5,
-			teamName: 'WARHAMMER',
-			division: 'PREMIER (EU)',
-			seasons: ['1', '2'],
-			totalRecord: '12 - 0',
-			joined: new Date('2025-04-26')
-		}
-	];
-	
-	// Team history
-	const teamHistory: Array<{
-		teamId: number;
-		teamName: string;
-		division: string;
-		seasons: string[];
-		totalRecord: string;
-		joined: Date;
-		left: Date;
-	}> = [
-		// Empty for now - would show past teams here
-	];
-	
-	// Tournament results
-	const tournaments = [
-		{
-			id: 1,
-			name: '1v1 EU Spire Tournament',
-			date: new Date('2025-03-01'),
-			placement: '2nd Place'
-		}
-	];
-	
-	// Fight Night results
-	const fightNights = [
-		{
-			id: 3,
-			fightNightName: 'Fight Night #3',
-			opponent: 'Fancy',
-			result: 'W',
-			score: '3 - 1',
-			date: new Date('2025-02-15')
-		},
-		{
-			id: 2,
-			fightNightName: 'Fight Night #2',
-			opponent: 'lardox',
-			result: 'L',
-			score: '1 - 3',
-			date: new Date('2025-01-20')
-		}
+		{ name: 'Steam Profile', url: `https://steamcommunity.com/profiles/${player.steamId}`, icon: '🎮' },
+		{ name: 'logs.tf', url: `https://logs.tf/profile/${player.steamId}`, icon: '📊' },
+		{ name: 'RGL.gg', url: `https://rgl.gg/Public/PlayerProfile.aspx?p=${player.steamId}`, icon: '🏆' },
+		{ name: 'ETF2L', url: `https://etf2l.org/search/${player.steamId}/`, icon: '🇪🇺' },
+		{ name: 'UGC Gaming', url: `https://www.ugcleague.com/players_page.cfm?player_id=${player.steamId}`, icon: '🎯' },
+		{ name: 'SteamHistory', url: `https://steamhistory.net/id/${player.steamId}`, icon: '📜' }
 	];
 	
 	// Format date helper
-	function formatDate(date: Date | null): string {
+	function formatDate(date: Date | string | null): string {
 		if (!date) return 'N/A';
-		return date.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' });
+		const dateObj = typeof date === 'string' ? new Date(date) : date;
+		return dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' });
 	}
 	
 	// Get placement color
@@ -236,8 +215,9 @@
 									<tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
 										<th class="px-4 py-2 font-medium">Team</th>
 										<th class="px-4 py-2 font-medium">Division</th>
-										<th class="px-4 py-2 font-medium">Seasons</th>
-										<th class="px-4 py-2 font-medium">Total Record</th>
+										<th class="px-4 py-2 font-medium">Region</th>
+										<th class="px-4 py-2 font-medium">Season</th>
+										<th class="px-4 py-2 font-medium">Record</th>
 										<th class="px-4 py-2 font-medium">Joined</th>
 									</tr>
 								</thead>
@@ -256,13 +236,12 @@
 												<span class="text-gray-300 text-sm">{team.division}</span>
 											</td>
 											<td class="px-4 py-2">
-												<div class="flex gap-1">
-													{#each team.seasons as season}
-														<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/30">
-															S{season}
-														</span>
-													{/each}
-												</div>
+												<span class="text-gray-300 text-sm">{team.regionName}</span>
+											</td>
+											<td class="px-4 py-2">
+												<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/30">
+													S{team.seasonNum}
+												</span>
 											</td>
 											<td class="px-4 py-2">
 												<span class="text-green-400 text-sm font-medium">{team.totalRecord}</span>
@@ -291,8 +270,9 @@
 									<tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
 										<th class="px-4 py-2 font-medium">Team</th>
 										<th class="px-4 py-2 font-medium">Division</th>
-										<th class="px-4 py-2 font-medium">Seasons</th>
-										<th class="px-4 py-2 font-medium">Total Record</th>
+										<th class="px-4 py-2 font-medium">Region</th>
+										<th class="px-4 py-2 font-medium">Season</th>
+										<th class="px-4 py-2 font-medium">Record</th>
 										<th class="px-4 py-2 font-medium">Period</th>
 									</tr>
 								</thead>
@@ -311,13 +291,12 @@
 												<span class="text-gray-300 text-sm">{team.division}</span>
 											</td>
 											<td class="px-4 py-2">
-												<div class="flex gap-1">
-													{#each team.seasons as season}
-														<span class="px-2 py-0.5 bg-zinc-800 text-gray-400 text-xs rounded">
-															S{season}
-														</span>
-													{/each}
-												</div>
+												<span class="text-gray-300 text-sm">{team.regionName}</span>
+											</td>
+											<td class="px-4 py-2">
+												<span class="px-2 py-0.5 bg-zinc-800 text-gray-400 text-xs rounded">
+													S{team.seasonNum}
+												</span>
 											</td>
 											<td class="px-4 py-2">
 												<span class="text-gray-400 text-sm">{team.totalRecord}</span>

@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		// This ensures we show a season with actual data by default
 		let defaultSeasonWithTeams = await prisma.team.findFirst({
 			where: {
-				status: { in: [2, 3] } // READY or PLACEMENT
+				status: { in: ['READY', 'PLACEMENT'] } // READY or PLACEMENT
 			},
 			orderBy: {
 				seasonId: 'desc'
@@ -70,7 +70,7 @@ export const load: PageServerLoad = async ({ url }) => {
 						seasonId: selectedSeasonId,
 						regionId: selectedRegionId,
 						divisionId: division.id,
-						status: { in: [1, 2, 3] } // PENDING, READY, or PLACEMENT
+						status: { in: ['PENDING', 'READY', 'PLACEMENT'] } // PENDING, READY, or PLACEMENT
 					},
 					select: {
 						id: true,

@@ -3,8 +3,9 @@
  * Handles role-based access control
  */
 
-import type { SessionUser } from '../session';
-import { UserRole } from '@prisma/client';
+import type { SessionUser } from '$lib/types/user';
+import { UserRole } from '$lib/types/user';
+import { UserRole as PrismaUserRole } from '@prisma/client';
 import { prisma } from '../db';
 import { unauthorized, forbidden } from '../utils/errors';
 
@@ -70,8 +71,8 @@ export async function isTeamAdmin(
 		}
 	});
 
-	// Permission level >= 1 means admin/owner
-	return membership?.active === 1 && membership.permissionLevel >= 1;
+	// Permission level ADMIN (1) or STATUS (2) means admin/owner (not just MEMBER which is 0)
+	return membership?.active === 1 && (membership.permissionLevel === 1 || membership.permissionLevel === 2);
 }
 
 /**
@@ -84,7 +85,8 @@ export async function getPermissionLevel(steamId: string): Promise<UserRole> {
 		select: { permissionLevel: true }
 	});
 
-	return user?.permissionLevel ?? UserRole.GUEST;
+	// Convert Prisma enum to shared enum
+	return (user?.permissionLevel as unknown as UserRole) ?? UserRole.GUEST;
 }
 
 // ===== Assertion Functions (Throw Errors) =====

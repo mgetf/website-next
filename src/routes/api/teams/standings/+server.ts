@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { TeamStatus } from '@prisma/client';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
@@ -35,10 +36,10 @@ export const GET: RequestHandler = async ({ url }) => {
 			divisionId = parseInt(divisionParam);
 		}
 
-		// Build where clause
-		const where: any = {
-			status: 2 // READY status only
-		};
+	// Build where clause
+	const where: any = {
+		status: TeamStatus.READY // READY status only
+	};
 
 		if (seasonId) where.seasonId = seasonId;
 		if (divisionId) where.divisionId = divisionId;

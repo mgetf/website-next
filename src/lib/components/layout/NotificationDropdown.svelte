@@ -19,6 +19,14 @@
 		open = !open;
 	}
 	
+	// Close dropdown when clicking outside
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.notification-dropdown-container')) {
+			open = false;
+		}
+	}
+	
 	async function markAsRead(id: number) {
 		try {
 			await fetch(`/notifications/${id}/read`, {
@@ -48,39 +56,57 @@
 	}
 </script>
 
-<div class="px-2 py-1 rounded-lg border-neutral-400 relative">
-	<button onclick={toggleDropdown} class="relative">
-		<img class="h-6 w-6 cursor-pointer" src="/images/bell-logo.svg" alt="Notifications" />
+<svelte:window onclick={handleClickOutside} />
+
+<div class="notification-dropdown-container relative">
+	<button 
+		onclick={toggleDropdown} 
+		class="relative p-2 text-gray-400 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all"
+		aria-label="Notifications"
+	>
+		<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+		</svg>
 		{#if notificationCount > 0}
-			<div class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+			<div class="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
 				{notificationCount}
 			</div>
 		{/if}
 	</button>
 
 	{#if open}
-		<div class="absolute right-0 mt-2 w-72 bg-black bg-opacity-90 rounded-lg shadow-lg py-2 z-50">
+		<div class="absolute right-0 mt-2 w-72 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50">
 			{#if notifications.length > 0}
-				{#each notifications as notification}
-					<div class="block px-4 py-2 text-gray-200 hover:bg-gray-800 cursor-pointer text-sm border-b border-gray-700">
-						<div class="flex items-center">
-							<div class="flex-grow">
-								<a
-									href={notification.url}
-									onclick={() => markAsRead(notification.id)}
-									class="block w-full"
-								>
-									{getNotificationText(notification.type)}
-									<div class="text-xs text-gray-400">
+				<div class="py-2">
+					{#each notifications as notification}
+						<a
+							href={notification.url}
+							onclick={() => markAsRead(notification.id)}
+							class="block px-4 py-3 text-sm text-gray-300 hover:bg-zinc-800/50 border-b border-zinc-800 last:border-b-0 transition-all"
+						>
+							<div class="flex items-start gap-3">
+								<div class="flex-shrink-0 mt-0.5">
+									<svg class="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+										<path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+									</svg>
+								</div>
+								<div class="flex-grow min-w-0">
+									<p class="font-medium text-white">{getNotificationText(notification.type)}</p>
+									<p class="text-xs text-gray-500 mt-1">
 										{formatDate(notification.createdAt)}
-									</div>
-								</a>
+									</p>
+								</div>
 							</div>
-						</div>
-					</div>
-				{/each}
+						</a>
+					{/each}
+				</div>
 			{:else}
-				<div class="px-4 py-2 text-gray-400 text-sm">No new notifications</div>
+				<div class="px-4 py-8 text-center">
+					<svg class="w-12 h-12 text-gray-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+					</svg>
+					<p class="text-gray-400 text-sm">No new notifications</p>
+				</div>
 			{/if}
 		</div>
 	{/if}

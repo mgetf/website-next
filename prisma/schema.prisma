@@ -1,7 +1,3 @@
-// MGE.tf Prisma Schema
-// Migrated from Drizzle ORM SQLite schema
-// Database: PostgreSQL
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,10 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// ENUMS (PostgreSQL native enums)
-// ============================================
-
+// Enums
 enum UserRole {
   GUEST // 0
   USER // 1
@@ -55,7 +48,7 @@ enum DemoStatus {
   ACTION // 2
 }
 
-enum PlayerPermission {
+enum PlayerStatus {
   MEMBER // 0
   ADMIN // 1
   STATUS // 2
@@ -77,57 +70,108 @@ enum NotificationType {
   PENDING_PLAYER // 1
 }
 
-enum ActionType {
+enum MapBanActionType {
   BAN
   PICK
 }
 
-// ============================================
-// MODELS
-// ============================================
+enum ChampionshipStatus {
+  REGISTRATION // 0
+  IN_PROGRESS // 1
+  COMPLETED // 2
+}
 
-// Core User Models
-model User {
-  steamId         String    @id @map("steam_id")
-  steamUsername   String    @map("steam_username")
-  steamAvatar     String?   @map("steam_avatar")
-  permissionLevel UserRole  @default(GUEST) @map("permission_level")
-  banStatus       BanStatus @default(NONE) @map("ban_status")
-  nameOverride    Int       @default(0) @map("name_override")
+// Models
+model Tournament {
+  id                  Int       @id @default(autoincrement())
+  name                String
+  description         String?
+  bracketLink         String?   @map("bracket_link")
+  avatar              String?
+  startedAt           DateTime? @map("started_at")
+  winner1SteamId      String?   @map("winner1_steam_id")
+  winner2SteamId      String?   @map("winner2_steam_id")
+  secondPlace1SteamId String?   @map("second_place1_steam_id")
+  secondPlace2SteamId String?   @map("second_place2_steam_id")
+  thirdPlace1SteamId  String?   @map("third_place1_steam_id")
+  thirdPlace2SteamId  String?   @map("third_place2_steam_id")
+  isTeamTournament    Boolean   @default(false) @map("is_team_tournament")
 
-  // Relations
-  discord                    Discord?
-  punishmentsGiven           Punishment[]              @relation("PunishmentGiver")
-  punishmentsReceived        Punishment[]              @relation("PunishmentReceiver")
-  threads                    Thread[]
-  posts                      Post[]
-  activities                 Activity[]
-  moderator                  Moderator?
-  teamsPlayers               PlayerInTeam[]
-  pendingPlayers             PendingPlayer[]
-  deniedPlayers              DeniedPlayer[]
-  payments                   Payment[]                 @relation("PaymentPurchaser")
-  paymentsPurchasedFor       Payment[]                 @relation("PaymentRecipient")
-  paymentTrackers            PaymentTracker[]
-  matchComms                 MatchComm[]
-  notifications              Notification[]
-  demos                      Demo[]                    @relation("DemoPlayer")
-  demosSubmitted             Demo[]                    @relation("DemoSubmitter")
-  demoReports                DemoReport[]
-  demoReportAdmins           DemoReport[]              @relation("DemoReportAdmin")
-  matchesSubmitted           Match[]
-  mapBanActions              MapBanAction[]
-  championshipParticipants   ChampionshipParticipant[]
-  championshipMatchesPlayer1 ChampionshipMatch[]       @relation("Player1")
-  championshipMatchesPlayer2 ChampionshipMatch[]       @relation("Player2")
-  championshipMatchesWinner  ChampionshipMatch[]       @relation("Winner")
-  championshipMatchesLoser   ChampionshipMatch[]       @relation("Loser")
-  championshipsWon           Championship[]
-  fightNightPlayer1          FightNightMatchup[]       @relation("FightNightPlayer1")
-  fightNightPlayer2          FightNightMatchup[]       @relation("FightNightPlayer2")
-  fightNightWinner           FightNightMatchup[]       @relation("FightNightWinner")
+  demos Demo[]
 
-  @@map("users")
+  @@map("tournaments")
+}
+
+model FightNight {
+  id          Int       @id @default(autoincrement())
+  card        String?
+  description String?
+  prizepool   Float     @default(0)
+  startedAt   DateTime? @map("started_at")
+
+  matchups FightNightMatchup[]
+
+  @@map("fight_night")
+}
+
+model FightNightMatchup {
+  id             Int     @id @default(autoincrement())
+  fightNightId   Int?    @map("fight_night_id")
+  player1SteamId String? @map("player1_steam_id")
+  player2SteamId String? @map("player2_steam_id")
+  orderNum       Int     @map("order_num")
+  winnerId       String? @map("winner_id")
+  winnerScore    Int?    @map("winner_score")
+  loserScore     Int?    @map("loser_score")
+  boSeries       Int     @default(3) @map("bo_series")
+
+  fightNight FightNight? @relation(fields: [fightNightId], references: [id])
+  player1    User?       @relation("FightNightPlayer1", fields: [player1SteamId], references: [steamId])
+  player2    User?       @relation("FightNightPlayer2", fields: [player2SteamId], references: [steamId])
+  winner     User?       @relation("FightNightWinner", fields: [winnerId], references: [steamId])
+  demos      Demo[]
+  games      Game[]
+
+  @@map("fight_night_matchups")
+}
+
+model Demo {
+  id            Int      @id @default(autoincrement())
+  file          String
+  playerSteamId String?  @map("player_steam_id")
+  submittedBy   String?  @map("submitted_by")
+  submittedAt   DateTime @default(now()) @map("submitted_at")
+  matchId       Int?     @map("match_id")
+  tournamentId  Int?     @map("tournament_id")
+  fightNightId  Int?     @map("fight_night_id")
+  title         String?
+  description   String?
+
+  player            User?              @relation("DemoPlayer", fields: [playerSteamId], references: [steamId])
+  submitter         User?              @relation("DemoSubmitter", fields: [submittedBy], references: [steamId])
+  match             Match?             @relation(fields: [matchId], references: [id])
+  tournament        Tournament?        @relation(fields: [tournamentId], references: [id])
+  fightNightMatchup FightNightMatchup? @relation(fields: [fightNightId], references: [id])
+  reports           DemoReport[]
+
+  @@map("demos")
+}
+
+model DemoReport {
+  id            Int        @id @default(autoincrement())
+  demoId        Int        @map("demo_id")
+  reportedBy    String?    @map("reported_by")
+  reportedAt    DateTime   @default(now()) @map("reported_at")
+  status        DemoStatus @default(REVIEW)
+  description   String?
+  adminId       String?    @map("admin_id")
+  adminComments String?    @map("admin_comments")
+
+  demo     Demo  @relation(fields: [demoId], references: [id])
+  reporter User? @relation("DemoReporter", fields: [reportedBy], references: [steamId])
+  admin    User? @relation("DemoReportAdmin", fields: [adminId], references: [steamId])
+
+  @@map("demo_report")
 }
 
 model Player {
@@ -140,34 +184,75 @@ model Player {
   @@map("players")
 }
 
+model User {
+  steamId         String    @id @map("steam_id")
+  steamUsername   String    @map("steam_username")
+  steamAvatar     String?   @map("steam_avatar")
+  permissionLevel UserRole  @default(GUEST) @map("permission_level")
+  banStatus       BanStatus @default(NONE) @map("ban_status")
+  nameOverride    Int       @default(0) @map("name_override")
+
+  discord                  Discord?
+  punishmentsReceived      Punishment[]              @relation("PunishedPlayer")
+  punishmentsGiven         Punishment[]              @relation("Punisher")
+  threads                  Thread[]
+  posts                    Post[]
+  activities               Activity[]
+  moderator                Moderator?
+  matchesSubmitted         Match[]
+  matchComms               MatchComm[]
+  pendingTeams             PendingPlayer[]
+  deniedFromTeams          DeniedPlayer[]
+  teamsPlayed              PlayerInTeam[]
+  paymentsMadeFor          Payment[]                 @relation("PaymentFor")
+  paymentsMadeBy           Payment[]                 @relation("PaymentBy")
+  paymentTrackers          PaymentTracker[]
+  demosAsPlayer            Demo[]                    @relation("DemoPlayer")
+  demosSubmitted           Demo[]                    @relation("DemoSubmitter")
+  demoReportsSubmitted     DemoReport[]              @relation("DemoReporter")
+  demoReportsHandled       DemoReport[]              @relation("DemoReportAdmin")
+  mapBanActions            MapBanAction[]
+  notifications            Notification[]
+  fightNightPlayer1        FightNightMatchup[]       @relation("FightNightPlayer1")
+  fightNightPlayer2        FightNightMatchup[]       @relation("FightNightPlayer2")
+  fightNightWinner         FightNightMatchup[]       @relation("FightNightWinner")
+  championshipsWon         Championship[]
+  championshipParticipants ChampionshipParticipant[]
+  championshipMatchPlayer1 ChampionshipMatch[]       @relation("ChampionshipPlayer1")
+  championshipMatchPlayer2 ChampionshipMatch[]       @relation("ChampionshipPlayer2")
+  championshipMatchWinner  ChampionshipMatch[]       @relation("ChampionshipWinner")
+  championshipMatchLoser   ChampionshipMatch[]       @relation("ChampionshipLoser")
+
+  @@map("users")
+}
+
 model Discord {
   discordId       String  @id @map("discord_id")
   discordUsername String? @map("discord_username")
   discordAvatar   String? @map("discord_avatar")
   playerSteamId   String? @unique @map("player_steam_id")
 
-  user User? @relation(fields: [playerSteamId], references: [steamId])
+  player User? @relation(fields: [playerSteamId], references: [steamId])
 
   @@map("discord")
 }
 
 model Punishment {
-  id            Int     @id @default(autoincrement())
-  playerSteamId String? @map("player_steam_id")
-  punishedBy    String? @map("punished_by")
+  id            Int       @id @default(autoincrement())
+  playerSteamId String?   @map("player_steam_id")
+  punishedBy    String?   @map("punished_by")
   duration      Int?
-  startDateTime Int?    @map("start_date_time")
+  startDateTime Int?      @map("start_date_time")
   status        Int?
-  severity      Int?
+  severity      Severity?
   reason        String?
 
-  player   User? @relation("PunishmentReceiver", fields: [playerSteamId], references: [steamId])
-  punisher User? @relation("PunishmentGiver", fields: [punishedBy], references: [steamId])
+  player   User? @relation("PunishedPlayer", fields: [playerSteamId], references: [steamId])
+  punisher User? @relation("Punisher", fields: [punishedBy], references: [steamId])
 
   @@map("punishment")
 }
 
-// Community Models
 model Thread {
   id         Int      @id @default(autoincrement())
   title      String
@@ -192,7 +277,7 @@ model Post {
   owner     String?
   hidden    Int      @default(0)
 
-  threadObj Thread @relation(fields: [thread], references: [id])
+  threadRel Thread @relation(fields: [thread], references: [id])
   user      User?  @relation(fields: [owner], references: [steamId])
 
   @@map("posts")
@@ -212,7 +297,7 @@ model Activity {
 
 model Moderator {
   steamId    String @id @map("steam_id")
-  staffType  Int?   @map("staff_type") // 0 = head admin, 1 = normal admin
+  staffType  Int?   @map("staff_type")
   divisionId Int?   @map("division_id")
 
   user     User      @relation(fields: [steamId], references: [steamId])
@@ -221,16 +306,18 @@ model Moderator {
   @@map("moderators")
 }
 
-// League Structure Models
-model Region {
-  id     Int    @id @default(autoincrement())
-  name   String
-  hidden Int    @default(0)
+model Arena {
+  id         Int     @id @default(autoincrement())
+  name       String
+  avatar     String?
+  playoffMap Int     @default(0) @map("playoff_map")
 
-  seasons Season[]
-  teams   Team[]
+  games             Game[]
+  mapsInPool        MapInPool[]
+  mapBanActions     MapBanAction[]
+  championshipGames ChampionshipGame[]
 
-  @@map("regions")
+  @@map("arenas")
 }
 
 model Season {
@@ -240,31 +327,18 @@ model Season {
   regionId  Int @map("region_id")
 
   region          Region           @relation(fields: [regionId], references: [id])
+  playoffs        Playoff[]
   teams           Team[]
   matches         Match[]
-  playoffs        Playoff[]
-  teamsHistory    TeamsHistory[]
+  teamsHistory    TeamHistory[]
   paymentTrackers PaymentTracker[]
-  globalNa        Global[]         @relation("GlobalNaSeason")
-  globalEu        Global[]         @relation("GlobalEuSeason")
-  globalAus       Global[]         @relation("GlobalAusSeason")
-  globalSa        Global[]         @relation("GlobalSaSeason")
-  globalAsia      Global[]         @relation("GlobalAsiaSeason")
+  globalNA        Global[]         @relation("NASignupSeason")
+  globalEU        Global[]         @relation("EUSignupSeason")
+  globalAUS       Global[]         @relation("AUSSignupSeason")
+  globalSA        Global[]         @relation("SASignupSeason")
+  globalASIA      Global[]         @relation("ASIASignupSeason")
 
   @@map("seasons")
-}
-
-model Division {
-  id         Int    @id @default(autoincrement())
-  name       String
-  signupCost Float  @default(0.00) @map("signup_cost")
-  hidden     Int    @default(0)
-
-  teams        Team[]
-  moderators   Moderator[]
-  teamsHistory TeamsHistory[]
-
-  @@map("divisions")
 }
 
 model Playoff {
@@ -280,46 +354,44 @@ model Playoff {
   @@map("playoffs")
 }
 
-// Team Models
 model Team {
-  id                  Int      @id @default(autoincrement())
+  id                  Int        @id @default(autoincrement())
   name                String
   acronym             String?
   avatar              String?
-  wins                Int      @default(0)
-  losses              Int      @default(0)
-  gamesWon            Int      @default(0) @map("games_won")
-  gamesLost           Int      @default(0) @map("games_lost")
-  pointsScored        Int      @default(0) @map("points_scored")
-  pointsScoredAgainst Int      @default(0) @map("points_scored_against")
-  divisionId          Int?     @map("division_id")
-  regionId            Int?     @map("region_id")
-  seasonId            Int?     @map("season_id")
-  is1v1               Int      @default(0) @map("is_1v1")
-  status              Int      @default(0)
-  paymentStatus       Int      @default(0) @map("payment_status")
-  joinPassword        String?  @map("join_password")
-  createdAt           DateTime @default(now()) @map("created_at")
+  wins                Int        @default(0)
+  losses              Int        @default(0)
+  gamesWon            Int        @default(0) @map("games_won")
+  gamesLost           Int        @default(0) @map("games_lost")
+  pointsScored        Int        @default(0) @map("points_scored")
+  pointsScoredAgainst Int        @default(0) @map("points_scored_against")
+  divisionId          Int?       @map("division_id")
+  regionId            Int?       @map("region_id")
+  seasonId            Int?       @map("season_id")
+  is1v1               Int        @default(0) @map("is_1v1")
+  status              TeamStatus @default(UNREADY)
+  paymentStatus       Int        @default(0) @map("payment_status")
+  joinPassword        String?    @map("join_password")
+  createdAt           DateTime   @default(now()) @map("created_at")
 
-  division Division? @relation(fields: [divisionId], references: [id])
-  region   Region?   @relation(fields: [regionId], references: [id])
-  season   Season?   @relation(fields: [seasonId], references: [id])
-
-  players         PlayerInTeam[]
-  pendingPlayers  PendingPlayer[]
-  deniedPlayers   DeniedPlayer[]
-  teamnameHistory TeamnameHistory[]
-  homeMatches     Match[]           @relation("HomeTeam")
-  awayMatches     Match[]           @relation("AwayTeam")
-  wonMatches      Match[]           @relation("WinnerTeam")
-  payments        Payment[]
-  mapBanActions   MapBanAction[]
-  teamsHistory    TeamsHistory[]
+  division       Division?         @relation(fields: [divisionId], references: [id])
+  region         Region?           @relation(fields: [regionId], references: [id])
+  season         Season?           @relation(fields: [seasonId], references: [id])
+  homeMatches    Match[]           @relation("HomeTeam")
+  awayMatches    Match[]           @relation("AwayTeam")
+  wonMatches     Match[]           @relation("WinnerTeam")
+  history        TeamHistory[]
+  nameHistory    TeamNameHistory[]
+  players        PlayerInTeam[]
+  pendingPlayers PendingPlayer[]
+  deniedPlayers  DeniedPlayer[]
+  payments       Payment[]
+  mapBanActions  MapBanAction[]
 
   @@map("teams")
 }
 
-model TeamsHistory {
+model TeamHistory {
   id                  Int      @id @default(autoincrement())
   teamId              Int      @map("team_id")
   name                String
@@ -340,99 +412,127 @@ model TeamsHistory {
   joinPassword        String?  @map("join_password")
   createdAt           DateTime @default(now()) @map("created_at")
 
-  team     Team      @relation(fields: [teamId], references: [id])
-  division Division? @relation(fields: [divisionId], references: [id])
-  season   Season    @relation(fields: [seasonId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id])
 
   @@map("teams_history")
 }
 
-model PlayerInTeam {
-  playerSteamId   String   @map("player_steam_id")
-  teamId          Int      @map("team_id")
-  active          Int      @default(1)
-  permissionLevel Int      @default(0) @map("permission_level")
-  paymentStatus   Int      @default(0) @map("payment_status")
-  startedAt       DateTime @default(now()) @map("started_at")
-  leftAt          String   @default("0") @map("left_at")
-
-  player User @relation(fields: [playerSteamId], references: [steamId])
-  team   Team @relation(fields: [teamId], references: [id])
-
-  @@id([playerSteamId, teamId])
-  @@map("players_in_teams")
-}
-
-model PendingPlayer {
-  playerSteamId String @map("player_steam_id")
-  teamId        Int    @map("team_id")
-  status        Int    @default(0)
-
-  player User @relation(fields: [playerSteamId], references: [steamId])
-  team   Team @relation(fields: [teamId], references: [id])
-
-  @@id([playerSteamId, teamId])
-  @@map("pending_players")
-}
-
-model DeniedPlayer {
-  playerSteamId String   @map("player_steam_id")
-  teamId        Int      @map("team_id")
-  reason        String?
-  adminId       String?  @map("admin_id")
-  deniedAt      DateTime @default(now()) @map("denied_at")
-
-  player User @relation(fields: [playerSteamId], references: [steamId])
-  team   Team @relation(fields: [teamId], references: [id])
-
-  @@id([playerSteamId, teamId])
-  @@map("denied_players")
-}
-
-model TeamnameHistory {
-  teamId     Int      @map("team_id")
-  name       String?
-  changeDate DateTime @default(now()) @map("change_date")
-
-  team Team @relation(fields: [teamId], references: [id])
-
-  @@id([teamId, changeDate])
-  @@map("teamname_history")
-}
-
-// Match Models
 model Match {
-  id            Int     @id @default(autoincrement())
-  homeTeamId    Int     @map("home_team_id")
-  awayTeamId    Int     @map("away_team_id")
-  winnerId      Int?    @map("winner_id")
-  winnerScore   Int?    @map("winner_score")
-  loserScore    Int?    @map("loser_score")
-  seasonId      Int     @map("season_id")
-  seasonNo      Int     @map("season_no")
-  playoffId     Int?    @map("playoff_id")
-  playoffRound  Int?    @map("playoff_round")
-  weekNo        Int?    @map("week_no")
-  boSeries      Int?    @map("bo_series")
-  boGames       Int?    @map("bo_games")
-  matchDateTime String? @map("match_date_time")
-  status        Int     @default(0)
-  submittedBy   String? @map("submitted_by")
-  submittedAt   Int?    @map("submitted_at")
+  id            Int         @id @default(autoincrement())
+  homeTeamId    Int         @map("home_team_id")
+  awayTeamId    Int         @map("away_team_id")
+  winnerId      Int?        @map("winner_id")
+  winnerScore   Int?        @map("winner_score")
+  loserScore    Int?        @map("loser_score")
+  seasonId      Int         @map("season_id")
+  seasonNo      Int         @map("season_no")
+  playoffId     Int?        @map("playoff_id")
+  playoffRound  Int?        @map("playoff_round")
+  weekNo        Int?        @map("week_no")
+  boSeries      Int?        @map("bo_series")
+  boGames       Int?        @map("bo_games")
+  matchDateTime DateTime?   @map("match_date_time")
+  status        MatchStatus @default(UNPLAYED)
+  submittedBy   String?     @map("submitted_by")
+  submittedAt   Int?        @map("submitted_at")
 
-  homeTeam  Team     @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam  Team     @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  winner    Team?    @relation("WinnerTeam", fields: [winnerId], references: [id])
-  season    Season   @relation(fields: [seasonId], references: [id])
-  playoff   Playoff? @relation(fields: [playoffId], references: [id])
-  submitter User?    @relation(fields: [submittedBy], references: [steamId])
-
-  games        Game[]
-  matchComms   MatchComm[]
+  homeTeam     Team          @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam     Team          @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  winner       Team?         @relation("WinnerTeam", fields: [winnerId], references: [id])
+  season       Season        @relation(fields: [seasonId], references: [id])
+  playoff      Playoff?      @relation(fields: [playoffId], references: [id])
+  submitter    User?         @relation(fields: [submittedBy], references: [steamId])
   demos        Demo[]
+  matchComms   MatchComm[]
+  games        Game[]
   matchMapBans MatchMapBan[]
 
   @@map("matches")
+}
+
+model Global {
+  id                 Int  @id @default(autoincrement())
+  leagueFees         Int  @default(0) @map("league_fees")
+  signupClosed       Int  @default(0) @map("signup_closed")
+  rosterLocked       Int  @default(0) @map("roster_locked")
+  paymentRequired    Int  @default(0) @map("payment_required")
+  naSignupSeasonId   Int? @map("na_signup_season_id")
+  euSignupSeasonId   Int? @map("eu_signup_season_id")
+  ausSignupSeasonId  Int? @map("aus_signup_season_id")
+  saSignupSeasonId   Int? @map("sa_signup_season_id")
+  asiaSignupSeasonId Int? @map("asia_signup_season_id")
+
+  naSignupSeason   Season? @relation("NASignupSeason", fields: [naSignupSeasonId], references: [id])
+  euSignupSeason   Season? @relation("EUSignupSeason", fields: [euSignupSeasonId], references: [id])
+  ausSignupSeason  Season? @relation("AUSSignupSeason", fields: [ausSignupSeasonId], references: [id])
+  saSignupSeason   Season? @relation("SASignupSeason", fields: [saSignupSeasonId], references: [id])
+  asiaSignupSeason Season? @relation("ASIASignupSeason", fields: [asiaSignupSeasonId], references: [id])
+
+  @@map("global")
+}
+
+model LeagueInfo {
+  id                 Int      @id @default(autoincrement())
+  intro              String
+  description        String
+  signupsDates       String   @map("signups_dates")
+  regularSeasonDates String   @map("regular_season_dates")
+  playoffsDates      String   @map("playoffs_dates")
+  rostersLockDate    String   @map("rosters_lock_date")
+  format             String
+  matchTimes         String   @map("match_times")
+  schedule           String
+  playoffsFormat     String   @map("playoffs_format")
+  lastUpdated        DateTime @default(now()) @map("last_updated")
+
+  @@map("league_info")
+}
+
+model Announcement {
+  id      Int    @id @default(autoincrement())
+  content String
+  visible Int    @default(0)
+
+  @@map("announcements")
+}
+
+model Division {
+  id         Int    @id @default(autoincrement())
+  name       String
+  signupCost Float  @default(0.00) @map("signup_cost")
+  hidden     Int    @default(0)
+
+  teams      Team[]
+  moderators Moderator[]
+
+  @@map("divisions")
+}
+
+model Region {
+  id     Int    @id @default(autoincrement())
+  name   String
+  hidden Int    @default(0)
+
+  seasons Season[]
+  teams   Team[]
+
+  @@map("regions")
+}
+
+model MatchComm {
+  id               Int     @id @default(autoincrement())
+  content          String?
+  reschedule       String?
+  rescheduleStatus Int?    @map("reschedule_status")
+  createdAt        Int?    @map("created_At")
+  matchId          Int     @map("match_id")
+  owner            String?
+
+  match Match @relation(fields: [matchId], references: [id])
+  user  User? @relation(fields: [owner], references: [steamId])
+
+  @@map("match_comms")
 }
 
 model Game {
@@ -451,34 +551,87 @@ model Game {
   @@map("games")
 }
 
-model MatchComm {
-  id               Int     @id @default(autoincrement())
-  content          String?
-  reschedule       String?
-  rescheduleStatus Int?    @map("reschedule_status")
-  createdAt        Int?    @map("created_At")
-  matchId          Int     @map("match_id")
-  owner            String?
+model PendingPlayer {
+  playerSteamId String @map("player_steam_id")
+  teamId        Int    @map("team_id")
+  status        Int    @default(0)
 
-  match Match @relation(fields: [matchId], references: [id])
-  user  User? @relation(fields: [owner], references: [steamId])
+  player User @relation(fields: [playerSteamId], references: [steamId])
+  team   Team @relation(fields: [teamId], references: [id])
 
-  @@map("match_comms")
+  @@id([playerSteamId, teamId])
+  @@map("pending_players")
 }
 
-// Arena/Map Models
-model Arena {
-  id         Int     @id @default(autoincrement())
+model DeniedPlayer {
+  id            Int      @id @default(autoincrement())
+  playerSteamId String   @map("player_steam_id")
+  teamId        Int      @map("team_id")
+  reason        String?
+  adminId       String?  @map("admin_id")
+  deniedAt      DateTime @default(now()) @map("denied_at")
+
+  player User @relation(fields: [playerSteamId], references: [steamId])
+  team   Team @relation(fields: [teamId], references: [id])
+
+  @@map("denied_players")
+}
+
+model TeamNameHistory {
+  id         Int      @id @default(autoincrement())
+  teamId     Int      @map("team_id")
   name       String
-  avatar     String?
-  playoffMap Int     @default(0) @map("playoff_map")
+  changeDate DateTime @default(now()) @map("change_date")
 
-  games             Game[]
-  mapsInPool        MapInPool[]
-  mapBanActions     MapBanAction[]
-  championshipGames ChampionshipGame[]
+  team Team @relation(fields: [teamId], references: [id])
 
-  @@map("arenas")
+  @@map("teamname_history")
+}
+
+model PlayerInTeam {
+  playerSteamId   String   @map("player_steam_id")
+  teamId          Int      @map("team_id")
+  active          Int      @default(1)
+  permissionLevel Int      @default(0) @map("permission_level")
+  paymentStatus   Int      @default(0) @map("payment_status")
+  startedAt       DateTime @default(now()) @map("started_at")
+  leftAt          String   @default("0") @map("left_at")
+
+  player User @relation(fields: [playerSteamId], references: [steamId])
+  team   Team @relation(fields: [teamId], references: [id])
+
+  @@id([playerSteamId, teamId])
+  @@map("players_in_teams")
+}
+
+model Payment {
+  paymentId    String  @id @map("payment_id")
+  purchasedFor String  @map("purchased_for")
+  purchasedBy  String  @map("purchased_by")
+  amount       String
+  currency     String?
+  purchaseDate String  @map("purchase_date")
+  description  String?
+  teamId       Int?    @map("team_id")
+
+  forUser User  @relation("PaymentFor", fields: [purchasedFor], references: [steamId])
+  byUser  User  @relation("PaymentBy", fields: [purchasedBy], references: [steamId])
+  team    Team? @relation(fields: [teamId], references: [id])
+
+  @@map("payments")
+}
+
+model PaymentTracker {
+  id            Int    @id @default(autoincrement())
+  playerSteamId String @map("player_steam_id")
+  seasonId      Int    @map("season_id")
+  amount        Float
+
+  player User   @relation(fields: [playerSteamId], references: [steamId])
+  season Season @relation(fields: [seasonId], references: [id])
+
+  @@unique([playerSteamId, seasonId])
+  @@map("payment_tracker")
 }
 
 model MapBan {
@@ -515,13 +668,13 @@ model MapInPool {
 }
 
 model MatchMapBan {
-  id               Int      @id @default(autoincrement())
-  matchId          Int?     @map("match_id")
-  poolId           Int?     @map("pool_id")
-  currentTurn      Int      @default(0) @map("current_turn")
-  banPhaseComplete Boolean  @default(false) @map("ban_phase_complete")
-  startedAt        DateTime @default(now()) @map("started_at")
-  completedAt      String?  @map("completed_at")
+  id               Int       @id @default(autoincrement())
+  matchId          Int?      @map("match_id")
+  poolId           Int?      @map("pool_id")
+  currentTurn      Int       @default(0) @map("current_turn")
+  banPhaseComplete Boolean   @default(false) @map("ban_phase_complete")
+  startedAt        DateTime  @default(now()) @map("started_at")
+  completedAt      DateTime? @map("completed_at")
 
   match   Match?         @relation(fields: [matchId], references: [id])
   pool    MapBanPool?    @relation(fields: [poolId], references: [id])
@@ -531,14 +684,14 @@ model MatchMapBan {
 }
 
 model MapBanAction {
-  id            Int      @id @default(autoincrement())
-  matchMapBanId Int?     @map("match_map_ban_id")
-  teamId        Int?     @map("team_id")
-  playerSteamId String?  @map("player_steam_id")
-  arenaId       Int?     @map("arena_id")
-  actionType    String   @map("action_type")
-  actionOrder   Int      @map("action_order")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id            Int              @id @default(autoincrement())
+  matchMapBanId Int?             @map("match_map_ban_id")
+  teamId        Int?             @map("team_id")
+  playerSteamId String?          @map("player_steam_id")
+  arenaId       Int?             @map("arena_id")
+  actionType    MapBanActionType @map("action_type")
+  actionOrder   Int              @map("action_order")
+  createdAt     DateTime         @default(now()) @map("created_at")
 
   matchMapBan MatchMapBan? @relation(fields: [matchMapBanId], references: [id])
   team        Team?        @relation(fields: [teamId], references: [id])
@@ -548,139 +701,26 @@ model MapBanAction {
   @@map("map_ban_actions")
 }
 
-// Payment Models
-model Payment {
-  paymentId    String  @id @map("payment_id")
-  purchasedFor String  @map("purchased_for")
-  purchasedBy  String  @map("purchased_by")
-  amount       String
-  currency     String?
-  purchaseDate String  @map("purchase_date")
-  description  String?
-  teamId       Int?    @map("team_id")
+model Notification {
+  id          Int              @id @default(autoincrement())
+  userSteamId String?          @map("user_steam_id")
+  type        NotificationType
+  url         String
+  isRead      Boolean          @default(false) @map("is_read")
+  createdAt   DateTime         @default(now()) @map("created_at")
 
-  forUser User  @relation("PaymentRecipient", fields: [purchasedFor], references: [steamId])
-  byUser  User  @relation("PaymentPurchaser", fields: [purchasedBy], references: [steamId])
-  team    Team? @relation(fields: [teamId], references: [id])
+  user User? @relation(fields: [userSteamId], references: [steamId])
 
-  @@map("payments")
+  @@map("notifications")
 }
 
-model PaymentTracker {
-  id            Int    @id @default(autoincrement())
-  playerSteamId String @map("player_steam_id")
-  seasonId      Int    @map("season_id")
-  amount        Float
-
-  player User   @relation(fields: [playerSteamId], references: [steamId])
-  season Season @relation(fields: [seasonId], references: [id])
-
-  @@unique([playerSteamId, seasonId])
-  @@map("payment_tracker")
-}
-
-// Demo Models
-model Demo {
-  id            Int      @id @default(autoincrement())
-  file          String
-  playerSteamId String?  @map("player_steam_id")
-  submittedBy   String?  @map("submitted_by")
-  submittedAt   DateTime @default(now()) @map("submitted_at")
-  matchId       Int?     @map("match_id")
-  tournamentId  Int?     @map("tournament_id")
-  fightNightId  Int?     @map("fight_night_id")
-  title         String?
-  description   String?
-
-  player            User?              @relation("DemoPlayer", fields: [playerSteamId], references: [steamId])
-  submitter         User?              @relation("DemoSubmitter", fields: [submittedBy], references: [steamId])
-  match             Match?             @relation(fields: [matchId], references: [id])
-  tournament        Tournament?        @relation(fields: [tournamentId], references: [id])
-  fightNightMatchup FightNightMatchup? @relation(fields: [fightNightId], references: [id])
-  reports           DemoReport[]
-
-  @@map("demos")
-}
-
-model DemoReport {
-  id            Int      @id @default(autoincrement())
-  demoId        Int      @map("demo_id")
-  reportedBy    String?  @map("reported_by")
-  reportedAt    DateTime @default(now()) @map("reported_at")
-  status        Int      @default(1)
-  description   String?
-  adminId       String?  @map("admin_id")
-  adminComments String?  @map("admin_comments")
-
-  demo     Demo  @relation(fields: [demoId], references: [id])
-  reporter User? @relation(fields: [reportedBy], references: [steamId])
-  admin    User? @relation("DemoReportAdmin", fields: [adminId], references: [steamId])
-
-  @@map("demo_report")
-}
-
-// Tournament Models
-model Tournament {
-  id                  Int     @id @default(autoincrement())
-  name                String
-  description         String?
-  bracketLink         String? @map("bracket_link")
-  avatar              String?
-  startedAt           String? @map("started_at")
-  winner1SteamId      String? @map("winner1_steam_id")
-  winner2SteamId      String? @map("winner2_steam_id")
-  secondPlace1SteamId String? @map("second_place1_steam_id")
-  secondPlace2SteamId String? @map("second_place2_steam_id")
-  thirdPlace1SteamId  String? @map("third_place1_steam_id")
-  thirdPlace2SteamId  String? @map("third_place2_steam_id")
-  isTeamTournament    Boolean @default(false) @map("is_team_tournament")
-
-  demos Demo[]
-
-  @@map("tournaments")
-}
-
-model FightNight {
-  id          Int     @id @default(autoincrement())
-  card        String?
-  description String?
-  prizepool   Float   @default(0)
-  startedAt   String? @map("started_at")
-
-  matchups FightNightMatchup[]
-
-  @@map("fight_night")
-}
-
-model FightNightMatchup {
-  id             Int     @id @default(autoincrement())
-  fightNightId   Int?    @map("fight_night_id")
-  player1SteamId String? @map("player1_steam_id")
-  player2SteamId String? @map("player2_steam_id")
-  orderNum       Int     @map("order_num")
-  winnerId       String? @map("winner_id")
-  winnerScore    Int?    @map("winner_score")
-  loserScore     Int?    @map("loser_score")
-  boSeries       Int     @default(3) @map("bo_series")
-
-  fightNight FightNight? @relation(fields: [fightNightId], references: [id])
-  player1    User?       @relation("FightNightPlayer1", fields: [player1SteamId], references: [steamId])
-  player2    User?       @relation("FightNightPlayer2", fields: [player2SteamId], references: [steamId])
-  winner     User?       @relation("FightNightWinner", fields: [winnerId], references: [steamId])
-  games      Game[]
-  demos      Demo[]
-
-  @@map("fight_night_matchups")
-}
-
-// Championship Models
 model Championship {
-  id        Int      @id @default(autoincrement())
+  id        Int                @id @default(autoincrement())
   name      String
-  startedAt DateTime @default(now()) @map("started_at")
-  endedAt   String?  @map("ended_at")
+  startedAt DateTime           @default(now()) @map("started_at")
+  endedAt   DateTime?          @map("ended_at")
   winner    String?
-  status    Int      @default(0)
+  status    ChampionshipStatus @default(REGISTRATION)
   avatar    String?
 
   winnerUser   User?                     @relation(fields: [winner], references: [steamId])
@@ -700,105 +740,45 @@ model ChampionshipParticipant {
   createdAt      DateTime @default(now()) @map("created_at")
 
   championship Championship? @relation(fields: [championshipId], references: [id])
-  user         User?         @relation(fields: [steamId], references: [steamId])
+  player       User?         @relation(fields: [steamId], references: [steamId])
 
   @@map("championship_participant")
 }
 
 model ChampionshipMatch {
-  id             Int      @id @default(autoincrement())
-  championshipId Int?     @map("championship_id")
-  player1Id      String?  @map("player1_id")
-  player2Id      String?  @map("player2_id")
-  winnerId       String?  @map("winner_id")
-  loserId        String?  @map("loser_id")
-  winnerScore    Int?     @map("winner_score")
-  loserScore     Int?     @map("loser_score")
-  boSeries       Int      @map("bo_series")
-  status         Int      @default(0)
-  createdAt      DateTime @default(now()) @map("created_at")
+  id             Int         @id @default(autoincrement())
+  championshipId Int?        @map("championship_id")
+  player1Id      String?     @map("player1_id")
+  player2Id      String?     @map("player2_id")
+  winnerId       String?     @map("winner_id")
+  loserId        String?     @map("loser_id")
+  winnerScore    Int?        @map("winner_score")
+  loserScore     Int?        @map("loser_score")
+  boSeries       Int         @map("bo_series")
+  status         MatchStatus @default(UNPLAYED)
+  createdAt      DateTime    @default(now()) @map("created_at")
 
   championship Championship?      @relation(fields: [championshipId], references: [id])
-  player1      User?              @relation("Player1", fields: [player1Id], references: [steamId])
-  player2      User?              @relation("Player2", fields: [player2Id], references: [steamId])
-  winner       User?              @relation("Winner", fields: [winnerId], references: [steamId])
-  loser        User?              @relation("Loser", fields: [loserId], references: [steamId])
+  player1      User?              @relation("ChampionshipPlayer1", fields: [player1Id], references: [steamId])
+  player2      User?              @relation("ChampionshipPlayer2", fields: [player2Id], references: [steamId])
+  winner       User?              @relation("ChampionshipWinner", fields: [winnerId], references: [steamId])
+  loser        User?              @relation("ChampionshipLoser", fields: [loserId], references: [steamId])
   games        ChampionshipGame[]
 
   @@map("championship_match")
 }
 
 model ChampionshipGame {
-  id                  Int     @id @default(autoincrement())
-  championshipMatchId Int     @map("championship_match_id")
-  homePlayerScore     Int?    @map("home_player_score")
-  awayPlayerScore     Int?    @map("away_player_score")
-  gameNumber          Int     @map("game_number")
-  arenaId             Int?    @map("arena_id")
-  playedAt            String? @map("played_at")
+  id                  Int       @id @default(autoincrement())
+  championshipMatchId Int       @map("championship_match_id")
+  homePlayerScore     Int?      @map("home_player_score")
+  awayPlayerScore     Int?      @map("away_player_score")
+  gameNumber          Int       @map("game_number")
+  arenaId             Int?      @map("arena_id")
+  playedAt            DateTime? @map("played_at")
 
   match ChampionshipMatch @relation(fields: [championshipMatchId], references: [id])
   arena Arena?            @relation(fields: [arenaId], references: [id])
 
   @@map("championship_game")
-}
-
-// System Models
-model Notification {
-  id          Int      @id @default(autoincrement())
-  userSteamId String?  @map("user_steam_id")
-  type        Int
-  url         String
-  isRead      Boolean  @default(false) @map("is_read")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  user User? @relation(fields: [userSteamId], references: [steamId])
-
-  @@map("notifications")
-}
-
-model Global {
-  id                 Int  @id @default(autoincrement())
-  leagueFees         Int  @default(0) @map("league_fees")
-  signupClosed       Int  @default(0) @map("signup_closed")
-  rosterLocked       Int  @default(0) @map("roster_locked")
-  paymentRequired    Int  @default(0) @map("payment_required")
-  naSignupSeasonId   Int? @map("na_signup_season_id")
-  euSignupSeasonId   Int? @map("eu_signup_season_id")
-  ausSignupSeasonId  Int? @map("aus_signup_season_id")
-  saSignupSeasonId   Int? @map("sa_signup_season_id")
-  asiaSignupSeasonId Int? @map("asia_signup_season_id")
-
-  naSignupSeason   Season? @relation("GlobalNaSeason", fields: [naSignupSeasonId], references: [id])
-  euSignupSeason   Season? @relation("GlobalEuSeason", fields: [euSignupSeasonId], references: [id])
-  ausSignupSeason  Season? @relation("GlobalAusSeason", fields: [ausSignupSeasonId], references: [id])
-  saSignupSeason   Season? @relation("GlobalSaSeason", fields: [saSignupSeasonId], references: [id])
-  asiaSignupSeason Season? @relation("GlobalAsiaSeason", fields: [asiaSignupSeasonId], references: [id])
-
-  @@map("global")
-}
-
-model LeagueInfo {
-  id                 Int      @id @default(autoincrement())
-  intro              String
-  description        String
-  signupsDates       String   @map("signups_dates")
-  regularSeasonDates String   @map("regular_season_dates")
-  playoffsDates      String   @map("playoffs_dates")
-  rostersLockDate    String   @map("rosters_lock_date")
-  format             String
-  matchTimes         String   @map("match_times")
-  schedule           String
-  playoffsFormat     String   @map("playoffs_format")
-  lastUpdated        DateTime @default(now()) @map("last_updated")
-
-  @@map("league_info")
-}
-
-model Announcement {
-  id      Int    @id @default(autoincrement())
-  content String
-  visible Int    @default(0)
-
-  @@map("announcements")
 }

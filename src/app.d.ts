@@ -4,7 +4,7 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			user: import('$lib/server/session').SessionUser | null;
+			user: import('$lib/types/user').SessionUser | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

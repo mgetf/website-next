@@ -5,17 +5,12 @@
 
 import type { Cookies } from '@sveltejs/kit';
 import { dev } from '$app/environment';
+// Import shared types that work on both client and server
+export type { SessionUser } from '$lib/types/user';
+import type { SessionUser } from '$lib/types/user';
 
 const SESSION_COOKIE_NAME = 'mge_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-
-export interface SessionUser {
-	steamId: string;
-	steamUsername: string;
-	steamAvatar: string;
-	permissionLevel: number;
-	banStatus: number;
-}
 
 /**
  * Get user session from cookies

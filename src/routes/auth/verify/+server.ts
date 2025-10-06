@@ -9,7 +9,8 @@ import { createSteamAuth } from '$lib/server/auth/steam';
 import { setSession, getAndClearRedirectUrl } from '$lib/server/session';
 import { prisma } from '$lib/server/db';
 import { getPermissionLevel } from '$lib/server/auth/permissions';
-import { BanStatus, UserRole } from '@prisma/client';
+import { BanStatus as PrismaBanStatus, UserRole as PrismaUserRole } from '@prisma/client';
+import { BanStatus, UserRole } from '$lib/types/user';
 
 export const GET: RequestHandler = async ({ cookies, request }) => {
 	try {
@@ -43,7 +44,7 @@ export const GET: RequestHandler = async ({ cookies, request }) => {
 					steamId: steamUser.steamid,
 					steamUsername: steamUser.personaname,
 					steamAvatar: steamUser.avatarfull,
-					permissionLevel: UserRole.GUEST
+					permissionLevel: PrismaUserRole.GUEST
 				}
 			});
 		} else {
@@ -64,23 +65,23 @@ export const GET: RequestHandler = async ({ cookies, request }) => {
 
 			// Check if user is banned (non-admins only)
 			if (
-				existingUser.permissionLevel !== UserRole.ADMIN &&
-				existingUser.banStatus !== BanStatus.NONE
+				existingUser.permissionLevel !== PrismaUserRole.ADMIN &&
+				existingUser.banStatus !== PrismaBanStatus.NONE
 			) {
 				throw error(403, 'Your account has been suspended. Please contact an administrator.');
 			}
 		}
 
-		// Create session
+		// Create session (convert Prisma enums to shared enums)
 		const sessionUser = {
 			steamId: steamUser.steamid,
 			steamUsername: existingUser?.steamUsername ?? steamUser.personaname,
 			steamAvatar: existingUser?.steamAvatar ?? steamUser.avatarfull,
-			permissionLevel: existingUser?.permissionLevel ?? UserRole.GUEST,
-			banStatus: existingUser?.banStatus ?? BanStatus.NONE
+			permissionLevel: (existingUser?.permissionLevel as unknown as UserRole) ?? UserRole.GUEST,
+			banStatus: (existingUser?.banStatus as unknown as BanStatus) ?? BanStatus.NONE
 		};
 
-		setSession(cookies, sessionUser as any);
+		setSession(cookies, sessionUser);
 
 		// Redirect to original page or home
 		const returnUrl = getAndClearRedirectUrl(cookies);

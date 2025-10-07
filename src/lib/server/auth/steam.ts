@@ -4,7 +4,7 @@
  */
 
 import SteamAuth from 'node-steam-openid';
-import { STEAM_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 /**
  * Get domain from request headers
@@ -25,7 +25,7 @@ export function createSteamAuth(request: Request): SteamAuth {
 	return new SteamAuth({
 		realm: domain,
 		returnUrl: `${domain}/auth/verify`,
-		apiKey: STEAM_API_KEY
+		apiKey: env.STEAM_API_KEY
 	});
 }
 

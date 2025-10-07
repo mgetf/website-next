@@ -2,7 +2,8 @@
 	import type { SessionUser } from '$lib/types/user';
 	import NotificationDropdown from './NotificationDropdown.svelte';
 	import UserDropdown from './UserDropdown.svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
+	import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
 	
 	type Props = {
 		user: SessionUser | null;
@@ -21,7 +22,7 @@
 	let mobileMenuOpen = $state(false);
 	
 	// Get current page path for redirect after login
-	const loginUrl = $derived(`/auth/login?redirect=${encodeURIComponent($page.url.pathname)}`);
+	const loginUrl = $derived(`/auth/login?redirect=${encodeURIComponent(page.url.pathname)}`);
 	
 	function toggleMobileMenu() {
 		mobileMenuOpen = !mobileMenuOpen;
@@ -71,7 +72,7 @@
 						title="Sign in through Steam"
 					>
 						<img 
-							src="/signin-thru-steam.png" 
+							src={signInThroughSteam} 
 							alt="Sign in through Steam" 
 							class="h-6"
 						/>
@@ -137,7 +138,7 @@
 							class="block px-4 py-2 hover:opacity-80 transition-opacity"
 						>
 							<img 
-								src="/signin-thru-steam.png" 
+								src={signInThroughSteam} 
 								alt="Sign in through Steam" 
 								class="h-6"
 							/>

@@ -1,13 +1,18 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { PageData, ActionData } from './$types';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
+	import { enhance } from '$app/forms';
 	
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+	
+	let editingTeam: typeof data.teams[0] | null = $state(null);
+	let deletingTeam: typeof data.teams[0] | null = $state(null);
+	let isSubmitting = $state(false);
 	
 	// Build filter URL
 	function updateFilters(updates: Record<string, string>) {
-		const params = new URLSearchParams($page.url.searchParams);
+		const params = new URLSearchParams(page.url.searchParams);
 		
 		// Update/remove parameters
 		Object.entries(updates).forEach(([key, value]) => {
@@ -58,6 +63,32 @@
 	function goToPage(pageNum: number) {
 		updateFilters({ page: pageNum.toString() });
 	}
+	
+	// Modal functions
+	function openEditModal(team: typeof data.teams[0]) {
+		editingTeam = { ...team };
+	}
+	
+	function closeEditModal() {
+		editingTeam = null;
+	}
+	
+	function openDeleteModal(team: typeof data.teams[0]) {
+		deletingTeam = team;
+	}
+	
+	function closeDeleteModal() {
+		deletingTeam = null;
+	}
+	
+	// Status to integer mapping for form
+	const statusToInt: Record<string, number> = {
+		'DEAD': -1,
+		'UNREADY': 0,
+		'PENDING': 1,
+		'READY': 2,
+		'PLACEMENT': 3
+	};
 	
 	// Generate page numbers for pagination
 	const pageNumbers = $derived(() => {
@@ -251,8 +282,17 @@
 									>
 										View
 									</a>
-									<button class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors">
+									<button 
+										onclick={() => openEditModal(team)}
+										class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors"
+									>
 										Edit
+									</button>
+									<button 
+										onclick={() => openDeleteModal(team)}
+										class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
+									>
+										Delete
 									</button>
 								</div>
 							</td>
@@ -320,5 +360,256 @@
 			Showing {data.teams.length} of {data.pagination.totalTeams} teams
 		</div>
 	{/if}
+	
+	<!-- Success/Error Messages -->
+	{#if form?.success && form?.message}
+		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50">
+			<p class="text-green-400">{form.message}</p>
+		</div>
+	{/if}
+	
+	{#if form?.error && !editingTeam && !deletingTeam}
+		<div class="fixed top-4 right-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg shadow-lg z-50">
+			<p class="text-red-400">{form.error}</p>
+		</div>
+	{/if}
 </div>
+
+<!-- Edit Modal -->
+{#if editingTeam}
+	<div 
+		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+		onclick={closeEditModal}
+		onkeydown={(e) => e.key === 'Escape' && closeEditModal()}
+		role="button"
+		tabindex="-1"
+	>
+		<div 
+			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" 
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="dialog"
+			aria-modal="true"
+			tabindex="0"
+		>
+			<div class="flex items-center justify-between mb-4">
+				<h3 class="text-xl font-bold text-white">Edit Team: {editingTeam.name}</h3>
+				<button 
+					onclick={closeEditModal}
+					class="text-gray-400 hover:text-white transition-colors"
+				>
+					✕
+				</button>
+			</div>
+			
+			{#if form?.error}
+				<div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+					<p class="text-red-400 text-sm">{form.error}</p>
+				</div>
+			{/if}
+			
+			<form 
+				method="POST" 
+				action="?/updateTeam"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ update, result }) => {
+						await update();
+						isSubmitting = false;
+						if (result.type === 'success') {
+							closeEditModal();
+						}
+					};
+				}}
+			>
+				<input type="hidden" name="teamId" value={editingTeam.id} />
+				
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div class="md:col-span-2">
+						<label for="edit-name" class="block text-sm font-medium text-gray-300 mb-2">Team Name</label>
+						<input
+							id="edit-name"
+							name="name"
+							type="text"
+							bind:value={editingTeam.name}
+							required
+							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+						/>
+					</div>
+					
+					<div class="md:col-span-2">
+						<label for="edit-acronym" class="block text-sm font-medium text-gray-300 mb-2">Acronym</label>
+						<input
+							id="edit-acronym"
+							name="acronym"
+							type="text"
+							bind:value={editingTeam.acronym}
+							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+						/>
+					</div>
+					
+					<div>
+						<label for="edit-seasonId" class="block text-sm font-medium text-gray-300 mb-2">Season</label>
+						<select
+							id="edit-seasonId"
+							name="seasonId"
+							value={editingTeam.season?.id || 'none'}
+							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+						>
+							<option value="none">No Season</option>
+							{#each data.seasons as season}
+								<option value={season.id}>Season {season.seasonNum}</option>
+							{/each}
+						</select>
+					</div>
+					
+					<div>
+						<label for="edit-divisionId" class="block text-sm font-medium text-gray-300 mb-2">Division</label>
+						<select
+							id="edit-divisionId"
+							name="divisionId"
+							value={editingTeam.division?.id || 'none'}
+							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+						>
+							<option value="none">No Division</option>
+							{#each data.divisions as division}
+								<option value={division.id}>{division.name}</option>
+							{/each}
+						</select>
+					</div>
+					
+					<div>
+						<label for="edit-regionId" class="block text-sm font-medium text-gray-300 mb-2">Region</label>
+						<select
+							id="edit-regionId"
+							name="regionId"
+							value={editingTeam.region?.id || 'none'}
+							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+						>
+							<option value="none">No Region</option>
+							{#each data.regions as region}
+								<option value={region.id}>{region.name}</option>
+							{/each}
+						</select>
+					</div>
+					
+					<div>
+						<label for="edit-status" class="block text-sm font-medium text-gray-300 mb-2">Status</label>
+						<select
+							id="edit-status"
+							name="status"
+							value={statusToInt[editingTeam.status]}
+							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+						>
+							<option value={-1}>Dead</option>
+							<option value={0}>Unready</option>
+							<option value={1}>Pending</option>
+							<option value={2}>Ready</option>
+							<option value={3}>Placement</option>
+						</select>
+					</div>
+				</div>
+				
+				<div class="mt-6 flex gap-3 justify-end">
+					<button 
+						type="button"
+						onclick={closeEditModal}
+						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+					>
+						Cancel
+					</button>
+					<button 
+						type="submit"
+						disabled={isSubmitting}
+						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+					>
+						{isSubmitting ? 'Saving...' : 'Save Changes'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Delete Confirmation Modal -->
+{#if deletingTeam}
+	<div 
+		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+		onclick={closeDeleteModal}
+		onkeydown={(e) => e.key === 'Escape' && closeDeleteModal()}
+		role="button"
+		tabindex="-1"
+	>
+		<div 
+			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="dialog"
+			aria-modal="true"
+			tabindex="0"
+		>
+			<div class="flex items-center justify-between mb-4">
+				<h3 class="text-xl font-bold text-white">Delete Team</h3>
+				<button 
+					onclick={closeDeleteModal}
+					class="text-gray-400 hover:text-white transition-colors"
+				>
+					✕
+				</button>
+			</div>
+			
+			{#if form?.error}
+				<div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+					<p class="text-red-400 text-sm">{form.error}</p>
+				</div>
+			{/if}
+			
+			<div class="mb-6">
+				<p class="text-gray-300 mb-4">
+					Are you sure you want to delete <strong class="text-white">{deletingTeam.name}</strong>?
+				</p>
+				
+				<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+					<p class="text-red-400 text-sm">
+						⚠️ This action cannot be undone. The team will be permanently deleted.
+					</p>
+				</div>
+			</div>
+			
+			<form 
+				method="POST" 
+				action="?/deleteTeam"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ update, result }) => {
+						await update();
+						isSubmitting = false;
+						if (result.type === 'success') {
+							closeDeleteModal();
+						}
+					};
+				}}
+			>
+				<input type="hidden" name="teamId" value={deletingTeam.id} />
+				
+				<div class="flex gap-3 justify-end">
+					<button 
+						type="button"
+						onclick={closeDeleteModal}
+						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+					>
+						Cancel
+					</button>
+					<button 
+						type="submit"
+						disabled={isSubmitting}
+						class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+					>
+						{isSubmitting ? 'Deleting...' : 'Delete Team'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
 

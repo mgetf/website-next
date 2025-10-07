@@ -19,7 +19,7 @@
 		{ label: 'Create Matches', href: '/admin/matches', icon: '⚔️', color: 'blue' },
 		{ label: 'Approve Teams', href: '/admin/teams', icon: '✅', color: 'green' },
 		{ label: 'Review Demos', href: '/admin/demos', icon: '📹', color: 'purple' },
-		{ label: 'Manage Season', href: '/admin/seasons', icon: '🏆', color: 'orange' }
+		{ label: 'Manage League', href: '/admin/league', icon: '🏆', color: 'orange' }
 	];
 	
 	function getActivityIcon(type: string) {

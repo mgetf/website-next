@@ -1,178 +1,39 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import type { PageData } from './$types';
 	
-	// Get team ID from URL params
-	const teamId = $page.params.id;
+	// Svelte 5 runes - get data from server
+	let { data }: { data: PageData } = $props();
 	
-	// Mock team data - will be replaced with real data later
-	const team = {
-		id: 5,
-		name: 'WARHAMMER',
-		tag: 'wrhm',
-		logoUrl: `https://picsum.photos/seed/WARHAMMER/200`,
-		division: 'PREMIER',
-		region: 'EU',
-		wins: 2,
-		losses: 0,
-		status: 'Ready',
-		createdAt: new Date('2025-04-26')
-	};
-	
-	// Current roster
-	const currentRoster = [
-		{
-			steamId: '76561198000000001',
-			name: 'ry4n',
-			avatar: 'https://picsum.photos/seed/ry4n/64',
-			joinedAt: new Date('2025-04-26'),
-			isPaid: true,
-			isLeader: true
-		},
-		{
-			steamId: '76561198000000002',
-			name: 'Fancy',
-			avatar: 'https://picsum.photos/seed/Fancy/64',
-			joinedAt: new Date('2025-04-26'),
-			isPaid: true,
-			isLeader: false
-		},
-		{
-			steamId: '76561198000000003',
-			name: 'lardox',
-			avatar: 'https://picsum.photos/seed/lardox/64',
-			joinedAt: new Date('2025-09-02'),
-			isPaid: false,
-			isLeader: false
-		}
-	];
-	
-	const pastRoster = [
-		{
-			steamId: '76561198000000004',
-			name: 'exPlayer1',
-			avatar: 'https://picsum.photos/seed/exPlayer1/64',
-			joinedAt: new Date('2025-03-15'),
-			leftAt: new Date('2025-04-20')
-		}
-	];
-	
-	// Matches organized by season
-	const matchesBySeason = [
-		{
-			season: 'Season 2',
-			matches: [
-				{
-					week: 'Week 1e',
-					opponent: 'Papa Tense',
-					result: 'W',
-					score: '3 - 0',
-					date: new Date('2025-05-10')
-				},
-				{
-					week: 'Week 11',
-					opponent: 'Avalon',
-					result: 'W',
-					score: '3 - 0',
-					date: new Date('2025-05-17')
-				}
-			]
-		},
-		{
-			season: 'Season 1',
-			matches: [
-				{
-					week: 'Week 1l',
-					opponent: null,
-					result: 'BYE',
-					score: 'BYE WEEK',
-					date: null
-				},
-				{
-					week: 'Week 2l',
-					opponent: 'Papa Tense',
-					result: 'W',
-					score: '3 - 0',
-					date: new Date('2025-03-20')
-				},
-				{
-					week: 'Week 3b',
-					opponent: 'abc123',
-					result: 'W',
-					score: '3 - 0',
-					date: new Date('2025-03-27')
-				},
-				{
-					week: 'Week 4l',
-					opponent: 'PRO PIRO',
-					result: 'W',
-					score: '3 - 0',
-					date: new Date('2025-04-03')
-				},
-				{
-					week: 'Week 5l',
-					opponent: 'MGE DOGS',
-					result: 'W',
-					score: '3 - 0',
-					date: new Date('2025-04-10')
-				},
-				{
-					week: 'Week 6a',
-					opponent: '/for fence',
-					result: 'W',
-					score: '3 - 2',
-					date: new Date('2025-04-17')
-				},
-				{
-					week: 'Week 7a',
-					opponent: 'PRO PIRO',
-					result: 'W',
-					score: '3 - 0',
-					date: new Date('2025-04-24')
-				},
-				{
-					week: 'Week 8l',
-					opponent: 'MGE DOGS',
-					result: 'W',
-					score: '3 - 0',
-					date: new Date('2025-05-01')
-				},
-				{
-					week: 'Round 1',
-					opponent: null,
-					result: 'BYE',
-					score: 'BYE WEEK',
-					date: null
-				},
-				{
-					week: 'Round 2',
-					opponent: '/for fence',
-					result: 'W',
-					score: '4 - 1',
-					date: new Date('2025-05-15')
-				},
-				{
-					week: 'Round 3',
-					opponent: 'Papa Tense',
-					result: 'W',
-					score: '4 - 0',
-					date: new Date('2025-05-22')
-				}
-			]
-		}
-	];
+	// Destructure for easier access
+	const { team, currentRoster, pastRoster, matchesBySeason } = data;
 	
 	// Format date helper
-	function formatDate(date: Date | null): string {
+	function formatDate(date: Date | string | null): string {
 		if (!date) return 'N/A';
-		return date.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' });
+		const dateObj = typeof date === 'string' ? new Date(date) : date;
+		return dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' });
 	}
 	
 	// Get result color
 	function getResultColor(result: string): string {
 		if (result === 'W') return 'text-green-400';
 		if (result === 'L') return 'text-red-400';
+		if (result === 'D') return 'text-yellow-400';
 		return 'text-gray-400';
 	}
+	
+	// Get team status badge color
+	function getStatusColor(status: string): string {
+		const statusStr = status.toString();
+		if (statusStr === 'READY') return 'bg-green-500/20 text-green-400 border-green-500/30';
+		if (statusStr === 'PENDING') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+		if (statusStr === 'UNREADY') return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+		return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+	}
+	
+	// Calculate win rate
+	const totalGames = team.wins + team.losses;
+	const winRate = totalGames > 0 ? ((team.wins / totalGames) * 100).toFixed(1) : '0.0';
 </script>
 
 <div class="min-h-screen pb-16">
@@ -182,11 +43,19 @@
 			<div class="flex flex-col md:flex-row items-center gap-8">
 				<!-- Team Logo -->
 				<div class="flex-shrink-0">
-					<img 
-						src={team.logoUrl} 
-						alt={team.name} 
-						class="w-32 h-32 rounded-lg border-4 border-zinc-700 shadow-2xl"
-					/>
+					{#if team.avatar}
+						<img 
+							src={team.avatar} 
+							alt={team.name} 
+							class="w-32 h-32 rounded-lg border-4 border-zinc-700 shadow-2xl object-cover"
+						/>
+					{:else}
+						<div class="w-32 h-32 rounded-lg border-4 border-zinc-700 shadow-2xl bg-zinc-800 flex items-center justify-center">
+							<span class="text-4xl font-black text-zinc-600">
+								{team.name.charAt(0)}
+							</span>
+						</div>
+					{/if}
 				</div>
 				
 				<!-- Team Info -->
@@ -194,16 +63,22 @@
 					<h1 class="text-5xl font-black text-white mb-2">
 						{team.name}
 					</h1>
-					<p class="text-2xl text-gray-400 mb-4">{team.tag}</p>
+					{#if team.acronym}
+						<p class="text-2xl text-gray-400 mb-4">{team.acronym}</p>
+					{/if}
 					
 					<div class="flex flex-wrap gap-3 justify-center md:justify-start mb-4">
-						<span class="px-4 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium border border-blue-500/30">
-							{team.division} ({team.region})
-						</span>
-						<span class="px-4 py-1.5 bg-zinc-800 text-white rounded-full text-sm font-medium">
-							{team.region}
-						</span>
-						<span class="px-4 py-1.5 bg-green-500/20 text-green-400 rounded-full text-sm font-medium border border-green-500/30">
+						{#if team.division && team.region}
+							<span class="px-4 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium border border-blue-500/30">
+								{team.division} ({team.region})
+							</span>
+						{/if}
+						{#if team.seasonNum}
+							<span class="px-4 py-1.5 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium border border-purple-500/30">
+								Season {team.seasonNum}
+							</span>
+						{/if}
+						<span class="px-4 py-1.5 rounded-full text-sm font-medium border {getStatusColor(team.status)}">
 							{team.status}
 						</span>
 					</div>
@@ -212,6 +87,11 @@
 						<div>
 							<span class="text-gray-400">Record:</span>
 							<span class="text-white font-medium ml-2">{team.wins} - {team.losses}</span>
+							<span class="text-gray-500 ml-1">({winRate}%)</span>
+						</div>
+						<div>
+							<span class="text-gray-400">Points:</span>
+							<span class="text-white font-medium ml-2">{team.pointsScored} - {team.pointsScoredAgainst}</span>
 						</div>
 						<div>
 							<span class="text-gray-400">Created:</span>
@@ -334,7 +214,11 @@
 												{match.week}
 											</div>
 											<div class="flex-1">
-												{#if match.opponent}
+												{#if match.opponent && match.opponentId}
+													<a href="/teams/{match.opponentId}" class="text-white hover:text-blue-400 transition-colors">
+														{match.opponent}
+													</a>
+												{:else if match.opponent}
 													<span class="text-white">{match.opponent}</span>
 												{:else}
 													<span class="text-gray-500 italic">{match.score}</span>
@@ -342,9 +226,13 @@
 											</div>
 										</div>
 										<div class="flex items-center gap-4">
-											{#if match.opponent}
-												<span class="text-sm {getResultColor(match.result)} font-bold w-16 text-right">
-													{match.result} ({match.score})
+											{#if match.opponent && match.result !== 'TBD'}
+												<span class="text-sm {getResultColor(match.result)} font-bold w-20 text-right">
+													{match.result} {match.score}
+												</span>
+											{:else if match.result === 'TBD'}
+												<span class="text-sm text-gray-500 w-20 text-right">
+													{formatDate(match.date)}
 												</span>
 											{/if}
 										</div>

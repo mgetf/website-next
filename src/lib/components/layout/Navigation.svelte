@@ -67,13 +67,14 @@
 				{#if !user}
 					<a 
 						href={loginUrl}
-						class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20"
+						class="block hover:opacity-80 transition-opacity"
+						title="Sign in through Steam"
 					>
-						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-							<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-						</svg>
-						<span class="hidden sm:inline">Sign in with Steam</span>
-						<span class="sm:hidden">Sign in</span>
+						<img 
+							src="/signin-thru-steam.png" 
+							alt="Sign in through Steam" 
+							class="h-6"
+						/>
 					</a>
 				{:else}
 					<div class="flex items-center gap-3">
@@ -120,8 +121,8 @@
 					Rules
 				</a>
 				
-				{#if user}
-					<div class="pt-3 border-t border-zinc-800">
+				<div class="pt-3 border-t border-zinc-800">
+					{#if user}
 						<form method="POST" action="/auth/logout">
 							<button 
 								type="submit"
@@ -130,8 +131,19 @@
 								Sign Out
 							</button>
 						</form>
-					</div>
-				{/if}
+					{:else}
+						<a 
+							href={loginUrl}
+							class="block px-4 py-2 hover:opacity-80 transition-opacity"
+						>
+							<img 
+								src="/signin-thru-steam.png" 
+								alt="Sign in through Steam" 
+								class="h-6"
+							/>
+						</a>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}

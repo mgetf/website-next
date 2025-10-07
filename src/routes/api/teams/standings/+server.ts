@@ -24,17 +24,22 @@ export const GET: RequestHandler = async ({ url }) => {
 			seasonId = parseInt(seasonParam);
 		}
 
-		// Get division ID (support "premier" keyword)
-		let divisionId: number | undefined;
-		if (divisionParam === 'premier') {
-			const premierDivision = await prisma.division.findFirst({
-				where: { hidden: 0 },
-				orderBy: { id: 'asc' }
-			});
-			divisionId = premierDivision?.id;
-		} else if (divisionParam) {
-			divisionId = parseInt(divisionParam);
-		}
+	// Get division ID (support "premier" keyword)
+	let divisionId: number | undefined;
+	if (divisionParam === 'premier') {
+		const premierDivision = await prisma.division.findFirst({
+			where: { 
+				name: {
+					contains: 'Premier',
+					mode: 'insensitive'
+				},
+				hidden: 0 
+			}
+		});
+		divisionId = premierDivision?.id;
+	} else if (divisionParam) {
+		divisionId = parseInt(divisionParam);
+	}
 
 	// Build where clause
 	const where: any = {

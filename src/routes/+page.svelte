@@ -49,7 +49,7 @@
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 			
 			<!-- 2v2 League Card -->
-			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-blue-500 hover:border-blue-400 transition-all shadow-xl shadow-blue-500/10 hover:shadow-blue-500/20">
+			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-blue-500 hover:border-blue-400 transition-all shadow-xl shadow-blue-500/10 hover:shadow-blue-500/20 flex flex-col">
 				<div class="flex items-center justify-between mb-4">
 					<h3 class="text-2xl font-bold text-blue-400">2v2 LEAGUE</h3>
 					<span class="px-3 py-1 bg-blue-500 bg-opacity-20 rounded-full text-sm text-blue-300">
@@ -91,14 +91,14 @@
 
 				<a 
 					href="/leagues/2v2" 
-					class="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-center transition-colors"
+					class="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-center transition-colors mt-auto"
 				>
 					View Full Standings →
 				</a>
 			</div>
 
 			<!-- 1v1 Tournaments Card -->
-			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-purple-500 hover:border-purple-400 transition-all shadow-xl shadow-purple-500/10 hover:shadow-purple-500/20">
+			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-purple-500 hover:border-purple-400 transition-all shadow-xl shadow-purple-500/10 hover:shadow-purple-500/20 flex flex-col">
 				<div class="flex items-center justify-between mb-4">
 					<h3 class="text-2xl font-bold text-purple-400">1v1 TOURNAMENTS</h3>
 					<span class="px-3 py-1 bg-purple-500/20 rounded-full text-sm font-medium text-purple-300 border border-purple-500/30">
@@ -131,14 +131,14 @@
 
 				<a 
 					href="/tournaments" 
-					class="block w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-purple-500/30"
+					class="block w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-purple-500/30 mt-auto"
 				>
 					View Tournaments →
 				</a>
 			</div>
 
 			<!-- World Championship Card -->
-			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-red-500 hover:border-red-400 transition-all shadow-xl shadow-red-500/10 hover:shadow-red-500/20">
+			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-red-500 hover:border-red-400 transition-all shadow-xl shadow-red-500/10 hover:shadow-red-500/20 flex flex-col">
 				<div class="flex items-center justify-between mb-4">
 					<h3 class="text-2xl font-bold text-red-400">WORLD CHAMPIONSHIP</h3>
 					<span class="px-3 py-1 bg-red-500/20 rounded-full text-sm font-medium text-red-300 border border-red-500/30">
@@ -167,7 +167,7 @@
 
 				<a 
 					href="/championships" 
-					class="block w-full py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-red-500/30"
+					class="block w-full py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-red-500/30 mt-auto"
 				>
 					View Championships →
 				</a>

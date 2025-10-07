@@ -50,17 +50,22 @@ export const GET: RequestHandler = async () => {
 			winner = winnerUser;
 		}
 
-		if (latestTournament.startedAt) {
-			try {
-				const date = new Date(parseInt(latestTournament.startedAt));
+	if (latestTournament.startedAt) {
+		try {
+			const date = new Date(latestTournament.startedAt);
+			// Check if date is valid
+			if (!isNaN(date.getTime())) {
 				winnerDate = date.toLocaleDateString('en-US', {
 					month: 'long',
 					year: 'numeric'
 				});
-			} catch {
+			} else {
 				winnerDate = 'Recently';
 			}
+		} catch {
+			winnerDate = 'Recently';
 		}
+	}
 
 		return json({
 			id: latestTournament.id,

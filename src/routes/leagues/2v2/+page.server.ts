@@ -1,9 +1,10 @@
 import type { PageServerLoad } from './$types';
-import { prisma } from '$lib/server/db';
 import { getSeasons } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
+import { getModerators } from '$lib/server/services/moderators';
+import { getGlobalSettings } from '$lib/server/services/settings';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -66,23 +67,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 		// Fetch staff members - same approach as old website
 		// Query all moderators with their user info and division info in one go
-		const allModerators = await prisma.moderator.findMany({
-			include: {
-				user: {
-					select: {
-						steamId: true,
-						steamUsername: true,
-						steamAvatar: true
-					}
-				},
-				division: {
-					select: {
-						id: true,
-						name: true
-					}
-				}
-			}
-		});
+		const allModerators = await getModerators();
 
 		// Group moderators by division
 		const staffByDivisionMap = new Map<number, {
@@ -131,7 +116,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			.sort((a, b) => b.division.id - a.division.id);
 
 		// Fetch global settings for deadlines
-		const globalSettings = await prisma.global.findFirst();
+		const globalSettings = await getGlobalSettings();
 
 		// Get selected region info
 		const selectedRegion = allRegions.find((r) => r.id === selectedRegionId);

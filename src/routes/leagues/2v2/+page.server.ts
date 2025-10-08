@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
 import { getSeasons } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -50,10 +51,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 		// Fetch all divisions (visible ones)
 		// Order by ID descending to show highest divisions first (INVITE -> PREMIER -> INTERMEDIATE -> OPEN -> NEWCOMER)
-		const divisions = await prisma.division.findMany({
-			where: { hidden: 0 },
-			orderBy: { id: 'desc' }
-		});
+		const divisions = await getVisibleDivisions();
 
 		// Fetch teams for each division in the selected season/region
 		// Include more team statuses to show more data (PENDING, READY, PLACEMENT)

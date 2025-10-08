@@ -5,6 +5,7 @@ import { TeamStatus } from '@prisma/client';
 import { fail } from '@sveltejs/kit';
 import { getSeasonsForFilter } from '$lib/server/services/seasons';
 import { getRegionsForFilter } from '$lib/server/services/regions';
+import { getDivisionsForFilter } from '$lib/server/services/divisions';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	requireAdmin(locals.user);
@@ -85,11 +86,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	});
 
 	// Fetch divisions for filter
-	const divisions = await prisma.division.findMany({
-		where: { hidden: 0 },
-		select: { id: true, name: true },
-		orderBy: { id: 'asc' }
-	});
+	const divisions = await getDivisionsForFilter();
 
 	// Fetch regions for filter
 	const regions = await getRegionsForFilter();

@@ -3,6 +3,7 @@ import { json, error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { TeamStatus } from '@prisma/client';
 import { getCurrentSeason } from '$lib/server/services/seasons';
+import { findDivisionByName } from '$lib/server/services/divisions';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
@@ -26,15 +27,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	// Get division ID (support "premier" keyword)
 	let divisionId: number | undefined;
 	if (divisionParam === 'premier') {
-		const premierDivision = await prisma.division.findFirst({
-			where: { 
-				name: {
-					contains: 'Premier',
-					mode: 'insensitive'
-				},
-				hidden: 0 
-			}
-		});
+		const premierDivision = await findDivisionByName('Premier');
 		divisionId = premierDivision?.id;
 	} else if (divisionParam) {
 		divisionId = parseInt(divisionParam);

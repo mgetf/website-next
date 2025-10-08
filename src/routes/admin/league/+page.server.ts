@@ -4,6 +4,7 @@ import { prisma } from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
 import { getSeasons, createSeason, updateSeason, deleteSeason, transformSeasonForUI } from '$lib/server/services/seasons';
 import { getRegions, createRegion, updateRegion, toggleRegionVisibility, deleteRegion } from '$lib/server/services/regions';
+import { getDivisions, createDivision, updateDivision, toggleDivisionVisibility, deleteDivision } from '$lib/server/services/divisions';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user);
@@ -15,18 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const allRegions = await getRegions();
 
 	// Fetch all divisions (including hidden for admin)
-	const allDivisions = await prisma.division.findMany({
-		include: {
-			_count: {
-				select: {
-					teams: true
-				}
-			}
-		},
-		orderBy: {
-			id: 'asc'
-		}
-	});
+	const allDivisions = await getDivisions();
 
 	// Fetch all arenas
 	const allArenas = await prisma.arena.findMany({
@@ -283,22 +273,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const existingDivision = await prisma.division.findFirst({
-				where: { name: { equals: name.trim(), mode: 'insensitive' } }
-			});
-
-			if (existingDivision) {
-				return fail(400, { error: 'Division with this name already exists' });
-			}
-
-			await prisma.division.create({
-				data: { name: name.trim(), signupCost, hidden: 0 }
-			});
-
+			await createDivision({ name, signupCost });
 			return { success: true, message: 'Division created successfully!' };
 		} catch (error) {
 			console.error('Error creating division:', error);
-			return fail(500, { error: 'Failed to create division' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to create division' });
 		}
 	},
 
@@ -318,31 +297,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const division = await prisma.division.findUnique({ where: { id: divisionId } });
-			if (!division) {
-				return fail(404, { error: 'Division not found' });
-			}
-
-			const conflictingDivision = await prisma.division.findFirst({
-				where: {
-					name: { equals: name.trim(), mode: 'insensitive' },
-					NOT: { id: divisionId }
-				}
-			});
-
-			if (conflictingDivision) {
-				return fail(400, { error: 'Division with this name already exists' });
-			}
-
-			await prisma.division.update({
-				where: { id: divisionId },
-				data: { name: name.trim(), signupCost }
-			});
-
+			await updateDivision(divisionId, { name, signupCost });
 			return { success: true, message: 'Division updated successfully!' };
 		} catch (error) {
 			console.error('Error updating division:', error);
-			return fail(500, { error: 'Failed to update division' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to update division' });
 		}
 	},
 
@@ -357,20 +316,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const division = await prisma.division.findUnique({ where: { id: divisionId } });
-			if (!division) {
-				return fail(404, { error: 'Division not found' });
-			}
-
-			await prisma.division.update({
-				where: { id: divisionId },
-				data: { hidden: division.hidden === 0 ? 1 : 0 }
-			});
-
-			return { success: true, message: `Division ${division.hidden === 0 ? 'hidden' : 'shown'} successfully!` };
+			const division = await toggleDivisionVisibility(divisionId);
+			return { success: true, message: `Division ${division.hidden === 0 ? 'shown' : 'hidden'} successfully!` };
 		} catch (error) {
 			console.error('Error toggling division visibility:', error);
-			return fail(500, { error: 'Failed to toggle division visibility' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to toggle division visibility' });
 		}
 	},
 
@@ -385,31 +335,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const division = await prisma.division.findUnique({
-				where: { id: divisionId },
-				include: {
-					_count: {
-						select: { teams: true }
-					}
-				}
-			});
-
-			if (!division) {
-				return fail(404, { error: 'Division not found' });
-			}
-
-			if (division._count.teams > 0) {
-				return fail(400, {
-					error: `Cannot delete division with ${division._count.teams} teams.`
-				});
-			}
-
-			await prisma.division.delete({ where: { id: divisionId } });
-
+			await deleteDivision(divisionId);
 			return { success: true, message: 'Division deleted successfully!' };
 		} catch (error) {
 			console.error('Error deleting division:', error);
-			return fail(500, { error: 'Failed to delete division' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete division' });
 		}
 	},
 

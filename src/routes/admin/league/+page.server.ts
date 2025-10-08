@@ -5,6 +5,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import { getSeasons, createSeason, updateSeason, deleteSeason, transformSeasonForUI } from '$lib/server/services/seasons';
 import { getRegions, createRegion, updateRegion, toggleRegionVisibility, deleteRegion } from '$lib/server/services/regions';
 import { getDivisions, createDivision, updateDivision, toggleDivisionVisibility, deleteDivision } from '$lib/server/services/divisions';
+import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/services/arenas';
+import { getMapBanPools, createMapBanPool, updateMapBanPool, toggleMapBanPoolStatus, addMapsToPool, removeMapFromPool, deleteMapBanPool } from '$lib/server/services/mapBanPools';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user);
@@ -19,40 +21,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const allDivisions = await getDivisions();
 
 	// Fetch all arenas
-	const allArenas = await prisma.arena.findMany({
-		include: {
-			_count: {
-				select: {
-					games: true
-				}
-			}
-		},
-		orderBy: {
-			name: 'asc'
-		}
-	});
+	const allArenas = await getArenas();
 
 	// Fetch all map ban pools
-	const allMapBanPools = await prisma.mapBanPool.findMany({
-		include: {
-			mapsInPool: {
-				include: {
-					arena: true
-				},
-				orderBy: {
-					orderNum: 'asc'
-				}
-			},
-			_count: {
-				select: {
-					matchMapBans: true
-				}
-			}
-		},
-		orderBy: {
-			createdAt: 'desc'
-		}
-	});
+	const allMapBanPools = await getMapBanPools();
 
 	// Transform the data for the UI
 	const seasonsData = seasons.map((season) => {
@@ -357,22 +329,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const existingArena = await prisma.arena.findFirst({
-				where: { name: { equals: name.trim(), mode: 'insensitive' } }
-			});
-
-			if (existingArena) {
-				return fail(400, { error: 'Arena with this name already exists' });
-			}
-
-			await prisma.arena.create({
-				data: { name: name.trim(), avatar: avatar?.trim() || null, playoffMap }
-			});
-
+			await createArena({ name, avatar, playoffMap });
 			return { success: true, message: 'Arena created successfully!' };
 		} catch (error) {
 			console.error('Error creating arena:', error);
-			return fail(500, { error: 'Failed to create arena' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to create arena' });
 		}
 	},
 
@@ -393,31 +354,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const arena = await prisma.arena.findUnique({ where: { id: arenaId } });
-			if (!arena) {
-				return fail(404, { error: 'Arena not found' });
-			}
-
-			const conflictingArena = await prisma.arena.findFirst({
-				where: {
-					name: { equals: name.trim(), mode: 'insensitive' },
-					NOT: { id: arenaId }
-				}
-			});
-
-			if (conflictingArena) {
-				return fail(400, { error: 'Arena with this name already exists' });
-			}
-
-			await prisma.arena.update({
-				where: { id: arenaId },
-				data: { name: name.trim(), avatar: avatar?.trim() || null, playoffMap }
-			});
-
+			await updateArena(arenaId, { name, avatar, playoffMap });
 			return { success: true, message: 'Arena updated successfully!' };
 		} catch (error) {
 			console.error('Error updating arena:', error);
-			return fail(500, { error: 'Failed to update arena' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to update arena' });
 		}
 	},
 
@@ -432,31 +373,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const arena = await prisma.arena.findUnique({
-				where: { id: arenaId },
-				include: {
-					_count: {
-						select: { games: true }
-					}
-				}
-			});
-
-			if (!arena) {
-				return fail(404, { error: 'Arena not found' });
-			}
-
-			if (arena._count.games > 0) {
-				return fail(400, {
-					error: `Cannot delete arena with ${arena._count.games} games played on it.`
-				});
-			}
-
-			await prisma.arena.delete({ where: { id: arenaId } });
-
+			await deleteArena(arenaId);
 			return { success: true, message: 'Arena deleted successfully!' };
 		} catch (error) {
 			console.error('Error deleting arena:', error);
-			return fail(500, { error: 'Failed to delete arena' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete arena' });
 		}
 	},
 
@@ -472,14 +393,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			await prisma.mapBanPool.create({
-				data: { name: name.trim(), isActive: false }
-			});
-
+			await createMapBanPool(name);
 			return { success: true, message: 'Map ban pool created successfully!' };
 		} catch (error) {
 			console.error('Error creating map ban pool:', error);
-			return fail(500, { error: 'Failed to create map ban pool' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to create map ban pool' });
 		}
 	},
 
@@ -498,20 +416,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const pool = await prisma.mapBanPool.findUnique({ where: { id: poolId } });
-			if (!pool) {
-				return fail(404, { error: 'Map ban pool not found' });
-			}
-
-			await prisma.mapBanPool.update({
-				where: { id: poolId },
-				data: { name: name.trim() }
-			});
-
+			await updateMapBanPool(poolId, name);
 			return { success: true, message: 'Map ban pool updated successfully!' };
 		} catch (error) {
 			console.error('Error updating map ban pool:', error);
-			return fail(500, { error: 'Failed to update map ban pool' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to update map ban pool' });
 		}
 	},
 
@@ -526,20 +435,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const pool = await prisma.mapBanPool.findUnique({ where: { id: poolId } });
-			if (!pool) {
-				return fail(404, { error: 'Map ban pool not found' });
-			}
-
-			await prisma.mapBanPool.update({
-				where: { id: poolId },
-				data: { isActive: !pool.isActive }
-			});
-
-			return { success: true, message: `Pool ${pool.isActive ? 'deactivated' : 'activated'} successfully!` };
+			const pool = await toggleMapBanPoolStatus(poolId);
+			return { success: true, message: `Pool ${pool.isActive ? 'activated' : 'deactivated'} successfully!` };
 		} catch (error) {
 			console.error('Error toggling pool status:', error);
-			return fail(500, { error: 'Failed to toggle pool status' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to toggle pool status' });
 		}
 	},
 
@@ -558,39 +458,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Get current max order number
-			const existingMaps = await prisma.mapInPool.findMany({
-				where: { poolId },
-				orderBy: { orderNum: 'desc' },
-				take: 1
-			});
-			
-			let nextOrderNum = existingMaps.length > 0 ? existingMaps[0].orderNum + 1 : 0;
-
-			// Add each arena to the pool
-			for (const arenaId of arenaIds) {
-				// Check if already exists
-				const existing = await prisma.mapInPool.findUnique({
-					where: {
-						poolId_arenaId: { poolId, arenaId }
-					}
-				});
-
-				if (!existing) {
-					await prisma.mapInPool.create({
-						data: {
-							poolId,
-							arenaId,
-							orderNum: nextOrderNum++
-						}
-					});
-				}
-			}
-
+			await addMapsToPool(poolId, arenaIds);
 			return { success: true, message: 'Maps added to pool successfully!' };
 		} catch (error) {
 			console.error('Error adding maps to pool:', error);
-			return fail(500, { error: 'Failed to add maps to pool' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to add maps to pool' });
 		}
 	},
 
@@ -606,16 +478,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			await prisma.mapInPool.delete({
-				where: {
-					poolId_arenaId: { poolId, arenaId }
-				}
-			});
-
+			await removeMapFromPool(poolId, arenaId);
 			return { success: true, message: 'Map removed from pool successfully!' };
 		} catch (error) {
 			console.error('Error removing map from pool:', error);
-			return fail(500, { error: 'Failed to remove map from pool' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to remove map from pool' });
 		}
 	},
 
@@ -630,37 +497,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const pool = await prisma.mapBanPool.findUnique({
-				where: { id: poolId },
-				include: {
-					_count: {
-						select: { matchMapBans: true }
-					}
-				}
-			});
-
-			if (!pool) {
-				return fail(404, { error: 'Map ban pool not found' });
-			}
-
-			if (pool._count.matchMapBans > 0) {
-				return fail(400, {
-					error: `Cannot delete pool with ${pool._count.matchMapBans} matches using it.`
-				});
-			}
-
-			// Delete associated maps first
-			await prisma.mapInPool.deleteMany({
-				where: { poolId }
-			});
-
-			// Then delete the pool
-			await prisma.mapBanPool.delete({ where: { id: poolId } });
-
+			await deleteMapBanPool(poolId);
 			return { success: true, message: 'Map ban pool deleted successfully!' };
 		} catch (error) {
 			console.error('Error deleting map ban pool:', error);
-			return fail(500, { error: 'Failed to delete map ban pool' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete map ban pool' });
 		}
 	}
 };

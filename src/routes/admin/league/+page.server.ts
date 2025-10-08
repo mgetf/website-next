@@ -65,6 +65,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	});
 
+	// Fetch all map ban pools
+	const allMapBanPools = await prisma.mapBanPool.findMany({
+		include: {
+			mapsInPool: {
+				include: {
+					arena: true
+				},
+				orderBy: {
+					orderNum: 'asc'
+				}
+			},
+			_count: {
+				select: {
+					matchMapBans: true
+				}
+			}
+		},
+		orderBy: {
+			createdAt: 'desc'
+		}
+	});
+
 	// Transform the data for the UI
 	const seasonsData = seasons.map((season) => {
 		// Calculate a basic status - you can adjust this logic
@@ -113,6 +135,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 			avatar: a.avatar,
 			playoffMap: a.playoffMap,
 			games: a._count.games
+		})),
+		mapBanPools: allMapBanPools.map((pool) => ({
+			id: pool.id,
+			name: pool.name,
+			isActive: pool.isActive,
+			maps: pool.mapsInPool.map((m) => ({
+				id: m.arena.id,
+				name: m.arena.name,
+				avatar: m.arena.avatar,
+				orderNum: m.orderNum
+			})),
+			matchesUsed: pool._count.matchMapBans
 		}))
 	};
 };
@@ -675,6 +709,210 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Error deleting arena:', error);
 			return fail(500, { error: 'Failed to delete arena' });
+		}
+	},
+
+	// MAP BAN POOL ACTIONS
+	createMapBanPool: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const name = formData.get('name') as string;
+
+		if (!name || name.trim().length === 0) {
+			return fail(400, { error: 'Map ban pool name is required' });
+		}
+
+		try {
+			await prisma.mapBanPool.create({
+				data: { name: name.trim(), isActive: false }
+			});
+
+			return { success: true, message: 'Map ban pool created successfully!' };
+		} catch (error) {
+			console.error('Error creating map ban pool:', error);
+			return fail(500, { error: 'Failed to create map ban pool' });
+		}
+	},
+
+	updateMapBanPool: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const poolId = parseInt(formData.get('poolId') as string);
+		const name = formData.get('name') as string;
+
+		if (!poolId || poolId < 1) {
+			return fail(400, { error: 'Invalid pool ID' });
+		}
+		if (!name || name.trim().length === 0) {
+			return fail(400, { error: 'Pool name is required' });
+		}
+
+		try {
+			const pool = await prisma.mapBanPool.findUnique({ where: { id: poolId } });
+			if (!pool) {
+				return fail(404, { error: 'Map ban pool not found' });
+			}
+
+			await prisma.mapBanPool.update({
+				where: { id: poolId },
+				data: { name: name.trim() }
+			});
+
+			return { success: true, message: 'Map ban pool updated successfully!' };
+		} catch (error) {
+			console.error('Error updating map ban pool:', error);
+			return fail(500, { error: 'Failed to update map ban pool' });
+		}
+	},
+
+	toggleMapBanPoolStatus: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const poolId = parseInt(formData.get('poolId') as string);
+
+		if (!poolId || poolId < 1) {
+			return fail(400, { error: 'Invalid pool ID' });
+		}
+
+		try {
+			const pool = await prisma.mapBanPool.findUnique({ where: { id: poolId } });
+			if (!pool) {
+				return fail(404, { error: 'Map ban pool not found' });
+			}
+
+			await prisma.mapBanPool.update({
+				where: { id: poolId },
+				data: { isActive: !pool.isActive }
+			});
+
+			return { success: true, message: `Pool ${pool.isActive ? 'deactivated' : 'activated'} successfully!` };
+		} catch (error) {
+			console.error('Error toggling pool status:', error);
+			return fail(500, { error: 'Failed to toggle pool status' });
+		}
+	},
+
+	addMapsToPool: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const poolId = parseInt(formData.get('poolId') as string);
+		const arenaIds = formData.getAll('arenaIds').map((id) => parseInt(id as string));
+
+		if (!poolId || poolId < 1) {
+			return fail(400, { error: 'Invalid pool ID' });
+		}
+		if (!arenaIds || arenaIds.length === 0) {
+			return fail(400, { error: 'Please select at least one map' });
+		}
+
+		try {
+			// Get current max order number
+			const existingMaps = await prisma.mapInPool.findMany({
+				where: { poolId },
+				orderBy: { orderNum: 'desc' },
+				take: 1
+			});
+			
+			let nextOrderNum = existingMaps.length > 0 ? existingMaps[0].orderNum + 1 : 0;
+
+			// Add each arena to the pool
+			for (const arenaId of arenaIds) {
+				// Check if already exists
+				const existing = await prisma.mapInPool.findUnique({
+					where: {
+						poolId_arenaId: { poolId, arenaId }
+					}
+				});
+
+				if (!existing) {
+					await prisma.mapInPool.create({
+						data: {
+							poolId,
+							arenaId,
+							orderNum: nextOrderNum++
+						}
+					});
+				}
+			}
+
+			return { success: true, message: 'Maps added to pool successfully!' };
+		} catch (error) {
+			console.error('Error adding maps to pool:', error);
+			return fail(500, { error: 'Failed to add maps to pool' });
+		}
+	},
+
+	removeMapFromPool: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const poolId = parseInt(formData.get('poolId') as string);
+		const arenaId = parseInt(formData.get('arenaId') as string);
+
+		if (!poolId || poolId < 1 || !arenaId || arenaId < 1) {
+			return fail(400, { error: 'Invalid pool or arena ID' });
+		}
+
+		try {
+			await prisma.mapInPool.delete({
+				where: {
+					poolId_arenaId: { poolId, arenaId }
+				}
+			});
+
+			return { success: true, message: 'Map removed from pool successfully!' };
+		} catch (error) {
+			console.error('Error removing map from pool:', error);
+			return fail(500, { error: 'Failed to remove map from pool' });
+		}
+	},
+
+	deleteMapBanPool: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const poolId = parseInt(formData.get('poolId') as string);
+
+		if (!poolId || poolId < 1) {
+			return fail(400, { error: 'Invalid pool ID' });
+		}
+
+		try {
+			const pool = await prisma.mapBanPool.findUnique({
+				where: { id: poolId },
+				include: {
+					_count: {
+						select: { matchMapBans: true }
+					}
+				}
+			});
+
+			if (!pool) {
+				return fail(404, { error: 'Map ban pool not found' });
+			}
+
+			if (pool._count.matchMapBans > 0) {
+				return fail(400, {
+					error: `Cannot delete pool with ${pool._count.matchMapBans} matches using it.`
+				});
+			}
+
+			// Delete associated maps first
+			await prisma.mapInPool.deleteMany({
+				where: { poolId }
+			});
+
+			// Then delete the pool
+			await prisma.mapBanPool.delete({ where: { id: poolId } });
+
+			return { success: true, message: 'Map ban pool deleted successfully!' };
+		} catch (error) {
+			console.error('Error deleting map ban pool:', error);
+			return fail(500, { error: 'Failed to delete map ban pool' });
 		}
 	}
 };

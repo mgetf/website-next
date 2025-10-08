@@ -28,3 +28,4 @@ vite.config.ts.timestamp-*
 /docs
 *.code-workspace
 *.ps1
+*.md

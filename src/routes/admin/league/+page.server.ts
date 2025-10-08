@@ -2,40 +2,17 @@ import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { prisma } from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
+import { getSeasons, createSeason, updateSeason, deleteSeason, transformSeasonForUI } from '$lib/server/services/seasons';
+import { getRegions, createRegion, updateRegion, toggleRegionVisibility, deleteRegion } from '$lib/server/services/regions';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user);
 
 	// Fetch all seasons with their region and team count
-	const seasons = await prisma.season.findMany({
-		include: {
-			region: true,
-			_count: {
-				select: {
-					teams: true,
-					matches: true
-				}
-			}
-		},
-		orderBy: {
-			seasonNum: 'desc'
-		}
-	});
+	const seasons = await getSeasons();
 
 	// Fetch all regions (including hidden for admin)
-	const allRegions = await prisma.region.findMany({
-		include: {
-			_count: {
-				select: {
-					seasons: true,
-					teams: true
-				}
-			}
-		},
-		orderBy: {
-			name: 'asc'
-		}
-	});
+	const allRegions = await getRegions();
 
 	// Fetch all divisions (including hidden for admin)
 	const allDivisions = await prisma.division.findMany({
@@ -89,28 +66,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Transform the data for the UI
 	const seasonsData = seasons.map((season) => {
-		// Calculate a basic status - you can adjust this logic
-		// For now, we'll consider the most recent season as "Active"
 		const isLatest = seasons[0]?.id === season.id;
-		const hasMatches = season._count.matches > 0;
-		
-		let status = 'Completed';
-		if (isLatest && season._count.teams > 0) {
-			status = 'Active';
-		} else if (season._count.teams === 0) {
-			status = 'Draft';
-		}
-
-		return {
-			id: season.id,
-			seasonNum: season.seasonNum,
-			region: season.region.name,
-			regionId: season.regionId,
-			numWeeks: season.numWeeks,
-			teams: season._count.teams,
-			matches: season._count.matches,
-			status
-		};
+		return transformSeasonForUI(season, isLatest);
 	});
 
 	return {
@@ -172,31 +129,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Check if season already exists
-			const existingSeason = await prisma.season.findFirst({
-				where: {
-					seasonNum,
-					regionId
-				}
-			});
-
-			if (existingSeason) {
-				return fail(400, { error: `Season ${seasonNum} already exists for this region` });
-			}
-
-			// Create the new season
-			await prisma.season.create({
-				data: {
-					seasonNum,
-					regionId,
-					numWeeks
-				}
-			});
-
+			await createSeason({ seasonNum, regionId, numWeeks });
 			return { success: true, message: 'Season created successfully!' };
 		} catch (error) {
 			console.error('Error creating season:', error);
-			return fail(500, { error: 'Failed to create season' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to create season' });
 		}
 	},
 
@@ -224,42 +161,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Check if season exists
-			const season = await prisma.season.findUnique({
-				where: { id: seasonId }
-			});
-
-			if (!season) {
-				return fail(404, { error: 'Season not found' });
-			}
-
-			// Check if changing to a season number that already exists for this region
-			const conflictingSeason = await prisma.season.findFirst({
-				where: {
-					seasonNum,
-					regionId,
-					NOT: { id: seasonId }
-				}
-			});
-
-			if (conflictingSeason) {
-				return fail(400, { error: `Season ${seasonNum} already exists for this region` });
-			}
-
-			// Update the season
-			await prisma.season.update({
-				where: { id: seasonId },
-				data: {
-					seasonNum,
-					regionId,
-					numWeeks
-				}
-			});
-
+			await updateSeason(seasonId, { seasonNum, regionId, numWeeks });
 			return { success: true, message: 'Season updated successfully!' };
 		} catch (error) {
 			console.error('Error updating season:', error);
-			return fail(500, { error: 'Failed to update season' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to update season' });
 		}
 	},
 
@@ -275,39 +181,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Check if season exists
-			const season = await prisma.season.findUnique({
-				where: { id: seasonId },
-				include: {
-					_count: {
-						select: {
-							teams: true,
-							matches: true
-						}
-					}
-				}
-			});
-
-			if (!season) {
-				return fail(404, { error: 'Season not found' });
-			}
-
-			// Check if season has teams or matches
-			if (season._count.teams > 0 || season._count.matches > 0) {
-				return fail(400, { 
-					error: `Cannot delete season with ${season._count.teams} teams and ${season._count.matches} matches. Remove all teams and matches first.` 
-				});
-			}
-
-			// Delete the season
-			await prisma.season.delete({
-				where: { id: seasonId }
-			});
-
+			await deleteSeason(seasonId);
 			return { success: true, message: 'Season deleted successfully!' };
 		} catch (error) {
 			console.error('Error deleting season:', error);
-			return fail(500, { error: 'Failed to delete season' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete season' });
 		}
 	},
 
@@ -323,22 +201,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const existingRegion = await prisma.region.findFirst({
-				where: { name: { equals: name.trim(), mode: 'insensitive' } }
-			});
-
-			if (existingRegion) {
-				return fail(400, { error: 'Region with this name already exists' });
-			}
-
-			await prisma.region.create({
-				data: { name: name.trim(), hidden: 0 }
-			});
-
+			await createRegion(name);
 			return { success: true, message: 'Region created successfully!' };
 		} catch (error) {
 			console.error('Error creating region:', error);
-			return fail(500, { error: 'Failed to create region' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to create region' });
 		}
 	},
 
@@ -357,31 +224,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const region = await prisma.region.findUnique({ where: { id: regionId } });
-			if (!region) {
-				return fail(404, { error: 'Region not found' });
-			}
-
-			const conflictingRegion = await prisma.region.findFirst({
-				where: {
-					name: { equals: name.trim(), mode: 'insensitive' },
-					NOT: { id: regionId }
-				}
-			});
-
-			if (conflictingRegion) {
-				return fail(400, { error: 'Region with this name already exists' });
-			}
-
-			await prisma.region.update({
-				where: { id: regionId },
-				data: { name: name.trim() }
-			});
-
+			await updateRegion(regionId, name);
 			return { success: true, message: 'Region updated successfully!' };
 		} catch (error) {
 			console.error('Error updating region:', error);
-			return fail(500, { error: 'Failed to update region' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to update region' });
 		}
 	},
 
@@ -396,20 +243,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const region = await prisma.region.findUnique({ where: { id: regionId } });
-			if (!region) {
-				return fail(404, { error: 'Region not found' });
-			}
-
-			await prisma.region.update({
-				where: { id: regionId },
-				data: { hidden: region.hidden === 0 ? 1 : 0 }
-			});
-
-			return { success: true, message: `Region ${region.hidden === 0 ? 'hidden' : 'shown'} successfully!` };
+			const region = await toggleRegionVisibility(regionId);
+			return { success: true, message: `Region ${region.hidden === 0 ? 'shown' : 'hidden'} successfully!` };
 		} catch (error) {
 			console.error('Error toggling region visibility:', error);
-			return fail(500, { error: 'Failed to toggle region visibility' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to toggle region visibility' });
 		}
 	},
 
@@ -424,31 +262,11 @@ export const actions: Actions = {
 		}
 
 		try {
-			const region = await prisma.region.findUnique({
-				where: { id: regionId },
-				include: {
-					_count: {
-						select: { seasons: true, teams: true }
-					}
-				}
-			});
-
-			if (!region) {
-				return fail(404, { error: 'Region not found' });
-			}
-
-			if (region._count.seasons > 0 || region._count.teams > 0) {
-				return fail(400, {
-					error: `Cannot delete region with ${region._count.seasons} seasons and ${region._count.teams} teams.`
-				});
-			}
-
-			await prisma.region.delete({ where: { id: regionId } });
-
+			await deleteRegion(regionId);
 			return { success: true, message: 'Region deleted successfully!' };
 		} catch (error) {
 			console.error('Error deleting region:', error);
-			return fail(500, { error: 'Failed to delete region' });
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete region' });
 		}
 	},
 

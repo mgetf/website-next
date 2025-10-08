@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { TeamStatus } from '@prisma/client';
+import { getCurrentSeason } from '$lib/server/services/seasons';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
@@ -16,9 +17,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		// Get season ID (if "current", fetch current season)
 		let seasonId: number | undefined;
 		if (seasonParam === 'current') {
-			const currentSeason = await prisma.season.findFirst({
-				orderBy: { seasonNum: 'desc' }
-			});
+			const currentSeason = await getCurrentSeason();
 			seasonId = currentSeason?.id;
 		} else if (seasonParam) {
 			seasonId = parseInt(seasonParam);

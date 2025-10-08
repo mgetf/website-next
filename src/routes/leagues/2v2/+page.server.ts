@@ -1,5 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
+import { getSeasons } from '$lib/server/services/seasons';
+import { getVisibleRegions } from '$lib/server/services/regions';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -8,18 +10,10 @@ export const load: PageServerLoad = async ({ url }) => {
 		const regionParam = url.searchParams.get('region');
 
 		// Fetch all seasons (for dropdown)
-		const allSeasons = await prisma.season.findMany({
-			include: {
-				region: true
-			},
-			orderBy: [{ seasonNum: 'desc' }, { id: 'desc' }]
-		});
+		const allSeasons = await getSeasons();
 
 		// Fetch all regions (for selector)
-		const allRegions = await prisma.region.findMany({
-			where: { hidden: 0 },
-			orderBy: { id: 'asc' }
-		});
+		const allRegions = await getVisibleRegions();
 
 		// Find the most recent season that has ready teams
 		// This ensures we show a season with actual data by default

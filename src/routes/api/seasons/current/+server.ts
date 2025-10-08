@@ -1,15 +1,10 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { getCurrentSeason } from '$lib/server/services/seasons';
 
 export const GET: RequestHandler = async () => {
 	try {
-		const currentSeason = await prisma.season.findFirst({
-			orderBy: { seasonNum: 'desc' },
-			include: {
-				region: true
-			}
-		});
+		const currentSeason = await getCurrentSeason();
 
 		if (!currentSeason) {
 			return json({ 

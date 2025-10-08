@@ -3,6 +3,8 @@ import { prisma } from '$lib/server/db';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { TeamStatus } from '@prisma/client';
 import { fail } from '@sveltejs/kit';
+import { getSeasonsForFilter } from '$lib/server/services/seasons';
+import { getRegionsForFilter } from '$lib/server/services/regions';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	requireAdmin(locals.user);
@@ -90,17 +92,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	});
 
 	// Fetch regions for filter
-	const regions = await prisma.region.findMany({
-		select: { id: true, name: true },
-		orderBy: { id: 'asc' }
-	});
+	const regions = await getRegionsForFilter();
 
 	// Fetch seasons for filter
-	const seasons = await prisma.season.findMany({
-		select: { id: true, seasonNum: true },
-		orderBy: { seasonNum: 'desc' },
-		take: 10
-	});
+	const seasons = await getSeasonsForFilter();
 
 	return {
 		teams: teams.map(team => ({

@@ -3,6 +3,7 @@ import { prisma } from '$lib/server/db';
 import { getSeasons } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -18,18 +19,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 		// Find the most recent season that has ready teams
 		// This ensures we show a season with actual data by default
-		let defaultSeasonWithTeams = await prisma.team.findFirst({
-			where: {
-				status: { in: ['READY', 'PLACEMENT'] } // READY or PLACEMENT
-			},
-			orderBy: {
-				seasonId: 'desc'
-			},
-			select: {
-				seasonId: true,
-				regionId: true
-			}
-		});
+		let defaultSeasonWithTeams = await findRecentSeasonWithTeams(['READY', 'PLACEMENT']);
 
 		// Determine selected season and region
 		let selectedSeasonId: number | undefined;
@@ -57,73 +47,19 @@ export const load: PageServerLoad = async ({ url }) => {
 		// Include more team statuses to show more data (PENDING, READY, PLACEMENT)
 		const teamsByDivision = await Promise.all(
 			divisions.map(async (division) => {
-				const teams = await prisma.team.findMany({
-					where: {
-						seasonId: selectedSeasonId,
-						regionId: selectedRegionId,
-						divisionId: division.id,
-						status: { in: ['PENDING', 'READY', 'PLACEMENT'] } // PENDING, READY, or PLACEMENT
-					},
-					select: {
-						id: true,
-						name: true,
-						acronym: true,
-						avatar: true,
-						wins: true,
-						losses: true,
-						gamesWon: true,
-						gamesLost: true,
-						pointsScored: true,
-						pointsScoredAgainst: true,
-						paymentStatus: true,
-						players: {
-							select: {
-								playerSteamId: true,
-								player: {
-									select: {
-										steamId: true,
-										steamUsername: true
-									}
-								}
-							}
-						}
-					}
-					// Note: We can't sort by calculated field (avg points) in Prisma directly
-					// So we'll sort in application code after fetching
-				});
-
-				// Calculate derived stats and sort by average points
-				const teamsWithStats = teams
-					.map((team) => {
-						const totalGames = team.gamesWon + team.gamesLost;
-						const avgPoints = totalGames > 0 ? team.pointsScored / totalGames : 0;
-						
-						return {
-							id: team.id,
-							name: team.name,
-							acronym: team.acronym,
-							avatar: team.avatar,
-							wins: team.wins,
-							losses: team.losses,
-							points: parseFloat(avgPoints.toFixed(1)),
-							paymentStatus: team.paymentStatus,
-							_sortKey: avgPoints // temporary field for sorting
-						};
-					})
-					.sort((a, b) => {
-						// Sort by avg points DESC, then wins DESC, then losses ASC
-						if (b._sortKey !== a._sortKey) return b._sortKey - a._sortKey;
-						if (b.wins !== a.wins) return b.wins - a.wins;
-						return a.losses - b.losses;
-					})
-					.map(({ _sortKey, ...team }) => team); // Remove temporary sort key
+				const teams = await getTeamsByDivision(
+					division.id,
+					selectedSeasonId!,
+					selectedRegionId!,
+					['PENDING', 'READY', 'PLACEMENT']
+				);
 
 				return {
 					division: {
 						id: division.id,
 						name: division.name
 					},
-					teams: teamsWithStats
+					teams
 				};
 			})
 		);

@@ -1,6 +1,6 @@
 import type { PageServerLoad } from "./$types";
-import { prisma } from "$lib/server/db";
 import { error } from "@sveltejs/kit";
+import { getTeamById } from "$lib/server/services/teams";
 
 export const load: PageServerLoad = async ({ params }) => {
   const teamId = parseInt(params.id);
@@ -10,68 +10,7 @@ export const load: PageServerLoad = async ({ params }) => {
   }
 
   // Fetch team with related data
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    include: {
-      division: true,
-      region: true,
-      season: true,
-      players: {
-        include: {
-          player: {
-            select: {
-              steamId: true,
-              steamUsername: true,
-              steamAvatar: true,
-            },
-          },
-        },
-        orderBy: {
-          startedAt: "asc",
-        },
-      },
-      homeMatches: {
-        include: {
-          awayTeam: {
-            select: {
-              id: true,
-              name: true,
-              acronym: true,
-            },
-          },
-          season: {
-            select: {
-              id: true,
-              seasonNum: true,
-            },
-          },
-        },
-        orderBy: {
-          matchDateTime: "desc",
-        },
-      },
-      awayMatches: {
-        include: {
-          homeTeam: {
-            select: {
-              id: true,
-              name: true,
-              acronym: true,
-            },
-          },
-          season: {
-            select: {
-              id: true,
-              seasonNum: true,
-            },
-          },
-        },
-        orderBy: {
-          matchDateTime: "desc",
-        },
-      },
-    },
-  });
+  const team = await getTeamById(teamId);
 
   if (!team) {
     throw error(404, "Team not found");

@@ -1,9 +1,9 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
 import { TeamStatus } from '@prisma/client';
 import { getCurrentSeason } from '$lib/server/services/seasons';
 import { findDivisionByName } from '$lib/server/services/divisions';
+import { getTeamsForStandings, calculateStandingsStats } from '$lib/server/services/teams';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
@@ -33,57 +33,18 @@ export const GET: RequestHandler = async ({ url }) => {
 		divisionId = parseInt(divisionParam);
 	}
 
-	// Build where clause
-	const where: any = {
-		status: TeamStatus.READY // READY status only
-	};
-
-		if (seasonId) where.seasonId = seasonId;
-		if (divisionId) where.divisionId = divisionId;
-		if (regionParam) where.regionId = parseInt(regionParam);
-
-		// Fetch teams
-		const teams = await prisma.team.findMany({
-			where,
-			select: {
-				id: true,
-				name: true,
-				acronym: true,
-				avatar: true,
-				wins: true,
-				losses: true,
-				pointsScored: true,
-				pointsScoredAgainst: true,
-				gamesWon: true,
-				gamesLost: true,
-				division: {
-					select: {
-						id: true,
-						name: true
-					}
-				},
-				region: {
-					select: {
-						id: true,
-						name: true
-					}
-				}
-			},
-			orderBy: [
-				{ wins: 'desc' },
-				{ losses: 'asc' },
-				{ pointsScored: 'desc' }
-			],
-			take: limit
+	// Fetch teams
+		const teams = await getTeamsForStandings({
+			seasonId,
+			regionId: regionParam ? parseInt(regionParam) : undefined,
+			divisionId,
+			statuses: [TeamStatus.READY],
+			limit
 		});
 
 		// Calculate derived fields
 		const standings = teams.map((team, index) => {
-			const totalGames = team.gamesWon + team.gamesLost;
-			const ppg = totalGames > 0 ? (team.pointsScored / totalGames).toFixed(1) : '0.0';
-			const winRate = team.wins + team.losses > 0 
-				? ((team.wins / (team.wins + team.losses)) * 100).toFixed(1)
-				: '0.0';
+			const stats = calculateStandingsStats(team);
 
 			return {
 				rank: index + 1,
@@ -93,13 +54,13 @@ export const GET: RequestHandler = async ({ url }) => {
 				avatar: team.avatar,
 				wins: team.wins,
 				losses: team.losses,
-				record: `${team.wins}-${team.losses}`,
+				record: stats.record,
 				gamesWon: team.gamesWon,
 				gamesLost: team.gamesLost,
 				pointsScored: team.pointsScored,
 				pointsScoredAgainst: team.pointsScoredAgainst,
-				pointsPerGame: parseFloat(ppg),
-				winRate: parseFloat(winRate),
+				pointsPerGame: stats.pointsPerGame,
+				winRate: stats.winRate,
 				division: team.division,
 				region: team.region
 			};

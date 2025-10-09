@@ -10,9 +10,41 @@
 	let deletingTeam: typeof data.teams[0] | null = $state(null);
 	let isSubmitting = $state(false);
 	
+	// TODO: TEMPORARY WORKAROUND - Remove this filtering logic when schema is refactored
+	// This filters seasons by selected region to avoid showing duplicate "Season 1" options
+	// from different regions in the dropdown (e.g., Season 1 NA and Season 1 EU both show as "Season 1")
+	// 
+	// Once schema is fixed to have unique season names/identifiers, this client-side
+	// filtering should be removed and all seasons can be shown without confusion
+	const filteredSeasons = $derived(() => {
+		if (data.filters.region === 'all') {
+			return data.seasons;
+		}
+		const regionId = parseInt(data.filters.region);
+		return data.seasons.filter(s => s.regionId === regionId);
+	});
+	
 	// Build filter URL
 	function updateFilters(updates: Record<string, string>) {
 		const params = new URLSearchParams(page.url.searchParams);
+		
+		// TODO: TEMPORARY WORKAROUND - Remove this auto-reset logic when schema is refactored
+		// This automatically clears the season filter when switching regions to prevent selecting
+		// a Season 1 from NA when viewing EU teams (since both regions have a "Season 1")
+		// Once seasons have unique identifiers/names, this logic should be removed
+		if (updates.region !== undefined) {
+			const newRegionId = updates.region === 'all' ? null : parseInt(updates.region);
+			const currentSeasonId = params.get('season');
+			
+			// If there's a season selected, check if it belongs to the new region
+			if (currentSeasonId && currentSeasonId !== 'all' && newRegionId) {
+				const currentSeason = data.seasons.find(s => s.id === parseInt(currentSeasonId));
+				if (currentSeason && currentSeason.regionId !== newRegionId) {
+					// Season doesn't match new region, reset it
+					params.delete('season');
+				}
+			}
+		}
 		
 		// Update/remove parameters
 		Object.entries(updates).forEach(([key, value]) => {
@@ -151,6 +183,9 @@
 			/>
 			
 			<!-- Season Filter -->
+			<!-- TODO: TEMPORARY WORKAROUND - Remove region name from display when schema is refactored -->
+			<!-- Currently showing "Season 1 (North America)" to disambiguate from "Season 1 (Europe)" -->
+			<!-- Once seasons have unique names, display can be simplified to just the season name -->
 			<select
 				name="season"
 				value={data.filters.season}
@@ -158,8 +193,10 @@
 				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
 			>
 				<option value="all">All Seasons</option>
-				{#each data.seasons as season}
-					<option value={season.id.toString()}>Season {season.seasonNum}</option>
+				{#each filteredSeasons() as season}
+					<option value={season.id.toString()}>
+						Season {season.seasonNum} ({season.region.name})
+					</option>
 				{/each}
 			</select>
 			
@@ -450,6 +487,7 @@
 					
 					<div>
 						<label for="edit-seasonId" class="block text-sm font-medium text-gray-300 mb-2">Season</label>
+						<!-- TODO: TEMPORARY WORKAROUND - Remove region name from display when schema is refactored -->
 						<select
 							id="edit-seasonId"
 							name="seasonId"
@@ -458,7 +496,9 @@
 						>
 							<option value="none">No Season</option>
 							{#each data.seasons as season}
-								<option value={season.id}>Season {season.seasonNum}</option>
+								<option value={season.id}>
+									Season {season.seasonNum} ({season.region.name})
+								</option>
 							{/each}
 						</select>
 					</div>

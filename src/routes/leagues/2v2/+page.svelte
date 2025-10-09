@@ -41,7 +41,11 @@
 	let selectedRegion = $state(data.selectedRegionId);
 	let isInitialized = $state(false);
 
-	// Get unique seasons for the selected region and auto-adjust season if needed
+	// TODO: TEMPORARY WORKAROUND - This auto-switching logic can be removed when schema is refactored
+	// Currently needed because seasons are not unique (Season 1 exists for both NA and EU)
+	// This effect automatically switches to a valid season when the user changes region
+	// to prevent showing empty results (e.g., Season 1 EU when viewing NA region)
+	// Once seasons have unique identifiers, this reactive logic can be simplified or removed
 	$effect(() => {
 		const seasonsForRegion = data.seasons.filter((s: typeof data.seasons[number]) => s.regionId === selectedRegion);
 		// If the current selected season is not in this region, pick the first one
@@ -106,12 +110,13 @@
 			
 			<div class="flex flex-col items-center gap-2">
 				<span class="text-sm font-medium text-gray-400">Season</span>
+				<!-- TODO: TEMPORARY WORKAROUND - Remove region name from display when schema is refactored -->
 				<select 
 					bind:value={selectedSeason}
 					class="px-6 py-2 bg-zinc-900 text-white rounded border border-zinc-800 hover:bg-zinc-800 transition-all cursor-pointer"
 				>
 					{#each data.seasons.filter((s: typeof data.seasons[number]) => s.regionId === selectedRegion) as season}
-						<option value={season.id}>{season.name}</option>
+						<option value={season.id}>{season.name} ({season.regionName})</option>
 					{/each}
 				</select>
 			</div>

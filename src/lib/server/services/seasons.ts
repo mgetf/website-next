@@ -174,12 +174,36 @@ export async function deleteSeason(id: number) {
 
 /**
  * Get seasons for dropdown/filter UI (simplified)
- * Returns only id and seasonNum, limited to recent seasons
+ * Returns id, seasonNum, and region info for disambiguation
+ * 
+ * TODO: TEMPORARY WORKAROUND - Remove region info from filter when schema is refactored
+ * Currently seasons have the same seasonNum across different regions (e.g., "Season 1 NA" and "Season 1 EU" both have seasonNum=1)
+ * This causes confusion in dropdowns where multiple "Season 1" options appear.
+ * 
+ * FUTURE SCHEMA FIX:
+ * - Make season names unique and descriptive (e.g., "Season 1 - NA", "Season 1 - EU")
+ * - OR create a proper Season/SeasonInstance relationship where Season is the global concept and SeasonInstance is region-specific
+ * - OR add a composite display name field that includes region context
+ * 
+ * Once schema is fixed, this function should return to simple { id, seasonNum } structure
  */
-export async function getSeasonsForFilter(limit = 10) {
+export async function getSeasonsForFilter(limit = 50) {
 	return await prisma.season.findMany({
-		select: { id: true, seasonNum: true },
-		orderBy: { seasonNum: 'desc' },
+		select: { 
+			id: true, 
+			seasonNum: true,
+			regionId: true,
+			region: {
+				select: {
+					id: true,
+					name: true
+				}
+			}
+		},
+		orderBy: [
+			{ seasonNum: 'desc' },
+			{ regionId: 'asc' }
+		],
 		take: limit
 	});
 }

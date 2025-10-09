@@ -18,9 +18,9 @@ export const load: PageServerLoad = async ({ url }) => {
 		// Fetch all regions (for selector)
 		const allRegions = await getVisibleRegions();
 
-		// Find the most recent season that has ready teams
+		// Find the most recent season that has teams (any status, including historical)
 		// This ensures we show a season with actual data by default
-		let defaultSeasonWithTeams = await findRecentSeasonWithTeams(['READY', 'PLACEMENT']);
+		let defaultSeasonWithTeams = await findRecentSeasonWithTeams(['UNREADY', 'PENDING', 'READY', 'PLACEMENT', 'DEAD']);
 
 		// Determine selected season and region
 		let selectedSeasonId: number | undefined;
@@ -45,14 +45,15 @@ export const load: PageServerLoad = async ({ url }) => {
 		const divisions = await getVisibleDivisions();
 
 		// Fetch teams for each division in the selected season/region
-		// Include more team statuses to show more data (PENDING, READY, PLACEMENT)
+		// Include all team statuses (UNREADY, PENDING, READY, PLACEMENT, DEAD) to show historical data
+		// DEAD teams are included so past seasons can show teams that played but later disbanded
 		const teamsByDivision = await Promise.all(
 			divisions.map(async (division) => {
 				const teams = await getTeamsByDivision(
 					division.id,
 					selectedSeasonId!,
 					selectedRegionId!,
-					['PENDING', 'READY', 'PLACEMENT']
+					['UNREADY', 'PENDING', 'READY', 'PLACEMENT', 'DEAD']
 				);
 
 				return {

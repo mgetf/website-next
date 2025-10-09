@@ -219,6 +219,7 @@ export async function getPlayerProfile(steamId: string) {
 			name: user.steamUsername,
 			avatar: user.steamAvatar,
 			discordLinked: !!user.discord,
+			discordUsername: user.discord?.discordUsername || null,
 			permissionLevel: user.permissionLevel,
 			memberSince: user.discord?.playerSteamId ? new Date() : new Date() // TODO: Track user creation date
 		},
@@ -228,5 +229,162 @@ export async function getPlayerProfile(steamId: string) {
 		fightNights,
 		achievements
 	};
+}
+
+/**
+ * Get all users with optional filtering and pagination
+ * Used by admin panel user management
+ */
+export async function getUsers(options: {
+	search?: string;
+	permissionLevel?: string;
+	banStatus?: string;
+	page?: number;
+	pageSize?: number;
+}) {
+	const { search, permissionLevel, banStatus, page = 1, pageSize = 20 } = options;
+
+	const where: any = {};
+
+	// Search filter
+	if (search && search.trim().length > 0) {
+		where.OR = [
+			{ steamUsername: { contains: search, mode: 'insensitive' } },
+			{ steamId: { contains: search } }
+		];
+	}
+
+	// Permission level filter
+	if (permissionLevel && permissionLevel !== 'all') {
+		where.permissionLevel = permissionLevel;
+	}
+
+	// Ban status filter
+	if (banStatus && banStatus !== 'all') {
+		where.banStatus = banStatus;
+	}
+
+	return await prisma.user.findMany({
+		where,
+		include: {
+			discord: true,
+			moderator: {
+				include: {
+					division: true
+				}
+			}
+		},
+		orderBy: {
+			steamUsername: 'asc'
+		},
+		skip: (page - 1) * pageSize,
+		take: pageSize
+	});
+}
+
+/**
+ * Count users with optional filtering
+ */
+export async function countUsers(options: {
+	search?: string;
+	permissionLevel?: string;
+	banStatus?: string;
+}) {
+	const { search, permissionLevel, banStatus } = options;
+
+	const where: any = {};
+
+	// Search filter
+	if (search && search.trim().length > 0) {
+		where.OR = [
+			{ steamUsername: { contains: search, mode: 'insensitive' } },
+			{ steamId: { contains: search } }
+		];
+	}
+
+	// Permission level filter
+	if (permissionLevel && permissionLevel !== 'all') {
+		where.permissionLevel = permissionLevel;
+	}
+
+	// Ban status filter
+	if (banStatus && banStatus !== 'all') {
+		where.banStatus = banStatus;
+	}
+
+	return await prisma.user.count({ where });
+}
+
+/**
+ * Update user's permission level and ban status
+ * Admin only operation
+ */
+export async function updateUser(
+	steamId: string,
+	data: {
+		permissionLevel?: string;
+		banStatus?: string;
+		nameOverride?: number;
+	}
+) {
+	// Check if user exists
+	const user = await prisma.user.findUnique({
+		where: { steamId }
+	});
+
+	if (!user) {
+		throw new Error('User not found');
+	}
+
+	const updateData: any = {};
+
+	if (data.permissionLevel !== undefined) {
+		updateData.permissionLevel = data.permissionLevel;
+	}
+
+	if (data.banStatus !== undefined) {
+		updateData.banStatus = data.banStatus;
+	}
+
+	if (data.nameOverride !== undefined) {
+		updateData.nameOverride = data.nameOverride;
+	}
+
+	return await prisma.user.update({
+		where: { steamId },
+		data: updateData
+	});
+}
+
+/**
+ * Ban a user with a reason
+ */
+export async function banUser(
+	steamId: string,
+	bannedBy: string,
+	severity: 'WARNING' | 'SUSPENDED' | 'BANNED',
+	reason: string,
+	duration?: number
+) {
+	// Update user's ban status
+	await prisma.user.update({
+		where: { steamId },
+		data: {
+			banStatus: severity
+		}
+	});
+
+	// Create punishment record
+	return await prisma.punishment.create({
+		data: {
+			playerSteamId: steamId,
+			punishedBy: bannedBy,
+			severity,
+			reason,
+			duration,
+			startDateTime: Math.floor(Date.now() / 1000),
+			status: 1 // Active
+		}
+	});
 }
 

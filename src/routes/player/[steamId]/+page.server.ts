@@ -1,7 +1,8 @@
 import { error } from '@sveltejs/kit';
 import { getPlayerProfile } from '$lib/server/services/users';
+import type { PageServerLoad } from './$types';
 
-export const load = async ({ params }: { params: { steamId: string } }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	const { steamId } = params;
 
 	try {
@@ -11,7 +12,13 @@ export const load = async ({ params }: { params: { steamId: string } }) => {
 			throw error(404, 'Player not found');
 		}
 
-		return profile;
+		// Check if user is viewing their own profile
+		const isOwnProfile = locals.user?.steamId === steamId;
+
+		return {
+			...profile,
+			isOwnProfile
+		};
 	} catch (err) {
 		console.error('Error loading player profile:', err);
 		

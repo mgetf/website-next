@@ -1,8 +1,12 @@
-import type { PageServerLoad } from "./$types";
-import { error } from "@sveltejs/kit";
+import type { PageServerLoad, Actions } from "./$types";
+import { error, fail, redirect } from "@sveltejs/kit";
 import { getTeamById } from "$lib/server/services/teams";
+import { isAdmin, isTeamAdmin } from "$lib/server/auth/permissions";
+import { removePlayer } from "$lib/server/services/teamManagement";
+import { getGlobalSettings } from "$lib/server/services/settings";
+import { prisma } from "$lib/server/db";
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
   const teamId = parseInt(params.id);
 
   if (isNaN(teamId)) {
@@ -15,6 +19,15 @@ export const load: PageServerLoad = async ({ params }) => {
   if (!team) {
     throw error(404, "Team not found");
   }
+
+  // Check if user has admin permissions
+  const isGlobalAdmin = locals.user ? isAdmin(locals.user) : false;
+  const isTeamAdminUser = locals.user ? await isTeamAdmin(locals.user, teamId) : false;
+  const canManageTeam = isGlobalAdmin || isTeamAdminUser;
+
+  // Get roster lock status
+  const settings = await getGlobalSettings();
+  const rosterLocked = settings?.rosterLocked === 1;
 
   // Separate active and inactive players
   const currentRoster = team.players
@@ -130,5 +143,125 @@ export const load: PageServerLoad = async ({ params }) => {
     currentRoster,
     pastRoster,
     matchesBySeason,
+    canManageTeam,
+    isGlobalAdmin,
+    rosterLocked,
+    currentUserSteamId: locals.user?.steamId || null,
   };
+};
+
+export const actions: Actions = {
+  removePlayer: async ({ request, params, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: "You must be logged in" });
+    }
+
+    const teamId = parseInt(params.id);
+    const isGlobalAdmin = isAdmin(locals.user);
+    const isTeamAdminUser = await isTeamAdmin(locals.user, teamId);
+
+    if (!isGlobalAdmin && !isTeamAdminUser) {
+      return fail(403, { error: "You must be a team admin or global admin" });
+    }
+
+    const formData = await request.formData();
+    const playerSteamId = formData.get("playerSteamId") as string;
+
+    if (!playerSteamId) {
+      return fail(400, { error: "Player Steam ID is required" });
+    }
+
+    // Check roster lock (admins can bypass)
+    const settings = await getGlobalSettings();
+    const rosterLocked = settings?.rosterLocked === 1;
+
+    if (rosterLocked && !isGlobalAdmin) {
+      return fail(403, { error: "Rosters are currently locked" });
+    }
+
+    try {
+      await removePlayer(teamId, playerSteamId);
+      return { success: true, message: "Player removed successfully" };
+    } catch (err) {
+      return fail(500, {
+        error: err instanceof Error ? err.message : "Failed to remove player",
+      });
+    }
+  },
+
+  updateStatus: async ({ request, params, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: "You must be logged in" });
+    }
+
+    const teamId = parseInt(params.id);
+    const isGlobalAdmin = isAdmin(locals.user);
+
+    if (!isGlobalAdmin) {
+      return fail(403, { error: "Only global admins can change team status" });
+    }
+
+    const formData = await request.formData();
+    const status = formData.get("status") as string;
+
+    if (!status) {
+      return fail(400, { error: "Status is required" });
+    }
+
+    await prisma.team.update({
+      where: { id: teamId },
+      data: { status: status as any },
+    });
+
+    return { success: true, message: "Team status updated successfully" };
+  },
+
+  deleteTeam: async ({ params, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: "You must be logged in" });
+    }
+
+    const teamId = parseInt(params.id);
+    const isGlobalAdmin = isAdmin(locals.user);
+
+    if (!isGlobalAdmin) {
+      return fail(403, {
+        error: "Only global admins can permanently delete teams",
+      });
+    }
+
+    // Check if team has any matches
+    const matchCount = await prisma.match.count({
+      where: {
+        OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }],
+      },
+    });
+
+    if (matchCount > 0) {
+      return fail(400, {
+        error: "Cannot delete team that has played matches. Set status to DEAD instead.",
+      });
+    }
+
+    // Delete related records first
+    await prisma.playerInTeam.deleteMany({
+      where: { teamId },
+    });
+
+    await prisma.pendingPlayer.deleteMany({
+      where: { teamId },
+    });
+
+    await prisma.teamNameHistory.deleteMany({
+      where: { teamId },
+    });
+
+    // Delete team
+    await prisma.team.delete({
+      where: { id: teamId },
+    });
+
+    // Redirect to admin teams page after deletion
+    throw redirect(303, "/admin/teams");
+  },
 };

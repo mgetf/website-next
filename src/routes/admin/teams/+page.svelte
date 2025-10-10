@@ -7,7 +7,6 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	
 	let editingTeam: typeof data.teams[0] | null = $state(null);
-	let deletingTeam: typeof data.teams[0] | null = $state(null);
 	let isSubmitting = $state(false);
 	
 	// TODO: TEMPORARY WORKAROUND - Remove this filtering logic when schema is refactored
@@ -103,14 +102,6 @@
 	
 	function closeEditModal() {
 		editingTeam = null;
-	}
-	
-	function openDeleteModal(team: typeof data.teams[0]) {
-		deletingTeam = team;
-	}
-	
-	function closeDeleteModal() {
-		deletingTeam = null;
 	}
 	
 	// Status to integer mapping for form
@@ -316,20 +307,16 @@
 									<a 
 										href="/teams/{team.id}"
 										class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-sm transition-colors"
+										title="View team page with full management access (roster, status, deletion)"
 									>
-										View
+										Manage Team
 									</a>
 									<button 
 										onclick={() => openEditModal(team)}
 										class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors"
+										title="Quick edit team metadata"
 									>
-										Edit
-									</button>
-									<button 
-										onclick={() => openDeleteModal(team)}
-										class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
-									>
-										Delete
+										Quick Edit
 									</button>
 								</div>
 							</td>
@@ -405,7 +392,7 @@
 		</div>
 	{/if}
 	
-	{#if form?.error && !editingTeam && !deletingTeam}
+	{#if form?.error && !editingTeam}
 		<div class="fixed top-4 right-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg shadow-lg z-50">
 			<p class="text-red-400">{form.error}</p>
 		</div>
@@ -430,13 +417,19 @@
 			tabindex="0"
 		>
 			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Edit Team: {editingTeam.name}</h3>
+				<h3 class="text-xl font-bold text-white">Quick Edit: {editingTeam.name}</h3>
 				<button 
 					onclick={closeEditModal}
 					class="text-gray-400 hover:text-white transition-colors"
 				>
 					✕
 				</button>
+			</div>
+			
+			<div class="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg">
+				<p class="text-blue-400 text-sm">
+					💡 <strong>Tip:</strong> For roster management, status changes, and team deletion, visit the team page.
+				</p>
 			</div>
 			
 			{#if form?.error}
@@ -570,86 +563,3 @@
 		</div>
 	</div>
 {/if}
-
-<!-- Delete Confirmation Modal -->
-{#if deletingTeam}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={closeDeleteModal}
-		onkeydown={(e) => e.key === 'Escape' && closeDeleteModal()}
-		role="button"
-		tabindex="-1"
-	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
-		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Delete Team</h3>
-				<button 
-					onclick={closeDeleteModal}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
-			
-			{#if form?.error}
-				<div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-					<p class="text-red-400 text-sm">{form.error}</p>
-				</div>
-			{/if}
-			
-			<div class="mb-6">
-				<p class="text-gray-300 mb-4">
-					Are you sure you want to delete <strong class="text-white">{deletingTeam.name}</strong>?
-				</p>
-				
-				<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-					<p class="text-red-400 text-sm">
-						⚠️ This action cannot be undone. The team will be permanently deleted.
-					</p>
-				</div>
-			</div>
-			
-			<form 
-				method="POST" 
-				action="?/deleteTeam"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							closeDeleteModal();
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="teamId" value={deletingTeam.id} />
-				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={closeDeleteModal}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Deleting...' : 'Delete Team'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-

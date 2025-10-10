@@ -40,6 +40,32 @@ export async function getPlayerTeams(steamId: string) {
 }
 
 /**
+ * Get player's active 2v2 team (for navigation display)
+ * Returns null if player is not in an active 2v2 team
+ */
+export async function getUserActiveTeam(steamId: string): Promise<{ id: number; name: string } | null> {
+	const teamMembership = await prisma.playerInTeam.findFirst({
+		where: {
+			playerSteamId: steamId,
+			active: 1,
+			team: {
+				is1v1: 0
+			}
+		},
+		include: {
+			team: {
+				select: {
+					id: true,
+					name: true
+				}
+			}
+		}
+	});
+
+	return teamMembership?.team || null;
+}
+
+/**
  * Get player's tournament placements (1st, 2nd, 3rd place finishes)
  */
 export async function getPlayerTournamentPlacements(steamId: string) {

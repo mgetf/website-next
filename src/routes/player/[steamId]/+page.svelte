@@ -53,18 +53,24 @@
 	
 	let { data }: { data: PlayerData } = $props();
 	
-	// Destructure data
-	const { player, currentTeams, teamHistory, tournaments, fightNights, achievements, isOwnProfile } = data;
+	// Destructure data - use $derived to react to data changes when navigating between player profiles
+	const player = $derived(data.player);
+	const currentTeams = $derived(data.currentTeams);
+	const teamHistory = $derived(data.teamHistory);
+	const tournaments = $derived(data.tournaments);
+	const fightNights = $derived(data.fightNights);
+	const achievements = $derived(data.achievements);
+	const isOwnProfile = $derived(data.isOwnProfile);
 	
-	// External profile links
-	const externalLinks = [
+	// External profile links - also reactive to player changes
+	const externalLinks = $derived([
 		{ name: 'Steam Profile', url: `https://steamcommunity.com/profiles/${player.steamId}`, icon: '🎮' },
 		{ name: 'logs.tf', url: `https://logs.tf/profile/${player.steamId}`, icon: '📊' },
 		{ name: 'RGL.gg', url: `https://rgl.gg/Public/PlayerProfile.aspx?p=${player.steamId}`, icon: '🏆' },
 		{ name: 'ETF2L', url: `https://etf2l.org/search/${player.steamId}/`, icon: '🇪🇺' },
 		{ name: 'UGC Gaming', url: `https://www.ugcleague.com/players_page.cfm?player_id=${player.steamId}`, icon: '🎯' },
 		{ name: 'SteamHistory', url: `https://steamhistory.net/id/${player.steamId}`, icon: '📜' }
-	];
+	]);
 	
 	// Format date helper
 	function formatDate(date: Date | string | null): string {

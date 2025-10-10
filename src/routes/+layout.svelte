@@ -5,6 +5,7 @@
 	import AnnouncementBanner from '$lib/components/layout/AnnouncementBanner.svelte';
 	import { identifyUser } from '$lib/utils/posthog';
 	import { onMount } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 	
@@ -12,6 +13,14 @@
 	onMount(() => {
 		if (data.user) {
 			identifyUser(data.user);
+		}
+	});
+
+	// Scroll to top on every navigation
+	afterNavigate(() => {
+		const mainContent = document.getElementById('main-content');
+		if (mainContent) {
+			mainContent.scrollTo({ top: 0, behavior: 'instant' });
 		}
 	});
 </script>
@@ -26,7 +35,14 @@
 <div class="subpixel-antialiased flex flex-col h-full overflow-hidden bg-zinc-950 text-gray-200">
 	<div class="flex flex-col flex-grow overflow-hidden w-full mx-auto">
 		<div class="flex flex-col h-full w-full mx-auto">
-			<Navigation user={data.user} notifications={data.notifications} notificationCount={data.notificationCount} />
+			<Navigation 
+				user={data.user} 
+				notifications={data.notifications} 
+				notificationCount={data.notificationCount}
+				signupClosed={data.signupClosed}
+				isInTeam={data.isInTeam}
+				userTeam={data.userTeam}
+			/>
 			
 			{#if data.announcements.length > 0}
 				<AnnouncementBanner announcements={data.announcements as Array<{

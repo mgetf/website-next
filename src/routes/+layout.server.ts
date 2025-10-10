@@ -4,15 +4,30 @@
  */
 
 import type { LayoutServerLoad } from './$types';
-import { prisma } from '$lib/server/db';
+import { getGlobalSettings } from '$lib/server/services/settings';
+import { getUserActiveTeam } from '$lib/server/services/users';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-	// Simplified for now - will add database queries back later
+	// Get global settings for signup status
+	const settings = await getGlobalSettings();
+	const signupClosed = settings?.signupClosed === 1;
+
+	// Check if user is in a team (to hide signup button if they are)
+	let isInTeam = false;
+	let userTeam: { id: number; name: string } | null = null;
+	if (locals.user) {
+		userTeam = await getUserActiveTeam(locals.user.steamId);
+		isInTeam = !!userTeam;
+	}
+
 	return {
 		user: locals.user || null,
 		announcements: [],
 		notificationCount: 0,
-		notifications: []
+		notifications: [],
+		signupClosed,
+		isInTeam,
+		userTeam
 	};
 };
 

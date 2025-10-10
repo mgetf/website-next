@@ -5,7 +5,7 @@ import { fail } from '@sveltejs/kit';
 import { getSeasonsForFilter } from '$lib/server/services/seasons';
 import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getDivisionsForFilter } from '$lib/server/services/divisions';
-import { getTeams, countTeams, updateTeam, deleteTeam } from '$lib/server/services/teams';
+import { getTeams, countTeams, updateTeam } from '$lib/server/services/teams';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	requireAdmin(locals.user);
@@ -136,26 +136,6 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Error updating team:', error);
 			return fail(400, { error: error instanceof Error ? error.message : 'Failed to update team' });
-		}
-	},
-
-	deleteTeam: async ({ request, locals }) => {
-		requireAdmin(locals.user);
-
-		const formData = await request.formData();
-		const teamId = parseInt(formData.get('teamId') as string);
-
-		// Validate input
-		if (!teamId || teamId < 1) {
-			return fail(400, { error: 'Invalid team ID' });
-		}
-
-		try {
-			await deleteTeam(teamId);
-			return { success: true, message: 'Team deleted successfully!' };
-		} catch (error) {
-			console.error('Error deleting team:', error);
-			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete team' });
 		}
 	}
 };

@@ -31,8 +31,11 @@
 		]
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.907.0",
 		"@prisma/client": "^6.16.3",
 		"@tailwindcss/vite": "^4.1.13",
+		"@types/jsonwebtoken": "^9.0.10",
+		"jsonwebtoken": "^9.0.2",
 		"node-steam-openid": "^2.0.0",
 		"tailwindcss": "^4.1.13",
 		"zod": "^4.1.11"

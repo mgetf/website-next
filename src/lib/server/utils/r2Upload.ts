@@ -122,18 +122,33 @@ export function isR2Available(): boolean {
 /**
  * Validate uploaded file
  * @param file - File object from form data
+ * @param type - 'image' or 'demo'
  */
-export function validateUploadedFile(file: File): void {
-	// Check file size (5MB max)
-	const maxSize = 5 * 1024 * 1024; // 5MB
-	if (file.size > maxSize) {
-		throw error(400, 'File size must be less than 5MB');
-	}
+export function validateUploadedFile(file: File, type: 'image' | 'demo' = 'image'): void {
+	if (type === 'image') {
+		// Check file size (5MB max for images)
+		const maxSize = 5 * 1024 * 1024; // 5MB
+		if (file.size > maxSize) {
+			throw error(400, 'File size must be less than 5MB');
+		}
 
-	// Check file type
-	const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-	if (!allowedTypes.includes(file.type)) {
-		throw error(400, 'Only JPEG, PNG, GIF, and WebP files are allowed');
+		// Check file type
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+		if (!allowedTypes.includes(file.type)) {
+			throw error(400, 'Only JPEG, PNG, GIF, and WebP files are allowed');
+		}
+	} else if (type === 'demo') {
+		// Check file size (200MB max for demos)
+		const maxSize = 200 * 1024 * 1024; // 200MB
+		if (file.size > maxSize) {
+			throw error(400, 'Demo file size must be less than 200MB');
+		}
+
+		// Check file extension (.dem files)
+		const fileName = file.name.toLowerCase();
+		if (!fileName.endsWith('.dem')) {
+			throw error(400, 'Only .dem demo files are allowed');
+		}
 	}
 }
 

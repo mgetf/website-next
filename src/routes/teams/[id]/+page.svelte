@@ -279,18 +279,23 @@
 							<div class="p-6">
 								<div class="space-y-2">
 									{#each seasonData.matches as match}
-										<div class="flex items-center justify-between p-3 bg-zinc-950/50 rounded hover:bg-zinc-800/30 transition-colors">
+										<a 
+											href="/matches/{match.matchId}"
+											class="flex items-center justify-between p-3 bg-zinc-950/50 rounded hover:bg-zinc-800/30 transition-colors group"
+										>
 											<div class="flex items-center gap-4 flex-1">
 												<div class="text-sm font-medium text-gray-400 w-20">
 													{match.week}
 												</div>
 												<div class="flex-1">
 													{#if match.opponent && match.opponentId}
-														<a href="/teams/{match.opponentId}" class="text-white hover:text-blue-400 transition-colors">
-															{match.opponent}
-														</a>
+														<span class="text-white group-hover:text-blue-400 transition-colors">
+															vs {match.opponent}
+														</span>
 													{:else if match.opponent}
-														<span class="text-white">{match.opponent}</span>
+														<span class="text-white group-hover:text-blue-400 transition-colors">
+															vs {match.opponent}
+														</span>
 													{:else}
 														<span class="text-gray-500 italic">{match.score}</span>
 													{/if}
@@ -307,7 +312,7 @@
 													</span>
 												{/if}
 											</div>
-										</div>
+										</a>
 									{/each}
 								</div>
 							</div>

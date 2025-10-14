@@ -108,7 +108,7 @@ export async function pairTeamsForMatches(teams: Team[], seasonId: number): Prom
 interface CreateMatchSetParams {
 	seasonId: number;
 	seasonNo: number;
-	weekNo: number;
+	weekNo?: number;
 	boSeries: number;
 	arenaId?: number;
 	matchDateTime?: string;
@@ -378,5 +378,63 @@ export async function getEligibleTeams(regionId: number, divisionId: number, sea
 			{ losses: 'asc' }
 		]
 	});
+}
+
+/**
+ * Calculate the week label for a new match set
+ * Returns the week number with suffix (e.g., "3b" if Week 3a already exists)
+ */
+export async function calculateWeekLabel(
+	regionId: number,
+	divisionId: number,
+	seasonId: number,
+	weekNo: number
+): Promise<{ weekLabel: string; existingCount: number }> {
+	// Find all matches for this week/season where both teams are in the same region/division
+	const existingMatches = await prisma.match.findMany({
+		where: {
+			weekNo,
+			seasonId,
+			homeTeam: {
+				regionId,
+				divisionId
+			},
+			awayTeam: {
+				regionId,
+				divisionId
+			}
+		},
+		select: { id: true },
+		orderBy: { id: 'asc' }
+	});
+
+	console.log('Found existing matches:', existingMatches.length);
+
+	// Group matches into sets by checking for gaps in IDs
+	// Matches created together have sequential IDs
+	let matchSetCount = 0;
+	if (existingMatches.length > 0) {
+		let lastId = existingMatches[0].id;
+		matchSetCount = 1;
+
+		for (let i = 1; i < existingMatches.length; i++) {
+			if (existingMatches[i].id - lastId > 10) {
+				// Gap detected, new match set
+				matchSetCount++;
+			}
+			lastId = existingMatches[i].id;
+		}
+	}
+
+	// Calculate suffix
+	let weekLabel = weekNo.toString();
+	if (matchSetCount > 0) {
+		const suffixChar = String.fromCharCode('a'.charCodeAt(0) + matchSetCount);
+		weekLabel = `${weekNo}${suffixChar}`;
+	}
+
+	console.log('Week label:', weekLabel, 'Match sets:', matchSetCount);
+
+	return { weekLabel, existingCount: matchSetCount };
 }
 

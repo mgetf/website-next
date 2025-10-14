@@ -6,8 +6,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
-import { getEligibleTeams, createMatchSet } from '$lib/server/services/adminMatches';
-import { getSeasons } from '$lib/server/services/seasons';
+import { 
+	getEligibleTeams, 
+	createMatchSet, 
+	calculateWeekLabel as calculateWeekLabelService 
+} from '$lib/server/services/adminMatches';
+import { getSeasons, getSeasonById } from '$lib/server/services/seasons';
 import { getRegions } from '$lib/server/services/regions';
 import { getDivisions } from '$lib/server/services/divisions';
 import { getArenas } from '$lib/server/services/arenas';
@@ -36,7 +40,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	/**
-	 * Preview eligible teams and match pairings
+	 * Preview eligible teams and match pairings (includes week label calculation)
 	 */
 	previewMatches: async ({ request, locals }) => {
 		requireAdmin(locals.user);
@@ -45,12 +49,15 @@ export const actions: Actions = {
 		const regionId = parseInt(formData.get('regionId') as string);
 		const divisionId = parseInt(formData.get('divisionId') as string);
 		const seasonId = parseInt(formData.get('seasonId') as string);
+		const weekNoRaw = formData.get('weekNo') as string;
+		const weekNo = weekNoRaw && weekNoRaw !== '' ? parseInt(weekNoRaw) : null;
+		const isPlayoff = formData.get('isPlayoff') === 'on';
 
 		try {
 			const teams = await getEligibleTeams(regionId, divisionId, seasonId);
 
 			if (teams.length === 0) {
-				return { preview: { teams: [], matchups: [] }, success: true };
+				return { preview: { teams: [], matchups: [], weekLabel: null, existingCount: 0 }, success: true };
 			}
 
 			// Assign seeds based on sorted order (getEligibleTeams already sorts by wins/losses)
@@ -85,7 +92,30 @@ export const actions: Actions = {
 					? teamsWithSeeds.find((t) => !pairedTeams.some((pt) => pt.id === t.id))
 					: null;
 
-			return { preview: { teams: teamsWithSeeds, matchups, byeTeam }, success: true };
+			// Calculate week label if not playoff and week number provided
+			let weekLabel = null;
+			let existingCount = 0;
+			
+			console.log('Week label calculation check:', { weekNo, isPlayoff, shouldCalculate: weekNo && !isPlayoff });
+			
+			if (weekNo && !isPlayoff) {
+				console.log('Calculating week label for:', { regionId, divisionId, seasonId, weekNo });
+				const weekLabelData = await calculateWeekLabelService(regionId, divisionId, seasonId, weekNo);
+				weekLabel = weekLabelData.weekLabel;
+				existingCount = weekLabelData.existingCount;
+				console.log('Week label calculated:', { weekLabel, existingCount });
+			}
+
+			return { 
+				preview: { 
+					teams: teamsWithSeeds, 
+					matchups, 
+					byeTeam,
+					weekLabel,
+					existingCount
+				}, 
+				success: true 
+			};
 		} catch (err: any) {
 			return fail(400, { error: err.message || 'Failed to load teams' });
 		}
@@ -102,19 +132,38 @@ export const actions: Actions = {
 		const regionId = parseInt(formData.get('regionId') as string);
 		const divisionId = parseInt(formData.get('divisionId') as string);
 		const seasonId = parseInt(formData.get('seasonId') as string);
-		const seasonNo = parseInt(formData.get('seasonNo') as string);
-		const weekNo = parseInt(formData.get('weekNo') as string);
+		const weekNoRaw = formData.get('weekNo') as string;
+		const weekNo = weekNoRaw && weekNoRaw !== '' ? parseInt(weekNoRaw) : null;
 		const boSeries = parseInt(formData.get('boSeries') as string);
-		const arenaId = formData.get('arenaId') ? parseInt(formData.get('arenaId') as string) : undefined;
-		const matchDateTime = formData.get('matchDateTime') as string;
-		const mapBanPoolId = formData.get('mapBanPoolId')
-			? parseInt(formData.get('mapBanPoolId') as string)
-			: undefined;
+		const arenaIdRaw = formData.get('arenaId') as string;
+		const arenaId = arenaIdRaw && arenaIdRaw !== '' ? parseInt(arenaIdRaw) : undefined;
+		const matchDateTime = (formData.get('matchDateTime') as string) || '';
+		const mapBanPoolIdRaw = formData.get('mapBanPoolId') as string;
+		const mapBanPoolId = mapBanPoolIdRaw && mapBanPoolIdRaw !== '' ? parseInt(mapBanPoolIdRaw) : undefined;
+		const isPlayoff = formData.get('isPlayoff') === 'on';
+
+		console.log('Create match set params:', { regionId, divisionId, seasonId, weekNo, boSeries, arenaId, matchDateTime, mapBanPoolId, isPlayoff });
+
+		// Validate required fields
+		if (isNaN(regionId) || isNaN(divisionId) || isNaN(seasonId) || isNaN(boSeries)) {
+			console.error('Invalid form data:', { regionId, divisionId, seasonId, boSeries });
+			return fail(400, { error: 'Invalid form data: missing required fields' });
+		}
 
 		try {
-			const matches = await createMatchSet(regionId, divisionId, {
+			// Get season to extract seasonNo
+			const season = await getSeasonById(seasonId);
+
+			if (!season) {
+				console.error('Season not found:', seasonId);
+				return fail(400, { error: 'Season not found' });
+			}
+
+			console.log('Creating match set with params:', {
+				regionId,
+				divisionId,
 				seasonId,
-				seasonNo,
+				seasonNo: season.seasonNum,
 				weekNo,
 				boSeries,
 				arenaId,
@@ -122,11 +171,24 @@ export const actions: Actions = {
 				mapBanPoolId
 			});
 
+			const matches = await createMatchSet(regionId, divisionId, {
+				seasonId,
+				seasonNo: season.seasonNum,
+				weekNo: weekNo || undefined,
+				boSeries,
+				arenaId,
+				matchDateTime,
+				mapBanPoolId
+			});
+
+			console.log('Successfully created matches:', matches.length);
+
 			// TODO: Send notifications to all team owners (F19)
 
 			// Redirect to matches list with success message
 			throw redirect(303, `/admin/matches?created=${matches.length}`);
 		} catch (err: any) {
+			console.error('Error creating match set:', err);
 			if (err.status === 303) throw err; // Re-throw redirects
 			return fail(400, { error: err.message || 'Failed to create matches' });
 		}

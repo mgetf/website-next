@@ -3,6 +3,7 @@
 	import type { LayoutData } from './$types';
 	import Navigation from '$lib/components/layout/Navigation.svelte';
 	import AnnouncementBanner from '$lib/components/layout/AnnouncementBanner.svelte';
+	import LoadingBar from '$lib/components/layout/LoadingBar.svelte';
 	import { identifyUser } from '$lib/utils/posthog';
 	import { onMount } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
@@ -33,6 +34,8 @@
 </svelte:head>
 
 <div class="subpixel-antialiased flex flex-col h-full overflow-hidden bg-zinc-950 text-gray-200">
+	<LoadingBar />
+	
 	<div class="flex flex-col flex-grow overflow-hidden w-full mx-auto">
 		<div class="flex flex-col h-full w-full mx-auto">
 			<Navigation 

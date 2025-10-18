@@ -124,33 +124,90 @@
 			</a>
 		</div>
 
-		<!-- Match Info -->
-		<div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-300">
-			<div>
-				<span class="font-semibold">Season:</span> {match.season.region.name} S{match.seasonNo}
+		<!-- Match Info Cards -->
+		<div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+			<!-- Season Info -->
+			<div class="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+						<span class="text-purple-400 text-xl">🏆</span>
+					</div>
+					<div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
+						<p class="text-xs text-gray-400 uppercase tracking-wide leading-none mb-1">Season</p>
+						<p class="text-white font-semibold leading-tight">{match.season.region.name} S{match.seasonNo}</p>
+					</div>
+				</div>
 			</div>
-			<div>
-				<span class="font-semibold">Date:</span>
-				{#if match.matchDateTime && match.matchDateTime !== null}
-					{new Date(match.matchDateTime).toLocaleString('en-US', {
-						year: 'numeric',
-						month: 'short',
-						day: 'numeric',
-						hour: '2-digit',
-						minute: '2-digit',
-						timeZone: 'UTC',
-						hour12: true
-					})} UTC
-				{:else}
-					TBD
-				{/if}
+
+			<!-- Date/Time Info -->
+			<div class="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+						<span class="text-blue-400 text-xl">📅</span>
+					</div>
+					<div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
+						<p class="text-xs text-gray-400 uppercase tracking-wide leading-none mb-1">Scheduled</p>
+						{#if match.matchDateTime && match.matchDateTime !== null}
+							<p class="text-white font-semibold leading-tight">
+								{new Date(match.matchDateTime).toLocaleString('en-US', {
+									month: 'short',
+									day: 'numeric',
+									hour: '2-digit',
+									minute: '2-digit',
+									timeZone: 'UTC',
+									hour12: true
+								})}
+							</p>
+							<p class="text-xs text-gray-500 leading-tight">
+								{new Date(match.matchDateTime).toLocaleString('en-US', {
+									year: 'numeric',
+									timeZone: 'UTC'
+								})} (UTC)
+							</p>
+						{:else}
+							<p class="text-gray-400 font-medium leading-tight">To Be Determined</p>
+						{/if}
+					</div>
+				</div>
 			</div>
+
+			<!-- Submitted By Info (or Not Submitted Warning) -->
 			{#if match.submittedBy}
-				<div>
-					<span class="font-semibold">Submitted by:</span>
-					<a href="/player/{match.submittedBy}" class="text-blue-400 hover:underline">
-						{match.submitter?.steamUsername}
-					</a>
+				<div class="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+							<span class="text-green-400 text-xl">✓</span>
+						</div>
+						<div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
+							<p class="text-xs text-gray-400 uppercase tracking-wide leading-none mb-1">Submitted By</p>
+							<a 
+								href="/player/{match.submittedBy}" 
+								class="text-white font-semibold hover:text-blue-400 transition-colors leading-tight"
+							>
+								{match.submitter?.steamUsername}
+							</a>
+							{#if match.submittedAt}
+								<p class="text-xs text-gray-500 leading-tight">
+									{new Date(match.submittedAt * 1000).toLocaleDateString('en-US', {
+										month: 'short',
+										day: 'numeric'
+									})}
+								</p>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{:else}
+				<div class="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+							<span class="text-yellow-400 text-xl">⚠️</span>
+						</div>
+						<div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
+							<p class="text-xs text-gray-400 uppercase tracking-wide leading-none mb-1">Submitted By</p>
+							<p class="text-yellow-400 font-semibold leading-tight">Awaiting match completion</p>
+						</div>
+					</div>
 				</div>
 			{/if}
 		</div>

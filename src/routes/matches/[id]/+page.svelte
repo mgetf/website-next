@@ -27,10 +27,10 @@
 	);
 
 	const getStatusBadge = (status: string) => {
-		if (status === 'UNPLAYED') return 'bg-yellow-100 text-yellow-800';
-		if (status === 'PLAYED') return 'bg-green-100 text-green-800';
-		if (status === 'DISPUTE') return 'bg-red-100 text-red-800';
-		return 'bg-zinc-800 text-gray-800';
+		if (status === 'UNPLAYED') return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+		if (status === 'PLAYED') return 'bg-green-500/20 text-green-300 border border-green-500/30';
+		if (status === 'DISPUTE') return 'bg-red-500/20 text-red-300 border border-red-500/30';
+		return 'bg-zinc-800 text-gray-300 border border-zinc-700';
 	};
 
 	const getStatusLabel = (status: string) => {

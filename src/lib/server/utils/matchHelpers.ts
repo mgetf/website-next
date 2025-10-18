@@ -8,7 +8,7 @@ import type { Match } from '@prisma/client';
 /**
  * Calculate week label with suffix for multi-match weeks (e.g., "1a", "1b")
  * @param match - The current match
- * @param siblingsInWeek - All matches in the same week
+ * @param siblingsInWeek - All matches in the same week (MUST be filtered by division/region already)
  * @returns Week label with suffix if multiple matches, null if no week
  */
 export function calculateWeekLabel(
@@ -19,15 +19,18 @@ export function calculateWeekLabel(
 		return null;
 	}
 
+	// If only 1 match in the week, no suffix needed
 	if (siblingsInWeek.length <= 1) {
 		return match.weekNo.toString();
 	}
 
 	const idx = siblingsInWeek.findIndex((m) => m.id === match.id);
 	if (idx < 0) {
+		// Match not found in siblings (shouldn't happen), just return week number
 		return match.weekNo.toString();
 	}
 
+	// Multiple matches in week - add letter suffix (a, b, c...)
 	const suffixChar = String.fromCharCode('a'.charCodeAt(0) + idx);
 	return `${match.weekNo}${suffixChar}`;
 }

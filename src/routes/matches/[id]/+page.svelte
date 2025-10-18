@@ -1,14 +1,17 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
-	import type { PageData } from './$types';
+	import type { PageData, ActionData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let showScoreForm = $state(false);
 	let showDisputeForm = $state(false);
 	let showRescheduleForm = $state(false);
 	let messageContent = $state('');
+	let scoreSubmitError = $state<string | null>(null);
+	let scoreSubmitSuccess = $state(false);
+	let isSubmittingScore = $state(false);
 
 	const match = $derived(data.match);
 	const isUnplayed = $derived(match.status === 'UNPLAYED');
@@ -128,7 +131,19 @@
 			</div>
 			<div>
 				<span class="font-semibold">Date:</span>
-				{match.matchDateTime ? new Date(match.matchDateTime).toLocaleDateString() : 'TBD'}
+				{#if match.matchDateTime && match.matchDateTime !== null}
+					{new Date(match.matchDateTime).toLocaleString('en-US', {
+						year: 'numeric',
+						month: 'short',
+						day: 'numeric',
+						hour: '2-digit',
+						minute: '2-digit',
+						timeZone: 'UTC',
+						hour12: true
+					})} UTC
+				{:else}
+					TBD
+				{/if}
 			</div>
 			{#if match.submittedBy}
 				<div>
@@ -157,7 +172,49 @@
 	{#if showScoreForm}
 		<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-md p-6 mb-6">
 			<h2 class="text-2xl font-bold text-white mb-4">Submit Match Scores</h2>
-			<form method="POST" action="?/submitScores" use:enhance>
+			
+			<!-- Error Message -->
+			{#if scoreSubmitError}
+				<div class="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
+					<p class="text-red-300 font-semibold">Error</p>
+					<p class="text-red-200 text-sm">{scoreSubmitError}</p>
+				</div>
+			{/if}
+			
+			<!-- Success Message -->
+			{#if scoreSubmitSuccess}
+				<div class="mb-4 p-4 bg-green-900/20 border border-green-700 rounded-lg">
+					<p class="text-green-300 font-semibold">Success!</p>
+					<p class="text-green-200 text-sm">Scores submitted successfully</p>
+				</div>
+			{/if}
+			
+			<form 
+				method="POST" 
+				action="?/submitScores" 
+				use:enhance={() => {
+					isSubmittingScore = true;
+					scoreSubmitError = null;
+					scoreSubmitSuccess = false;
+					
+				return async ({ result, update }) => {
+					isSubmittingScore = false;
+					
+					if (result.type === 'failure') {
+						const errorData = result.data as { error?: string } | undefined;
+						scoreSubmitError = errorData?.error || 'Failed to submit scores';
+					} else if (result.type === 'success') {
+						scoreSubmitSuccess = true;
+						setTimeout(() => {
+							showScoreForm = false;
+							scoreSubmitSuccess = false;
+						}, 2000);
+					}
+					
+					await update();
+				};
+				}}
+			>
 				<div class="space-y-4">
 					{#each Array(match.boSeries || 3) as _, i}
 						<div class="border border-zinc-700 rounded-lg p-4">
@@ -211,9 +268,10 @@
 				<div class="mt-6">
 					<button
 						type="submit"
-						class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold"
+						disabled={isSubmittingScore}
+						class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
 					>
-						Submit Scores
+						{isSubmittingScore ? 'Submitting...' : 'Submit Scores'}
 					</button>
 				</div>
 			</form>
@@ -484,13 +542,14 @@
 				<div class="mb-6 p-4 bg-zinc-800 rounded-lg">
 					<form method="POST" action="?/requestReschedule" use:enhance>
 						<div class="mb-3">
-							<label class="block text-sm font-medium text-gray-300 mb-1">Proposed Date/Time</label>
+							<label class="block text-sm font-medium text-gray-300 mb-1">Proposed Date/Time (UTC)</label>
 							<input
 								type="datetime-local"
 								name="proposedDateTime"
 								required
 								class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 							/>
+							<p class="text-xs text-gray-500 mt-1">Enter time in UTC timezone</p>
 						</div>
 						<button
 							type="submit"

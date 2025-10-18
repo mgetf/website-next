@@ -13,7 +13,7 @@ import {
 	createPlayoffMatch,
 	getEligibleTeams
 } from '$lib/server/services/adminMatches';
-import { updateTeamStats, reverseTeamStats } from '$lib/server/services/matches';
+import { updateTeamStats, reverseTeamStats, getMatchWeekLabels } from '$lib/server/services/matches';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Admin check handled by layout
@@ -83,6 +83,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		prisma.match.count({ where })
 	]);
 
+	// Calculate week labels for each match (using service layer)
+	const weekLabelMap = await getMatchWeekLabels(matches);
+	const matchesWithLabels = matches.map((match) => ({
+		...match,
+		weekLabel: weekLabelMap.get(match.id) || null
+	}));
+
 	// Fetch filter options
 	const [seasons, divisions, regions, mapBanPools] = await Promise.all([
 		prisma.season.findMany({
@@ -106,7 +113,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const totalPages = Math.ceil(totalCount / limit);
 
 	return {
-		matches,
+		matches: matchesWithLabels,
 		seasons,
 		divisions,
 		regions,

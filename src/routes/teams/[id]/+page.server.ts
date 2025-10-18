@@ -5,6 +5,7 @@ import { isAdmin, isTeamAdmin } from "$lib/server/auth/permissions";
 import { removePlayer } from "$lib/server/services/teamManagement";
 import { getGlobalSettings } from "$lib/server/services/settings";
 import { prisma } from "$lib/server/db";
+import { calculateWeekLabel } from "$lib/server/utils/matchHelpers";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const teamId = parseInt(params.id);
@@ -83,12 +84,27 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const isDraw =
       match.winnerId === null && match.status.toString() === "PLAYED";
 
+    // Calculate week label with proper suffix (1a, 1b, etc.) for multiple match sets
+    let weekLabel = "TBD";
+    if (match.weekNo !== null && match.weekNo !== undefined) {
+      // Filter THIS team's matches to only those in the same week and season
+      // This ensures each team gets their own sequential labeling (1a, 1b, etc.)
+      const teamMatchesForThisWeek = allMatches.filter(
+        (m) => m.weekNo === match.weekNo && m.season.id === match.season.id
+      );
+      
+      // Sort by match ID to ensure consistent ordering
+      teamMatchesForThisWeek.sort((a, b) => a.id - b.id);
+      
+      // Use centralized helper to calculate label (no code duplication)
+      const calculatedLabel = calculateWeekLabel(match, teamMatchesForThisWeek);
+      weekLabel = calculatedLabel ? `Week ${calculatedLabel}` : `Week ${match.weekNo}`;
+    } else if (match.playoffRound) {
+      weekLabel = `Round ${match.playoffRound}`;
+    }
+
     matchesBySeasonMap.get(seasonId)?.push({
-      week: match.weekNo
-        ? `Week ${match.weekNo}`
-        : match.playoffRound
-        ? `Round ${match.playoffRound}`
-        : "TBD",
+      week: weekLabel,
       opponent: match.opponent.name,
       opponentId: match.opponent.id,
       result: isDraw

@@ -227,17 +227,19 @@
 					</select>
 				</div>
 
-				<!-- Match Date and Time -->
-				<div>
-					<label class="block text-sm font-medium text-gray-300 mb-1">Match Date and Time</label>
-					<input
-						type="datetime-local"
-						name="matchDateTime"
-						bind:value={matchDateTime}
-						class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
-					/>
-					<p class="text-xs text-gray-500 mt-1">Optional: Default scheduled time</p>
-				</div>
+			<!-- Match Date and Time -->
+			<div>
+				<label class="block text-sm font-medium text-gray-300 mb-1">Match Date and Time (UTC)</label>
+				<input
+					type="datetime-local"
+					name="matchDateTime"
+					bind:value={matchDateTime}
+					class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
+				/>
+				<p class="text-xs text-gray-500 mt-1">
+					Optional: Default scheduled time (enter in UTC timezone)
+				</p>
+			</div>
 
 				<!-- Map Ban Pool (Hidden for now, can add later) -->
 				<input type="hidden" name="mapBanPoolId" value={mapBanPoolId || ''} />

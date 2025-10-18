@@ -8,6 +8,7 @@ import type { Match, Game, Team } from '@prisma/client';
 import { MatchStatus } from '@prisma/client';
 import { UserRole, type SessionUser } from '$lib/types/user';
 import { error } from '@sveltejs/kit';
+import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 
 /**
  * Get complete match details with all relations
@@ -96,6 +97,50 @@ export async function getMatchDetails(matchId: number) {
 	}
 
 	return match;
+}
+
+/**
+ * Calculate week label for a match by finding all matches for the HOME team in that week
+ * Returns the label (e.g., "1", "1a", "1b") or null if no week number
+ * Note: Label is calculated from home team's perspective for consistency
+ */
+export async function getMatchWeekLabel(match: Match): Promise<string | null> {
+	if (match.weekNo === null || match.weekNo === undefined) {
+		return null;
+	}
+
+	// Get all matches for the HOME team in this week
+	// This ensures consistent labeling from one team's perspective
+	const homeTeamMatchesForThisWeek = await prisma.match.findMany({
+		where: {
+			seasonId: match.seasonId,
+			weekNo: match.weekNo,
+			playoffId: null,
+			OR: [
+				{ homeTeamId: match.homeTeamId },
+				{ awayTeamId: match.homeTeamId }
+			]
+		},
+		select: { id: true },
+		orderBy: { id: 'asc' }
+	});
+
+	return calculateWeekLabel(match, homeTeamMatchesForThisWeek);
+}
+
+/**
+ * Calculate week labels for multiple matches
+ * More efficient than calling getMatchWeekLabel multiple times
+ */
+export async function getMatchWeekLabels(matches: Match[]): Promise<Map<number, string | null>> {
+	const labels = new Map<number, string | null>();
+
+	for (const match of matches) {
+		const label = await getMatchWeekLabel(match);
+		labels.set(match.id, label);
+	}
+
+	return labels;
 }
 
 /**

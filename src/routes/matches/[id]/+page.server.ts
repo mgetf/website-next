@@ -13,7 +13,8 @@ import {
 	canUserManageMatch,
 	validateScoreSubmission,
 	submitMatchScores,
-	disputeMatch
+	disputeMatch,
+	getMatchWeekLabel
 } from '$lib/server/services/matches';
 import {
 	createMatchComm,
@@ -42,21 +43,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// Calculate permissions
 	const permissions = canUserManageMatch(user, match);
 
-	// Calculate week label for multi-match weeks
-	let weekLabel: string | null = null;
-	if (match.weekNo !== null && match.weekNo !== undefined) {
-		const siblingsInWeek = await prisma.match.findMany({
-			where: {
-				seasonId: match.seasonId,
-				weekNo: match.weekNo,
-				playoffId: null
-			},
-			select: { id: true },
-			orderBy: { id: 'asc' }
-		});
-
-		weekLabel = calculateWeekLabel(match, siblingsInWeek);
-	}
+	// Calculate week label for multi-match weeks (using service layer)
+	const weekLabel = await getMatchWeekLabel(match);
 
 	// Get pending reschedule request
 	const pendingReschedule = await getPendingReschedule(matchId);
@@ -130,28 +118,43 @@ export const actions: Actions = {
 
 		// Parse scores
 		const gameResults = [];
+		const parsedScores: Record<string, number> = {};
+		
 		for (let i = 0; i < (match.boSeries || 3); i++) {
-			const homeScore = parseInt(formData.get(`homeScore_${i}`) as string);
-			const awayScore = parseInt(formData.get(`awayScore_${i}`) as string);
+			const homeScoreStr = formData.get(`homeScore_${i}`) as string;
+			const awayScoreStr = formData.get(`awayScore_${i}`) as string;
+			
+			if (!homeScoreStr || !awayScoreStr) {
+				return fail(400, { error: `Missing scores for Game ${i + 1}` });
+			}
+			
+			const homeScore = parseInt(homeScoreStr);
+			const awayScore = parseInt(awayScoreStr);
 			const arenaId = formData.get(`arenaId_${i}`)
 				? parseInt(formData.get(`arenaId_${i}`) as string)
 				: undefined;
 
-			if (!isNaN(homeScore) && !isNaN(awayScore)) {
-				gameResults.push({
-					gameNum: i + 1,
-					homeScore,
-					awayScore,
-					arenaId
-				});
+			if (isNaN(homeScore) || isNaN(awayScore)) {
+				return fail(400, { error: `Invalid scores for Game ${i + 1}` });
 			}
+			
+			if (homeScore < 0 || awayScore < 0) {
+				return fail(400, { error: `Scores cannot be negative for Game ${i + 1}` });
+			}
+
+			parsedScores[`homeScore_${i}`] = homeScore;
+			parsedScores[`awayScore_${i}`] = awayScore;
+
+			gameResults.push({
+				gameNum: i + 1,
+				homeScore,
+				awayScore,
+				arenaId
+			});
 		}
 
 		// Validate
-		const validation = validateScoreSubmission(
-			Object.fromEntries(formData.entries()),
-			match.boSeries || 3
-		);
+		const validation = validateScoreSubmission(parsedScores, match.boSeries || 3);
 		if (!validation.valid) {
 			return fail(400, { error: validation.error });
 		}
@@ -263,8 +266,10 @@ export const actions: Actions = {
 		}
 
 		try {
+			const utcDateTime = new Date(proposedDateTime + 'Z').toISOString();
+			
 			await createMatchComm(matchId, locals.user.steamId, '', {
-				proposedDateTime
+				proposedDateTime: utcDateTime
 			});
 
 			// TODO: Notify opposing team of reschedule request (F19)

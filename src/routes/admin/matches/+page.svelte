@@ -257,15 +257,17 @@
 								<td class="px-6 py-4 text-sm text-gray-300">
 									{match.season.region.name} S{match.seasonNo}
 								</td>
-								<td class="px-6 py-4 text-sm text-gray-300">
-									{#if match.weekNo}
-										Week {match.weekNo}
-									{:else if match.playoffRound}
-										R{match.playoffRound}
-									{:else}
-										-
-									{/if}
-								</td>
+							<td class="px-6 py-4 text-sm text-gray-300">
+								{#if match.weekLabel}
+									Week {match.weekLabel}
+								{:else if match.weekNo}
+									Week {match.weekNo}
+								{:else if match.playoffRound}
+									R{match.playoffRound}
+								{:else}
+									-
+								{/if}
+							</td>
 								<td class="px-6 py-4 text-sm text-white font-semibold">
 									{#if match.winnerId}
 										{match.winnerScore}-{match.loserScore}

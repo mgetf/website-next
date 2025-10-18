@@ -167,14 +167,14 @@ export async function createMatchSet(
 			data: {
 				homeTeamId: homeTeam.id,
 				awayTeamId: awayTeam.id,
-				seasonId,
-				seasonNo,
-				weekNo,
-				boSeries,
-				matchDateTime: matchDateTime ? new Date(matchDateTime) : null,
-				status: MatchStatus.UNPLAYED
-			}
-		});
+			seasonId,
+			seasonNo,
+			weekNo,
+			boSeries,
+			matchDateTime: matchDateTime ? new Date(matchDateTime + 'Z') : null,
+			status: MatchStatus.UNPLAYED
+		}
+	});
 
 		// Create games for this match
 		for (let gameNum = 1; gameNum <= boSeries; gameNum++) {

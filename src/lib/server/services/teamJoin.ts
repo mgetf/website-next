@@ -295,4 +295,51 @@ export async function getUserPendingInvites(steamId: string) {
 	return pendingInvites;
 }
 
+/**
+ * Check if a player is in a specific team
+ */
+export async function isPlayerInTeam(steamId: string, teamId: number): Promise<boolean> {
+	const playerInTeam = await prisma.playerInTeam.findFirst({
+		where: {
+			playerSteamId: steamId,
+			teamId,
+			active: 1,
+			permissionLevel: {
+				gte: 0
+			}
+		}
+	});
+
+	return !!playerInTeam;
+}
+
+/**
+ * Check if a player is in any active 2v2 team
+ */
+export async function isPlayerInAnyActiveTeam(steamId: string): Promise<boolean> {
+	const playerInOtherTeam = await prisma.playerInTeam.findFirst({
+		where: {
+			playerSteamId: steamId,
+			active: 1,
+			team: {
+				is1v1: 0
+			}
+		}
+	});
+
+	return !!playerInOtherTeam;
+}
+
+/**
+ * Decline/delete pending invitation
+ */
+export async function declineInvitation(steamId: string, teamId: number): Promise<void> {
+	await prisma.pendingPlayer.deleteMany({
+		where: {
+			playerSteamId: steamId,
+			teamId
+		}
+	});
+}
+
 

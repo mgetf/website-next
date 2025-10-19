@@ -1,7 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
-import { requestJoinByPassword } from '$lib/server/services/teamJoin';
-import { prisma } from '$lib/server/db';
+import { requestJoinByPassword, isPlayerInTeam, isPlayerInAnyActiveTeam } from '$lib/server/services/teamJoin';
+import { getTeamById } from '$lib/server/services/teams';
+import { getGlobalSettings } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -13,14 +14,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	// Load team info
-	const team = await prisma.team.findUnique({
-		where: { id: teamId },
-		include: {
-			division: true,
-			region: true,
-			season: true
-		}
-	});
+	const team = await getTeamById(teamId);
 
 	if (!team) {
 		throw redirect(303, '/');
@@ -37,22 +31,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	// Check if rosters are locked
-	const global = await prisma.global.findFirst();
+	const global = await getGlobalSettings();
 	const rosterLocked = global?.rosterLocked === 1;
 
 	// Check if user is trying to join their own team
-	const isTeamMember = await prisma.playerInTeam.findFirst({
-		where: {
-			playerSteamId: locals.user.steamId,
-			teamId,
-			active: 1,
-			permissionLevel: {
-				gte: 0
-			}
-		}
-	});
+	const isTeamMemberCheck = await isPlayerInTeam(locals.user.steamId, teamId);
 
-	if (isTeamMember) {
+	if (isTeamMemberCheck) {
 		return {
 			team,
 			error: 'You cannot invite yourself to your own team',
@@ -62,15 +47,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	// Check if user is already in another 2v2 team
-	const playerInOtherTeam = await prisma.playerInTeam.findFirst({
-		where: {
-			playerSteamId: locals.user.steamId,
-			active: 1,
-			team: {
-				is1v1: 0
-			}
-		}
-	});
+	const playerInOtherTeam = await isPlayerInAnyActiveTeam(locals.user.steamId);
 
 	if (playerInOtherTeam) {
 		return {
@@ -99,7 +76,7 @@ export const actions: Actions = {
 		}
 
 		// Check if rosters are locked
-		const global = await prisma.global.findFirst();
+		const global = await getGlobalSettings();
 		if (global?.rosterLocked === 1) {
 			return fail(400, { error: 'Rosters are currently locked' });
 		}

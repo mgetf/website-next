@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
-import { getUserPendingInvites, acceptInviteByToken } from '$lib/server/services/teamJoin';
+import { getUserPendingInvites, acceptInviteByToken, declineInvitation } from '$lib/server/services/teamJoin';
 import { generateJoinToken } from '$lib/server/services/teamSignup';
-import { prisma } from '$lib/server/db';
+import { getGlobalSettings } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}));
 
 	// Check if rosters are locked
-	const global = await prisma.global.findFirst();
+	const global = await getGlobalSettings();
 	const rosterLocked = global?.rosterLocked === 1;
 
 	return {
@@ -39,7 +39,7 @@ export const actions: Actions = {
 		}
 
 		// Check if rosters are locked
-		const global = await prisma.global.findFirst();
+		const global = await getGlobalSettings();
 		if (global?.rosterLocked === 1) {
 			return fail(400, { error: 'Rosters are currently locked' });
 		}
@@ -66,12 +66,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await prisma.pendingPlayer.deleteMany({
-				where: {
-					playerSteamId: locals.user.steamId,
-					teamId
-				}
-			});
+			await declineInvitation(locals.user.steamId, teamId);
 
 			return { success: true, message: 'Invitation declined' };
 		} catch (err: any) {

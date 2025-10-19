@@ -1,10 +1,9 @@
 import type { PageServerLoad, Actions } from "./$types";
 import { error, fail, redirect } from "@sveltejs/kit";
-import { getTeamById } from "$lib/server/services/teams";
+import { getTeamById, updateTeamStatus, deleteTeam } from "$lib/server/services/teams";
 import { isAdmin, isTeamAdmin } from "$lib/server/auth/permissions";
 import { removePlayer } from "$lib/server/services/teamManagement";
 import { getGlobalSettings } from "$lib/server/services/settings";
-import { prisma } from "$lib/server/db";
 import { calculateWeekLabel } from "$lib/server/utils/matchHelpers";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -224,12 +223,14 @@ export const actions: Actions = {
       return fail(400, { error: "Status is required" });
     }
 
-    await prisma.team.update({
-      where: { id: teamId },
-      data: { status: status as any },
-    });
-
-    return { success: true, message: "Team status updated successfully" };
+    try {
+      await updateTeamStatus(teamId, status as any);
+      return { success: true, message: "Team status updated successfully" };
+    } catch (err) {
+      return fail(500, {
+        error: err instanceof Error ? err.message : "Failed to update team status",
+      });
+    }
   },
 
   deleteTeam: async ({ params, locals }) => {
@@ -246,38 +247,15 @@ export const actions: Actions = {
       });
     }
 
-    // Check if team has any matches
-    const matchCount = await prisma.match.count({
-      where: {
-        OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }],
-      },
-    });
-
-    if (matchCount > 0) {
+    try {
+      await deleteTeam(teamId);
+      
+      // Redirect to admin teams page after deletion
+      throw redirect(303, "/admin/teams");
+    } catch (err) {
       return fail(400, {
-        error: "Cannot delete team that has played matches. Set status to DEAD instead.",
+        error: err instanceof Error ? err.message : "Failed to delete team",
       });
     }
-
-    // Delete related records first
-    await prisma.playerInTeam.deleteMany({
-      where: { teamId },
-    });
-
-    await prisma.pendingPlayer.deleteMany({
-      where: { teamId },
-    });
-
-    await prisma.teamNameHistory.deleteMany({
-      where: { teamId },
-    });
-
-    // Delete team
-    await prisma.team.delete({
-      where: { id: teamId },
-    });
-
-    // Redirect to admin teams page after deletion
-    throw redirect(303, "/admin/teams");
   },
 };

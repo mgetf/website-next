@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
-import { prisma } from '$lib/server/db';
+import { getUserActiveTeamForCheckout, getExistingPayment, updatePlayerPaymentStatus } from '$lib/server/services/payments';
 import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -14,24 +14,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	// Get user's current team
-	const playerInTeam = await prisma.playerInTeam.findFirst({
-		where: {
-			playerSteamId: steamId,
-			active: 1,
-			team: {
-				is1v1: 0
-			}
-		},
-		include: {
-			team: {
-				include: {
-					division: true,
-					region: true,
-					season: true
-				}
-			}
-		}
-	});
+	const playerInTeam = await getUserActiveTeamForCheckout(steamId);
 
 	if (!playerInTeam || !playerInTeam.team) {
 		throw redirect(303, '/');
@@ -56,26 +39,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	// Check if already paid in payment tracker
 	if (team.seasonId) {
-		const existingPayment = await prisma.paymentTracker.findUnique({
-			where: {
-				playerSteamId_seasonId: {
-					playerSteamId: steamId,
-					seasonId: team.seasonId
-				}
-			}
-		});
+		const existingPayment = await getExistingPayment(steamId, team.seasonId);
 
 		if (existingPayment && existingPayment.amount >= division.signupCost) {
 			// Update payment status
-			await prisma.playerInTeam.update({
-				where: {
-					playerSteamId_teamId: {
-						playerSteamId: steamId,
-						teamId: team.id
-					}
-				},
-				data: { paymentStatus: 1 }
-			});
+			await updatePlayerPaymentStatus(steamId, team.id);
 
 			throw redirect(303, `/teams/${team.id}`);
 		}

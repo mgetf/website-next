@@ -1,7 +1,9 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { getSignupContext, reregisterTeam } from '$lib/server/services/teamSignup';
-import { prisma } from '$lib/server/db';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { getVisibleRegions } from '$lib/server/services/regions';
+import { checkPaymentRequired } from '$lib/server/services/payments';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,14 +13,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Load divisions and regions
 	const [divisions, regions] = await Promise.all([
-		prisma.division.findMany({
-			where: { hidden: 0 },
-			orderBy: { id: 'asc' }
-		}),
-		prisma.region.findMany({
-			where: { hidden: 0 },
-			orderBy: { id: 'asc' }
-		})
+		getVisibleDivisions(),
+		getVisibleRegions()
 	]);
 
 	// Determine if user can re-register and why not
@@ -79,30 +75,18 @@ export const actions: Actions = {
 			});
 
 			// Check if payment is required
-			const division = await prisma.division.findUnique({
-				where: { id: divisionId }
+			const season =
+				context.naSignupSeasonId || context.euSignupSeasonId || context.ausSignupSeasonId;
+			
+			const paymentInfo = await checkPaymentRequired({
+				divisionId,
+				steamId: locals.user.steamId,
+				seasonId: season
 			});
 
-			if (division && division.signupCost > 0) {
-				// Check if user has already paid for this season
-				const season =
-					context.naSignupSeasonId || context.euSignupSeasonId || context.ausSignupSeasonId;
-				if (season) {
-					const existingPayment = await prisma.paymentTracker.findUnique({
-						where: {
-							playerSteamId_seasonId: {
-								playerSteamId: locals.user.steamId,
-								seasonId: season
-							}
-						}
-					});
-
-					const amountPaid = existingPayment?.amount || 0;
-					if (amountPaid < division.signupCost) {
-						// Redirect to checkout
-						throw redirect(303, `/checkout/${locals.user.steamId}`);
-					}
-				}
+			if (paymentInfo.required && !paymentInfo.alreadyPaid) {
+				// Redirect to checkout
+				throw redirect(303, `/checkout/${locals.user.steamId}`);
 			}
 
 			// Redirect to team page

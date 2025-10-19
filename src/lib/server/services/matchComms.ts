@@ -257,3 +257,18 @@ export async function getMatchComms(matchId: number) {
 	});
 }
 
+/**
+ * Get a single match communication by ID
+ */
+export async function getMatchCommById(commId: number) {
+	const comm = await prisma.matchComm.findUnique({
+		where: { id: commId }
+	});
+
+	if (!comm) {
+		throw error(404, 'Match communication not found');
+	}
+
+	return comm;
+}
+

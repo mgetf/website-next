@@ -1,6 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
-import { prisma } from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
 import { getSeasons, createSeason, updateSeason, deleteSeason, transformSeasonForUI } from '$lib/server/services/seasons';
 import { getRegions, createRegion, updateRegion, toggleRegionVisibility, deleteRegion } from '$lib/server/services/regions';

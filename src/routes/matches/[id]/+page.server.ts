@@ -5,7 +5,6 @@
 
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { prisma } from '$lib/server/db';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { MatchStatus } from '@prisma/client';
 import {
@@ -22,7 +21,8 @@ import {
 	updateRescheduleStatus,
 	canRespondToReschedule,
 	canRequestReschedule,
-	getRescheduleTimeRemaining
+	getRescheduleTimeRemaining,
+	getMatchCommById
 } from '$lib/server/services/matchComms';
 import {
 	getMapBanStatus,
@@ -296,7 +296,7 @@ export const actions: Actions = {
 		}
 
 		const match = await getMatchDetails(matchId);
-		const comm = await prisma.matchComm.findUnique({ where: { id: commId } });
+		const comm = await getMatchCommById(commId);
 
 		if (!comm) {
 			return fail(404, { error: 'Reschedule request not found' });

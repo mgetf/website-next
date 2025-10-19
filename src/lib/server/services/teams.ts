@@ -350,6 +350,22 @@ export async function updateTeam(
 }
 
 /**
+ * Update team status
+ */
+export async function updateTeamStatus(id: number, status: TeamStatus) {
+	const team = await prisma.team.findUnique({ where: { id } });
+	
+	if (!team) {
+		throw new Error('Team not found');
+	}
+
+	return await prisma.team.update({
+		where: { id },
+		data: { status }
+	});
+}
+
+/**
  * Delete a team
  * 
  * Business logic validation:

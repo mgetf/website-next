@@ -5,15 +5,21 @@
 
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { prisma } from '$lib/server/db';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { MatchStatus } from '@prisma/client';
 import {
 	createMatchSet,
 	createPlayoffMatch,
-	getEligibleTeams
+	getEligibleTeams,
+	getAdminMatches,
+	updateMatchStatus,
+	adminUpdateScores
 } from '$lib/server/services/adminMatches';
-import { updateTeamStats, reverseTeamStats, getMatchWeekLabels } from '$lib/server/services/matches';
+import { getMatchWeekLabels } from '$lib/server/services/matches';
+import { getSeasons } from '$lib/server/services/seasons';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { getVisibleRegions } from '$lib/server/services/regions';
+import { getMapBanPools } from '$lib/server/services/mapBanPools';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Admin check handled by layout
@@ -21,7 +27,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const page = parseInt(url.searchParams.get('page') || '1');
 	const limit = 20;
-	const skip = (page - 1) * limit;
 
 	// Filters
 	const seasonId = url.searchParams.get('seasonId');
@@ -31,57 +36,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const weekNo = url.searchParams.get('weekNo');
 	const search = url.searchParams.get('search');
 
-	// Build where clause
-	const where: any = {};
-	if (seasonId) where.seasonId = parseInt(seasonId);
-	if (status) {
-		const statusNum = parseInt(status);
-		// Convert integer to MatchStatus enum
-		if (statusNum === 0) where.status = MatchStatus.UNPLAYED;
-		else if (statusNum === 1) where.status = MatchStatus.PLAYED;
-		else if (statusNum === 2) where.status = MatchStatus.DISPUTE;
-	}
-	if (weekNo) where.weekNo = parseInt(weekNo);
-
-	// Team-based filters
-	if (divisionId || regionId || search) {
-		const teamWhere: any = {};
-		if (divisionId) teamWhere.divisionId = parseInt(divisionId);
-		if (regionId) teamWhere.regionId = parseInt(regionId);
-		if (search) {
-			teamWhere.OR = [
-				{ name: { contains: search, mode: 'insensitive' } },
-				{ acronym: { contains: search, mode: 'insensitive' } }
-			];
-		}
-
-		if (Object.keys(teamWhere).length > 0) {
-			where.OR = [{ homeTeam: teamWhere }, { awayTeam: teamWhere }];
-		}
-	}
-
-	// Fetch matches
-	const [matches, totalCount] = await Promise.all([
-		prisma.match.findMany({
-			where,
-			include: {
-				homeTeam: {
-					include: { division: true, region: true }
-				},
-				awayTeam: {
-					include: { division: true, region: true }
-				},
-				season: {
-					include: { region: true }
-				},
-				playoff: true
-			},
-			orderBy: [{ id: 'desc' }],
-			skip,
-			take: limit
-		}),
-		prisma.match.count({ where })
-	]);
+	// Fetch matches with filters and pagination
+	const { matches, totalCount } = await getAdminMatches({
+		filters: { seasonId, divisionId, regionId, status, weekNo, search },
+		pagination: { page, limit }
+	});
 
 	// Calculate week labels for each match (using service layer)
 	const weekLabelMap = await getMatchWeekLabels(matches);
@@ -92,22 +51,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Fetch filter options
 	const [seasons, divisions, regions, mapBanPools] = await Promise.all([
-		prisma.season.findMany({
-			include: { region: true },
-			orderBy: [{ id: 'desc' }]
-		}),
-		prisma.division.findMany({
-			where: { hidden: 0 },
-			orderBy: { name: 'asc' }
-		}),
-		prisma.region.findMany({
-			where: { hidden: 0 },
-			orderBy: { name: 'asc' }
-		}),
-		prisma.mapBanPool.findMany({
-			where: { isActive: true },
-			orderBy: { name: 'asc' }
-		})
+		getSeasons(),
+		getVisibleDivisions(),
+		getVisibleRegions(),
+		getMapBanPools()
 	]);
 
 	const totalPages = Math.ceil(totalCount / limit);
@@ -266,10 +213,7 @@ export const actions: Actions = {
 		else return fail(400, { error: 'Invalid status' });
 
 		try {
-			await prisma.match.update({
-				where: { id: matchId },
-				data: { status: newStatus }
-			});
+			await updateMatchStatus(matchId, newStatus);
 
 			return { success: true, message: 'Match status updated' };
 		} catch (err: any) {
@@ -286,119 +230,32 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const matchId = parseInt(formData.get('matchId') as string);
 
-		const match = await prisma.match.findUnique({
-			where: { id: matchId },
-			include: {
-				homeTeam: true,
-				awayTeam: true,
-				games: true
-			}
-		});
-
-		if (!match) {
-			return fail(404, { error: 'Match not found' });
-		}
-
-		// If match was already played, reverse old stats
-		if (match.winnerId) {
-			const previousHomeWins = match.games.filter(
-				(g) => g.homeTeamScore && g.awayTeamScore && g.homeTeamScore > g.awayTeamScore
-			).length;
-			const previousAwayWins = match.games.filter(
-				(g) => g.homeTeamScore && g.awayTeamScore && g.awayTeamScore > g.homeTeamScore
-			).length;
-			const previousHomePoints = match.games.reduce((sum, g) => sum + (g.homeTeamScore || 0), 0);
-			const previousAwayPoints = match.games.reduce((sum, g) => sum + (g.awayTeamScore || 0), 0);
-
-			// Reverse home team stats
-			await reverseTeamStats(match.homeTeamId, {
-				wins: match.winnerId === match.homeTeamId ? 1 : 0,
-				losses: match.winnerId === match.awayTeamId ? 1 : 0,
-				gamesWon: previousHomeWins,
-				gamesLost: previousAwayWins,
-				pointsScored: previousHomePoints,
-				pointsScoredAgainst: previousAwayPoints
-			});
-
-			// Reverse away team stats
-			await reverseTeamStats(match.awayTeamId, {
-				wins: match.winnerId === match.awayTeamId ? 1 : 0,
-				losses: match.winnerId === match.homeTeamId ? 1 : 0,
-				gamesWon: previousAwayWins,
-				gamesLost: previousHomeWins,
-				pointsScored: previousAwayPoints,
-				pointsScoredAgainst: previousHomePoints
-			});
-		}
-
-		// Parse and apply new scores (same logic as submitScores)
+		// Parse game results from form data
 		const gameResults = [];
-		for (let i = 0; i < (match.boSeries || 3); i++) {
-			const homeScore = parseInt(formData.get(`homeScore_${i}`) as string);
-			const awayScore = parseInt(formData.get(`awayScore_${i}`) as string);
-
-			if (!isNaN(homeScore) && !isNaN(awayScore)) {
-				gameResults.push({ gameNum: i + 1, homeScore, awayScore });
-
-				// Update game
-				await prisma.game.updateMany({
-					where: { matchId, gameNum: i + 1 },
-					data: { homeTeamScore: homeScore, awayTeamScore: awayScore }
-				});
+		for (let i = 0; i < 10; i++) {
+			const homeScoreStr = formData.get(`homeScore_${i}`) as string;
+			const awayScoreStr = formData.get(`awayScore_${i}`) as string;
+			
+			if (homeScoreStr && awayScoreStr) {
+				const homeScore = parseInt(homeScoreStr);
+				const awayScore = parseInt(awayScoreStr);
+				
+				if (!isNaN(homeScore) && !isNaN(awayScore)) {
+					gameResults.push({ gameNum: i + 1, homeScore, awayScore });
+				}
 			}
 		}
 
-		// Calculate new winner
-		const homeWins = gameResults.filter((g) => g.homeScore > g.awayScore).length;
-		const awayWins = gameResults.filter((g) => g.awayScore > g.homeScore).length;
-		const homePoints = gameResults.reduce((sum, g) => sum + g.homeScore, 0);
-		const awayPoints = gameResults.reduce((sum, g) => sum + g.awayScore, 0);
-
-		let winnerId: number | null = null;
-		let winnerScore = 0;
-		let loserScore = 0;
-
-		if (homeWins > awayWins) {
-			winnerId = match.homeTeamId;
-			winnerScore = homeWins;
-			loserScore = awayWins;
-		} else if (awayWins > homeWins) {
-			winnerId = match.awayTeamId;
-			winnerScore = awayWins;
-			loserScore = homeWins;
+		if (gameResults.length === 0) {
+			return fail(400, { error: 'No valid scores provided' });
 		}
 
-		// Apply new team stats
-		await updateTeamStats(match.homeTeamId, {
-			wins: winnerId === match.homeTeamId ? 1 : 0,
-			losses: winnerId === match.awayTeamId ? 1 : 0,
-			gamesWon: homeWins,
-			gamesLost: awayWins,
-			pointsScored: homePoints,
-			pointsScoredAgainst: awayPoints
-		});
-
-		await updateTeamStats(match.awayTeamId, {
-			wins: winnerId === match.awayTeamId ? 1 : 0,
-			losses: winnerId === match.homeTeamId ? 1 : 0,
-			gamesWon: awayWins,
-			gamesLost: homeWins,
-			pointsScored: awayPoints,
-			pointsScoredAgainst: homePoints
-		});
-
-		// Update match
-		await prisma.match.update({
-			where: { id: matchId },
-			data: {
-				winnerId,
-				winnerScore,
-				loserScore,
-				status: MatchStatus.PLAYED
-			}
-		});
-
-		return { success: true, message: 'Scores updated successfully' };
+		try {
+			await adminUpdateScores(matchId, gameResults);
+			return { success: true, message: 'Scores updated successfully' };
+		} catch (err: any) {
+			return fail(500, { error: err.message || 'Failed to update scores' });
+		}
 	}
 };
 

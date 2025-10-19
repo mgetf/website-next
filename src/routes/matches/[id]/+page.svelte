@@ -12,6 +12,7 @@
 	let scoreSubmitError = $state<string | null>(null);
 	let scoreSubmitSuccess = $state(false);
 	let isSubmittingScore = $state(false);
+	let isSubmittingMessage = $state(false);
 
 	const match = $derived(data.match);
 	const isUnplayed = $derived(match.status === 'UNPLAYED');
@@ -188,10 +189,15 @@
 							</a>
 							{#if match.submittedAt}
 								<p class="text-xs text-gray-500 leading-tight">
-									{new Date(match.submittedAt * 1000).toLocaleDateString('en-US', {
+									{new Date(match.submittedAt * 1000).toLocaleString('en-US', {
 										month: 'short',
-										day: 'numeric'
-									})}
+										day: 'numeric',
+										year: 'numeric',
+										hour: '2-digit',
+										minute: '2-digit',
+										timeZone: 'UTC',
+										hour12: true
+									})} UTC
 								</p>
 							{/if}
 						</div>
@@ -555,7 +561,9 @@
 					method="POST" 
 					action="?/postMessage" 
 					use:enhance={() => {
+						isSubmittingMessage = true;
 						return async ({ result, update }) => {
+							isSubmittingMessage = false;
 							if (result.type === 'success') {
 								messageContent = '';
 							}
@@ -564,22 +572,22 @@
 					}}
 				>
 					<div class="mb-3">
-						<label class="block text-sm font-medium text-gray-300 mb-1">Post Message</label>
 						<textarea
 							name="content"
 							bind:value={messageContent}
 							rows="3"
 							placeholder="Write your message..."
-							class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+							disabled={isSubmittingMessage}
+							class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
 						></textarea>
 					</div>
 					<div class="flex gap-3">
 						<button
 							type="submit"
-							disabled={messageContent.trim().length === 0}
+							disabled={messageContent.trim().length === 0 || isSubmittingMessage}
 							class="bg-blue-600 text-white px-4 py-2 rounded-lg transition disabled:bg-gray-600 disabled:cursor-not-allowed hover:bg-blue-700 disabled:hover:bg-gray-600"
 						>
-							Post Message
+							{isSubmittingMessage ? 'Posting...' : 'Post Message'}
 						</button>
 						{#if data.canReschedule && !data.pendingReschedule}
 							<button
@@ -639,9 +647,15 @@
 								<a href="/player/{comm.owner}" class="font-semibold text-white hover:text-blue-400">
 									{comm.user?.steamUsername || 'System'}
 								</a>
-								<span class="text-xs text-gray-400">
-									{comm.createdAt ? new Date(comm.createdAt * 1000).toLocaleString() : 'Unknown'}
-								</span>
+								{#if comm.createdAt && comm.createdAt > 0}
+									<span class="text-xs text-gray-400">
+										{new Date(comm.createdAt * 1000).toLocaleString()}
+									</span>
+								{:else}
+									<span class="text-xs text-gray-500 italic">
+										No timestamp
+									</span>
+								{/if}
 							</div>
 							<p class="text-gray-300 mt-1 whitespace-pre-wrap">{comm.content}</p>
 						</div>

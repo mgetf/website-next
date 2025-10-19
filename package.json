@@ -12,32 +12,33 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-node": "^5.3.3",
-		"@sveltejs/kit": "^2.43.6",
+		"@sveltejs/adapter-node": "^5.4.0",
+		"@sveltejs/kit": "^2.47.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
-		"@types/node": "^24.6.1",
-		"prisma": "^6.16.3",
-		"svelte": "^5.39.7",
-		"svelte-check": "^4.3.2",
+		"@types/node": "^24.8.1",
+		"prisma": "^6.17.1",
+		"svelte": "^5.41.0",
+		"svelte-check": "^4.3.3",
 		"typescript": "^5.9.3",
-		"vite": "^7.1.7"
+		"vite": "^7.1.10"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"@prisma/client",
 			"@prisma/engines",
+			"@tailwindcss/oxide",
 			"esbuild",
 			"prisma"
 		]
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.907.0",
-		"@prisma/client": "^6.16.3",
-		"@tailwindcss/vite": "^4.1.13",
+		"@aws-sdk/client-s3": "^3.913.0",
+		"@prisma/client": "^6.17.1",
+		"@tailwindcss/vite": "^4.1.14",
 		"@types/jsonwebtoken": "^9.0.10",
 		"jsonwebtoken": "^9.0.2",
 		"node-steam-openid": "^2.0.0",
-		"tailwindcss": "^4.1.13",
-		"zod": "^4.1.11"
+		"tailwindcss": "^4.1.14",
+		"zod": "^4.1.12"
 	}
 }

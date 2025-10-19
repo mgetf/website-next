@@ -45,6 +45,9 @@ importers:
       '@types/node':
         specifier: ^24.8.1
         version: 24.8.1
+      brackets-model:
+        specifier: ^1.5.0
+        version: 1.5.0
       prisma:
         specifier: ^6.17.1
         version: 6.17.1(typescript@5.9.3)
@@ -959,6 +962,9 @@ packages:
 
   bowser@2.12.1:
     resolution: {integrity: sha512-z4rE2Gxh7tvshQ4hluIT7XcFrgLIQaw9X3A+kTTRdovCz5PMukm/0QC/BKSYPj3omF5Qfypn9O/c5kgpmvYUCw==}
+
+  brackets-model@1.5.0:
+    resolution: {integrity: sha512-wK2bmeSnRQtLMd6XiDBHbfvYgpBIjbQ/nMrLL4a9xNnga1qZyEqk2OC5z/56Z8j0XPz/cSwl4BXI4kXIRAiByw==}
 
   buffer-equal-constant-time@1.0.1:
     resolution: {integrity: sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==}
@@ -2772,6 +2778,8 @@ snapshots:
   axobject-query@4.1.0: {}
 
   bowser@2.12.1: {}
+
+  brackets-model@1.5.0: {}
 
   buffer-equal-constant-time@1.0.1: {}
 

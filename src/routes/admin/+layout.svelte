@@ -11,7 +11,7 @@
 	import videoCameraIcon from '$lib/assets/icons/video-camera.png';
 	import maceIcon from '$lib/assets/icons/mace.png';
 	import userIcon from '$lib/assets/icons/user.png';
-	import settingIcon from '$lib/assets/icons/setting.png';
+	import webIcon from '$lib/assets/icons/web.png';
 	
 	let { data, children }: { data: LayoutData; children: any } = $props();
 	
@@ -34,7 +34,7 @@
 		{ name: 'Demos', path: '/admin/demos', icon: videoCameraIcon },
 		{ name: 'Disputes', path: '/admin/disputes', icon: maceIcon },
 		{ name: 'Users', path: '/admin/users', icon: userIcon },
-		{ name: 'Global', path: '/admin/global', icon: settingIcon }
+		{ name: 'Global', path: '/admin/global', icon: webIcon }
 	];
 	
 	// Mobile menu state

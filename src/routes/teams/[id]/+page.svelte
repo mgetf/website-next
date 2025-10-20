@@ -170,10 +170,10 @@
 						<div class="space-y-4">
 							{#each currentRoster as player}
 								<div class="flex items-center justify-between p-4 bg-zinc-950/50 rounded-lg transition-colors group">
-									<a 
-										href="/player/{player.steamId}"
-										class="flex items-center gap-4 flex-1 hover:opacity-80 transition-opacity"
-									>
+								<a 
+									href="/users/{player.steamId}"
+									class="flex items-center gap-4 flex-1 hover:opacity-80 transition-opacity"
+								>
 										<img 
 											src={player.avatar} 
 											alt={player.name}
@@ -238,10 +238,10 @@
 						{#if pastRoster.length > 0}
 							<div class="space-y-4">
 								{#each pastRoster as player}
-									<a 
-										href="/player/{player.steamId}"
-										class="flex items-center justify-between p-4 bg-zinc-950/50 rounded-lg hover:bg-zinc-800/50 transition-colors group"
-									>
+								<a 
+									href="/users/{player.steamId}"
+									class="flex items-center justify-between p-4 bg-zinc-950/50 rounded-lg hover:bg-zinc-800/50 transition-colors group"
+								>
 										<div class="flex items-center gap-4">
 											<img 
 												src={player.avatar} 

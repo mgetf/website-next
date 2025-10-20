@@ -181,10 +181,10 @@
 						</div>
 						<div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
 							<p class="text-xs text-gray-400 uppercase tracking-wide leading-none mb-1">Submitted By</p>
-							<a 
-								href="/player/{match.submittedBy}" 
-								class="text-white font-semibold hover:text-blue-400 transition-colors leading-tight"
-							>
+						<a 
+							href="/users/{match.submittedBy}" 
+							class="text-white font-semibold hover:text-blue-400 transition-colors leading-tight"
+						>
 								{match.submitter?.steamUsername}
 							</a>
 							{#if match.submittedAt}
@@ -644,7 +644,7 @@
 						/>
 						<div class="flex-1">
 							<div class="flex items-center space-x-2">
-								<a href="/player/{comm.owner}" class="font-semibold text-white hover:text-blue-400">
+								<a href="/users/{comm.owner}" class="font-semibold text-white hover:text-blue-400">
 									{comm.user?.steamUsername || 'System'}
 								</a>
 								{#if comm.createdAt && comm.createdAt > 0}
@@ -676,7 +676,7 @@
 						<div>
 							<div class="font-semibold">{demo.title || 'Demo File'}</div>
 							<div class="text-sm text-gray-300">
-								Submitted by <a href="/player/{demo.submittedBy}" class="text-blue-400 hover:underline">
+								Submitted by <a href="/users/{demo.submittedBy}" class="text-blue-400 hover:underline">
 									{demo.submitter?.steamUsername}
 								</a>
 								• {new Date(demo.submittedAt).toLocaleDateString()}

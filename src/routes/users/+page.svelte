@@ -181,7 +181,7 @@
 						{#each data.users as user}
 							<tr class="hover:bg-zinc-800/30 transition-colors">
 								<td class="px-6 py-2 whitespace-nowrap">
-									<a href="/player/{user.steamId}" class="flex items-center space-x-2 group">
+									<a href="/users/{user.steamId}" class="flex items-center space-x-2 group">
 										<img 
 											src={user.steamAvatar || '/default-avatar.png'} 
 											alt={user.steamUsername}

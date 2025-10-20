@@ -27,8 +27,8 @@ export const GET: RequestHandler = async ({ locals, request }) => {
 			throw err;
 		}
 
-		// Otherwise redirect back with error
-		throw redirect(302, `/player/${locals.user.steamId}?error=discord_auth_failed`);
+	// Otherwise redirect back with error
+	throw redirect(302, `/users/${locals.user.steamId}?error=discord_auth_failed`);
 	}
 };
 

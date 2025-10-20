@@ -49,8 +49,8 @@ export const GET: RequestHandler = async ({ url, request }) => {
 			}
 		});
 
-		// Redirect back to player profile with success message
-		throw redirect(302, `/player/${steamId}?discord=linked`);
+	// Redirect back to user profile with success message
+	throw redirect(302, `/users/${steamId}?discord=linked`);
 	} catch (err) {
 		console.error('Discord callback error:', err);
 

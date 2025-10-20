@@ -163,7 +163,7 @@
 												<div class="flex items-center space-x-2">
 													<span class="text-yellow-400 text-lg">🥇</span>
 													<div class="flex items-center -space-x-2">
-														<a href="/player/{tournament.winner1.steamId}" class="relative">
+														<a href="/users/{tournament.winner1.steamId}" class="relative">
 															<img 
 																src={tournament.winner1.steamAvatar || '/default-avatar.png'} 
 																alt={tournament.winner1.steamUsername}
@@ -171,7 +171,7 @@
 																title={tournament.winner1.steamUsername}
 															/>
 														</a>
-														<a href="/player/{tournament.winner2.steamId}" class="relative">
+														<a href="/users/{tournament.winner2.steamId}" class="relative">
 															<img 
 																src={tournament.winner2.steamAvatar || '/default-avatar.png'} 
 																alt={tournament.winner2.steamUsername}
@@ -188,7 +188,7 @@
 											{#if tournament.winner1}
 												<div class="flex items-center space-x-2">
 													<span class="text-yellow-400 text-lg">🥇</span>
-													<a href="/player/{tournament.winner1.steamId}" class="flex items-center space-x-2 group/winner">
+													<a href="/users/{tournament.winner1.steamId}" class="flex items-center space-x-2 group/winner">
 														<img 
 															src={tournament.winner1.steamAvatar || '/default-avatar.png'} 
 															alt={tournament.winner1.steamUsername}
@@ -308,7 +308,7 @@
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										{#if championship.winnerUser}
-											<a href="/player/{championship.winnerUser.steamId}" class="flex items-center space-x-2 group/winner">
+											<a href="/users/{championship.winnerUser.steamId}" class="flex items-center space-x-2 group/winner">
 												<img 
 													src={championship.winnerUser.steamAvatar || '/default-avatar.png'} 
 													alt={championship.winnerUser.steamUsername}

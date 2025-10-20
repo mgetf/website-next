@@ -245,7 +245,7 @@
 									<div class="px-4 py-2 space-y-2">
 										{#each divisionStaff.staff as member}
 											<a 
-												href="/player/{member.steamId}"
+												href="/users/{member.steamId}"
 												class="flex items-center justify-between py-2 hover:bg-zinc-800/30 rounded px-2 -mx-2 transition-colors group"
 											>
 												<div class="flex items-center gap-2">

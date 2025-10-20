@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const profile = await getPlayerProfile(steamId);
 
 		if (!profile) {
-			throw error(404, 'Player not found');
+			throw error(404, 'User not found');
 		}
 
 		// Check if user is viewing their own profile
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			isOwnProfile
 		};
 	} catch (err) {
-		console.error('Error loading player profile:', err);
+		console.error('Error loading user profile:', err);
 		
 		// If it's already a SvelteKit error, rethrow it
 		if (err && typeof err === 'object' && 'status' in err) {
@@ -28,6 +28,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}
 		
 		// Otherwise, wrap it in a 500 error
-		throw error(500, 'Failed to load player profile');
+		throw error(500, 'Failed to load user profile');
 	}
 };
+

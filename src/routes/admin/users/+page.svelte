@@ -203,7 +203,7 @@
 										</div>
 									{/if}
 									<div class="min-w-0">
-										<a href="/player/{user.steamId}" class="text-white text-sm font-medium hover:text-orange-400 block truncate">
+										<a href="/users/{user.steamId}" class="text-white text-sm font-medium hover:text-orange-400 block truncate">
 											{user.steamUsername}
 										</a>
 										{#if user.isModerator}
@@ -237,10 +237,10 @@
 							</td>
 							<td class="px-4 py-2">
 								<div class="flex items-center justify-end gap-1">
-									<a 
-										href="/player/{user.steamId}"
-										class="px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-xs transition-colors"
-									>
+								<a 
+									href="/users/{user.steamId}"
+									class="px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-xs transition-colors"
+								>
 										View
 									</a>
 									<button 

@@ -25,7 +25,21 @@ export async function getAllTournaments() {
 			secondPlace2SteamId: true,
 			thirdPlace1SteamId: true,
 			thirdPlace2SteamId: true,
-			isTeamTournament: true
+			isTeamTournament: true,
+			winner1: {
+				select: {
+					steamId: true,
+					steamUsername: true,
+					steamAvatar: true
+				}
+			},
+			winner2: {
+				select: {
+					steamId: true,
+					steamUsername: true,
+					steamAvatar: true
+				}
+			}
 		}
 	});
 

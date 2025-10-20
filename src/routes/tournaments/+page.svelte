@@ -117,7 +117,7 @@
 							{#each data.tournaments as tournament}
 								<tr class="hover:bg-zinc-800/30 transition-colors">
 									<td class="px-6 py-4 whitespace-nowrap">
-										<a href="/tournaments/{tournament.id}" class="flex items-center space-x-3 group">
+										<div class="flex items-center space-x-3">
 											{#if tournament.avatar}
 												<img 
 													src={tournament.avatar} 
@@ -130,7 +130,7 @@
 												</div>
 											{/if}
 											<div class="flex-1">
-												<div class="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">
+												<div class="text-sm font-semibold text-white">
 													{tournament.name}
 												</div>
 												{#if tournament.description}
@@ -139,7 +139,7 @@
 													</div>
 												{/if}
 											</div>
-										</a>
+										</div>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<div class="text-sm text-gray-300">
@@ -158,15 +158,50 @@
 										{/if}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
-										{#if tournament.winner1SteamId}
-											<div class="flex items-center space-x-2">
-												<span class="text-yellow-400 text-lg">🥇</span>
-												<span class="text-sm text-gray-300">
-													{tournament.isTeamTournament ? 'Team' : 'View Details'}
-												</span>
-											</div>
+										{#if tournament.isTeamTournament}
+											{#if tournament.winner1 && tournament.winner2}
+												<div class="flex items-center space-x-2">
+													<span class="text-yellow-400 text-lg">🥇</span>
+													<div class="flex items-center -space-x-2">
+														<a href="/player/{tournament.winner1.steamId}" class="relative">
+															<img 
+																src={tournament.winner1.steamAvatar || '/default-avatar.png'} 
+																alt={tournament.winner1.steamUsername}
+																class="w-8 h-8 rounded-full ring-2 ring-zinc-900 hover:ring-blue-500 transition-all"
+																title={tournament.winner1.steamUsername}
+															/>
+														</a>
+														<a href="/player/{tournament.winner2.steamId}" class="relative">
+															<img 
+																src={tournament.winner2.steamAvatar || '/default-avatar.png'} 
+																alt={tournament.winner2.steamUsername}
+																class="w-8 h-8 rounded-full ring-2 ring-zinc-900 hover:ring-blue-500 transition-all"
+																title={tournament.winner2.steamUsername}
+															/>
+														</a>
+													</div>
+												</div>
+											{:else}
+												<span class="text-sm text-gray-500">—</span>
+											{/if}
 										{:else}
-											<span class="text-sm text-gray-500">—</span>
+											{#if tournament.winner1}
+												<div class="flex items-center space-x-2">
+													<span class="text-yellow-400 text-lg">🥇</span>
+													<a href="/player/{tournament.winner1.steamId}" class="flex items-center space-x-2 group/winner">
+														<img 
+															src={tournament.winner1.steamAvatar || '/default-avatar.png'} 
+															alt={tournament.winner1.steamUsername}
+															class="w-8 h-8 rounded-full"
+														/>
+														<span class="text-sm text-white font-semibold group-hover/winner:text-blue-400 transition-colors">
+															{tournament.winner1.steamUsername}
+														</span>
+													</a>
+												</div>
+											{:else}
+												<span class="text-sm text-gray-500">—</span>
+											{/if}
 										{/if}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
@@ -227,7 +262,7 @@
 							{#each data.championships as championship}
 								<tr class="hover:bg-zinc-800/30 transition-colors">
 									<td class="px-6 py-4 whitespace-nowrap">
-										<a href="/world-championships/{championship.id}" class="flex items-center space-x-3 group">
+										<div class="flex items-center space-x-3">
 											{#if championship.avatar}
 												<img 
 													src={championship.avatar} 
@@ -240,11 +275,11 @@
 												</div>
 											{/if}
 											<div>
-												<div class="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">
+												<div class="text-sm font-semibold text-white">
 													{championship.name}
 												</div>
 											</div>
-										</a>
+										</div>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<div class="text-sm text-gray-300">
@@ -334,12 +369,12 @@
 							{#each data.fightNights as fightNight}
 								<tr class="hover:bg-zinc-800/30 transition-colors">
 									<td class="px-6 py-4 whitespace-nowrap">
-										<a href="/fightnight/{fightNight.id}" class="flex items-center space-x-3 group">
+										<div class="flex items-center space-x-3">
 											<div class="w-12 h-12 rounded bg-gradient-to-br from-red-900/30 to-zinc-800 flex items-center justify-center text-2xl flex-shrink-0">
 												🥊
 											</div>
 											<div>
-												<div class="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">
+												<div class="text-sm font-semibold text-white">
 													{fightNight.card || `Fight Night #${fightNight.id}`}
 												</div>
 												{#if fightNight.description}
@@ -348,7 +383,7 @@
 													</div>
 												{/if}
 											</div>
-										</a>
+										</div>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<div class="text-sm text-gray-300">

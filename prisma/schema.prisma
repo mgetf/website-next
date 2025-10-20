@@ -97,7 +97,13 @@ model Tournament {
   thirdPlace2SteamId  String?   @map("third_place2_steam_id")
   isTeamTournament    Boolean   @default(false) @map("is_team_tournament")
 
-  demos Demo[]
+  demos         Demo[]
+  winner1       User?  @relation("TournamentWinner1", fields: [winner1SteamId], references: [steamId], onDelete: SetNull)
+  winner2       User?  @relation("TournamentWinner2", fields: [winner2SteamId], references: [steamId], onDelete: SetNull)
+  secondPlace1  User?  @relation("TournamentSecondPlace1", fields: [secondPlace1SteamId], references: [steamId], onDelete: SetNull)
+  secondPlace2  User?  @relation("TournamentSecondPlace2", fields: [secondPlace2SteamId], references: [steamId], onDelete: SetNull)
+  thirdPlace1   User?  @relation("TournamentThirdPlace1", fields: [thirdPlace1SteamId], references: [steamId], onDelete: SetNull)
+  thirdPlace2   User?  @relation("TournamentThirdPlace2", fields: [thirdPlace2SteamId], references: [steamId], onDelete: SetNull)
 
   @@map("tournaments")
 }
@@ -222,6 +228,12 @@ model User {
   championshipMatchPlayer2 ChampionshipMatch[]       @relation("ChampionshipPlayer2")
   championshipMatchWinner  ChampionshipMatch[]       @relation("ChampionshipWinner")
   championshipMatchLoser   ChampionshipMatch[]       @relation("ChampionshipLoser")
+  tournamentsWonFirst      Tournament[]              @relation("TournamentWinner1")
+  tournamentsWonSecond     Tournament[]              @relation("TournamentWinner2")
+  tournamentsSecondPlace1  Tournament[]              @relation("TournamentSecondPlace1")
+  tournamentsSecondPlace2  Tournament[]              @relation("TournamentSecondPlace2")
+  tournamentsThirdPlace1   Tournament[]              @relation("TournamentThirdPlace1")
+  tournamentsThirdPlace2   Tournament[]              @relation("TournamentThirdPlace2")
 
   @@map("users")
 }

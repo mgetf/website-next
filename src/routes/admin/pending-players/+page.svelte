@@ -1,44 +1,12 @@
 <script lang="ts">
-	// Mock pending players data
-	const pendingPlayers = [
-		{
-			id: 1,
-			playerName: 'newplayer123',
-			playerAvatar: 'https://picsum.photos/seed/player1/64',
-			teamName: 'WARHAMMER',
-			teamId: 5,
-			requestedAt: '2025-10-07 14:32',
-			division: 'Premier'
-		},
-		{
-			id: 2,
-			playerName: 'MGE_Rookie',
-			playerAvatar: 'https://picsum.photos/seed/player2/64',
-			teamName: 'Papa Tense',
-			teamId: 2,
-			requestedAt: '2025-10-07 10:15',
-			division: 'Premier'
-		},
-		{
-			id: 3,
-			playerName: 'FragMaster',
-			playerAvatar: 'https://picsum.photos/seed/player3/64',
-			teamName: 'MGE DOGS',
-			teamId: 3,
-			requestedAt: '2025-10-06 18:45',
-			division: 'Premier'
-		}
-	];
+	import { enhance } from '$app/forms';
+	import type { PageData } from './$types';
 	
-	function approvePlayer(id: number) {
-		console.log('Approve player', id);
-		// TODO: Wire up API call
-	}
+	let { data }: { data: PageData } = $props();
 	
-	function denyPlayer(id: number) {
-		console.log('Deny player', id);
-		// TODO: Wire up API call
-	}
+	let isSubmitting = $state(false);
+	let decliningPlayerId = $state<string | null>(null);
+	let declineReasons = $state<Record<string, string>>({});
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
@@ -50,58 +18,127 @@
 	
 	<!-- Pending Requests -->
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg divide-y divide-zinc-800">
-		{#each pendingPlayers as player}
-			<div class="p-6 hover:bg-zinc-800/50 transition-colors">
-				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-4">
-						<!-- Player Avatar -->
-						<img
-							src={player.playerAvatar}
-							alt={player.playerName}
-							class="w-16 h-16 rounded-lg"
-						/>
-						
-						<!-- Request Details -->
-						<div>
-							<div class="flex items-center gap-3 mb-1">
-								<span class="text-white font-semibold">{player.playerName}</span>
-								<span class="text-gray-500">→</span>
-								<a href="/teams/{player.teamId}" class="text-orange-400 hover:text-orange-300 font-medium">
-									{player.teamName}
-								</a>
-							</div>
-							<div class="flex items-center gap-3 text-sm text-gray-400">
-								<span>{player.division} Division</span>
-								<span>•</span>
-								<span>Requested {player.requestedAt}</span>
-							</div>
-						</div>
-					</div>
-					
-					<!-- Actions -->
-					<div class="flex items-center gap-3">
-						<button
-							onclick={() => approvePlayer(player.id)}
-							class="px-6 py-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition-colors font-medium"
-						>
-							✓ Approve
-						</button>
-						<button
-							onclick={() => denyPlayer(player.id)}
-							class="px-6 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors font-medium"
-						>
-							✗ Deny
-						</button>
-					</div>
-				</div>
-			</div>
-		{/each}
-		
-		{#if pendingPlayers.length === 0}
+		{#if data.pendingPlayers.length === 0}
 			<div class="py-12 text-center">
 				<span class="text-6xl mb-4 block">✅</span>
 				<p class="text-gray-400">No pending player requests</p>
 			</div>
+		{:else}
+			{#each data.pendingPlayers as request}
+				<div class="p-4 hover:bg-zinc-800/50 transition-colors">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<!-- Player Avatar -->
+							<a href="/users/{request.player.steamId}">
+								<img
+									src={request.player.steamAvatar || '/default-avatar.png'}
+									alt={request.player.steamUsername}
+									class="w-12 h-12 rounded-lg hover:opacity-80 transition-opacity"
+								/>
+							</a>
+							
+							<!-- Request Details -->
+							<div>
+								<div class="flex items-center gap-3 mb-1">
+									<a 
+										href="/users/{request.player.steamId}"
+										class="text-white font-semibold hover:text-blue-400 transition-colors"
+									>
+										{request.player.steamUsername}
+									</a>
+									<span class="text-gray-500">→</span>
+									<a 
+										href="/teams/{request.team.id}" 
+										class="text-orange-400 hover:text-orange-300 font-medium transition-colors"
+									>
+										{request.team.name}
+									</a>
+								</div>
+								<div class="flex items-center gap-3 text-sm text-gray-400">
+									<span>{request.team.division?.name || 'No Division'}</span>
+								</div>
+							</div>
+						</div>
+						
+						<!-- Actions -->
+						<div class="flex items-center gap-3">
+							{#if decliningPlayerId === request.player.steamId}
+								<!-- Decline Form -->
+								<form 
+									method="POST" 
+									action="?/decline"
+									use:enhance={() => {
+										isSubmitting = true;
+										return async ({ update }) => {
+											await update();
+											isSubmitting = false;
+											decliningPlayerId = null;
+											declineReasons[request.player.steamId] = '';
+										};
+									}}
+									class="flex items-center gap-2"
+								>
+									<input type="hidden" name="playerSteamId" value={request.player.steamId} />
+									<input type="hidden" name="teamId" value={request.team.id} />
+									<input
+										type="text"
+										name="reason"
+										bind:value={declineReasons[request.player.steamId]}
+										placeholder="Reason for decline..."
+										required
+										class="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+									/>
+									<button
+										type="submit"
+										disabled={isSubmitting}
+										class="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
+									>
+										Confirm
+									</button>
+									<button
+										type="button"
+										onclick={() => decliningPlayerId = null}
+										class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-medium text-sm"
+									>
+										Cancel
+									</button>
+								</form>
+							{:else}
+								<!-- Approve Button -->
+								<form 
+									method="POST" 
+									action="?/approve"
+									use:enhance={() => {
+										isSubmitting = true;
+										return async ({ update }) => {
+											await update();
+											isSubmitting = false;
+										};
+									}}
+								>
+									<input type="hidden" name="playerSteamId" value={request.player.steamId} />
+									<input type="hidden" name="teamId" value={request.team.id} />
+									<button
+										type="submit"
+										disabled={isSubmitting}
+										class="px-6 py-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition-colors font-medium disabled:opacity-50"
+									>
+										✓ Approve
+									</button>
+								</form>
+								
+								<!-- Decline Button -->
+								<button
+									onclick={() => decliningPlayerId = request.player.steamId}
+									class="px-6 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors font-medium"
+								>
+									✗ Decline
+								</button>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{/each}
 		{/if}
 	</div>
 </div>

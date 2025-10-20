@@ -7,6 +7,7 @@ import type { LayoutServerLoad } from './$types';
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { getUserActiveTeam } from '$lib/server/services/users';
 import { getUnreadNotifications } from '$lib/server/services/notifications';
+import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	// Get global settings for signup status
@@ -27,9 +28,12 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		notificationCount = notifications.length;
 	}
 
+	// Load visible announcements for site-wide display
+	const announcements = await getVisibleAnnouncements();
+
 	return {
 		user: locals.user || null,
-		announcements: [],
+		announcements,
 		notificationCount,
 		notifications,
 		signupClosed,

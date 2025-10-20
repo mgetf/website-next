@@ -34,7 +34,7 @@
 		{ name: 'Demos', path: '/admin/demos', icon: videoCameraIcon },
 		{ name: 'Disputes', path: '/admin/disputes', icon: maceIcon },
 		{ name: 'Users', path: '/admin/users', icon: userIcon },
-		{ name: 'Config', path: '/admin/config', icon: settingIcon }
+		{ name: 'Global', path: '/admin/global', icon: settingIcon }
 	];
 	
 	// Mobile menu state

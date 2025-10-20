@@ -47,15 +47,9 @@
 				userTeam={data.userTeam}
 			/>
 			
-			{#if data.announcements.length > 0}
-				<AnnouncementBanner announcements={data.announcements as Array<{
-					id: number;
-					title: string | null;
-					content: string;
-					visible: number;
-					createdAt: Date;
-				}>} />
-			{/if}
+		{#if data.announcements.length > 0}
+			<AnnouncementBanner announcements={data.announcements} />
+		{/if}
 			
 			<div id="main-content" class="flex-grow overflow-y-auto bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
 				{@render children()}

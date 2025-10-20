@@ -1,18 +1,16 @@
 import { getCurrentSeason } from '$lib/server/services/seasons';
 import { getTeamsForStandings, calculateStandingsStats } from '$lib/server/services/teams';
-import { getLatestTournament } from '$lib/server/services/tournaments';
-import { getLatestChampionship } from '$lib/server/services/championships';
+import { getRecentTournamentActivity } from '$lib/server/services/tournaments';
 import { TeamStatus } from '@prisma/client';
 import { findDivisionByName } from '$lib/server/services/divisions';
 
 export const load = async () => {
 	try {
 		// Fetch all data in parallel using services
-		const [season, premierDivision, tournament, championship] = await Promise.all([
+		const [season, premierDivision, tournamentActivity] = await Promise.all([
 			getCurrentSeason(),
 			findDivisionByName('Premier'),
-			getLatestTournament(),
-			getLatestChampionship()
+			getRecentTournamentActivity()
 		]);
 
 		// Get top 3 premier division teams for current season
@@ -44,14 +42,8 @@ export const load = async () => {
 				topTeams
 			},
 			tournamentData: {
-				next: 'TBD', // TODO: Add upcoming tournament endpoint
-				lastWinner: tournament?.winner?.steamUsername || 'TBD',
-				lastWinnerDate: tournament?.winnerDate || 'TBD',
-				prize: tournament?.prizePool || '$250'
-			},
-			championshipData: {
-				winner2024: championship?.winner?.steamUsername || 'TBD',
-				nextDate: championship?.nextDate || 'TBD 2025'
+				recentEvents: tournamentActivity.recentEvents,
+				totalCounts: tournamentActivity.totalCounts
 			}
 		};
 	} catch (error) {
@@ -64,14 +56,12 @@ export const load = async () => {
 				topTeams: []
 			},
 			tournamentData: {
-				next: 'TBD',
-				lastWinner: 'TBD',
-				lastWinnerDate: 'TBD',
-				prize: '$250'
-			},
-			championshipData: {
-				winner2024: 'TBD',
-				nextDate: 'TBD 2025'
+				recentEvents: [],
+				totalCounts: {
+					cups: 0,
+					championships: 0,
+					fightNights: 0
+				}
 			}
 		};
 	}

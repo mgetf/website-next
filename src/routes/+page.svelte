@@ -11,14 +11,25 @@
 			}>;
 		};
 		tournamentData: {
-			next: string;
-			lastWinner: string;
-			lastWinnerDate: string;
-			prize: string;
-		};
-		championshipData: {
-			winner2024: string;
-			nextDate: string;
+			recentEvents: Array<{
+				type: 'cup' | 'championship' | 'fightnight';
+				id: number;
+				name: string;
+				date: Date | null;
+				icon: string;
+				format?: string;
+				winner?: {
+					steamId: string;
+					steamUsername: string;
+					steamAvatar: string;
+				} | null;
+				matchupCount?: number;
+			}>;
+			totalCounts: {
+				cups: number;
+				championships: number;
+				fightNights: number;
+			};
 		};
 	}
 
@@ -26,8 +37,24 @@
 
 	// Destructure the data from the server with fallbacks
 	const leagueData = data.leagueData || { season: 'Season 1', topTeams: [] };
-	const tournamentData = data.tournamentData || { next: 'TBD', lastWinner: 'TBD', lastWinnerDate: 'TBD', prize: '$250' };
-	const championshipData = data.championshipData || { winner2024: 'TBD', nextDate: 'TBD 2025' };
+	const tournamentData = data.tournamentData || { 
+		recentEvents: [], 
+		totalCounts: { cups: 0, championships: 0, fightNights: 0 } 
+	};
+
+	const formatEventDate = (date: Date | null) => {
+		if (!date) return 'TBD';
+		try {
+			const d = new Date(date);
+			if (isNaN(d.getTime())) return 'TBD';
+			return d.toLocaleDateString('en-US', {
+				month: 'short',
+				year: 'numeric'
+			});
+		} catch {
+			return 'TBD';
+		}
+	};
 </script>
 
 <div class="min-h-screen">
@@ -38,23 +65,20 @@
 				MGE.tf
 			</h1>
 			<p class="text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">
-				Join the premier Team Fortress 2 MGE competitive platform. Test your skills in 2v2 leagues, 
-				1v1 tournaments, and compete for championship glory.
+				Join the premier Team Fortress 2 MGE competitive platform. Test your skills in 2v2 leagues 
+				and competitive tournaments with real prizes.
 			</p>
 		</div>
 	</section>
 
 	<!-- Competition Cards -->
 	<section class="max-w-7xl mx-auto px-6 mb-16">
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 			
 			<!-- 2v2 League Card -->
 			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-blue-500 hover:border-blue-400 transition-all shadow-xl shadow-blue-500/10 hover:shadow-blue-500/20 flex flex-col">
-				<div class="flex items-center justify-between mb-4">
+				<div class="mb-4">
 					<h3 class="text-2xl font-bold text-blue-400">2v2 LEAGUE</h3>
-					<span class="px-3 py-1 bg-blue-500 bg-opacity-20 rounded-full text-sm text-blue-300">
-						Active
-					</span>
 				</div>
 				
 				<div class="mb-6">
@@ -97,79 +121,85 @@
 				</a>
 			</div>
 
-			<!-- 1v1 Tournaments Card -->
+			<!-- Tournaments Card -->
 			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-purple-500 hover:border-purple-400 transition-all shadow-xl shadow-purple-500/10 hover:shadow-purple-500/20 flex flex-col">
-				<div class="flex items-center justify-between mb-4">
-					<h3 class="text-2xl font-bold text-purple-400">1v1 TOURNAMENTS</h3>
-					<span class="px-3 py-1 bg-purple-500/20 rounded-full text-sm font-medium text-purple-300 border border-purple-500/30">
-						Upcoming
-					</span>
+				<div class="mb-6">
+					<h3 class="text-2xl font-bold text-purple-400">TOURNAMENTS</h3>
 				</div>
 				
-				<div class="mb-6">
-					<p class="text-gray-400 text-sm mb-2">Next Tournament</p>
-					<p class="text-xl font-semibold text-white">{tournamentData.next}</p>
+				<!-- Recent Events -->
+				<div class="mb-6 flex-grow">
+					<p class="text-gray-400 text-sm mb-3">Recent Events</p>
+					<div class="space-y-3">
+						{#if tournamentData.recentEvents.length > 0}
+							{#each tournamentData.recentEvents as event}
+								<div class="bg-zinc-800 rounded-lg p-3 border border-zinc-700 hover:border-purple-500/50 transition-colors">
+									<div class="flex items-start gap-3">
+										<span class="text-2xl">{event.icon}</span>
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center gap-2 mb-1">
+												<p class="text-white font-semibold text-sm truncate">{event.name}</p>
+												{#if event.format}
+													<span class="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs font-medium border border-purple-500/30 flex-shrink-0">
+														{event.format}
+													</span>
+												{/if}
+											</div>
+											{#if event.winner}
+												<div class="flex items-center gap-2">
+													<img 
+														src={event.winner.steamAvatar || '/default-avatar.png'} 
+														alt={event.winner.steamUsername}
+														class="w-5 h-5 rounded-full"
+													/>
+													<p class="text-xs text-gray-400 truncate">
+														Winner: <span class="text-gray-300">{event.winner.steamUsername}</span>
+													</p>
+												</div>
+											{:else if event.matchupCount !== undefined}
+												<p class="text-xs text-gray-400">
+													{event.matchupCount} {event.matchupCount === 1 ? 'matchup' : 'matchups'}
+												</p>
+											{/if}
+											<p class="text-xs text-gray-500 mt-1">{formatEventDate(event.date)}</p>
+										</div>
+									</div>
+								</div>
+							{/each}
+						{:else}
+							<div class="text-center py-8 text-gray-500">
+								<p class="text-2xl mb-2">🏆</p>
+								<p class="text-sm">No tournaments yet</p>
+							</div>
+						{/if}
+					</div>
 				</div>
 
-				<div class="mb-6">
-					<p class="text-gray-400 text-sm mb-2">Prize Pool</p>
-					<p class="text-3xl font-bold text-yellow-400">{tournamentData.prize}</p>
-				</div>
-
-				<div class="mb-6">
-					<p class="text-gray-400 text-sm mb-2">Last Winner</p>
-					<div class="flex items-center gap-3 bg-zinc-800 rounded-lg p-3 border border-zinc-700">
-						<div class="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-							<span class="text-xl">🏆</span>
+				<!-- Total Counts -->
+				<div class="mb-6 pt-4 border-t border-zinc-800">
+					<div class="flex items-center justify-center gap-4 text-xs text-gray-400">
+						<div class="text-center">
+							<p class="text-white font-bold text-lg">{tournamentData.totalCounts.cups}</p>
+							<p>Cups</p>
 						</div>
-						<div>
-							<p class="text-white font-semibold">{tournamentData.lastWinner}</p>
-							<p class="text-xs text-gray-400">{tournamentData.lastWinnerDate}</p>
+						<div class="w-px h-8 bg-zinc-700"></div>
+						<div class="text-center">
+							<p class="text-white font-bold text-lg">{tournamentData.totalCounts.championships}</p>
+							<p>Championships</p>
+						</div>
+						<div class="w-px h-8 bg-zinc-700"></div>
+						<div class="text-center">
+							<p class="text-white font-bold text-lg">{tournamentData.totalCounts.fightNights}</p>
+							<p>Fight Nights</p>
 						</div>
 					</div>
 				</div>
 
 				<a 
 					href="/tournaments" 
-					class="block w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-purple-500/30 mt-auto"
+					class="block w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-purple-500/30"
 				>
-					View Tournaments →
-				</a>
-			</div>
-
-			<!-- World Championship Card -->
-			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-red-500 hover:border-red-400 transition-all shadow-xl shadow-red-500/10 hover:shadow-red-500/20 flex flex-col">
-				<div class="flex items-center justify-between mb-4">
-					<h3 class="text-2xl font-bold text-red-400">WORLD CHAMPIONSHIP</h3>
-					<span class="px-3 py-1 bg-red-500/20 rounded-full text-sm font-medium text-red-300 border border-red-500/30">
-						Annual
-					</span>
-				</div>
-				
-				<div class="mb-6">
-					<p class="text-gray-400 text-sm mb-2">2024 Champion</p>
-					<div class="bg-gradient-to-r from-yellow-500 to-red-500 rounded-xl p-4 text-center shadow-lg">
-						<div class="text-4xl mb-2">👑</div>
-						<p class="text-xl font-bold text-white drop-shadow-lg">{championshipData.winner2024}</p>
-					</div>
-				</div>
-
-				<div class="mb-6">
-					<p class="text-gray-400 text-sm mb-2">Next Championship</p>
-					<p class="text-xl font-semibold text-white">{championshipData.nextDate}</p>
-				</div>
-
-				<div class="mb-6 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
-					<p class="text-sm text-gray-300 text-center leading-relaxed">
-						The ultimate test of skill. Top players from all regions compete for the title of World Champion.
-					</p>
-				</div>
-
-				<a 
-					href="/championships" 
-					class="block w-full py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-red-500/30 mt-auto"
-				>
-					View Championships →
+					View All Tournaments →
 				</a>
 			</div>
 

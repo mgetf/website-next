@@ -286,3 +286,101 @@ export async function getLatestTournament() {
 	};
 }
 
+/**
+ * Get recent tournament activity across all types (Cups, Championships, Fight Nights)
+ * Returns the 3 most recent events for homepage preview
+ */
+export async function getRecentTournamentActivity() {
+	// TEMPORARY WORKAROUND: Exclude championships to avoid duplicates with tournaments table
+	// TODO: Fix schema to have single source of truth for all tournament types
+	const [tournaments, fightNights] = await Promise.all([
+		prisma.tournament.findMany({
+			take: 5,
+			orderBy: { startedAt: 'desc' },
+			select: {
+				id: true,
+				name: true,
+				startedAt: true,
+				isTeamTournament: true,
+				winner1: {
+					select: {
+						steamId: true,
+						steamUsername: true,
+						steamAvatar: true
+					}
+				}
+			}
+		}),
+		prisma.fightNight.findMany({
+			take: 3,
+			orderBy: { startedAt: 'desc' },
+			select: {
+				id: true,
+				card: true,
+				startedAt: true,
+				matchups: {
+					select: {
+						id: true
+					}
+				}
+			}
+		})
+	]);
+
+	type RecentEvent = {
+		type: 'cup' | 'championship' | 'fightnight';
+		id: number;
+		name: string;
+		date: Date | null;
+		icon: string;
+		format?: string;
+		winner?: {
+			steamId: string;
+			steamUsername: string;
+			steamAvatar: string | null;
+		} | null;
+		matchupCount?: number;
+	};
+
+	const allEvents: RecentEvent[] = [
+		...tournaments.map(t => ({
+			type: 'cup' as const,
+			id: t.id,
+			name: t.name,
+			date: t.startedAt,
+			icon: '🏆',
+			format: t.isTeamTournament ? '2v2' : '1v1',
+			winner: t.winner1
+		})),
+		...fightNights.map(f => ({
+			type: 'fightnight' as const,
+			id: f.id,
+			name: f.card || `Fight Night #${f.id}`,
+			date: f.startedAt,
+			icon: '🥊',
+			matchupCount: f.matchups?.length || 0
+		}))
+	];
+
+	allEvents.sort((a, b) => {
+		if (!a.date) return 1;
+		if (!b.date) return -1;
+		return new Date(b.date).getTime() - new Date(a.date).getTime();
+	});
+
+	const [cupCount, championshipCount, fightNightCount] = await Promise.all([
+		prisma.tournament.count(),
+		prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM championship`,
+		prisma.fightNight.count()
+	]);
+
+	return {
+		recentEvents: allEvents.slice(0, 3),
+		totalCounts: {
+			cups: cupCount,
+			championships: Number(championshipCount[0]?.count || 0),
+			fightNights: fightNightCount
+		}
+	};
+}
+

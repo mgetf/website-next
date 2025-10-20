@@ -30,6 +30,7 @@ import {
 	determineNextAction
 } from '$lib/server/services/mapBans';
 import { calculateWeekLabel, canDisputeMatch } from '$lib/server/utils/matchHelpers';
+import { createNotificationForMatch } from '$lib/server/services/notifications';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const matchId = parseInt(params.id);
@@ -162,7 +163,7 @@ export const actions: Actions = {
 		try {
 			await submitMatchScores(matchId, gameResults, locals.user.steamId);
 
-			// TODO: Create notification for opposing team (F19)
+			await createNotificationForMatch(matchId, locals.user.steamId);
 
 			return { success: true, message: 'Scores submitted successfully' };
 		} catch (err: any) {
@@ -194,7 +195,7 @@ export const actions: Actions = {
 		try {
 			await disputeMatch(matchId, reason, locals.user.steamId);
 
-			// TODO: Notify admins and opposing team of dispute (F19)
+			await createNotificationForMatch(matchId, locals.user.steamId);
 
 			return { success: true, message: 'Dispute filed successfully' };
 		} catch (err: any) {
@@ -226,7 +227,7 @@ export const actions: Actions = {
 		try {
 			await createMatchComm(matchId, locals.user.steamId, content);
 
-			// TODO: Notify team owners of new message (F19)
+			await createNotificationForMatch(matchId, locals.user.steamId);
 
 			return { success: true };
 		} catch (err: any) {
@@ -272,7 +273,7 @@ export const actions: Actions = {
 				proposedDateTime: utcDateTime
 			});
 
-			// TODO: Notify opposing team of reschedule request (F19)
+			await createNotificationForMatch(matchId, locals.user.steamId);
 
 			return { success: true, message: 'Reschedule request sent' };
 		} catch (err: any) {
@@ -309,7 +310,7 @@ export const actions: Actions = {
 		try {
 			await updateRescheduleStatus(commId, response, locals.user.steamId);
 
-			// TODO: Notify relevant parties of response (F19)
+			await createNotificationForMatch(matchId, locals.user.steamId);
 
 			return { success: true, message: `Reschedule ${response}ed successfully` };
 		} catch (err: any) {
@@ -368,7 +369,7 @@ export const actions: Actions = {
 				actionType
 			);
 
-			// TODO: Notify opposing team of map action (F19)
+			await createNotificationForMatch(matchId, locals.user.steamId);
 
 			return { success: true };
 		} catch (err: any) {

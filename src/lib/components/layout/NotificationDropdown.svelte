@@ -1,7 +1,7 @@
 <script lang="ts">
 	type Notification = {
 		id: number;
-		type: number;
+		type: string;
 		url: string;
 		createdAt: Date;
 	};
@@ -27,25 +27,35 @@
 		}
 	}
 	
-	async function markAsRead(id: number) {
+	async function handleNotificationClick(notificationId: number, url: string) {
 		try {
-			await fetch(`/notifications/${id}/read`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				}
+			await fetch(`/api/notifications/${notificationId}/read`, {
+				method: 'POST'
 			});
 		} catch (error) {
 			console.error('Error marking notification as read:', error);
+		} finally {
+			window.location.href = url;
 		}
 	}
 	
-	function getNotificationText(type: number): string {
+	async function handleMarkAllRead() {
+		try {
+			await fetch('/api/notifications/mark-all-read', {
+				method: 'POST'
+			});
+			window.location.reload();
+		} catch (error) {
+			console.error('Error marking all as read:', error);
+		}
+	}
+	
+	function getNotificationText(type: string): string {
 		switch (type) {
-			case 0:
+			case 'MATCH_COMM':
 				return 'New match activity';
-			case 1:
-				return 'New team activity';
+			case 'PENDING_PLAYER':
+				return 'New player join request';
 			default:
 				return 'New notification';
 		}
@@ -79,10 +89,9 @@
 			{#if notifications.length > 0}
 				<div class="py-2">
 					{#each notifications as notification}
-						<a
-							href={notification.url}
-							onclick={() => markAsRead(notification.id)}
-							class="block px-4 py-3 text-sm text-gray-300 hover:bg-zinc-800/50 border-b border-zinc-800 last:border-b-0 transition-all"
+						<button
+							onclick={() => handleNotificationClick(notification.id, notification.url)}
+							class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-zinc-800/50 border-b border-zinc-800 last:border-b-0 transition-all"
 						>
 							<div class="flex items-start gap-3">
 								<div class="flex-shrink-0 mt-0.5">
@@ -97,8 +106,16 @@
 									</p>
 								</div>
 							</div>
-						</a>
+						</button>
 					{/each}
+				</div>
+				<div class="border-t border-zinc-800 p-2">
+					<button
+						onclick={handleMarkAllRead}
+						class="w-full px-3 py-2 text-sm text-blue-400 hover:text-blue-300 hover:bg-zinc-800/50 rounded transition-all"
+					>
+						Mark all as read
+					</button>
 				</div>
 			{:else}
 				<div class="px-4 py-8 text-center">

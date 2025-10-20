@@ -4,6 +4,7 @@ import { requestJoinByPassword, isPlayerInTeam, isPlayerInAnyActiveTeam } from '
 import { getTeamById } from '$lib/server/services/teams';
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
+import { createNotificationForTeam } from '$lib/server/services/notifications';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	requireAuth(locals.user);
@@ -90,6 +91,8 @@ export const actions: Actions = {
 
 		try {
 			await requestJoinByPassword(teamId, locals.user.steamId, password);
+			
+			await createNotificationForTeam(teamId, locals.user.steamId);
 			
 			// Redirect to team page with success message
 			throw redirect(303, `/teams/${teamId}?joined=pending`);

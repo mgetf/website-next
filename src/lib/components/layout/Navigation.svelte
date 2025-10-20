@@ -47,17 +47,14 @@
 				
 				<!-- Desktop Navigation Links -->
 				<div class="hidden md:flex items-center gap-1">
-					<a href="/" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all">
-						Home
-					</a>
 					<a href="/leagues/2v2" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all">
-						2v2 League
+						League
 					</a>
 					<a href="/tournaments" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all">
-						1v1 Tournaments
+						Tournaments
 					</a>
-					<a href="/WorldChampionships" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all">
-						Championship
+					<a href="/users" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all">
+						Users
 					</a>
 					<a href="/rulebook" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all">
 						Rules
@@ -119,17 +116,14 @@
 	{#if mobileMenuOpen}
 		<div class="md:hidden border-t border-zinc-800 bg-zinc-900">
 			<div class="px-4 py-3 space-y-1">
-				<a href="/" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
-					Home
-				</a>
 				<a href="/leagues/2v2" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
-					2v2 League
+					League
 				</a>
 				<a href="/tournaments" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
-					1v1 Tournaments
+					Tournaments
 				</a>
-				<a href="/WorldChampionships" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
-					Championship
+				<a href="/users" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
+					Users
 				</a>
 				<a href="/rulebook" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
 					Rules

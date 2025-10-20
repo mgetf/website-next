@@ -414,3 +414,64 @@ export async function banUser(
 	});
 }
 
+/**
+ * Get all users for public listing with pagination
+ * Used by /users page
+ */
+export async function getUsersPublic(page: number = 1, search?: string, role?: string) {
+	const USERS_PER_PAGE = 50;
+	const skip = (page - 1) * USERS_PER_PAGE;
+
+	const where: any = {};
+
+	if (search && search.trim().length > 0) {
+		where.OR = [
+			{ steamUsername: { contains: search, mode: 'insensitive' } },
+			{ steamId: { contains: search, mode: 'insensitive' } },
+			{ discord: { discordUsername: { contains: search, mode: 'insensitive' } } }
+		];
+	}
+
+	if (role && role !== 'all' && role !== '') {
+		where.permissionLevel = role;
+	}
+
+	const [users, totalCount] = await Promise.all([
+		prisma.user.findMany({
+			where,
+			select: {
+				steamId: true,
+				steamUsername: true,
+				steamAvatar: true,
+				permissionLevel: true,
+				banStatus: true,
+				discord: {
+					select: {
+						discordUsername: true
+					}
+				}
+			},
+			orderBy: {
+				steamUsername: 'asc'
+			},
+			skip,
+			take: USERS_PER_PAGE
+		}),
+		prisma.user.count({ where })
+	]);
+
+	const totalPages = Math.ceil(totalCount / USERS_PER_PAGE);
+
+	return {
+		users,
+		pagination: {
+			currentPage: page,
+			totalPages,
+			totalCount,
+			perPage: USERS_PER_PAGE,
+			hasNextPage: page < totalPages,
+			hasPreviousPage: page > 1
+		}
+	};
+}
+

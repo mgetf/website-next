@@ -8,11 +8,16 @@
 	let showScoreForm = $state(false);
 	let showDisputeForm = $state(false);
 	let showRescheduleForm = $state(false);
+	let showDemoUploadModal = $state(false);
+	let showDemoReportModal = $state(false);
+	let selectedDemoForReport = $state<any>(null);
 	let messageContent = $state('');
 	let scoreSubmitError = $state<string | null>(null);
 	let scoreSubmitSuccess = $state(false);
 	let isSubmittingScore = $state(false);
 	let isSubmittingMessage = $state(false);
+	let isUploadingDemo = $state(false);
+	let isReportingDemo = $state(false);
 
 	const match = $derived(data.match);
 	const isUnplayed = $derived(match.status === 'UNPLAYED');
@@ -54,6 +59,39 @@
 		if (data.permissions.isAwayOwner && expectedTeamId === match.awayTeamId) return true;
 		return false;
 	});
+
+	// Demo modal functions
+	const openDemoUploadModal = () => {
+		showDemoUploadModal = true;
+	};
+
+	const closeDemoUploadModal = () => {
+		showDemoUploadModal = false;
+	};
+
+	const openDemoReportModal = (demo: any) => {
+		selectedDemoForReport = demo;
+		showDemoReportModal = true;
+	};
+
+	const closeDemoReportModal = () => {
+		showDemoReportModal = false;
+		selectedDemoForReport = null;
+	};
+
+	const getDemoReportStatusBadge = (status: string) => {
+		if (status === 'REVIEW') return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+		if (status === 'ACTION') return 'bg-green-500/20 text-green-300 border border-green-500/30';
+		if (status === 'CLEAR') return 'bg-red-500/20 text-red-300 border border-red-500/30';
+		return 'bg-zinc-800 text-gray-300 border border-zinc-700';
+	};
+
+	const getDemoReportStatusLabel = (status: string) => {
+		if (status === 'REVIEW') return 'Pending Review';
+		if (status === 'ACTION') return 'Reviewed';
+		if (status === 'CLEAR') return 'Rejected';
+		return status;
+	};
 </script>
 
 <div class="container mx-auto px-4 py-8 max-w-7xl">
@@ -666,36 +704,308 @@
 	</div>
 
 	<!-- Demos Section -->
-	<!-- TODO: Demo upload form - needs file upload UI (F10) -->
-	{#if match.demos && match.demos.length > 0}
-		<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-md p-6">
-			<h2 class="text-2xl font-bold text-white mb-4">Match Demos</h2>
+	<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-md p-6">
+		<div class="flex items-center justify-between mb-4">
+			<h2 class="text-2xl font-bold text-white">Match Demos</h2>
+			{#if data.canUploadDemo}
+				<button
+					onclick={openDemoUploadModal}
+					class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold"
+				>
+					Upload Demo
+				</button>
+			{/if}
+		</div>
+
+		{#if match.demos && match.demos.length > 0}
 			<div class="space-y-3">
 				{#each match.demos as demo}
-					<div class="p-4 bg-zinc-800 rounded-lg flex items-center justify-between">
-						<div>
-							<div class="font-semibold">{demo.title || 'Demo File'}</div>
-							<div class="text-sm text-gray-300">
-								Submitted by <a href="/users/{demo.submittedBy}" class="text-blue-400 hover:underline">
-									{demo.submitter?.steamUsername}
-								</a>
-								• {new Date(demo.submittedAt).toLocaleDateString()}
+					<div class="p-4 bg-zinc-800 rounded-lg">
+						<div class="flex items-start justify-between">
+							<div class="flex-1">
+								<div class="flex items-center space-x-3 mb-2">
+									{#if demo.player}
+										<img 
+											src={demo.player.steamAvatar} 
+											alt={demo.player.steamUsername}
+											class="w-8 h-8 rounded-full"
+										/>
+										<div>
+											<a href="/users/{demo.playerSteamId}" class="font-semibold text-white hover:text-blue-400">
+												{demo.player.steamUsername}
+											</a>
+											<span class="text-gray-400 text-sm">'s Demo</span>
+										</div>
+									{:else}
+										<div class="font-semibold text-white">Demo File</div>
+									{/if}
+								</div>
+								<div class="text-sm text-gray-300 mb-1">
+									Submitted by <a href="/users/{demo.submittedBy}" class="text-blue-400 hover:underline">
+										{demo.submitter?.steamUsername}
+									</a>
+									• {new Date(demo.submittedAt).toLocaleDateString()}
+								</div>
+								{#if demo.description}
+									<p class="text-sm text-gray-300 mt-2">{demo.description}</p>
+								{/if}
+
+								{#if data.user && data.userDemoReports[demo.id] && data.userDemoReports[demo.id].length > 0}
+									<div class="mt-3 flex flex-wrap gap-2">
+										{#each data.userDemoReports[demo.id] as report}
+											<span class="px-3 py-1 rounded-full text-xs font-semibold {getDemoReportStatusBadge(report.status)}">
+												Your Report: {getDemoReportStatusLabel(report.status)}
+											</span>
+										{/each}
+									</div>
+								{/if}
 							</div>
-							{#if demo.description}
-								<p class="text-sm text-gray-300 mt-1">{demo.description}</p>
-							{/if}
+							
+							<div class="flex items-center space-x-2 ml-4">
+								<a
+									href={demo.file}
+									target="_blank"
+									class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm whitespace-nowrap"
+								>
+									Download
+								</a>
+								{#if data.user}
+									<button
+										onclick={() => openDemoReportModal(demo)}
+										class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm whitespace-nowrap"
+									>
+										Report
+									</button>
+								{/if}
+							</div>
 						</div>
-						<a
-							href={demo.file}
-							download
-							class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
-						>
-							Download
-						</a>
 					</div>
 				{/each}
 			</div>
-		</div>
-	{/if}
+		{:else}
+			<p class="text-gray-400 text-center py-8">No demos have been uploaded for this match yet.</p>
+		{/if}
+	</div>
 </div>
+
+<!-- Demo Upload Modal -->
+{#if showDemoUploadModal}
+	<div 
+		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+		onclick={closeDemoUploadModal}
+		onkeydown={(e) => e.key === 'Escape' && closeDemoUploadModal()}
+		role="button"
+		tabindex="-1"
+	>
+		<div 
+			class="bg-zinc-800 p-6 rounded-lg w-[500px]" 
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="dialog" 
+			aria-modal="true"
+			tabindex="0"
+		>
+			<div class="flex justify-between items-center mb-4">
+				<h3 class="text-xl font-bold text-white">Upload Demo</h3>
+				<button onclick={closeDemoUploadModal} class="text-gray-400 hover:text-gray-200" aria-label="Close modal">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<form 
+				method="POST" 
+				action="?/uploadDemo" 
+				enctype="multipart/form-data"
+				use:enhance={() => {
+					isUploadingDemo = true;
+					return async ({ result, update }) => {
+						isUploadingDemo = false;
+						if (result.type === 'success') {
+							closeDemoUploadModal();
+						}
+						await update();
+					};
+				}}
+			>
+				<div class="mb-4">
+					<label for="playerSteamId" class="block text-sm font-medium text-gray-200 mb-2">Player</label>
+					<select
+						id="playerSteamId"
+						name="playerSteamId"
+						required
+						class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
+					>
+						<option value="">Select a player...</option>
+						{#each data.allRoster as player}
+							<option value={player.steamId}>{player.username}</option>
+						{/each}
+					</select>
+				</div>
+
+				<div class="mb-4">
+					<label for="demoFile" class="block text-sm font-medium text-gray-200 mb-2">Demo File (.dem)</label>
+					<input
+						type="file"
+						id="demoFile"
+						name="file"
+						accept=".dem"
+						required
+						class="w-full text-sm text-gray-200
+							   file:mr-4 file:py-2 file:px-4
+							   file:rounded file:border-0
+							   file:text-sm file:font-semibold
+							   file:bg-zinc-700 file:text-gray-200
+							   hover:file:bg-zinc-600
+							   cursor-pointer"
+					/>
+					<p class="text-xs text-gray-400 mt-1">Maximum file size: 200MB</p>
+				</div>
+
+				<div class="mb-6">
+					<label for="demoDescription" class="block text-sm font-medium text-gray-200 mb-2">Description (Optional)</label>
+					<textarea
+						id="demoDescription"
+						name="description"
+						rows="3"
+						class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
+						placeholder="Add any notes about this demo..."
+					></textarea>
+				</div>
+
+				{#if form?.error && !isUploadingDemo}
+					<div class="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+						{form.error}
+					</div>
+				{/if}
+
+				{#if form?.success && form?.message}
+					<div class="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
+						{form.message}
+					</div>
+				{/if}
+
+				<div class="flex justify-end space-x-3">
+					<button
+						type="button"
+						onclick={closeDemoUploadModal}
+						class="px-4 py-2 bg-zinc-700 text-gray-200 rounded hover:bg-zinc-600"
+						disabled={isUploadingDemo}
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+						disabled={isUploadingDemo}
+					>
+						{isUploadingDemo ? 'Uploading...' : 'Upload Demo'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Demo Report Modal -->
+{#if showDemoReportModal && selectedDemoForReport}
+	<div 
+		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+		onclick={closeDemoReportModal}
+		onkeydown={(e) => e.key === 'Escape' && closeDemoReportModal()}
+		role="button"
+		tabindex="-1"
+	>
+		<div 
+			class="bg-zinc-800 p-6 rounded-lg w-[500px]" 
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="dialog" 
+			aria-modal="true"
+			tabindex="0"
+		>
+			<div class="flex justify-between items-center mb-4">
+				<h3 class="text-xl font-bold text-white">Report Demo</h3>
+				<button onclick={closeDemoReportModal} class="text-gray-400 hover:text-gray-200" aria-label="Close modal">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<form 
+				method="POST" 
+				action="?/reportDemo"
+				use:enhance={() => {
+					isReportingDemo = true;
+					return async ({ result, update }) => {
+						isReportingDemo = false;
+						if (result.type === 'success') {
+							closeDemoReportModal();
+						}
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="demoId" value={selectedDemoForReport.id} />
+
+				<div class="mb-4">
+					<p class="text-gray-200 mb-2">
+						Reporting demo for: 
+						<span class="font-bold text-white">
+							{selectedDemoForReport.player?.steamUsername || 'Unknown Player'}
+						</span>
+					</p>
+					<p class="text-sm text-gray-400">
+						Please describe why you believe this demo should be reviewed for suspicious activity.
+					</p>
+				</div>
+
+				<div class="mb-6">
+					<label for="reportDescription" class="block text-sm font-medium text-gray-200 mb-2">Description *</label>
+					<textarea
+						id="reportDescription"
+						name="description"
+						rows="4"
+						required
+						maxlength="1000"
+						class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
+						placeholder="Describe the suspicious behavior (max 1000 characters)..."
+					></textarea>
+				</div>
+
+				{#if form?.error && !isReportingDemo}
+					<div class="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+						{form.error}
+					</div>
+				{/if}
+
+				{#if form?.success && form?.message}
+					<div class="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
+						{form.message}
+					</div>
+				{/if}
+
+				<div class="flex justify-end space-x-3">
+					<button
+						type="button"
+						onclick={closeDemoReportModal}
+						class="px-4 py-2 bg-zinc-700 text-gray-200 rounded hover:bg-zinc-600"
+						disabled={isReportingDemo}
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+						disabled={isReportingDemo}
+					>
+						{isReportingDemo ? 'Submitting...' : 'Submit Report'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
 

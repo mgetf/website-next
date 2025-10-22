@@ -31,6 +31,10 @@ import {
 } from '$lib/server/services/mapBans';
 import { calculateWeekLabel, canDisputeMatch } from '$lib/server/utils/matchHelpers';
 import { createNotificationForMatch } from '$lib/server/services/notifications';
+import { uploadDemo, reportDemo, getUserDemoReports } from '$lib/server/services/demos';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const matchId = parseInt(params.id);
@@ -80,6 +84,43 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}
 	}
 
+	// Get team rosters for demo upload player selection
+	const homeRoster = match.homeTeam.players
+		.filter(p => p.player)
+		.map(p => ({
+			steamId: p.player.steamId,
+			username: p.player.steamUsername,
+			avatar: p.player.steamAvatar
+		}));
+	
+	const awayRoster = match.awayTeam.players
+		.filter(p => p.player)
+		.map(p => ({
+			steamId: p.player.steamId,
+			username: p.player.steamUsername,
+			avatar: p.player.steamAvatar
+		}));
+
+	const allRoster = [...homeRoster, ...awayRoster];
+
+	// Check if user can upload demos (team member or admin)
+	const canUploadDemo = user
+		? permissions.isHomeOwner || permissions.isAwayOwner || permissions.isAdmin ||
+		  homeRoster.some(p => p.steamId === user.steamId) ||
+		  awayRoster.some(p => p.steamId === user.steamId)
+		: false;
+
+	// Get user's demo reports for all demos in this match
+	let userDemoReports: Record<number, any[]> = {};
+	if (user && match.demos) {
+		for (const demo of match.demos) {
+			const reports = await getUserDemoReports(demo.id, user.steamId);
+			if (reports.length > 0) {
+				userDemoReports[demo.id] = reports;
+			}
+		}
+	}
+
 	return {
 		match,
 		weekLabel,
@@ -91,6 +132,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		disputeTimeRemaining,
 		canDispute: canDisputeMatch(match),
 		canReschedule: canRequestReschedule(match),
+		allRoster,
+		canUploadDemo,
+		userDemoReports,
 		user
 	};
 };
@@ -375,9 +419,104 @@ export const actions: Actions = {
 		} catch (err: any) {
 			return fail(400, { error: err.message || 'Failed to process map action' });
 		}
-	}
+	},
 
-	// TODO: Demo submission action will be implemented when demo service is complete (F10)
-	// submitDemo: async ({ params, request, locals }) => { ... }
+	/**
+	 * Upload demo file
+	 */
+	uploadDemo: async ({ params, request, locals }) => {
+		requireAuth(locals.user);
+		const matchId = parseInt(params.id);
+
+		try {
+			const formData = await request.formData();
+			const file = formData.get('file') as File;
+			const playerSteamId = formData.get('playerSteamId') as string;
+			const description = formData.get('description') as string;
+
+			if (!file || file.size === 0) {
+				return fail(400, { error: 'File is required' });
+			}
+
+			if (!playerSteamId) {
+				return fail(400, { error: 'Player selection is required' });
+			}
+
+			const match = await getMatchDetails(matchId);
+			const permissions = canUserManageMatch(locals.user, match);
+
+			const homeRoster = match.homeTeam.players
+				.filter(p => p.player)
+				.map(p => p.player.steamId);
+			const awayRoster = match.awayTeam.players
+				.filter(p => p.player)
+				.map(p => p.player.steamId);
+			const allRoster = [...homeRoster, ...awayRoster];
+
+			const canUpload =
+				permissions.isAdmin ||
+				homeRoster.includes(locals.user.steamId) ||
+				awayRoster.includes(locals.user.steamId);
+
+			if (!canUpload) {
+				return fail(403, { error: 'Only team members or admins can upload demos' });
+			}
+
+			if (!allRoster.includes(playerSteamId)) {
+				return fail(400, { error: 'Selected player is not in this match' });
+			}
+
+			const tempDir = join(tmpdir(), 'mge-demos');
+			await mkdir(tempDir, { recursive: true });
+			const tempPath = join(tempDir, `${Date.now()}-${file.name}`);
+
+			const arrayBuffer = await file.arrayBuffer();
+			await writeFile(tempPath, Buffer.from(arrayBuffer));
+
+			await uploadDemo({
+				file: {
+					filepath: tempPath,
+					originalFilename: file.name,
+					size: file.size
+				},
+				playerSteamId,
+				submittedBy: locals.user.steamId,
+				matchId,
+				description: description || undefined
+			});
+
+			return { success: true, message: 'Demo uploaded successfully' };
+		} catch (err: any) {
+			console.error('Demo upload error:', err);
+			return fail(500, { error: err.message || 'Failed to upload demo' });
+		}
+	},
+
+	/**
+	 * Report demo for suspicious activity
+	 */
+	reportDemo: async ({ params, request, locals }) => {
+		requireAuth(locals.user);
+
+		try {
+			const formData = await request.formData();
+			const demoId = parseInt(formData.get('demoId') as string);
+			const description = formData.get('description') as string;
+
+			if (isNaN(demoId)) {
+				return fail(400, { error: 'Invalid demo ID' });
+			}
+
+			if (!description || description.trim().length === 0) {
+				return fail(400, { error: 'Report description is required' });
+			}
+
+			await reportDemo(demoId, locals.user.steamId, description);
+
+			return { success: true, message: 'Demo report submitted successfully' };
+		} catch (err: any) {
+			return fail(400, { error: err.message || 'Failed to submit report' });
+		}
+	}
 };
 

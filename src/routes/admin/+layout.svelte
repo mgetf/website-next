@@ -2,8 +2,7 @@
 	import type { LayoutData } from './$types';
 	import { page } from '$app/state';
 	
-	// TODO: Re-import dashboardIcon once proper dashboard is implemented
-	// import dashboardIcon from '$lib/assets/icons/dashboard.png';
+	import dashboardIcon from '$lib/assets/icons/dashboard.png';
 	import trophyIcon from '$lib/assets/icons/trophy.png';
 	import groupIcon from '$lib/assets/icons/group.png';
 	import battleIcon from '$lib/assets/icons/battle.png';
@@ -25,8 +24,7 @@
 	
 	// Sidebar menu items
 	const menuItems = [
-		// TODO: Uncomment Dashboard once proper dashboard is implemented
-		// { name: 'Dashboard', path: '/admin', icon: dashboardIcon },
+		{ name: 'Dashboard', path: '/admin', icon: dashboardIcon },
 		{ name: 'League', path: '/admin/league', icon: trophyIcon },
 		{ name: 'Teams', path: '/admin/teams', icon: groupIcon },
 		{ name: 'Matches', path: '/admin/matches', icon: battleIcon },

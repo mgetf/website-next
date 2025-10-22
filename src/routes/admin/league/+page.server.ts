@@ -5,6 +5,7 @@ import { getSeasons, createSeason, updateSeason, deleteSeason, transformSeasonFo
 import { getRegions, createRegion, updateRegion, toggleRegionVisibility, deleteRegion } from '$lib/server/services/regions';
 import { getDivisions, createDivision, updateDivision, toggleDivisionVisibility, deleteDivision } from '$lib/server/services/divisions';
 import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/services/arenas';
+import { uploadToR2, validateUploadedFile, saveTempFile, deleteTempFile } from '$lib/server/utils/r2Upload';
 import { getMapBanPools, createMapBanPool, updateMapBanPool, toggleMapBanPoolStatus, addMapsToPool, removeMapFromPool, deleteMapBanPool } from '$lib/server/services/mapBanPools';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -320,15 +321,36 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
-		const avatar = formData.get('avatar') as string;
+		const avatarFile = formData.get('avatarFile') as File | null;
+		const avatarUrl = formData.get('avatarUrl') as string;
 		const playoffMap = formData.get('playoffMap') === 'true' ? 1 : 0;
 
 		if (!name || name.trim().length === 0) {
 			return fail(400, { error: 'Arena name is required' });
 		}
 
+		let finalAvatarUrl = avatarUrl?.trim() || null;
+
 		try {
-			await createArena({ name, avatar, playoffMap });
+			if (avatarFile && avatarFile.size > 0) {
+				validateUploadedFile(avatarFile, 'image');
+				
+				const tempPath = await saveTempFile(avatarFile);
+				
+				try {
+					const fileExtension = avatarFile.name.substring(avatarFile.name.lastIndexOf('.'));
+					const remotePath = `arena-avatars/${Date.now()}${fileExtension}`;
+					const uploadedUrl = await uploadToR2(tempPath, remotePath);
+					
+					if (uploadedUrl) {
+						finalAvatarUrl = uploadedUrl;
+					}
+				} finally {
+					deleteTempFile(tempPath);
+				}
+			}
+
+			await createArena({ name, avatar: finalAvatarUrl, playoffMap });
 			return { success: true, message: 'Arena created successfully!' };
 		} catch (error) {
 			console.error('Error creating arena:', error);
@@ -342,7 +364,8 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const arenaId = parseInt(formData.get('arenaId') as string);
 		const name = formData.get('name') as string;
-		const avatar = formData.get('avatar') as string;
+		const avatarFile = formData.get('avatarFile') as File | null;
+		const avatarUrl = formData.get('avatarUrl') as string;
 		const playoffMap = formData.get('playoffMap') === 'true' ? 1 : 0;
 
 		if (!arenaId || arenaId < 1) {
@@ -352,8 +375,28 @@ export const actions: Actions = {
 			return fail(400, { error: 'Arena name is required' });
 		}
 
+		let finalAvatarUrl = avatarUrl?.trim() || null;
+
 		try {
-			await updateArena(arenaId, { name, avatar, playoffMap });
+			if (avatarFile && avatarFile.size > 0) {
+				validateUploadedFile(avatarFile, 'image');
+				
+				const tempPath = await saveTempFile(avatarFile);
+				
+				try {
+					const fileExtension = avatarFile.name.substring(avatarFile.name.lastIndexOf('.'));
+					const remotePath = `arena-avatars/${Date.now()}${fileExtension}`;
+					const uploadedUrl = await uploadToR2(tempPath, remotePath);
+					
+					if (uploadedUrl) {
+						finalAvatarUrl = uploadedUrl;
+					}
+				} finally {
+					deleteTempFile(tempPath);
+				}
+			}
+
+			await updateArena(arenaId, { name, avatar: finalAvatarUrl, playoffMap });
 			return { success: true, message: 'Arena updated successfully!' };
 		} catch (error) {
 			console.error('Error updating arena:', error);

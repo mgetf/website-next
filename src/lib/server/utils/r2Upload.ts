@@ -71,9 +71,13 @@ export async function uploadToR2(localPath: string, remotePath: string): Promise
 		}
 
 		// Upload to R2
+		// Note: The bucket is "images" but we need to include "images/" in the Key path
+		// because the public URL expects: {public-url}/images/{path}
+		const fullKey = `images/${remotePath}`;
+		
 		const command = new PutObjectCommand({
 			Bucket: R2_BUCKET_NAME,
-			Key: remotePath,
+			Key: fullKey,
 			Body: fileContent,
 			ContentType: contentType
 		});
@@ -81,7 +85,8 @@ export async function uploadToR2(localPath: string, remotePath: string): Promise
 		await r2Client.send(command);
 
 		// Return public URL
-		const publicUrl = `${R2_PUBLIC_URL}images/${remotePath}`;
+		const baseUrl = R2_PUBLIC_URL.endsWith('/') ? R2_PUBLIC_URL : `${R2_PUBLIC_URL}/`;
+		const publicUrl = `${baseUrl}images/${remotePath}`;
 		return publicUrl;
 	} catch (err) {
 		console.error('Error uploading to R2:', err);

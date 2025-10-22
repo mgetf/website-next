@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	
@@ -608,6 +609,7 @@
 						<form 
 							method="POST" 
 							action="?/createArena"
+							enctype="multipart/form-data"
 							use:enhance={() => {
 								isSubmitting = true;
 								return async ({ update, result }) => {
@@ -615,6 +617,7 @@
 									isSubmitting = false;
 									if (result.type === 'success') {
 										showArenaForm = false;
+										await invalidateAll();
 									}
 								};
 							}}
@@ -632,13 +635,16 @@
 									/>
 								</div>
 								<div>
-									<label for="arena-avatar" class="block text-sm font-medium text-gray-300 mb-2">Image URL</label>
+									<label for="arena-avatar-file" class="block text-sm font-medium text-gray-300 mb-2">
+										Upload Image
+										<span class="text-xs text-gray-500 ml-1">(JPEG, PNG, GIF, WebP - max 5MB)</span>
+									</label>
 									<input
-										id="arena-avatar"
-										name="avatar"
-										type="text"
-										placeholder="/images/arena.png"
-										class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+										id="arena-avatar-file"
+										name="avatarFile"
+										type="file"
+										accept="image/jpeg,image/png,image/gif,image/webp"
+										class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-orange-600 file:text-white hover:file:bg-orange-500"
 									/>
 								</div>
 								<div>
@@ -652,6 +658,19 @@
 										<option value="true">Yes</option>
 									</select>
 								</div>
+							</div>
+							<div class="mt-4">
+								<label for="arena-avatar-url" class="block text-sm font-medium text-gray-300 mb-2">
+									Or enter Image URL
+									<span class="text-xs text-gray-500 ml-1">(alternative to file upload)</span>
+								</label>
+								<input
+									id="arena-avatar-url"
+									name="avatarUrl"
+									type="text"
+									placeholder="https://example.com/arena.png"
+									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+								/>
 							</div>
 							<div class="mt-4 flex justify-end gap-3">
 								<button 
@@ -1489,6 +1508,7 @@
 			<form 
 				method="POST" 
 				action="?/updateArena"
+				enctype="multipart/form-data"
 				use:enhance={() => {
 					isSubmitting = true;
 					return async ({ update, result }) => {
@@ -1496,6 +1516,7 @@
 						isSubmitting = false;
 						if (result.type === 'success') {
 							editingArena = null;
+							await invalidateAll();
 						}
 					};
 				}}
@@ -1516,14 +1537,33 @@
 					</div>
 					
 					<div>
-						<label for="edit-arena-avatar" class="block text-sm font-medium text-gray-300 mb-2">Image URL</label>
-						<input
-							id="edit-arena-avatar"
-							name="avatar"
-							type="text"
-							value={editingArena.avatar || ''}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
+						<label for="edit-arena-avatar-file" class="block text-sm font-medium text-gray-300 mb-2">
+							Arena Image
+							<span class="text-xs text-gray-500 ml-1">(JPEG, PNG, GIF, WebP - max 5MB)</span>
+						</label>
+						<div class="flex items-start gap-3 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+							{#if editingArena.avatar}
+								<img src={editingArena.avatar} alt={editingArena.name} class="w-16 h-16 rounded object-cover flex-shrink-0" />
+							{:else}
+								<div class="w-16 h-16 rounded bg-zinc-700 flex items-center justify-center flex-shrink-0">
+									<span class="text-2xl text-gray-500">?</span>
+								</div>
+							{/if}
+							<div class="flex-1">
+								<input
+									id="edit-arena-avatar-file"
+									name="avatarFile"
+									type="file"
+									accept="image/jpeg,image/png,image/gif,image/webp"
+									class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500 file:cursor-pointer cursor-pointer"
+								/>
+								<input
+									type="hidden"
+									name="avatarUrl"
+									value={editingArena.avatar || ''}
+								/>
+							</div>
+						</div>
 					</div>
 					
 					<div>

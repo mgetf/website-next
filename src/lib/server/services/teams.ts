@@ -73,6 +73,92 @@ export async function getTeams(options: {
 }
 
 /**
+ * Get teams for public listing with pagination
+ */
+export async function getTeamsPublic(page: number = 1, search?: string, regionId?: number, seasonId?: number) {
+	const TEAMS_PER_PAGE = 50;
+	const skip = (page - 1) * TEAMS_PER_PAGE;
+
+	const where: Prisma.TeamWhereInput = {};
+
+	if (search && search.trim().length > 0) {
+		where.OR = [
+			{ name: { contains: search, mode: 'insensitive' } },
+			{ acronym: { contains: search, mode: 'insensitive' } }
+		];
+	}
+
+	if (regionId) {
+		where.regionId = regionId;
+	}
+
+	if (seasonId) {
+		where.seasonId = seasonId;
+	}
+
+	const [teams, totalCount] = await Promise.all([
+		prisma.team.findMany({
+			where,
+			select: {
+				id: true,
+				name: true,
+				acronym: true,
+				avatar: true,
+				wins: true,
+				losses: true,
+				status: true,
+				division: {
+					select: {
+						id: true,
+						name: true
+					}
+				},
+				region: {
+					select: {
+						id: true,
+						name: true
+					}
+				},
+				season: {
+					select: {
+						id: true,
+						seasonNum: true
+					}
+				},
+				_count: {
+					select: {
+						players: {
+							where: { active: 1 }
+						}
+					}
+				}
+			},
+			orderBy: [
+				{ wins: 'desc' },
+				{ losses: 'asc' }
+			],
+			skip,
+			take: TEAMS_PER_PAGE
+		}),
+		prisma.team.count({ where })
+	]);
+
+	const totalPages = Math.ceil(totalCount / TEAMS_PER_PAGE);
+
+	return {
+		teams,
+		pagination: {
+			currentPage: page,
+			totalPages,
+			totalCount,
+			perPage: TEAMS_PER_PAGE,
+			hasNextPage: page < totalPages,
+			hasPreviousPage: page > 1
+		}
+	};
+}
+
+/**
  * Count teams with filters
  * Used for pagination
  */
@@ -379,7 +465,9 @@ export async function deleteTeam(id: number) {
 		include: {
 			_count: {
 				select: {
-					players: true,
+					players: {
+						where: { active: 1 }
+					},
 					homeMatches: true,
 					awayMatches: true
 				}
@@ -391,16 +479,28 @@ export async function deleteTeam(id: number) {
 		throw new Error('Team not found');
 	}
 
-	// Check if team has players or matches
+	// Check if team has active players or matches
 	const totalMatches = team._count.homeMatches + team._count.awayMatches;
 	if (team._count.players > 0 || totalMatches > 0) {
 		throw new Error(
-			`Cannot delete team with ${team._count.players} players and ${totalMatches} matches. Remove all players and matches first.`
+			`Cannot delete team with ${team._count.players} active players and ${totalMatches} matches. Remove all players and matches first.`
 		);
 	}
 
-	return await prisma.team.delete({
-		where: { id }
+	// Delete team and all associated inactive player records in a transaction
+	return await prisma.$transaction(async (tx) => {
+		// First, delete all inactive player records (active = 0)
+		await tx.playerInTeam.deleteMany({
+			where: {
+				teamId: id,
+				active: 0
+			}
+		});
+
+		// Then delete the team
+		return await tx.team.delete({
+			where: { id }
+		});
 	});
 }
 

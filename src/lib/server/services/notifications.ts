@@ -113,12 +113,12 @@ export async function createNotificationForMatch(
 		return;
 	}
 
-	const teamPlayers = await prisma.playersInTeams.findMany({
+	const teamPlayers = await prisma.playerInTeam.findMany({
 		where: {
 			teamId: {
 				in: [match.homeTeamId, match.awayTeamId]
 			},
-			active: true
+			active: 1
 		},
 		select: {
 			playerSteamId: true
@@ -158,10 +158,10 @@ export async function createNotificationForTeam(
 		return;
 	}
 
-	const teamPlayers = await prisma.playersInTeams.findMany({
+	const teamPlayers = await prisma.playerInTeam.findMany({
 		where: {
 			teamId,
-			active: true
+			active: 1
 		},
 		select: {
 			playerSteamId: true

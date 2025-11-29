@@ -263,7 +263,7 @@
 								{:else if match.weekNo}
 									Week {match.weekNo}
 								{:else if match.playoffRound}
-									R{match.playoffRound}
+									{match.playoffRound > 0 ? `UR${match.playoffRound}` : `LR${Math.abs(match.playoffRound)}`}
 								{:else}
 									-
 								{/if}

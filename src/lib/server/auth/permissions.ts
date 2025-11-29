@@ -5,7 +5,7 @@
 
 import type { SessionUser } from '$lib/types/user';
 import { UserRole } from '$lib/types/user';
-import { UserRole as PrismaUserRole } from '@prisma/client';
+import { UserRole as PrismaUserRole } from '$prisma/client.js';
 import { prisma } from '../db';
 import { unauthorized, forbidden } from '../utils/errors';
 

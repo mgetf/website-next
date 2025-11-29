@@ -6,7 +6,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { getDisputedMatches, resolveDispute } from '$lib/server/services/disputes';
-import { MatchStatus } from '@prisma/client';
+import { MatchStatus } from '$prisma/client.js';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {

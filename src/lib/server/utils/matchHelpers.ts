@@ -3,7 +3,7 @@
  * Utility functions for match management
  */
 
-import type { Match } from '@prisma/client';
+import type { Match } from '$prisma/client.js';
 
 /**
  * Calculate week label with suffix for multi-match weeks (e.g., "1a", "1b")

@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { TeamStatus } from '@prisma/client';
+import { TeamStatus } from '$prisma/client.js';
 import jwt from 'jsonwebtoken';
 import { error } from '@sveltejs/kit';
 

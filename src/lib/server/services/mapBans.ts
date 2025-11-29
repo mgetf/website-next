@@ -4,8 +4,8 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { Match, MatchMapBan } from '@prisma/client';
-import { MapBanActionType } from '@prisma/client';
+import type { Match, MatchMapBan } from '$prisma/client.js';
+import { MapBanActionType } from '$prisma/client.js';
 import { error } from '@sveltejs/kit';
 
 /**

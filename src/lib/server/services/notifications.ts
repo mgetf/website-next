@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { NotificationType } from '@prisma/client';
+import type { NotificationType } from '$prisma/client.js';
 
 /**
  * Get all unread notifications for a user

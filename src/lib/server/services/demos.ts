@@ -5,7 +5,7 @@
 
 import { prisma } from '$lib/server/db';
 import { uploadToR2 } from '$lib/server/utils/r2Upload';
-import { DemoStatus } from '@prisma/client';
+import { DemoStatus } from '$prisma/client.js';
 import fs from 'fs';
 
 interface UploadDemoData {

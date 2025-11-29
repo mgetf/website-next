@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { TeamStatus } from '@prisma/client';
+import { TeamStatus } from '$prisma/client.js';
 import { getCurrentSeason } from '$lib/server/services/seasons';
 import { findDivisionByName } from '$lib/server/services/divisions';
 import { getTeamsForStandings, calculateStandingsStats } from '$lib/server/services/teams';

@@ -4,8 +4,8 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { Team } from '@prisma/client';
-import { MatchStatus, TeamStatus } from '@prisma/client';
+import type { Team } from '$prisma/client.js';
+import { MatchStatus, TeamStatus } from '$prisma/client.js';
 import { error } from '@sveltejs/kit';
 import { calculateWinLossRatio, calculatePointsPerGame } from '$lib/server/utils/matchHelpers';
 
@@ -113,6 +113,11 @@ interface CreateMatchSetParams {
 	arenaId?: number;
 	matchDateTime?: string;
 	mapBanPoolId?: number;
+	// Playoff-specific parameters
+	isPlayoff?: boolean;
+	playoffId?: number;
+	playoffRound?: number;
+	boGames?: number;
 }
 
 /**
@@ -123,7 +128,19 @@ export async function createMatchSet(
 	divisionId: number,
 	params: CreateMatchSetParams
 ) {
-	const { seasonId, seasonNo, weekNo, boSeries, arenaId, matchDateTime, mapBanPoolId } = params;
+	const { seasonId, seasonNo, weekNo, boSeries, arenaId, matchDateTime, mapBanPoolId, isPlayoff, playoffId, playoffRound, boGames } = params;
+	
+	// For playoff matches, use the dedicated playoff match creation function
+	if (isPlayoff) {
+		if (!playoffId || !playoffRound) {
+			throw error(400, 'Playoff ID and round are required for playoff matches');
+		}
+		
+		// Note: This is a simplified implementation
+		// In a real playoff system, you'd need to provide team pairings
+		// For now, we'll throw an error directing to use the dedicated playoff function
+		throw error(400, 'Playoff matches require manual team selection. Use createPlayoffMatch instead.');
+	}
 
 	// Get global settings for payment requirement
 	const globalSettings = await prisma.global.findFirst();

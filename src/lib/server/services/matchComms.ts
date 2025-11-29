@@ -4,8 +4,8 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { User, Match, MatchComm } from '@prisma/client';
-import { MatchStatus, UserRole } from '@prisma/client';
+import type { User, Match, MatchComm } from '$prisma/client.js';
+import { MatchStatus, UserRole } from '$prisma/client.js';
 import { error } from '@sveltejs/kit';
 
 /**

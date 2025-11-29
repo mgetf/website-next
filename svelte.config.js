@@ -10,7 +10,10 @@ const config = {
 	kit: {
 		adapter: adapter({
 			out: 'build'
-		})
+		}),
+		alias: {
+			$prisma: './prisma/generated'
+		}
 	}
 };
 

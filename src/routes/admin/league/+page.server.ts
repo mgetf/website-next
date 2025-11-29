@@ -7,6 +7,7 @@ import { getDivisions, createDivision, updateDivision, toggleDivisionVisibility,
 import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/services/arenas';
 import { uploadToR2, validateUploadedFile, saveTempFile, deleteTempFile } from '$lib/server/utils/r2Upload';
 import { getMapBanPools, createMapBanPool, updateMapBanPool, toggleMapBanPoolStatus, addMapsToPool, removeMapFromPool, deleteMapBanPool } from '$lib/server/services/mapBanPools';
+import { getPlayoffBySeason, createPlayoff, updatePlayoffBySeason } from '$lib/server/services/playoffs';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user);
@@ -26,11 +27,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Fetch all map ban pools
 	const allMapBanPools = await getMapBanPools();
 
-	// Transform the data for the UI
-	const seasonsData = seasons.map((season) => {
+	// Transform the data for the UI and add playoff information
+	const seasonsData = await Promise.all(seasons.map(async (season) => {
 		const isLatest = seasons[0]?.id === season.id;
-		return transformSeasonForUI(season, isLatest);
-	});
+		const seasonUI = transformSeasonForUI(season, isLatest);
+		
+		// Get playoff data for this season
+		const playoff = await getPlayoffBySeason(season.id);
+		
+		return {
+			...seasonUI,
+			playoff: playoff ? {
+				id: playoff.id,
+				numRounds: playoff.numRounds,
+				doubleElim: playoff.doubleElim,
+				isTournament: playoff.isTournament
+			} : null
+		};
+	}));
 
 	return {
 		seasons: seasonsData,
@@ -544,6 +558,58 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Error deleting map ban pool:', error);
 			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete map ban pool' });
+		}
+	},
+
+	// PLAYOFF ACTIONS
+	managePlayoff: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const seasonId = parseInt(formData.get('seasonId') as string);
+		const format = formData.get('format') as string;
+		const numRounds = formData.get('numRounds') ? parseInt(formData.get('numRounds') as string) : null;
+		const doubleElim = formData.get('doubleElim') === '1' ? 1 : 0;
+
+		if (!seasonId || seasonId < 1) {
+			return fail(400, { error: 'Invalid season ID' });
+		}
+
+		if (!format || (format !== 'tournament' && format !== 'rounds')) {
+			return fail(400, { error: 'Invalid playoff format' });
+		}
+
+		if (format === 'rounds' && (!numRounds || numRounds < 1)) {
+			return fail(400, { error: 'Number of rounds is required for rounds format and must be >= 1' });
+		}
+
+		const isTournament = format === 'tournament';
+
+		try {
+			// Check if playoff already exists for this season
+			const existingPlayoff = await getPlayoffBySeason(seasonId);
+
+			if (existingPlayoff) {
+				// Update existing playoff
+				await updatePlayoffBySeason(seasonId, {
+					numRounds: isTournament ? null : numRounds,
+					doubleElim,
+					isTournament
+				});
+				return { success: true, message: 'Playoff configuration updated successfully!' };
+			} else {
+				// Create new playoff
+				await createPlayoff({
+					seasonId,
+					numRounds: isTournament ? null : numRounds,
+					doubleElim,
+					isTournament
+				});
+				return { success: true, message: 'Playoff configuration created successfully!' };
+			}
+		} catch (error) {
+			console.error('Error managing playoff:', error);
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to manage playoff configuration' });
 		}
 	}
 };

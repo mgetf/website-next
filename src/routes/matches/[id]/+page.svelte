@@ -103,7 +103,7 @@
 				{#if data.weekLabel}
 					<span class="text-gray-400">- Week {data.weekLabel}</span>
 				{:else if match.playoffRound}
-					<span class="text-gray-400">- Playoff Round {match.playoffRound}</span>
+					<span class="text-gray-400">- {match.playoffRound > 0 ? `Upper Round ${match.playoffRound}` : `Lower Round ${Math.abs(match.playoffRound)}`}</span>
 				{/if}
 			</h1>
 			<span class="px-4 py-2 rounded-full text-sm font-semibold {getStatusBadge(match.status)}">

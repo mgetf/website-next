@@ -9,7 +9,7 @@ import { createSteamAuth } from '$lib/server/auth/steam';
 import { setSession, getAndClearRedirectUrl } from '$lib/server/session';
 import { prisma } from '$lib/server/db';
 import { getPermissionLevel } from '$lib/server/auth/permissions';
-import { BanStatus as PrismaBanStatus, UserRole as PrismaUserRole } from '@prisma/client';
+import { BanStatus as PrismaBanStatus, UserRole as PrismaUserRole } from '$prisma/client.js';
 import { BanStatus, UserRole } from '$lib/types/user';
 
 export const GET: RequestHandler = async ({ cookies, request }) => {

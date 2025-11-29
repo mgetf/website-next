@@ -34,6 +34,9 @@
 	let deletingPool: typeof data.mapBanPools[0] | null = $state(null);
 	let addingMapsToPool: typeof data.mapBanPools[0] | null = $state(null);
 	
+	// Playoff management state
+	let showPlayoffModal: typeof data.seasons[0] | null = $state(null);
+	
 	let seasonsByRegion = $derived(data.seasons.reduce((acc, season) => {
 		if (!acc[season.region]) {
 			acc[season.region] = [];
@@ -260,6 +263,7 @@
 											<th class="px-6 py-3 font-medium">Duration</th>
 											<th class="px-6 py-3 font-medium">Teams</th>
 											<th class="px-6 py-3 font-medium">Matches</th>
+											<th class="px-6 py-3 font-medium">Playoffs</th>
 											<th class="px-6 py-3 font-medium text-right">Actions</th>
 										</tr>
 									</thead>
@@ -295,7 +299,22 @@
 													<span class="text-xs text-gray-500 ml-1">matches</span>
 												</td>
 												<td class="px-6 py-4">
+													{#if season.playoff}
+														<span class="text-sm text-gray-300">
+															{season.playoff.isTournament ? 'Tournament' : `${season.playoff.numRounds} Rounds`}
+														</span>
+													{:else}
+														<span class="text-sm text-gray-500">Not set</span>
+													{/if}
+												</td>
+												<td class="px-6 py-4">
 													<div class="flex items-center justify-end gap-2">
+														<button 
+															onclick={() => showPlayoffModal = season}
+															class="px-3 py-1.5 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
+														>
+															{season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
+														</button>
 														<button 
 															onclick={() => editingSeason = season}
 															class="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
@@ -1942,6 +1961,94 @@
 					</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Playoff Management Modal -->
+{#if showPlayoffModal}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+		<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl max-w-md w-full">
+			<div class="p-6">
+				<h3 class="text-xl font-bold text-white mb-4">Manage Playoffs</h3>
+				<p class="text-gray-400 text-sm mb-6">Configure playoff settings for Season {showPlayoffModal.seasonNum} ({showPlayoffModal.region})</p>
+				
+				<form 
+					method="POST" 
+					action="?/managePlayoff"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ update, result }) => {
+							await update();
+							isSubmitting = false;
+							if (result.type === 'success') {
+								showPlayoffModal = null;
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="seasonId" value={showPlayoffModal.id} />
+					
+					<div class="space-y-4">
+						<div>
+							<label class="block text-sm font-medium text-gray-300 mb-2">Playoff Format</label>
+							<select 
+								name="format" 
+								id="playoffFormat"
+								class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+								onchange={(e) => {
+									const roundsInput = document.getElementById('roundsInput');
+									if (roundsInput) {
+										roundsInput.style.display = e.target.value === 'rounds' ? 'block' : 'none';
+									}
+								}}
+							>
+								<option value="tournament" selected={showPlayoffModal.playoff?.isTournament}>Tournament</option>
+								<option value="rounds" selected={!showPlayoffModal.playoff?.isTournament}>Rounds</option>
+							</select>
+						</div>
+						
+						<div id="roundsInput" style="display: {showPlayoffModal.playoff?.isTournament === false ? 'block' : 'none'};">
+							<label class="block text-sm font-medium text-gray-300 mb-2">Number of Rounds</label>
+							<input 
+								type="number" 
+								name="numRounds"
+								value={showPlayoffModal.playoff?.numRounds || 2}
+								min="1"
+								class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+							/>
+							
+							<div class="mt-4">
+								<label class="block text-sm font-medium text-gray-300 mb-2">Double Elimination</label>
+								<select 
+									name="doubleElim" 
+									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+								>
+									<option value="0" selected={showPlayoffModal.playoff?.doubleElim === 0}>No</option>
+									<option value="1" selected={showPlayoffModal.playoff?.doubleElim === 1}>Yes</option>
+								</select>
+							</div>
+						</div>
+					</div>
+					
+					<div class="flex gap-3 justify-end mt-6">
+						<button 
+							type="button"
+							onclick={() => showPlayoffModal = null}
+							class="px-6 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+						>
+							Cancel
+						</button>
+						<button 
+							type="submit"
+							disabled={isSubmitting}
+							class="px-6 py-2 bg-orange-600 hover:bg-orange-500 disabled:bg-orange-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+						>
+							{isSubmitting ? 'Saving...' : 'Save'}
+						</button>
+					</div>
+				</form>
+			</div>
 		</div>
 	</div>
 {/if}

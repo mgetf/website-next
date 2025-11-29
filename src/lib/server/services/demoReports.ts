@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { DemoStatus } from '@prisma/client';
+import type { DemoStatus } from '$prisma/client.js';
 
 /**
  * Get all demo reports with related data (demo, reporter, player, match)

@@ -4,8 +4,8 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { Match, Game, Team } from '@prisma/client';
-import { MatchStatus } from '@prisma/client';
+import type { Match, Game, Team } from '$prisma/client.js';
+import { MatchStatus } from '$prisma/client.js';
 import { UserRole, type SessionUser } from '$lib/types/user';
 import { error } from '@sveltejs/kit';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';

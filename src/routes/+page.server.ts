@@ -1,7 +1,7 @@
 import { getCurrentSeason } from '$lib/server/services/seasons';
 import { getTeamsForStandings, calculateStandingsStats } from '$lib/server/services/teams';
 import { getRecentTournamentActivity } from '$lib/server/services/tournaments';
-import { TeamStatus } from '@prisma/client';
+import { TeamStatus } from '$prisma/client.js';
 import { findDivisionByName } from '$lib/server/services/divisions';
 
 export const load = async () => {

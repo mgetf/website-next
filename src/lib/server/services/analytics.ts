@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { MatchStatus, DemoStatus } from '@prisma/client';
+import { MatchStatus, DemoStatus, Prisma } from '$prisma/client.js';
 
 interface PlayerPerDivision {
 	divisionName: string;
@@ -91,7 +91,7 @@ export async function getAdminAnalytics(): Promise<AnalyticsData> {
 			INNER JOIN teams t ON pit.team_id = t.id
 			INNER JOIN divisions d ON t.division_id = d.id
 			WHERE pit.active = 1
-			AND t.season_id = ANY(ARRAY[${activeSeasonIds}])
+			AND t.season_id IN (${Prisma.join(activeSeasonIds)})
 			GROUP BY d.name
 			ORDER BY "playerCount" DESC
 		`,
@@ -100,7 +100,7 @@ export async function getAdminAnalytics(): Promise<AnalyticsData> {
 			SELECT r.name as "regionName", COUNT(t.id) as "teamCount"
 			FROM teams t
 			INNER JOIN regions r ON t.region_id = r.id
-			WHERE t.season_id = ANY(ARRAY[${activeSeasonIds}])
+			WHERE t.season_id IN (${Prisma.join(activeSeasonIds)})
 			GROUP BY r.name
 			ORDER BY "teamCount" DESC
 		`,
@@ -117,7 +117,7 @@ export async function getAdminAnalytics(): Promise<AnalyticsData> {
 			INNER JOIN teams t ON pit.team_id = t.id
 			INNER JOIN divisions d ON t.division_id = d.id
 			WHERE pit.active = 1
-			AND t.season_id = ANY(ARRAY[${activeSeasonIds}])
+			AND t.season_id IN (${Prisma.join(activeSeasonIds)})
 			GROUP BY category
 		`,
 

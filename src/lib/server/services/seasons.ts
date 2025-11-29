@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '$prisma/client.js';
 
 /**
  * Get all seasons with their region and team/match counts

@@ -6,7 +6,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
-import { MatchStatus } from '@prisma/client';
+import { MatchStatus } from '$prisma/client.js';
 import {
 	getMatchDetails,
 	canUserManageMatch,

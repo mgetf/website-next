@@ -5,8 +5,8 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { TeamStatus } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
+import { TeamStatus } from '$prisma/client.js';
+import type { Prisma } from '$prisma/client.js';
 
 /**
  * Get teams with filtering, search, and pagination

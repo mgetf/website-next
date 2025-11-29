@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { MatchStatus } from '@prisma/client';
+import { MatchStatus } from '$prisma/client.js';
 
 /**
  * Get all disputed matches with team and season info

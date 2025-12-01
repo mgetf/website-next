@@ -13,7 +13,11 @@ RUN npm i -g pnpm && pnpm install --frozen-lockfile
 # Copy source
 COPY . .
 
+# Generate SvelteKit types first (required for tsconfig.json which prisma.config.ts needs)
+RUN pnpm run prepare
+
 # Generate Prisma client and build SvelteKit
+# prisma.config.ts has a fallback URL for build - real DATABASE_URL provided at runtime
 RUN npx prisma generate
 RUN pnpm build
 

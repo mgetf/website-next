@@ -8,11 +8,7 @@
 
 import { PrismaClient } from '$prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { dev } from '$app/environment';
-import { DATABASE_URL } from '$env/static/private';
-
-// Create adapter with Direct TCP connection
-const adapter = new PrismaPg({ connectionString: DATABASE_URL });
+import { dev, building } from '$app/environment';
 
 // PrismaClient is attached to the `global` object in development to prevent
 // exhausting your database connection limit.
@@ -20,17 +16,27 @@ const globalForPrisma = globalThis as unknown as {
 	prisma: PrismaClient | undefined;
 };
 
-export const prisma =
-	globalForPrisma.prisma ??
-	new PrismaClient({
+function createPrismaClient(): PrismaClient {
+	const connectionString = process.env.DATABASE_URL;
+	if (!connectionString) {
+		throw new Error('DATABASE_URL environment variable is not set');
+	}
+
+	const adapter = new PrismaPg({ connectionString });
+	return new PrismaClient({
 		adapter,
 		log: dev ? ['query', 'error', 'warn'] : ['error']
 	});
+}
 
-if (dev) globalForPrisma.prisma = prisma;
+// During build, export a dummy - actual client created at runtime
+// This prevents SvelteKit's build analysis from triggering DB connection
+export const prisma: PrismaClient = building
+	? (undefined as unknown as PrismaClient)
+	: (globalForPrisma.prisma ??= createPrismaClient());
 
-// Graceful shutdown
-if (typeof window === 'undefined') {
+// Graceful shutdown (only at runtime, not during build)
+if (!building && typeof window === 'undefined') {
 	process.on('beforeExit', async () => {
 		await prisma.$disconnect();
 	});

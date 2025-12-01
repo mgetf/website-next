@@ -261,8 +261,8 @@ export const actions: Actions = {
 
 		await disbandTeam(teamId);
 		
-		// Stay on the same page, just show success message
-		return { success: true, message: 'Team has been disbanded successfully' };
+		// Redirect to the team's main page after disbanding
+		throw redirect(303, `/teams/${teamId}`);
 	}
 };
 

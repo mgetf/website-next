@@ -443,6 +443,19 @@ export const actions: Actions = {
 				return fail(400, { error: 'File is required' });
 			}
 
+			// Validate file extension
+			if (!file.name.toLowerCase().endsWith('.dem')) {
+				console.log(`[Demo Upload] Error: Invalid file type: ${file.name}`);
+				return fail(400, { error: 'Invalid file type. Only .dem files are allowed.' });
+			}
+
+			// Validate file size (200MB max)
+			const maxSize = 200 * 1024 * 1024;
+			if (file.size > maxSize) {
+				console.log(`[Demo Upload] Error: File too large: ${file.size} bytes`);
+				return fail(400, { error: 'File too large. Maximum size is 200MB.' });
+			}
+
 			if (!playerSteamId) {
 				return fail(400, { error: 'Player selection is required' });
 			}

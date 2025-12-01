@@ -10,6 +10,12 @@ import { PrismaClient } from '$prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { dev, building } from '$app/environment';
 
+// Load .env file in development (Vite SSR doesn't auto-populate process.env)
+if (dev && !building) {
+	const { config } = await import('dotenv');
+	config();
+}
+
 // PrismaClient is attached to the `global` object in development to prevent
 // exhausting your database connection limit.
 const globalForPrisma = globalThis as unknown as {
@@ -25,7 +31,7 @@ function createPrismaClient(): PrismaClient {
 	const adapter = new PrismaPg({ connectionString });
 	return new PrismaClient({
 		adapter,
-		log: dev ? ['query', 'error', 'warn'] : ['error']
+		log: dev ? ['error', 'warn'] : ['error']
 	});
 }
 

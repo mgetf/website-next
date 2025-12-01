@@ -5,7 +5,6 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let showScoreForm = $state(false);
 	let showDisputeForm = $state(false);
 	let showRescheduleForm = $state(false);
 	let showDemoUploadModal = $state(false);
@@ -18,11 +17,24 @@
 	let isSubmittingMessage = $state(false);
 	let isUploadingDemo = $state(false);
 	let isReportingDemo = $state(false);
+	
+	// Demo upload state
+	let selectedDemoFile = $state<File | null>(null);
+	let demoUploadError = $state<string | null>(null);
+	let demoUploadProgress = $state<string>('Preparing upload...');
 
 	const match = $derived(data.match);
 	const isUnplayed = $derived(match.status === 'UNPLAYED');
 	const isPlayed = $derived(match.status === 'PLAYED');
 	const isDisputed = $derived(match.status === 'DISPUTE');
+	
+	// Get unique arenas with full data (id, name, avatar)
+	const matchArenas = $derived(() => {
+		const seen = new Set<number>();
+		return match.games
+			.filter(g => g.arena && !seen.has(g.arena.id) && seen.add(g.arena.id))
+			.map(g => g.arena!);
+	});
 	
 	const canSubmitScores = $derived(
 		isUnplayed && (data.permissions.isHomeOwner || data.permissions.isAwayOwner || data.permissions.isAdmin)
@@ -63,10 +75,42 @@
 	// Demo modal functions
 	const openDemoUploadModal = () => {
 		showDemoUploadModal = true;
+		selectedDemoFile = null;
+		demoUploadError = null;
+		demoUploadProgress = 'Preparing upload...';
 	};
 
 	const closeDemoUploadModal = () => {
 		showDemoUploadModal = false;
+		selectedDemoFile = null;
+		demoUploadError = null;
+	};
+
+	const handleDemoFileSelect = (event: Event) => {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0] || null;
+		selectedDemoFile = file;
+		demoUploadError = null;
+		
+		// Client-side validation
+		if (file) {
+			const maxSize = 200 * 1024 * 1024; // 200MB
+			if (file.size > maxSize) {
+				demoUploadError = `File too large (${formatFileSize(file.size)}). Maximum size is 200MB.`;
+				selectedDemoFile = null;
+				input.value = '';
+			} else if (!file.name.toLowerCase().endsWith('.dem')) {
+				demoUploadError = 'Invalid file type. Only .dem files are allowed.';
+				selectedDemoFile = null;
+				input.value = '';
+			}
+		}
+	};
+
+	const formatFileSize = (bytes: number): string => {
+		if (bytes < 1024) return bytes + ' B';
+		if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+		return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 	};
 
 	const openDemoReportModal = (demo: any) => {
@@ -255,22 +299,40 @@
 				</div>
 			{/if}
 		</div>
+
+		<!-- Arena Cards -->
+		{#if matchArenas().length > 0}
+			<div class="mt-6">
+				<p class="text-xs text-gray-400 uppercase tracking-wide mb-3">Maps</p>
+				<div class="flex flex-wrap gap-3">
+					{#each matchArenas() as arena}
+						<div class="flex items-center gap-3 bg-zinc-800/50 rounded-lg px-4 py-3 border border-zinc-700/50">
+							{#if arena.avatar}
+								<img 
+									src={arena.avatar} 
+									alt={arena.name}
+									class="w-10 h-10 rounded object-cover"
+								/>
+							{:else}
+								<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center">
+									<span class="text-zinc-500 text-lg">🗺️</span>
+								</div>
+							{/if}
+							<span class="text-white font-medium">{arena.name}</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{:else}
+			<div class="mt-6">
+				<p class="text-xs text-gray-400 uppercase tracking-wide mb-3">Maps</p>
+				<div class="text-gray-500 text-sm">To be determined</div>
+			</div>
+		{/if}
 	</div>
 
-	<!-- Action Buttons -->
-	{#if canSubmitScores}
-		<div class="mb-6">
-			<button
-				onclick={() => (showScoreForm = !showScoreForm)}
-				class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold"
-			>
-				{showScoreForm ? 'Cancel' : 'Submit Scores'}
-			</button>
-		</div>
-	{/if}
-
 	<!-- Score Submission Form -->
-	{#if showScoreForm}
+	{#if canSubmitScores}
 		<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-md p-6 mb-6">
 			<h2 class="text-2xl font-bold text-white mb-4">Submit Match Scores</h2>
 			
@@ -306,10 +368,10 @@
 						scoreSubmitError = errorData?.error || 'Failed to submit scores';
 					} else if (result.type === 'success') {
 						scoreSubmitSuccess = true;
+						// Clear success message after a delay
 						setTimeout(() => {
-							showScoreForm = false;
 							scoreSubmitSuccess = false;
-						}, 2000);
+						}, 3000);
 					}
 					
 					await update();
@@ -348,17 +410,16 @@
 								</div>
 							</div>
 							{#if !data.mapBanStatus || data.mapBanStatus.isComplete}
+								{@const gameArena = match.games[i]?.arena}
+								{@const defaultArenaId = gameArena?.id ?? (matchArenas().length === 1 ? matchArenas()[0].id : null)}
 								<div class="mt-3">
 									<label class="block text-sm font-medium text-gray-300 mb-1">Arena/Map</label>
 									<select
 										name="arenaId_{i}"
 										class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 									>
-										<option value="">Select arena...</option>
-										{#each match.games as game}
-											{#if game.arena}
-												<option value={game.arena.id}>{game.arena.name}</option>
-											{/if}
+										{#each matchArenas() as arena}
+											<option value={arena.id} selected={defaultArenaId === arena.id}>{arena.name}</option>
 										{/each}
 									</select>
 								</div>
@@ -814,96 +875,168 @@
 				</button>
 			</div>
 
-			<form 
-				method="POST" 
-				action="?/uploadDemo" 
-				enctype="multipart/form-data"
-				use:enhance={() => {
-					isUploadingDemo = true;
-					return async ({ result, update }) => {
-						isUploadingDemo = false;
-						if (result.type === 'success') {
-							closeDemoUploadModal();
-						}
-						await update();
-					};
-				}}
-			>
-				<div class="mb-4">
-					<label for="playerSteamId" class="block text-sm font-medium text-gray-200 mb-2">Player</label>
-					<select
-						id="playerSteamId"
-						name="playerSteamId"
-						required
-						class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
-					>
-						<option value="">Select a player...</option>
-						{#each data.allRoster as player}
-							<option value={player.steamId}>{player.username}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div class="mb-4">
-					<label for="demoFile" class="block text-sm font-medium text-gray-200 mb-2">Demo File (.dem)</label>
-					<input
-						type="file"
-						id="demoFile"
-						name="file"
-						accept=".dem"
-						required
-						class="w-full text-sm text-gray-200
-							   file:mr-4 file:py-2 file:px-4
-							   file:rounded file:border-0
-							   file:text-sm file:font-semibold
-							   file:bg-zinc-700 file:text-gray-200
-							   hover:file:bg-zinc-600
-							   cursor-pointer"
-					/>
-					<p class="text-xs text-gray-400 mt-1">Maximum file size: 200MB</p>
-				</div>
-
-				<div class="mb-6">
-					<label for="demoDescription" class="block text-sm font-medium text-gray-200 mb-2">Description (Optional)</label>
-					<textarea
-						id="demoDescription"
-						name="description"
-						rows="3"
-						class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
-						placeholder="Add any notes about this demo..."
-					></textarea>
-				</div>
-
-				{#if form?.error && !isUploadingDemo}
-					<div class="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
-						{form.error}
+			{#if isUploadingDemo}
+				<!-- Upload Progress State -->
+				<div class="py-8">
+					<div class="flex flex-col items-center justify-center">
+						<!-- Animated spinner -->
+						<div class="relative w-16 h-16 mb-4">
+							<div class="absolute inset-0 border-4 border-zinc-600 rounded-full"></div>
+							<div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+						</div>
+						
+						<p class="text-white font-medium mb-2">Uploading Demo...</p>
+						<p class="text-gray-400 text-sm mb-4">{demoUploadProgress}</p>
+						
+						{#if selectedDemoFile}
+							<div class="bg-zinc-700/50 rounded-lg px-4 py-2 text-sm">
+								<span class="text-gray-300">{selectedDemoFile.name}</span>
+								<span class="text-gray-500 ml-2">({formatFileSize(selectedDemoFile.size)})</span>
+							</div>
+						{/if}
+						
+						<p class="text-xs text-gray-500 mt-4">Large files may take a few minutes</p>
 					</div>
-				{/if}
-
-				{#if form?.success && form?.message}
-					<div class="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
-						{form.message}
-					</div>
-				{/if}
-
-				<div class="flex justify-end space-x-3">
-					<button
-						type="button"
-						onclick={closeDemoUploadModal}
-						class="px-4 py-2 bg-zinc-700 text-gray-200 rounded hover:bg-zinc-600"
-						disabled={isUploadingDemo}
-					>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-						disabled={isUploadingDemo}
-					>
-						{isUploadingDemo ? 'Uploading...' : 'Upload Demo'}
-					</button>
 				</div>
-			</form>
+			{:else}
+				<!-- Upload Form -->
+				<form 
+					method="POST" 
+					action="?/uploadDemo" 
+					enctype="multipart/form-data"
+					use:enhance={() => {
+						isUploadingDemo = true;
+						demoUploadError = null;
+						demoUploadProgress = 'Uploading file to server...';
+						
+						// Simulate progress messages
+						const progressMessages = [
+							'Uploading file to server...',
+							'Processing demo file...',
+							'Saving to cloud storage...',
+							'Almost done...'
+						];
+						let msgIndex = 0;
+						const progressInterval = setInterval(() => {
+							msgIndex = Math.min(msgIndex + 1, progressMessages.length - 1);
+							demoUploadProgress = progressMessages[msgIndex];
+						}, 3000);
+						
+						return async ({ result, update }) => {
+							clearInterval(progressInterval);
+							isUploadingDemo = false;
+							
+							if (result.type === 'success') {
+								closeDemoUploadModal();
+							} else if (result.type === 'failure') {
+								const errorData = result.data as { error?: string } | undefined;
+								demoUploadError = errorData?.error || 'Upload failed. Please try again.';
+							} else if (result.type === 'error') {
+								demoUploadError = 'Network error. Please check your connection and try again.';
+							}
+							
+							await update();
+						};
+					}}
+				>
+					<div class="mb-4">
+						<label for="playerSteamId" class="block text-sm font-medium text-gray-200 mb-2">Player</label>
+						<select
+							id="playerSteamId"
+							name="playerSteamId"
+							required
+							class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
+						>
+							<option value="">Select a player...</option>
+							{#each data.allRoster as player}
+								<option value={player.steamId}>{player.username}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div class="mb-4">
+						<label for="demoFile" class="block text-sm font-medium text-gray-200 mb-2">Demo File (.dem)</label>
+						<input
+							type="file"
+							id="demoFile"
+							name="file"
+							accept=".dem"
+							required
+							onchange={handleDemoFileSelect}
+							class="w-full text-sm text-gray-200
+								   file:mr-4 file:py-2 file:px-4
+								   file:rounded file:border-0
+								   file:text-sm file:font-semibold
+								   file:bg-zinc-700 file:text-gray-200
+								   hover:file:bg-zinc-600
+								   cursor-pointer"
+						/>
+						
+						<!-- File info display -->
+						{#if selectedDemoFile}
+							<div class="mt-2 p-2 bg-zinc-700/50 rounded flex items-center gap-2">
+								<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								<span class="text-gray-200 text-sm">{selectedDemoFile.name}</span>
+								<span class="text-gray-400 text-xs">({formatFileSize(selectedDemoFile.size)})</span>
+							</div>
+						{:else}
+							<p class="text-xs text-gray-400 mt-1">Maximum file size: 200MB</p>
+						{/if}
+					</div>
+
+					<div class="mb-6">
+						<label for="demoDescription" class="block text-sm font-medium text-gray-200 mb-2">Description (Optional)</label>
+						<textarea
+							id="demoDescription"
+							name="description"
+							rows="3"
+							class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
+							placeholder="Add any notes about this demo..."
+						></textarea>
+					</div>
+
+					<!-- Error display -->
+					{#if demoUploadError || (form?.error && !isUploadingDemo)}
+						<div class="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+							<div class="flex items-start gap-3">
+								<svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								<div>
+									<p class="text-red-300 font-medium text-sm">Upload Failed</p>
+									<p class="text-red-200/80 text-sm mt-1">{demoUploadError || form?.error}</p>
+									<p class="text-red-200/60 text-xs mt-2">If this persists, try a smaller file or contact support.</p>
+								</div>
+							</div>
+						</div>
+					{/if}
+
+					{#if form?.success && form?.message}
+						<div class="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
+							{form.message}
+						</div>
+					{/if}
+
+					<div class="flex justify-end space-x-3">
+						<button
+							type="button"
+							onclick={closeDemoUploadModal}
+							class="px-4 py-2 bg-zinc-700 text-gray-200 rounded hover:bg-zinc-600"
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+							disabled={!selectedDemoFile || !!demoUploadError}
+						>
+							Upload Demo
+						</button>
+					</div>
+				</form>
+			{/if}
 		</div>
 	</div>
 {/if}

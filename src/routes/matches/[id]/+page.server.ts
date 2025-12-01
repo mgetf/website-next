@@ -3,9 +3,18 @@
  * Handles match viewing, score submission, disputes, reschedules, map bans, and communications
  */
 
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail, type Config } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
+
+// Increase body size limit to 200MB for demo file uploads
+export const config: Config = {
+	api: {
+		bodyParser: {
+			sizeLimit: 200 * 1024 * 1024 // 200MB
+		}
+	}
+};
 import { MatchStatus } from '$prisma/client.js';
 import {
 	getMatchDetails,
@@ -26,10 +35,8 @@ import {
 } from '$lib/server/services/matchComms';
 import {
 	getMapBanStatus,
-	processBanPickAction,
-	determineNextAction
-} from '$lib/server/services/mapBans';
-import { calculateWeekLabel, canDisputeMatch } from '$lib/server/utils/matchHelpers';
+	processBanPickAction} from '$lib/server/services/mapBans';
+import { canDisputeMatch } from '$lib/server/utils/matchHelpers';
 import { createNotificationForMatch } from '$lib/server/services/notifications';
 import { uploadDemo, reportDemo, getUserDemoReports } from '$lib/server/services/demos';
 import { writeFile, mkdir } from 'fs/promises';
@@ -428,13 +435,19 @@ export const actions: Actions = {
 		requireAuth(locals.user);
 		const matchId = parseInt(params.id);
 
+		console.log(`[Demo Upload] Starting upload for match ${matchId} by user ${locals.user.steamId}`);
+
 		try {
+			console.log(`[Demo Upload] Parsing form data...`);
 			const formData = await request.formData();
 			const file = formData.get('file') as File;
 			const playerSteamId = formData.get('playerSteamId') as string;
 			const description = formData.get('description') as string;
 
+			console.log(`[Demo Upload] File: ${file?.name || 'none'}, Size: ${file?.size || 0} bytes, Player: ${playerSteamId}`);
+
 			if (!file || file.size === 0) {
+				console.log(`[Demo Upload] Error: No file provided`);
 				return fail(400, { error: 'File is required' });
 			}
 
@@ -473,6 +486,7 @@ export const actions: Actions = {
 			const arrayBuffer = await file.arrayBuffer();
 			await writeFile(tempPath, Buffer.from(arrayBuffer));
 
+			console.log(`[Demo Upload] Uploading to R2 storage...`);
 			await uploadDemo({
 				file: {
 					filepath: tempPath,
@@ -485,9 +499,15 @@ export const actions: Actions = {
 				description: description || undefined
 			});
 
+			console.log(`[Demo Upload] Success! Demo uploaded for match ${matchId}`);
 			return { success: true, message: 'Demo uploaded successfully' };
 		} catch (err: any) {
-			console.error('Demo upload error:', err);
+			console.error(`[Demo Upload] Error for match ${matchId}:`, err);
+			console.error(`[Demo Upload] Error details:`, {
+				name: err.name,
+				message: err.message,
+				stack: err.stack?.slice(0, 500)
+			});
 			return fail(500, { error: err.message || 'Failed to upload demo' });
 		}
 	},

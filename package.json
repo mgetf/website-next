@@ -21,10 +21,10 @@
 		"brackets-model": "^1.6.0",
 		"dotenv": "^17.2.3",
 		"prisma": "^7.0.1",
-		"svelte": "^5.45.2",
+		"svelte": "^5.45.3",
 		"svelte-check": "^4.3.4",
 		"typescript": "^5.9.3",
-		"vite": "^7.2.4"
+		"vite": "^7.2.6"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [

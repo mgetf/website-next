@@ -3,18 +3,10 @@
  * Handles match viewing, score submission, disputes, reschedules, map bans, and communications
  */
 
-import { error, fail, type Config } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 
-// Increase body size limit to 200MB for demo file uploads
-export const config: Config = {
-	api: {
-		bodyParser: {
-			sizeLimit: 200 * 1024 * 1024 // 200MB
-		}
-	}
-};
 import { MatchStatus } from '$prisma/client.js';
 import {
 	getMatchDetails,

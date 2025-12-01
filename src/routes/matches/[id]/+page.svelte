@@ -907,13 +907,12 @@
 					use:enhance={() => {
 						isUploadingDemo = true;
 						demoUploadError = null;
-						demoUploadProgress = 'Uploading file to server...';
+						demoUploadProgress = 'Uploading file...';
 						
-						// Simulate progress messages
 						const progressMessages = [
-							'Uploading file to server...',
-							'Processing demo file...',
-							'Saving to cloud storage...',
+							'Uploading file...',
+							'Processing demo...',
+							'Saving to storage...',
 							'Almost done...'
 						];
 						let msgIndex = 0;
@@ -998,24 +997,18 @@
 					</div>
 
 					<!-- Error display -->
-					{#if demoUploadError || (form?.error && !isUploadingDemo)}
+					{#if demoUploadError}
 						<div class="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
 							<div class="flex items-start gap-3">
-								<svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 								</svg>
 								<div>
 									<p class="text-red-300 font-medium text-sm">Upload Failed</p>
-									<p class="text-red-200/80 text-sm mt-1">{demoUploadError || form?.error}</p>
+									<p class="text-red-200/80 text-sm mt-1">{demoUploadError}</p>
 									<p class="text-red-200/60 text-xs mt-2">If this persists, try a smaller file or contact support.</p>
 								</div>
 							</div>
-						</div>
-					{/if}
-
-					{#if form?.success && form?.message}
-						<div class="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
-							{form.message}
 						</div>
 					{/if}
 
@@ -1024,6 +1017,7 @@
 							type="button"
 							onclick={closeDemoUploadModal}
 							class="px-4 py-2 bg-zinc-700 text-gray-200 rounded hover:bg-zinc-600"
+							disabled={isUploadingDemo}
 						>
 							Cancel
 						</button>

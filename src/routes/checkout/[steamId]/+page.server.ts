@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { getUserActiveTeamForCheckout, getExistingPayment, updatePlayerPaymentStatus } from '$lib/server/services/payments';
+import { isPayPalTestMode } from '$lib/server/services/paypal';
 import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -56,13 +57,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		currency = 'EUR';
 	}
 
+	const paypalClientId = process.env.PAYPAL_CLIENT_ID || '';
+	const isTestMode = isPayPalTestMode();
+
 	return {
 		team,
 		division,
 		amount: division.signupCost,
 		currency,
 		steamId,
-		paypalClientId: process.env.PAYPAL_CLIENT_ID || ''
+		paypalClientId,
+		isTestMode
 	};
 };
 

@@ -1,60 +1,41 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
-
-const PAYPAL_API_BASE =
-	process.env.PAYPAL_MODE === 'live'
-		? 'https://api-m.paypal.com'
-		: 'https://api-m.sandbox.paypal.com';
-
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
-const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
-
-/**
- * Get PayPal access token
- */
-async function getPayPalAccessToken(): Promise<string> {
-	const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
-
-	const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Basic ${auth}`,
-			'Content-Type': 'application/x-www-form-urlencoded'
-		},
-		body: 'grant_type=client_credentials'
-	});
-
-	const data = await response.json();
-	return data.access_token;
-}
+import { capturePayPalOrder, isPayPalTestMode } from '$lib/server/services/paypal';
+import { logError } from '$lib/server/utils/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const { orderID, steamId } = await request.json();
+		const body = await request.json();
+		const { orderID, steamId } = body;
+		// These are only used for test mode
+		const testAmount = body.amount;
+		const testCurrency = body.currency;
+		const testTeamId = body.teamId;
 
 		if (!orderID || !steamId) {
 			return json({ error: 'Missing required fields' }, { status: 400 });
 		}
 
-		// Get PayPal access token
-		const accessToken = await getPayPalAccessToken();
+		// In test mode, we need additional data to mock the capture
+		const testData = isPayPalTestMode() ? { steamId, teamId: testTeamId, amount: testAmount, currency: testCurrency } : undefined;
 
-		// Capture order
-		const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderID}/capture`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${accessToken}`
-			}
-		});
+		// Capture the order
+		const result = await capturePayPalOrder(orderID, testData);
 
-		const captureData = await response.json();
+		if (!result.success || !result.captureData) {
+			// Log error server-side (sanitized - no sensitive data)
+			await logError('PayPal capture-order failed', {
+				orderID,
+				steamId,
+				error: result.error || 'Unknown error'
+			});
 
-		if (!response.ok) {
-			console.error('PayPal capture order error:', captureData);
-			return json({ success: false, error: 'Failed to capture payment' }, { status: 500 });
+			// Return generic error to client (never expose sensitive details)
+			return json({ success: false, error: 'Failed to capture payment. Please contact support.' }, { status: 500 });
 		}
+
+		const captureData = result.captureData;
 
 		// Extract payment details
 		const purchase = captureData.purchase_units[0];
@@ -71,7 +52,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const playerInTeam = await prisma.playerInTeam.findUnique({
 			where: {
 				playerSteamId_teamId: {
-					playerSteamId: steamId,
+					playerSteamId: payerSteamId,
 					teamId
 				}
 			},
@@ -90,12 +71,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		await prisma.paymentTracker.upsert({
 			where: {
 				playerSteamId_seasonId: {
-					playerSteamId: steamId,
+					playerSteamId: payerSteamId,
 					seasonId
 				}
 			},
 			create: {
-				playerSteamId: steamId,
+				playerSteamId: payerSteamId,
 				seasonId,
 				amount
 			},
@@ -104,14 +85,17 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		});
 
-		// Create payment record
+		// Create payment record (matches Payment model schema)
 		await prisma.payment.create({
 			data: {
-				playerSteamId: steamId,
-				amount,
+				paymentId: capture.id, // PayPal transaction ID as payment ID
+				purchasedFor: payerSteamId,
+				purchasedBy: payerSteamId,
+				amount: amount.toString(), // Schema expects String
 				currency,
-				transactionId: capture.id,
-				status: 'COMPLETED'
+				purchaseDate: new Date().toISOString(),
+				description: `Team signup payment - Team #${teamId}`,
+				teamId
 			}
 		});
 
@@ -119,7 +103,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		await prisma.playerInTeam.update({
 			where: {
 				playerSteamId_teamId: {
-					playerSteamId: steamId,
+					playerSteamId: payerSteamId,
 					teamId
 				}
 			},
@@ -144,11 +128,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 		}
 
-		return json({ success: true });
+		return json({ success: true, teamId });
 	} catch (err) {
-		console.error('Error capturing PayPal order:', err);
+		// Log error server-side (sanitized)
+		await logError('PayPal capture-order exception', {
+			error: err instanceof Error ? err.message : 'Unknown error'
+		});
+
+		// Return generic error to client (never expose sensitive details)
 		return json({ success: false, error: 'Internal server error' }, { status: 500 });
 	}
 };
-
-

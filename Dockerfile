@@ -1,28 +1,27 @@
 # Build stage
-FROM node:lts-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
-# Install OS deps for Prisma engines (glibc etc.) and build tooling
+# Install OS deps for Prisma engines
 RUN apk add --no-cache openssl
 
 # Copy manifests and install deps
-COPY package.json pnpm-lock.yaml* .npmrc* ./
-# Use pnpm with the existing lockfile for deterministic installs
-RUN npm i -g pnpm && pnpm install --frozen-lockfile
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 # Copy source
 COPY . .
 
 # Generate SvelteKit types first (required for tsconfig.json which prisma.config.ts needs)
-RUN pnpm run prepare
+RUN bun run prepare
 
 # Generate Prisma client and build SvelteKit
 # prisma.config.ts has a fallback URL for build - real DATABASE_URL provided at runtime
-RUN npx prisma generate
-RUN pnpm build
+RUN bunx prisma generate
+RUN bun run build
 
 # Runtime stage
-FROM node:lts-alpine AS runner
+FROM oven/bun:1-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
@@ -39,4 +38,4 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-CMD [ "node", "./build/index.js" ]
+CMD [ "bun", "run", "./build/index.js" ]

@@ -200,6 +200,11 @@ export const actions: Actions = {
 			if (!mapBanPoolId) {
 				return fail(400, { error: 'Map ban pool is required for playoff matches' });
 			}
+		} else {
+			// Validation for regular (non-playoff) matches
+			if (!weekNo || weekNo < 1) {
+				return fail(400, { error: 'Week number is required for regular season matches' });
+			}
 		}
 
 		try {

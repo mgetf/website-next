@@ -452,59 +452,6 @@ export async function updateTeamStatus(id: number, status: TeamStatus) {
 }
 
 /**
- * Delete a team
- * 
- * Business logic validation:
- * - Team must exist
- * - Team must not have any players or matches
- */
-export async function deleteTeam(id: number) {
-	// Check if team exists
-	const team = await prisma.team.findUnique({
-		where: { id },
-		include: {
-			_count: {
-				select: {
-					players: {
-						where: { active: 1 }
-					},
-					homeMatches: true,
-					awayMatches: true
-				}
-			}
-		}
-	});
-
-	if (!team) {
-		throw new Error('Team not found');
-	}
-
-	// Check if team has active players or matches
-	const totalMatches = team._count.homeMatches + team._count.awayMatches;
-	if (team._count.players > 0 || totalMatches > 0) {
-		throw new Error(
-			`Cannot delete team with ${team._count.players} active players and ${totalMatches} matches. Remove all players and matches first.`
-		);
-	}
-
-	// Delete team and all associated inactive player records in a transaction
-	return await prisma.$transaction(async (tx) => {
-		// First, delete all inactive player records (active = 0)
-		await tx.playerInTeam.deleteMany({
-			where: {
-				teamId: id,
-				active: 0
-			}
-		});
-
-		// Then delete the team
-		return await tx.team.delete({
-			where: { id }
-		});
-	});
-}
-
-/**
  * Find the most recent season that has teams with specific statuses
  * Used to find default season for league pages
  */

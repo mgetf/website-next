@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from "./$types";
 import { error, fail, redirect } from "@sveltejs/kit";
-import { getTeamById, updateTeamStatus, deleteTeam } from "$lib/server/services/teams";
+import { getTeamById, updateTeamStatus } from "$lib/server/services/teams";
 import { isAdmin, isTeamAdmin } from "$lib/server/auth/permissions";
 import { removePlayer } from "$lib/server/services/teamManagement";
 import { getGlobalSettings } from "$lib/server/services/settings";
@@ -229,32 +229,6 @@ export const actions: Actions = {
     } catch (err) {
       return fail(500, {
         error: err instanceof Error ? err.message : "Failed to update team status",
-      });
-    }
-  },
-
-  deleteTeam: async ({ params, locals }) => {
-    if (!locals.user) {
-      return fail(401, { error: "You must be logged in" });
-    }
-
-    const teamId = parseInt(params.id);
-    const isGlobalAdmin = isAdmin(locals.user);
-
-    if (!isGlobalAdmin) {
-      return fail(403, {
-        error: "Only global admins can permanently delete teams",
-      });
-    }
-
-    try {
-      await deleteTeam(teamId);
-      
-      // Redirect to admin teams page after deletion
-      throw redirect(303, "/admin/teams");
-    } catch (err) {
-      return fail(400, {
-        error: err instanceof Error ? err.message : "Failed to delete team",
       });
     }
   },

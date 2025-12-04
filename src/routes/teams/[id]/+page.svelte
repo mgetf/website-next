@@ -5,20 +5,11 @@
 	// Svelte 5 runes - get data from server
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	
-	// Force re-render when team ID changes
-	$effect(() => {
-		// Reset state when team changes
-		showDeleteConfirm = false;
-	});
-	
 	// Destructure for easier access - use $derived to react to data changes
 	const team = $derived(data.team);
 	const currentRoster = $derived(data.currentRoster);
 	const pastRoster = $derived(data.pastRoster);
 	const matchesBySeason = $derived(data.matchesBySeason);
-	
-	// State for delete confirmation
-	let showDeleteConfirm = $state(false);
 	
 	// Format date helper
 	function formatDate(date: Date | string | null): string {
@@ -393,48 +384,6 @@
 							</form>
 						</div>
 						
-						<!-- Danger Zone: Delete Team -->
-						<div class="pt-4 border-t border-zinc-800">
-							<h3 class="text-lg font-bold text-white mb-2">Danger Zone</h3>
-							<p class="text-sm text-gray-400 mb-4">
-								Permanently delete this team from the database. This cannot be undone.
-							</p>
-							{#if !showDeleteConfirm}
-								<button
-									onclick={() => (showDeleteConfirm = true)}
-									class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
-								>
-									🗑️ Delete Team Permanently
-								</button>
-							{:else}
-								<div class="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
-									<p class="text-red-400 mb-4">
-										<strong>⚠️ WARNING:</strong> This will permanently delete the team from the database.
-										<br />This action cannot be undone.
-										<br /><br />
-										{#if team.status !== 'DEAD'}
-											<strong>Tip:</strong> Consider setting the team status to "Dead" instead if you want to keep the history.
-										{/if}
-									</p>
-									<div class="flex gap-3">
-										<form method="POST" action="?/deleteTeam" use:enhance>
-											<button
-												type="submit"
-												class="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
-											>
-												Yes, Delete Permanently
-											</button>
-										</form>
-										<button
-											onclick={() => (showDeleteConfirm = false)}
-											class="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg transition-colors"
-										>
-											Cancel
-										</button>
-									</div>
-								</div>
-							{/if}
-						</div>
 					{/if}
 				</div>
 			</div>

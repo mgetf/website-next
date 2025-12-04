@@ -7,6 +7,8 @@
 	let editingAnnouncement: typeof data.announcements[0] | null = $state(null);
 	let deletingAnnouncement: typeof data.announcements[0] | null = $state(null);
 	let isSubmitting = $state(false);
+	let showSeasonAssignmentWarning = $state(false);
+	let seasonAssignmentForm: HTMLFormElement | null = $state(null);
 	
 	function toggleEditForm(announcement: typeof data.announcements[0]) {
 		if (editingAnnouncement?.id === announcement.id) {
@@ -359,18 +361,26 @@
 			<!-- Season Assignments -->
 			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mt-6">
 				<h4 class="text-xl font-bold text-white mb-4">Signup Season Assignments</h4>
-				<p class="text-sm text-gray-400 mb-6">
+				<p class="text-sm text-gray-400 mb-4">
 					Assign which season new teams will be registered to for each region
 				</p>
+				<div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6">
+					<p class="text-amber-400 text-sm">
+						<strong>⚠️ Warning:</strong> Changing season assignments affects which season new signups go to. 
+						This effectively "ends" signups for the previous season in that region.
+					</p>
+				</div>
 				
 				<form 
 					method="POST" 
 					action="?/updateSeasonAssignments"
+					bind:this={seasonAssignmentForm}
 					use:enhance={() => {
 						isSubmitting = true;
 						return async ({ update }) => {
 							await update();
 							isSubmitting = false;
+							showSeasonAssignmentWarning = false;
 						};
 					}}
 					class="space-y-4"
@@ -403,8 +413,10 @@
 					{/each}
 					
 					<div class="pt-4 border-t border-zinc-700">
+						<!-- This button shows the confirmation modal instead of submitting directly -->
 						<button
-							type="submit"
+							type="button"
+							onclick={() => showSeasonAssignmentWarning = true}
 							disabled={isSubmitting}
 							class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
 						>
@@ -413,6 +425,37 @@
 					</div>
 				</form>
 			</div>
+			
+			<!-- Season Assignment Confirmation Modal -->
+			{#if showSeasonAssignmentWarning}
+				<div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onclick={() => showSeasonAssignmentWarning = false}>
+					<div class="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-md mx-4" onclick={(e) => e.stopPropagation()}>
+						<h4 class="text-xl font-bold text-white mb-4">⚠️ Confirm Season Assignment Update</h4>
+						<p class="text-gray-300 mb-4">
+							Are you sure you want to update the season assignments?
+						</p>
+						<p class="text-amber-400 text-sm mb-6">
+							This action will change which season new team signups are registered to. 
+							Teams that haven't completed signup for the previous season will need to 
+							re-register for the new season.
+						</p>
+						<div class="flex gap-3 justify-end">
+							<button
+								onclick={() => showSeasonAssignmentWarning = false}
+								class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+							>
+								Cancel
+							</button>
+							<button
+								onclick={() => seasonAssignmentForm?.requestSubmit()}
+								class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
+							>
+								Yes, Update Assignments
+							</button>
+						</div>
+					</div>
+				</div>
+			{/if}
 		{:else}
 			<div class="text-center py-12 text-gray-500">
 				<p class="text-gray-400">Global settings not initialized</p>

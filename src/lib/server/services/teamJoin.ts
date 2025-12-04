@@ -7,6 +7,22 @@ import { prisma } from '$lib/server/db';
 import { error } from '@sveltejs/kit';
 import { validateJoinToken } from './teamSignup';
 
+/**
+ * Get current signup season IDs from global settings
+ */
+async function getCurrentSignupSeasonIds(): Promise<number[]> {
+	const global = await prisma.global.findFirst();
+	if (!global) return [];
+	
+	return [
+		global.naSignupSeasonId,
+		global.euSignupSeasonId,
+		global.ausSignupSeasonId,
+		global.saSignupSeasonId,
+		global.asiaSignupSeasonId
+	].filter((id): id is number => id !== null);
+}
+
 interface TeamJoinInfo {
 	team: any;
 	activePlayers: any[];
@@ -127,19 +143,24 @@ export async function requestJoinByPassword(
 		throw error(400, 'You cannot invite yourself to your own team');
 	}
 
-	// Check if user is already in another 2v2 team
+	// Check if user is already in another 2v2 team for the CURRENT signup season
+	// (allows joining teams in new seasons if only active in old season teams)
+	const currentSeasonIds = await getCurrentSignupSeasonIds();
 	const playerInOtherTeam = await prisma.playerInTeam.findFirst({
 		where: {
 			playerSteamId: steamId,
 			active: 1,
 			team: {
-				is1v1: 0
+				is1v1: 0,
+				seasonId: {
+					in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1]
+				}
 			}
 		}
 	});
 
 	if (playerInOtherTeam) {
-		throw error(400, 'You are already in another 2v2 team');
+		throw error(400, 'You are already in another 2v2 team for this season');
 	}
 
 	// Check if already has pending request
@@ -204,19 +225,23 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
 		throw error(400, 'Team is full (maximum 3 players)');
 	}
 
-	// Check if user is already in another 2v2 team
+	// Check if user is already in another 2v2 team for the CURRENT signup season
+	const currentSeasonIds = await getCurrentSignupSeasonIds();
 	const playerInOtherTeam = await prisma.playerInTeam.findFirst({
 		where: {
 			playerSteamId: steamId,
 			active: 1,
 			team: {
-				is1v1: 0
+				is1v1: 0,
+				seasonId: {
+					in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1]
+				}
 			}
 		}
 	});
 
 	if (playerInOtherTeam) {
-		throw error(400, 'You are already in another 2v2 team');
+		throw error(400, 'You are already in another 2v2 team for this season');
 	}
 
 	// Check if already in this team
@@ -314,15 +339,20 @@ export async function isPlayerInTeam(steamId: string, teamId: number): Promise<b
 }
 
 /**
- * Check if a player is in any active 2v2 team
+ * Check if a player is in any active 2v2 team for the current signup season
+ * (allows being in old season teams)
  */
 export async function isPlayerInAnyActiveTeam(steamId: string): Promise<boolean> {
+	const currentSeasonIds = await getCurrentSignupSeasonIds();
 	const playerInOtherTeam = await prisma.playerInTeam.findFirst({
 		where: {
 			playerSteamId: steamId,
 			active: 1,
 			team: {
-				is1v1: 0
+				is1v1: 0,
+				seasonId: {
+					in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1]
+				}
 			}
 		}
 	});

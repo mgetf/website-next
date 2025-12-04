@@ -8,6 +8,22 @@ import { error } from '@sveltejs/kit';
 import { uploadToR2, saveTempFile, deleteTempFile, validateUploadedFile } from '../utils/r2Upload';
 import path from 'path';
 
+/**
+ * Get current signup season IDs from global settings
+ */
+async function getCurrentSignupSeasonIds(): Promise<number[]> {
+	const global = await prisma.global.findFirst();
+	if (!global) return [];
+	
+	return [
+		global.naSignupSeasonId,
+		global.euSignupSeasonId,
+		global.ausSignupSeasonId,
+		global.saSignupSeasonId,
+		global.asiaSignupSeasonId
+	].filter((id): id is number => id !== null);
+}
+
 interface TeamEditData {
 	team: any;
 	players: any[];
@@ -360,19 +376,23 @@ export async function approvePlayer(teamId: number, playerSteamId: string): Prom
 		throw error(400, 'Team is full (maximum 3 players)');
 	}
 
-	// Check if player is in another 2v2 team
+	// Check if player is in another 2v2 team for the CURRENT signup season
+	const currentSeasonIds = await getCurrentSignupSeasonIds();
 	const playerInOtherTeam = await prisma.playerInTeam.findFirst({
 		where: {
 			playerSteamId,
 			active: 1,
 			team: {
-				is1v1: 0
+				is1v1: 0,
+				seasonId: {
+					in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1]
+				}
 			}
 		}
 	});
 
 	if (playerInOtherTeam) {
-		throw error(400, 'Player is already in another 2v2 team');
+		throw error(400, 'Player is already in another 2v2 team for this season');
 	}
 
 	// Get team info for payment status

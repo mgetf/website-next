@@ -8,9 +8,58 @@ import { prisma } from '$lib/server/db';
 import { error } from '@sveltejs/kit';
 
 /**
+ * Get current signup season IDs from global settings
+ */
+async function getCurrentSignupSeasonIds(): Promise<number[]> {
+	const global = await prisma.global.findFirst();
+	if (!global) return [];
+	
+	return [
+		global.naSignupSeasonId,
+		global.euSignupSeasonId,
+		global.ausSignupSeasonId,
+		global.saSignupSeasonId,
+		global.asiaSignupSeasonId
+	].filter((id): id is number => id !== null);
+}
+
+/**
  * Get user's active 2v2 team for checkout
+ * Prioritizes teams in current signup seasons (most likely to need payment)
  */
 export async function getUserActiveTeamForCheckout(steamId: string) {
+	const currentSeasonIds = await getCurrentSignupSeasonIds();
+	
+	// First, try to find a team in the current signup season
+	if (currentSeasonIds.length > 0) {
+		const currentSeasonTeam = await prisma.playerInTeam.findFirst({
+			where: {
+				playerSteamId: steamId,
+				active: 1,
+				team: {
+					is1v1: 0,
+					seasonId: {
+						in: currentSeasonIds
+					}
+				}
+			},
+			include: {
+				team: {
+					include: {
+						division: true,
+						region: true,
+						season: true
+					}
+				}
+			}
+		});
+		
+		if (currentSeasonTeam) {
+			return currentSeasonTeam;
+		}
+	}
+	
+	// Fall back to any active team
 	const playerInTeam = await prisma.playerInTeam.findFirst({
 		where: {
 			playerSteamId: steamId,

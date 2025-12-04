@@ -52,6 +52,15 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
 		throw error(500, 'Global configuration not found');
 	}
 
+	// Collect all current signup season IDs
+	const currentSignupSeasonIds = [
+		global.naSignupSeasonId,
+		global.euSignupSeasonId,
+		global.ausSignupSeasonId,
+		global.saSignupSeasonId,
+		global.asiaSignupSeasonId
+	].filter((id): id is number => id !== null);
+
 	let ownedTeams: any[] = [];
 	let hasActiveTeam = false;
 
@@ -74,13 +83,17 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
 			}
 		});
 
-		// Check if user is in any active 2v2 team
+		// Check if user is in any active 2v2 team that's ALREADY in a current signup season
+		// This allows users to re-register teams from previous seasons
 		const activeTeamMembership = await prisma.playerInTeam.findFirst({
 			where: {
 				playerSteamId: steamId,
 				active: 1,
 				team: {
-					is1v1: 0 // 2v2 teams only
+					is1v1: 0, // 2v2 teams only
+					seasonId: {
+						in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1] // Use -1 as fallback to match nothing
+					}
 				}
 			}
 		});
@@ -106,19 +119,38 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
  * Validate team creation data
  */
 export async function validateTeamCreation(data: TeamCreationData): Promise<void> {
-	// Check if user is already in an active 2v2 team
+	// Get global settings to check current signup seasons
+	const global = await prisma.global.findFirst();
+	if (!global) {
+		throw error(500, 'Global configuration not found');
+	}
+
+	// Collect all current signup season IDs
+	const currentSignupSeasonIds = [
+		global.naSignupSeasonId,
+		global.euSignupSeasonId,
+		global.ausSignupSeasonId,
+		global.saSignupSeasonId,
+		global.asiaSignupSeasonId
+	].filter((id): id is number => id !== null);
+
+	// Check if user is already in an active 2v2 team for a CURRENT signup season
+	// Users can create new teams if their old team is from a previous season
 	const existingTeam = await prisma.playerInTeam.findFirst({
 		where: {
 			playerSteamId: data.ownerSteamId,
 			active: 1,
 			team: {
-				is1v1: 0
+				is1v1: 0,
+				seasonId: {
+					in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1]
+				}
 			}
 		}
 	});
 
 	if (existingTeam) {
-		throw error(400, 'You are already in an active 2v2 team');
+		throw error(400, 'You are already in an active 2v2 team for this season');
 	}
 
 	// Validate team name

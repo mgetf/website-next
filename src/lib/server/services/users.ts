@@ -7,6 +7,22 @@
 import { prisma } from '$lib/server/db';
 
 /**
+ * Get current signup season IDs from global settings
+ */
+async function getCurrentSignupSeasonIds(): Promise<number[]> {
+	const global = await prisma.global.findFirst();
+	if (!global) return [];
+	
+	return [
+		global.naSignupSeasonId,
+		global.euSignupSeasonId,
+		global.ausSignupSeasonId,
+		global.saSignupSeasonId,
+		global.asiaSignupSeasonId
+	].filter((id): id is number => id !== null);
+}
+
+/**
  * Get user by Steam ID with basic info
  */
 export async function getUserBySteamId(steamId: string) {
@@ -41,9 +57,41 @@ export async function getPlayerTeams(steamId: string) {
 
 /**
  * Get player's active 2v2 team (for navigation display)
+ * Prioritizes teams in current signup seasons, falls back to any active team
  * Returns null if player is not in an active 2v2 team
  */
 export async function getUserActiveTeam(steamId: string): Promise<{ id: number; name: string } | null> {
+	const currentSeasonIds = await getCurrentSignupSeasonIds();
+	
+	// First, try to find a team in the current signup season
+	if (currentSeasonIds.length > 0) {
+		const currentSeasonTeam = await prisma.playerInTeam.findFirst({
+			where: {
+				playerSteamId: steamId,
+				active: 1,
+				team: {
+					is1v1: 0,
+					seasonId: {
+						in: currentSeasonIds
+					}
+				}
+			},
+			include: {
+				team: {
+					select: {
+						id: true,
+						name: true
+					}
+				}
+			}
+		});
+		
+		if (currentSeasonTeam?.team) {
+			return currentSeasonTeam.team;
+		}
+	}
+	
+	// Fall back to any active team (for users only in old season teams)
 	const teamMembership = await prisma.playerInTeam.findFirst({
 		where: {
 			playerSteamId: steamId,

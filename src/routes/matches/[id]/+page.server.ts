@@ -160,14 +160,26 @@ export const actions: Actions = {
 			return fail(400, { error: 'Match already played' });
 		}
 
-		// Parse scores
+		const boSeries = match.boSeries || 3;
+		const gamesToWin = Math.ceil(boSeries / 2); // e.g., 2 for BO3, 3 for BO5
+		
+		// Parse scores - only require games until match is decided
 		const gameResults = [];
 		const parsedScores: Record<string, number> = {};
+		let homeWins = 0;
+		let awayWins = 0;
+		let matchDecided = false;
 		
-		for (let i = 0; i < (match.boSeries || 3); i++) {
+		for (let i = 0; i < boSeries; i++) {
+			// If match already decided, skip remaining games
+			if (matchDecided) {
+				break;
+			}
+			
 			const homeScoreStr = formData.get(`homeScore_${i}`) as string;
 			const awayScoreStr = formData.get(`awayScore_${i}`) as string;
 			
+			// Only require scores if match hasn't been decided yet
 			if (!homeScoreStr || !awayScoreStr) {
 				return fail(400, { error: `Missing scores for Game ${i + 1}` });
 			}
@@ -195,10 +207,27 @@ export const actions: Actions = {
 				awayScore,
 				arenaId
 			});
+			
+			// Track wins to determine if match is decided
+			if (homeScore > awayScore) {
+				homeWins++;
+			} else if (awayScore > homeScore) {
+				awayWins++;
+			}
+			
+			// Check if match is now decided
+			if (homeWins >= gamesToWin || awayWins >= gamesToWin) {
+				matchDecided = true;
+			}
+		}
+		
+		// Ensure match was actually decided
+		if (!matchDecided) {
+			return fail(400, { error: `Match not decided. One team needs ${gamesToWin} wins in Best of ${boSeries}` });
 		}
 
-		// Validate
-		const validation = validateScoreSubmission(parsedScores, match.boSeries || 3);
+		// Validate scores
+		const validation = validateScoreSubmission(parsedScores, boSeries);
 		if (!validation.valid) {
 			return fail(400, { error: validation.error });
 		}

@@ -23,6 +23,68 @@
 	let demoUploadError = $state<string | null>(null);
 	let demoUploadProgress = $state<string>('Preparing upload...');
 
+	// Score submission state - track scores as user types
+	let gameScores = $state<{ home: number | null; away: number | null }[]>([]);
+	
+	// Initialize gameScores when match changes
+	$effect(() => {
+		const boSeries = data.match.boSeries || 3;
+		if (gameScores.length !== boSeries) {
+			gameScores = Array(boSeries).fill(null).map(() => ({ home: null, away: null }));
+		}
+	});
+	
+	// Calculate games won by each team based on current scores
+	const gamesWonByTeam = $derived(() => {
+		let homeWins = 0;
+		let awayWins = 0;
+		
+		for (const game of gameScores) {
+			if (game.home !== null && game.away !== null) {
+				if (game.home > game.away) homeWins++;
+				else if (game.away > game.home) awayWins++;
+			}
+		}
+		
+		return { home: homeWins, away: awayWins };
+	});
+	
+	// Calculate how many games needed to win the series
+	const gamesToWin = $derived(Math.ceil((data.match.boSeries || 3) / 2));
+	
+	// Determine if the match is already decided (one team has enough wins)
+	const matchDecided = $derived(() => {
+		const wins = gamesWonByTeam();
+		return wins.home >= gamesToWin || wins.away >= gamesToWin;
+	});
+	
+	// Determine which game number the match was decided at (first game where a team reached winning threshold)
+	const matchDecidedAtGame = $derived(() => {
+		let homeWins = 0;
+		let awayWins = 0;
+		
+		for (let i = 0; i < gameScores.length; i++) {
+			const game = gameScores[i];
+			if (game.home !== null && game.away !== null) {
+				if (game.home > game.away) homeWins++;
+				else if (game.away > game.home) awayWins++;
+				
+				if (homeWins >= gamesToWin || awayWins >= gamesToWin) {
+					return i; // Return the index where match was decided
+				}
+			}
+		}
+		
+		return null; // Match not yet decided
+	});
+	
+	// Check if a specific game should be disabled (match already decided before this game)
+	const isGameDisabled = (gameIndex: number) => {
+		const decidedAt = matchDecidedAtGame();
+		if (decidedAt === null) return false;
+		return gameIndex > decidedAt;
+	};
+
 	const match = $derived(data.match);
 	const isUnplayed = $derived(match.status === 'UNPLAYED');
 	const isPlayed = $derived(match.status === 'PLAYED');
@@ -380,8 +442,14 @@
 			>
 				<div class="space-y-4">
 					{#each Array(match.boSeries || 3) as _, i}
-						<div class="border border-zinc-700 rounded-lg p-4">
-							<h3 class="font-semibold text-white mb-3">Game {i + 1}</h3>
+						{@const disabled = isGameDisabled(i)}
+						<div class="border border-zinc-700 rounded-lg p-4 {disabled ? 'opacity-50' : ''}">
+							<div class="flex items-center justify-between mb-3">
+								<h3 class="font-semibold text-white">Game {i + 1}</h3>
+								{#if disabled}
+									<span class="text-xs text-gray-500 bg-zinc-800 px-2 py-1 rounded">Not needed - match already decided</span>
+								{/if}
+							</div>
 							<div class="grid grid-cols-3 gap-4 items-center">
 								<div>
 									<label class="block text-sm font-medium text-gray-300 mb-1">
@@ -391,8 +459,16 @@
 										type="number"
 										name="homeScore_{i}"
 										min="0"
-										required
-										class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+										required={!disabled}
+										disabled={disabled}
+										value={gameScores[i]?.home ?? ''}
+										oninput={(e) => {
+											const val = e.currentTarget.value;
+											if (gameScores[i]) {
+												gameScores[i].home = val === '' ? null : parseInt(val);
+											}
+										}}
+										class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-gray-500"
 									/>
 								</div>
 								<div class="text-center text-gray-400 font-semibold">VS</div>
@@ -404,8 +480,16 @@
 										type="number"
 										name="awayScore_{i}"
 										min="0"
-										required
-										class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+										required={!disabled}
+										disabled={disabled}
+										value={gameScores[i]?.away ?? ''}
+										oninput={(e) => {
+											const val = e.currentTarget.value;
+											if (gameScores[i]) {
+												gameScores[i].away = val === '' ? null : parseInt(val);
+											}
+										}}
+										class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-gray-500"
 									/>
 								</div>
 							</div>
@@ -416,7 +500,8 @@
 									<label class="block text-sm font-medium text-gray-300 mb-1">Arena/Map</label>
 									<select
 										name="arenaId_{i}"
-										class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+										disabled={disabled}
+										class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-gray-500"
 									>
 										{#each matchArenas() as arena}
 											<option value={arena.id} selected={defaultArenaId === arena.id}>{arena.name}</option>
@@ -427,6 +512,16 @@
 						</div>
 					{/each}
 				</div>
+				
+				<!-- Match status indicator -->
+				{#if matchDecided()}
+					{@const wins = gamesWonByTeam()}
+					<div class="mt-4 p-3 bg-green-900/20 border border-green-700 rounded-lg">
+						<p class="text-green-300 text-sm">
+							✓ Match decided: <strong>{wins.home >= gamesToWin ? match.homeTeam.name : match.awayTeam.name}</strong> wins {Math.max(wins.home, wins.away)}-{Math.min(wins.home, wins.away)}
+						</p>
+					</div>
+				{/if}
 				<div class="mt-6">
 					<button
 						type="submit"

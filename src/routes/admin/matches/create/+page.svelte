@@ -106,8 +106,9 @@
 
 	// Handle create form submission
 	const handleCreateEnhance = () => {
+		isCreating = true;
+		
 		return async ({ result, update }: any) => {
-			isCreating = true;
 			console.log('Create form result:', result);
 			
 			if (result.type === 'failure') {

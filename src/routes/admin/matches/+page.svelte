@@ -60,10 +60,34 @@
 
 	let showEditModal = $state(false);
 	let editingMatch = $state<any>(null);
+	
+	// Loading state for match creation
+	let isCreatingMatches = $state(false);
 
 	function openEditModal(match: any) {
 		editingMatch = match;
 		showEditModal = true;
+	}
+	
+	function handleCreateEnhance() {
+		isCreatingMatches = true;
+		
+		return async ({ result, update }: any) => {
+			if (result.type === 'success') {
+				showCreateWizard = false;
+				wizardStep = 1;
+				selectedRegion = null;
+				selectedDivision = null;
+				selectedSeason = null;
+				previewTeams = [];
+				isPlayoff = false;
+			}
+			if (result.type === 'failure') {
+				alert(`Error: ${result.data?.error || 'Failed to create matches'}`);
+			}
+			isCreatingMatches = false;
+			await update();
+		};
 	}
 </script>
 
@@ -431,20 +455,7 @@
 						<form 
 							method="POST" 
 							action="?/createMatchSet" 
-							use:enhance={() => {
-								return async ({ result, update }) => {
-									if (result.type === 'success') {
-										showCreateWizard = false;
-										wizardStep = 1;
-										selectedRegion = null;
-										selectedDivision = null;
-										selectedSeason = null;
-										previewTeams = [];
-										isPlayoff = false;
-									}
-									await update();
-								};
-							}}
+							use:enhance={handleCreateEnhance}
 						>
 							<input type="hidden" name="regionId" value={selectedRegion} />
 							<input type="hidden" name="divisionId" value={selectedDivision} />
@@ -513,15 +524,17 @@
 									<button
 										type="button"
 										onclick={() => (wizardStep = 1)}
-										class="flex-1 bg-zinc-700 text-white px-6 py-3 rounded-lg hover:bg-zinc-600 transition"
+										disabled={isCreatingMatches}
+										class="flex-1 bg-zinc-700 text-white px-6 py-3 rounded-lg hover:bg-zinc-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
 									>
 										Back
 									</button>
 									<button
 										type="submit"
-										class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold"
+										disabled={isCreatingMatches}
+										class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
 									>
-										Create Matches
+										{isCreatingMatches ? 'Creating...' : 'Create Matches'}
 									</button>
 								</div>
 							</div>

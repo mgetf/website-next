@@ -6,6 +6,81 @@
 
 import { prisma } from '$lib/server/db';
 
+// =============================================================================
+// TOURNAMENT CRUD OPERATIONS
+// =============================================================================
+
+/**
+ * Create a new tournament
+ */
+export async function createTournament(data: {
+	name: string;
+	description?: string;
+	bracketLink?: string;
+	avatar?: string;
+	startedAt?: Date;
+	isTeamTournament?: boolean;
+}) {
+	return await prisma.tournament.create({
+		data: {
+			name: data.name,
+			description: data.description || null,
+			bracketLink: data.bracketLink || null,
+			avatar: data.avatar || null,
+			startedAt: data.startedAt || null,
+			isTeamTournament: data.isTeamTournament ?? false
+		}
+	});
+}
+
+/**
+ * Update tournament winners
+ */
+export async function updateTournamentWinners(
+	tournamentId: number,
+	winners: {
+		winner1SteamId?: string;
+		winner2SteamId?: string;
+		secondPlace1SteamId?: string;
+		secondPlace2SteamId?: string;
+		thirdPlace1SteamId?: string;
+		thirdPlace2SteamId?: string;
+	}
+) {
+	// Ensure users exist for all provided Steam IDs
+	const steamIds = Object.values(winners).filter(Boolean) as string[];
+	
+	for (const steamId of steamIds) {
+		const userExists = await prisma.user.findUnique({ where: { steamId } });
+		if (!userExists) {
+			// Create placeholder user if they don't exist
+			await prisma.user.create({
+				data: {
+					steamId,
+					steamUsername: 'Unknown',
+					steamAvatar: ''
+				}
+			});
+		}
+	}
+	
+	return await prisma.tournament.update({
+		where: { id: tournamentId },
+		data: {
+			winner1SteamId: winners.winner1SteamId || null,
+			winner2SteamId: winners.winner2SteamId || null,
+			secondPlace1SteamId: winners.secondPlace1SteamId || null,
+			secondPlace2SteamId: winners.secondPlace2SteamId || null,
+			thirdPlace1SteamId: winners.thirdPlace1SteamId || null,
+			thirdPlace2SteamId: winners.thirdPlace2SteamId || null
+		}
+	});
+}
+
+// =============================================================================
+// TOURNAMENT QUERIES
+// =============================================================================
+
 /**
  * Get all tournaments (cups) ordered by most recent first
  */

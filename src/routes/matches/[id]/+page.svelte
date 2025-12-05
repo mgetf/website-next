@@ -78,11 +78,26 @@
 		return null; // Match not yet decided
 	});
 	
-	// Check if a specific game should be disabled (match already decided before this game)
+	// Check if a specific game should be disabled
+	// A game is disabled if:
+	// 1. The match is already decided before this game, OR
+	// 2. Any previous game hasn't been filled yet (enforce sequential order)
 	const isGameDisabled = (gameIndex: number) => {
+		// Check if match was decided before this game
 		const decidedAt = matchDecidedAtGame();
-		if (decidedAt === null) return false;
-		return gameIndex > decidedAt;
+		if (decidedAt !== null && gameIndex > decidedAt) {
+			return true;
+		}
+		
+		// Check if all previous games are filled (enforce order)
+		for (let i = 0; i < gameIndex; i++) {
+			const prevGame = gameScores[i];
+			if (prevGame?.home === null || prevGame?.away === null) {
+				return true; // Previous game not filled, disable this one
+			}
+		}
+		
+		return false;
 	};
 
 	const match = $derived(data.match);
@@ -443,11 +458,15 @@
 				<div class="space-y-4">
 					{#each Array(match.boSeries || 3) as _, i}
 						{@const disabled = isGameDisabled(i)}
+						{@const decidedAt = matchDecidedAtGame()}
+						{@const isMatchDecidedBefore = decidedAt !== null && i > decidedAt}
 						<div class="border border-zinc-700 rounded-lg p-4 {disabled ? 'opacity-50' : ''}">
 							<div class="flex items-center justify-between mb-3">
 								<h3 class="font-semibold text-white">Game {i + 1}</h3>
 								{#if disabled}
-									<span class="text-xs text-gray-500 bg-zinc-800 px-2 py-1 rounded">Not needed - match already decided</span>
+									<span class="text-xs text-gray-500 bg-zinc-800 px-2 py-1 rounded">
+										{isMatchDecidedBefore ? 'Not needed - match already decided' : 'Fill previous games first'}
+									</span>
 								{/if}
 							</div>
 							<div class="grid grid-cols-3 gap-4 items-center">

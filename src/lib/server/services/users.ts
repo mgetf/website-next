@@ -294,8 +294,7 @@ export async function getPlayerProfile(steamId: string) {
 			avatar: user.steamAvatar,
 			discordLinked: !!user.discord,
 			discordUsername: user.discord?.discordUsername || null,
-			permissionLevel: user.permissionLevel,
-			memberSince: user.discord?.playerSteamId ? new Date() : new Date() // TODO: Track user creation date
+			permissionLevel: user.permissionLevel
 		},
 		currentTeams,
 		teamHistory,

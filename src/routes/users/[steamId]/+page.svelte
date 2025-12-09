@@ -8,7 +8,6 @@
 			discordLinked: boolean;
 			discordUsername: string | null;
 			permissionLevel: string;
-			memberSince: Date;
 		};
 		isOwnProfile: boolean;
 		currentTeams: Array<{
@@ -159,10 +158,6 @@
 					</div>
 				{/if}
 				
-				<!-- Member Since -->
-				<p class="text-gray-400 text-sm">
-					Member since {formatDate(player.memberSince)}
-				</p>
 			</div>
 		</div>
 	</section>

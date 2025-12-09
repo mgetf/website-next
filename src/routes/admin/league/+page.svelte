@@ -57,6 +57,15 @@
 		if (status === 'Draft') return 'bg-yellow-500';
 		return 'bg-blue-500';
 	}
+	
+	// Get the most important status for a region (priority: Active > Draft > Upcoming > Completed)
+	function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
+		const statuses = seasons.map(s => s.status);
+		if (statuses.includes('Active')) return 'Active';
+		if (statuses.includes('Draft')) return 'Draft';
+		if (statuses.includes('Upcoming')) return 'Upcoming';
+		return 'Completed';
+	}
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
@@ -241,13 +250,9 @@
 										<h3 class="text-xl font-bold text-white">{regionName}</h3>
 										<p class="text-sm text-gray-400 mt-1">{seasonsByRegion[regionName].length} season{seasonsByRegion[regionName].length !== 1 ? 's' : ''}</p>
 									</div>
-									<div class="flex items-center gap-2">
-										{#each [...new Set(seasonsByRegion[regionName].map(s => s.status))] as status}
-											<span class="px-2 py-1 text-xs rounded border {getStatusColor(status)}">
-												{status}
-											</span>
-										{/each}
-									</div>
+									<span class="px-2 py-1 text-xs rounded border {getStatusColor(getRegionPrimaryStatus(seasonsByRegion[regionName]))}">
+									{getRegionPrimaryStatus(seasonsByRegion[regionName])}
+								</span>
 								</div>
 							</div>
 							

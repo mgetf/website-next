@@ -58,16 +58,8 @@
 		goto('/admin/matches');
 	}
 
-	let showEditModal = $state(false);
-	let editingMatch = $state<any>(null);
-	
 	// Loading state for match creation
 	let isCreatingMatches = $state(false);
-
-	function openEditModal(match: any) {
-		editingMatch = match;
-		showEditModal = true;
-	}
 	
 	function handleCreateEnhance() {
 		isCreatingMatches = true;
@@ -304,19 +296,13 @@
 										{getStatusLabel(match.status)}
 									</span>
 								</td>
-								<td class="px-6 py-4 text-right space-x-2">
+								<td class="px-6 py-4 text-right">
 									<a
 										href="/matches/{match.id}"
 										class="text-blue-400 hover:text-blue-300 text-sm"
 									>
 										View
 									</a>
-									<button
-										onclick={() => openEditModal(match)}
-										class="text-yellow-400 hover:text-yellow-300 text-sm"
-									>
-										Edit
-									</button>
 								</td>
 							</tr>
 						{/each}
@@ -545,51 +531,4 @@
 		</div>
 	{/if}
 
-	<!-- Edit Match Modal -->
-	{#if showEditModal && editingMatch}
-		<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-			<div class="bg-zinc-900 border border-zinc-800 rounded-lg max-w-lg w-full">
-				<div class="p-6 border-b border-zinc-800 flex items-center justify-between">
-					<h3 class="text-xl font-bold text-white">Edit Match #{editingMatch.id}</h3>
-					<button onclick={() => (showEditModal = false)} class="text-gray-400 hover:text-white">
-						✕
-					</button>
-				</div>
-
-				<div class="p-6 space-y-6">
-					<!-- Update Status -->
-					<form method="POST" action="?/updateMatchStatus" use:enhance>
-						<input type="hidden" name="matchId" value={editingMatch.id} />
-						<div>
-							<label class="block text-sm font-medium text-gray-300 mb-2">Match Status</label>
-							<select
-								name="status"
-								class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2"
-							>
-								<option value="0" selected={editingMatch.status === 'UNPLAYED'}>Unplayed</option>
-								<option value="1" selected={editingMatch.status === 'PLAYED'}>Played</option>
-								<option value="2" selected={editingMatch.status === 'DISPUTE'}>Disputed</option>
-							</select>
-						</div>
-						<button
-							type="submit"
-							class="mt-3 w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-						>
-							Update Status
-						</button>
-					</form>
-
-					<div class="border-t border-zinc-800"></div>
-
-					<!-- View Match -->
-					<a
-						href="/matches/{editingMatch.id}"
-						class="block w-full bg-zinc-700 text-white px-4 py-2 rounded-lg hover:bg-zinc-600 transition text-center"
-					>
-						View Full Match Page
-					</a>
-				</div>
-			</div>
-		</div>
-	{/if}
 </div>

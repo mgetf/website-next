@@ -15,17 +15,17 @@
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.4.0",
-		"@sveltejs/kit": "^2.49.1",
+		"@sveltejs/kit": "^2.49.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
-		"@types/node": "^24.10.1",
-		"@typescript/native-preview": "^7.0.0-dev.20251204.1",
+		"@types/node": "^24.10.2",
+		"@typescript/native-preview": "^7.0.0-dev.20251208.1",
 		"brackets-model": "^1.6.0",
 		"dotenv": "^17.2.3",
 		"prisma": "^7.1.0",
-		"svelte": "^5.45.5",
+		"svelte": "^5.45.8",
 		"svelte-check": "^4.3.4",
-		"typescript": "^7.0.0-dev.20251204.1",
-		"vite": "^7.2.6"
+		"typescript": "^7.0.0-dev.20251208.1",
+		"vite": "^7.2.7"
 	},
 	"overrides": {
 		"typescript": "npm:@typescript/native-preview@latest"
@@ -38,7 +38,7 @@
 		"prisma"
 	],
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.943.0",
+		"@aws-sdk/client-s3": "^3.947.0",
 		"@prisma/adapter-pg": "^7.1.0",
 		"@prisma/client": "^7.1.0",
 		"@tailwindcss/vite": "^4.1.17",

@@ -178,39 +178,3 @@ export async function toggleDivisionVisibility(id: number) {
 	});
 }
 
-/**
- * Delete a division
- * 
- * Business logic validation:
- * - Division must exist
- * - Division must not have any teams
- */
-export async function deleteDivision(id: number) {
-	// Check if division exists
-	const division = await prisma.division.findUnique({
-		where: { id },
-		include: {
-			_count: {
-				select: {
-					teams: true
-				}
-			}
-		}
-	});
-
-	if (!division) {
-		throw new Error('Division not found');
-	}
-
-	// Check if division has teams
-	if (division._count.teams > 0) {
-		throw new Error(
-			`Cannot delete division with ${division._count.teams} teams.`
-		);
-	}
-
-	return await prisma.division.delete({
-		where: { id }
-	});
-}
-

@@ -1,9 +1,9 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { fail, redirect } from '@sveltejs/kit';
-import { getSeasons, createSeason, updateSeason, deleteSeason, transformSeasonForUI } from '$lib/server/services/seasons';
-import { getRegions, createRegion, updateRegion, toggleRegionVisibility, deleteRegion } from '$lib/server/services/regions';
-import { getDivisions, createDivision, updateDivision, toggleDivisionVisibility, deleteDivision } from '$lib/server/services/divisions';
+import { getSeasons, createSeason, updateSeason, transformSeasonForUI } from '$lib/server/services/seasons';
+import { getRegions, createRegion, updateRegion, toggleRegionVisibility } from '$lib/server/services/regions';
+import { getDivisions, createDivision, updateDivision, toggleDivisionVisibility } from '$lib/server/services/divisions';
 import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/services/arenas';
 import { uploadToR2, validateUploadedFile, saveTempFile, deleteTempFile } from '$lib/server/utils/r2Upload';
 import { getMapBanPools, createMapBanPool, updateMapBanPool, toggleMapBanPoolStatus, addMapsToPool, removeMapFromPool, deleteMapBanPool } from '$lib/server/services/mapBanPools';
@@ -145,26 +145,6 @@ export const actions: Actions = {
 		}
 	},
 
-	deleteSeason: async ({ request, locals }) => {
-		requireAdmin(locals.user);
-
-		const formData = await request.formData();
-		const seasonId = parseInt(formData.get('seasonId') as string);
-
-		// Validate input
-		if (!seasonId || seasonId < 1) {
-			return fail(400, { error: 'Invalid season ID' });
-		}
-
-		try {
-			await deleteSeason(seasonId);
-			return { success: true, message: 'Season deleted successfully!' };
-		} catch (error) {
-			console.error('Error deleting season:', error);
-			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete season' });
-		}
-	},
-
 	// REGION ACTIONS
 	createRegion: async ({ request, locals }) => {
 		requireAdmin(locals.user);
@@ -224,25 +204,6 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Error toggling region visibility:', error);
 			return fail(400, { error: error instanceof Error ? error.message : 'Failed to toggle region visibility' });
-		}
-	},
-
-	deleteRegion: async ({ request, locals }) => {
-		requireAdmin(locals.user);
-
-		const formData = await request.formData();
-		const regionId = parseInt(formData.get('regionId') as string);
-
-		if (!regionId || regionId < 1) {
-			return fail(400, { error: 'Invalid region ID' });
-		}
-
-		try {
-			await deleteRegion(regionId);
-			return { success: true, message: 'Region deleted successfully!' };
-		} catch (error) {
-			console.error('Error deleting region:', error);
-			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete region' });
 		}
 	},
 
@@ -307,25 +268,6 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Error toggling division visibility:', error);
 			return fail(400, { error: error instanceof Error ? error.message : 'Failed to toggle division visibility' });
-		}
-	},
-
-	deleteDivision: async ({ request, locals }) => {
-		requireAdmin(locals.user);
-
-		const formData = await request.formData();
-		const divisionId = parseInt(formData.get('divisionId') as string);
-
-		if (!divisionId || divisionId < 1) {
-			return fail(400, { error: 'Invalid division ID' });
-		}
-
-		try {
-			await deleteDivision(divisionId);
-			return { success: true, message: 'Division deleted successfully!' };
-		} catch (error) {
-			console.error('Error deleting division:', error);
-			return fail(400, { error: error instanceof Error ? error.message : 'Failed to delete division' });
 		}
 	},
 

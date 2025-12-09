@@ -136,43 +136,6 @@ export async function updateSeason(
 }
 
 /**
- * Delete a season
- * 
- * Business logic validation:
- * - Season must exist
- * - Season must not have any teams or matches
- */
-export async function deleteSeason(id: number) {
-	// Check if season exists
-	const season = await prisma.season.findUnique({
-		where: { id },
-		include: {
-			_count: {
-				select: {
-					teams: true,
-					matches: true
-				}
-			}
-		}
-	});
-
-	if (!season) {
-		throw new Error('Season not found');
-	}
-
-	// Check if season has teams or matches
-	if (season._count.teams > 0 || season._count.matches > 0) {
-		throw new Error(
-			`Cannot delete season with ${season._count.teams} teams and ${season._count.matches} matches. Remove all teams and matches first.`
-		);
-	}
-
-	return await prisma.season.delete({
-		where: { id }
-	});
-}
-
-/**
  * Get seasons for dropdown/filter UI (simplified)
  * Returns id, seasonNum, and region info for disambiguation
  * 

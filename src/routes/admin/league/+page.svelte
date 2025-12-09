@@ -11,17 +11,14 @@
 	// Seasons state
 	let showSeasonForm = $state(false);
 	let editingSeason: typeof data.seasons[0] | null = $state(null);
-	let deletingSeason: typeof data.seasons[0] | null = $state(null);
 	
 	// Regions state
 	let showRegionForm = $state(false);
 	let editingRegion: typeof data.regions[0] | null = $state(null);
-	let deletingRegion: typeof data.regions[0] | null = $state(null);
 	
 	// Divisions state
 	let showDivisionForm = $state(false);
 	let editingDivision: typeof data.divisions[0] | null = $state(null);
-	let deletingDivision: typeof data.divisions[0] | null = $state(null);
 	
 	// Arenas state
 	let showArenaForm = $state(false);
@@ -120,7 +117,7 @@
 		</div>
 	{/if}
 	
-	{#if form?.error && !editingSeason && !deletingSeason && !editingRegion && !deletingRegion && !editingDivision && !deletingDivision && !editingArena && !deletingArena}
+	{#if form?.error && !editingSeason && !editingRegion && !editingDivision && !editingArena && !deletingArena}
 		<div class="fixed top-4 right-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg shadow-lg z-50">
 			<p class="text-red-400">{form.error}</p>
 		</div>
@@ -321,12 +318,6 @@
 														>
 															Edit
 														</button>
-														<button 
-															onclick={() => deletingSeason = season}
-															class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-														>
-															Delete
-														</button>
 													</div>
 												</td>
 											</tr>
@@ -435,12 +426,6 @@
 											class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
 										>
 											Edit
-										</button>
-										<button 
-											onclick={() => deletingRegion = region}
-											class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-										>
-											Delete
 										</button>
 									</div>
 								</td>
@@ -588,12 +573,6 @@
 												class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
 											>
 												Edit
-											</button>
-											<button 
-												onclick={() => deletingDivision = division}
-												class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-											>
-												Delete
 											</button>
 										</div>
 									</td>
@@ -1026,93 +1005,6 @@
 	</div>
 {/if}
 
-<!-- Delete Region Modal -->
-{#if deletingRegion}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => deletingRegion = null}
-		onkeydown={(e) => e.key === 'Escape' && (deletingRegion = null)}
-		role="button"
-		tabindex="-1"
-	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
-		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Delete Region</h3>
-				<button 
-					onclick={() => deletingRegion = null}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
-			
-			<div class="mb-6">
-				<p class="text-gray-300 mb-4">
-					Are you sure you want to delete <strong class="text-white">{deletingRegion.name}</strong>?
-				</p>
-				
-				{#if deletingRegion.seasons > 0 || deletingRegion.teams > 0}
-					<div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-						<p class="text-yellow-400 text-sm font-medium mb-2">⚠️ Warning</p>
-						<p class="text-yellow-300 text-sm">
-							This region has {deletingRegion.seasons} season{deletingRegion.seasons !== 1 ? 's' : ''} 
-							and {deletingRegion.teams} team{deletingRegion.teams !== 1 ? 's' : ''}. 
-							You cannot delete it until these are removed.
-						</p>
-					</div>
-				{:else}
-					<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-						<p class="text-red-400 text-sm">
-							⚠️ This action cannot be undone.
-						</p>
-					</div>
-				{/if}
-			</div>
-			
-			<form 
-				method="POST" 
-				action="?/deleteRegion"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							deletingRegion = null;
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="regionId" value={deletingRegion.id} />
-				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => deletingRegion = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting || deletingRegion.seasons > 0 || deletingRegion.teams > 0}
-						class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Deleting...' : 'Delete Region'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
 <!-- Edit Season Modal -->
 {#if editingSeason}
 	<div 
@@ -1226,100 +1118,6 @@
 	</div>
 {/if}
 
-<!-- Delete Season Modal -->
-{#if deletingSeason}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => deletingSeason = null}
-		onkeydown={(e) => e.key === 'Escape' && (deletingSeason = null)}
-		role="button"
-		tabindex="-1"
-	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
-		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Delete Season</h3>
-				<button 
-					onclick={() => deletingSeason = null}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
-			
-			{#if form?.error}
-				<div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-					<p class="text-red-400 text-sm">{form.error}</p>
-				</div>
-			{/if}
-			
-			<div class="mb-6">
-				<p class="text-gray-300 mb-4">
-					Are you sure you want to delete <strong class="text-white">Season {deletingSeason.seasonNum}</strong> 
-					from <strong class="text-white">{deletingSeason.region}</strong>?
-				</p>
-				
-				{#if deletingSeason.teams > 0 || deletingSeason.matches > 0}
-					<div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-						<p class="text-yellow-400 text-sm font-medium mb-2">⚠️ Warning</p>
-						<p class="text-yellow-300 text-sm">
-							This season has {deletingSeason.teams} team{deletingSeason.teams !== 1 ? 's' : ''} 
-							and {deletingSeason.matches} match{deletingSeason.matches !== 1 ? 'es' : ''}. 
-							You cannot delete it until these are removed.
-						</p>
-					</div>
-				{:else}
-					<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-						<p class="text-red-400 text-sm">
-							⚠️ This action cannot be undone.
-						</p>
-					</div>
-				{/if}
-			</div>
-			
-			<form 
-				method="POST" 
-				action="?/deleteSeason"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							deletingSeason = null;
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="seasonId" value={deletingSeason.id} />
-				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => deletingSeason = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting || deletingSeason.teams > 0 || deletingSeason.matches > 0}
-						class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Deleting...' : 'Delete Season'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
 <!-- Edit Division Modal -->
 {#if editingDivision}
 	<div 
@@ -1404,92 +1202,6 @@
 						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
 					>
 						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
-<!-- Delete Division Modal -->
-{#if deletingDivision}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => deletingDivision = null}
-		onkeydown={(e) => e.key === 'Escape' && (deletingDivision = null)}
-		role="button"
-		tabindex="-1"
-	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
-		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Delete Division</h3>
-				<button 
-					onclick={() => deletingDivision = null}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
-			
-			<div class="mb-6">
-				<p class="text-gray-300 mb-4">
-					Are you sure you want to delete <strong class="text-white">{deletingDivision.name}</strong>?
-				</p>
-				
-				{#if deletingDivision.teams > 0}
-					<div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-						<p class="text-yellow-400 text-sm font-medium mb-2">⚠️ Warning</p>
-						<p class="text-yellow-300 text-sm">
-							This division has {deletingDivision.teams} team{deletingDivision.teams !== 1 ? 's' : ''}. 
-							You cannot delete it until these are removed.
-						</p>
-					</div>
-				{:else}
-					<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-						<p class="text-red-400 text-sm">
-							⚠️ This action cannot be undone.
-						</p>
-					</div>
-				{/if}
-			</div>
-			
-			<form 
-				method="POST" 
-				action="?/deleteDivision"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							deletingDivision = null;
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="divisionId" value={deletingDivision.id} />
-				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => deletingDivision = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting || deletingDivision.teams > 0}
-						class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Deleting...' : 'Delete Division'}
 					</button>
 				</div>
 			</form>

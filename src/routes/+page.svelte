@@ -61,8 +61,9 @@
 	<!-- Hero Section -->
 	<section class="relative py-20 px-6 text-center">
 		<div class="max-w-4xl mx-auto">
-			<h1 class="text-7xl font-black mb-6 bg-gradient-to-r from-orange-500 via-red-500 to-red-600 bg-clip-text text-transparent drop-shadow-2xl">
-				MGE.tf
+			<h1 class="flex items-center justify-center gap-4 mb-6">
+				<img src="/mge_transparent_logo.png" alt="MGE Logo" class="h-24 w-auto" />
+				<span class="text-7xl font-black text-white drop-shadow-2xl">MGE</span>
 			</h1>
 			<p class="text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">
 				Join the premier Team Fortress 2 MGE competitive platform. Test your skills in 2v2 leagues 
@@ -215,44 +216,12 @@
 			
 			<div class="space-y-6 text-gray-300 text-lg leading-relaxed max-w-4xl mx-auto">
 				<p>
-					<strong class="text-white text-xl">MGE (My Gaming Edge)</strong> is a 1v1 arena-style game mode in Team Fortress 2 
-					where players face off in compact maps to practice mechanics, aim, and movement.
+					<strong class="text-white text-xl">MGE</strong> stands for My Gaming Edge, a defunct TF2 community organization run by its founders between roughly 2010 and 2013. One of its prominent members, Lange, collaborated with Swaty and CB to create <strong class="text-white text-xl">MGEMod</strong>, a 1v1 training mod for Team Fortress 2, which later became universally known simply as "MGE", distinct from the original group.
 				</p>
 				
-				<div class="pt-4">
-					<h3 class="text-2xl font-bold text-white mb-4">History</h3>
-					<p>
-						Originally created as a training tool for competitive players, MGE has evolved into its own competitive 
-						scene with dedicated leagues and tournaments. What started as simple aim practice has become a respected 
-						esport format with seasonal competitions, prize pools, and championship events.
-					</p>
-				</div>
-				
-				<div class="pt-4">
-					<h3 class="text-2xl font-bold text-white mb-4">Tips for Improvement</h3>
-					<ul class="space-y-3 ml-6">
-						<li class="flex items-start gap-3">
-							<span class="text-orange-500 mt-1">▸</span>
-							<span>Focus on consistent aim rather than flashy plays</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-orange-500 mt-1">▸</span>
-							<span>Learn spawn timings and positioning for each arena</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-orange-500 mt-1">▸</span>
-							<span>Practice movement techniques like rocket/sticky jumping</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-orange-500 mt-1">▸</span>
-							<span>Watch demos of top players to learn new strategies</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-orange-500 mt-1">▸</span>
-							<span>Stay calm and analyze your mistakes after each round</span>
-						</li>
-					</ul>
-				</div>
+				<p>
+					MGE is a 1v1/2v2 arena-style game mode in Team Fortress 2 where players face off in compact maps to practice mechanics, aim, and movement.
+				</p>
 			</div>
 		</div>
 	</section>

@@ -40,9 +40,8 @@
 			<div class="flex items-center gap-8">
 				<!-- Logo -->
 				<a href="/" class="flex items-center gap-2 group">
-					<span class="text-2xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
-						MGE.tf
-					</span>
+					<img src="/mge_transparent_logo.png" alt="MGE Logo" class="h-8 w-auto" />
+					<span class="text-2xl font-bold text-white">MGE</span>
 				</a>
 				
 				<!-- Desktop Navigation Links -->

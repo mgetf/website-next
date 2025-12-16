@@ -147,10 +147,12 @@ export async function createMatchSet(
 	const paymentRequired = globalSettings?.paymentRequired === 1;
 
 	// Build conditions for team selection
+	// NOTE: We intentionally do NOT filter by seasonId here, matching getEligibleTeams() behavior.
+	// Teams may not have seasonId updated immediately when registered, and teams can
+	// participate in matches across seasons. The seasonId is stored on the MATCH, not used for filtering.
 	const conditions: any = {
 		regionId,
 		divisionId,
-		seasonId,
 		status: TeamStatus.READY
 	};
 

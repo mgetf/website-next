@@ -25,12 +25,19 @@ export async function getPendingPlayers() {
 					name: true,
 					seasonId: true,
 					divisionId: true,
+					regionId: true,
 					division: { 
 						select: { 
 							id: true,
 							name: true,
 							signupCost: true
 						} 
+					},
+					region: {
+						select: {
+							id: true,
+							name: true
+						}
 					}
 				}
 			}

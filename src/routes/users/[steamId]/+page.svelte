@@ -61,14 +61,24 @@
 	const achievements = $derived(data.achievements);
 	const isOwnProfile = $derived(data.isOwnProfile);
 	
+	// Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
+	function steamIdToSteam2(steamId64: string): string {
+		const id = BigInt(steamId64);
+		const accountId = id - BigInt('76561197960265728');
+		const y = accountId / BigInt(2);
+		const x = accountId % BigInt(2);
+		return `STEAM_0:${x}:${y}`;
+	}
+
 	// External profile links - also reactive to player changes
 	const externalLinks = $derived([
-		{ name: 'Steam Profile', url: `https://steamcommunity.com/profiles/${player.steamId}`, icon: '🎮' },
-		{ name: 'logs.tf', url: `https://logs.tf/profile/${player.steamId}`, icon: '📊' },
-		{ name: 'RGL.gg', url: `https://rgl.gg/Public/PlayerProfile.aspx?p=${player.steamId}`, icon: '🏆' },
-		{ name: 'ETF2L', url: `https://etf2l.org/search/${player.steamId}/`, icon: '🇪🇺' },
-		{ name: 'UGC Gaming', url: `https://www.ugcleague.com/players_page.cfm?player_id=${player.steamId}`, icon: '🎯' },
-		{ name: 'SteamHistory', url: `https://steamhistory.net/id/${player.steamId}`, icon: '📜' }
+		{ name: 'Steam', url: `https://steamcommunity.com/profiles/${player.steamId}`, logo: '/steam_logo.png' },
+		{ name: 'logs.tf', url: `https://logs.tf/profile/${player.steamId}`, logo: '/logstf_logo.png' },
+		{ name: 'RGL', url: `https://rgl.gg/Public/PlayerProfile.aspx?p=${player.steamId}`, logo: '/rgl_logo.png' },
+		{ name: 'ETF2L', url: `https://etf2l.org/search/${player.steamId}/`, logo: '/etf2l_logo.png' },
+		{ name: 'UGC-Gaming', url: `https://stats.ugc-gaming.net/mge-stats/?search=${encodeURIComponent(steamIdToSteam2(player.steamId))}`, logo: '/ugcgaming_logo.png' },
+		{ name: 'SteamHistory', url: `https://steamhistory.net/id/${player.steamId}`, logo: '/steamhistory_logo.jpg' },
+		{ name: 'SteamLadder', url: `https://steamladder.com/profile/${player.steamId}/`, logo: '/steamladder_logo.png' }
 	]);
 	
 	// Format date helper
@@ -123,7 +133,7 @@
 							class="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-2 group"
 							title={link.name}
 						>
-							<span class="text-lg">{link.icon}</span>
+							<img src={link.logo} alt={link.name} class="w-5 h-5 {link.name === 'SteamHistory' ? 'rounded' : ''}" />
 							<span class="text-xs text-gray-400 group-hover:text-white hidden sm:inline">
 								{link.name}
 							</span>

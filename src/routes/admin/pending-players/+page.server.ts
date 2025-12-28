@@ -6,15 +6,23 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { getPendingPlayers, approvePlayer, declinePlayer } from '$lib/server/services/pendingPlayers';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { getVisibleRegions } from '$lib/server/services/regions';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user); // Moderators and admins can manage
 	
-	const pendingPlayers = await getPendingPlayers();
+	const [pendingPlayers, divisions, regions] = await Promise.all([
+		getPendingPlayers(),
+		getVisibleDivisions(),
+		getVisibleRegions()
+	]);
 	
 	return {
-		pendingPlayers
+		pendingPlayers,
+		divisions,
+		regions
 	};
 };
 

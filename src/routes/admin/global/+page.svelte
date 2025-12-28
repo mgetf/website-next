@@ -358,6 +358,78 @@
 				</div>
 			</div>
 			
+			<!-- Match Creation Deadline -->
+			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mt-6">
+				<h4 class="text-xl font-bold text-white mb-4">Match Creation Deadline</h4>
+				<p class="text-sm text-gray-400 mb-4">
+					Set the deadline for when the next week's matches should be created. This displays on the admin dashboard.
+				</p>
+				
+				<form 
+					method="POST" 
+					action="?/updateMatchDeadline"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ update }) => {
+							await update();
+							isSubmitting = false;
+						};
+					}}
+					class="space-y-4"
+				>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div>
+							<label for="weekNumber" class="block text-sm font-medium text-gray-300 mb-2">
+								Week Number
+							</label>
+							<input
+								type="number"
+								id="weekNumber"
+								name="weekNumber"
+								min="1"
+								value={data.globalSettings.currentMatchWeek ?? ''}
+								placeholder="e.g. 3"
+								class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+							/>
+							<p class="text-xs text-gray-500 mt-1">The week number to create (shown on dashboard)</p>
+						</div>
+						
+						<div>
+							<label for="deadline" class="block text-sm font-medium text-gray-300 mb-2">
+								Deadline Date & Time
+							</label>
+							<input
+								type="datetime-local"
+								id="deadline"
+								name="deadline"
+								value={data.globalSettings.matchCreationDeadline ? new Date(data.globalSettings.matchCreationDeadline).toISOString().slice(0, 16) : ''}
+								class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+							/>
+							<p class="text-xs text-gray-500 mt-1">When matches should be created by</p>
+						</div>
+					</div>
+					
+					<div class="flex items-center gap-4">
+						<button
+							type="submit"
+							disabled={isSubmitting}
+							class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+						>
+							{isSubmitting ? 'Updating...' : 'Update Deadline'}
+						</button>
+						
+						{#if data.globalSettings.matchCreationDeadline || data.globalSettings.currentMatchWeek}
+							<span class="text-sm text-gray-400">
+								Currently: Week {data.globalSettings.currentMatchWeek ?? '?'} 
+								{#if data.globalSettings.matchCreationDeadline}
+									due {new Date(data.globalSettings.matchCreationDeadline).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+								{/if}
+							</span>
+						{/if}
+					</div>
+				</form>
+			</div>
+			
 			<!-- Season Assignments -->
 			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mt-6">
 				<h4 class="text-xl font-bold text-white mb-4">Signup Season Assignments</h4>

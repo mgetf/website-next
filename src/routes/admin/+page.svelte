@@ -9,10 +9,51 @@
 	const analytics = $derived(data.analytics);
 	const pendingPlayers = $derived(data.pendingPlayers);
 	const recentMatches = $derived(data.recentMatches);
+	const matchDeadline = $derived(data.matchDeadline ? new Date(data.matchDeadline) : null);
+	const currentMatchWeek = $derived(data.currentMatchWeek);
 
 	let isSubmitting = $state(false);
 	let decliningPlayerId = $state<string | null>(null);
 	let declineReasons = $state<Record<string, string>>({});
+
+	// Calculate time remaining until deadline
+	const deadlineInfo = $derived(() => {
+		if (!matchDeadline) return null;
+		
+		const now = new Date();
+		const diff = matchDeadline.getTime() - now.getTime();
+		const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+		const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+		
+		let status: 'green' | 'yellow' | 'red';
+		let timeText: string;
+		
+		if (diff < 0) {
+			status = 'red';
+			const overdueDays = Math.abs(days);
+			const overdueHours = Math.abs(hours);
+			timeText = overdueDays > 0 ? `${overdueDays} day${overdueDays !== 1 ? 's' : ''} overdue` : `${overdueHours} hour${overdueHours !== 1 ? 's' : ''} overdue`;
+		} else if (days < 1) {
+			status = 'red';
+			timeText = hours > 0 ? `${hours} hour${hours !== 1 ? 's' : ''} remaining` : 'Due now';
+		} else if (days <= 3) {
+			status = 'yellow';
+			timeText = `${days} day${days !== 1 ? 's' : ''} remaining`;
+		} else {
+			status = 'green';
+			timeText = `${days} day${days !== 1 ? 's' : ''} remaining`;
+		}
+		
+		const formattedDate = matchDeadline.toLocaleDateString('en-US', { 
+			weekday: 'long', 
+			month: 'short', 
+			day: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit'
+		});
+		
+		return { status, timeText, formattedDate };
+	});
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
@@ -25,6 +66,86 @@
 	<!-- ═══════════════════════════════════════════════════════════════════════ -->
 	<!-- ACTIONABLE WORK SECTION - Primary focus area -->
 	<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+	<!-- Match Creation Deadline Card -->
+	{#if currentMatchWeek || matchDeadline}
+		{@const info = deadlineInfo()}
+		<div class="bg-zinc-900 border rounded-lg shadow-lg overflow-hidden {
+			info?.status === 'red' ? 'border-red-500/50' : 
+			info?.status === 'yellow' ? 'border-yellow-500/50' : 
+			'border-zinc-800'
+		}">
+			<div class="p-5 flex items-center justify-between gap-4">
+				<div class="flex items-center gap-4">
+					<div class="w-12 h-12 rounded-lg flex items-center justify-center {
+						info?.status === 'red' ? 'bg-red-500/20 text-red-400' : 
+						info?.status === 'yellow' ? 'bg-yellow-500/20 text-yellow-400' : 
+						'bg-green-500/20 text-green-400'
+					}">
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+						</svg>
+					</div>
+					<div>
+						<h2 class="text-xl font-bold text-white">
+							{#if currentMatchWeek}
+								Create Week {currentMatchWeek} Matches
+							{:else}
+								Create Matches
+							{/if}
+						</h2>
+						{#if info}
+							<p class="text-sm {
+								info.status === 'red' ? 'text-red-400' : 
+								info.status === 'yellow' ? 'text-yellow-400' : 
+								'text-gray-400'
+							}">
+								<span class="font-medium">{info.timeText}</span>
+								<span class="text-gray-500 ml-1">• {info.formattedDate}</span>
+							</p>
+						{:else}
+							<p class="text-sm text-gray-400">No deadline set</p>
+						{/if}
+					</div>
+				</div>
+				<a
+					href="/admin/matches/create"
+					class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+					</svg>
+					Create Matches
+				</a>
+			</div>
+		</div>
+	{:else}
+		<!-- No deadline configured - show simple create matches button -->
+		<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg overflow-hidden">
+			<div class="p-5 flex items-center justify-between gap-4">
+				<div class="flex items-center gap-4">
+					<div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+						</svg>
+					</div>
+					<div>
+						<h2 class="text-xl font-bold text-white">Create Matches</h2>
+						<p class="text-sm text-gray-500">No deadline configured • Set one in Global Settings</p>
+					</div>
+				</div>
+				<a
+					href="/admin/matches/create"
+					class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+					</svg>
+					Create Matches
+				</a>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Pending Players - Inline Quick Actions -->
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg overflow-hidden">

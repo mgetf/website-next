@@ -464,16 +464,18 @@ model Match {
 }
 
 model Global {
-  id                 Int  @id @default(autoincrement())
-  leagueFees         Int  @default(0) @map("league_fees")
-  signupClosed       Int  @default(0) @map("signup_closed")
-  rosterLocked       Int  @default(0) @map("roster_locked")
-  paymentRequired    Int  @default(0) @map("payment_required")
-  naSignupSeasonId   Int? @map("na_signup_season_id")
-  euSignupSeasonId   Int? @map("eu_signup_season_id")
-  ausSignupSeasonId  Int? @map("aus_signup_season_id")
-  saSignupSeasonId   Int? @map("sa_signup_season_id")
-  asiaSignupSeasonId Int? @map("asia_signup_season_id")
+  id                    Int       @id @default(autoincrement())
+  leagueFees            Int       @default(0) @map("league_fees")
+  signupClosed          Int       @default(0) @map("signup_closed")
+  rosterLocked          Int       @default(0) @map("roster_locked")
+  paymentRequired       Int       @default(0) @map("payment_required")
+  naSignupSeasonId      Int?      @map("na_signup_season_id")
+  euSignupSeasonId      Int?      @map("eu_signup_season_id")
+  ausSignupSeasonId     Int?      @map("aus_signup_season_id")
+  saSignupSeasonId      Int?      @map("sa_signup_season_id")
+  asiaSignupSeasonId    Int?      @map("asia_signup_season_id")
+  matchCreationDeadline DateTime? @map("match_creation_deadline")
+  currentMatchWeek      Int?      @map("current_match_week")
 
   naSignupSeason   Season? @relation("NASignupSeason", fields: [naSignupSeasonId], references: [id])
   euSignupSeason   Season? @relation("EUSignupSeason", fields: [euSignupSeasonId], references: [id])

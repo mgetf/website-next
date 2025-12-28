@@ -8,21 +8,30 @@ import { requireAdmin } from '$lib/server/auth/permissions';
 import { getAdminAnalytics } from '$lib/server/services/analytics';
 import { getPendingPlayers, approvePlayer, declinePlayer } from '$lib/server/services/pendingPlayers';
 import { getRecentUnplayedMatches } from '$lib/server/services/adminMatches';
+import { prisma } from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user);
 
-	const [analytics, pendingPlayers, recentMatches] = await Promise.all([
+	const [analytics, pendingPlayers, recentMatches, globalSettings] = await Promise.all([
 		getAdminAnalytics(),
 		getPendingPlayers(),
-		getRecentUnplayedMatches(10) // Get up to 10 recent unplayed matches
+		getRecentUnplayedMatches(10), // Get up to 10 recent unplayed matches
+		prisma.global.findFirst({
+			select: {
+				matchCreationDeadline: true,
+				currentMatchWeek: true
+			}
+		})
 	]);
 
 	return {
 		analytics,
 		pendingPlayers,
-		recentMatches
+		recentMatches,
+		matchDeadline: globalSettings?.matchCreationDeadline?.toISOString() || null,
+		currentMatchWeek: globalSettings?.currentMatchWeek || null
 	};
 };
 

@@ -219,6 +219,46 @@ export const actions: Actions = {
 			console.error('Error updating season assignments:', error);
 			return fail(500, { error: 'Failed to update season assignments' });
 		}
+	},
+	
+	updateMatchDeadline: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+		
+		const formData = await request.formData();
+		const weekNumber = formData.get('weekNumber')?.toString();
+		const deadline = formData.get('deadline')?.toString();
+		
+		const updates: any = {};
+		
+		// Parse week number (can be empty to clear)
+		if (weekNumber) {
+			const week = parseInt(weekNumber);
+			if (isNaN(week) || week < 1) {
+				return fail(400, { error: 'Invalid week number' });
+			}
+			updates.currentMatchWeek = week;
+		} else {
+			updates.currentMatchWeek = null;
+		}
+		
+		// Parse deadline (can be empty to clear)
+		if (deadline) {
+			const deadlineDate = new Date(deadline);
+			if (isNaN(deadlineDate.getTime())) {
+				return fail(400, { error: 'Invalid deadline date' });
+			}
+			updates.matchCreationDeadline = deadlineDate;
+		} else {
+			updates.matchCreationDeadline = null;
+		}
+		
+		try {
+			await updateGlobalSettings(updates);
+			return { success: true, message: 'Match creation deadline updated' };
+		} catch (error) {
+			console.error('Error updating match deadline:', error);
+			return fail(500, { error: 'Failed to update match deadline' });
+		}
 	}
 };
 

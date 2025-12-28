@@ -1,87 +1,221 @@
 /**
  * Admin Match Management - Server Logic
- * Bulk match creation, editing, and management
+ * Matches by week view (RGL-style layout)
  */
 
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { MatchStatus } from '$prisma/client.js';
+import { prisma } from '$lib/server/db';
 import {
 	createMatchSet,
 	createPlayoffMatch,
 	getEligibleTeams,
-	getAdminMatches,
 	updateMatchStatus,
 	adminUpdateScores
 } from '$lib/server/services/adminMatches';
-import { getMatchWeekLabels } from '$lib/server/services/matches';
-import { getSeasons } from '$lib/server/services/seasons';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getMapBanPools } from '$lib/server/services/mapBanPools';
+import { getMatchWeekLabels } from '$lib/server/services/matches';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	// Admin check handled by layout
 	requireAdmin(locals.user);
 
-	const page = parseInt(url.searchParams.get('page') || '1');
-	const limit = 20;
-
-	// Filters
-	const seasonId = url.searchParams.get('seasonId');
-	const divisionId = url.searchParams.get('divisionId');
-	const regionId = url.searchParams.get('regionId');
-	const status = url.searchParams.get('status');
-	const weekNo = url.searchParams.get('weekNo');
-	const search = url.searchParams.get('search');
-
-	// Fetch matches with filters and pagination
-	const { matches, totalCount } = await getAdminMatches({
-		filters: { seasonId, divisionId, regionId, status, weekNo, search },
-		pagination: { page, limit }
-	});
-
-	// Calculate week labels for each match (using service layer)
-	const weekLabelMap = await getMatchWeekLabels(matches);
-	const matchesWithLabels = matches.map((match) => ({
-		...match,
-		weekLabel: weekLabelMap.get(match.id) || null
-	}));
+	// Get filter params
+	const regionIdParam = url.searchParams.get('regionId');
+	const seasonIdParam = url.searchParams.get('seasonId');
+	const weekParam = url.searchParams.get('week'); // "1", "2", ..., "8", "p1", "p2", etc.
 
 	// Fetch filter options
-	const [seasons, divisions, regions, mapBanPools] = await Promise.all([
-		getSeasons(),
+	const [divisions, regions, mapBanPools] = await Promise.all([
 		getVisibleDivisions(),
 		getVisibleRegions(),
 		getMapBanPools()
 	]);
 
-	const totalPages = Math.ceil(totalCount / limit);
+	// Selected region (default to first)
+	const selectedRegionId = regionIdParam ? parseInt(regionIdParam) : (regions[0]?.id ?? null);
+	
+	// Get seasons for the selected region
+	const seasons = await prisma.season.findMany({
+		where: selectedRegionId ? { regionId: selectedRegionId } : {},
+		include: { region: true },
+		orderBy: { seasonNum: 'desc' }
+	});
+
+	// Selected season (default to most recent for the region)
+	const selectedSeasonId = seasonIdParam ? parseInt(seasonIdParam) : (seasons[0]?.id ?? null);
+	
+	// Parse week param - "p1" = playoffs match 1, "1" = week 1
+	let weekNo: number | null = null;
+	let playoffRound: number | null = null;
+	let isPlayoffs = false;
+
+	if (weekParam) {
+		if (weekParam.startsWith('p')) {
+			isPlayoffs = true;
+			playoffRound = parseInt(weekParam.slice(1));
+		} else {
+			weekNo = parseInt(weekParam);
+		}
+	} else {
+		// Default to week 1
+		weekNo = 1;
+	}
+
+	// Fetch available weeks/rounds for this season
+	const weekOptions = await getWeekOptionsForSeason(selectedSeasonId);
+
+	// Fetch matches for selected week, grouped by division (show ALL divisions)
+	let matchesByDivision: Record<string, any[]> = {};
+	
+	if (selectedSeasonId) {
+		const whereClause: any = {
+			seasonId: selectedSeasonId
+		};
+
+		if (isPlayoffs && playoffRound !== null) {
+			whereClause.playoffRound = playoffRound;
+			whereClause.weekNo = null;
+		} else if (weekNo !== null) {
+			whereClause.weekNo = weekNo;
+			whereClause.playoffId = null;
+		}
+
+		const matches = await prisma.match.findMany({
+			where: whereClause,
+			include: {
+				homeTeam: {
+					include: { division: true, region: true }
+				},
+				awayTeam: {
+					include: { division: true, region: true }
+				},
+				season: {
+					include: { region: true }
+				},
+				playoff: true,
+				games: {
+					include: { arena: true },
+					orderBy: { gameNum: 'asc' }
+				}
+			},
+			orderBy: [{ id: 'asc' }]
+		});
+
+		// Get week labels for matches (e.g., "1A", "1B", etc.)
+		const weekLabelMap = await getMatchWeekLabels(matches);
+		const matchesWithLabels = matches.map((match) => ({
+			...match,
+			weekLabel: weekLabelMap.get(match.id) || null
+		}));
+
+		// Group matches by division
+		for (const match of matchesWithLabels) {
+			// Skip matches with missing team data
+			if (!match.homeTeam || !match.awayTeam) continue;
+			
+			// Use home team's division as the grouping key
+			const divisionName = match.homeTeam.division?.name || 'Unknown Division';
+			const divisionId = match.homeTeam.division?.id || 0;
+			const divisionKey = `${divisionId}:${divisionName}`;
+			
+			if (!matchesByDivision[divisionKey]) {
+				matchesByDivision[divisionKey] = [];
+			}
+			matchesByDivision[divisionKey].push(match);
+		}
+	}
+
+	// Sort divisions: highest to lowest (higher ID = higher division like Invite, lower ID = Newcomer)
+	const sortedDivisions = Object.entries(matchesByDivision)
+		.sort(([keyA], [keyB]) => {
+			const idA = parseInt(keyA.split(':')[0]);
+			const idB = parseInt(keyB.split(':')[0]);
+			return idB - idA; // Descending by ID = highest division first
+		})
+		.map(([key, matches]) => ({
+			name: key.split(':')[1],
+			id: parseInt(key.split(':')[0]),
+			matches
+		}));
 
 	return {
-		matches: matchesWithLabels,
+		matchesByDivision: sortedDivisions,
 		seasons,
 		divisions,
 		regions,
 		mapBanPools,
-		pagination: {
-			page,
-			totalPages,
-			totalCount,
-			hasNext: page < totalPages,
-			hasPrev: page > 1
-		},
+		weekOptions,
 		filters: {
-			seasonId,
-			divisionId,
-			regionId,
-			status,
-			weekNo,
-			search
+			regionId: selectedRegionId?.toString() ?? null,
+			seasonId: selectedSeasonId?.toString() ?? null,
+			week: weekParam ?? '1'
 		}
 	};
 };
+
+/**
+ * Get available weeks and playoff rounds for a season
+ */
+async function getWeekOptionsForSeason(seasonId: number | null): Promise<{ value: string; label: string }[]> {
+	if (!seasonId) return [];
+
+	// Get distinct week numbers and playoff rounds
+	const [weekMatches, playoffMatches] = await Promise.all([
+		prisma.match.findMany({
+			where: {
+				seasonId,
+				weekNo: { not: null }
+			},
+			select: { weekNo: true },
+			distinct: ['weekNo'],
+			orderBy: { weekNo: 'asc' }
+		}),
+		prisma.match.findMany({
+			where: {
+				seasonId,
+				playoffRound: { not: null }
+			},
+			select: { playoffRound: true },
+			distinct: ['playoffRound'],
+			orderBy: { playoffRound: 'asc' }
+		})
+	]);
+
+	const options: { value: string; label: string }[] = [];
+
+	// Add week options
+	for (const m of weekMatches) {
+		if (m.weekNo !== null) {
+			options.push({
+				value: m.weekNo.toString(),
+				label: `Week ${m.weekNo}`
+			});
+		}
+	}
+
+	// Add playoff options
+	for (const m of playoffMatches) {
+		if (m.playoffRound !== null) {
+			options.push({
+				value: `p${m.playoffRound}`,
+				label: `Playoffs Match ${m.playoffRound}`
+			});
+		}
+	}
+
+	// If no options found, return default weeks 1-8
+	if (options.length === 0) {
+		for (let i = 1; i <= 8; i++) {
+			options.push({ value: i.toString(), label: `Week ${i}` });
+		}
+	}
+
+	return options;
+}
 
 export const actions: Actions = {
 	/**
@@ -135,8 +269,6 @@ export const actions: Actions = {
 				mapBanPoolId
 			});
 
-			// TODO: Send notifications to all team owners (F19)
-
 			return {
 				success: true,
 				message: `Created ${matches.length} matches successfully`
@@ -183,8 +315,6 @@ export const actions: Actions = {
 				mapBanPoolId
 			});
 
-			// TODO: Send notifications to team owners (F19)
-
 			return {
 				success: true,
 				message: `Playoff match created successfully`,
@@ -205,7 +335,6 @@ export const actions: Actions = {
 		const matchId = parseInt(formData.get('matchId') as string);
 		const statusNum = parseInt(formData.get('status') as string);
 
-		// Convert integer to MatchStatus enum
 		let newStatus: MatchStatus;
 		if (statusNum === 0) newStatus = MatchStatus.UNPLAYED;
 		else if (statusNum === 1) newStatus = MatchStatus.PLAYED;
@@ -230,7 +359,6 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const matchId = parseInt(formData.get('matchId') as string);
 
-		// Parse game results from form data
 		const gameResults = [];
 		for (let i = 0; i < 10; i++) {
 			const homeScoreStr = formData.get(`homeScore_${i}`) as string;
@@ -258,4 +386,3 @@ export const actions: Actions = {
 		}
 	}
 };
-

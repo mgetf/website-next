@@ -105,8 +105,8 @@ export async function createRegion(name: string) {
  * - Region must exist
  * - New name must not conflict with another region (case-insensitive)
  */
-export async function updateRegion(id: number, name: string) {
-	const trimmedName = name.trim();
+export async function updateRegion(id: number, data: { name: string; currencySymbol?: string }) {
+	const trimmedName = data.name.trim();
 
 	if (!trimmedName) {
 		throw new Error('Region name is required');
@@ -132,7 +132,10 @@ export async function updateRegion(id: number, name: string) {
 
 	return await prisma.region.update({
 		where: { id },
-		data: { name: trimmedName }
+		data: { 
+			name: trimmedName,
+			...(data.currencySymbol !== undefined && { currencySymbol: data.currencySymbol })
+		}
 	});
 }
 

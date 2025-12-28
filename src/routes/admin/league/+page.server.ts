@@ -52,6 +52,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			id: r.id,
 			name: r.name,
 			hidden: r.hidden,
+			currencySymbol: r.currencySymbol,
 			seasons: r._count.seasons,
 			teams: r._count.teams
 		})),
@@ -172,6 +173,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const regionId = parseInt(formData.get('regionId') as string);
 		const name = formData.get('name') as string;
+		const currencySymbol = formData.get('currencySymbol') as string;
 
 		if (!regionId || regionId < 1) {
 			return fail(400, { error: 'Invalid region ID' });
@@ -181,7 +183,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await updateRegion(regionId, name);
+			await updateRegion(regionId, { name, currencySymbol: currencySymbol || '$' });
 			return { success: true, message: 'Region updated successfully!' };
 		} catch (error) {
 			console.error('Error updating region:', error);
@@ -221,6 +223,9 @@ export const actions: Actions = {
 		if (!name || name.trim().length === 0) {
 			return fail(400, { error: 'Division name is required' });
 		}
+		if (!regionId) {
+			return fail(400, { error: 'Region is required' });
+		}
 
 		try {
 			await createDivision({ name, signupCost, regionId });
@@ -246,6 +251,9 @@ export const actions: Actions = {
 		}
 		if (!name || name.trim().length === 0) {
 			return fail(400, { error: 'Division name is required' });
+		}
+		if (!regionId) {
+			return fail(400, { error: 'Region is required' });
 		}
 
 		try {

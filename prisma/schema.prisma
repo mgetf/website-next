@@ -512,16 +512,17 @@ model Announcement {
 }
 
 model Division {
-  id         Int     @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
   name       String
-  signupCost Float   @default(0.00) @map("signup_cost")
-  hidden     Int     @default(0)
-  regionId   Int?    @map("region_id")
+  signupCost Float  @default(0.00) @map("signup_cost")
+  hidden     Int    @default(0)
+  regionId   Int    @map("region_id")
 
-  region     Region? @relation(fields: [regionId], references: [id])
+  region     Region @relation(fields: [regionId], references: [id])
   teams      Team[]
   moderators Moderator[]
 
+  @@unique([name, regionId])
   @@map("divisions")
 }
 

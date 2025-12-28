@@ -92,12 +92,13 @@ export async function findDivisionByName(name: string, onlyVisible = true) {
  * Create a new division
  * 
  * Business logic validation:
- * - Division name must be unique (case-insensitive)
+ * - Division name must be unique within its region (case-insensitive)
+ * - regionId is required
  */
 export async function createDivision(data: {
 	name: string;
 	signupCost: number;
-	regionId?: number | null;
+	regionId: number;
 }) {
 	const trimmedName = data.name.trim();
 
@@ -105,13 +106,20 @@ export async function createDivision(data: {
 		throw new Error('Division name is required');
 	}
 
-	// Check if division already exists (case-insensitive)
+	if (!data.regionId) {
+		throw new Error('Region is required');
+	}
+
+	// Check if division already exists in this region (case-insensitive)
 	const existingDivision = await prisma.division.findFirst({
-		where: { name: { equals: trimmedName, mode: 'insensitive' } }
+		where: { 
+			name: { equals: trimmedName, mode: 'insensitive' },
+			regionId: data.regionId
+		}
 	});
 
 	if (existingDivision) {
-		throw new Error('Division with this name already exists');
+		throw new Error('Division with this name already exists in this region');
 	}
 
 	return await prisma.division.create({
@@ -129,14 +137,15 @@ export async function createDivision(data: {
  * 
  * Business logic validation:
  * - Division must exist
- * - New name must not conflict with another division (case-insensitive)
+ * - New name must not conflict with another division in the same region (case-insensitive)
+ * - regionId is required
  */
 export async function updateDivision(
 	id: number,
 	data: {
 		name: string;
 		signupCost: number;
-		regionId?: number | null;
+		regionId: number;
 	}
 ) {
 	const trimmedName = data.name.trim();
@@ -145,22 +154,27 @@ export async function updateDivision(
 		throw new Error('Division name is required');
 	}
 
+	if (!data.regionId) {
+		throw new Error('Region is required');
+	}
+
 	// Check if division exists
 	const division = await prisma.division.findUnique({ where: { id } });
 	if (!division) {
 		throw new Error('Division not found');
 	}
 
-	// Check for name conflicts (case-insensitive)
+	// Check for name conflicts within the target region (case-insensitive)
 	const conflictingDivision = await prisma.division.findFirst({
 		where: {
 			name: { equals: trimmedName, mode: 'insensitive' },
+			regionId: data.regionId,
 			NOT: { id }
 		}
 	});
 
 	if (conflictingDivision) {
-		throw new Error('Division with this name already exists');
+		throw new Error('Division with this name already exists in this region');
 	}
 
 	return await prisma.division.update({

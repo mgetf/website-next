@@ -19,6 +19,15 @@
 	// Divisions state
 	let showDivisionForm = $state(false);
 	let editingDivision: typeof data.divisions[0] | null = $state(null);
+	let selectedCreateRegionId: number | null = $state(null);
+	let selectedEditRegionId: number | null = $state(null);
+	
+	// Get currency symbol for a region
+	function getCurrencySymbol(regionId: number | null): string {
+		if (!regionId) return '€'; // Default for shared divisions
+		const region = data.regions.find(r => r.id === regionId);
+		return region?.currencySymbol || '€';
+	}
 	
 	// Arenas state
 	let showArenaForm = $state(false);
@@ -41,8 +50,21 @@
 		acc[season.region].push(season);
 		return acc;
 	}, {} as Record<string, typeof data.seasons>));
-	
+
 	let regionNames = $derived(Object.keys(seasonsByRegion).sort());
+	
+	// Group divisions by region
+	let divisionsByRegion = $derived(data.divisions.reduce((acc, division) => {
+		const region = data.regions.find(r => r.id === division.regionId);
+		const regionName = region?.name || 'Unknown';
+		if (!acc[regionName]) {
+			acc[regionName] = { region, divisions: [] };
+		}
+		acc[regionName].divisions.push(division);
+		return acc;
+	}, {} as Record<string, { region: typeof data.regions[0] | undefined; divisions: typeof data.divisions }>));
+	
+	let divisionRegionNames = $derived(Object.keys(divisionsByRegion).sort());
 	
 	function getStatusColor(status: string) {
 		if (status === 'Active') return 'bg-green-500/20 text-green-400 border-green-500/30';
@@ -391,54 +413,60 @@
 				</div>
 			{/if}
 			
-			<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-				<table class="w-full">
-					<thead class="bg-zinc-800/30">
-						<tr class="text-left text-sm text-gray-400">
-							<th class="px-6 py-3 font-medium">Region</th>
-							<th class="px-6 py-3 font-medium">Visibility</th>
-							<th class="px-6 py-3 font-medium">Seasons</th>
-							<th class="px-6 py-3 font-medium">Teams</th>
-							<th class="px-6 py-3 font-medium text-right">Actions</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-zinc-800">
-						{#each data.regions as region}
-							<tr class="hover:bg-zinc-800/30 transition-colors">
-								<td class="px-6 py-4">
-									<span class="font-semibold text-white">{region.name}</span>
-								</td>
-								<td class="px-6 py-4">
-									<span class="px-2 py-1 rounded text-xs font-medium {region.hidden === 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
-										{region.hidden === 0 ? 'Visible' : 'Hidden'}
-									</span>
-								</td>
-								<td class="px-6 py-4 text-gray-300">{region.seasons}</td>
-								<td class="px-6 py-4 text-gray-300">{region.teams}</td>
-								<td class="px-6 py-4">
-									<div class="flex items-center justify-end gap-2">
-										<form method="POST" action="?/toggleRegionVisibility" use:enhance>
-											<input type="hidden" name="regionId" value={region.id} />
-											<button 
-												type="submit"
-												class="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-											>
-												{region.hidden === 0 ? 'Hide' : 'Show'}
-											</button>
-										</form>
+		<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+			<table class="w-full">
+				<thead class="bg-zinc-800/30">
+					<tr class="text-left text-sm text-gray-400">
+						<th class="px-6 py-3 font-medium">Region</th>
+						<th class="px-6 py-3 font-medium">Currency</th>
+						<th class="px-6 py-3 font-medium">Visibility</th>
+						<th class="px-6 py-3 font-medium">Seasons</th>
+						<th class="px-6 py-3 font-medium">Teams</th>
+						<th class="px-6 py-3 font-medium text-right">Actions</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-zinc-800">
+					{#each data.regions as region}
+						<tr class="hover:bg-zinc-800/30 transition-colors">
+							<td class="px-6 py-4">
+								<span class="font-semibold text-white">{region.name}</span>
+							</td>
+							<td class="px-6 py-4">
+								<span class="px-2 py-1 rounded text-xs font-medium bg-zinc-800 text-gray-300">
+									{region.currencySymbol || '€'}
+								</span>
+							</td>
+							<td class="px-6 py-4">
+								<span class="px-2 py-1 rounded text-xs font-medium {region.hidden === 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
+									{region.hidden === 0 ? 'Visible' : 'Hidden'}
+								</span>
+							</td>
+							<td class="px-6 py-4 text-gray-300">{region.seasons}</td>
+							<td class="px-6 py-4 text-gray-300">{region.teams}</td>
+							<td class="px-6 py-4">
+								<div class="flex items-center justify-end gap-2">
+									<form method="POST" action="?/toggleRegionVisibility" use:enhance>
+										<input type="hidden" name="regionId" value={region.id} />
 										<button 
-											onclick={() => editingRegion = region}
-											class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
+											type="submit"
+											class="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
 										>
-											Edit
+											{region.hidden === 0 ? 'Hide' : 'Show'}
 										</button>
-									</div>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+									</form>
+									<button 
+										onclick={() => editingRegion = region}
+										class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
+									>
+										Edit
+									</button>
+								</div>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
 		</div>
 	{:else if activeTab === 'divisions'}
 		<!-- DIVISIONS TAB -->
@@ -470,20 +498,42 @@
 							};
 						}}
 					>
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-							<div>
-								<label for="division-name" class="block text-sm font-medium text-gray-300 mb-2">Division Name</label>
-								<input
-									id="division-name"
-									name="name"
-									type="text"
-									placeholder="Open"
-									required
-									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-								/>
-							</div>
-							<div>
-								<label for="signup-cost" class="block text-sm font-medium text-gray-300 mb-2">Signup Cost ($)</label>
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div>
+							<label for="division-name" class="block text-sm font-medium text-gray-300 mb-2">Division Name</label>
+							<input
+								id="division-name"
+								name="name"
+								type="text"
+								placeholder="Open"
+								required
+								class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+							/>
+						</div>
+						<div>
+							<label for="division-region" class="block text-sm font-medium text-gray-300 mb-2">Region <span class="text-red-400">*</span></label>
+							<select
+								id="division-region"
+								name="regionId"
+								required
+								onchange={(e) => {
+									const val = e.currentTarget.value;
+									selectedCreateRegionId = val ? parseInt(val) : null;
+								}}
+								class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+							>
+								<option value="">Select a region</option>
+								{#each data.regions as region}
+									<option value={region.id}>{region.name}</option>
+								{/each}
+							</select>
+						</div>
+						<div>
+							<label for="signup-cost" class="block text-sm font-medium text-gray-300 mb-2">
+								Signup Cost ({getCurrencySymbol(selectedCreateRegionId)})
+							</label>
+							<div class="relative">
+								<span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{getCurrencySymbol(selectedCreateRegionId)}</span>
 								<input
 									id="signup-cost"
 									name="signupCost"
@@ -491,26 +541,14 @@
 									placeholder="0.00"
 									step="0.01"
 									min="0"
-									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+									class="w-full pl-8 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
 								/>
 							</div>
-							<div>
-								<label for="division-region" class="block text-sm font-medium text-gray-300 mb-2">Region</label>
-								<select
-									id="division-region"
-									name="regionId"
-									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-								>
-									<option value="">Shared (all regions)</option>
-									{#each data.regions as region}
-										<option value={region.id}>{region.name}</option>
-									{/each}
-								</select>
-							</div>
 						</div>
-						<p class="text-xs text-gray-500 mt-2">
-							Shared divisions appear for all regions. Select a specific region if this division is exclusive to that region.
-						</p>
+					</div>
+					<p class="text-xs text-gray-500 mt-2">
+						Each division belongs to a specific region. You can create divisions with the same name in different regions (e.g., "Open" for NA and "Open" for EU).
+					</p>
 						<div class="mt-4 flex justify-end gap-3">
 							<button 
 								type="button"
@@ -537,81 +575,89 @@
 					<p class="text-gray-500 text-sm">Create your first division to get started</p>
 				</div>
 			{:else}
-				<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-					<table class="w-full">
-						<thead class="bg-zinc-800/30">
-							<tr class="text-left text-sm text-gray-400">
-								<th class="px-6 py-3 font-medium">Division</th>
-								<th class="px-6 py-3 font-medium">Region</th>
-								<th class="px-6 py-3 font-medium">Signup Cost</th>
-								<th class="px-6 py-3 font-medium">Visibility</th>
-								<th class="px-6 py-3 font-medium">Teams</th>
-								<th class="px-6 py-3 font-medium text-right">Actions</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-zinc-800">
-							{#each data.divisions as division}
-								{@const region = data.regions.find(r => r.id === division.regionId)}
-								<tr class="hover:bg-zinc-800/30 transition-colors">
-									<td class="px-6 py-4">
-										<div class="flex items-center gap-3">
-											<div class="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
-												<span class="text-lg font-bold text-orange-400">{division.name.charAt(0).toUpperCase()}</span>
-											</div>
-											<div>
-												<div class="font-semibold text-white">{division.name}</div>
-												<div class="text-xs text-gray-500">ID: {division.id}</div>
-											</div>
-										</div>
-									</td>
-									<td class="px-6 py-4">
-										{#if region}
-											<span class="px-2 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-400">
-												{region.name}
-											</span>
-										{:else}
-											<span class="text-sm text-gray-500">Shared</span>
-										{/if}
-									</td>
-									<td class="px-6 py-4">
-										{#if division.signupCost > 0}
-											<span class="text-sm font-medium text-green-400">${division.signupCost.toFixed(2)}</span>
-										{:else}
-											<span class="text-sm text-gray-500">Free</span>
-										{/if}
-									</td>
-									<td class="px-6 py-4">
-										<span class="px-2 py-1 rounded text-xs font-medium {division.hidden === 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
-											{division.hidden === 0 ? 'Visible' : 'Hidden'}
-										</span>
-									</td>
-									<td class="px-6 py-4">
-										<span class="text-sm font-medium text-white">{division.teams}</span>
-										<span class="text-xs text-gray-500 ml-1">teams</span>
-									</td>
-									<td class="px-6 py-4">
-										<div class="flex items-center justify-end gap-2">
-											<form method="POST" action="?/toggleDivisionVisibility" use:enhance>
-												<input type="hidden" name="divisionId" value={division.id} />
-												<button 
-													type="submit"
-													class="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-												>
-													{division.hidden === 0 ? 'Hide' : 'Show'}
-												</button>
-											</form>
-											<button 
-												onclick={() => editingDivision = division}
-												class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
-											>
-												Edit
-											</button>
-										</div>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
+				<div class="space-y-6">
+					{#each divisionRegionNames as regionName}
+						{@const regionData = divisionsByRegion[regionName]}
+						<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+							<div class="bg-zinc-800/50 px-6 py-4 border-b border-zinc-800">
+								<div class="flex items-center justify-between">
+									<div>
+										<h3 class="text-xl font-bold text-white">{regionName}</h3>
+										<p class="text-sm text-gray-400 mt-1">
+											{regionData.divisions.length} division{regionData.divisions.length !== 1 ? 's' : ''} 
+											• Currency: {regionData.region?.currencySymbol || '€'}
+										</p>
+									</div>
+								</div>
+							</div>
+							
+							<div class="overflow-x-auto">
+								<table class="w-full">
+									<thead class="bg-zinc-800/30">
+										<tr class="text-left text-sm text-gray-400">
+											<th class="px-6 py-3 font-medium">Division</th>
+											<th class="px-6 py-3 font-medium">Signup Cost</th>
+											<th class="px-6 py-3 font-medium">Visibility</th>
+											<th class="px-6 py-3 font-medium">Teams</th>
+											<th class="px-6 py-3 font-medium text-right">Actions</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-zinc-800">
+										{#each regionData.divisions as division}
+											<tr class="hover:bg-zinc-800/30 transition-colors">
+												<td class="px-6 py-4">
+													<div class="flex items-center gap-3">
+														<div class="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
+															<span class="text-lg font-bold text-orange-400">{division.name.charAt(0).toUpperCase()}</span>
+														</div>
+														<div>
+															<div class="font-semibold text-white">{division.name}</div>
+															<div class="text-xs text-gray-500">ID: {division.id}</div>
+														</div>
+													</div>
+												</td>
+												<td class="px-6 py-4">
+													{#if division.signupCost > 0}
+														<span class="text-sm font-medium text-green-400">{regionData.region?.currencySymbol || '€'}{division.signupCost.toFixed(2)}</span>
+													{:else}
+														<span class="text-sm text-gray-500">Free</span>
+													{/if}
+												</td>
+												<td class="px-6 py-4">
+													<span class="px-2 py-1 rounded text-xs font-medium {division.hidden === 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
+														{division.hidden === 0 ? 'Visible' : 'Hidden'}
+													</span>
+												</td>
+												<td class="px-6 py-4">
+													<span class="text-sm font-medium text-white">{division.teams}</span>
+													<span class="text-xs text-gray-500 ml-1">teams</span>
+												</td>
+												<td class="px-6 py-4">
+													<div class="flex items-center justify-end gap-2">
+														<form method="POST" action="?/toggleDivisionVisibility" use:enhance>
+															<input type="hidden" name="divisionId" value={division.id} />
+															<button 
+																type="submit"
+																class="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+															>
+																{division.hidden === 0 ? 'Hide' : 'Show'}
+															</button>
+														</form>
+														<button 
+															onclick={() => editingDivision = division}
+															class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
+														>
+															Edit
+														</button>
+													</div>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+					{/each}
 				</div>
 			{/if}
 		</div>
@@ -988,23 +1034,24 @@
 				</button>
 			</div>
 			
-			<form 
-				method="POST" 
-				action="?/updateRegion"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							editingRegion = null;
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="regionId" value={editingRegion.id} />
-				
-				<div class="mb-4">
+		<form 
+			method="POST" 
+			action="?/updateRegion"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						editingRegion = null;
+					}
+				};
+			}}
+		>
+			<input type="hidden" name="regionId" value={editingRegion.id} />
+			
+			<div class="space-y-4">
+				<div>
 					<label for="edit-region-name" class="block text-sm font-medium text-gray-300 mb-2">Region Name</label>
 					<input
 						id="edit-region-name"
@@ -1016,23 +1063,42 @@
 					/>
 				</div>
 				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => editingRegion = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+				<div>
+					<label for="edit-currency-symbol" class="block text-sm font-medium text-gray-300 mb-2">Currency Symbol</label>
+					<select
+						id="edit-currency-symbol"
+						name="currencySymbol"
+						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
 					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
+						<option value="$" selected={editingRegion.currencySymbol === '$'}>$ (USD)</option>
+						<option value="€" selected={editingRegion.currencySymbol === '€'}>€ (EUR)</option>
+						<option value="£" selected={editingRegion.currencySymbol === '£'}>£ (GBP)</option>
+						<option value="A$" selected={editingRegion.currencySymbol === 'A$'}>A$ (AUD)</option>
+						<option value="R$" selected={editingRegion.currencySymbol === 'R$'}>R$ (BRL)</option>
+					</select>
+					<p class="text-xs text-gray-500 mt-1">
+						This currency will be shown for division signup costs in this region.
+					</p>
 				</div>
-			</form>
+			</div>
+			
+			<div class="mt-6 flex gap-3 justify-end">
+				<button 
+					type="button"
+					onclick={() => editingRegion = null}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+				>
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Saving...' : 'Save Changes'}
+				</button>
+			</div>
+		</form>
 		</div>
 	</div>
 {/if}
@@ -1152,10 +1218,11 @@
 
 <!-- Edit Division Modal -->
 {#if editingDivision}
+	{@const effectiveRegionId = selectedEditRegionId !== null ? selectedEditRegionId : editingDivision.regionId}
 	<div 
 		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => editingDivision = null}
-		onkeydown={(e) => e.key === 'Escape' && (editingDivision = null)}
+		onclick={() => { editingDivision = null; selectedEditRegionId = null; }}
+		onkeydown={(e) => e.key === 'Escape' && (editingDivision = null, selectedEditRegionId = null)}
 		role="button"
 		tabindex="-1"
 	>
@@ -1170,7 +1237,7 @@
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-xl font-bold text-white">Edit Division</h3>
 				<button 
-					onclick={() => editingDivision = null}
+					onclick={() => { editingDivision = null; selectedEditRegionId = null; }}
 					class="text-gray-400 hover:text-white transition-colors"
 				>
 					✕
@@ -1187,6 +1254,7 @@
 						isSubmitting = false;
 						if (result.type === 'success') {
 							editingDivision = null;
+							selectedEditRegionId = null;
 						}
 					};
 				}}
@@ -1207,29 +1275,19 @@
 					</div>
 					
 					<div>
-						<label for="edit-signup-cost" class="block text-sm font-medium text-gray-300 mb-2">Signup Cost ($)</label>
-						<input
-							id="edit-signup-cost"
-							name="signupCost"
-							type="number"
-							value={editingDivision.signupCost}
-							step="0.01"
-							min="0"
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
-					</div>
-					
-					<div>
 						<label for="edit-division-region" class="block text-sm font-medium text-gray-300 mb-2">
-							Region
-							<span class="text-xs text-gray-500 ml-1">(leave empty for shared divisions)</span>
+							Region <span class="text-red-400">*</span>
 						</label>
 						<select
 							id="edit-division-region"
 							name="regionId"
+							required
+							onchange={(e) => {
+								const val = e.currentTarget.value;
+								selectedEditRegionId = val ? parseInt(val) : null;
+							}}
 							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
 						>
-							<option value="">Shared (all regions)</option>
 							{#each data.regions as region}
 								<option value={region.id} selected={editingDivision.regionId === region.id}>
 									{region.name}
@@ -1237,15 +1295,33 @@
 							{/each}
 						</select>
 						<p class="text-xs text-gray-500 mt-1">
-							Shared divisions appear for all regions. Region-specific divisions only appear for that region.
+							Changing region allows you to have same-named divisions in different regions with different pricing.
 						</p>
+					</div>
+					
+					<div>
+						<label for="edit-signup-cost" class="block text-sm font-medium text-gray-300 mb-2">
+							Signup Cost ({getCurrencySymbol(effectiveRegionId)})
+						</label>
+						<div class="relative">
+							<span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{getCurrencySymbol(effectiveRegionId)}</span>
+							<input
+								id="edit-signup-cost"
+								name="signupCost"
+								type="number"
+								value={editingDivision.signupCost}
+								step="0.01"
+								min="0"
+								class="w-full pl-8 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+							/>
+						</div>
 					</div>
 				</div>
 				
 				<div class="mt-6 flex gap-3 justify-end">
 					<button 
 						type="button"
-						onclick={() => editingDivision = null}
+						onclick={() => { editingDivision = null; selectedEditRegionId = null; }}
 						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
 					>
 						Cancel

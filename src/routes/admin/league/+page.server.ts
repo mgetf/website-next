@@ -60,6 +60,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			name: d.name,
 			signupCost: d.signupCost,
 			hidden: d.hidden,
+			regionId: d.regionId,
 			teams: d._count.teams
 		})),
 		arenas: allArenas.map((a) => ({
@@ -214,13 +215,15 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
 		const signupCost = parseFloat(formData.get('signupCost') as string) || 0;
+		const regionIdStr = formData.get('regionId') as string;
+		const regionId = regionIdStr ? parseInt(regionIdStr) : null;
 
 		if (!name || name.trim().length === 0) {
 			return fail(400, { error: 'Division name is required' });
 		}
 
 		try {
-			await createDivision({ name, signupCost });
+			await createDivision({ name, signupCost, regionId });
 			return { success: true, message: 'Division created successfully!' };
 		} catch (error) {
 			console.error('Error creating division:', error);
@@ -235,6 +238,8 @@ export const actions: Actions = {
 		const divisionId = parseInt(formData.get('divisionId') as string);
 		const name = formData.get('name') as string;
 		const signupCost = parseFloat(formData.get('signupCost') as string) || 0;
+		const regionIdStr = formData.get('regionId') as string;
+		const regionId = regionIdStr ? parseInt(regionIdStr) : null;
 
 		if (!divisionId || divisionId < 1) {
 			return fail(400, { error: 'Invalid division ID' });
@@ -244,7 +249,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await updateDivision(divisionId, { name, signupCost });
+			await updateDivision(divisionId, { name, signupCost, regionId });
 			return { success: true, message: 'Division updated successfully!' };
 		} catch (error) {
 			console.error('Error updating division:', error);

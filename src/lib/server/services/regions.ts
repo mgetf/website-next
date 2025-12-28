@@ -28,10 +28,16 @@ export async function getRegions() {
 
 /**
  * Get visible regions only (for public/filter use)
+ * Includes currencySymbol for displaying prices
  */
 export async function getVisibleRegions() {
 	return await prisma.region.findMany({
 		where: { hidden: 0 },
+		select: {
+			id: true,
+			name: true,
+			currencySymbol: true
+		},
 		orderBy: { id: 'asc' }
 	});
 }

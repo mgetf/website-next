@@ -7,6 +7,23 @@
 	let isSubmitting = $state(false);
 	let avatarFile: File | null = $state(null);
 	let avatarPreview: string | null = $state(null);
+	let selectedRegionId = $state<number | null>(null);
+
+	// Get the selected region object
+	const selectedRegion = $derived(
+		data.regions.find(r => r.id === selectedRegionId)
+	);
+
+	// Filter divisions based on selected region
+	// Show: shared divisions (regionId = null) + region-specific divisions
+	const filteredDivisions = $derived(
+		selectedRegionId
+			? data.divisions.filter(d => d.regionId === null || d.regionId === selectedRegionId)
+			: []
+	);
+
+	// Get currency symbol from selected region (default to €)
+	const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '€');
 
 	function handleAvatarChange(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -20,6 +37,11 @@
 			};
 			reader.readAsDataURL(file);
 		}
+	}
+
+	function handleRegionChange(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		selectedRegionId = target.value ? parseInt(target.value) : null;
 	}
 </script>
 
@@ -143,34 +165,9 @@
 				<p class="text-xs text-gray-500 mt-2">JPEG, PNG, GIF, or WebP. Max 5MB.</p>
 			</div>
 
-			<!-- Division & Region Grid -->
+			<!-- Region & Division Grid -->
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-				<!-- Division -->
-				<div>
-					<label for="divisionId" class="block text-sm font-medium text-gray-300 mb-2">
-						Division <span class="text-red-500">*</span>
-					</label>
-					<select
-						id="divisionId"
-						name="divisionId"
-						required
-						class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors"
-					>
-						<option value="">Select Division</option>
-						{#each data.divisions as division}
-							<option value={division.id}>
-								{division.name}
-								{#if division.signupCost > 0}
-									- €{division.signupCost.toFixed(2)}
-								{:else}
-									- FREE
-								{/if}
-							</option>
-						{/each}
-					</select>
-				</div>
-
-				<!-- Region -->
+				<!-- Region (First - controls division options) -->
 				<div>
 					<label for="regionId" class="block text-sm font-medium text-gray-300 mb-2">
 						Region <span class="text-red-500">*</span>
@@ -179,6 +176,7 @@
 						id="regionId"
 						name="regionId"
 						required
+						onchange={handleRegionChange}
 						class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors"
 					>
 						<option value="">Select Region</option>
@@ -187,6 +185,36 @@
 								{region.name}
 							</option>
 						{/each}
+					</select>
+				</div>
+
+				<!-- Division (Filtered by selected region) -->
+				<div>
+					<label for="divisionId" class="block text-sm font-medium text-gray-300 mb-2">
+						Division <span class="text-red-500">*</span>
+					</label>
+					<select
+						id="divisionId"
+						name="divisionId"
+						required
+						disabled={!selectedRegionId}
+						class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						{#if !selectedRegionId}
+							<option value="">Select a region first</option>
+						{:else}
+							<option value="">Select Division</option>
+							{#each filteredDivisions as division}
+								<option value={division.id}>
+									{division.name}
+									{#if division.signupCost > 0}
+										- {currencySymbol}{division.signupCost.toFixed(2)}
+									{:else}
+										- FREE
+									{/if}
+								</option>
+							{/each}
+						{/if}
 					</select>
 				</div>
 			</div>

@@ -29,10 +29,17 @@ export async function getDivisions() {
  * Get visible divisions only (for public use)
  * Ordered by ID descending to show highest divisions first
  * (INVITE -> PREMIER -> INTERMEDIATE -> OPEN -> NEWCOMER)
+ * Includes regionId for filtering by region
  */
 export async function getVisibleDivisions() {
 	return await prisma.division.findMany({
 		where: { hidden: 0 },
+		select: {
+			id: true,
+			name: true,
+			signupCost: true,
+			regionId: true
+		},
 		orderBy: { id: 'desc' }
 	});
 }
@@ -90,6 +97,7 @@ export async function findDivisionByName(name: string, onlyVisible = true) {
 export async function createDivision(data: {
 	name: string;
 	signupCost: number;
+	regionId?: number | null;
 }) {
 	const trimmedName = data.name.trim();
 
@@ -110,6 +118,7 @@ export async function createDivision(data: {
 		data: {
 			name: trimmedName,
 			signupCost: data.signupCost,
+			regionId: data.regionId,
 			hidden: 0
 		}
 	});
@@ -127,6 +136,7 @@ export async function updateDivision(
 	data: {
 		name: string;
 		signupCost: number;
+		regionId?: number | null;
 	}
 ) {
 	const trimmedName = data.name.trim();
@@ -157,7 +167,8 @@ export async function updateDivision(
 		where: { id },
 		data: {
 			name: trimmedName,
-			signupCost: data.signupCost
+			signupCost: data.signupCost,
+			regionId: data.regionId
 		}
 	});
 }

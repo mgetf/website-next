@@ -470,7 +470,7 @@
 							};
 						}}
 					>
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 							<div>
 								<label for="division-name" class="block text-sm font-medium text-gray-300 mb-2">Division Name</label>
 								<input
@@ -494,7 +494,23 @@
 									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
 								/>
 							</div>
+							<div>
+								<label for="division-region" class="block text-sm font-medium text-gray-300 mb-2">Region</label>
+								<select
+									id="division-region"
+									name="regionId"
+									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+								>
+									<option value="">Shared (all regions)</option>
+									{#each data.regions as region}
+										<option value={region.id}>{region.name}</option>
+									{/each}
+								</select>
+							</div>
 						</div>
+						<p class="text-xs text-gray-500 mt-2">
+							Shared divisions appear for all regions. Select a specific region if this division is exclusive to that region.
+						</p>
 						<div class="mt-4 flex justify-end gap-3">
 							<button 
 								type="button"
@@ -526,6 +542,7 @@
 						<thead class="bg-zinc-800/30">
 							<tr class="text-left text-sm text-gray-400">
 								<th class="px-6 py-3 font-medium">Division</th>
+								<th class="px-6 py-3 font-medium">Region</th>
 								<th class="px-6 py-3 font-medium">Signup Cost</th>
 								<th class="px-6 py-3 font-medium">Visibility</th>
 								<th class="px-6 py-3 font-medium">Teams</th>
@@ -534,6 +551,7 @@
 						</thead>
 						<tbody class="divide-y divide-zinc-800">
 							{#each data.divisions as division}
+								{@const region = data.regions.find(r => r.id === division.regionId)}
 								<tr class="hover:bg-zinc-800/30 transition-colors">
 									<td class="px-6 py-4">
 										<div class="flex items-center gap-3">
@@ -545,6 +563,15 @@
 												<div class="text-xs text-gray-500">ID: {division.id}</div>
 											</div>
 										</div>
+									</td>
+									<td class="px-6 py-4">
+										{#if region}
+											<span class="px-2 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-400">
+												{region.name}
+											</span>
+										{:else}
+											<span class="text-sm text-gray-500">Shared</span>
+										{/if}
 									</td>
 									<td class="px-6 py-4">
 										{#if division.signupCost > 0}
@@ -1190,6 +1217,28 @@
 							min="0"
 							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
 						/>
+					</div>
+					
+					<div>
+						<label for="edit-division-region" class="block text-sm font-medium text-gray-300 mb-2">
+							Region
+							<span class="text-xs text-gray-500 ml-1">(leave empty for shared divisions)</span>
+						</label>
+						<select
+							id="edit-division-region"
+							name="regionId"
+							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+						>
+							<option value="">Shared (all regions)</option>
+							{#each data.regions as region}
+								<option value={region.id} selected={editingDivision.regionId === region.id}>
+									{region.name}
+								</option>
+							{/each}
+						</select>
+						<p class="text-xs text-gray-500 mt-1">
+							Shared divisions appear for all regions. Region-specific divisions only appear for that region.
+						</p>
 					</div>
 				</div>
 				

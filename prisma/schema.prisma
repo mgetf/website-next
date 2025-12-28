@@ -798,3 +798,23 @@ model ChampionshipGame {
 
   @@map("championship_game")
 }
+
+// Site Content Management
+model SiteContent {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // e.g., "rulebook", "homepage_subtitle", "homepage_about"
+  content   String   // Markdown or plain text
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") // Steam ID of last editor
+
+  @@map("site_content")
+}
+
+model SiteSettings {
+  id          Int      @id @default(autoincrement())
+  siteTitle   String   @default("MGE.tf") @map("site_title")
+  faviconPath String?  @map("favicon_path") // Path to uploaded favicon
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}

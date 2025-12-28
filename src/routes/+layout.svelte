@@ -27,10 +27,13 @@
 </script>
 
 <svelte:head>
-	<title>MGE.tf - Competitive TF2 MGE League</title>
+	<title>{data.siteSettings?.siteTitle || 'MGE.tf'} - Competitive TF2 MGE League</title>
 	<meta name="description" content="MGE.tf is a competitive Team Fortress 2 MGE league platform for 2v2 tournaments and seasonal play" />
 	<meta name="view-transition" content="same-origin" />
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+	{#if data.siteSettings?.faviconPath}
+		<link rel="icon" href={data.siteSettings.faviconPath} />
+	{/if}
 </svelte:head>
 
 <div class="subpixel-antialiased flex flex-col h-full overflow-hidden bg-zinc-950 text-gray-200">

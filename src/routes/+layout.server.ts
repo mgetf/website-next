@@ -8,10 +8,14 @@ import { getGlobalSettings } from '$lib/server/services/settings';
 import { getUserActiveTeam } from '$lib/server/services/users';
 import { getUnreadNotifications } from '$lib/server/services/notifications';
 import { getVisibleAnnouncements } from '$lib/server/services/announcements';
+import { getSiteSettings } from '$lib/server/services/siteSettings';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	// Get global settings for signup status
-	const settings = await getGlobalSettings();
+	const [settings, siteSettings] = await Promise.all([
+		getGlobalSettings(),
+		getSiteSettings()
+	]);
 	const signupClosed = settings?.signupClosed === 1;
 
 	// Check if user is in a team (to hide signup button if they are)
@@ -38,7 +42,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		notifications,
 		signupClosed,
 		isInTeam,
-		userTeam
+		userTeam,
+		siteSettings: {
+			siteTitle: siteSettings.siteTitle,
+			faviconPath: siteSettings.faviconPath
+		}
 	};
 };
 

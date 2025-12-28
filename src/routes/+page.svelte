@@ -1,4 +1,6 @@
 <script lang="ts">
+	import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+
 	interface PageData {
 		leagueData: {
 			season: string;
@@ -31,6 +33,10 @@
 				fightNights: number;
 			};
 		};
+		siteContent: {
+			subtitle: string;
+			about: string;
+		};
 	}
 
 	let { data } = $props<{ data: PageData }>();
@@ -41,6 +47,7 @@
 		recentEvents: [], 
 		totalCounts: { cups: 0, championships: 0, fightNights: 0 } 
 	};
+	const siteContent = data.siteContent || { subtitle: '', about: '' };
 
 	const formatEventDate = (date: Date | null) => {
 		if (!date) return 'TBD';
@@ -65,9 +72,8 @@
 				<img src="/mge_transparent_logo.png" alt="MGE Logo" class="h-24 w-auto" />
 				<span class="text-7xl font-black text-white drop-shadow-2xl">MGE</span>
 			</h1>
-			<p class="text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">
-				Join the premier Team Fortress 2 MGE competitive platform. Test your skills in 2v2 leagues 
-				and competitive tournaments with real prizes.
+			<p class="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+				{siteContent.subtitle}
 			</p>
 		</div>
 	</section>
@@ -210,18 +216,8 @@
 	<!-- What is MGE? Section -->
 	<section class="max-w-6xl mx-auto px-6 pb-20">
 		<div class="bg-zinc-900 rounded-xl p-12 border-2 border-zinc-800 shadow-2xl">
-			<h2 class="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
-				What is MGE?
-			</h2>
-			
-			<div class="space-y-6 text-gray-300 text-lg leading-relaxed max-w-4xl mx-auto">
-				<p>
-					<strong class="text-white text-xl">MGE</strong> stands for My Gaming Edge, a defunct TF2 community organization run by its founders between roughly 2010 and 2013. One of its prominent members, Lange, collaborated with Swaty and CB to create <strong class="text-white text-xl">MGEMod</strong>, a 1v1 training mod for Team Fortress 2, which later became universally known simply as "MGE", distinct from the original group.
-				</p>
-				
-				<p>
-					MGE is a 1v1/2v2 arena-style game mode in Team Fortress 2 where players face off in compact maps to practice mechanics, aim, and movement.
-				</p>
+			<div class="max-w-4xl mx-auto">
+				<MarkdownRenderer content={siteContent.about} />
 			</div>
 		</div>
 	</section>

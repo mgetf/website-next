@@ -3,14 +3,17 @@ import { getTeamsForStandings, calculateStandingsStats } from '$lib/server/servi
 import { getRecentTournamentActivity } from '$lib/server/services/tournaments';
 import { TeamStatus } from '$prisma/client.js';
 import { findDivisionByName } from '$lib/server/services/divisions';
+import { getContent, CONTENT_KEYS, getDefaultContent } from '$lib/server/services/siteContent';
 
 export const load = async () => {
 	try {
 		// Fetch all data in parallel using services
-		const [season, premierDivision, tournamentActivity] = await Promise.all([
+		const [season, premierDivision, tournamentActivity, homepageSubtitle, homepageAbout] = await Promise.all([
 			getCurrentSeason(),
 			findDivisionByName('Premier'),
-			getRecentTournamentActivity()
+			getRecentTournamentActivity(),
+			getContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
+			getContent(CONTENT_KEYS.HOMEPAGE_ABOUT)
 		]);
 
 		// Get top 3 premier division teams for current season
@@ -44,6 +47,10 @@ export const load = async () => {
 			tournamentData: {
 				recentEvents: tournamentActivity.recentEvents,
 				totalCounts: tournamentActivity.totalCounts
+			},
+			siteContent: {
+				subtitle: homepageSubtitle || getDefaultContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
+				about: homepageAbout || getDefaultContent(CONTENT_KEYS.HOMEPAGE_ABOUT)
 			}
 		};
 	} catch (error) {
@@ -62,6 +69,10 @@ export const load = async () => {
 					championships: 0,
 					fightNights: 0
 				}
+			},
+			siteContent: {
+				subtitle: getDefaultContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
+				about: getDefaultContent(CONTENT_KEYS.HOMEPAGE_ABOUT)
 			}
 		};
 	}

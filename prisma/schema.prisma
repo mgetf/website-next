@@ -97,13 +97,13 @@ model Tournament {
   thirdPlace2SteamId  String?   @map("third_place2_steam_id")
   isTeamTournament    Boolean   @default(false) @map("is_team_tournament")
 
-  demos         Demo[]
-  winner1       User?  @relation("TournamentWinner1", fields: [winner1SteamId], references: [steamId], onDelete: SetNull)
-  winner2       User?  @relation("TournamentWinner2", fields: [winner2SteamId], references: [steamId], onDelete: SetNull)
-  secondPlace1  User?  @relation("TournamentSecondPlace1", fields: [secondPlace1SteamId], references: [steamId], onDelete: SetNull)
-  secondPlace2  User?  @relation("TournamentSecondPlace2", fields: [secondPlace2SteamId], references: [steamId], onDelete: SetNull)
-  thirdPlace1   User?  @relation("TournamentThirdPlace1", fields: [thirdPlace1SteamId], references: [steamId], onDelete: SetNull)
-  thirdPlace2   User?  @relation("TournamentThirdPlace2", fields: [thirdPlace2SteamId], references: [steamId], onDelete: SetNull)
+  demos        Demo[]
+  winner1      User?  @relation("TournamentWinner1", fields: [winner1SteamId], references: [steamId], onDelete: SetNull)
+  winner2      User?  @relation("TournamentWinner2", fields: [winner2SteamId], references: [steamId], onDelete: SetNull)
+  secondPlace1 User?  @relation("TournamentSecondPlace1", fields: [secondPlace1SteamId], references: [steamId], onDelete: SetNull)
+  secondPlace2 User?  @relation("TournamentSecondPlace2", fields: [secondPlace2SteamId], references: [steamId], onDelete: SetNull)
+  thirdPlace1  User?  @relation("TournamentThirdPlace1", fields: [thirdPlace1SteamId], references: [steamId], onDelete: SetNull)
+  thirdPlace2  User?  @relation("TournamentThirdPlace2", fields: [thirdPlace2SteamId], references: [steamId], onDelete: SetNull)
 
   @@map("tournaments")
 }
@@ -510,11 +510,13 @@ model Announcement {
 }
 
 model Division {
-  id         Int    @id @default(autoincrement())
+  id         Int     @id @default(autoincrement())
   name       String
-  signupCost Float  @default(0.00) @map("signup_cost")
-  hidden     Int    @default(0)
+  signupCost Float   @default(0.00) @map("signup_cost")
+  hidden     Int     @default(0)
+  regionId   Int?    @map("region_id")
 
+  region     Region? @relation(fields: [regionId], references: [id])
   teams      Team[]
   moderators Moderator[]
 
@@ -522,12 +524,14 @@ model Division {
 }
 
 model Region {
-  id     Int    @id @default(autoincrement())
-  name   String
-  hidden Int    @default(0)
+  id             Int    @id @default(autoincrement())
+  name           String
+  hidden         Int    @default(0)
+  currencySymbol String @default("€") @map("currency_symbol")
 
-  seasons Season[]
-  teams   Team[]
+  seasons   Season[]
+  teams     Team[]
+  divisions Division[]
 
   @@map("regions")
 }

@@ -547,6 +547,48 @@ interface GameResult {
 }
 
 /**
+ * Get recent unplayed matches for dashboard quick view
+ */
+export async function getRecentUnplayedMatches(limit: number = 10) {
+	return await prisma.match.findMany({
+		where: {
+			status: MatchStatus.UNPLAYED
+		},
+		include: {
+			homeTeam: {
+				select: {
+					id: true,
+					name: true,
+					acronym: true,
+					division: { select: { id: true, name: true } },
+					region: { select: { id: true, name: true } }
+				}
+			},
+			awayTeam: {
+				select: {
+					id: true,
+					name: true,
+					acronym: true,
+					division: { select: { id: true, name: true } },
+					region: { select: { id: true, name: true } }
+				}
+			},
+			season: {
+				select: {
+					id: true,
+					seasonNum: true,
+					region: { select: { name: true } }
+				}
+			}
+		},
+		orderBy: [
+			{ id: 'desc' }
+		],
+		take: limit
+	});
+}
+
+/**
  * Admin override scores (reverses old stats and applies new ones)
  */
 export async function adminUpdateScores(

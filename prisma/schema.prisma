@@ -821,3 +821,46 @@ model SiteSettings {
 
   @@map("site_settings")
 }
+
+// =============================================================================
+// ReBAC (Relationship-Based Access Control)
+// =============================================================================
+// 
+// Authorization is based on relationship tuples: (subject, relation, object)
+// Examples:
+//   - (user:76561198012345678, owner, team:123)
+//   - (user:76561198099999999, moderator, division:1)
+//   - (user:76561198011111111, admin, global:*)
+//   - (role:staff, moderator, division:*)
+//
+// Permissions are derived by traversing the graph of relationships.
+// See src/lib/server/auth/rebac.ts for the authorization engine.
+// =============================================================================
+
+model Grant {
+  id Int @id @default(autoincrement())
+
+  // WHO (the subject) - can be a user, team, or role
+  subjectType String @map("subject_type") // "user", "team", "role"
+  subjectId   String @map("subject_id") // e.g., "76561198012345678", "123", "staff"
+
+  // WHAT RELATION - the edge type in the graph
+  relation String // "owner", "admin", "member", "moderator", "participant", "viewer"
+
+  // TO WHAT (the object) - the resource being accessed
+  objectType String @map("object_type") // "team", "match", "division", "region", "global", "role"
+  objectId   String @map("object_id") // e.g., "123", "1", "*" (wildcard)
+
+  // Metadata
+  grantedBy String?   @map("granted_by") // Steam ID of who granted this
+  grantedAt DateTime  @default(now()) @map("granted_at")
+  expiresAt DateTime? @map("expires_at") // For temporary grants
+  note      String? // Optional note explaining why this grant exists
+
+  // Indexes for efficient lookups
+  @@unique([subjectType, subjectId, relation, objectType, objectId])
+  @@index([objectType, objectId, relation])
+  @@index([subjectType, subjectId])
+  @@index([expiresAt])
+  @@map("grants")
+}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 	
 	// Svelte 5 runes - get data from server
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -10,6 +11,23 @@
 	const currentRoster = $derived(data.currentRoster);
 	const pastRoster = $derived(data.pastRoster);
 	const matchesBySeason = $derived(data.matchesBySeason);
+	
+	// Payment success state
+	let showPaymentSuccess = $state(data.paymentSuccess);
+	
+	onMount(() => {
+		if (showPaymentSuccess) {
+			// Remove the query param from URL without reload
+			const url = new URL(window.location.href);
+			url.searchParams.delete('payment');
+			history.replaceState({}, '', url.pathname);
+			
+			// Auto-dismiss after 5 seconds
+			setTimeout(() => {
+				showPaymentSuccess = false;
+			}, 5000);
+		}
+	});
 	
 	// Format date helper
 	function formatDate(date: Date | string | null): string {
@@ -41,7 +59,26 @@
 </script>
 
 <div class="min-h-screen pb-16">
-	<!-- Success/Error Messages -->
+	<!-- Payment Success Message -->
+	{#if showPaymentSuccess}
+		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50 max-w-sm animate-fade-in">
+			<div class="flex items-start gap-3">
+				<span class="text-2xl">✅</span>
+				<div>
+					<p class="text-green-400 font-semibold">Payment Successful!</p>
+					<p class="text-green-400/80 text-sm mt-1">Your signup fee has been paid. Thank you!</p>
+				</div>
+				<button 
+					onclick={() => showPaymentSuccess = false}
+					class="text-green-400/60 hover:text-green-400 ml-2"
+				>
+					✕
+				</button>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Success/Error Messages from Form Actions -->
 	{#if form?.success}
 		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50">
 			<p class="text-green-400">{form.message}</p>

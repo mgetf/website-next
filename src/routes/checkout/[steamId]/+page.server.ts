@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
-import { getUserActiveTeamForCheckout, getExistingPayment, updatePlayerPaymentStatus } from '$lib/server/services/payments';
+import { getUserActiveTeamForCheckout, getExistingPayment, updatePlayerPaymentStatus, getLeagueFees } from '$lib/server/services/payments';
 import { isPayPalTestMode } from '$lib/server/services/paypal';
 import { redirect } from '@sveltejs/kit';
 
@@ -38,16 +38,24 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		throw redirect(303, `/teams/${team.id}`);
 	}
 
-	// Check if already paid in payment tracker
-	if (team.seasonId) {
-		const existingPayment = await getExistingPayment(steamId, team.seasonId);
+	// Get existing payment and league fees
+	const [existingPayment, leagueFees] = await Promise.all([
+		team.seasonId ? getExistingPayment(steamId, team.seasonId) : null,
+		getLeagueFees()
+	]);
 
-		if (existingPayment && existingPayment.amount >= division.signupCost) {
-			// Update payment status
-			await updatePlayerPaymentStatus(steamId, team.id);
+	const amountPaid = existingPayment?.amount || 0;
+	const isFirstPayment = amountPaid === 0;
+	
+	// First-time payers pay signupCost + leagueFees
+	// Returning payers only pay remaining signupCost
+	const effectiveLeagueFees = isFirstPayment ? leagueFees : 0;
+	const totalAmount = division.signupCost + effectiveLeagueFees;
 
-			throw redirect(303, `/teams/${team.id}`);
-		}
+	// Check if already paid enough
+	if (amountPaid >= totalAmount) {
+		await updatePlayerPaymentStatus(steamId, team.id);
+		throw redirect(303, `/teams/${team.id}`);
 	}
 
 	// Determine currency based on region
@@ -63,7 +71,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		team,
 		division,
-		amount: division.signupCost,
+		signupCost: division.signupCost,
+		leagueFees: effectiveLeagueFees,
+		totalAmount,
+		amountPaid,
+		isFirstPayment,
 		currency,
 		steamId,
 		paypalClientId,

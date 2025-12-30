@@ -7,110 +7,76 @@ import { logError } from '$lib/server/utils/logger';
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const body = await request.json();
-		const { orderID, steamId } = body;
-		// These are only used for test mode
-		const testAmount = body.amount;
-		const testCurrency = body.currency;
-		const testTeamId = body.teamId;
+		const { orderID, steamId, teamId, amount: requestAmount, currency: requestCurrency } = body;
 
-		if (!orderID || !steamId) {
+		// Validate required fields
+		if (!orderID || !steamId || !teamId) {
 			return json({ error: 'Missing required fields' }, { status: 400 });
 		}
 
 		// In test mode, we need additional data to mock the capture
-		const testData = isPayPalTestMode() ? { steamId, teamId: testTeamId, amount: testAmount, currency: testCurrency } : undefined;
+		const testData = isPayPalTestMode() 
+			? { steamId, teamId, amount: requestAmount, currency: requestCurrency } 
+			: undefined;
 
 		// Capture the order
 		const result = await capturePayPalOrder(orderID, testData);
 
 		if (!result.success || !result.captureData) {
-			// Log error server-side (sanitized - no sensitive data)
-			await logError('PayPal capture-order failed', {
-				orderID,
-				steamId,
-				error: result.error || 'Unknown error'
-			});
-
-			// Return generic error to client (never expose sensitive details)
+			await logError('PayPal capture-order failed', { orderID, steamId, error: result.error || 'Unknown error' });
 			return json({ success: false, error: 'Failed to capture payment. Please contact support.' }, { status: 500 });
 		}
 
 		const captureData = result.captureData;
+		const purchase = captureData.purchase_units?.[0];
+		const capture = purchase?.payments?.captures?.[0];
+		
+		if (!purchase || !capture) {
+			await logError('PayPal capture-order invalid response', { orderID, steamId });
+			return json({ success: false, error: 'Invalid payment response. Please contact support.' }, { status: 500 });
+		}
 
-		// Extract payment details
-		const purchase = captureData.purchase_units[0];
-		const capture = purchase.payments.captures[0];
 		const amount = parseFloat(capture.amount.value);
 		const currency = capture.amount.currency_code;
-		const customId = purchase.custom_id;
 
-		// Parse custom_id to get steamId and teamId
-		const [payerSteamId, teamIdStr] = customId.split('|');
-		const teamId = parseInt(teamIdStr);
-
-		// Get player's current team to find season
+		// Get player's team membership to find season
 		const playerInTeam = await prisma.playerInTeam.findUnique({
 			where: {
-				playerSteamId_teamId: {
-					playerSteamId: payerSteamId,
-					teamId
-				}
+				playerSteamId_teamId: { playerSteamId: steamId, teamId }
 			},
-			include: {
-				team: true
-			}
+			include: { team: true }
 		});
 
-		if (!playerInTeam || !playerInTeam.team.seasonId) {
+		if (!playerInTeam?.team.seasonId) {
 			return json({ success: false, error: 'Team or season not found' }, { status: 404 });
 		}
 
 		const seasonId = playerInTeam.team.seasonId;
 
-		// Create or update payment tracker
-		await prisma.paymentTracker.upsert({
-			where: {
-				playerSteamId_seasonId: {
-					playerSteamId: payerSteamId,
-					seasonId
-				}
-			},
-			create: {
-				playerSteamId: payerSteamId,
-				seasonId,
-				amount
-			},
-			update: {
-				amount
-			}
-		});
-
-		// Create payment record (matches Payment model schema)
-		await prisma.payment.create({
-			data: {
-				paymentId: capture.id, // PayPal transaction ID as payment ID
-				purchasedFor: payerSteamId,
-				purchasedBy: payerSteamId,
-				amount: amount.toString(), // Schema expects String
-				currency,
-				purchaseDate: new Date().toISOString(),
-				description: `Team signup payment - Team #${teamId}`,
-				teamId
-			}
-		});
-
-		// Update player payment status
-		await prisma.playerInTeam.update({
-			where: {
-				playerSteamId_teamId: {
-					playerSteamId: payerSteamId,
+		// Record payment: update tracker, create payment record, update player status
+		await prisma.$transaction([
+			prisma.paymentTracker.upsert({
+				where: { playerSteamId_seasonId: { playerSteamId: steamId, seasonId } },
+				create: { playerSteamId: steamId, seasonId, amount },
+				update: { amount }
+			}),
+			prisma.payment.create({
+				data: {
+					paymentId: capture.id,
+					purchasedFor: steamId,
+					purchasedBy: steamId,
+					amount: amount.toString(),
+					currency,
+					purchaseDate: new Date().toISOString(),
+					description: `Team signup payment - Team #${teamId}`,
 					teamId
 				}
-			},
-			data: {
-				paymentStatus: 1
-			}
-		});
+			}),
+			prisma.playerInTeam.update({
+				where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+				data: { paymentStatus: 1 }
+			})
+		]);
 
 		// Check if 2+ players have paid, update team payment status
 		const paidPlayersCount = await prisma.playerInTeam.count({

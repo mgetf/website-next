@@ -2,10 +2,16 @@
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	
-	let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' = $state('seasons');
+	// Get initial tab from URL query param, default to 'seasons'
+	const validTabs = ['seasons', 'regions', 'divisions', 'arenas'] as const;
+	const urlTab = $page.url.searchParams.get('tab');
+	const initialTab = validTabs.includes(urlTab as any) ? urlTab as typeof validTabs[number] : 'seasons';
+	
+	let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' = $state(initialTab);
 	let isSubmitting = $state(false);
 	
 	// Seasons state
@@ -80,6 +86,14 @@
 		return 'bg-blue-500';
 	}
 	
+	// Change tab and update URL
+	function setTab(tab: typeof activeTab) {
+		activeTab = tab;
+		const url = new URL(window.location.href);
+		url.searchParams.set('tab', tab);
+		history.replaceState({}, '', url.toString());
+	}
+	
 	// Get the most important status for a region (priority: Active > Draft > Upcoming > Completed)
 	function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 		const statuses = seasons.map(s => s.status);
@@ -100,7 +114,7 @@
 	<!-- Tab Navigation -->
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-1 flex gap-1">
 		<button
-			onclick={() => activeTab = 'seasons'}
+			onclick={() => setTab('seasons')}
 			class="flex-1 px-4 py-2 rounded-md transition-colors {
 				activeTab === 'seasons' 
 					? 'bg-orange-600 text-white font-medium' 
@@ -110,7 +124,7 @@
 			🏆 Seasons
 		</button>
 		<button
-			onclick={() => activeTab = 'regions'}
+			onclick={() => setTab('regions')}
 			class="flex-1 px-4 py-2 rounded-md transition-colors {
 				activeTab === 'regions' 
 					? 'bg-orange-600 text-white font-medium' 
@@ -120,7 +134,7 @@
 			🌍 Regions
 		</button>
 		<button
-			onclick={() => activeTab = 'divisions'}
+			onclick={() => setTab('divisions')}
 			class="flex-1 px-4 py-2 rounded-md transition-colors {
 				activeTab === 'divisions' 
 					? 'bg-orange-600 text-white font-medium' 
@@ -130,7 +144,7 @@
 			📊 Divisions
 		</button>
 		<button
-			onclick={() => activeTab = 'arenas'}
+			onclick={() => setTab('arenas')}
 			class="flex-1 px-4 py-2 rounded-md transition-colors {
 				activeTab === 'arenas' 
 					? 'bg-orange-600 text-white font-medium' 

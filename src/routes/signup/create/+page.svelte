@@ -15,15 +15,14 @@
 	);
 
 	// Filter divisions based on selected region
-	// Show: shared divisions (regionId = null) + region-specific divisions
 	const filteredDivisions = $derived(
 		selectedRegionId
-			? data.divisions.filter(d => d.regionId === null || d.regionId === selectedRegionId)
+			? data.divisions.filter(d => d.regionId === selectedRegionId)
 			: []
 	);
 
-	// Get currency symbol from selected region (default to €)
-	const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '€');
+	// Get currency symbol from selected region (default to $)
+	const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '$');
 
 	function handleAvatarChange(event: Event) {
 		const target = event.target as HTMLInputElement;

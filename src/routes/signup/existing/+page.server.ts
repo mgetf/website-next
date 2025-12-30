@@ -66,22 +66,29 @@ export const actions: Actions = {
 		}
 
 		try {
+			// Get the correct season ID for the selected region
+			let seasonId: number | undefined;
+			switch (regionId) {
+				case 1: seasonId = context.naSignupSeasonId ?? undefined; break;
+				case 2: seasonId = context.euSignupSeasonId ?? undefined; break;
+				case 3: seasonId = context.ausSignupSeasonId ?? undefined; break;
+				case 4: seasonId = context.saSignupSeasonId ?? undefined; break;
+				case 5: seasonId = context.asiaSignupSeasonId ?? undefined; break;
+			}
+
+			// Check if payment is required BEFORE re-registering
+			const paymentInfo = await checkPaymentRequired({
+				divisionId,
+				steamId: locals.user.steamId,
+				seasonId
+			});
+
 			// Re-register team
 			await reregisterTeam({
 				teamId,
 				divisionId,
 				regionId,
 				ownerSteamId: locals.user.steamId
-			});
-
-			// Check if payment is required
-			const season =
-				context.naSignupSeasonId || context.euSignupSeasonId || context.ausSignupSeasonId;
-			
-			const paymentInfo = await checkPaymentRequired({
-				divisionId,
-				steamId: locals.user.steamId,
-				seasonId: season
 			});
 
 			if (paymentInfo.required && !paymentInfo.alreadyPaid) {

@@ -321,7 +321,7 @@
 				<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
 					<h4 class="text-lg font-bold text-white mb-3">
 						League Fees: 
-						<span class="text-gray-200">€{data.globalSettings.leagueFees ?? 0}</span>
+						<span class="text-gray-200">${data.globalSettings.leagueFees ?? 0}</span>
 					</h4>
 					<p class="text-sm text-gray-400 mb-4">
 						Default registration fee amount

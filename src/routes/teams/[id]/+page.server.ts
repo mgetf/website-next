@@ -6,12 +6,15 @@ import { removePlayer } from "$lib/server/services/teamManagement";
 import { getGlobalSettings } from "$lib/server/services/settings";
 import { calculateWeekLabel } from "$lib/server/utils/matchHelpers";
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
   const teamId = parseInt(params.id);
 
   if (isNaN(teamId)) {
     throw error(400, "Invalid team ID");
   }
+
+  // Check for payment success query param
+  const paymentSuccess = url.searchParams.get('payment') === 'success';
 
   // Fetch team with related data
   const team = await getTeamById(teamId);
@@ -162,6 +165,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     isGlobalAdmin,
     rosterLocked,
     currentUserSteamId: locals.user?.steamId || null,
+    paymentSuccess,
   };
 };
 

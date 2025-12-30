@@ -65,7 +65,7 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					amount: pageData.amount,
+					amount: pageData.totalAmount,
 					currency: pageData.currency,
 					steamId: pageData.steamId,
 					teamId: pageData.team.id
@@ -86,7 +86,7 @@
 					orderID: order.id,
 					steamId: pageData.steamId,
 					teamId: pageData.team.id,
-					amount: pageData.amount,
+					amount: pageData.totalAmount,
 					currency: pageData.currency
 				})
 			});
@@ -147,7 +147,7 @@
 									'Content-Type': 'application/json'
 								},
 								body: JSON.stringify({
-									amount: pageData.amount,
+									amount: pageData.totalAmount,
 									currency: pageData.currency,
 									steamId: pageData.steamId,
 									teamId: pageData.team.id
@@ -178,7 +178,10 @@
 								},
 								body: JSON.stringify({
 									orderID: paypalData.orderID,
-									steamId: pageData.steamId
+									steamId: pageData.steamId,
+									teamId: pageData.team.id,
+									amount: pageData.totalAmount,
+									currency: pageData.currency
 								})
 							});
 
@@ -266,16 +269,32 @@
 				<h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>
 
 				<div class="bg-zinc-800 rounded-lg p-6 mb-6">
-					<div class="flex justify-between items-center mb-4">
+					<div class="flex justify-between items-center mb-3">
 						<span class="text-gray-400">Division Signup Fee</span>
 						<span class="text-white font-semibold">
-							{pageData.currency === 'EUR' ? '€' : '$'}{pageData.amount.toFixed(2)}
+							{pageData.currency === 'EUR' ? '€' : '$'}{pageData.signupCost.toFixed(2)}
 						</span>
 					</div>
+					{#if pageData.leagueFees > 0}
+						<div class="flex justify-between items-center mb-3">
+							<span class="text-gray-400">League Fees</span>
+							<span class="text-white font-semibold">
+								{pageData.currency === 'EUR' ? '€' : '$'}{pageData.leagueFees.toFixed(2)}
+							</span>
+						</div>
+					{/if}
+					{#if pageData.amountPaid > 0}
+						<div class="flex justify-between items-center mb-3">
+							<span class="text-gray-400">Already Paid</span>
+							<span class="text-green-400 font-semibold">
+								-{pageData.currency === 'EUR' ? '€' : '$'}{pageData.amountPaid.toFixed(2)}
+							</span>
+						</div>
+					{/if}
 					<div class="border-t border-zinc-700 pt-4 flex justify-between items-center">
 						<span class="text-white font-bold">Total Due</span>
 						<span class="text-2xl font-bold text-white">
-							{pageData.currency === 'EUR' ? '€' : '$'}{pageData.amount.toFixed(2)}
+							{pageData.currency === 'EUR' ? '€' : '$'}{pageData.totalAmount.toFixed(2)}
 						</span>
 					</div>
 				</div>

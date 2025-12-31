@@ -108,8 +108,9 @@ export function canDisputeMatch(match: Match): boolean {
 	if (match.status !== 1) return false; // Must be PLAYED
 	if (!match.submittedAt) return false;
 
-	const now = Math.floor(Date.now() / 1000);
-	const hoursSinceSubmission = (now - match.submittedAt) / 3600;
+	const now = Date.now();
+	const submittedTime = match.submittedAt.getTime();
+	const hoursSinceSubmission = (now - submittedTime) / (1000 * 3600);
 
 	return hoursSinceSubmission < 24;
 }

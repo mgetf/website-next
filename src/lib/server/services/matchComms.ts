@@ -27,13 +27,11 @@ export async function createMatchComm(
 		throw error(404, 'Match not found');
 	}
 
-	const createdAt = Math.floor(Date.now() / 1000);
-
 	const commData: any = {
 		matchId,
 		owner: userId,
 		content,
-		createdAt
+		createdAt: new Date()
 	};
 
 	if (rescheduleData) {
@@ -197,7 +195,7 @@ export async function updateRescheduleStatus(
 			matchId: comm.matchId,
 			owner: respondedBy,
 			content: responseMessage,
-			createdAt: Math.floor(Date.now() / 1000)
+			createdAt: new Date()
 		}
 	});
 
@@ -217,14 +215,16 @@ export function getRescheduleTimeRemaining(comm: MatchComm): {
 		return { timeRemaining: 'N/A', expired: false };
 	}
 
-	const now = Math.floor(Date.now() / 1000);
-	const deadline = comm.createdAt + 24 * 60 * 60; // 24 hours
-	const secondsRemaining = deadline - now;
+	const now = Date.now();
+	const createdTime = comm.createdAt.getTime();
+	const deadline = createdTime + 24 * 60 * 60 * 1000; // 24 hours in ms
+	const msRemaining = deadline - now;
 
-	if (secondsRemaining <= 0) {
+	if (msRemaining <= 0) {
 		return { timeRemaining: '00:00:00', expired: true };
 	}
 
+	const secondsRemaining = Math.floor(msRemaining / 1000);
 	const hours = Math.floor(secondsRemaining / 3600);
 	const minutes = Math.floor((secondsRemaining % 3600) / 60);
 	const seconds = secondsRemaining % 60;

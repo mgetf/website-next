@@ -348,7 +348,7 @@
 							</a>
 							{#if match.submittedAt}
 								<p class="text-xs text-gray-500 leading-tight">
-									{new Date(match.submittedAt * 1000).toLocaleString('en-US', {
+									{new Date(match.submittedAt).toLocaleString('en-US', {
 										month: 'short',
 										day: 'numeric',
 										year: 'numeric',
@@ -860,9 +860,9 @@
 								<a href="/users/{comm.owner}" class="font-semibold text-white hover:text-blue-400">
 									{comm.user?.steamUsername || 'System'}
 								</a>
-								{#if comm.createdAt && comm.createdAt > 0}
+								{#if comm.createdAt}
 									<span class="text-xs text-gray-400">
-										{new Date(comm.createdAt * 1000).toLocaleString()}
+										{new Date(comm.createdAt).toLocaleString()}
 									</span>
 								{:else}
 									<span class="text-xs text-gray-500 italic">

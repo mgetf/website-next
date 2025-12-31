@@ -67,7 +67,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					purchasedBy: steamId,
 					amount: amount.toString(),
 					currency,
-					purchaseDate: new Date().toISOString(),
+					purchaseDate: new Date(),
 					description: `Team signup payment - Team #${teamId}`,
 					teamId
 				}

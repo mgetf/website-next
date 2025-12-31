@@ -71,11 +71,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// Calculate dispute window remaining
 	let disputeTimeRemaining: string | null = null;
 	if (match.submittedAt && match.status === MatchStatus.PLAYED) {
-		const now = Math.floor(Date.now() / 1000);
-		const deadline = match.submittedAt + 24 * 60 * 60;
-		const secondsRemaining = deadline - now;
+		const now = Date.now();
+		const submittedTime = match.submittedAt.getTime();
+		const deadline = submittedTime + 24 * 60 * 60 * 1000; // 24 hours in ms
+		const msRemaining = deadline - now;
 
-		if (secondsRemaining > 0) {
+		if (msRemaining > 0) {
+			const secondsRemaining = Math.floor(msRemaining / 1000);
 			const hours = Math.floor(secondsRemaining / 3600);
 			const minutes = Math.floor((secondsRemaining % 3600) / 60);
 			const seconds = secondsRemaining % 60;

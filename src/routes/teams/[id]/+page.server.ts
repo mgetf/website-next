@@ -46,13 +46,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     }));
 
   const pastRoster = team.players
-    .filter((p) => p.active === 0 || p.leftAt !== "0")
+    .filter((p) => p.active === 0 || p.leftAt !== null)
     .map((p) => ({
       steamId: p.player.steamId,
       name: p.player.steamUsername,
       avatar: p.player.steamAvatar,
       joinedAt: p.startedAt,
-      leftAt: p.leftAt !== "0" ? new Date(parseInt(p.leftAt) * 1000) : null,
+      leftAt: p.leftAt,
     }));
 
   // Combine and organize matches by season

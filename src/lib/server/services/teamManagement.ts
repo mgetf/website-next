@@ -228,7 +228,7 @@ export async function removePlayer(teamId: number, playerSteamId: string): Promi
 		data: {
 			active: 0,
 			permissionLevel: -2,
-			leftAt: new Date().toISOString()
+			leftAt: new Date()
 		}
 	});
 }
@@ -494,7 +494,7 @@ export async function disbandTeam(teamId: number): Promise<void> {
 		data: {
 			active: 0,
 			permissionLevel: -2,
-			leftAt: new Date().toISOString()
+			leftAt: new Date()
 		}
 	});
 

@@ -383,7 +383,6 @@ export async function submitMatchScores(
 	});
 
 	// Update match status
-	const submittedAt = Math.floor(Date.now() / 1000);
 	await prisma.match.update({
 		where: { id: matchId },
 		data: {
@@ -392,7 +391,7 @@ export async function submitMatchScores(
 			loserScore,
 			status: MatchStatus.PLAYED,
 			submittedBy,
-			submittedAt
+			submittedAt: new Date()
 		}
 	});
 
@@ -434,8 +433,9 @@ export async function disputeMatch(matchId: number, reason: string, disputedBy: 
 		throw error(400, 'No submission timestamp found');
 	}
 
-	const now = Math.floor(Date.now() / 1000);
-	const hoursSinceSubmission = (now - match.submittedAt) / 3600;
+	const now = Date.now();
+	const submittedTime = match.submittedAt.getTime();
+	const hoursSinceSubmission = (now - submittedTime) / (1000 * 3600);
 
 	if (hoursSinceSubmission > 24) {
 		throw error(400, 'Dispute period has passed (24 hours)');

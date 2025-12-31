@@ -189,7 +189,7 @@ export function transformTeamHistory(playerTeams: any[]) {
 			losses: pt.team.losses,
 			totalRecord: `${pt.team.wins} - ${pt.team.losses}`,
 			joined: pt.startedAt,
-			left: pt.leftAt !== '0' ? new Date(parseInt(pt.leftAt)) : null
+			left: pt.leftAt
 		}));
 }
 
@@ -455,7 +455,7 @@ export async function banUser(
 			severity,
 			reason,
 			duration,
-			startDateTime: Math.floor(Date.now() / 1000),
+			startDateTime: new Date(),
 			status: 1 // Active
 		}
 	});

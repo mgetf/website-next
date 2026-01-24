@@ -8,8 +8,10 @@
 	
 	let editingTeam: typeof data.teams[0] | null = $state(null);
 	let disbandingTeam: typeof data.teams[0] | null = $state(null);
+	let restoringTeam: typeof data.teams[0] | null = $state(null);
 	let isSubmitting = $state(false);
 	let isDisbanding = $state(false);
+	let isRestoring = $state(false);
 	
 	// TODO: TEMPORARY WORKAROUND - Remove this filtering logic when schema is refactored
 	// This filters seasons by selected region to avoid showing duplicate "Season 1" options
@@ -332,6 +334,16 @@
 										>
 											{team.formatId === 1 ? 'Withdraw' : 'Disband'}
 										</button>
+									{:else if team.formatId === 1}
+										<!-- Show Restore button for withdrawn 1v1 entries -->
+										<button 
+											type="button"
+											class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-sm transition-colors"
+											title="Restore player to 1v1 league"
+											onclick={() => restoringTeam = team}
+										>
+											Restore
+										</button>
 									{/if}
 								</div>
 							</td>
@@ -545,6 +557,31 @@
 						</select>
 					</div>
 					
+				{#if editingTeam.formatId === 1}
+					<!-- 1v1 entries only have 2 states: READY or DEAD -->
+					<!-- Show a simple toggle instead of a dropdown -->
+					<div>
+						<span class="block text-sm font-medium text-gray-300 mb-2">Status</span>
+						<div class="flex items-center gap-3">
+							<span class="px-3 py-2 rounded-lg text-sm font-medium {editingTeam.status === 'READY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+								{editingTeam.status === 'READY' ? 'Active' : 'Withdrawn'}
+							</span>
+							<button
+								type="button"
+								onclick={() => {
+									if (editingTeam) {
+										editingTeam.status = editingTeam.status === 'READY' ? 'DEAD' : 'READY';
+									}
+								}}
+								class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {editingTeam.status === 'READY' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}"
+							>
+								{editingTeam.status === 'READY' ? 'Withdraw' : 'Restore'}
+							</button>
+						</div>
+						<!-- Hidden input to submit the status value -->
+						<input type="hidden" name="status" value={statusToInt[editingTeam.status]} />
+					</div>
+				{:else}
 					<div>
 						<label for="edit-status" class="block text-sm font-medium text-gray-300 mb-2">Status</label>
 						<select
@@ -560,6 +597,7 @@
 							<option value={3}>Placement</option>
 						</select>
 					</div>
+				{/if}
 				</div>
 				
 				<div class="mt-6 flex gap-3 justify-end">
@@ -644,6 +682,66 @@
 				<button
 					type="button"
 					onclick={() => disbandingTeam = null}
+					class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-md font-medium transition-colors"
+				>
+					Cancel
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Restore 1v1 Player Confirmation Modal -->
+{#if restoringTeam}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+		<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full">
+			<h3 class="text-xl font-bold text-white mb-4">Restore Player</h3>
+			<p class="text-gray-400 mb-6">
+				Are you sure you want to restore this player to the 1v1 league? They will be set back to active status.
+			</p>
+			<div class="bg-zinc-800 border border-zinc-700 rounded p-3 mb-6">
+				<div class="flex items-center gap-3">
+					{#if restoringTeam.avatar}
+						<img src={restoringTeam.avatar} alt="" class="w-10 h-10 rounded" />
+					{:else}
+						<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium">
+							{restoringTeam.name.slice(0, 2).toUpperCase()}
+						</div>
+					{/if}
+					<div>
+						<p class="text-white font-medium">{restoringTeam.name}</p>
+						<p class="text-gray-400 text-sm">
+							{restoringTeam.division?.name || 'No division'} · {restoringTeam.region?.name || 'No region'}
+						</p>
+					</div>
+				</div>
+			</div>
+			<div class="flex gap-3">
+				<form 
+					method="POST" 
+					action="?/restore1v1"
+					use:enhance={() => {
+						isRestoring = true;
+						return async ({ update }) => {
+							await update();
+							isRestoring = false;
+							restoringTeam = null;
+						};
+					}}
+					class="flex-1"
+				>
+					<input type="hidden" name="teamId" value={restoringTeam.id} />
+					<button
+						type="submit"
+						disabled={isRestoring}
+						class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+					>
+						{isRestoring ? 'Restoring...' : 'Restore'}
+					</button>
+				</form>
+				<button
+					type="button"
+					onclick={() => restoringTeam = null}
 					class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-md font-medium transition-colors"
 				>
 					Cancel

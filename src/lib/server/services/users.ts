@@ -302,12 +302,12 @@ export async function getPlayerProfile(steamId: string) {
 	const achievements = buildAchievements(tournamentResults);
 
 	// Transform 1v1 entries
-	// For 1v1, "active" is based on team status (not DEAD), not PlayerInTeam.active
-	// This is because the player IS the team - if the team is alive, the entry is active
-	const current1v1Entry = player1v1Entries.find((e) => e.team.status !== 'DEAD');
+	// For 1v1, only 2 states are valid: READY (active) or DEAD (withdrawn)
+	// The player IS the team - if the team is READY, the entry is active
+	const current1v1Entry = player1v1Entries.find((e) => e.team.status === 'READY');
 	const entries1v1 = player1v1Entries.map((entry) => ({
 		id: entry.team.id,
-		active: entry.team.status !== 'DEAD',
+		active: entry.team.status === 'READY',
 		division: entry.team.division?.name || 'Unknown',
 		region: entry.team.region?.name || 'Unknown',
 		seasonNum: entry.team.season?.seasonNum || 0,

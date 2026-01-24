@@ -158,5 +158,25 @@ export const actions: Actions = {
 			console.error('Error disbanding team:', error);
 			return fail(400, { error: error instanceof Error ? error.message : 'Failed to disband team' });
 		}
+	},
+
+	restore1v1: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const teamId = parseInt(formData.get('teamId') as string);
+
+		if (!teamId || teamId < 1) {
+			return fail(400, { error: 'Invalid team ID' });
+		}
+
+		try {
+			const { restore1v1Entry } = await import('$lib/server/services/signup1v1');
+			await restore1v1Entry(teamId);
+			return { success: true, message: 'Player restored successfully!' };
+		} catch (error) {
+			console.error('Error restoring 1v1 entry:', error);
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to restore player' });
+		}
 	}
 };

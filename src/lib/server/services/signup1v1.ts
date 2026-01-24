@@ -2,6 +2,17 @@
  * 1v1 League Signup Service
  * Handles individual player signup for 1v1 leagues using 1-person teams
  * The team abstraction is completely hidden from users
+ * 
+ * IMPORTANT: 1v1 Status Model
+ * ==========================
+ * 1v1 teams only have 2 valid states:
+ * - READY: Player is actively signed up for the season
+ * - DEAD: Player has withdrawn from the season
+ * 
+ * Unlike 2v2 teams which use UNREADY/PENDING/READY/PLACEMENT states,
+ * 1v1 entries are immediately READY upon signup (no waiting for teammates).
+ * Detection of "active" 1v1 entries should ALWAYS check team.status === 'READY',
+ * NOT PlayerInTeam.active, since the player IS the team.
  */
 
 import { prisma } from '$lib/server/db';
@@ -10,6 +21,59 @@ import { error } from '@sveltejs/kit';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { disbandTeam } from './teamManagement';
+
+/**
+ * Check if a user has an active 1v1 entry in any current signup season
+ * "Active" for 1v1 means team status is READY (not DEAD)
+ */
+export async function hasActive1v1Entry(steamId: string): Promise<boolean> {
+	const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_1V1);
+	
+	if (currentSignupSeasonIds.length === 0) {
+		return false;
+	}
+
+	const existing = await prisma.team.findFirst({
+		where: {
+			formatId: FORMAT_1V1,
+			status: TeamStatus.READY,
+			seasonId: { in: currentSignupSeasonIds },
+			players: {
+				some: { playerSteamId: steamId }
+			}
+		}
+	});
+
+	return !!existing;
+}
+
+/**
+ * Get the active 1v1 entry for a user in current signup seasons
+ * Returns null if no active entry exists
+ */
+export async function getActive1v1Entry(steamId: string) {
+	const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_1V1);
+	
+	if (currentSignupSeasonIds.length === 0) {
+		return null;
+	}
+
+	return await prisma.team.findFirst({
+		where: {
+			formatId: FORMAT_1V1,
+			status: TeamStatus.READY,
+			seasonId: { in: currentSignupSeasonIds },
+			players: {
+				some: { playerSteamId: steamId }
+			}
+		},
+		include: {
+			division: true,
+			region: true,
+			season: true
+		}
+	});
+}
 
 interface Signup1v1Context {
 	isLoggedIn: boolean;
@@ -70,14 +134,18 @@ export async function get1v1SignupContext(steamId: string | null): Promise<Signu
 		user = userData;
 
 		// Check if user already has an active 1v1 entry for a current signup season
-		const existing1v1Entry = await prisma.playerInTeam.findFirst({
+		// For 1v1, "active" means team status is READY (not DEAD)
+		// We check team status, not PlayerInTeam.active, because 1v1 only has 2 states
+		const existing1v1Entry = await prisma.team.findFirst({
 			where: {
-				playerSteamId: steamId,
-				active: 1,
-				team: {
-					formatId: FORMAT_1V1,
-					seasonId: {
-						in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1]
+				formatId: FORMAT_1V1,
+				status: TeamStatus.READY, // Only READY is considered active for 1v1
+				seasonId: {
+					in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1]
+				},
+				players: {
+					some: {
+						playerSteamId: steamId
 					}
 				}
 			}
@@ -102,14 +170,17 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
 	const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_1V1);
 
 	// Check if user already has an active 1v1 entry for this season
-	const existing1v1Entry = await prisma.playerInTeam.findFirst({
+	// For 1v1, "active" means team status is READY (not DEAD)
+	const existing1v1Entry = await prisma.team.findFirst({
 		where: {
-			playerSteamId: data.ownerSteamId,
-			active: 1,
-			team: {
-				formatId: FORMAT_1V1,
-				seasonId: {
-					in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1]
+			formatId: FORMAT_1V1,
+			status: TeamStatus.READY, // Only READY is considered active for 1v1
+			seasonId: {
+				in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1]
+			},
+			players: {
+				some: {
+					playerSteamId: data.ownerSteamId
 				}
 			}
 		}
@@ -207,8 +278,8 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
 
 	if (existingDeadEntry) {
 		// Reactivate the existing entry
-		const initialStatus =
-			data.divisionId === 3 || data.divisionId === 4 ? TeamStatus.PLACEMENT : TeamStatus.UNREADY;
+		// For 1v1, we always use READY status - no waiting for teammates
+		const initialStatus = TeamStatus.READY;
 
 		// Check payment status
 		const existingPayment = await prisma.paymentTracker.findUnique({
@@ -222,7 +293,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
 		const amountPaid = existingPayment?.amount || 0;
 		const isPaid = division.signupCost === 0 || amountPaid >= division.signupCost;
 
-		// Update team status back to active
+		// Update team status back to READY
 		await prisma.team.update({
 			where: { id: existingDeadEntry.id },
 			data: {
@@ -256,10 +327,8 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
 	}
 
 	// No existing entry to reactivate - create a new one
-	// Determine initial status based on division
-	// Premier (4) and Intermediate (3) start as PLACEMENT, others as UNREADY
-	const initialStatus =
-		data.divisionId === 3 || data.divisionId === 4 ? TeamStatus.PLACEMENT : TeamStatus.UNREADY;
+	// For 1v1, we always use READY status - no waiting for teammates
+	const initialStatus = TeamStatus.READY;
 
 	// Create 1-person "team" with player's frozen name/avatar
 	// No acronym, no join password (nobody can join a 1v1 entry)
@@ -444,4 +513,55 @@ export async function withdraw1v1Entry(
 
 	// Use the existing disbandTeam function to handle the withdrawal
 	await disbandTeam(teamId);
+}
+
+/**
+ * Restore a withdrawn 1v1 entry (admin only)
+ * Sets team status back to READY and reactivates the player
+ */
+export async function restore1v1Entry(teamId: number): Promise<void> {
+	// Get the team and verify it's a 1v1 entry
+	const team = await prisma.team.findUnique({
+		where: { id: teamId },
+		include: {
+			players: {
+				select: {
+					playerSteamId: true
+				}
+			}
+		}
+	});
+
+	if (!team) {
+		throw error(404, '1v1 entry not found');
+	}
+
+	if (team.formatId !== FORMAT_1V1) {
+		throw error(400, 'This is not a 1v1 entry');
+	}
+
+	if (team.status !== 'DEAD') {
+		throw error(400, 'This 1v1 entry is not withdrawn');
+	}
+
+	// Update team status to READY (the only active state for 1v1)
+	await prisma.team.update({
+		where: { id: teamId },
+		data: {
+			status: TeamStatus.READY
+		}
+	});
+
+	// Reactivate the player in the team
+	if (team.players.length > 0) {
+		await prisma.playerInTeam.updateMany({
+			where: {
+				teamId: teamId
+			},
+			data: {
+				active: 1,
+				leftAt: null
+			}
+		});
+	}
 }

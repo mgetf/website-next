@@ -228,176 +228,22 @@
 	<section class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
 		<div class="border-b border-zinc-800 pb-4">
 			<h3 class="text-2xl font-bold text-white mb-2">Global Settings</h3>
-			<p class="text-gray-400">Control roster locks, signup status, and season assignments</p>
+			<p class="text-gray-400">Settings that apply across all seasons</p>
 		</div>
 		
 		{#if data.globalSettings}
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-				<!-- Roster Lock Control -->
-				<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-					<h4 class="text-lg font-bold text-white mb-3">
-						Roster Lock Status: 
-						<span class="{data.globalSettings.rosterLocked === 1 ? 'text-red-400' : 'text-green-400'}">
-							{data.globalSettings.rosterLocked === 1 ? 'LOCKED' : 'OPEN'}
-						</span>
-					</h4>
-					<p class="text-sm text-gray-400 mb-4">
-						{data.globalSettings.rosterLocked === 1 
-							? 'Teams cannot make roster changes'
-							: 'Teams can freely modify their rosters'}
-					</p>
-					<form 
-						method="POST" 
-						action="?/toggleRoster"
-						use:enhance={() => {
-							isSubmitting = true;
-							return async ({ update }) => {
-								await update();
-								isSubmitting = false;
-							};
-						}}
-					>
-						<button
-							type="submit"
-							disabled={isSubmitting}
-							class="px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 {
-								data.globalSettings.rosterLocked === 1
-									? 'bg-green-600 hover:bg-green-500 text-white'
-									: 'bg-red-600 hover:bg-red-500 text-white'
-							}"
-						>
-							{data.globalSettings.rosterLocked === 1 ? 'Unlock Rosters' : 'Lock Rosters'}
-						</button>
-					</form>
-				</div>
-				
-				<!-- Signup Lock Control -->
-				<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-					<h4 class="text-lg font-bold text-white mb-3">
-						Signup Status: 
-						<span class="{data.globalSettings.signupClosed === 1 ? 'text-red-400' : 'text-green-400'}">
-							{data.globalSettings.signupClosed === 1 ? 'CLOSED' : 'OPEN'}
-						</span>
-					</h4>
-					<p class="text-sm text-gray-400 mb-4">
-						{data.globalSettings.signupClosed === 1 
-							? 'New team signups are disabled'
-							: 'New teams can register'}
-					</p>
-					<form 
-						method="POST" 
-						action="?/toggleSignup"
-						use:enhance={() => {
-							isSubmitting = true;
-							return async ({ update }) => {
-								await update();
-								isSubmitting = false;
-							};
-						}}
-					>
-						<button
-							type="submit"
-							disabled={isSubmitting}
-							class="px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 {
-								data.globalSettings.signupClosed === 1
-									? 'bg-green-600 hover:bg-green-500 text-white'
-									: 'bg-red-600 hover:bg-red-500 text-white'
-							}"
-						>
-							{data.globalSettings.signupClosed === 1 ? 'Open Signups' : 'Close Signups'}
-						</button>
-					</form>
-				</div>
-				
-				<!-- Payment Required Control -->
-				<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-					<h4 class="text-lg font-bold text-white mb-3">
-						Payment Requirement: 
-						<span class="{data.globalSettings.paymentRequired === 1 ? 'text-red-400' : 'text-green-400'}">
-							{data.globalSettings.paymentRequired === 1 ? 'REQUIRED' : 'NOT REQUIRED'}
-						</span>
-					</h4>
-					<p class="text-sm text-gray-400 mb-4">
-						{data.globalSettings.paymentRequired === 1 
-							? 'Teams must pay to participate in matches'
-							: 'Payment not enforced for match participation'}
-					</p>
-					<form 
-						method="POST" 
-						action="?/togglePayment"
-						use:enhance={() => {
-							isSubmitting = true;
-							return async ({ update }) => {
-								await update();
-								isSubmitting = false;
-							};
-						}}
-					>
-						<button
-							type="submit"
-							disabled={isSubmitting}
-							class="px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 {
-								data.globalSettings.paymentRequired === 1
-									? 'bg-green-600 hover:bg-green-500 text-white'
-									: 'bg-orange-600 hover:bg-orange-500 text-white'
-							}"
-						>
-							{data.globalSettings.paymentRequired === 1 ? 'Disable Requirement' : 'Require Payment'}
-						</button>
-					</form>
-				</div>
-				
-				<!-- League Fees -->
-				<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-					<h4 class="text-lg font-bold text-white mb-3">
-						League Fees: 
-						<span class="text-gray-200">${data.globalSettings.leagueFees ?? 0}</span>
-					</h4>
-					<p class="text-sm text-gray-400 mb-4">
-						Default registration fee amount
-					</p>
-					<form 
-						method="POST" 
-						action="?/updateFees"
-						use:enhance={() => {
-							isSubmitting = true;
-							return async ({ update }) => {
-								await update();
-								isSubmitting = false;
-							};
-						}}
-						class="flex gap-2"
-					>
-						<input
-							type="number"
-							name="fees"
-							min="0"
-							step="1"
-							value={data.globalSettings.leagueFees ?? 0}
-							required
-							class="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-						/>
-						<button
-							type="submit"
-							disabled={isSubmitting}
-							class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-						>
-							{isSubmitting ? 'Updating...' : 'Update'}
-						</button>
-					</form>
-				</div>
-			</div>
-			
-			<!-- Match Creation Deadline -->
-			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mt-6">
-				<h4 class="text-xl font-bold text-white mb-4">Match Creation Deadline</h4>
+			<!-- League Fees -->
+			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4 max-w-md">
+				<h4 class="text-lg font-bold text-white mb-3">
+					League Fees: 
+					<span class="text-gray-200">${data.globalSettings.leagueFees ?? 0}</span>
+				</h4>
 				<p class="text-sm text-gray-400 mb-4">
-					Set the deadline for when the next week's matches should be created. This displays on the admin dashboard.
+					Default registration fee amount
 				</p>
-				
 				<form 
 					method="POST" 
-					action="?/updateMatchDeadline"
+					action="?/updateFees"
 					use:enhance={() => {
 						isSubmitting = true;
 						return async ({ update }) => {
@@ -405,62 +251,28 @@
 							isSubmitting = false;
 						};
 					}}
-					class="space-y-4"
+					class="flex gap-2"
 				>
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div>
-							<label for="weekNumber" class="block text-sm font-medium text-gray-300 mb-2">
-								Week Number
-							</label>
-							<input
-								type="number"
-								id="weekNumber"
-								name="weekNumber"
-								min="1"
-								value={data.globalSettings.currentMatchWeek ?? ''}
-								placeholder="e.g. 3"
-								class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-							/>
-							<p class="text-xs text-gray-500 mt-1">The week number to create (shown on dashboard)</p>
-						</div>
-						
-						<div>
-							<label for="deadline" class="block text-sm font-medium text-gray-300 mb-2">
-								Deadline Date & Time
-							</label>
-							<input
-								type="datetime-local"
-								id="deadline"
-								name="deadline"
-								value={data.globalSettings.matchCreationDeadline ? new Date(data.globalSettings.matchCreationDeadline).toISOString().slice(0, 16) : ''}
-								class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-							/>
-							<p class="text-xs text-gray-500 mt-1">When matches should be created by</p>
-						</div>
-					</div>
-					
-					<div class="flex items-center gap-4">
-						<button
-							type="submit"
-							disabled={isSubmitting}
-							class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-						>
-							{isSubmitting ? 'Updating...' : 'Update Deadline'}
-						</button>
-						
-						{#if data.globalSettings.matchCreationDeadline || data.globalSettings.currentMatchWeek}
-							<span class="text-sm text-gray-400">
-								Currently: Week {data.globalSettings.currentMatchWeek ?? '?'} 
-								{#if data.globalSettings.matchCreationDeadline}
-									due {new Date(data.globalSettings.matchCreationDeadline).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-								{/if}
-							</span>
-						{/if}
-					</div>
+					<input
+						type="number"
+						name="fees"
+						min="0"
+						step="1"
+						value={data.globalSettings.leagueFees ?? 0}
+						required
+						class="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+					/>
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+					>
+						{isSubmitting ? 'Updating...' : 'Update'}
+					</button>
 				</form>
 			</div>
 			
-			<!-- Season Assignments -->
+			<!-- Season Assignments and Per-Season Settings -->
 			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mt-6">
 				<h4 class="text-xl font-bold text-white mb-4">Signup Season Assignments</h4>
 				<p class="text-sm text-gray-400 mb-4">
@@ -529,35 +341,130 @@
 								<p>No seasons created for this format yet.</p>
 							</div>
 						{:else}
-							<div class="space-y-3">
+							<div class="space-y-4">
 								{#each getRegionsWithSeasonsForFormat(selectedFormatId) as region}
 									{@const fieldName = `season_${region.id}_${selectedFormatId}`}
 									{@const currentSeasonId = data.activeSeasonMap[`${region.id}-${selectedFormatId}`]}
 									{@const regionSeasons = getSeasonsForRegionAndFormat(region.name, selectedFormatId)}
+									{@const seasonSettings = currentSeasonId ? data.seasonSettingsMap[currentSeasonId] : null}
 									
-									<div class="flex items-center gap-4 p-4 bg-zinc-900/50 rounded-lg">
-										<div class="w-24 text-gray-200 font-medium">{region.name}</div>
-										<div class="flex-1">
-											<select
-												id="{fieldName}"
-												name="{fieldName}"
-												class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-											>
-												<option value="">No Season Selected</option>
-												{#each regionSeasons as season}
-													<option 
-														value={season.id}
-														selected={currentSeasonId === season.id}
-													>
-														Season {season.seasonNum} ({season._count.teams} teams, {season._count.matches} matches)
-													</option>
-												{/each}
-											</select>
+									<div class="bg-zinc-900/50 rounded-lg p-4 space-y-3">
+										<!-- Region Header with Season Select -->
+										<div class="flex items-center gap-4">
+											<div class="w-24 text-gray-200 font-medium">{region.name}</div>
+											<div class="flex-1">
+												<select
+													id="{fieldName}"
+													name="{fieldName}"
+													class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+												>
+													<option value="">No Season Selected</option>
+													{#each regionSeasons as season}
+														<option 
+															value={season.id}
+															selected={currentSeasonId === season.id}
+														>
+															Season {season.seasonNum} ({season._count.teams} teams, {season._count.matches} matches)
+														</option>
+													{/each}
+												</select>
+											</div>
+											{#if currentSeasonId}
+												<div class="text-green-400 text-sm">Active</div>
+											{:else}
+												<div class="text-gray-500 text-sm">Inactive</div>
+											{/if}
 										</div>
-										{#if currentSeasonId}
-											<div class="text-green-400 text-sm">Active</div>
-										{:else}
-											<div class="text-gray-500 text-sm">Inactive</div>
+										
+										<!-- Per-Season Settings (only show if a season is selected) -->
+										{#if currentSeasonId && seasonSettings}
+											<div class="flex flex-wrap items-center gap-3 pt-3 border-t border-zinc-800">
+												<!-- Signups Toggle -->
+												<form 
+													method="POST" 
+													action="?/toggleSeasonSignups"
+													use:enhance={() => {
+														isSubmitting = true;
+														return async ({ update }) => {
+															await update();
+															isSubmitting = false;
+														};
+													}}
+													class="inline"
+												>
+													<input type="hidden" name="seasonId" value={currentSeasonId} />
+													<button
+														type="submit"
+														disabled={isSubmitting}
+														class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
+															seasonSettings.signupsOpen
+																? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
+																: 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+														}"
+													>
+														Signups: {seasonSettings.signupsOpen ? 'OPEN' : 'CLOSED'}
+													</button>
+												</form>
+												
+												<!-- Roster Lock Toggle -->
+												<form 
+													method="POST" 
+													action="?/toggleSeasonRoster"
+													use:enhance={() => {
+														isSubmitting = true;
+														return async ({ update }) => {
+															await update();
+															isSubmitting = false;
+														};
+													}}
+													class="inline"
+												>
+													<input type="hidden" name="seasonId" value={currentSeasonId} />
+													<button
+														type="submit"
+														disabled={isSubmitting}
+														class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
+															seasonSettings.rosterLocked
+																? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+																: 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
+														}"
+													>
+														Rosters: {seasonSettings.rosterLocked ? 'LOCKED' : 'OPEN'}
+													</button>
+												</form>
+												
+												<!-- Payment Toggle -->
+												<form 
+													method="POST" 
+													action="?/toggleSeasonPayment"
+													use:enhance={() => {
+														isSubmitting = true;
+														return async ({ update }) => {
+															await update();
+															isSubmitting = false;
+														};
+													}}
+													class="inline"
+												>
+													<input type="hidden" name="seasonId" value={currentSeasonId} />
+													<button
+														type="submit"
+														disabled={isSubmitting}
+														class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
+															seasonSettings.paymentRequired
+																? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30'
+																: 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30'
+														}"
+													>
+														Payment: {seasonSettings.paymentRequired ? 'REQUIRED' : 'NOT REQ'}
+													</button>
+												</form>
+												
+												<!-- Match Week Info -->
+												{#if seasonSettings.matchWeek}
+													<span class="text-xs text-gray-500">Week {seasonSettings.matchWeek}</span>
+												{/if}
+											</div>
 										{/if}
 									</div>
 								{/each}

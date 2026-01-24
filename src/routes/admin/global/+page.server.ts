@@ -8,12 +8,13 @@ import {
 	deleteAnnouncement 
 } from '$lib/server/services/announcements';
 import { 
-	getGlobalSettings, 
-	toggleRosterLocked, 
-	toggleSignupClosed, 
-	togglePaymentRequired, 
+	getGlobalSettings,
 	updateGlobalSettings,
-	updateRegionSignupSeason
+	updateRegionSignupSeason,
+	toggleSeasonSignupsOpen,
+	toggleSeasonRosterLocked,
+	toggleSeasonPaymentRequired,
+	updateSeasonSettings
 } from '$lib/server/services/settings';
 import { getAllActiveSignupSeasons } from '$lib/server/services/signupSeasons';
 import { getRegions } from '$lib/server/services/regions';
@@ -33,13 +34,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 		getAllActiveSignupSeasons()
 	]);
 	
-	// Group seasons by region for easier selection
+	// Group seasons by region for easier selection, include per-season settings
 	const seasonsByRegion = seasons.reduce((acc, season) => {
 		const regionName = season.region.name;
 		if (!acc[regionName]) {
 			acc[regionName] = [];
 		}
-		acc[regionName].push(season);
+		acc[regionName].push({
+			...season,
+			// Include per-season settings for display
+			signupsOpen: season.signupsOpen,
+			rosterLocked: season.rosterLocked,
+			paymentRequired: season.paymentRequired,
+			matchWeek: season.matchWeek,
+			matchDeadline: season.matchDeadline
+		});
 		return acc;
 	}, {} as Record<string, typeof seasons>);
 
@@ -48,6 +57,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 		acc[`${as.regionId}-${as.formatId}`] = as.seasonId;
 		return acc;
 	}, {} as Record<string, number>);
+
+	// Create a map of season settings: { seasonId: { signupsOpen, rosterLocked, paymentRequired } }
+	const seasonSettingsMap = seasons.reduce((acc, season) => {
+		acc[season.id] = {
+			signupsOpen: season.signupsOpen,
+			rosterLocked: season.rosterLocked,
+			paymentRequired: season.paymentRequired,
+			matchWeek: season.matchWeek,
+			matchDeadline: season.matchDeadline
+		};
+		return acc;
+	}, {} as Record<number, { signupsOpen: boolean; rosterLocked: boolean; paymentRequired: boolean; matchWeek: number | null; matchDeadline: Date | null }>);
 	
 	return {
 		announcements,
@@ -56,7 +77,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		formats,
 		seasonsByRegion,
 		activeSignupSeasons,
-		activeSeasonMap
+		activeSeasonMap,
+		seasonSettingsMap
 	};
 };
 
@@ -151,39 +173,89 @@ export const actions: Actions = {
 		}
 	},
 	
-	toggleRoster: async ({ locals }) => {
+	// Per-season toggle actions
+	toggleSeasonSignups: async ({ request, locals }) => {
 		requireAdmin(locals.user);
 		
+		const formData = await request.formData();
+		const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
+		
+		if (isNaN(seasonId)) {
+			return fail(400, { error: 'Invalid season ID' });
+		}
+		
 		try {
-			await toggleRosterLocked();
-			return { success: true, message: 'Roster lock status updated' };
+			await toggleSeasonSignupsOpen(seasonId);
+			return { success: true, message: 'Season signups status updated' };
 		} catch (error) {
-			console.error('Error toggling roster lock:', error);
-			return fail(500, { error: 'Failed to update roster lock' });
+			console.error('Error toggling season signups:', error);
+			return fail(500, { error: 'Failed to update season signups status' });
 		}
 	},
 	
-	toggleSignup: async ({ locals }) => {
+	toggleSeasonRoster: async ({ request, locals }) => {
 		requireAdmin(locals.user);
 		
+		const formData = await request.formData();
+		const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
+		
+		if (isNaN(seasonId)) {
+			return fail(400, { error: 'Invalid season ID' });
+		}
+		
 		try {
-			await toggleSignupClosed();
-			return { success: true, message: 'Signup lock status updated' };
+			await toggleSeasonRosterLocked(seasonId);
+			return { success: true, message: 'Season roster lock status updated' };
 		} catch (error) {
-			console.error('Error toggling signup lock:', error);
-			return fail(500, { error: 'Failed to update signup lock' });
+			console.error('Error toggling season roster lock:', error);
+			return fail(500, { error: 'Failed to update season roster lock' });
 		}
 	},
 	
-	togglePayment: async ({ locals }) => {
+	toggleSeasonPayment: async ({ request, locals }) => {
 		requireAdmin(locals.user);
 		
+		const formData = await request.formData();
+		const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
+		
+		if (isNaN(seasonId)) {
+			return fail(400, { error: 'Invalid season ID' });
+		}
+		
 		try {
-			await togglePaymentRequired();
-			return { success: true, message: 'Payment requirement updated' };
+			await toggleSeasonPaymentRequired(seasonId);
+			return { success: true, message: 'Season payment requirement updated' };
 		} catch (error) {
-			console.error('Error toggling payment requirement:', error);
-			return fail(500, { error: 'Failed to update payment requirement' });
+			console.error('Error toggling season payment requirement:', error);
+			return fail(500, { error: 'Failed to update season payment requirement' });
+		}
+	},
+	
+	updateSeasonMatchSettings: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+		
+		const formData = await request.formData();
+		const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
+		const matchWeekStr = formData.get('matchWeek')?.toString();
+		const matchDeadlineStr = formData.get('matchDeadline')?.toString();
+		
+		if (isNaN(seasonId)) {
+			return fail(400, { error: 'Invalid season ID' });
+		}
+		
+		const matchWeek = matchWeekStr ? parseInt(matchWeekStr) : null;
+		const matchDeadline = matchDeadlineStr ? new Date(matchDeadlineStr) : null;
+		
+		if (matchWeekStr && isNaN(matchWeek as number)) {
+			return fail(400, { error: 'Invalid match week' });
+		}
+		
+		try {
+			await updateSeasonSettings(seasonId, { matchWeek, matchDeadline });
+			return { success: true, message: 'Season match settings updated' };
+		} catch (error) {
+			console.error('Error updating season match settings:', error);
+			return fail(500, { error: 'Failed to update season match settings' });
 		}
 	},
 	
@@ -240,44 +312,5 @@ export const actions: Actions = {
 		}
 	},
 	
-	updateMatchDeadline: async ({ request, locals }) => {
-		requireAdmin(locals.user);
-		
-		const formData = await request.formData();
-		const weekNumber = formData.get('weekNumber')?.toString();
-		const deadline = formData.get('deadline')?.toString();
-		
-		const updates: any = {};
-		
-		// Parse week number (can be empty to clear)
-		if (weekNumber) {
-			const week = parseInt(weekNumber);
-			if (isNaN(week) || week < 1) {
-				return fail(400, { error: 'Invalid week number' });
-			}
-			updates.currentMatchWeek = week;
-		} else {
-			updates.currentMatchWeek = null;
-		}
-		
-		// Parse deadline (can be empty to clear)
-		if (deadline) {
-			const deadlineDate = new Date(deadline);
-			if (isNaN(deadlineDate.getTime())) {
-				return fail(400, { error: 'Invalid deadline date' });
-			}
-			updates.matchCreationDeadline = deadlineDate;
-		} else {
-			updates.matchCreationDeadline = null;
-		}
-		
-		try {
-			await updateGlobalSettings(updates);
-			return { success: true, message: 'Match creation deadline updated' };
-		} catch (error) {
-			console.error('Error updating match deadline:', error);
-			return fail(500, { error: 'Failed to update match deadline' });
-		}
-	}
 };
 

@@ -40,17 +40,32 @@ interface TeamReregistrationData {
 
 /**
  * Get signup context for a user
+ * Now uses per-season settings instead of global
  */
 export async function getSignupContext(steamId: string | null): Promise<SignupContext> {
-	// Get global settings
-	const global = await prisma.global.findFirst();
-
-	if (!global) {
-		throw error(500, 'Global configuration not found');
-	}
-
 	// Get current signup season IDs for 2v2 format
 	const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
+
+	// Get active signup seasons with their settings
+	const activeSignupSeasons = await prisma.activeSignupSeason.findMany({
+		where: {
+			formatId: FORMAT_2V2
+		},
+		include: {
+			season: {
+				select: {
+					signupsOpen: true,
+					rosterLocked: true
+				}
+			}
+		}
+	});
+
+	// Check if ANY active signup season has signups open
+	const anySignupsOpen = activeSignupSeasons.some(as => as.season.signupsOpen);
+	// Check if ALL active signup seasons have rosters locked (conservative approach)
+	const allRostersLocked = activeSignupSeasons.length > 0 && 
+		activeSignupSeasons.every(as => as.season.rosterLocked);
 
 	let ownedTeams: any[] = [];
 	let hasActiveTeam = false;
@@ -96,8 +111,8 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
 		isLoggedIn: !!steamId,
 		ownedTeams: ownedTeams.map((pt) => pt.team),
 		hasActiveTeam,
-		signupClosed: global.signupClosed === 1,
-		rosterLocked: global.rosterLocked === 1
+		signupClosed: !anySignupsOpen, // Inverted: signupsOpen=false means signupClosed=true
+		rosterLocked: allRostersLocked
 	};
 }
 

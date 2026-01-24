@@ -4,19 +4,20 @@
  */
 
 import type { LayoutServerLoad } from './$types';
-import { getGlobalSettings } from '$lib/server/services/settings';
+import { hasAnySignupsOpen } from '$lib/server/services/settings';
 import { getUserActiveTeam } from '$lib/server/services/users';
 import { getUnreadNotifications } from '$lib/server/services/notifications';
 import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 import { getSiteSettings } from '$lib/server/services/siteSettings';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-	// Get global settings for signup status
-	const [settings, siteSettings] = await Promise.all([
-		getGlobalSettings(),
+	// Check if any active signup season has signups open
+	const [anySignupsOpen, siteSettings] = await Promise.all([
+		hasAnySignupsOpen(),
 		getSiteSettings()
 	]);
-	const signupClosed = settings?.signupClosed === 1;
+	// Inverted: signupClosed = NOT anySignupsOpen
+	const signupClosed = !anySignupsOpen;
 
 	// Check if user is in a team (to hide signup button if they are)
 	let isInTeam = false;

@@ -142,9 +142,12 @@ export async function createMatchSet(
 		throw error(400, 'Playoff matches require manual team selection. Use createPlayoffMatch instead.');
 	}
 
-	// Get global settings for payment requirement
-	const globalSettings = await prisma.global.findFirst();
-	const paymentRequired = globalSettings?.paymentRequired === 1;
+	// Get season settings for payment requirement (per-season setting)
+	const season = await prisma.season.findUnique({
+		where: { id: seasonId },
+		select: { paymentRequired: true }
+	});
+	const paymentRequired = season?.paymentRequired ?? false;
 
 	// Build conditions for team selection
 	// NOTE: We intentionally do NOT filter by seasonId here, matching getEligibleTeams() behavior.
@@ -373,8 +376,12 @@ Good luck to both teams!`,
  * Instead, we filter by region, division, and READY status.
  */
 export async function getEligibleTeams(regionId: number, divisionId: number, seasonId: number) {
-	const globalSettings = await prisma.global.findFirst();
-	const paymentRequired = globalSettings?.paymentRequired === 1;
+	// Get season settings for payment requirement (per-season setting)
+	const season = await prisma.season.findUnique({
+		where: { id: seasonId },
+		select: { paymentRequired: true }
+	});
+	const paymentRequired = season?.paymentRequired ?? false;
 
 	const conditions: any = {
 		regionId,

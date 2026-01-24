@@ -1,10 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { getSignupContext } from '$lib/server/services/teamSignup';
+import { get1v1SignupContext } from '$lib/server/services/signup1v1';
 import { redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { getCurrentSignupSeasonIds } from '$lib/server/services/signupSeasons';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
+import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
+import { getVisibleRegions } from '$lib/server/services/regions';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAuth(locals.user);
@@ -67,6 +69,34 @@ export const load: PageServerLoad = async ({ locals }) => {
 		reregisterDisabledReason = 'Rosters are currently locked for the season. Teams cannot be re-registered until the next signup period.';
 	}
 
+	// Check 1v1 signup eligibility
+	const context1v1 = await get1v1SignupContext(locals.user.steamId);
+
+	// Check if there are any active 1v1 seasons
+	const regions = await getVisibleRegions();
+	let has1v1Seasons = false;
+	for (const region of regions) {
+		const seasonId = await getSignupSeasonForRegion(region.id, FORMAT_1V1);
+		if (seasonId) {
+			has1v1Seasons = true;
+			break;
+		}
+	}
+
+	let can1v1Signup = true;
+	let signup1v1DisabledReason = '';
+
+	if (context1v1.signupClosed) {
+		can1v1Signup = false;
+		signup1v1DisabledReason = '1v1 signups are currently closed';
+	} else if (!has1v1Seasons) {
+		can1v1Signup = false;
+		signup1v1DisabledReason = 'No 1v1 seasons are currently open for signups';
+	} else if (context1v1.hasActive1v1Entry) {
+		can1v1Signup = false;
+		signup1v1DisabledReason = 'You are already signed up for the 1v1 league this season';
+	}
+
 	return {
 		signupClosed: context.signupClosed,
 		ownedTeams: context.ownedTeams,
@@ -74,7 +104,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		canCreateNew,
 		createDisabledReason,
 		canReregister,
-		reregisterDisabledReason
+		reregisterDisabledReason,
+		// 1v1 signup
+		can1v1Signup,
+		signup1v1DisabledReason,
+		has1v1Seasons
 	};
 };
 

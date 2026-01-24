@@ -4,7 +4,7 @@ import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
 import { getModerators } from '$lib/server/services/moderators';
-import { getGlobalSettings } from '$lib/server/services/settings';
+import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -12,15 +12,19 @@ export const load: PageServerLoad = async ({ url }) => {
 		const seasonParam = url.searchParams.get('season');
 		const regionParam = url.searchParams.get('region');
 
-		// Fetch all seasons (for dropdown)
-		const allSeasons = await getSeasons();
-
-		// Fetch all regions (for selector)
+		// Fetch all regions first (only visible ones)
 		const allRegions = await getVisibleRegions();
+		const visibleRegionIds = new Set(allRegions.map((r) => r.id));
 
-		// Find the most recent season that has teams (any status, including historical)
+		// Fetch all seasons and filter to only visible regions AND 2v2 format
+		const allSeasonsRaw = await getSeasons();
+		const allSeasons = allSeasonsRaw.filter((s) => 
+			visibleRegionIds.has(s.regionId) && s.formatId === FORMAT_2V2
+		);
+
+		// Find the most recent 2v2 season that has teams (any status, including historical)
 		// This ensures we show a season with actual data by default
-		let defaultSeasonWithTeams = await findRecentSeasonWithTeams(['UNREADY', 'PENDING', 'READY', 'PLACEMENT', 'DEAD']);
+		let defaultSeasonWithTeams = await findRecentSeasonWithTeams(['UNREADY', 'PENDING', 'READY', 'PLACEMENT', 'DEAD'], FORMAT_2V2);
 
 		// Determine selected season and region
 		let selectedSeasonId: number | undefined;
@@ -116,10 +120,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const staffByDivision = Array.from(staffByDivisionMap.values())
 			.sort((a, b) => b.division.id - a.division.id);
 
-		// Fetch global settings for deadlines
-		const globalSettings = await getGlobalSettings();
-
-		// Get selected region info
+		// Get selected region and season info
 		const selectedRegion = allRegions.find((r) => r.id === selectedRegionId);
 		const selectedSeason = allSeasons.find((s) => s.id === selectedSeasonId);
 
@@ -128,8 +129,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				id: s.id,
 				name: `Season ${s.seasonNum}`,
 				seasonNum: s.seasonNum,
-				regionId: s.regionId,
-				regionName: s.region.name
+				regionId: s.regionId
 			})),
 			regions: allRegions.map((r) => ({
 				id: r.id,
@@ -142,9 +142,10 @@ export const load: PageServerLoad = async ({ url }) => {
 			teamsByDivision: teamsByDivision.filter((d) => d.teams.length > 0), // Only show divisions with teams
 			staffByDivision: staffByDivision, // Show all staff (even if empty - will be handled in UI)
 			deadlines: {
-				signupClosed: globalSettings?.signupClosed === 1,
-				rosterLocked: globalSettings?.rosterLocked === 1,
-				paymentRequired: globalSettings?.paymentRequired === 1
+				// Use per-season settings instead of global
+				signupClosed: !selectedSeason?.signupsOpen,
+				rosterLocked: selectedSeason?.rosterLocked ?? false,
+				paymentRequired: selectedSeason?.paymentRequired ?? false
 			}
 		};
 	} catch (error) {

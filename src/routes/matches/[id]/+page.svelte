@@ -104,6 +104,10 @@
 	const isUnplayed = $derived(match.status === 'UNPLAYED');
 	const isPlayed = $derived(match.status === 'PLAYED');
 	const isDisputed = $derived(match.status === 'DISPUTE');
+
+	// Helper to get participant name (player name for 1v1, team name for 2v2)
+	const getHomeName = () => match.is1v1 && match.homePlayer ? match.homePlayer.steamUsername : match.homeTeam.name;
+	const getAwayName = () => match.is1v1 && match.awayPlayer ? match.awayPlayer.steamUsername : match.awayTeam.name;
 	
 	// Get unique arenas with full data (id, name, avatar)
 	const matchArenas = $derived(() => {
@@ -232,22 +236,39 @@
 			</span>
 		</div>
 
-		<!-- Teams -->
+		<!-- Teams/Players -->
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-			<!-- Home Team -->
-			<a href="/teams/{match.homeTeamId}" class="flex items-center space-x-4 hover:bg-zinc-800 p-4 rounded-lg transition">
-				<img
-					src={match.homeTeam.avatar || '/default-avatar.png'}
-					alt={match.homeTeam.name}
-					class="w-16 h-16 rounded-full object-cover"
-				/>
-				<div>
-					<div class="font-semibold text-lg text-white">{match.homeTeam.name}</div>
-					<div class="text-sm text-gray-400">
-						{match.homeTeam.division?.name} • {match.homeTeam.region?.name}
+			{#if match.is1v1 && match.homePlayer}
+				<!-- 1v1: Home Player -->
+				<a href="/users/{match.homePlayer.steamId}" class="flex items-center space-x-4 hover:bg-zinc-800 p-4 rounded-lg transition">
+					<img
+						src={match.homePlayer.steamAvatar || '/default-avatar.png'}
+						alt={match.homePlayer.steamUsername}
+						class="w-16 h-16 rounded-full object-cover"
+					/>
+					<div>
+						<div class="font-semibold text-lg text-white">{match.homePlayer.steamUsername}</div>
+						<div class="text-sm text-gray-400">
+							{match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
+						</div>
 					</div>
-				</div>
-			</a>
+				</a>
+			{:else}
+				<!-- 2v2: Home Team -->
+				<a href="/teams/{match.homeTeamId}" class="flex items-center space-x-4 hover:bg-zinc-800 p-4 rounded-lg transition">
+					<img
+						src={match.homeTeam.avatar || '/default-avatar.png'}
+						alt={match.homeTeam.name}
+						class="w-16 h-16 rounded-full object-cover"
+					/>
+					<div>
+						<div class="font-semibold text-lg text-white">{match.homeTeam.name}</div>
+						<div class="text-sm text-gray-400">
+							{match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
+						</div>
+					</div>
+				</a>
+			{/if}
 
 			<!-- Score -->
 			<div class="text-center">
@@ -268,20 +289,37 @@
 				{/if}
 			</div>
 
-			<!-- Away Team -->
-			<a href="/teams/{match.awayTeamId}" class="flex items-center space-x-4 hover:bg-zinc-800 p-4 rounded-lg transition justify-end">
-				<div class="text-right">
-					<div class="font-semibold text-lg text-white">{match.awayTeam.name}</div>
-					<div class="text-sm text-gray-400">
-						{match.awayTeam.division?.name} • {match.awayTeam.region?.name}
+			{#if match.is1v1 && match.awayPlayer}
+				<!-- 1v1: Away Player -->
+				<a href="/users/{match.awayPlayer.steamId}" class="flex items-center space-x-4 hover:bg-zinc-800 p-4 rounded-lg transition justify-end">
+					<div class="text-right">
+						<div class="font-semibold text-lg text-white">{match.awayPlayer.steamUsername}</div>
+						<div class="text-sm text-gray-400">
+							{match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
+						</div>
 					</div>
-				</div>
-				<img
-					src={match.awayTeam.avatar || '/default-avatar.png'}
-					alt={match.awayTeam.name}
-					class="w-16 h-16 rounded-full object-cover"
-				/>
-			</a>
+					<img
+						src={match.awayPlayer.steamAvatar || '/default-avatar.png'}
+						alt={match.awayPlayer.steamUsername}
+						class="w-16 h-16 rounded-full object-cover"
+					/>
+				</a>
+			{:else}
+				<!-- 2v2: Away Team -->
+				<a href="/teams/{match.awayTeamId}" class="flex items-center space-x-4 hover:bg-zinc-800 p-4 rounded-lg transition justify-end">
+					<div class="text-right">
+						<div class="font-semibold text-lg text-white">{match.awayTeam.name}</div>
+						<div class="text-sm text-gray-400">
+							{match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
+						</div>
+					</div>
+					<img
+						src={match.awayTeam.avatar || '/default-avatar.png'}
+						alt={match.awayTeam.name}
+						class="w-16 h-16 rounded-full object-cover"
+					/>
+				</a>
+			{/if}
 		</div>
 
 		<!-- Match Info Cards -->
@@ -472,7 +510,7 @@
 							<div class="grid grid-cols-3 gap-4 items-center">
 								<div>
 									<label class="block text-sm font-medium text-gray-300 mb-1">
-										{match.homeTeam.name}
+										{getHomeName()}
 									</label>
 									<input
 										type="number"
@@ -493,7 +531,7 @@
 								<div class="text-center text-gray-400 font-semibold">VS</div>
 								<div>
 									<label class="block text-sm font-medium text-gray-300 mb-1">
-										{match.awayTeam.name}
+										{getAwayName()}
 									</label>
 									<input
 										type="number"
@@ -537,7 +575,7 @@
 					{@const wins = gamesWonByTeam()}
 					<div class="mt-4 p-3 bg-green-900/20 border border-green-700 rounded-lg">
 						<p class="text-green-300 text-sm">
-							✓ Match decided: <strong>{wins.home >= gamesToWin ? match.homeTeam.name : match.awayTeam.name}</strong> wins {Math.max(wins.home, wins.away)}-{Math.min(wins.home, wins.away)}
+							&#10003; Match decided: <strong>{wins.home >= gamesToWin ? getHomeName() : getAwayName()}</strong> wins {Math.max(wins.home, wins.away)}-{Math.min(wins.home, wins.away)}
 						</p>
 					</div>
 				{/if}
@@ -564,8 +602,8 @@
 						<tr class="border-b border-zinc-700">
 							<th class="text-left py-3 px-4 text-gray-300 font-semibold">Game</th>
 							<th class="text-left py-3 px-4 text-gray-300 font-semibold">Arena</th>
-							<th class="text-center py-3 px-4 text-gray-300 font-semibold">{match.homeTeam.name}</th>
-							<th class="text-center py-3 px-4 text-gray-300 font-semibold">{match.awayTeam.name}</th>
+							<th class="text-center py-3 px-4 text-gray-300 font-semibold">{getHomeName()}</th>
+							<th class="text-center py-3 px-4 text-gray-300 font-semibold">{getAwayName()}</th>
 							<th class="text-left py-3 px-4 text-gray-300 font-semibold">Winner</th>
 						</tr>
 					</thead>
@@ -583,9 +621,9 @@
 									</td>
 									<td class="py-3 px-4">
 										{#if game.homeTeamScore > game.awayTeamScore}
-											{match.homeTeam.name}
+											{getHomeName()}
 										{:else if game.awayTeamScore > game.homeTeamScore}
-											{match.awayTeam.name}
+											{getAwayName()}
 										{:else}
 											Tie
 										{/if}
@@ -660,7 +698,7 @@
 			<div class="mb-6">
 				<div class="text-sm text-gray-300 mb-2">
 					Current Turn: <span class="font-semibold">
-						{data.mapBanStatus.matchMapBan.currentTurn === 0 ? match.homeTeam.name : match.awayTeam.name}
+						{data.mapBanStatus.matchMapBan.currentTurn === 0 ? getHomeName() : getAwayName()}
 					</span>
 				</div>
 				<div class="text-sm text-gray-300">

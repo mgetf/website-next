@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { requestJoinByPassword, isPlayerInTeam, isPlayerInAnyActiveTeam } from '$lib/server/services/teamJoin';
 import { getTeamById } from '$lib/server/services/teams';
-import { getGlobalSettings } from '$lib/server/services/settings';
+import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
@@ -32,9 +32,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		};
 	}
 
-	// Check if rosters are locked
-	const global = await getGlobalSettings();
-	const rosterLocked = global?.rosterLocked === 1;
+	// Check if rosters are locked for this team's season
+	const rosterLocked = team.season?.rosterLocked ?? false;
 
 	// Check if user is trying to join their own team
 	const isTeamMemberCheck = await isPlayerInTeam(locals.user.steamId, teamId);
@@ -77,9 +76,9 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid team ID' });
 		}
 
-		// Check if rosters are locked
-		const global = await getGlobalSettings();
-		if (global?.rosterLocked === 1) {
+		// Check if rosters are locked for this team's season
+		const seasonSettings = await getSeasonSettingsByTeamId(teamId);
+		if (seasonSettings?.rosterLocked) {
 			return fail(400, { error: 'Rosters are currently locked' });
 		}
 

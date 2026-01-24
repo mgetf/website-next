@@ -43,6 +43,16 @@ export async function validateTokenAndGetTeam(token: string, steamId?: string): 
 		throw error(404, 'Team not found');
 	}
 
+	// Block joining 1v1 "teams" - they're individual entries, not actual teams
+	if (team.formatId === FORMAT_1V1) {
+		return {
+			team,
+			activePlayers: team.players,
+			canJoin: false,
+			error: '1v1 entries cannot be joined - they are individual player entries'
+		};
+	}
+
 	const activePlayers = team.players;
 
 	// Check if user is trying to join their own team

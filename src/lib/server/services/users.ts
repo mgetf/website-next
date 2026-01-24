@@ -6,7 +6,7 @@
 
 import { prisma } from '$lib/server/db';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 
 /**
  * Get user by Steam ID with basic info
@@ -97,6 +97,33 @@ export async function getUserActiveTeam(steamId: string): Promise<{ id: number; 
 	});
 
 	return teamMembership?.team || null;
+}
+
+/**
+ * Get player's 1v1 entries (for profile display)
+ * Returns all 1v1 "teams" the player has created (current and past)
+ */
+export async function getPlayer1v1Entries(steamId: string) {
+	return await prisma.playerInTeam.findMany({
+		where: {
+			playerSteamId: steamId,
+			team: {
+				formatId: FORMAT_1V1
+			}
+		},
+		include: {
+			team: {
+				include: {
+					division: true,
+					region: true,
+					season: true
+				}
+			}
+		},
+		orderBy: {
+			startedAt: 'desc'
+		}
+	});
 }
 
 /**
@@ -260,10 +287,11 @@ export async function getPlayerProfile(steamId: string) {
 	}
 
 	// Fetch all related data in parallel
-	const [playerTeams, tournaments, fightNightMatchups] = await Promise.all([
+	const [playerTeams, tournaments, fightNightMatchups, player1v1Entries] = await Promise.all([
 		getPlayerTeams(steamId),
 		getPlayerTournamentPlacements(steamId),
-		getPlayerFightNightMatchups(steamId)
+		getPlayerFightNightMatchups(steamId),
+		getPlayer1v1Entries(steamId)
 	]);
 
 	// Transform data
@@ -272,6 +300,20 @@ export async function getPlayerProfile(steamId: string) {
 	const tournamentResults = transformTournamentPlacements(tournaments, steamId);
 	const fightNights = transformFightNightMatchups(fightNightMatchups, steamId);
 	const achievements = buildAchievements(tournamentResults);
+
+	// Transform 1v1 entries
+	const current1v1Entry = player1v1Entries.find((e) => e.active === 1);
+	const entries1v1 = player1v1Entries.map((entry) => ({
+		id: entry.team.id,
+		active: entry.active === 1,
+		division: entry.team.division?.name || 'Unknown',
+		region: entry.team.region?.name || 'Unknown',
+		seasonNum: entry.team.season?.seasonNum || 0,
+		wins: entry.team.wins,
+		losses: entry.team.losses,
+		startedAt: entry.startedAt,
+		leftAt: entry.leftAt
+	}));
 
 	return {
 		player: {
@@ -286,7 +328,19 @@ export async function getPlayerProfile(steamId: string) {
 		teamHistory,
 		tournaments: tournamentResults,
 		fightNights,
-		achievements
+		achievements,
+		// 1v1 League data
+		current1v1Entry: current1v1Entry
+			? {
+					id: current1v1Entry.team.id,
+					division: current1v1Entry.team.division?.name || 'Unknown',
+					region: current1v1Entry.team.region?.name || 'Unknown',
+					seasonNum: current1v1Entry.team.season?.seasonNum || 0,
+					wins: current1v1Entry.team.wins,
+					losses: current1v1Entry.team.losses
+				}
+			: null,
+		entries1v1
 	};
 }
 

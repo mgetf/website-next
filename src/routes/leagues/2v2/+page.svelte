@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 
 	interface PageData {
-		seasons: Array<{ id: number; name: string; seasonNum: number; regionId: number; regionName: string }>;
+		seasons: Array<{ id: number; name: string; seasonNum: number; regionId: number }>;
 		regions: Array<{ id: number; name: string }>;
 		selectedSeasonId: number;
 		selectedRegionId: number;
@@ -40,6 +40,13 @@
 	let selectedSeason = $state(data.selectedSeasonId);
 	let selectedRegion = $state(data.selectedRegionId);
 	let isInitialized = $state(false);
+
+	// Filter regions to only show those with 2v2 seasons
+	const regionsWithSeasons = $derived(
+		data.regions.filter((region: (typeof data.regions)[number]) =>
+			data.seasons.some((s: (typeof data.seasons)[number]) => s.regionId === region.id)
+		)
+	);
 
 	// TODO: TEMPORARY WORKAROUND - This auto-switching logic can be removed when schema is refactored
 	// Currently needed because seasons are not unique (Season 1 exists for both NA and EU)
@@ -95,7 +102,7 @@
 			<div class="flex flex-col items-center gap-2">
 				<span class="text-sm font-medium text-gray-400">Region</span>
 				<div class="flex gap-2">
-					{#each data.regions as region}
+					{#each regionsWithSeasons as region}
 						<button
 							onclick={() => { selectedRegion = region.id; }}
 							class="px-6 py-2 rounded font-medium transition-all {selectedRegion === region.id 
@@ -116,7 +123,7 @@
 					class="px-6 py-2 bg-zinc-900 text-white rounded border border-zinc-800 hover:bg-zinc-800 transition-all cursor-pointer"
 				>
 					{#each data.seasons.filter((s: typeof data.seasons[number]) => s.regionId === selectedRegion) as season}
-						<option value={season.id}>{season.name} ({season.regionName})</option>
+						<option value={season.id}>{season.name}</option>
 					{/each}
 				</select>
 			</div>

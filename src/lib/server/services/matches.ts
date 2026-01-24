@@ -1,6 +1,6 @@
 /**
  * Match Management Service
- * Core business logic for 2v2 league matches
+ * Core business logic for league matches (2v2 and 1v1)
  */
 
 import { prisma } from '$lib/server/db';
@@ -9,6 +9,7 @@ import { MatchStatus } from '$prisma/client.js';
 import { UserRole, type SessionUser } from '$lib/types/user';
 import { error } from '@sveltejs/kit';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
 /**
  * Get complete match details with all relations
@@ -96,7 +97,28 @@ export async function getMatchDetails(matchId: number) {
 		throw error(404, 'Match not found');
 	}
 
-	return match;
+	// Check if this is a 1v1 match and add player info
+	const is1v1 = match.homeTeam.formatId === FORMAT_1V1;
+	
+	if (is1v1) {
+		// Get the active player from each "team" (there should only be one)
+		const homePlayer = match.homeTeam.players[0]?.player || null;
+		const awayPlayer = match.awayTeam.players[0]?.player || null;
+
+		return {
+			...match,
+			is1v1: true,
+			homePlayer,
+			awayPlayer
+		};
+	}
+
+	return {
+		...match,
+		is1v1: false,
+		homePlayer: null,
+		awayPlayer: null
+	};
 }
 
 /**

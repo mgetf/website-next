@@ -455,10 +455,11 @@ export async function updateTeamStatus(id: number, status: TeamStatus) {
  * Find the most recent season that has teams with specific statuses
  * Used to find default season for league pages
  */
-export async function findRecentSeasonWithTeams(statuses: string[]) {
+export async function findRecentSeasonWithTeams(statuses: string[], formatId?: number) {
 	return await prisma.team.findFirst({
 		where: {
-			status: { in: statuses as any }
+			status: { in: statuses as any },
+			...(formatId !== undefined && { formatId })
 		},
 		orderBy: {
 			seasonId: 'desc'

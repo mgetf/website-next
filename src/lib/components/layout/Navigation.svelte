@@ -46,9 +46,23 @@
 				
 				<!-- Desktop Navigation Links -->
 				<div class="hidden md:flex items-center gap-1">
-					<a href="/leagues/2v2" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all">
-						League
-					</a>
+					<!-- Leagues Dropdown -->
+					<div class="relative group">
+						<button class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all flex items-center gap-1">
+							Leagues
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							</svg>
+						</button>
+						<div class="absolute left-0 mt-1 w-40 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+							<a href="/leagues/2v2" class="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-zinc-800 rounded-t-lg">
+								2v2 League
+							</a>
+							<a href="/leagues/1v1" class="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-zinc-800 rounded-b-lg">
+								1v1 League
+							</a>
+						</div>
+					</div>
 					<a href="/tournaments" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all">
 						Tournaments
 					</a>
@@ -119,7 +133,10 @@
 		<div class="md:hidden border-t border-zinc-800 bg-zinc-900">
 			<div class="px-4 py-3 space-y-1">
 				<a href="/leagues/2v2" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
-					League
+					2v2 League
+				</a>
+				<a href="/leagues/1v1" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
+					1v1 League
 				</a>
 				<a href="/tournaments" class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg">
 					Tournaments

@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { validateTokenAndGetTeam, acceptInviteByToken, declineInvitation } from '$lib/server/services/teamJoin';
-import { getGlobalSettings } from '$lib/server/services/settings';
+import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -16,9 +16,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	try {
 		const teamInfo = await validateTokenAndGetTeam(token, locals.user.steamId);
 
-		// Check if rosters are locked
-		const global = await getGlobalSettings();
-		const rosterLocked = global?.rosterLocked === 1;
+		// Check if rosters are locked for this team's season
+		const rosterLocked = teamInfo.team?.season?.rosterLocked ?? false;
 
 		return {
 			...teamInfo,
@@ -48,9 +47,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid token' });
 		}
 
-		// Check if rosters are locked
-		const global = await getGlobalSettings();
-		if (global?.rosterLocked === 1) {
+		// Get team ID from token to check season settings
+		const { validateJoinToken: decodeToken } = await import('$lib/server/services/teamSignup');
+		const { teamId } = decodeToken(token);
+		
+		// Check if rosters are locked for this team's season
+		const seasonSettings = await getSeasonSettingsByTeamId(teamId);
+		if (seasonSettings?.rosterLocked) {
 			return fail(400, { error: 'Rosters are currently locked' });
 		}
 

@@ -37,11 +37,6 @@ export async function getGlobalSettingsWithSignupSeasons() {
  */
 export async function updateGlobalSettings(data: {
 	leagueFees?: number;
-	signupClosed?: number;
-	rosterLocked?: number;
-	paymentRequired?: number;
-	matchCreationDeadline?: Date | null;
-	currentMatchWeek?: number | null;
 }) {
 	// Get existing settings
 	const existingSettings = await prisma.global.findFirst();
@@ -56,69 +51,10 @@ export async function updateGlobalSettings(data: {
 		// Create new
 		return await prisma.global.create({
 			data: {
-				leagueFees: data.leagueFees ?? 0,
-				signupClosed: data.signupClosed ?? 0,
-				rosterLocked: data.rosterLocked ?? 0,
-				paymentRequired: data.paymentRequired ?? 0,
-				matchCreationDeadline: data.matchCreationDeadline,
-				currentMatchWeek: data.currentMatchWeek
+				leagueFees: data.leagueFees ?? 0
 			}
 		});
 	}
-}
-
-/**
- * Toggle signup closed status
- */
-export async function toggleSignupClosed() {
-	const settings = await prisma.global.findFirst();
-
-	if (!settings) {
-		throw new Error('Global settings not found');
-	}
-
-	return await prisma.global.update({
-		where: { id: settings.id },
-		data: {
-			signupClosed: settings.signupClosed === 1 ? 0 : 1
-		}
-	});
-}
-
-/**
- * Toggle roster locked status
- */
-export async function toggleRosterLocked() {
-	const settings = await prisma.global.findFirst();
-
-	if (!settings) {
-		throw new Error('Global settings not found');
-	}
-
-	return await prisma.global.update({
-		where: { id: settings.id },
-		data: {
-			rosterLocked: settings.rosterLocked === 1 ? 0 : 1
-		}
-	});
-}
-
-/**
- * Toggle payment required status
- */
-export async function togglePaymentRequired() {
-	const settings = await prisma.global.findFirst();
-
-	if (!settings) {
-		throw new Error('Global settings not found');
-	}
-
-	return await prisma.global.update({
-		where: { id: settings.id },
-		data: {
-			paymentRequired: settings.paymentRequired === 1 ? 0 : 1
-		}
-	});
 }
 
 /**
@@ -131,4 +67,147 @@ export async function updateRegionSignupSeason(
 	seasonId: number | null
 ) {
 	return await setActiveSignupSeason(regionId, formatId, seasonId);
+}
+
+// ============================================================================
+// PER-SEASON SETTINGS
+// These settings are now managed at the season level for better control
+// ============================================================================
+
+/**
+ * Season settings interface
+ */
+export interface SeasonSettings {
+	signupsOpen: boolean;
+	rosterLocked: boolean;
+	paymentRequired: boolean;
+	matchWeek: number | null;
+	matchDeadline: Date | null;
+}
+
+/**
+ * Get settings for a specific season
+ */
+export async function getSeasonSettings(seasonId: number): Promise<SeasonSettings | null> {
+	const season = await prisma.season.findUnique({
+		where: { id: seasonId },
+		select: {
+			signupsOpen: true,
+			rosterLocked: true,
+			paymentRequired: true,
+			matchWeek: true,
+			matchDeadline: true
+		}
+	});
+
+	return season;
+}
+
+/**
+ * Update settings for a specific season
+ */
+export async function updateSeasonSettings(
+	seasonId: number,
+	data: Partial<SeasonSettings>
+) {
+	return await prisma.season.update({
+		where: { id: seasonId },
+		data
+	});
+}
+
+/**
+ * Toggle signups open status for a season
+ */
+export async function toggleSeasonSignupsOpen(seasonId: number) {
+	const season = await prisma.season.findUnique({
+		where: { id: seasonId },
+		select: { signupsOpen: true }
+	});
+
+	if (!season) {
+		throw new Error('Season not found');
+	}
+
+	return await prisma.season.update({
+		where: { id: seasonId },
+		data: { signupsOpen: !season.signupsOpen }
+	});
+}
+
+/**
+ * Toggle roster locked status for a season
+ */
+export async function toggleSeasonRosterLocked(seasonId: number) {
+	const season = await prisma.season.findUnique({
+		where: { id: seasonId },
+		select: { rosterLocked: true }
+	});
+
+	if (!season) {
+		throw new Error('Season not found');
+	}
+
+	return await prisma.season.update({
+		where: { id: seasonId },
+		data: { rosterLocked: !season.rosterLocked }
+	});
+}
+
+/**
+ * Toggle payment required status for a season
+ */
+export async function toggleSeasonPaymentRequired(seasonId: number) {
+	const season = await prisma.season.findUnique({
+		where: { id: seasonId },
+		select: { paymentRequired: true }
+	});
+
+	if (!season) {
+		throw new Error('Season not found');
+	}
+
+	return await prisma.season.update({
+		where: { id: seasonId },
+		data: { paymentRequired: !season.paymentRequired }
+	});
+}
+
+/**
+ * Get season settings by team ID
+ * Useful for checking roster lock when editing a team
+ */
+export async function getSeasonSettingsByTeamId(teamId: number): Promise<SeasonSettings | null> {
+	const team = await prisma.team.findUnique({
+		where: { id: teamId },
+		select: {
+			season: {
+				select: {
+					signupsOpen: true,
+					rosterLocked: true,
+					paymentRequired: true,
+					matchWeek: true,
+					matchDeadline: true
+				}
+			}
+		}
+	});
+
+	return team?.season ?? null;
+}
+
+/**
+ * Check if any active signup season has signups open
+ * Useful for navigation to determine if signup button should show
+ */
+export async function hasAnySignupsOpen(): Promise<boolean> {
+	const activeSeasons = await prisma.activeSignupSeason.findMany({
+		include: {
+			season: {
+				select: { signupsOpen: true }
+			}
+		}
+	});
+
+	return activeSeasons.some(as => as.season.signupsOpen);
 }

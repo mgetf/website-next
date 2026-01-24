@@ -3,8 +3,9 @@ import { error, fail, redirect } from "@sveltejs/kit";
 import { getTeamById, updateTeamStatus } from "$lib/server/services/teams";
 import { isAdmin, isTeamAdmin } from "$lib/server/auth/permissions";
 import { removePlayer } from "$lib/server/services/teamManagement";
-import { getGlobalSettings } from "$lib/server/services/settings";
+import { getSeasonSettingsByTeamId } from "$lib/server/services/settings";
 import { calculateWeekLabel } from "$lib/server/utils/matchHelpers";
+import { FORMAT_1V1 } from "$lib/server/constants/formats";
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const teamId = parseInt(params.id);
@@ -23,14 +24,23 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     throw error(404, "Team not found");
   }
 
+  // Redirect 1v1 "teams" to the player's profile page
+  // 1v1 teams are implementation details - users should never see them as teams
+  if (team.formatId === FORMAT_1V1) {
+    const activePlayer = team.players.find((p) => p.active === 1);
+    if (activePlayer) {
+      throw redirect(301, `/users/${activePlayer.playerSteamId}`);
+    }
+    // If no active player found, fall through to show error or empty team
+  }
+
   // Check if user has admin permissions
   const isGlobalAdmin = locals.user ? isAdmin(locals.user) : false;
   const isTeamAdminUser = locals.user ? await isTeamAdmin(locals.user, teamId) : false;
   const canManageTeam = isGlobalAdmin || isTeamAdminUser;
 
-  // Get roster lock status
-  const settings = await getGlobalSettings();
-  const rosterLocked = settings?.rosterLocked === 1;
+  // Get roster lock status from team's season (per-season setting)
+  const rosterLocked = team.season?.rosterLocked ?? false;
 
   // Separate active and inactive players
   const currentRoster = team.players
@@ -190,9 +200,9 @@ export const actions: Actions = {
       return fail(400, { error: "Player Steam ID is required" });
     }
 
-    // Check roster lock (admins can bypass)
-    const settings = await getGlobalSettings();
-    const rosterLocked = settings?.rosterLocked === 1;
+    // Check roster lock from team's season (admins can bypass)
+    const seasonSettings = await getSeasonSettingsByTeamId(teamId);
+    const rosterLocked = seasonSettings?.rosterLocked ?? false;
 
     if (rosterLocked && !isGlobalAdmin) {
       return fail(403, { error: "Rosters are currently locked" });

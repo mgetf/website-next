@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { getUserPendingInvites, acceptInviteByToken, declineInvitation } from '$lib/server/services/teamJoin';
 import { generateJoinToken } from '$lib/server/services/teamSignup';
-import { getGlobalSettings } from '$lib/server/services/settings';
+import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,19 +11,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Get pending invites
 	const pendingInvites = await getUserPendingInvites(locals.user.steamId);
 
-	// Generate tokens for each invite
-	const invitesWithTokens = pendingInvites.map((invite) => ({
-		...invite,
-		token: generateJoinToken(invite.teamId)
+	// Generate tokens and check roster lock for each invite
+	const invitesWithTokens = await Promise.all(pendingInvites.map(async (invite) => {
+		const seasonSettings = await getSeasonSettingsByTeamId(invite.teamId);
+		return {
+			...invite,
+			token: generateJoinToken(invite.teamId),
+			rosterLocked: seasonSettings?.rosterLocked ?? false
+		};
 	}));
 
-	// Check if rosters are locked
-	const global = await getGlobalSettings();
-	const rosterLocked = global?.rosterLocked === 1;
+	// Check if ANY invite has rosters unlocked (for global display)
+	const anyRosterLocked = invitesWithTokens.some(inv => inv.rosterLocked);
 
 	return {
 		invitations: invitesWithTokens,
-		rosterLocked
+		rosterLocked: anyRosterLocked
 	};
 };
 
@@ -38,9 +41,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid token' });
 		}
 
-		// Check if rosters are locked
-		const global = await getGlobalSettings();
-		if (global?.rosterLocked === 1) {
+		// Get team ID from token to check season settings
+		const { validateJoinToken: decodeToken } = await import('$lib/server/services/teamSignup');
+		const { teamId } = decodeToken(token);
+		
+		// Check if rosters are locked for this team's season
+		const seasonSettings = await getSeasonSettingsByTeamId(teamId);
+		if (seasonSettings?.rosterLocked) {
 			return fail(400, { error: 'Rosters are currently locked' });
 		}
 

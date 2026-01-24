@@ -14,6 +14,8 @@ import {
 } from '$lib/server/services/teamManagement';
 import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { fail, redirect } from '@sveltejs/kit';
+import { prisma } from '$lib/server/db';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	requireAuth(locals.user);
@@ -21,6 +23,27 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const teamId = parseInt(params.id);
 	if (isNaN(teamId)) {
 		throw redirect(303, '/');
+	}
+
+	// Check if this is a 1v1 team - redirect to player profile if so
+	// 1v1 entries cannot be edited (name/avatar are frozen)
+	const team = await prisma.team.findUnique({
+		where: { id: teamId },
+		select: {
+			formatId: true,
+			players: {
+				where: { active: 1 },
+				select: { playerSteamId: true }
+			}
+		}
+	});
+
+	if (team?.formatId === FORMAT_1V1) {
+		const activePlayer = team.players[0];
+		if (activePlayer) {
+			throw redirect(301, `/users/${activePlayer.playerSteamId}`);
+		}
+		throw redirect(301, '/');
 	}
 
 	// Check team admin permission

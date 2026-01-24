@@ -22,15 +22,29 @@ interface TeamEditData {
 
 /**
  * Get team data for editing
+ * Now uses per-season roster lock instead of global
  */
 export async function getTeamForEdit(teamId: number, steamId: string): Promise<TeamEditData> {
-	// Load team with all relations
+	// Load team with all relations, including season settings
 	const team = await prisma.team.findUnique({
 		where: { id: teamId },
 		include: {
 			division: true,
 			region: true,
-			season: true,
+			season: {
+				select: {
+					id: true,
+					seasonNum: true,
+					numWeeks: true,
+					regionId: true,
+					formatId: true,
+					signupsOpen: true,
+					rosterLocked: true,
+					paymentRequired: true,
+					matchWeek: true,
+					matchDeadline: true
+				}
+			},
 			players: {
 				include: {
 					player: true
@@ -68,9 +82,8 @@ export async function getTeamForEdit(teamId: number, steamId: string): Promise<T
 	const isOwner = userInTeam?.permissionLevel === 2;
 	const isAdmin = userInTeam?.permissionLevel === 1 || isOwner;
 
-	// Get global settings
-	const global = await prisma.global.findFirst();
-	const rosterLocked = global?.rosterLocked === 1;
+	// Get roster lock status from team's season (per-season setting)
+	const rosterLocked = team.season?.rosterLocked ?? false;
 
 	return {
 		team,

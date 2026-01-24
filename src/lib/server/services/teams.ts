@@ -270,6 +270,7 @@ export async function getTeamsByDivision(
 			name: true,
 			acronym: true,
 			avatar: true,
+			status: true,
 			wins: true,
 			losses: true,
 			gamesWon: true,
@@ -302,10 +303,12 @@ export async function getTeamsByDivision(
 				name: team.name,
 				acronym: team.acronym,
 				avatar: team.avatar,
+				status: team.status,
 				wins: team.wins,
 				losses: team.losses,
 				points: parseFloat(avgPoints.toFixed(1)),
 				paymentStatus: team.paymentStatus,
+				players: team.players,
 				_sortKey: avgPoints // temporary field for sorting
 			};
 		})

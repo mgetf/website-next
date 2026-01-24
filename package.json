@@ -22,7 +22,7 @@
 		"brackets-model": "^1.6.0",
 		"dotenv": "^17.2.3",
 		"prisma": "^7.3.0",
-		"svelte": "^5.48.1",
+		"svelte": "^5.48.2",
 		"svelte-check": "^4.3.5",
 		"typescript": "^7.0.0-dev.20260124.1",
 		"vite": "^7.3.1"

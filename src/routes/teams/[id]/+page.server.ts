@@ -27,11 +27,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   // Redirect 1v1 "teams" to the player's profile page
   // 1v1 teams are implementation details - users should never see them as teams
   if (team.formatId === FORMAT_1V1) {
-    const activePlayer = team.players.find((p) => p.active === 1);
-    if (activePlayer) {
-      throw redirect(301, `/users/${activePlayer.playerSteamId}`);
+    // Find any player (active or inactive) - 1v1 teams always have exactly one player
+    const player = team.players.find((p) => p.active === 1) || team.players[0];
+    if (player) {
+      throw redirect(301, `/users/${player.playerSteamId}`);
     }
-    // If no active player found, fall through to show error or empty team
+    // If somehow no player found at all, redirect to home
+    throw redirect(301, '/');
   }
 
   // Check if user has admin permissions

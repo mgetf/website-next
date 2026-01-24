@@ -32,16 +32,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		select: {
 			formatId: true,
 			players: {
-				where: { active: 1 },
-				select: { playerSteamId: true }
+				// Get any player (active or inactive) - 1v1 teams always have one player
+				select: { playerSteamId: true, active: true }
 			}
 		}
 	});
 
 	if (team?.formatId === FORMAT_1V1) {
-		const activePlayer = team.players[0];
-		if (activePlayer) {
-			throw redirect(301, `/users/${activePlayer.playerSteamId}`);
+		// Find active player first, fall back to any player
+		const player = team.players.find(p => p.active === 1) || team.players[0];
+		if (player) {
+			throw redirect(301, `/users/${player.playerSteamId}`);
 		}
 		throw redirect(301, '/');
 	}

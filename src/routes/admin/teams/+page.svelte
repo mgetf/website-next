@@ -7,7 +7,9 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	
 	let editingTeam: typeof data.teams[0] | null = $state(null);
+	let disbandingTeam: typeof data.teams[0] | null = $state(null);
 	let isSubmitting = $state(false);
+	let isDisbanding = $state(false);
 	
 	// TODO: TEMPORARY WORKAROUND - Remove this filtering logic when schema is refactored
 	// This filters seasons by selected region to avoid showing duplicate "Season 1" options
@@ -304,13 +306,16 @@
 							</td>
 							<td class="px-6 py-4">
 								<div class="flex items-center justify-end gap-2">
-									<a 
-										href="/teams/{team.id}"
-										class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-sm transition-colors"
-										title="View team page with full management access (roster, status, deletion)"
-									>
-										Manage Team
-									</a>
+									{#if team.formatId !== 1}
+										<!-- Only show Manage Team for non-1v1 teams (1v1 teams redirect to player profile) -->
+										<a 
+											href="/teams/{team.id}"
+											class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-sm transition-colors"
+											title="View team page with full management access (roster, status, deletion)"
+										>
+											Manage Team
+										</a>
+									{/if}
 									<button 
 										onclick={() => openEditModal(team)}
 										class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors"
@@ -318,6 +323,16 @@
 									>
 										Quick Edit
 									</button>
+									{#if team.status !== 'DEAD'}
+										<button 
+											type="button"
+											class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
+											title={team.formatId === 1 ? "Withdraw player from 1v1 league" : "Disband team (mark as dead and remove all players)"}
+											onclick={() => disbandingTeam = team}
+										>
+											{team.formatId === 1 ? 'Withdraw' : 'Disband'}
+										</button>
+									{/if}
 								</div>
 							</td>
 						</tr>
@@ -417,19 +432,18 @@
 			tabindex="0"
 		>
 			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Quick Edit: {editingTeam.name}</h3>
+				<h3 class="text-xl font-bold text-white">
+					Quick Edit: {editingTeam.name}
+					{#if editingTeam.formatId === 1}
+						<span class="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-500/20 text-purple-400 rounded">1v1</span>
+					{/if}
+				</h3>
 				<button 
 					onclick={closeEditModal}
 					class="text-gray-400 hover:text-white transition-colors"
 				>
 					✕
 				</button>
-			</div>
-			
-			<div class="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg">
-				<p class="text-blue-400 text-sm">
-					💡 <strong>Tip:</strong> For roster management, status changes, and team deletion, visit the team page.
-				</p>
 			</div>
 			
 			{#if form?.error}
@@ -456,7 +470,9 @@
 				
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div class="md:col-span-2">
-						<label for="edit-name" class="block text-sm font-medium text-gray-300 mb-2">Team Name</label>
+						<label for="edit-name" class="block text-sm font-medium text-gray-300 mb-2">
+							{editingTeam.formatId === 1 ? 'Player Name' : 'Team Name'}
+						</label>
 						<input
 							id="edit-name"
 							name="name"
@@ -467,16 +483,19 @@
 						/>
 					</div>
 					
-					<div class="md:col-span-2">
-						<label for="edit-acronym" class="block text-sm font-medium text-gray-300 mb-2">Acronym</label>
-						<input
-							id="edit-acronym"
-							name="acronym"
-							type="text"
-							bind:value={editingTeam.acronym}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
-					</div>
+					{#if editingTeam.formatId !== 1}
+						<!-- Hide acronym field for 1v1 entries -->
+						<div class="md:col-span-2">
+							<label for="edit-acronym" class="block text-sm font-medium text-gray-300 mb-2">Acronym</label>
+							<input
+								id="edit-acronym"
+								name="acronym"
+								type="text"
+								bind:value={editingTeam.acronym}
+								class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+							/>
+						</div>
+					{/if}
 					
 					<div>
 						<label for="edit-seasonId" class="block text-sm font-medium text-gray-300 mb-2">Season</label>
@@ -560,6 +579,76 @@
 					</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Disband/Withdraw Team Confirmation Modal -->
+{#if disbandingTeam}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+		<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full">
+			<h3 class="text-xl font-bold text-white mb-4">
+				{disbandingTeam.formatId === 1 ? 'Withdraw Player' : 'Disband Team'}
+			</h3>
+			<p class="text-gray-400 mb-6">
+				{#if disbandingTeam.formatId === 1}
+					Are you sure you want to withdraw this player from the 1v1 league?
+				{:else}
+					Are you sure you want to disband this team? This will mark the team as DEAD and deactivate all players.
+				{/if}
+			</p>
+			<div class="bg-zinc-800 border border-zinc-700 rounded p-3 mb-6">
+				<div class="flex items-center gap-3">
+					{#if disbandingTeam.avatar}
+						<img src={disbandingTeam.avatar} alt="" class="w-10 h-10 rounded" />
+					{:else}
+						<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium">
+							{disbandingTeam.acronym?.slice(0, 2) || disbandingTeam.name.slice(0, 2).toUpperCase()}
+						</div>
+					{/if}
+					<div>
+						<p class="text-white font-medium">{disbandingTeam.name}</p>
+						<p class="text-gray-400 text-sm">
+							{disbandingTeam.division?.name || 'No division'} · {disbandingTeam.region?.name || 'No region'}
+						</p>
+					</div>
+				</div>
+			</div>
+			<div class="flex gap-3">
+				<form 
+					method="POST" 
+					action="?/disbandTeam"
+					use:enhance={() => {
+						isDisbanding = true;
+						return async ({ update }) => {
+							await update();
+							isDisbanding = false;
+							disbandingTeam = null;
+						};
+					}}
+					class="flex-1"
+				>
+					<input type="hidden" name="teamId" value={disbandingTeam.id} />
+					<button
+						type="submit"
+						disabled={isDisbanding}
+						class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+					>
+						{#if isDisbanding}
+							{disbandingTeam.formatId === 1 ? 'Withdrawing...' : 'Disbanding...'}
+						{:else}
+							{disbandingTeam.formatId === 1 ? 'Withdraw' : 'Disband Team'}
+						{/if}
+					</button>
+				</form>
+				<button
+					type="button"
+					onclick={() => disbandingTeam = null}
+					class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-md font-medium transition-colors"
+				>
+					Cancel
+				</button>
+			</div>
 		</div>
 	</div>
 {/if}

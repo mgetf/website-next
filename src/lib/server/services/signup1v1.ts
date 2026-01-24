@@ -9,6 +9,7 @@ import { TeamStatus } from '$prisma/client.js';
 import { error } from '@sveltejs/kit';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { disbandTeam } from './teamManagement';
 
 interface Signup1v1Context {
 	isLoggedIn: boolean;
@@ -146,7 +147,8 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
 
 /**
  * Sign up a player for the 1v1 league
- * Creates a 1-person "team" with the player's Steam name and avatar frozen at signup time
+ * If the player previously withdrew from the same region+division, reactivates that entry.
+ * Otherwise creates a new 1-person "team" with the player's Steam name and avatar frozen at signup time.
  */
 export async function signup1v1(data: Signup1v1Data): Promise<number> {
 	// Validate first
@@ -182,6 +184,78 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
 		throw error(400, 'No active 1v1 signup season for this region');
 	}
 
+	// Check if user has a previously withdrawn (DEAD) entry for this exact season+division
+	// If so, reactivate it instead of creating a duplicate
+	const existingDeadEntry = await prisma.team.findFirst({
+		where: {
+			formatId: FORMAT_1V1,
+			seasonId: seasonId,
+			divisionId: data.divisionId,
+			status: 'DEAD',
+			players: {
+				some: {
+					playerSteamId: data.ownerSteamId
+				}
+			}
+		},
+		include: {
+			players: {
+				where: { playerSteamId: data.ownerSteamId }
+			}
+		}
+	});
+
+	if (existingDeadEntry) {
+		// Reactivate the existing entry
+		const initialStatus =
+			data.divisionId === 3 || data.divisionId === 4 ? TeamStatus.PLACEMENT : TeamStatus.UNREADY;
+
+		// Check payment status
+		const existingPayment = await prisma.paymentTracker.findUnique({
+			where: {
+				playerSteamId_seasonId: {
+					playerSteamId: data.ownerSteamId,
+					seasonId: seasonId
+				}
+			}
+		});
+		const amountPaid = existingPayment?.amount || 0;
+		const isPaid = division.signupCost === 0 || amountPaid >= division.signupCost;
+
+		// Update team status back to active
+		await prisma.team.update({
+			where: { id: existingDeadEntry.id },
+			data: {
+				status: initialStatus,
+				// Update name/avatar to current values
+				name: user.steamUsername,
+				avatar: user.steamAvatar
+			}
+		});
+
+		// Reactivate the player in the team
+		if (existingDeadEntry.players.length > 0) {
+			await prisma.playerInTeam.update({
+				where: {
+					playerSteamId_teamId: {
+						playerSteamId: data.ownerSteamId,
+						teamId: existingDeadEntry.id
+					}
+				},
+				data: {
+					active: 1,
+					permissionLevel: 2, // Owner
+					paymentStatus: isPaid ? 1 : 0,
+					leftAt: null,
+					startedAt: new Date()
+				}
+			});
+		}
+
+		return existingDeadEntry.id;
+	}
+
+	// No existing entry to reactivate - create a new one
 	// Determine initial status based on division
 	// Premier (4) and Intermediate (3) start as PLACEMENT, others as UNREADY
 	const initialStatus =
@@ -320,4 +394,54 @@ export async function getUser1v1History(steamId: string) {
 	});
 
 	return entries.map((e) => e.team);
+}
+
+/**
+ * Withdraw a player from a 1v1 league entry
+ * Only the player themselves or an admin can withdraw
+ */
+export async function withdraw1v1Entry(
+	teamId: number,
+	requestingSteamId: string,
+	isAdmin: boolean
+): Promise<void> {
+	// Get the team and verify it's a 1v1 entry
+	const team = await prisma.team.findUnique({
+		where: { id: teamId },
+		include: {
+			players: {
+				where: { active: 1 },
+				select: {
+					playerSteamId: true,
+					permissionLevel: true
+				}
+			}
+		}
+	});
+
+	if (!team) {
+		throw error(404, '1v1 entry not found');
+	}
+
+	if (team.formatId !== FORMAT_1V1) {
+		throw error(400, 'This is not a 1v1 entry');
+	}
+
+	if (team.status === 'DEAD') {
+		throw error(400, 'This 1v1 entry has already been withdrawn');
+	}
+
+	// If not admin, verify the requesting user is the owner
+	if (!isAdmin) {
+		const isOwner = team.players.some(
+			(p) => p.playerSteamId === requestingSteamId && p.permissionLevel === 2
+		);
+
+		if (!isOwner) {
+			throw error(403, 'You can only withdraw from your own 1v1 entry');
+		}
+	}
+
+	// Use the existing disbandTeam function to handle the withdrawal
+	await disbandTeam(teamId);
 }

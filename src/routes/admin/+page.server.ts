@@ -14,24 +14,44 @@ import { fail } from '@sveltejs/kit';
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user);
 
-	const [analytics, pendingPlayers, recentMatches, globalSettings] = await Promise.all([
+	const [analytics, pendingPlayers, recentMatches, activeSignupSeasons] = await Promise.all([
 		getAdminAnalytics(),
 		getPendingPlayers(),
 		getRecentUnplayedMatches(10), // Get up to 10 recent unplayed matches
-		prisma.global.findFirst({
-			select: {
-				matchCreationDeadline: true,
-				currentMatchWeek: true
+		// Get active signup seasons with their per-season settings
+		prisma.activeSignupSeason.findMany({
+			include: {
+				season: {
+					select: {
+						matchWeek: true,
+						matchDeadline: true
+					}
+				}
 			}
 		})
 	]);
+
+	// Find the season with the earliest upcoming deadline (for the dashboard urgency display)
+	// If multiple seasons have deadlines, show the most urgent one
+	let earliestDeadline: Date | null = null;
+	let matchWeekForDeadline: number | null = null;
+
+	for (const ass of activeSignupSeasons) {
+		const deadline = ass.season.matchDeadline;
+		if (deadline) {
+			if (!earliestDeadline || deadline < earliestDeadline) {
+				earliestDeadline = deadline;
+				matchWeekForDeadline = ass.season.matchWeek;
+			}
+		}
+	}
 
 	return {
 		analytics,
 		pendingPlayers,
 		recentMatches,
-		matchDeadline: globalSettings?.matchCreationDeadline?.toISOString() || null,
-		currentMatchWeek: globalSettings?.currentMatchWeek || null
+		matchDeadline: earliestDeadline?.toISOString() || null,
+		currentMatchWeek: matchWeekForDeadline
 	};
 };
 

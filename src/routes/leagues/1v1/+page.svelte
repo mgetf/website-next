@@ -24,6 +24,7 @@
 				wins: number;
 				losses: number;
 				points: number;
+				isWithdrawn?: boolean;
 			}>;
 		}>;
 		deadlines: {
@@ -201,28 +202,31 @@
 									</thead>
 									<tbody class="divide-y divide-zinc-800/50">
 										{#each divisionData.entries as entry}
-											<tr class="hover:bg-zinc-800/30 transition-colors">
+											<tr class="hover:bg-zinc-800/30 transition-colors {entry.isWithdrawn ? 'opacity-60' : ''}">
 												<td class="px-4 py-2">
 													<a
 														href={entry.steamId
 															? `/users/${entry.steamId}`
 															: `/teams/${entry.teamId}`}
-														class="flex items-center gap-2 text-white text-sm font-medium hover:text-purple-400 transition-colors"
+														class="flex items-center gap-2 text-sm font-medium hover:text-purple-400 transition-colors {entry.isWithdrawn ? 'text-gray-400' : 'text-white'}"
 													>
 														<img
 															src={entry.avatar ||
 																`https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
 															alt="{entry.name}"
-															class="w-8 h-8 rounded object-cover"
+															class="w-8 h-8 rounded object-cover {entry.isWithdrawn ? 'grayscale' : ''}"
 														/>
 														<span>{entry.name}</span>
+														{#if entry.isWithdrawn}
+															<span class="px-1.5 py-0.5 text-xs font-medium bg-zinc-700 text-gray-400 rounded">WITHDRAWN</span>
+														{/if}
 													</a>
 												</td>
 												<td class="px-4 py-2">
 													<span class="text-gray-300 text-sm">{entry.wins}-{entry.losses}</span>
 												</td>
 												<td class="px-4 py-2">
-													<span class="text-white text-sm font-medium"
+													<span class="{entry.isWithdrawn ? 'text-gray-400' : 'text-white'} text-sm font-medium"
 														>{entry.points.toFixed(1)}</span
 													>
 												</td>

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+	
 	// Get data from server load function (Svelte 5 syntax)
 	interface PlayerData {
 		player: {
@@ -81,6 +83,10 @@
 	const isOwnProfile = $derived(data.isOwnProfile);
 	const current1v1Entry = $derived(data.current1v1Entry);
 	const entries1v1 = $derived(data.entries1v1);
+	
+	// State for 1v1 withdrawal confirmation modal
+	let withdrawingEntry: typeof data.entries1v1[0] | null = $state(null);
+	let isWithdrawing = $state(false);
 	
 	// Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
 	function steamIdToSteam2(steamId64: string): string {
@@ -269,6 +275,9 @@
 										<th class="px-4 py-2 font-medium">Season</th>
 										<th class="px-4 py-2 font-medium">Record</th>
 										<th class="px-4 py-2 font-medium">Status</th>
+										{#if isOwnProfile}
+											<th class="px-4 py-2 font-medium">Actions</th>
+										{/if}
 									</tr>
 								</thead>
 								<tbody class="divide-y divide-zinc-800/50">
@@ -299,6 +308,19 @@
 													</span>
 												{/if}
 											</td>
+											{#if isOwnProfile}
+												<td class="px-4 py-2">
+													{#if entry.active}
+														<button 
+															type="button"
+															class="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs rounded border border-red-500/30 transition-colors"
+															onclick={() => withdrawingEntry = entry}
+														>
+															Withdraw
+														</button>
+													{/if}
+												</td>
+											{/if}
 										</tr>
 									{/each}
 								</tbody>
@@ -516,4 +538,65 @@
 		</div>
 	</div>
 </div>
+
+<!-- 1v1 Withdrawal Confirmation Modal -->
+{#if withdrawingEntry}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+		<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full">
+			<h3 class="text-xl font-bold text-white mb-4">Withdraw from 1v1 League</h3>
+			<p class="text-gray-400 mb-6">
+				Are you sure you want to withdraw from the 1v1 league? This action cannot be undone.
+			</p>
+			<div class="bg-zinc-800 border border-zinc-700 rounded p-3 mb-6">
+				<div class="flex justify-between text-sm">
+					<span class="text-gray-400">Division:</span>
+					<span class="text-white">{withdrawingEntry.division}</span>
+				</div>
+				<div class="flex justify-between text-sm mt-1">
+					<span class="text-gray-400">Region:</span>
+					<span class="text-white">{withdrawingEntry.region}</span>
+				</div>
+				<div class="flex justify-between text-sm mt-1">
+					<span class="text-gray-400">Season:</span>
+					<span class="text-white">S{withdrawingEntry.seasonNum}</span>
+				</div>
+				<div class="flex justify-between text-sm mt-1">
+					<span class="text-gray-400">Record:</span>
+					<span class="text-white">{withdrawingEntry.wins}-{withdrawingEntry.losses}</span>
+				</div>
+			</div>
+			<div class="flex gap-3">
+				<form 
+					method="POST" 
+					action="?/withdraw1v1"
+					use:enhance={() => {
+						isWithdrawing = true;
+						return async ({ update }) => {
+							await update();
+							isWithdrawing = false;
+							withdrawingEntry = null;
+						};
+					}}
+					class="flex-1"
+				>
+					<input type="hidden" name="teamId" value={withdrawingEntry.id} />
+					<button
+						type="submit"
+						disabled={isWithdrawing}
+						class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+					>
+						{isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+					</button>
+				</form>
+				<button
+					type="button"
+					onclick={() => withdrawingEntry = null}
+					class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-md font-medium transition-colors"
+				>
+					Cancel
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 

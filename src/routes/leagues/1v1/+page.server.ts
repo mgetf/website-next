@@ -92,6 +92,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const divisions = await getVisibleDivisions();
 
 		// Fetch entries (1v1 teams) for each division in the selected season/region
+		// Include DEAD status to show withdrawn entries that affected placements
 		const entriesByDivision = await Promise.all(
 			divisions.map(async (division) => {
 				const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
@@ -104,20 +105,24 @@ export const load: PageServerLoad = async ({ url }) => {
 
 				// Transform to show player info instead of team info
 				// The "team" name is actually the player's frozen Steam name for 1v1
-				const entries = teams.map((team: any) => {
-					// Get the single player from this 1v1 entry
-					const player = team.players?.[0]?.player;
-					return {
-						id: team.id,
-						teamId: team.id, // For internal use
-						name: team.name, // This is the frozen player name
-						avatar: team.avatar, // This is the frozen player avatar
-						steamId: player?.steamId || null,
-						wins: team.wins,
-						losses: team.losses,
-						points: team.points
-					};
-				});
+				const entries = teams
+					// Filter out DEAD entries that never played (didn't affect placements)
+					.filter((team: any) => team.status !== 'DEAD' || (team.wins + team.losses) > 0)
+					.map((team: any) => {
+						// Get the single player from this 1v1 entry
+						const player = team.players?.[0]?.player;
+						return {
+							id: team.id,
+							teamId: team.id, // For internal use
+							name: team.name, // This is the frozen player name
+							avatar: team.avatar, // This is the frozen player avatar
+							steamId: player?.steamId || null,
+							wins: team.wins,
+							losses: team.losses,
+							points: team.points,
+							isWithdrawn: team.status === 'DEAD'
+						};
+					});
 
 				return {
 					division: {

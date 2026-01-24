@@ -13,12 +13,12 @@
 			</p>
 		</div>
 
-		{#if data.signupClosed}
+		{#if data.allSignupsClosed}
 			<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
 				<div class="text-6xl mb-4">🔒</div>
 				<h2 class="text-2xl font-bold text-white mb-4">Signups Are Closed</h2>
 				<p class="text-gray-400 text-lg">
-					Team signups are not currently open. Check back later or join our Discord for updates.
+					Signups are not currently open. Check back later or join our Discord for updates.
 				</p>
 				<a
 					href="/"
@@ -105,7 +105,7 @@
 			</div>
 
 			<!-- 1v1 Individual Section -->
-			{#if data.has1v1Seasons}
+			{#if data.activeFormatCodes.includes('1v1')}
 				<div class="mb-8">
 					<h2 class="text-xl font-semibold text-gray-300 mb-4">1v1 Individual</h2>
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">

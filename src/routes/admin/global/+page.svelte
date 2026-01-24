@@ -9,6 +9,36 @@
 	let isSubmitting = $state(false);
 	let showSeasonAssignmentWarning = $state(false);
 	let seasonAssignmentForm: HTMLFormElement | null = $state(null);
+	// Filter regions that have at least one season for the given format
+	function getRegionsWithSeasonsForFormat(formatId: number) {
+		return data.regions.filter((region: { name: string }) => {
+			const regionSeasons = data.seasonsByRegion[region.name] || [];
+			return regionSeasons.some((s: { formatId: number }) => s.formatId === formatId);
+		});
+	}
+	
+	// Find the first format that has regions with seasons
+	function getFirstAvailableFormatId(): number {
+		const formatWithSeasons = data.formats.find((format: { id: number }) => 
+			getRegionsWithSeasonsForFormat(format.id).length > 0
+		);
+		return formatWithSeasons?.id || data.formats[0]?.id || 2;
+	}
+	
+	let selectedFormatId = $state(getFirstAvailableFormatId());
+	
+	// Get seasons for a region filtered by format
+	function getSeasonsForRegionAndFormat(regionName: string, formatId: number) {
+		const regionSeasons = data.seasonsByRegion[regionName] || [];
+		return regionSeasons.filter((s: { formatId: number }) => s.formatId === formatId);
+	}
+	
+	// Check if any format has regions with seasons
+	function hasAnyRegionsWithSeasons() {
+		return data.formats.some((format: { id: number }) => 
+			getRegionsWithSeasonsForFormat(format.id).length > 0
+		);
+	}
 	
 	function toggleEditForm(announcement: typeof data.announcements[0]) {
 		if (editingAnnouncement?.id === announcement.id) {
@@ -439,63 +469,114 @@
 				<div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6">
 					<p class="text-amber-400 text-sm">
 						<strong>⚠️ Warning:</strong> Changing season assignments affects which season new signups go to. 
-						This effectively "ends" signups for the previous season in that region.
+						This effectively "ends" signups for the previous season in that region/format.
 					</p>
 				</div>
 				
-				<form 
-					method="POST" 
-					action="?/updateSeasonAssignments"
-					bind:this={seasonAssignmentForm}
-					use:enhance={() => {
-						isSubmitting = true;
-						return async ({ update }) => {
-							await update();
-							isSubmitting = false;
-							showSeasonAssignmentWarning = false;
-						};
-					}}
-					class="space-y-4"
-				>
-					{#each ['NA', 'EU', 'AUS', 'SA', 'ASIA'] as regionCode}
-						{@const fieldName = `${regionCode.toLowerCase()}SignupSeasonId`}
-						{@const currentSeasonId = (data.globalSettings as any)[fieldName]}
-						{@const regionSeasons = data.seasonsByRegion[regionCode] || []}
-						
-						<div>
-							<label for="{fieldName}" class="block text-sm font-medium text-gray-300 mb-2">
-								{regionCode} Region Season:
-							</label>
-							<select
-								id="{fieldName}"
-								name="{fieldName}"
-								class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-							>
-								<option value="">No Season Selected</option>
-								{#each regionSeasons as season}
-									<option 
-										value={season.id}
-										selected={currentSeasonId === season.id}
-									>
-										Season {season.seasonNum} ({season._count.teams} teams, {season._count.matches} matches)
-									</option>
-								{/each}
-							</select>
-						</div>
-					{/each}
-					
-					<div class="pt-4 border-t border-zinc-700">
-						<!-- This button shows the confirmation modal instead of submitting directly -->
-						<button
-							type="button"
-							onclick={() => showSeasonAssignmentWarning = true}
-							disabled={isSubmitting}
-							class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-						>
-							{isSubmitting ? 'Updating...' : 'Update Season Assignments'}
-						</button>
+				{#if !hasAnyRegionsWithSeasons()}
+					<div class="text-center py-8 text-gray-400">
+						<p>No regions have seasons created yet.</p>
+						<p class="text-sm mt-1">Create seasons in the League admin panel first.</p>
 					</div>
-				</form>
+				{:else}
+					<!-- Format Tabs - only show formats that have regions with seasons -->
+					<div class="flex border-b border-zinc-700 mb-6">
+						{#each data.formats as format}
+							{@const regionsForFormat = getRegionsWithSeasonsForFormat(format.id)}
+							{#if regionsForFormat.length > 0}
+								<button
+									type="button"
+									onclick={() => selectedFormatId = format.id}
+									class="px-6 py-3 font-medium transition-colors relative {selectedFormatId === format.id 
+										? 'text-orange-400 border-b-2 border-orange-400 -mb-px' 
+										: 'text-gray-400 hover:text-gray-200'}"
+								>
+									{format.code}
+									<span class="ml-1 text-xs text-gray-500">({regionsForFormat.length})</span>
+								</button>
+							{/if}
+						{/each}
+					</div>
+					
+					<form 
+						method="POST" 
+						action="?/updateSeasonAssignments"
+						bind:this={seasonAssignmentForm}
+						use:enhance={() => {
+							isSubmitting = true;
+							return async ({ update }) => {
+								await update();
+								isSubmitting = false;
+								showSeasonAssignmentWarning = false;
+							};
+						}}
+						class="space-y-4"
+					>
+						<!-- Hidden inputs for non-visible format tabs (to preserve their values) -->
+						{#each data.formats as format}
+							{#if format.id !== selectedFormatId}
+								{#each getRegionsWithSeasonsForFormat(format.id) as region}
+									{@const fieldName = `season_${region.id}_${format.id}`}
+									{@const currentSeasonId = data.activeSeasonMap[`${region.id}-${format.id}`]}
+									<input type="hidden" name="{fieldName}" value="{currentSeasonId || ''}" />
+								{/each}
+							{/if}
+						{/each}
+						
+						<!-- Regions list for selected format -->
+						{#if getRegionsWithSeasonsForFormat(selectedFormatId).length === 0}
+							<div class="text-center py-8 text-gray-400">
+								<p>No seasons created for this format yet.</p>
+							</div>
+						{:else}
+							<div class="space-y-3">
+								{#each getRegionsWithSeasonsForFormat(selectedFormatId) as region}
+									{@const fieldName = `season_${region.id}_${selectedFormatId}`}
+									{@const currentSeasonId = data.activeSeasonMap[`${region.id}-${selectedFormatId}`]}
+									{@const regionSeasons = getSeasonsForRegionAndFormat(region.name, selectedFormatId)}
+									
+									<div class="flex items-center gap-4 p-4 bg-zinc-900/50 rounded-lg">
+										<div class="w-24 text-gray-200 font-medium">{region.name}</div>
+										<div class="flex-1">
+											<select
+												id="{fieldName}"
+												name="{fieldName}"
+												class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+											>
+												<option value="">No Season Selected</option>
+												{#each regionSeasons as season}
+													<option 
+														value={season.id}
+														selected={currentSeasonId === season.id}
+													>
+														Season {season.seasonNum} ({season._count.teams} teams, {season._count.matches} matches)
+													</option>
+												{/each}
+											</select>
+										</div>
+										{#if currentSeasonId}
+											<div class="text-green-400 text-sm">Active</div>
+										{:else}
+											<div class="text-gray-500 text-sm">Inactive</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
+						
+						<div class="pt-4 border-t border-zinc-700">
+							<!-- This button shows the confirmation modal instead of submitting directly -->
+							<button
+								type="button"
+								onclick={() => showSeasonAssignmentWarning = true}
+								disabled={isSubmitting}
+								class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+							>
+								{isSubmitting ? 'Updating...' : 'Update Season Assignments'}
+							</button>
+						</div>
+					</form>
+				{/if}
 			</div>
 			
 			<!-- Season Assignment Confirmation Modal -->

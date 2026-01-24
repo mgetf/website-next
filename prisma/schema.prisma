@@ -81,6 +81,39 @@ enum ChampionshipStatus {
   COMPLETED // 2
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Format table (replaces is1v1 magic integer)
+// ═══════════════════════════════════════════════════════════════════
+model Format {
+  id   Int    @id @default(autoincrement())
+  name String // Display name: "1v1", "2v2"
+  code String @unique // Lookup key: "1v1", "2v2"
+
+  seasons             Season[]
+  teams               Team[]
+  teamHistory         TeamHistory[]
+  activeSignupSeasons ActiveSignupSeason[]
+
+  @@map("formats")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Active signup seasons junction table
+// Replaces: Global.naSignupSeasonId, euSignupSeasonId, etc.
+// ═══════════════════════════════════════════════════════════════════
+model ActiveSignupSeason {
+  regionId Int @map("region_id")
+  formatId Int @map("format_id")
+  seasonId Int @map("season_id")
+
+  region Region @relation(fields: [regionId], references: [id])
+  format Format @relation(fields: [formatId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id])
+
+  @@id([regionId, formatId])
+  @@map("active_signup_seasons")
+}
+
 // Models
 model Tournament {
   id                  Int       @id @default(autoincrement())
@@ -337,18 +370,16 @@ model Season {
   seasonNum Int @map("season_num")
   numWeeks  Int @map("num_weeks")
   regionId  Int @map("region_id")
+  formatId  Int @map("format_id")
 
-  region          Region           @relation(fields: [regionId], references: [id])
-  playoffs        Playoff[]
-  teams           Team[]
-  matches         Match[]
-  teamsHistory    TeamHistory[]
-  paymentTrackers PaymentTracker[]
-  globalNA        Global[]         @relation("NASignupSeason")
-  globalEU        Global[]         @relation("EUSignupSeason")
-  globalAUS       Global[]         @relation("AUSSignupSeason")
-  globalSA        Global[]         @relation("SASignupSeason")
-  globalASIA      Global[]         @relation("ASIASignupSeason")
+  region              Region               @relation(fields: [regionId], references: [id])
+  format              Format               @relation(fields: [formatId], references: [id])
+  playoffs            Playoff[]
+  teams               Team[]
+  matches             Match[]
+  teamsHistory        TeamHistory[]
+  paymentTrackers     PaymentTracker[]
+  activeSignupSeasons ActiveSignupSeason[]
 
   @@map("seasons")
 }
@@ -380,7 +411,7 @@ model Team {
   divisionId          Int?       @map("division_id")
   regionId            Int?       @map("region_id")
   seasonId            Int?       @map("season_id")
-  is1v1               Int        @default(0) @map("is_1v1")
+  formatId            Int        @map("format_id")
   status              TeamStatus @default(UNREADY)
   paymentStatus       Int        @default(0) @map("payment_status")
   joinPassword        String?    @map("join_password")
@@ -389,6 +420,7 @@ model Team {
   division       Division?         @relation(fields: [divisionId], references: [id])
   region         Region?           @relation(fields: [regionId], references: [id])
   season         Season?           @relation(fields: [seasonId], references: [id])
+  format         Format            @relation(fields: [formatId], references: [id])
   homeMatches    Match[]           @relation("HomeTeam")
   awayMatches    Match[]           @relation("AwayTeam")
   wonMatches     Match[]           @relation("WinnerTeam")
@@ -418,7 +450,7 @@ model TeamHistory {
   divisionId          Int?     @map("division_id")
   regionId            Int?     @map("region_id")
   seasonId            Int      @map("season_id")
-  is1v1               Int      @default(0) @map("is_1v1")
+  formatId            Int      @map("format_id")
   status              Int      @default(0)
   paymentStatus       Int      @default(0) @map("payment_status")
   joinPassword        String?  @map("join_password")
@@ -426,6 +458,7 @@ model TeamHistory {
 
   team   Team   @relation(fields: [teamId], references: [id])
   season Season @relation(fields: [seasonId], references: [id])
+  format Format @relation(fields: [formatId], references: [id])
 
   @@map("teams_history")
 }
@@ -469,19 +502,8 @@ model Global {
   signupClosed          Int       @default(0) @map("signup_closed")
   rosterLocked          Int       @default(0) @map("roster_locked")
   paymentRequired       Int       @default(0) @map("payment_required")
-  naSignupSeasonId      Int?      @map("na_signup_season_id")
-  euSignupSeasonId      Int?      @map("eu_signup_season_id")
-  ausSignupSeasonId     Int?      @map("aus_signup_season_id")
-  saSignupSeasonId      Int?      @map("sa_signup_season_id")
-  asiaSignupSeasonId    Int?      @map("asia_signup_season_id")
   matchCreationDeadline DateTime? @map("match_creation_deadline")
   currentMatchWeek      Int?      @map("current_match_week")
-
-  naSignupSeason   Season? @relation("NASignupSeason", fields: [naSignupSeasonId], references: [id])
-  euSignupSeason   Season? @relation("EUSignupSeason", fields: [euSignupSeasonId], references: [id])
-  ausSignupSeason  Season? @relation("AUSSignupSeason", fields: [ausSignupSeasonId], references: [id])
-  saSignupSeason   Season? @relation("SASignupSeason", fields: [saSignupSeasonId], references: [id])
-  asiaSignupSeason Season? @relation("ASIASignupSeason", fields: [asiaSignupSeasonId], references: [id])
 
   @@map("global")
 }
@@ -532,9 +554,10 @@ model Region {
   hidden         Int    @default(0)
   currencySymbol String @default("€") @map("currency_symbol")
 
-  seasons   Season[]
-  teams     Team[]
-  divisions Division[]
+  seasons             Season[]
+  teams               Team[]
+  divisions           Division[]
+  activeSignupSeasons ActiveSignupSeason[]
 
   @@map("regions")
 }

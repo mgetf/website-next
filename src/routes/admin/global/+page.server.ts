@@ -12,20 +12,25 @@ import {
 	toggleRosterLocked, 
 	toggleSignupClosed, 
 	togglePaymentRequired, 
-	updateGlobalSettings 
+	updateGlobalSettings,
+	updateRegionSignupSeason
 } from '$lib/server/services/settings';
+import { getAllActiveSignupSeasons } from '$lib/server/services/signupSeasons';
 import { getRegions } from '$lib/server/services/regions';
 import { getSeasons } from '$lib/server/services/seasons';
+import { prisma } from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user);
 	
-	const [announcements, globalSettings, regions, seasons] = await Promise.all([
+	const [announcements, globalSettings, regions, seasons, formats, activeSignupSeasons] = await Promise.all([
 		getAnnouncements(),
 		getGlobalSettings(),
 		getRegions(),
-		getSeasons()
+		getSeasons(),
+		prisma.format.findMany({ orderBy: { id: 'asc' } }),
+		getAllActiveSignupSeasons()
 	]);
 	
 	// Group seasons by region for easier selection
@@ -37,12 +42,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 		acc[regionName].push(season);
 		return acc;
 	}, {} as Record<string, typeof seasons>);
+
+	// Create a lookup map for active signup seasons: { "regionId-formatId": seasonId }
+	const activeSeasonMap = activeSignupSeasons.reduce((acc, as) => {
+		acc[`${as.regionId}-${as.formatId}`] = as.seasonId;
+		return acc;
+	}, {} as Record<string, number>);
 	
 	return {
 		announcements,
 		globalSettings,
 		regions,
-		seasonsByRegion
+		formats,
+		seasonsByRegion,
+		activeSignupSeasons,
+		activeSeasonMap
 	};
 };
 
@@ -197,23 +211,28 @@ export const actions: Actions = {
 		
 		const formData = await request.formData();
 		
-		const updates: any = {};
-		const regions = ['NA', 'EU', 'AUS', 'SA', 'ASIA'] as const;
-		
-		for (const region of regions) {
-			const fieldName = `${region.toLowerCase()}SignupSeasonId`;
-			const value = formData.get(fieldName)?.toString();
-			const seasonId = value ? parseInt(value) : null;
-			
-			if (value && isNaN(seasonId as number)) {
-				return fail(400, { error: `Invalid season ID for ${region}` });
-			}
-			
-			updates[fieldName] = seasonId;
-		}
+		// Get all regions and formats to process each combination
+		const [regions, formats] = await Promise.all([
+			prisma.region.findMany({ orderBy: { id: 'asc' } }),
+			prisma.format.findMany({ orderBy: { id: 'asc' } })
+		]);
 		
 		try {
-			await updateGlobalSettings(updates);
+			// Process each region+format combination
+			for (const region of regions) {
+				for (const format of formats) {
+					const fieldName = `season_${region.id}_${format.id}`;
+					const value = formData.get(fieldName)?.toString();
+					const seasonId = value ? parseInt(value) : null;
+					
+					if (value && isNaN(seasonId as number)) {
+						return fail(400, { error: `Invalid season ID for ${region.name} ${format.code}` });
+					}
+					
+					await updateRegionSignupSeason(region.id, format.id, seasonId);
+				}
+			}
+			
 			return { success: true, message: 'Season assignments updated' };
 		} catch (error) {
 			console.error('Error updating season assignments:', error);

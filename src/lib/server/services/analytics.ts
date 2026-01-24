@@ -5,6 +5,7 @@
 
 import { prisma } from '$lib/server/db';
 import { MatchStatus, DemoStatus, Prisma } from '$prisma/client.js';
+import { getCurrentSignupSeasonIds } from './signupSeasons';
 
 interface PlayerPerDivision {
 	divisionName: string;
@@ -41,19 +42,8 @@ interface AnalyticsData {
 }
 
 export async function getAdminAnalytics(): Promise<AnalyticsData> {
-	const globalSettings = await prisma.global.findFirst();
-
-	if (!globalSettings) {
-		throw new Error('Global settings not found');
-	}
-
-	const activeSeasonIds = [
-		globalSettings.naSignupSeasonId,
-		globalSettings.euSignupSeasonId,
-		globalSettings.ausSignupSeasonId,
-		globalSettings.saSignupSeasonId,
-		globalSettings.asiaSignupSeasonId
-	].filter((id): id is number => id !== null);
+	// Get active signup season IDs from the junction table
+	const activeSeasonIds = await getCurrentSignupSeasonIds();
 
 	if (activeSeasonIds.length === 0) {
 		return {

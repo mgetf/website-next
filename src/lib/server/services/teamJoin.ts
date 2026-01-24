@@ -6,22 +6,8 @@
 import { prisma } from '$lib/server/db';
 import { error } from '@sveltejs/kit';
 import { validateJoinToken } from './teamSignup';
-
-/**
- * Get current signup season IDs from global settings
- */
-async function getCurrentSignupSeasonIds(): Promise<number[]> {
-	const global = await prisma.global.findFirst();
-	if (!global) return [];
-	
-	return [
-		global.naSignupSeasonId,
-		global.euSignupSeasonId,
-		global.ausSignupSeasonId,
-		global.saSignupSeasonId,
-		global.asiaSignupSeasonId
-	].filter((id): id is number => id !== null);
-}
+import { getCurrentSignupSeasonIds } from './signupSeasons';
+import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 
 interface TeamJoinInfo {
 	team: any;
@@ -133,7 +119,7 @@ export async function requestJoinByPassword(
 		throw error(404, 'Team not found');
 	}
 
-	if (team.is1v1 === 1) {
+	if (team.formatId === FORMAT_1V1) {
 		throw error(400, 'Cannot join 1v1 teams');
 	}
 
@@ -151,7 +137,7 @@ export async function requestJoinByPassword(
 			playerSteamId: steamId,
 			active: 1,
 			team: {
-				is1v1: 0,
+				formatId: FORMAT_2V2,
 				seasonId: {
 					in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1]
 				}
@@ -210,7 +196,7 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
 	}
 
 	// Check if team is 1v1
-	if (team.is1v1 === 1) {
+	if (team.formatId === FORMAT_1V1) {
 		throw error(400, 'Cannot join 1v1 teams');
 	}
 
@@ -232,7 +218,7 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
 			playerSteamId: steamId,
 			active: 1,
 			team: {
-				is1v1: 0,
+				formatId: FORMAT_2V2,
 				seasonId: {
 					in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1]
 				}
@@ -349,7 +335,7 @@ export async function isPlayerInAnyActiveTeam(steamId: string): Promise<boolean>
 			playerSteamId: steamId,
 			active: 1,
 			team: {
-				is1v1: 0,
+				formatId: FORMAT_2V2,
 				seasonId: {
 					in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1]
 				}

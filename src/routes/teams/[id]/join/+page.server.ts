@@ -5,6 +5,7 @@ import { getTeamById } from '$lib/server/services/teams';
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	requireAuth(locals.user);
@@ -22,7 +23,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	// Check if team is 1v1
-	if (team.is1v1 === 1) {
+	if (team.formatId === FORMAT_1V1) {
 		return {
 			team,
 			error: 'Cannot join 1v1 teams',

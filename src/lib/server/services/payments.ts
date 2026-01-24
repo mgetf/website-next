@@ -6,22 +6,8 @@
 
 import { prisma } from '$lib/server/db';
 import { error } from '@sveltejs/kit';
-
-/**
- * Get current signup season IDs from global settings
- */
-async function getCurrentSignupSeasonIds(): Promise<number[]> {
-	const global = await prisma.global.findFirst();
-	if (!global) return [];
-	
-	return [
-		global.naSignupSeasonId,
-		global.euSignupSeasonId,
-		global.ausSignupSeasonId,
-		global.saSignupSeasonId,
-		global.asiaSignupSeasonId
-	].filter((id): id is number => id !== null);
-}
+import { getCurrentSignupSeasonIds } from './signupSeasons';
+import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 /**
  * Get user's active 2v2 team for checkout
@@ -37,7 +23,7 @@ export async function getUserActiveTeamForCheckout(steamId: string) {
 				playerSteamId: steamId,
 				active: 1,
 				team: {
-					is1v1: 0,
+					formatId: FORMAT_2V2,
 					seasonId: {
 						in: currentSeasonIds
 					}
@@ -65,7 +51,7 @@ export async function getUserActiveTeamForCheckout(steamId: string) {
 			playerSteamId: steamId,
 			active: 1,
 			team: {
-				is1v1: 0
+				formatId: FORMAT_2V2
 			}
 		},
 		include: {

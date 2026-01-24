@@ -5,22 +5,8 @@
  */
 
 import { prisma } from '$lib/server/db';
-
-/**
- * Get current signup season IDs from global settings
- */
-async function getCurrentSignupSeasonIds(): Promise<number[]> {
-	const global = await prisma.global.findFirst();
-	if (!global) return [];
-	
-	return [
-		global.naSignupSeasonId,
-		global.euSignupSeasonId,
-		global.ausSignupSeasonId,
-		global.saSignupSeasonId,
-		global.asiaSignupSeasonId
-	].filter((id): id is number => id !== null);
-}
+import { getCurrentSignupSeasonIds } from './signupSeasons';
+import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 /**
  * Get user by Steam ID with basic info
@@ -70,7 +56,7 @@ export async function getUserActiveTeam(steamId: string): Promise<{ id: number; 
 				playerSteamId: steamId,
 				active: 1,
 				team: {
-					is1v1: 0,
+					formatId: FORMAT_2V2,
 					seasonId: {
 						in: currentSeasonIds
 					}
@@ -97,7 +83,7 @@ export async function getUserActiveTeam(steamId: string): Promise<{ id: number; 
 			playerSteamId: steamId,
 			active: 1,
 			team: {
-				is1v1: 0
+				formatId: FORMAT_2V2
 			}
 		},
 		include: {

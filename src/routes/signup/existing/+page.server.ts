@@ -4,6 +4,8 @@ import { getSignupContext, reregisterTeam } from '$lib/server/services/teamSignu
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
+import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
+import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -67,20 +69,13 @@ export const actions: Actions = {
 
 		try {
 			// Get the correct season ID for the selected region
-			let seasonId: number | undefined;
-			switch (regionId) {
-				case 1: seasonId = context.naSignupSeasonId ?? undefined; break;
-				case 2: seasonId = context.euSignupSeasonId ?? undefined; break;
-				case 3: seasonId = context.ausSignupSeasonId ?? undefined; break;
-				case 4: seasonId = context.saSignupSeasonId ?? undefined; break;
-				case 5: seasonId = context.asiaSignupSeasonId ?? undefined; break;
-			}
+			const seasonId = await getSignupSeasonForRegion(regionId, FORMAT_2V2);
 
 			// Check if payment is required BEFORE re-registering
 			const paymentInfo = await checkPaymentRequired({
 				divisionId,
 				steamId: locals.user.steamId,
-				seasonId
+				seasonId: seasonId ?? undefined
 			});
 
 			// Re-register team

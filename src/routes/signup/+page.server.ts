@@ -3,6 +3,8 @@ import { requireAuth } from '$lib/server/auth/permissions';
 import { getSignupContext } from '$lib/server/services/teamSignup';
 import { redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { getCurrentSignupSeasonIds } from '$lib/server/services/signupSeasons';
+import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAuth(locals.user);
@@ -12,20 +14,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Get user's current team name if they have one (for better error messages)
 	let currentTeamName = '';
 	if (context.hasActiveTeam) {
-		const currentSignupSeasonIds = [
-			context.naSignupSeasonId,
-			context.euSignupSeasonId,
-			context.ausSignupSeasonId,
-			context.saSignupSeasonId,
-			context.asiaSignupSeasonId
-		].filter((id): id is number => id !== null);
+		const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
 
 		const membership = await prisma.playerInTeam.findFirst({
 			where: {
 				playerSteamId: locals.user.steamId,
 				active: 1,
 				team: {
-					is1v1: 0,
+					formatId: FORMAT_2V2,
 					seasonId: { in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1] }
 				}
 			},

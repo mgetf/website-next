@@ -7,11 +7,11 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	
 	// Get initial tab from URL query param, default to 'seasons'
-	const validTabs = ['seasons', 'regions', 'divisions', 'arenas'] as const;
+	const validTabs = ['seasons', 'regions', 'divisions', 'arenas', 'formats'] as const;
 	const urlTab = $page.url.searchParams.get('tab');
 	const initialTab = validTabs.includes(urlTab as any) ? urlTab as typeof validTabs[number] : 'seasons';
 	
-	let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' = $state(initialTab);
+	let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' | 'formats' = $state(initialTab);
 	let isSubmitting = $state(false);
 	
 	// Seasons state
@@ -45,6 +45,10 @@
 	let editingPool: typeof data.mapBanPools[0] | null = $state(null);
 	let deletingPool: typeof data.mapBanPools[0] | null = $state(null);
 	let addingMapsToPool: typeof data.mapBanPools[0] | null = $state(null);
+	
+	// Formats state
+	let showFormatForm = $state(false);
+	let editingFormat: typeof data.formats[0] | null = $state(null);
 	
 	// Playoff management state
 	let showPlayoffModal: typeof data.seasons[0] | null = $state(null);
@@ -153,6 +157,16 @@
 		>
 			🗺️ Arenas & Maps
 		</button>
+		<button
+			onclick={() => setTab('formats')}
+			class="flex-1 px-4 py-2 rounded-md transition-colors {
+				activeTab === 'formats' 
+					? 'bg-orange-600 text-white font-medium' 
+					: 'text-gray-400 hover:text-white hover:bg-zinc-800'
+			}"
+		>
+			🎮 Formats
+		</button>
 	</div>
 	
 	<!-- Success/Error Messages -->
@@ -162,7 +176,7 @@
 		</div>
 	{/if}
 	
-	{#if form?.error && !editingSeason && !editingRegion && !editingDivision && !editingArena && !deletingArena}
+	{#if form?.error && !editingSeason && !editingRegion && !editingDivision && !editingArena && !deletingArena && !editingFormat}
 		<div class="fixed top-4 right-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg shadow-lg z-50">
 			<p class="text-red-400">{form.error}</p>
 		</div>
@@ -212,7 +226,7 @@
 							};
 						}}
 					>
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 							<div>
 								<label for="seasonNum" class="block text-sm font-medium text-gray-300 mb-2">Season Number</label>
 								<input
@@ -235,6 +249,19 @@
 								>
 									{#each data.regions as region}
 										<option value={region.id}>{region.name}</option>
+									{/each}
+								</select>
+							</div>
+							<div>
+								<label for="formatId" class="block text-sm font-medium text-gray-300 mb-2">Format</label>
+								<select
+									id="formatId"
+									name="formatId"
+									required
+									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+								>
+									{#each data.formats as format}
+										<option value={format.id}>{format.name}</option>
 									{/each}
 								</select>
 							</div>
@@ -298,6 +325,7 @@
 										<tr class="text-left text-sm text-gray-400">
 											<th class="px-6 py-3 font-medium">Season</th>
 											<th class="px-6 py-3 font-medium">Status</th>
+											<th class="px-6 py-3 font-medium">Format</th>
 											<th class="px-6 py-3 font-medium">Duration</th>
 											<th class="px-6 py-3 font-medium">Teams</th>
 											<th class="px-6 py-3 font-medium">Matches</th>
@@ -324,6 +352,9 @@
 														<span class="w-2 h-2 rounded-full {getStatusDot(season.status)}"></span>
 														<span class="text-sm text-gray-300">{season.status}</span>
 													</div>
+												</td>
+												<td class="px-6 py-4">
+													<span class="px-2 py-1 text-xs font-medium bg-zinc-700 text-gray-300 rounded">{season.format}</span>
 												</td>
 												<td class="px-6 py-4">
 													<span class="text-sm text-gray-300">{season.numWeeks} weeks</span>
@@ -1018,8 +1049,205 @@
 				{/if}
 			</div>
 		</div>
+	{:else if activeTab === 'formats'}
+		<!-- FORMATS TAB -->
+		<div>
+			<div class="flex items-center justify-between mb-6">
+				<h3 class="text-xl font-bold text-white">Formats</h3>
+				<button 
+					onclick={() => showFormatForm = !showFormatForm}
+					class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
+				>
+					{showFormatForm ? 'Cancel' : '+ Add Format'}
+				</button>
+			</div>
+			
+			<!-- Create Format Form -->
+			{#if showFormatForm}
+				<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mb-6">
+					<h4 class="text-lg font-medium text-white mb-4">Create New Format</h4>
+					<form 
+						method="POST" 
+						action="?/createFormat"
+						use:enhance={() => {
+							isSubmitting = true;
+							return async ({ update }) => {
+								await update();
+								isSubmitting = false;
+								showFormatForm = false;
+							};
+						}}
+						class="space-y-4"
+					>
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<label for="formatName" class="block text-sm font-medium text-gray-300 mb-2">Name</label>
+								<input 
+									type="text" 
+									id="formatName" 
+									name="name" 
+									placeholder="e.g., 1v1, 2v2, 3v3"
+									required
+									class="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+								/>
+								<p class="text-xs text-gray-500 mt-1">Display name shown to users</p>
+							</div>
+							<div>
+								<label for="formatCode" class="block text-sm font-medium text-gray-300 mb-2">Code</label>
+								<input 
+									type="text" 
+									id="formatCode" 
+									name="code" 
+									placeholder="e.g., 1v1, 2v2, 3v3"
+									required
+									class="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+								/>
+								<p class="text-xs text-gray-500 mt-1">Unique identifier (must be unique)</p>
+							</div>
+						</div>
+						<div class="flex justify-end">
+							<button 
+								type="submit" 
+								disabled={isSubmitting}
+								class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors disabled:opacity-50"
+							>
+								{isSubmitting ? 'Creating...' : 'Create Format'}
+							</button>
+						</div>
+					</form>
+				</div>
+			{/if}
+			
+			<!-- Formats List -->
+			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg overflow-hidden">
+				{#if data.formats.length === 0}
+					<div class="p-8 text-center text-gray-400">
+						<p>No formats created yet.</p>
+						<p class="text-sm mt-1">Add a format to get started.</p>
+					</div>
+				{:else}
+					<table class="w-full">
+						<thead class="bg-zinc-900/50">
+							<tr>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Code</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Seasons</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Teams</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Active Signups</th>
+								<th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-zinc-700">
+							{#each data.formats as format}
+								<tr class="hover:bg-zinc-800/30">
+									<td class="px-6 py-4 text-gray-400 text-sm">{format.id}</td>
+									<td class="px-6 py-4 text-white font-medium">{format.name}</td>
+									<td class="px-6 py-4">
+										<span class="px-2 py-1 bg-zinc-700 rounded text-gray-300 text-sm font-mono">{format.code}</span>
+									</td>
+									<td class="px-6 py-4 text-gray-300">{format.seasons}</td>
+									<td class="px-6 py-4 text-gray-300">{format.teams}</td>
+									<td class="px-6 py-4 text-gray-300">{format.activeSignupSeasons}</td>
+									<td class="px-6 py-4 text-right">
+										<button
+											onclick={() => editingFormat = format}
+											class="px-3 py-1 text-sm bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600/30 transition-colors"
+										>
+											Edit
+										</button>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				{/if}
+			</div>
+		</div>
 	{/if}
 </div>
+
+<!-- Edit Format Modal -->
+{#if editingFormat}
+	<div 
+		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+		onclick={() => editingFormat = null}
+		onkeydown={(e) => e.key === 'Escape' && (editingFormat = null)}
+		role="button"
+		tabindex="-1"
+	>
+		<div 
+			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="dialog"
+			tabindex="-1"
+		>
+			<h3 class="text-xl font-bold text-white mb-4">Edit Format</h3>
+			{#if form?.error}
+				<div class="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
+					<p class="text-red-400 text-sm">{form.error}</p>
+				</div>
+			{/if}
+			<form 
+				method="POST" 
+				action="?/updateFormat"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ update, result }) => {
+						await update();
+						isSubmitting = false;
+						if (result.type === 'success') {
+							editingFormat = null;
+						}
+					};
+				}}
+				class="space-y-4"
+			>
+				<input type="hidden" name="formatId" value={editingFormat.id} />
+				<div>
+					<label for="editFormatName" class="block text-sm font-medium text-gray-300 mb-2">Name</label>
+					<input 
+						type="text" 
+						id="editFormatName" 
+						name="name" 
+						value={editingFormat.name}
+						required
+						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+					/>
+				</div>
+				<div>
+					<label for="editFormatCode" class="block text-sm font-medium text-gray-300 mb-2">Code</label>
+					<input 
+						type="text" 
+						id="editFormatCode" 
+						name="code" 
+						value={editingFormat.code}
+						required
+						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+					/>
+					<p class="text-xs text-gray-500 mt-1">Must be unique across all formats</p>
+				</div>
+				<div class="flex justify-end gap-3 pt-2">
+					<button 
+						type="button"
+						onclick={() => editingFormat = null}
+						class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+					>
+						Cancel
+					</button>
+					<button 
+						type="submit"
+						disabled={isSubmitting}
+						class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors disabled:opacity-50"
+					>
+						{isSubmitting ? 'Saving...' : 'Save Changes'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
 
 <!-- Edit Region Modal -->
 {#if editingRegion}
@@ -1191,6 +1419,21 @@
 						>
 							{#each data.regions as region}
 								<option value={region.id}>{region.name}</option>
+							{/each}
+						</select>
+					</div>
+					
+					<div>
+						<label for="edit-formatId" class="block text-sm font-medium text-gray-300 mb-2">Format</label>
+						<select
+							id="edit-formatId"
+							name="formatId"
+							value={editingSeason.formatId}
+							required
+							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+						>
+							{#each data.formats as format}
+								<option value={format.id}>{format.name}</option>
 							{/each}
 						</select>
 					</div>

@@ -5,76 +5,30 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { setActiveSignupSeason, getAllActiveSignupSeasons } from './signupSeasons';
 
 /**
  * Get global settings
  * There should only be one row in the global table
  */
 export async function getGlobalSettings() {
-	return await prisma.global.findFirst({
-		include: {
-			naSignupSeason: {
-				select: {
-					id: true,
-					seasonNum: true,
-					region: {
-						select: {
-							id: true,
-							name: true
-						}
-					}
-				}
-			},
-			euSignupSeason: {
-				select: {
-					id: true,
-					seasonNum: true,
-					region: {
-						select: {
-							id: true,
-							name: true
-						}
-					}
-				}
-			},
-			ausSignupSeason: {
-				select: {
-					id: true,
-					seasonNum: true,
-					region: {
-						select: {
-							id: true,
-							name: true
-						}
-					}
-				}
-			},
-			saSignupSeason: {
-				select: {
-					id: true,
-					seasonNum: true,
-					region: {
-						select: {
-							id: true,
-							name: true
-						}
-					}
-				}
-			},
-			asiaSignupSeason: {
-				select: {
-					id: true,
-					seasonNum: true,
-					region: {
-						select: {
-							id: true,
-							name: true
-						}
-					}
-				}
-			}
-		}
-	});
+	return await prisma.global.findFirst();
+}
+
+/**
+ * Get global settings with active signup seasons
+ * Returns global settings plus the active signup seasons from the junction table
+ */
+export async function getGlobalSettingsWithSignupSeasons() {
+	const [global, activeSignupSeasons] = await Promise.all([
+		prisma.global.findFirst(),
+		getAllActiveSignupSeasons()
+	]);
+
+	return {
+		...global,
+		activeSignupSeasons
+	};
 }
 
 /**
@@ -86,11 +40,8 @@ export async function updateGlobalSettings(data: {
 	signupClosed?: number;
 	rosterLocked?: number;
 	paymentRequired?: number;
-	naSignupSeasonId?: number | null;
-	euSignupSeasonId?: number | null;
-	ausSignupSeasonId?: number | null;
-	saSignupSeasonId?: number | null;
-	asiaSignupSeasonId?: number | null;
+	matchCreationDeadline?: Date | null;
+	currentMatchWeek?: number | null;
 }) {
 	// Get existing settings
 	const existingSettings = await prisma.global.findFirst();
@@ -109,11 +60,8 @@ export async function updateGlobalSettings(data: {
 				signupClosed: data.signupClosed ?? 0,
 				rosterLocked: data.rosterLocked ?? 0,
 				paymentRequired: data.paymentRequired ?? 0,
-				naSignupSeasonId: data.naSignupSeasonId,
-				euSignupSeasonId: data.euSignupSeasonId,
-				ausSignupSeasonId: data.ausSignupSeasonId,
-				saSignupSeasonId: data.saSignupSeasonId,
-				asiaSignupSeasonId: data.asiaSignupSeasonId
+				matchCreationDeadline: data.matchCreationDeadline,
+				currentMatchWeek: data.currentMatchWeek
 			}
 		});
 	}
@@ -174,28 +122,13 @@ export async function togglePaymentRequired() {
 }
 
 /**
- * Set signup season for a region
+ * Update signup season for a region+format combination
+ * Uses the ActiveSignupSeason junction table
  */
-export async function setRegionSignupSeason(region: 'NA' | 'EU' | 'AUS' | 'SA' | 'ASIA', seasonId: number | null) {
-	const settings = await prisma.global.findFirst();
-
-	if (!settings) {
-		throw new Error('Global settings not found');
-	}
-
-	const fieldMap = {
-		NA: 'naSignupSeasonId',
-		EU: 'euSignupSeasonId',
-		AUS: 'ausSignupSeasonId',
-		SA: 'saSignupSeasonId',
-		ASIA: 'asiaSignupSeasonId'
-	};
-
-	return await prisma.global.update({
-		where: { id: settings.id },
-		data: {
-			[fieldMap[region]]: seasonId
-		}
-	});
+export async function updateRegionSignupSeason(
+	regionId: number,
+	formatId: number,
+	seasonId: number | null
+) {
+	return await setActiveSignupSeason(regionId, formatId, seasonId);
 }
-

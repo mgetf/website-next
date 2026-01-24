@@ -7,6 +7,8 @@ import { prisma } from '$lib/server/db';
 import { TeamStatus } from '$prisma/client.js';
 import jwt from 'jsonwebtoken';
 import { error } from '@sveltejs/kit';
+import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
+import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const TOKEN_EXPIRY = '7d';
@@ -17,11 +19,6 @@ interface SignupContext {
 	hasActiveTeam: boolean;
 	signupClosed: boolean;
 	rosterLocked: boolean;
-	naSignupSeasonId: number | null;
-	euSignupSeasonId: number | null;
-	ausSignupSeasonId: number | null;
-	saSignupSeasonId: number | null;
-	asiaSignupSeasonId: number | null;
 }
 
 interface TeamCreationData {
@@ -52,14 +49,8 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
 		throw error(500, 'Global configuration not found');
 	}
 
-	// Collect all current signup season IDs
-	const currentSignupSeasonIds = [
-		global.naSignupSeasonId,
-		global.euSignupSeasonId,
-		global.ausSignupSeasonId,
-		global.saSignupSeasonId,
-		global.asiaSignupSeasonId
-	].filter((id): id is number => id !== null);
+	// Get current signup season IDs for 2v2 format
+	const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
 
 	let ownedTeams: any[] = [];
 	let hasActiveTeam = false;
@@ -90,7 +81,7 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
 				playerSteamId: steamId,
 				active: 1,
 				team: {
-					is1v1: 0, // 2v2 teams only
+					formatId: FORMAT_2V2,
 					seasonId: {
 						in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1] // Use -1 as fallback to match nothing
 					}
@@ -106,12 +97,7 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
 		ownedTeams: ownedTeams.map((pt) => pt.team),
 		hasActiveTeam,
 		signupClosed: global.signupClosed === 1,
-		rosterLocked: global.rosterLocked === 1,
-		naSignupSeasonId: global.naSignupSeasonId,
-		euSignupSeasonId: global.euSignupSeasonId,
-		ausSignupSeasonId: global.ausSignupSeasonId,
-		saSignupSeasonId: global.saSignupSeasonId,
-		asiaSignupSeasonId: global.asiaSignupSeasonId
+		rosterLocked: global.rosterLocked === 1
 	};
 }
 
@@ -119,20 +105,8 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
  * Validate team creation data
  */
 export async function validateTeamCreation(data: TeamCreationData): Promise<void> {
-	// Get global settings to check current signup seasons
-	const global = await prisma.global.findFirst();
-	if (!global) {
-		throw error(500, 'Global configuration not found');
-	}
-
-	// Collect all current signup season IDs
-	const currentSignupSeasonIds = [
-		global.naSignupSeasonId,
-		global.euSignupSeasonId,
-		global.ausSignupSeasonId,
-		global.saSignupSeasonId,
-		global.asiaSignupSeasonId
-	].filter((id): id is number => id !== null);
+	// Get current signup season IDs for 2v2 format
+	const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
 
 	// Check if user is already in an active 2v2 team for a CURRENT signup season
 	// Users can create new teams if their old team is from a previous season
@@ -141,7 +115,7 @@ export async function validateTeamCreation(data: TeamCreationData): Promise<void
 			playerSteamId: data.ownerSteamId,
 			active: 1,
 			team: {
-				is1v1: 0,
+				formatId: FORMAT_2V2,
 				seasonId: {
 					in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1]
 				}
@@ -195,29 +169,8 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
 		throw error(400, 'Invalid division selected');
 	}
 
-	// Get the signup season for the region
-	const global = await prisma.global.findFirst();
-	if (!global) {
-		throw error(500, 'Global configuration not found');
-	}
-
-	let seasonId: number | null = null;
-	if (data.regionId === 1) {
-		// NA
-		seasonId = global.naSignupSeasonId;
-	} else if (data.regionId === 2) {
-		// EU
-		seasonId = global.euSignupSeasonId;
-	} else if (data.regionId === 3) {
-		// AUS
-		seasonId = global.ausSignupSeasonId;
-	} else if (data.regionId === 4) {
-		// SA
-		seasonId = global.saSignupSeasonId;
-	} else if (data.regionId === 5) {
-		// ASIA
-		seasonId = global.asiaSignupSeasonId;
-	}
+	// Get the signup season for the region (2v2 format)
+	const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
 
 	if (!seasonId) {
 		throw error(400, 'No active signup season for this region');
@@ -237,7 +190,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
 			divisionId: data.divisionId,
 			regionId: data.regionId,
 			seasonId: seasonId,
-			is1v1: 0,
+			formatId: FORMAT_2V2,
 			status: initialStatus,
 			joinPassword: data.joinPassword,
 			paymentStatus: division.signupCost === 0 ? 1 : 0
@@ -292,24 +245,8 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
 		throw error(403, 'You must be the team owner to re-register');
 	}
 
-	// Get the signup season for the region
-	const global = await prisma.global.findFirst();
-	if (!global) {
-		throw error(500, 'Global configuration not found');
-	}
-
-	let seasonId: number | null = null;
-	if (data.regionId === 1) {
-		seasonId = global.naSignupSeasonId;
-	} else if (data.regionId === 2) {
-		seasonId = global.euSignupSeasonId;
-	} else if (data.regionId === 3) {
-		seasonId = global.ausSignupSeasonId;
-	} else if (data.regionId === 4) {
-		seasonId = global.saSignupSeasonId;
-	} else if (data.regionId === 5) {
-		seasonId = global.asiaSignupSeasonId;
-	}
+	// Get the signup season for the region (2v2 format)
+	const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
 
 	if (!seasonId) {
 		throw error(400, 'No active signup season for this region');

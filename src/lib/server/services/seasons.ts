@@ -15,6 +15,7 @@ export async function getSeasons() {
 	return await prisma.season.findMany({
 		include: {
 			region: true,
+			format: true,
 			_count: {
 				select: {
 					teams: true,
@@ -36,6 +37,7 @@ export async function getSeasonById(id: number) {
 		where: { id },
 		include: {
 			region: true,
+			format: true,
 			_count: {
 				select: {
 					teams: true,
@@ -60,29 +62,32 @@ export async function getCurrentSeason() {
  * Create a new season
  * 
  * Business logic validation:
- * - Season number must be unique per region
+ * - Season number must be unique per region and format
  */
 export async function createSeason(data: {
 	seasonNum: number;
 	regionId: number;
+	formatId: number;
 	numWeeks: number;
 }) {
-	// Check if season already exists
+	// Check if season already exists for this region and format
 	const existingSeason = await prisma.season.findFirst({
 		where: {
 			seasonNum: data.seasonNum,
-			regionId: data.regionId
+			regionId: data.regionId,
+			formatId: data.formatId
 		}
 	});
 
 	if (existingSeason) {
-		throw new Error(`Season ${data.seasonNum} already exists for this region`);
+		throw new Error(`Season ${data.seasonNum} already exists for this region and format`);
 	}
 
 	return await prisma.season.create({
 		data: {
 			seasonNum: data.seasonNum,
 			regionId: data.regionId,
+			formatId: data.formatId,
 			numWeeks: data.numWeeks
 		}
 	});
@@ -93,13 +98,14 @@ export async function createSeason(data: {
  * 
  * Business logic validation:
  * - Season must exist
- * - New season number must not conflict with another season in the same region
+ * - New season number must not conflict with another season in the same region and format
  */
 export async function updateSeason(
 	id: number,
 	data: {
 		seasonNum: number;
 		regionId: number;
+		formatId: number;
 		numWeeks: number;
 	}
 ) {
@@ -112,17 +118,18 @@ export async function updateSeason(
 		throw new Error('Season not found');
 	}
 
-	// Check if changing to a season number that already exists for this region
+	// Check if changing to a season number that already exists for this region and format
 	const conflictingSeason = await prisma.season.findFirst({
 		where: {
 			seasonNum: data.seasonNum,
 			regionId: data.regionId,
+			formatId: data.formatId,
 			NOT: { id }
 		}
 	});
 
 	if (conflictingSeason) {
-		throw new Error(`Season ${data.seasonNum} already exists for this region`);
+		throw new Error(`Season ${data.seasonNum} already exists for this region and format`);
 	}
 
 	return await prisma.season.update({
@@ -130,6 +137,7 @@ export async function updateSeason(
 		data: {
 			seasonNum: data.seasonNum,
 			regionId: data.regionId,
+			formatId: data.formatId,
 			numWeeks: data.numWeeks
 		}
 	});
@@ -179,6 +187,7 @@ export function transformSeasonForUI(
 	season: Prisma.SeasonGetPayload<{
 		include: {
 			region: true;
+			format: true;
 			_count: {
 				select: {
 					teams: true;
@@ -201,6 +210,8 @@ export function transformSeasonForUI(
 		seasonNum: season.seasonNum,
 		region: season.region.name,
 		regionId: season.regionId,
+		format: season.format.name,
+		formatId: season.formatId,
 		numWeeks: season.numWeeks,
 		teams: season._count.teams,
 		matches: season._count.matches,

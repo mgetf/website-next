@@ -8,6 +8,7 @@ import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/se
 import { uploadToR2, validateUploadedFile, saveTempFile, deleteTempFile } from '$lib/server/utils/r2Upload';
 import { getMapBanPools, createMapBanPool, updateMapBanPool, toggleMapBanPoolStatus, addMapsToPool, removeMapFromPool, deleteMapBanPool } from '$lib/server/services/mapBanPools';
 import { getPlayoffBySeason, createPlayoff, updatePlayoffBySeason } from '$lib/server/services/playoffs';
+import { getFormats, createFormat, updateFormat } from '$lib/server/services/formats';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals.user);
@@ -26,6 +27,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Fetch all map ban pools
 	const allMapBanPools = await getMapBanPools();
+
+	// Fetch all formats
+	const allFormats = await getFormats();
 
 	// Transform the data for the UI and add playoff information
 	const seasonsData = await Promise.all(seasons.map(async (season) => {
@@ -82,6 +86,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 				orderNum: m.orderNum
 			})),
 			matchesUsed: pool._count.matchMapBans
+		})),
+		formats: allFormats.map((f) => ({
+			id: f.id,
+			name: f.name,
+			code: f.code,
+			seasons: f._count.seasons,
+			teams: f._count.teams,
+			activeSignupSeasons: f._count.activeSignupSeasons
 		}))
 	};
 };
@@ -93,6 +105,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const seasonNum = parseInt(formData.get('seasonNum') as string);
 		const regionId = parseInt(formData.get('regionId') as string);
+		const formatId = parseInt(formData.get('formatId') as string);
 		const numWeeks = parseInt(formData.get('numWeeks') as string);
 
 		// Validate inputs
@@ -102,12 +115,15 @@ export const actions: Actions = {
 		if (!regionId || regionId < 1) {
 			return fail(400, { error: 'Invalid region' });
 		}
+		if (!formatId || formatId < 1) {
+			return fail(400, { error: 'Invalid format' });
+		}
 		if (!numWeeks || numWeeks < 1) {
 			return fail(400, { error: 'Invalid number of weeks' });
 		}
 
 		try {
-			await createSeason({ seasonNum, regionId, numWeeks });
+			await createSeason({ seasonNum, regionId, formatId, numWeeks });
 			return { success: true, message: 'Season created successfully!' };
 		} catch (error) {
 			console.error('Error creating season:', error);
@@ -122,6 +138,7 @@ export const actions: Actions = {
 		const seasonId = parseInt(formData.get('seasonId') as string);
 		const seasonNum = parseInt(formData.get('seasonNum') as string);
 		const regionId = parseInt(formData.get('regionId') as string);
+		const formatId = parseInt(formData.get('formatId') as string);
 		const numWeeks = parseInt(formData.get('numWeeks') as string);
 
 		// Validate inputs
@@ -134,12 +151,15 @@ export const actions: Actions = {
 		if (!regionId || regionId < 1) {
 			return fail(400, { error: 'Invalid region' });
 		}
+		if (!formatId || formatId < 1) {
+			return fail(400, { error: 'Invalid format' });
+		}
 		if (!numWeeks || numWeeks < 1) {
 			return fail(400, { error: 'Invalid number of weeks' });
 		}
 
 		try {
-			await updateSeason(seasonId, { seasonNum, regionId, numWeeks });
+			await updateSeason(seasonId, { seasonNum, regionId, formatId, numWeeks });
 			return { success: true, message: 'Season updated successfully!' };
 		} catch (error) {
 			console.error('Error updating season:', error);
@@ -565,6 +585,57 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Error managing playoff:', error);
 			return fail(400, { error: error instanceof Error ? error.message : 'Failed to manage playoff configuration' });
+		}
+	},
+
+	// FORMAT ACTIONS
+	createFormat: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const name = formData.get('name') as string;
+		const code = formData.get('code') as string;
+
+		if (!name || name.trim().length === 0) {
+			return fail(400, { error: 'Format name is required' });
+		}
+		if (!code || code.trim().length === 0) {
+			return fail(400, { error: 'Format code is required' });
+		}
+
+		try {
+			await createFormat({ name, code });
+			return { success: true, message: 'Format created successfully!' };
+		} catch (error) {
+			console.error('Error creating format:', error);
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to create format' });
+		}
+	},
+
+	updateFormat: async ({ request, locals }) => {
+		requireAdmin(locals.user);
+
+		const formData = await request.formData();
+		const formatId = parseInt(formData.get('formatId') as string);
+		const name = formData.get('name') as string;
+		const code = formData.get('code') as string;
+
+		if (!formatId || formatId < 1) {
+			return fail(400, { error: 'Invalid format ID' });
+		}
+		if (!name || name.trim().length === 0) {
+			return fail(400, { error: 'Format name is required' });
+		}
+		if (!code || code.trim().length === 0) {
+			return fail(400, { error: 'Format code is required' });
+		}
+
+		try {
+			await updateFormat(formatId, { name, code });
+			return { success: true, message: 'Format updated successfully!' };
+		} catch (error) {
+			console.error('Error updating format:', error);
+			return fail(400, { error: error instanceof Error ? error.message : 'Failed to update format' });
 		}
 	}
 };

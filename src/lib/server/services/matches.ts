@@ -477,7 +477,7 @@ export async function disputeMatch(matchId: number, reason: string, disputedBy: 
 			matchId,
 			owner: disputedBy,
 			content: `MATCH DISPUTED: ${reason}`,
-			createdAt: Math.floor(Date.now() / 1000)
+			createdAt: new Date()
 		}
 	});
 

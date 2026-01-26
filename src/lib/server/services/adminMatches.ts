@@ -228,7 +228,7 @@ export async function createMatchSet(
 Need help? Ask in Discord or contact an admin.
 
 Good luck to both teams!`,
-				createdAt: Math.floor(Date.now() / 1000)
+				createdAt: new Date()
 			}
 		});
 
@@ -343,7 +343,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
 Need help? Ask in Discord or contact an admin.
 
 Good luck to both teams!`,
-			createdAt: Math.floor(Date.now() / 1000)
+			createdAt: new Date()
 		}
 	});
 

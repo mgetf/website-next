@@ -32,8 +32,18 @@
 		selectedSeasonId ? data.seasons.find((s) => s.id === selectedSeasonId) : null
 	);
 
+	// Only show regions that have at least one season
+	const regionsWithSeasons = $derived(
+		data.regions.filter((r) => data.seasons.some((s) => s.regionId === r.id))
+	);
+
 	const seasonsForRegion = $derived(
 		selectedRegionId ? data.seasons.filter((s) => s.regionId === selectedRegionId) : []
+	);
+
+	// Filter divisions by selected region
+	const divisionsForRegion = $derived(
+		selectedRegionId ? data.divisions.filter((d) => d.regionId === selectedRegionId) : []
 	);
 
 	const canPreview = $derived(
@@ -137,6 +147,13 @@
 			existingMatchSetsCount = 0;
 		}
 	}
+
+	// Reset dependent fields when region changes
+	function onRegionChange() {
+		selectedDivisionId = null;
+		selectedSeasonId = null;
+		onFieldChange();
+	}
 </script>
 
 <div class="max-w-4xl mx-auto space-y-6">
@@ -165,12 +182,12 @@
 					<select
 						name="regionId"
 						bind:value={selectedRegionId}
-						onchange={onFieldChange}
+						onchange={onRegionChange}
 						required
 						class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
 					>
 						<option value="">Select Region</option>
-						{#each data.regions as region}
+						{#each regionsWithSeasons as region}
 							<option value={region.id}>{region.name}</option>
 						{/each}
 					</select>
@@ -184,10 +201,13 @@
 						bind:value={selectedDivisionId}
 						onchange={onFieldChange}
 						required
-						class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
+						disabled={!selectedRegionId}
+						class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
 					>
-						<option value="">Select Division</option>
-						{#each data.divisions as division}
+						<option value="">
+							{selectedRegionId ? 'Select Division' : 'Select Region First'}
+						</option>
+						{#each divisionsForRegion as division}
 							<option value={division.id}>{division.name}</option>
 						{/each}
 					</select>
@@ -204,12 +224,12 @@
 						disabled={!selectedRegionId}
 						class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
 					>
-						<option value="">
-							{selectedRegionId ? 'Select Season' : 'Select Region First'}
-						</option>
-						{#each seasonsForRegion as season}
-							<option value={season.id}>Season {season.seasonNum} - {season.region.name}</option>
-						{/each}
+					<option value="">
+						{selectedRegionId ? 'Select Season' : 'Select Region First'}
+					</option>
+					{#each seasonsForRegion as season}
+						<option value={season.id}>Season {season.seasonNum}</option>
+					{/each}
 					</select>
 				</div>
 

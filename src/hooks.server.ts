@@ -42,8 +42,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Adjust these values based on your actual content sources
 	const cspDirectives = [
 		"default-src 'self'",
-		// Scripts: self, inline (for Svelte), PayPal, and jsDelivr CDN (brackets-viewer)
-		"script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.sandbox.paypal.com https://cdn.jsdelivr.net",
+		// Scripts: self, inline (for Svelte), PayPal, jsDelivr CDN, and Cloudflare Insights
+		"script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.sandbox.paypal.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com",
 		// Styles: self, inline (for Svelte/Tailwind), Google Fonts, and jsDelivr CDN
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
 		// Images: self, data URIs, and HTTPS sources (Steam avatars, etc.)
@@ -52,10 +52,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		"font-src 'self' https://fonts.gstatic.com",
 		// Frames: PayPal and Steam
 		"frame-src https://www.paypal.com https://www.sandbox.paypal.com https://steamcommunity.com",
-		// Connect: self and PayPal API
-		"connect-src 'self' https://www.paypal.com https://www.sandbox.paypal.com",
-		// Form actions: self
-		"form-action 'self'",
+		// Connect: self, PayPal API, and Cloudflare
+		"connect-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://cloudflareinsights.com",
+		// Form actions: self and Steam OpenID (for login redirect)
+		"form-action 'self' https://steamcommunity.com",
 		// Base URI: self
 		"base-uri 'self'",
 		// Prevent object/embed

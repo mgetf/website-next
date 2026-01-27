@@ -2,15 +2,24 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createPayPalOrder, getPayPalConfig } from '$lib/server/services/paypal';
 import { logError } from '$lib/server/utils/logger';
+import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		// Require authentication
+		requireAuth(locals.user);
+
 		const body = await request.json();
 		const { amount, currency, steamId, teamId } = body;
 
 		// Validate inputs
 		if (!amount || !currency || !steamId || !teamId) {
 			return json({ error: 'Missing required fields' }, { status: 400 });
+		}
+
+		// Verify user is paying for themselves or is an admin
+		if (locals.user.steamId !== steamId && !isAdmin(locals.user)) {
+			return json({ error: 'Unauthorized: Cannot create payment for another user' }, { status: 403 });
 		}
 
 		const config = getPayPalConfig();

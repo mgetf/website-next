@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getPlayoffBySeason, updatePlayoffBySeason, deletePlayoff } from '$lib/server/services/playoffs';
+import { requireAdmin } from '$lib/server/auth/permissions';
 import type { RequestHandler } from './$types';
 
 /**
@@ -33,9 +34,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 /**
  * PUT /api/playoffs/[seasonId]
  * Update playoff configuration for a specific season
+ * Requires admin privileges
  */
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	try {
+		// Require admin authorization
+		requireAdmin(locals.user);
+
 		const seasonId = parseInt(params.seasonId);
 		
 		if (isNaN(seasonId)) {
@@ -77,9 +82,13 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 /**
  * DELETE /api/playoffs/[seasonId]
  * Delete playoff configuration for a specific season
+ * Requires admin privileges
  */
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	try {
+		// Require admin authorization
+		requireAdmin(locals.user);
+
 		const seasonId = parseInt(params.seasonId);
 		
 		if (isNaN(seasonId)) {

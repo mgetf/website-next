@@ -6,6 +6,8 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 
 import { MatchStatus } from '$prisma/client.js';
 import {
@@ -34,6 +36,34 @@ import { uploadDemo, reportDemo, getUserDemoReports } from '$lib/server/services
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
+
+// Zod schemas for form validation
+const disputeSchema = z.object({
+	reason: z.string().min(1, 'Dispute reason is required').max(1000, 'Reason too long')
+});
+
+const postMessageSchema = z.object({
+	content: z.string().min(1, 'Message content is required').max(2000, 'Message too long')
+});
+
+const requestRescheduleSchema = z.object({
+	proposedDateTime: z.string().min(1, 'Proposed date/time is required')
+});
+
+const respondRescheduleSchema = z.object({
+	commId: z.coerce.number().int().positive('Invalid comm ID'),
+	response: z.enum(['accept', 'deny', 'cancel'], { errorMap: () => ({ message: 'Invalid response' }) })
+});
+
+const mapActionSchema = z.object({
+	arenaId: z.coerce.number().int().positive('Invalid arena ID'),
+	actionType: z.enum(['ban', 'pick'], { errorMap: () => ({ message: 'Invalid action type' }) })
+});
+
+const reportDemoSchema = z.object({
+	demoId: z.coerce.number().int().positive('Invalid demo ID'),
+	description: z.string().min(1, 'Report description is required').max(2000, 'Description too long')
+});
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const matchId = parseInt(params.id);
@@ -253,11 +283,14 @@ export const actions: Actions = {
 		const matchId = parseInt(params.id);
 
 		const formData = await request.formData();
-		const reason = formData.get('reason') as string;
 
-		if (!reason || reason.trim().length === 0) {
-			return fail(400, { error: 'Dispute reason is required' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, disputeSchema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
+
+		const { reason } = validation.data;
 
 		const match = await getMatchDetails(matchId);
 		const permissions = canUserManageMatch(locals.user, match);
@@ -285,11 +318,14 @@ export const actions: Actions = {
 		const matchId = parseInt(params.id);
 
 		const formData = await request.formData();
-		const content = formData.get('content') as string;
 
-		if (!content || content.trim().length === 0) {
-			return fail(400, { error: 'Message content is required' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, postMessageSchema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
+
+		const { content } = validation.data;
 
 		const match = await getMatchDetails(matchId);
 		const permissions = canUserManageMatch(locals.user, match);
@@ -317,11 +353,14 @@ export const actions: Actions = {
 		const matchId = parseInt(params.id);
 
 		const formData = await request.formData();
-		const proposedDateTime = formData.get('proposedDateTime') as string;
 
-		if (!proposedDateTime) {
-			return fail(400, { error: 'Proposed date/time is required' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, requestRescheduleSchema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
+
+		const { proposedDateTime } = validation.data;
 
 		const match = await getMatchDetails(matchId);
 		const permissions = canUserManageMatch(locals.user, match);
@@ -363,12 +402,14 @@ export const actions: Actions = {
 		const matchId = parseInt(params.id);
 
 		const formData = await request.formData();
-		const commId = parseInt(formData.get('commId') as string);
-		const response = formData.get('response') as 'accept' | 'deny' | 'cancel';
 
-		if (!commId || !response) {
-			return fail(400, { error: 'Invalid request' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, respondRescheduleSchema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
+
+		const { commId, response } = validation.data;
 
 		const match = await getMatchDetails(matchId);
 		const comm = await getMatchCommById(commId);
@@ -400,12 +441,14 @@ export const actions: Actions = {
 		const matchId = parseInt(params.id);
 
 		const formData = await request.formData();
-		const arenaId = parseInt(formData.get('arenaId') as string);
-		const actionType = formData.get('actionType') as 'ban' | 'pick';
 
-		if (!arenaId || !actionType) {
-			return fail(400, { error: 'Invalid request' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, mapActionSchema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
+
+		const { arenaId, actionType } = validation.data;
 
 		const match = await getMatchDetails(matchId);
 		const mapBanStatus = await getMapBanStatus(matchId);
@@ -556,16 +599,14 @@ export const actions: Actions = {
 
 		try {
 			const formData = await request.formData();
-			const demoId = parseInt(formData.get('demoId') as string);
-			const description = formData.get('description') as string;
 
-			if (isNaN(demoId)) {
-				return fail(400, { error: 'Invalid demo ID' });
+			// Validate form data with Zod
+			const validation = validateForm(formData, reportDemoSchema);
+			if (!validation.success) {
+				return validationError(validation.errors, 'Invalid form data');
 			}
 
-			if (!description || description.trim().length === 0) {
-				return fail(400, { error: 'Report description is required' });
-			}
+			const { demoId, description } = validation.data;
 
 			await reportDemo(demoId, locals.user.steamId, description);
 

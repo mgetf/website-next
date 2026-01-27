@@ -8,6 +8,7 @@ import { error } from '@sveltejs/kit';
 import { validateJoinToken } from './teamSignup';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
+import { verifyPassword } from '$lib/server/utils/password';
 
 interface TeamJoinInfo {
 	team: any;
@@ -87,6 +88,7 @@ export async function validateTokenAndGetTeam(token: string, steamId?: string): 
 
 /**
  * Validate join password
+ * Supports both hashed passwords (new) and plaintext (legacy, for migration)
  */
 export async function validateJoinPassword(teamId: number, password: string): Promise<boolean> {
 	const team = await prisma.team.findUnique({
@@ -98,7 +100,12 @@ export async function validateJoinPassword(teamId: number, password: string): Pr
 		throw error(404, 'Team not found');
 	}
 
-	return team.joinPassword === password;
+	if (!team.joinPassword) {
+		return false;
+	}
+
+	// Use secure password verification (handles both hashed and legacy plaintext)
+	return verifyPassword(password, team.joinPassword);
 }
 
 /**

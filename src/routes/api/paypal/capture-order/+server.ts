@@ -3,15 +3,24 @@ import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
 import { capturePayPalOrder, isPayPalTestMode } from '$lib/server/services/paypal';
 import { logError } from '$lib/server/utils/logger';
+import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		// Require authentication
+		requireAuth(locals.user);
+
 		const body = await request.json();
 		const { orderID, steamId, teamId, amount: requestAmount, currency: requestCurrency } = body;
 
 		// Validate required fields
 		if (!orderID || !steamId || !teamId) {
 			return json({ error: 'Missing required fields' }, { status: 400 });
+		}
+
+		// Verify user is capturing their own payment or is an admin
+		if (locals.user.steamId !== steamId && !isAdmin(locals.user)) {
+			return json({ error: 'Unauthorized: Cannot capture payment for another user' }, { status: 403 });
 		}
 
 		// In test mode, we need additional data to mock the capture

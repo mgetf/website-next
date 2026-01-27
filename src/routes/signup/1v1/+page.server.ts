@@ -7,6 +7,14 @@ import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
+
+// Zod schema for 1v1 signup form
+const signup1v1Schema = z.object({
+	divisionId: z.coerce.number().int().positive('Invalid division'),
+	regionId: z.coerce.number().int().positive('Invalid region')
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAuth(locals.user);
@@ -73,13 +81,14 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const divisionId = parseInt(formData.get('divisionId') as string);
-		const regionId = parseInt(formData.get('regionId') as string);
 
-		// Validate required fields
-		if (!divisionId || !regionId) {
-			return fail(400, { error: 'Division and region are required' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, signup1v1Schema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
+
+		const { divisionId, regionId } = validation.data;
 
 		try {
 			// Get the correct season ID for the selected region

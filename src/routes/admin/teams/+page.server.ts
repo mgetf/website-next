@@ -7,6 +7,29 @@ import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getDivisionsForFilter } from '$lib/server/services/divisions';
 import { getTeams, countTeams, updateTeam } from '$lib/server/services/teams';
 import { disbandTeam } from '$lib/server/services/teamManagement';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
+
+// Zod schema for team update form
+const updateTeamSchema = z.object({
+	teamId: z.coerce.number().int().positive('Invalid team ID'),
+	name: z.string().min(1, 'Team name is required').max(50, 'Team name too long'),
+	acronym: z.string().max(6, 'Acronym too long').optional().default(''),
+	seasonId: z.string().optional(),
+	divisionId: z.string().optional(),
+	regionId: z.string().optional(),
+	status: z.string().optional()
+});
+
+// Zod schema for team disband form
+const disbandTeamSchema = z.object({
+	teamId: z.coerce.number().int().positive('Invalid team ID')
+});
+
+// Zod schema for 1v1 restore form
+const restore1v1Schema = z.object({
+	teamId: z.coerce.number().int().positive('Invalid team ID')
+});
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	requireAdmin(locals.user);
@@ -97,21 +120,14 @@ export const actions: Actions = {
 		requireAdmin(locals.user);
 
 		const formData = await request.formData();
-		const teamId = parseInt(formData.get('teamId') as string);
-		const name = formData.get('name') as string;
-		const acronym = formData.get('acronym') as string;
-		const seasonId = formData.get('seasonId') as string;
-		const divisionId = formData.get('divisionId') as string;
-		const regionId = formData.get('regionId') as string;
-		const status = formData.get('status') as string;
 
-		// Validate inputs
-		if (!teamId || teamId < 1) {
-			return fail(400, { error: 'Invalid team ID' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, updateTeamSchema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
-		if (!name || name.trim().length === 0) {
-			return fail(400, { error: 'Team name is required' });
-		}
+
+		const { teamId, name, acronym, seasonId, divisionId, regionId, status } = validation.data;
 
 		try {
 			// Parse status enum
@@ -145,11 +161,14 @@ export const actions: Actions = {
 		requireAdmin(locals.user);
 
 		const formData = await request.formData();
-		const teamId = parseInt(formData.get('teamId') as string);
 
-		if (!teamId || teamId < 1) {
-			return fail(400, { error: 'Invalid team ID' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, disbandTeamSchema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
+
+		const { teamId } = validation.data;
 
 		try {
 			await disbandTeam(teamId);
@@ -164,11 +183,14 @@ export const actions: Actions = {
 		requireAdmin(locals.user);
 
 		const formData = await request.formData();
-		const teamId = parseInt(formData.get('teamId') as string);
 
-		if (!teamId || teamId < 1) {
-			return fail(400, { error: 'Invalid team ID' });
+		// Validate form data with Zod
+		const validation = validateForm(formData, restore1v1Schema);
+		if (!validation.success) {
+			return validationError(validation.errors, 'Invalid form data');
 		}
+
+		const { teamId } = validation.data;
 
 		try {
 			const { restore1v1Entry } = await import('$lib/server/services/signup1v1');

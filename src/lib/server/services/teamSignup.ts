@@ -9,9 +9,11 @@ import jwt from 'jsonwebtoken';
 import { error } from '@sveltejs/kit';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { getJwtSecret } from '$lib/server/utils/env';
+import { hashPassword } from '$lib/server/utils/password';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const TOKEN_EXPIRY = '7d';
+// Token expiry reduced from 7d to 1h for security (shorter exposure window)
+const TOKEN_EXPIRY = '1h';
 
 interface SignupContext {
 	isLoggedIn: boolean;
@@ -196,6 +198,9 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
 	const initialStatus =
 		data.divisionId === 3 || data.divisionId === 4 ? TeamStatus.PLACEMENT : TeamStatus.UNREADY;
 
+	// Hash the join password for secure storage
+	const hashedPassword = await hashPassword(data.joinPassword);
+
 	// Create team
 	const team = await prisma.team.create({
 		data: {
@@ -207,7 +212,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
 			seasonId: seasonId,
 			formatId: FORMAT_2V2,
 			status: initialStatus,
-			joinPassword: data.joinPassword,
+			joinPassword: hashedPassword,
 			paymentStatus: division.signupCost === 0 ? 1 : 0
 		}
 	});
@@ -320,7 +325,7 @@ export function generateJoinToken(teamId: number, invitedBy?: string): string {
 		type: 'team-invite'
 	};
 
-	return jwt.sign(payload, JWT_SECRET, {
+	return jwt.sign(payload, getJwtSecret(), {
 		expiresIn: TOKEN_EXPIRY
 	});
 }
@@ -330,7 +335,7 @@ export function generateJoinToken(teamId: number, invitedBy?: string): string {
  */
 export function validateJoinToken(token: string): { teamId: number; invitedBy: string } {
 	try {
-		const decoded = jwt.verify(token, JWT_SECRET) as any;
+		const decoded = jwt.verify(token, getJwtSecret()) as any;
 
 		if (decoded.type !== 'team-invite') {
 			throw error(400, 'Invalid token type');

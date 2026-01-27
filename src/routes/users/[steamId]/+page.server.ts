@@ -46,9 +46,7 @@ export const actions: Actions = {
 		const isGlobalAdmin = isAdmin(locals.user);
 		if (locals.user.steamId !== steamId && !isGlobalAdmin) {
 			return fail(403, { error: 'You can only withdraw from your own 1v1 entry' });
-		}
-
-		const formData = await request.formData();
+		}		const formData = await request.formData();
 		const teamId = parseInt(formData.get('teamId')?.toString() || '');
 
 		if (!teamId || isNaN(teamId)) {

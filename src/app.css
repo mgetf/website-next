@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+/* Custom scrollbar styling to match site theme */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #52525b #18181b; /* zinc-600 thumb, zinc-900 track */
+}
+
+/* Chrome, Safari, Edge */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #18181b; /* zinc-900 */
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #52525b; /* zinc-600 */
+  border-radius: 5px;
+  border: 2px solid #18181b; /* Creates padding effect */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #71717a; /* zinc-500 - slightly lighter on hover */
+}
+
+::-webkit-scrollbar-corner {
+  background: #18181b; /* zinc-900 */
+}
+
 /* Toast animations */
 @keyframes fade-in {
   from {

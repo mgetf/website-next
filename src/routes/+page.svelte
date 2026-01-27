@@ -1,67 +1,67 @@
 <script lang="ts">
-	import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
 
-	interface PageData {
-		leagueData: {
-			season: string;
-			topTeams: Array<{
-				rank: number;
-				name: string;
-				record: string;
-				points: number;
-				id: number;
-			}>;
-		};
-		tournamentData: {
-			recentEvents: Array<{
-				type: 'cup' | 'championship' | 'fightnight';
-				id: number;
-				name: string;
-				date: Date | null;
-				icon: string;
-				format?: string;
-				winner?: {
-					steamId: string;
-					steamUsername: string;
-					steamAvatar: string;
-				} | null;
-				matchupCount?: number;
-			}>;
-			totalCounts: {
-				cups: number;
-				championships: number;
-				fightNights: number;
-			};
-		};
-		siteContent: {
-			subtitle: string;
-			about: string;
-		};
-	}
+interface PageData {
+  leagueData: {
+    season: string;
+    topTeams: Array<{
+      rank: number;
+      name: string;
+      record: string;
+      points: number;
+      id: number;
+    }>;
+  };
+  tournamentData: {
+    recentEvents: Array<{
+      type: 'cup' | 'championship' | 'fightnight';
+      id: number;
+      name: string;
+      date: Date | null;
+      icon: string;
+      format?: string;
+      winner?: {
+        steamId: string;
+        steamUsername: string;
+        steamAvatar: string;
+      } | null;
+      matchupCount?: number;
+    }>;
+    totalCounts: {
+      cups: number;
+      championships: number;
+      fightNights: number;
+    };
+  };
+  siteContent: {
+    subtitle: string;
+    about: string;
+  };
+}
 
-	let { data } = $props<{ data: PageData }>();
+let { data } = $props<{ data: PageData }>();
 
-	// Destructure the data from the server with fallbacks
-	const leagueData = data.leagueData || { season: 'Season 1', topTeams: [] };
-	const tournamentData = data.tournamentData || { 
-		recentEvents: [], 
-		totalCounts: { cups: 0, championships: 0, fightNights: 0 } 
-	};
-	const siteContent = data.siteContent || { subtitle: '', about: '' };
+// Destructure the data from the server with fallbacks
+const leagueData = data.leagueData || { season: 'Season 1', topTeams: [] };
+const tournamentData = data.tournamentData || {
+  recentEvents: [],
+  totalCounts: { cups: 0, championships: 0, fightNights: 0 },
+};
+const siteContent = data.siteContent || { subtitle: '', about: '' };
 
-	const formatEventDate = (date: Date | null) => {
-		if (!date) return 'TBD';
-		try {
-			const d = new Date(date);
-			if (isNaN(d.getTime())) return 'TBD';
-			return d.toLocaleDateString('en-US', {
-				month: 'short',
-				year: 'numeric'
-			});
-		} catch {
-			return 'TBD';
-		}
-	};
+const formatEventDate = (date: Date | null) => {
+  if (!date) return 'TBD';
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return 'TBD';
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return 'TBD';
+  }
+};
 </script>
 
 <div class="min-h-screen">

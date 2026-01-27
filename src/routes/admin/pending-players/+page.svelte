@@ -1,60 +1,66 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { PageData } from './$types';
+import { enhance } from '$app/forms';
+import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+let { data }: { data: PageData } = $props();
 
-	let isSubmitting = $state(false);
-	let decliningPlayerId = $state<string | null>(null);
-	let declineReasons = $state<Record<string, string>>({});
+let isSubmitting = $state(false);
+let decliningPlayerId = $state<string | null>(null);
+let declineReasons = $state<Record<string, string>>({});
 
-	// Filters
-	let selectedDivision = $state<string>('all');
-	let selectedRegion = $state<string>('all');
+// Filters
+let selectedDivision = $state<string>('all');
+let selectedRegion = $state<string>('all');
 
-	// Filtered pending players
-	const filteredPlayers = $derived(() => {
-		return data.pendingPlayers.filter((request) => {
-			if (selectedDivision !== 'all' && request.team.divisionId?.toString() !== selectedDivision) {
-				return false;
-			}
-			if (selectedRegion !== 'all' && request.team.regionId?.toString() !== selectedRegion) {
-				return false;
-			}
-			return true;
-		});
-	});
+// Filtered pending players
+const filteredPlayers = $derived(() => {
+  return data.pendingPlayers.filter((request) => {
+    if (
+      selectedDivision !== 'all' &&
+      request.team.divisionId?.toString() !== selectedDivision
+    ) {
+      return false;
+    }
+    if (
+      selectedRegion !== 'all' &&
+      request.team.regionId?.toString() !== selectedRegion
+    ) {
+      return false;
+    }
+    return true;
+  });
+});
 
-	// Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
-	function steamIdToSteam2(steamId64: string): string {
-		const id = BigInt(steamId64);
-		const accountId = id - BigInt('76561197960265728');
-		const y = accountId / BigInt(2);
-		const x = accountId % BigInt(2);
-		return `STEAM_0:${x}:${y}`;
-	}
+// Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
+function steamIdToSteam2(steamId64: string): string {
+  const id = BigInt(steamId64);
+  const accountId = id - BigInt('76561197960265728');
+  const y = accountId / BigInt(2);
+  const x = accountId % BigInt(2);
+  return `STEAM_0:${x}:${y}`;
+}
 
-	// External profile URLs
-	function getRglUrl(steamId: string): string {
-		return `https://rgl.gg/Public/PlayerProfile.aspx?p=${steamId}`;
-	}
+// External profile URLs
+function getRglUrl(steamId: string): string {
+  return `https://rgl.gg/Public/PlayerProfile.aspx?p=${steamId}`;
+}
 
-	function getEtf2lUrl(steamId: string): string {
-		return `https://etf2l.org/search/${steamId}/`;
-	}
+function getEtf2lUrl(steamId: string): string {
+  return `https://etf2l.org/search/${steamId}/`;
+}
 
-	function getUgcUrl(steamId: string): string {
-		const steam2Id = steamIdToSteam2(steamId);
-		return `https://stats.ugc-gaming.net/mge-stats/?search=${encodeURIComponent(steam2Id)}`;
-	}
+function getUgcUrl(steamId: string): string {
+  const steam2Id = steamIdToSteam2(steamId);
+  return `https://stats.ugc-gaming.net/mge-stats/?search=${encodeURIComponent(steam2Id)}`;
+}
 
-	function getLogsTfUrl(steamId: string): string {
-		return `https://logs.tf/profile/${steamId}`;
-	}
+function getLogsTfUrl(steamId: string): string {
+  return `https://logs.tf/profile/${steamId}`;
+}
 
-	function getSteamUrl(steamId: string): string {
-		return `https://steamcommunity.com/profiles/${steamId}`;
-	}
+function getSteamUrl(steamId: string): string {
+  return `https://steamcommunity.com/profiles/${steamId}`;
+}
 </script>
 
 <style>

@@ -1,134 +1,166 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	
-	// Get data from server load function (Svelte 5 syntax)
-	interface PlayerData {
-		player: {
-			steamId: string;
-			name: string;
-			avatar: string | null;
-			discordLinked: boolean;
-			discordUsername: string | null;
-			permissionLevel: string;
-		};
-		isOwnProfile: boolean;
-		currentTeams: Array<{
-			teamId: number;
-			teamName: string;
-			division: string;
-			regionName: string;
-			seasonNum: number;
-			totalRecord: string;
-			joined: Date;
-		}>;
-		teamHistory: Array<{
-			teamId: number;
-			teamName: string;
-			division: string;
-			regionName: string;
-			seasonNum: number;
-			totalRecord: string;
-			joined: Date;
-			left: Date | null;
-		}>;
-		tournaments: Array<{
-			id: number;
-			name: string;
-			date: string | null;
-			placement: string;
-		}>;
-		fightNights: Array<{
-			id: number;
-			fightNightName: string;
-			opponent: string;
-			result: string;
-			score: string;
-			date: string | null;
-		}>;
-		achievements: Array<{
-			placement: string;
-			event: string;
-			date: string | null;
-		}>;
-		current1v1Entry: {
-			id: number;
-			division: string;
-			region: string;
-			seasonNum: number;
-			wins: number;
-			losses: number;
-		} | null;
-		entries1v1: Array<{
-			id: number;
-			active: boolean;
-			division: string;
-			region: string;
-			seasonNum: number;
-			wins: number;
-			losses: number;
-			startedAt: Date | null;
-			leftAt: Date | null;
-		}>;
-	}
-	
-	let { data }: { data: PlayerData } = $props();
-	
-	// Destructure data - use $derived to react to data changes when navigating between player profiles
-	const player = $derived(data.player);
-	const currentTeams = $derived(data.currentTeams);
-	const teamHistory = $derived(data.teamHistory);
-	const tournaments = $derived(data.tournaments);
-	const fightNights = $derived(data.fightNights);
-	const achievements = $derived(data.achievements);
-	const isOwnProfile = $derived(data.isOwnProfile);
-	const current1v1Entry = $derived(data.current1v1Entry);
-	const entries1v1 = $derived(data.entries1v1);
-	
-	// State for 1v1 withdrawal confirmation modal
-	let withdrawingEntry: typeof data.entries1v1[0] | null = $state(null);
-	let isWithdrawing = $state(false);
-	
-	// Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
-	function steamIdToSteam2(steamId64: string): string {
-		const id = BigInt(steamId64);
-		const accountId = id - BigInt('76561197960265728');
-		const y = accountId / BigInt(2);
-		const x = accountId % BigInt(2);
-		return `STEAM_0:${x}:${y}`;
-	}
+import { enhance } from '$app/forms';
 
-	// External profile links - also reactive to player changes
-	const externalLinks = $derived([
-		{ name: 'Steam', url: `https://steamcommunity.com/profiles/${player.steamId}`, logo: '/steam_logo.png' },
-		{ name: 'logs.tf', url: `https://logs.tf/profile/${player.steamId}`, logo: '/logstf_logo.png' },
-		{ name: 'RGL', url: `https://rgl.gg/Public/PlayerProfile.aspx?p=${player.steamId}`, logo: '/rgl_logo.png' },
-		{ name: 'ETF2L', url: `https://etf2l.org/search/${player.steamId}/`, logo: '/etf2l_logo.png' },
-		{ name: 'UGC-Gaming', url: `https://stats.ugc-gaming.net/mge-stats/?search=${encodeURIComponent(steamIdToSteam2(player.steamId))}`, logo: '/ugcgaming_logo.png' },
-		{ name: 'SteamHistory', url: `https://steamhistory.net/id/${player.steamId}`, logo: '/steamhistory_logo.jpg' },
-		{ name: 'SteamLadder', url: `https://steamladder.com/profile/${player.steamId}/`, logo: '/steamladder_logo.png' }
-	]);
-	
-	// Format date helper
-	function formatDate(date: Date | string | null): string {
-		if (!date) return 'N/A';
-		const dateObj = typeof date === 'string' ? new Date(date) : date;
-		return dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' });
-	}
-	
-	// Get placement color
-	function getPlacementColor(placement: string): string {
-		if (placement.includes('1st')) return 'text-yellow-400';
-		if (placement.includes('2nd')) return 'text-gray-300';
-		if (placement.includes('3rd')) return 'text-orange-400';
-		return 'text-gray-400';
-	}
-	
-	// Get result color
-	function getResultColor(result: string): string {
-		if (result === 'W') return 'text-green-400';
-		if (result === 'L') return 'text-red-400';
-		return 'text-gray-400';
-	}
+// Get data from server load function (Svelte 5 syntax)
+interface PlayerData {
+  player: {
+    steamId: string;
+    name: string;
+    avatar: string | null;
+    discordLinked: boolean;
+    discordUsername: string | null;
+    permissionLevel: string;
+  };
+  isOwnProfile: boolean;
+  currentTeams: Array<{
+    teamId: number;
+    teamName: string;
+    division: string;
+    regionName: string;
+    seasonNum: number;
+    totalRecord: string;
+    joined: Date;
+  }>;
+  teamHistory: Array<{
+    teamId: number;
+    teamName: string;
+    division: string;
+    regionName: string;
+    seasonNum: number;
+    totalRecord: string;
+    joined: Date;
+    left: Date | null;
+  }>;
+  tournaments: Array<{
+    id: number;
+    name: string;
+    date: string | null;
+    placement: string;
+  }>;
+  fightNights: Array<{
+    id: number;
+    fightNightName: string;
+    opponent: string;
+    result: string;
+    score: string;
+    date: string | null;
+  }>;
+  achievements: Array<{
+    placement: string;
+    event: string;
+    date: string | null;
+  }>;
+  current1v1Entry: {
+    id: number;
+    division: string;
+    region: string;
+    seasonNum: number;
+    wins: number;
+    losses: number;
+  } | null;
+  entries1v1: Array<{
+    id: number;
+    active: boolean;
+    division: string;
+    region: string;
+    seasonNum: number;
+    wins: number;
+    losses: number;
+    startedAt: Date | null;
+    leftAt: Date | null;
+  }>;
+}
+
+let { data }: { data: PlayerData } = $props();
+
+// Destructure data - use $derived to react to data changes when navigating between player profiles
+const player = $derived(data.player);
+const currentTeams = $derived(data.currentTeams);
+const teamHistory = $derived(data.teamHistory);
+const tournaments = $derived(data.tournaments);
+const fightNights = $derived(data.fightNights);
+const achievements = $derived(data.achievements);
+const isOwnProfile = $derived(data.isOwnProfile);
+const current1v1Entry = $derived(data.current1v1Entry);
+const entries1v1 = $derived(data.entries1v1);
+
+// State for 1v1 withdrawal confirmation modal
+let withdrawingEntry: (typeof data.entries1v1)[0] | null = $state(null);
+let isWithdrawing = $state(false);
+
+// Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
+function steamIdToSteam2(steamId64: string): string {
+  const id = BigInt(steamId64);
+  const accountId = id - BigInt('76561197960265728');
+  const y = accountId / BigInt(2);
+  const x = accountId % BigInt(2);
+  return `STEAM_0:${x}:${y}`;
+}
+
+// External profile links - also reactive to player changes
+const externalLinks = $derived([
+  {
+    name: 'Steam',
+    url: `https://steamcommunity.com/profiles/${player.steamId}`,
+    logo: '/steam_logo.png',
+  },
+  {
+    name: 'logs.tf',
+    url: `https://logs.tf/profile/${player.steamId}`,
+    logo: '/logstf_logo.png',
+  },
+  {
+    name: 'RGL',
+    url: `https://rgl.gg/Public/PlayerProfile.aspx?p=${player.steamId}`,
+    logo: '/rgl_logo.png',
+  },
+  {
+    name: 'ETF2L',
+    url: `https://etf2l.org/search/${player.steamId}/`,
+    logo: '/etf2l_logo.png',
+  },
+  {
+    name: 'UGC-Gaming',
+    url: `https://stats.ugc-gaming.net/mge-stats/?search=${encodeURIComponent(steamIdToSteam2(player.steamId))}`,
+    logo: '/ugcgaming_logo.png',
+  },
+  {
+    name: 'SteamHistory',
+    url: `https://steamhistory.net/id/${player.steamId}`,
+    logo: '/steamhistory_logo.jpg',
+  },
+  {
+    name: 'SteamLadder',
+    url: `https://steamladder.com/profile/${player.steamId}/`,
+    logo: '/steamladder_logo.png',
+  },
+]);
+
+// Format date helper
+function formatDate(date: Date | string | null): string {
+  if (!date) return 'N/A';
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
+}
+
+// Get placement color
+function getPlacementColor(placement: string): string {
+  if (placement.includes('1st')) return 'text-yellow-400';
+  if (placement.includes('2nd')) return 'text-gray-300';
+  if (placement.includes('3rd')) return 'text-orange-400';
+  return 'text-gray-400';
+}
+
+// Get result color
+function getResultColor(result: string): string {
+  if (result === 'W') return 'text-green-400';
+  if (result === 'L') return 'text-red-400';
+  return 'text-gray-400';
+}
 </script>
 
 <div class="min-h-screen pb-16">

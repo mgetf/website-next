@@ -1,225 +1,233 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { onMount, tick } from 'svelte';
+import type { PageData } from './$types';
+import { onMount, tick } from 'svelte';
 
-	let { data: pageData }: { data: PageData } = $props();
+let { data: pageData }: { data: PageData } = $props();
 
-	let paypalLoaded = $state(false);
-	let buttonsInitialized = $state(false);
-	let isProcessing = $state(false);
-	let errorMessage = $state<string | null>(null);
+let paypalLoaded = $state(false);
+let buttonsInitialized = $state(false);
+let isProcessing = $state(false);
+let errorMessage = $state<string | null>(null);
 
-	onMount(() => {
-		// In test mode, skip PayPal SDK loading entirely
-		if (pageData.isTestMode) {
-			paypalLoaded = true;
-			return;
-		}
+onMount(() => {
+  // In test mode, skip PayPal SDK loading entirely
+  if (pageData.isTestMode) {
+    paypalLoaded = true;
+    return;
+  }
 
-		// Validate PayPal client ID before loading
-		if (!pageData.paypalClientId || pageData.paypalClientId.length < 10) {
-			errorMessage = 'PayPal is not configured. Please contact support.';
-			return;
-		}
+  // Validate PayPal client ID before loading
+  if (!pageData.paypalClientId || pageData.paypalClientId.length < 10) {
+    errorMessage = 'PayPal is not configured. Please contact support.';
+    return;
+  }
 
-		// Check if PayPal SDK is already loaded (e.g., from previous navigation)
-		if ((window as any).paypal) {
-			paypalLoaded = true;
-			return;
-		}
+  // Check if PayPal SDK is already loaded (e.g., from previous navigation)
+  if ((window as any).paypal) {
+    paypalLoaded = true;
+    return;
+  }
 
-		// Load PayPal SDK
-		const script = document.createElement('script');
-		script.src = `https://www.paypal.com/sdk/js?client-id=${pageData.paypalClientId}&currency=${pageData.currency}`;
-		script.async = true;
-		script.onload = () => {
-			paypalLoaded = true;
-		};
-		script.onerror = () => {
-			errorMessage = 'Failed to load PayPal. Please check your internet connection and refresh.';
-		};
-		document.body.appendChild(script);
-	});
+  // Load PayPal SDK
+  const script = document.createElement('script');
+  script.src = `https://www.paypal.com/sdk/js?client-id=${pageData.paypalClientId}&currency=${pageData.currency}`;
+  script.async = true;
+  script.onload = () => {
+    paypalLoaded = true;
+  };
+  script.onerror = () => {
+    errorMessage =
+      'Failed to load PayPal. Please check your internet connection and refresh.';
+  };
+  document.body.appendChild(script);
+});
 
-	// Use $effect to initialize buttons when paypalLoaded becomes true
-	// This ensures the DOM has updated and the container exists
-	$effect(() => {
-		if (paypalLoaded && !buttonsInitialized && !pageData.isTestMode) {
-			// Wait for DOM to update after paypalLoaded changes
-			tick().then(() => {
-				initPayPalButtons();
-			});
-		}
-	});
+// Use $effect to initialize buttons when paypalLoaded becomes true
+// This ensures the DOM has updated and the container exists
+$effect(() => {
+  if (paypalLoaded && !buttonsInitialized && !pageData.isTestMode) {
+    // Wait for DOM to update after paypalLoaded changes
+    tick().then(() => {
+      initPayPalButtons();
+    });
+  }
+});
 
-	/**
-	 * Process a test payment (mock flow)
-	 */
-	async function processTestPayment() {
-		isProcessing = true;
-		errorMessage = null;
+/**
+ * Process a test payment (mock flow)
+ */
+async function processTestPayment() {
+  isProcessing = true;
+  errorMessage = null;
 
-		try {
-			// Step 1: Create mock order
-			const createResponse = await fetch('/api/paypal/create-order', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					amount: pageData.totalAmount,
-					currency: pageData.currency,
-					steamId: pageData.steamId,
-					teamId: pageData.team.id
-				})
-			});
+  try {
+    // Step 1: Create mock order
+    const createResponse = await fetch('/api/paypal/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: pageData.totalAmount,
+        currency: pageData.currency,
+        steamId: pageData.steamId,
+        teamId: pageData.team.id,
+      }),
+    });
 
-			const order = await createResponse.json();
+    const order = await createResponse.json();
 
-			if (!createResponse.ok || order.error) {
-				throw new Error(order.error || 'Failed to create test order');
-			}
+    if (!createResponse.ok || order.error) {
+      throw new Error(order.error || 'Failed to create test order');
+    }
 
-			// Step 2: Capture mock order
-			const captureResponse = await fetch('/api/paypal/capture-order', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					orderID: order.id,
-					steamId: pageData.steamId,
-					teamId: pageData.team.id,
-					amount: pageData.totalAmount,
-					currency: pageData.currency
-				})
-			});
+    // Step 2: Capture mock order
+    const captureResponse = await fetch('/api/paypal/capture-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderID: order.id,
+        steamId: pageData.steamId,
+        teamId: pageData.team.id,
+        amount: pageData.totalAmount,
+        currency: pageData.currency,
+      }),
+    });
 
-			const result = await captureResponse.json();
+    const result = await captureResponse.json();
 
-			if (result.success) {
-				window.location.href = `/teams/${result.teamId || pageData.team.id}?payment=success`;
-			} else {
-				errorMessage = result.error || 'Test payment failed.';
-				isProcessing = false;
-			}
-		} catch (err: any) {
-			errorMessage = err.message || 'Test payment failed.';
-			isProcessing = false;
-		}
-	}
+    if (result.success) {
+      window.location.href = `/teams/${result.teamId || pageData.team.id}?payment=success`;
+    } else {
+      errorMessage = result.error || 'Test payment failed.';
+      isProcessing = false;
+    }
+  } catch (err: any) {
+    errorMessage = err.message || 'Test payment failed.';
+    isProcessing = false;
+  }
+}
 
-	function initPayPalButtons() {
-		if (buttonsInitialized) {
-			return;
-		}
+function initPayPalButtons() {
+  if (buttonsInitialized) {
+    return;
+  }
 
-		if (!(window as any).paypal) {
-			errorMessage = 'PayPal failed to initialize. Please refresh the page.';
-			return;
-		}
+  if (!(window as any).paypal) {
+    errorMessage = 'PayPal failed to initialize. Please refresh the page.';
+    return;
+  }
 
-		const container = document.getElementById('paypal-button-container');
-		if (!container) {
-			// Retry after a short delay
-			setTimeout(() => initPayPalButtons(), 100);
-			return;
-		}
+  const container = document.getElementById('paypal-button-container');
+  if (!container) {
+    // Retry after a short delay
+    setTimeout(() => initPayPalButtons(), 100);
+    return;
+  }
 
-		// Mark as initialized to prevent duplicate initialization
-		buttonsInitialized = true;
+  // Mark as initialized to prevent duplicate initialization
+  buttonsInitialized = true;
 
-		// Clear any existing buttons
-		container.innerHTML = '';
+  // Clear any existing buttons
+  container.innerHTML = '';
 
-		try {
-			(window as any).paypal
-				.Buttons({
-					style: {
-						layout: 'vertical',
-						color: 'gold',
-						shape: 'rect',
-						label: 'paypal'
-					},
-					createOrder: async () => {
-						try {
-							errorMessage = null; // Clear any previous errors
-							
-							const response = await fetch('/api/paypal/create-order', {
-								method: 'POST',
-								headers: {
-									'Content-Type': 'application/json'
-								},
-								body: JSON.stringify({
-									amount: pageData.totalAmount,
-									currency: pageData.currency,
-									steamId: pageData.steamId,
-									teamId: pageData.team.id
-								})
-							});
+  try {
+    (window as any).paypal
+      .Buttons({
+        style: {
+          layout: 'vertical',
+          color: 'gold',
+          shape: 'rect',
+          label: 'paypal',
+        },
+        createOrder: async () => {
+          try {
+            errorMessage = null; // Clear any previous errors
 
-							const order = await response.json();
+            const response = await fetch('/api/paypal/create-order', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                amount: pageData.totalAmount,
+                currency: pageData.currency,
+                steamId: pageData.steamId,
+                teamId: pageData.team.id,
+              }),
+            });
 
-							if (!response.ok || order.error) {
-								throw new Error(order.error || 'Failed to create order');
-							}
+            const order = await response.json();
 
-							return order.id;
-						} catch (err: any) {
-							errorMessage = err.message || 'Failed to create payment order. Please try again.';
-							throw err;
-						}
-					},
-					onApprove: async (paypalData: { orderID: string }) => {
-						isProcessing = true;
-						errorMessage = null;
-						
-						try {
-							const response = await fetch('/api/paypal/capture-order', {
-								method: 'POST',
-								headers: {
-									'Content-Type': 'application/json'
-								},
-								body: JSON.stringify({
-									orderID: paypalData.orderID,
-									steamId: pageData.steamId,
-									teamId: pageData.team.id,
-									amount: pageData.totalAmount,
-									currency: pageData.currency
-								})
-							});
+            if (!response.ok || order.error) {
+              throw new Error(order.error || 'Failed to create order');
+            }
 
-							const result = await response.json();
+            return order.id;
+          } catch (err: any) {
+            errorMessage =
+              err.message ||
+              'Failed to create payment order. Please try again.';
+            throw err;
+          }
+        },
+        onApprove: async (paypalData: { orderID: string }) => {
+          isProcessing = true;
+          errorMessage = null;
 
-							if (result.success) {
-								window.location.href = `/teams/${result.teamId || pageData.team.id}?payment=success`;
-							} else {
-								errorMessage = result.error || 'Payment failed. Please contact support.';
-								isProcessing = false;
-							}
-						} catch (err: any) {
-							errorMessage = 'Failed to complete payment. Please contact support.';
-							isProcessing = false;
-						}
-					},
-					onCancel: () => {
-						// User intentionally cancelled - no error message needed
-					},
-					onError: (err: any) => {
-						// Don't show error if buttons haven't rendered yet - it's a render error
-						if (container.children.length === 0) {
-							errorMessage = 'PayPal configuration error. Please contact support.';
-						} else {
-							errorMessage = 'An error occurred during payment. Please try again.';
-						}
-						isProcessing = false;
-					}
-				})
-				.render('#paypal-button-container')
-				.catch((err: any) => {
-					buttonsInitialized = false; // Allow retry
-					errorMessage = 'Failed to display PayPal buttons. Please refresh or try a different browser.';
-				});
-		} catch (err: any) {
-			errorMessage = 'Failed to initialize PayPal. Please refresh the page.';
-		}
-	}
+          try {
+            const response = await fetch('/api/paypal/capture-order', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                orderID: paypalData.orderID,
+                steamId: pageData.steamId,
+                teamId: pageData.team.id,
+                amount: pageData.totalAmount,
+                currency: pageData.currency,
+              }),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              window.location.href = `/teams/${result.teamId || pageData.team.id}?payment=success`;
+            } else {
+              errorMessage =
+                result.error || 'Payment failed. Please contact support.';
+              isProcessing = false;
+            }
+          } catch (err: any) {
+            errorMessage =
+              'Failed to complete payment. Please contact support.';
+            isProcessing = false;
+          }
+        },
+        onCancel: () => {
+          // User intentionally cancelled - no error message needed
+        },
+        onError: (err: any) => {
+          // Don't show error if buttons haven't rendered yet - it's a render error
+          if (container.children.length === 0) {
+            errorMessage =
+              'PayPal configuration error. Please contact support.';
+          } else {
+            errorMessage =
+              'An error occurred during payment. Please try again.';
+          }
+          isProcessing = false;
+        },
+      })
+      .render('#paypal-button-container')
+      .catch((err: any) => {
+        buttonsInitialized = false; // Allow retry
+        errorMessage =
+          'Failed to display PayPal buttons. Please refresh or try a different browser.';
+      });
+  } catch (err: any) {
+    errorMessage = 'Failed to initialize PayPal. Please refresh the page.';
+  }
+}
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] px-4 py-12">

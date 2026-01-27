@@ -1,52 +1,58 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
-	
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	
-	let editingAnnouncement: typeof data.announcements[0] | null = $state(null);
-	let deletingAnnouncement: typeof data.announcements[0] | null = $state(null);
-	let isSubmitting = $state(false);
-	let showSeasonAssignmentWarning = $state(false);
-	let seasonAssignmentForm: HTMLFormElement | null = $state(null);
-	// Filter regions that have at least one season for the given format
-	function getRegionsWithSeasonsForFormat(formatId: number) {
-		return data.regions.filter((region: { name: string }) => {
-			const regionSeasons = data.seasonsByRegion[region.name] || [];
-			return regionSeasons.some((s: { formatId: number }) => s.formatId === formatId);
-		});
-	}
-	
-	// Find the first format that has regions with seasons
-	function getFirstAvailableFormatId(): number {
-		const formatWithSeasons = data.formats.find((format: { id: number }) => 
-			getRegionsWithSeasonsForFormat(format.id).length > 0
-		);
-		return formatWithSeasons?.id || data.formats[0]?.id || 2;
-	}
-	
-	let selectedFormatId = $state(getFirstAvailableFormatId());
-	
-	// Get seasons for a region filtered by format
-	function getSeasonsForRegionAndFormat(regionName: string, formatId: number) {
-		const regionSeasons = data.seasonsByRegion[regionName] || [];
-		return regionSeasons.filter((s: { formatId: number }) => s.formatId === formatId);
-	}
-	
-	// Check if any format has regions with seasons
-	function hasAnyRegionsWithSeasons() {
-		return data.formats.some((format: { id: number }) => 
-			getRegionsWithSeasonsForFormat(format.id).length > 0
-		);
-	}
-	
-	function toggleEditForm(announcement: typeof data.announcements[0]) {
-		if (editingAnnouncement?.id === announcement.id) {
-			editingAnnouncement = null;
-		} else {
-			editingAnnouncement = announcement;
-		}
-	}
+import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
+
+let { data, form }: { data: PageData; form: ActionData } = $props();
+
+let editingAnnouncement: (typeof data.announcements)[0] | null = $state(null);
+let deletingAnnouncement: (typeof data.announcements)[0] | null = $state(null);
+let isSubmitting = $state(false);
+let showSeasonAssignmentWarning = $state(false);
+let seasonAssignmentForm: HTMLFormElement | null = $state(null);
+// Filter regions that have at least one season for the given format
+function getRegionsWithSeasonsForFormat(formatId: number) {
+  return data.regions.filter((region: { name: string }) => {
+    const regionSeasons = data.seasonsByRegion[region.name] || [];
+    return regionSeasons.some(
+      (s: { formatId: number }) => s.formatId === formatId,
+    );
+  });
+}
+
+// Find the first format that has regions with seasons
+function getFirstAvailableFormatId(): number {
+  const formatWithSeasons = data.formats.find(
+    (format: { id: number }) =>
+      getRegionsWithSeasonsForFormat(format.id).length > 0,
+  );
+  return formatWithSeasons?.id || data.formats[0]?.id || 2;
+}
+
+let selectedFormatId = $state(getFirstAvailableFormatId());
+
+// Get seasons for a region filtered by format
+function getSeasonsForRegionAndFormat(regionName: string, formatId: number) {
+  const regionSeasons = data.seasonsByRegion[regionName] || [];
+  return regionSeasons.filter(
+    (s: { formatId: number }) => s.formatId === formatId,
+  );
+}
+
+// Check if any format has regions with seasons
+function hasAnyRegionsWithSeasons() {
+  return data.formats.some(
+    (format: { id: number }) =>
+      getRegionsWithSeasonsForFormat(format.id).length > 0,
+  );
+}
+
+function toggleEditForm(announcement: (typeof data.announcements)[0]) {
+  if (editingAnnouncement?.id === announcement.id) {
+    editingAnnouncement = null;
+  } else {
+    editingAnnouncement = announcement;
+  }
+}
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">

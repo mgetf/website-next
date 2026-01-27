@@ -13,66 +13,69 @@ import { unauthorized, forbidden } from '../utils/errors';
  * Check if user has at least the specified role
  */
 export function hasRole(user: SessionUser | null, minRole: UserRole): boolean {
-	if (!user) return false;
+  if (!user) return false;
 
-	const roleOrder: Record<UserRole, number> = {
-		GUEST: 0,
-		USER: 1,
-		MODERATOR: 2,
-		ADMIN: 3
-	};
+  const roleOrder: Record<UserRole, number> = {
+    GUEST: 0,
+    USER: 1,
+    MODERATOR: 2,
+    ADMIN: 3,
+  };
 
-	const userLevel = roleOrder[user.permissionLevel as unknown as UserRole] ?? 0;
-	const requiredLevel = roleOrder[minRole];
+  const userLevel = roleOrder[user.permissionLevel as unknown as UserRole] ?? 0;
+  const requiredLevel = roleOrder[minRole];
 
-	return userLevel >= requiredLevel;
+  return userLevel >= requiredLevel;
 }
 
 /**
  * Check if user is an admin or moderator
  */
 export function isAdmin(user: SessionUser | null): boolean {
-	return hasRole(user, UserRole.MODERATOR);
+  return hasRole(user, UserRole.MODERATOR);
 }
 
 /**
  * Check if user is a strict admin (level 3+)
  */
 export function isStrictAdmin(user: SessionUser | null): boolean {
-	return hasRole(user, UserRole.ADMIN);
+  return hasRole(user, UserRole.ADMIN);
 }
 
 /**
  * Check if user is authenticated
  */
 export function isAuthenticated(user: SessionUser | null): boolean {
-	return user !== null;
+  return user !== null;
 }
 
 /**
  * Check if user is an admin/owner of a specific team
  */
 export async function isTeamAdmin(
-	user: SessionUser | null,
-	teamId: number
+  user: SessionUser | null,
+  teamId: number,
 ): Promise<boolean> {
-	if (!user) return false;
+  if (!user) return false;
 
-	// Check if user is a global admin/moderator
-	if (isAdmin(user)) return true;
+  // Check if user is a global admin/moderator
+  if (isAdmin(user)) return true;
 
-	// Check team membership
-	const membership = await prisma.playerInTeam.findUnique({
-		where: {
-			playerSteamId_teamId: {
-				playerSteamId: user.steamId,
-				teamId: teamId
-			}
-		}
-	});
+  // Check team membership
+  const membership = await prisma.playerInTeam.findUnique({
+    where: {
+      playerSteamId_teamId: {
+        playerSteamId: user.steamId,
+        teamId: teamId,
+      },
+    },
+  });
 
-	// Permission level ADMIN (1) or STATUS (2) means admin/owner (not just MEMBER which is 0)
-	return membership?.active === 1 && (membership.permissionLevel === 1 || membership.permissionLevel === 2);
+  // Permission level ADMIN (1) or STATUS (2) means admin/owner (not just MEMBER which is 0)
+  return (
+    membership?.active === 1 &&
+    (membership.permissionLevel === 1 || membership.permissionLevel === 2)
+  );
 }
 
 /**
@@ -80,13 +83,13 @@ export async function isTeamAdmin(
  * Useful for initial login or permission checks
  */
 export async function getPermissionLevel(steamId: string): Promise<UserRole> {
-	const user = await prisma.user.findUnique({
-		where: { steamId },
-		select: { permissionLevel: true }
-	});
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    select: { permissionLevel: true },
+  });
 
-	// Convert Prisma enum to shared enum
-	return (user?.permissionLevel as unknown as UserRole) ?? UserRole.GUEST;
+  // Convert Prisma enum to shared enum
+  return (user?.permissionLevel as unknown as UserRole) ?? UserRole.GUEST;
 }
 
 // ===== Assertion Functions (Throw Errors) =====
@@ -95,32 +98,38 @@ export async function getPermissionLevel(steamId: string): Promise<UserRole> {
  * Require user to be authenticated
  * Throws 401 if not authenticated
  */
-export function requireAuth(user: SessionUser | null): asserts user is SessionUser {
-	if (!user) {
-		unauthorized('You must be logged in to access this resource');
-	}
+export function requireAuth(
+  user: SessionUser | null,
+): asserts user is SessionUser {
+  if (!user) {
+    unauthorized('You must be logged in to access this resource');
+  }
 }
 
 /**
  * Require user to be an admin (moderator or higher)
  * Throws 401 if not authenticated, 403 if not admin
  */
-export function requireAdmin(user: SessionUser | null): asserts user is SessionUser {
-	requireAuth(user);
-	if (!isAdmin(user)) {
-		forbidden('You must be an admin to access this resource');
-	}
+export function requireAdmin(
+  user: SessionUser | null,
+): asserts user is SessionUser {
+  requireAuth(user);
+  if (!isAdmin(user)) {
+    forbidden('You must be an admin to access this resource');
+  }
 }
 
 /**
  * Require user to be a strict admin (level 3+)
  * Throws 401 if not authenticated, 403 if not strict admin
  */
-export function requireStrictAdmin(user: SessionUser | null): asserts user is SessionUser {
-	requireAuth(user);
-	if (!isStrictAdmin(user)) {
-		forbidden('You must be a full administrator to access this resource');
-	}
+export function requireStrictAdmin(
+  user: SessionUser | null,
+): asserts user is SessionUser {
+  requireAuth(user);
+  if (!isStrictAdmin(user)) {
+    forbidden('You must be a full administrator to access this resource');
+  }
 }
 
 /**
@@ -128,14 +137,16 @@ export function requireStrictAdmin(user: SessionUser | null): asserts user is Se
  * Throws 401 if not authenticated, 403 if insufficient permissions
  */
 export function requireRole(
-	user: SessionUser | null,
-	minRole: UserRole,
-	message?: string
+  user: SessionUser | null,
+  minRole: UserRole,
+  message?: string,
 ): asserts user is SessionUser {
-	requireAuth(user);
-	if (!hasRole(user, minRole)) {
-		forbidden(message || `You must have ${minRole} role to access this resource`);
-	}
+  requireAuth(user);
+  if (!hasRole(user, minRole)) {
+    forbidden(
+      message || `You must have ${minRole} role to access this resource`,
+    );
+  }
 }
 
 /**
@@ -143,13 +154,14 @@ export function requireRole(
  * Throws 401 if not authenticated, 403 if not team admin
  */
 export async function requireTeamAdmin(
-	user: SessionUser | null,
-	teamId: number
+  user: SessionUser | null,
+  teamId: number,
 ): Promise<void> {
-	requireAuth(user);
-	const isTeamAdminUser = await isTeamAdmin(user, teamId);
-	if (!isTeamAdminUser) {
-		forbidden('You must be a team admin or global admin to perform this action');
-	}
+  requireAuth(user);
+  const isTeamAdminUser = await isTeamAdmin(user, teamId);
+  if (!isTeamAdminUser) {
+    forbidden(
+      'You must be a team admin or global admin to perform this action',
+    );
+  }
 }
-

@@ -1,46 +1,49 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
-	
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	
-	let activeTab = $state<'cups' | 'championships' | 'fightnights'>('cups');
-	let showCreateForm = $state(false);
-	let expandedTournament = $state<number | null>(null);
-	let isSubmitting = $state(false);
-	
-	const formatDate = (date: Date | string | null) => {
-		if (!date) return 'TBD';
-		try {
-			const d = new Date(date);
-			if (isNaN(d.getTime())) return 'TBD';
-			return d.toLocaleDateString('en-US', {
-				month: 'short',
-				day: 'numeric',
-				year: 'numeric'
-			});
-		} catch {
-			return 'TBD';
-		}
-	};
-	
-	const getStatusBadge = (status: string) => {
-		if (status === 'REGISTRATION') return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-		if (status === 'IN_PROGRESS') return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
-		if (status === 'COMPLETED') return 'bg-green-500/20 text-green-300 border border-green-500/30';
-		return 'bg-zinc-800 text-gray-300 border border-zinc-700';
-	};
-	
-	const getStatusLabel = (status: string) => {
-		if (status === 'REGISTRATION') return 'Registration';
-		if (status === 'IN_PROGRESS') return 'In Progress';
-		if (status === 'COMPLETED') return 'Completed';
-		return 'Unknown';
-	};
-	
-	const toggleExpanded = (id: number) => {
-		expandedTournament = expandedTournament === id ? null : id;
-	};
+import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
+
+let { data, form }: { data: PageData; form: ActionData } = $props();
+
+let activeTab = $state<'cups' | 'championships' | 'fightnights'>('cups');
+let showCreateForm = $state(false);
+let expandedTournament = $state<number | null>(null);
+let isSubmitting = $state(false);
+
+const formatDate = (date: Date | string | null) => {
+  if (!date) return 'TBD';
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return 'TBD';
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return 'TBD';
+  }
+};
+
+const getStatusBadge = (status: string) => {
+  if (status === 'REGISTRATION')
+    return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+  if (status === 'IN_PROGRESS')
+    return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+  if (status === 'COMPLETED')
+    return 'bg-green-500/20 text-green-300 border border-green-500/30';
+  return 'bg-zinc-800 text-gray-300 border border-zinc-700';
+};
+
+const getStatusLabel = (status: string) => {
+  if (status === 'REGISTRATION') return 'Registration';
+  if (status === 'IN_PROGRESS') return 'In Progress';
+  if (status === 'COMPLETED') return 'Completed';
+  return 'Unknown';
+};
+
+const toggleExpanded = (id: number) => {
+  expandedTournament = expandedTournament === id ? null : id;
+};
 </script>
 
 <svelte:head>

@@ -1,121 +1,125 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { enhance } from '$app/forms';
-	
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	
-	let editingUser: typeof data.users[0] | null = $state(null);
-	let banningUser: typeof data.users[0] | null = $state(null);
-	let isSubmitting = $state(false);
-	
-	// Build filter URL
-	function updateFilters(updates: Record<string, string>) {
-		const params = new URLSearchParams(page.url.searchParams);
-		
-		// Update/remove parameters
-		Object.entries(updates).forEach(([key, value]) => {
-			if (value && value !== 'all' && value !== '') {
-				params.set(key, value);
-			} else {
-				params.delete(key);
-			}
-		});
-		
-		// Reset to page 1 when filters change
-		if (!updates.page) {
-			params.delete('page');
-		}
-		
-		goto(`?${params.toString()}`, { keepFocus: true, replaceState: true });
-	}
-	
-	// Permission level names
-	const permissionNames: Record<string, string> = {
-		'GUEST': 'Guest',
-		'USER': 'User',
-		'MODERATOR': 'Moderator',
-		'ADMIN': 'Admin'
-	};
-	
-	// Ban status names
-	const banStatusNames: Record<string, string> = {
-		'NONE': 'None',
-		'WARNING': 'Warning',
-		'SUSPENDED': 'Suspended',
-		'BANNED': 'Banned'
-	};
-	
-	function getPermissionColor(permission: string) {
-		if (permission === 'ADMIN') return 'bg-red-500/20 text-red-400';
-		if (permission === 'MODERATOR') return 'bg-purple-500/20 text-purple-400';
-		if (permission === 'USER') return 'bg-blue-500/20 text-blue-400';
-		return 'bg-gray-500/20 text-gray-400';
-	}
-	
-	function getBanStatusColor(status: string) {
-		if (status === 'BANNED') return 'bg-red-500/20 text-red-400';
-		if (status === 'SUSPENDED') return 'bg-orange-500/20 text-orange-400';
-		if (status === 'WARNING') return 'bg-yellow-500/20 text-yellow-400';
-		return 'bg-green-500/20 text-green-400';
-	}
-	
-	// Pagination
-	function goToPage(pageNum: number) {
-		updateFilters({ page: pageNum.toString() });
-	}
-	
-	// Modal functions
-	function openEditModal(user: typeof data.users[0]) {
-		editingUser = { ...user };
-	}
-	
-	function closeEditModal() {
-		editingUser = null;
-	}
-	
-	function openBanModal(user: typeof data.users[0]) {
-		banningUser = user;
-	}
-	
-	function closeBanModal() {
-		banningUser = null;
-	}
-	
-	// Generate page numbers for pagination
-	const pageNumbers = $derived(() => {
-		const { page, totalPages } = data.pagination;
-		const pages: (number | string)[] = [];
-		
-		if (totalPages <= 7) {
-			// Show all pages if 7 or fewer
-			for (let i = 1; i <= totalPages; i++) {
-				pages.push(i);
-			}
-		} else {
-			// Always show first page
-			pages.push(1);
-			
-			if (page > 3) {
-				pages.push('...');
-			}
-			
-			// Show pages around current page
-			for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
-				pages.push(i);
-			}
-			
-			if (page < totalPages - 2) {
-				pages.push('...');
-			}
-			
-			// Always show last page
-			pages.push(totalPages);
-		}
-		
-		return pages;
-	});
+import type { PageData, ActionData } from './$types';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import { enhance } from '$app/forms';
+
+let { data, form }: { data: PageData; form: ActionData } = $props();
+
+let editingUser: (typeof data.users)[0] | null = $state(null);
+let banningUser: (typeof data.users)[0] | null = $state(null);
+let isSubmitting = $state(false);
+
+// Build filter URL
+function updateFilters(updates: Record<string, string>) {
+  const params = new URLSearchParams(page.url.searchParams);
+
+  // Update/remove parameters
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value && value !== 'all' && value !== '') {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+  });
+
+  // Reset to page 1 when filters change
+  if (!updates.page) {
+    params.delete('page');
+  }
+
+  goto(`?${params.toString()}`, { keepFocus: true, replaceState: true });
+}
+
+// Permission level names
+const permissionNames: Record<string, string> = {
+  GUEST: 'Guest',
+  USER: 'User',
+  MODERATOR: 'Moderator',
+  ADMIN: 'Admin',
+};
+
+// Ban status names
+const banStatusNames: Record<string, string> = {
+  NONE: 'None',
+  WARNING: 'Warning',
+  SUSPENDED: 'Suspended',
+  BANNED: 'Banned',
+};
+
+function getPermissionColor(permission: string) {
+  if (permission === 'ADMIN') return 'bg-red-500/20 text-red-400';
+  if (permission === 'MODERATOR') return 'bg-purple-500/20 text-purple-400';
+  if (permission === 'USER') return 'bg-blue-500/20 text-blue-400';
+  return 'bg-gray-500/20 text-gray-400';
+}
+
+function getBanStatusColor(status: string) {
+  if (status === 'BANNED') return 'bg-red-500/20 text-red-400';
+  if (status === 'SUSPENDED') return 'bg-orange-500/20 text-orange-400';
+  if (status === 'WARNING') return 'bg-yellow-500/20 text-yellow-400';
+  return 'bg-green-500/20 text-green-400';
+}
+
+// Pagination
+function goToPage(pageNum: number) {
+  updateFilters({ page: pageNum.toString() });
+}
+
+// Modal functions
+function openEditModal(user: (typeof data.users)[0]) {
+  editingUser = { ...user };
+}
+
+function closeEditModal() {
+  editingUser = null;
+}
+
+function openBanModal(user: (typeof data.users)[0]) {
+  banningUser = user;
+}
+
+function closeBanModal() {
+  banningUser = null;
+}
+
+// Generate page numbers for pagination
+const pageNumbers = $derived(() => {
+  const { page, totalPages } = data.pagination;
+  const pages: (number | string)[] = [];
+
+  if (totalPages <= 7) {
+    // Show all pages if 7 or fewer
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+  } else {
+    // Always show first page
+    pages.push(1);
+
+    if (page > 3) {
+      pages.push('...');
+    }
+
+    // Show pages around current page
+    for (
+      let i = Math.max(2, page - 1);
+      i <= Math.min(totalPages - 1, page + 1);
+      i++
+    ) {
+      pages.push(i);
+    }
+
+    if (page < totalPages - 2) {
+      pages.push('...');
+    }
+
+    // Always show last page
+    pages.push(totalPages);
+  }
+
+  return pages;
+});
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">

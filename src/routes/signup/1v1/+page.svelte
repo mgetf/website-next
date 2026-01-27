@@ -1,33 +1,35 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
+import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let isSubmitting = $state(false);
-	let selectedRegionId = $state<number | null>(null);
+let isSubmitting = $state(false);
+let selectedRegionId = $state<number | null>(null);
 
-	// Get the selected region object
-	const selectedRegion = $derived(
-		data.regions.find((r: (typeof data.regions)[number]) => r.id === selectedRegionId)
-	);
+// Get the selected region object
+const selectedRegion = $derived(
+  data.regions.find(
+    (r: (typeof data.regions)[number]) => r.id === selectedRegionId,
+  ),
+);
 
-	// Filter divisions based on selected region
-	const filteredDivisions = $derived(
-		selectedRegionId
-			? data.divisions.filter(
-					(d: (typeof data.divisions)[number]) => d.regionId === selectedRegionId
-				)
-			: []
-	);
+// Filter divisions based on selected region
+const filteredDivisions = $derived(
+  selectedRegionId
+    ? data.divisions.filter(
+        (d: (typeof data.divisions)[number]) => d.regionId === selectedRegionId,
+      )
+    : [],
+);
 
-	// Get currency symbol from selected region (default to $)
-	const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '$');
+// Get currency symbol from selected region (default to $)
+const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '$');
 
-	function handleRegionChange(event: Event) {
-		const target = event.target as HTMLSelectElement;
-		selectedRegionId = target.value ? parseInt(target.value) : null;
-	}
+function handleRegionChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  selectedRegionId = target.value ? parseInt(target.value) : null;
+}
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] px-4 py-12">

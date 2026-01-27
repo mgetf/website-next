@@ -1,42 +1,42 @@
 <script lang="ts">
-	import type { SessionUser } from '$lib/types/user';
-	import { UserRole } from '$lib/types/user';
-	
-	type Props = {
-		user: SessionUser;
-		userTeam?: { id: number; name: string } | null;
-	};
-	
-	let { user, userTeam = null }: Props = $props();
-	
-	// Dropdown state
-	let dropdownOpen = $state(false);
-	
-	// User display name truncation for main button
-	let displayName = $derived(() => {
-		const maxLength = 15;
-		return user.steamUsername.length > maxLength 
-			? user.steamUsername.slice(0, maxLength) + '...' 
-			: user.steamUsername;
-	});
-	
-	function toggleDropdown() {
-		dropdownOpen = !dropdownOpen;
-	}
-	
-	// Close dropdown when clicking outside
-	function handleClickOutside(event: MouseEvent) {
-		const target = event.target as HTMLElement;
-		if (!target.closest('.user-dropdown-container')) {
-			dropdownOpen = false;
-		}
-	}
-	
-	// Show admin link if user is moderator or admin
-	const isAdminUser = $derived(
-		user.permissionLevel === UserRole.ADMIN || 
-		user.permissionLevel === UserRole.MODERATOR
-	);
+import type { SessionUser } from '$lib/types/user';
+import { UserRole } from '$lib/types/user';
+
+type Props = {
+  user: SessionUser;
+  userTeam?: { id: number; name: string } | null;
+};
+
+let { user, userTeam = null }: Props = $props();
+
+// Dropdown state
+let dropdownOpen = $state(false);
+
+// User display name truncation for main button
+let displayName = $derived(() => {
+  const maxLength = 15;
+  return user.steamUsername.length > maxLength
+    ? user.steamUsername.slice(0, maxLength) + '...'
+    : user.steamUsername;
+});
+
+function toggleDropdown() {
+  dropdownOpen = !dropdownOpen;
+}
+
+// Close dropdown when clicking outside
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement;
+  if (!target.closest('.user-dropdown-container')) {
+    dropdownOpen = false;
+  }
+}
+
+// Show admin link if user is moderator or admin
+const isAdminUser = $derived(
+  user.permissionLevel === UserRole.ADMIN ||
+    user.permissionLevel === UserRole.MODERATOR,
+);
 </script>
 
 <svelte:window onclick={handleClickOutside} />

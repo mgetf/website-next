@@ -1,84 +1,89 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
-	
-	let { data }: { data: PageData } = $props();
-	
-	let searchInput = $state(data.filters.search);
-	let roleFilter = $state(data.filters.role);
-	
-	function handleSearch(event: Event) {
-		event.preventDefault();
-		updateFilters();
-	}
-	
-	function handleRoleChange() {
-		updateFilters();
-	}
-	
-	function updateFilters() {
-		const params = new URLSearchParams();
-		
-		if (searchInput) {
-			params.set('search', searchInput);
-		}
-		
-		if (roleFilter) {
-			params.set('role', roleFilter);
-		}
-		
-		params.set('page', '1');
-		
-		goto(`/users?${params.toString()}`, { replaceState: true });
-	}
-	
-	function changePage(page: number) {
-		const params = new URLSearchParams();
-		
-		if (data.filters.search) {
-			params.set('search', data.filters.search);
-		}
-		
-		if (data.filters.role) {
-			params.set('role', data.filters.role);
-		}
-		
-		params.set('page', page.toString());
-		
-		goto(`/users?${params.toString()}`);
-	}
-	
-	function clearFilters() {
-		searchInput = '';
-		roleFilter = '';
-		goto('/users');
-	}
-	
-	function getRoleBadge(role: string) {
-		if (role === 'ADMIN') return 'bg-red-500/20 text-red-300 border border-red-500/30';
-		if (role === 'MODERATOR') return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-		if (role === 'USER') return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
-		return 'bg-zinc-800 text-gray-400 border border-zinc-700';
-	}
-	
-	function getRoleLabel(role: string) {
-		if (role === 'ADMIN') return 'Admin';
-		if (role === 'MODERATOR') return 'Moderator';
-		if (role === 'USER') return 'User';
-		return 'Guest';
-	}
-	
-	function getBanBadge(status: string) {
-		if (status === 'BANNED') return 'bg-red-500/20 text-red-300 border border-red-500/30';
-		if (status === 'TEMP_BANNED') return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
-		return '';
-	}
-	
-	function getBanLabel(status: string) {
-		if (status === 'BANNED') return 'Banned';
-		if (status === 'TEMP_BANNED') return 'Temp Banned';
-		return '';
-	}
+import type { PageData } from './$types';
+import { goto } from '$app/navigation';
+
+let { data }: { data: PageData } = $props();
+
+let searchInput = $state(data.filters.search);
+let roleFilter = $state(data.filters.role);
+
+function handleSearch(event: Event) {
+  event.preventDefault();
+  updateFilters();
+}
+
+function handleRoleChange() {
+  updateFilters();
+}
+
+function updateFilters() {
+  const params = new URLSearchParams();
+
+  if (searchInput) {
+    params.set('search', searchInput);
+  }
+
+  if (roleFilter) {
+    params.set('role', roleFilter);
+  }
+
+  params.set('page', '1');
+
+  goto(`/users?${params.toString()}`, { replaceState: true });
+}
+
+function changePage(page: number) {
+  const params = new URLSearchParams();
+
+  if (data.filters.search) {
+    params.set('search', data.filters.search);
+  }
+
+  if (data.filters.role) {
+    params.set('role', data.filters.role);
+  }
+
+  params.set('page', page.toString());
+
+  goto(`/users?${params.toString()}`);
+}
+
+function clearFilters() {
+  searchInput = '';
+  roleFilter = '';
+  goto('/users');
+}
+
+function getRoleBadge(role: string) {
+  if (role === 'ADMIN')
+    return 'bg-red-500/20 text-red-300 border border-red-500/30';
+  if (role === 'MODERATOR')
+    return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+  if (role === 'USER')
+    return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+  return 'bg-zinc-800 text-gray-400 border border-zinc-700';
+}
+
+function getRoleLabel(role: string) {
+  if (role === 'ADMIN') return 'Admin';
+  if (role === 'MODERATOR') return 'Moderator';
+  if (role === 'USER') return 'User';
+  return 'Guest';
+}
+
+function getBanBadge(status: string) {
+  if (status === 'BANNED')
+    return 'bg-red-500/20 text-red-300 border border-red-500/30';
+  if (status === 'TEMP_BANNED')
+    return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
+  return '';
+}
+
+function getBanLabel(status: string) {
+  if (status === 'BANNED') return 'Banned';
+  if (status === 'TEMP_BANNED') return 'Temp Banned';
+  return '';
+}
 </script>
 
 <svelte:head>

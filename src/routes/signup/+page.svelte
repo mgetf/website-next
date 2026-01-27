@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+let { data }: { data: PageData } = $props();
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">

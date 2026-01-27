@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
+import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let isSubmitting = $state(false);
+let isSubmitting = $state(false);
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">

@@ -9,20 +9,20 @@
  * @returns Steam ID 64 as string
  */
 export function steamId64FromSteamId32(steamId32: string): string {
-	const parts = steamId32.split(':');
-	if (parts.length !== 3) {
-		throw new Error(`Invalid Steam ID 32 format: ${steamId32}`);
-	}
+  const parts = steamId32.split(':');
+  if (parts.length !== 3) {
+    throw new Error(`Invalid Steam ID 32 format: ${steamId32}`);
+  }
 
-	const y = parseInt(parts[1]);
-	const z = parseInt(parts[2]);
+  const y = parseInt(parts[1]);
+  const z = parseInt(parts[2]);
 
-	if (isNaN(y) || isNaN(z)) {
-		throw new Error(`Invalid Steam ID 32 format: ${steamId32}`);
-	}
+  if (isNaN(y) || isNaN(z)) {
+    throw new Error(`Invalid Steam ID 32 format: ${steamId32}`);
+  }
 
-	const steamId64 = BigInt(76561197960265728) + BigInt(y) + BigInt(z) * 2n;
-	return steamId64.toString();
+  const steamId64 = BigInt(76561197960265728) + BigInt(y) + BigInt(z) * 2n;
+  return steamId64.toString();
 }
 
 /**
@@ -31,18 +31,18 @@ export function steamId64FromSteamId32(steamId32: string): string {
  * @returns Steam ID 32 in format STEAM_0:Y:Z
  */
 export function steamId32FromSteamId64(steamId64: string): string {
-	const id64 = BigInt(steamId64);
-	const base = BigInt(76561197960265728);
+  const id64 = BigInt(steamId64);
+  const base = BigInt(76561197960265728);
 
-	if (id64 < base) {
-		throw new Error(`Invalid Steam ID 64: ${steamId64}`);
-	}
+  if (id64 < base) {
+    throw new Error(`Invalid Steam ID 64: ${steamId64}`);
+  }
 
-	const offset = id64 - base;
-	const y = offset % 2n;
-	const z = offset / 2n;
+  const offset = id64 - base;
+  const y = offset % 2n;
+  const z = offset / 2n;
 
-	return `STEAM_0:${y}:${z}`;
+  return `STEAM_0:${y}:${z}`;
 }
 
 /**
@@ -50,30 +50,30 @@ export function steamId32FromSteamId64(steamId64: string): string {
  * Steam ID 64 is a 17-digit number
  */
 export function isValidSteamId64(steamId: string): boolean {
-	// Check if it's a numeric string
-	if (!/^\d+$/.test(steamId)) {
-		return false;
-	}
+  // Check if it's a numeric string
+  if (!/^\d+$/.test(steamId)) {
+    return false;
+  }
 
-	// Check length (17 digits)
-	if (steamId.length !== 17) {
-		return false;
-	}
+  // Check length (17 digits)
+  if (steamId.length !== 17) {
+    return false;
+  }
 
-	// Check if it's within valid range
-	const id64 = BigInt(steamId);
-	const minId = BigInt(76561197960265728); // Base Steam ID 64
-	const maxId = BigInt(99999999999999999); // Theoretical max
+  // Check if it's within valid range
+  const id64 = BigInt(steamId);
+  const minId = BigInt(76561197960265728); // Base Steam ID 64
+  const maxId = BigInt(99999999999999999); // Theoretical max
 
-	return id64 >= minId && id64 <= maxId;
+  return id64 >= minId && id64 <= maxId;
 }
 
 /**
  * Validate if a string is a valid Steam ID 32
  */
 export function isValidSteamId32(steamId: string): boolean {
-	const pattern = /^STEAM_[0-5]:[0-1]:\d+$/;
-	return pattern.test(steamId);
+  const pattern = /^STEAM_[0-5]:[0-1]:\d+$/;
+  return pattern.test(steamId);
 }
 
 /**
@@ -85,26 +85,25 @@ export function isValidSteamId32(steamId: string): boolean {
  * - Custom URL: https://steamcommunity.com/id/username (returns null, needs API lookup)
  */
 export function extractSteamId64(input: string): string | null {
-	// Trim whitespace
-	input = input.trim();
+  // Trim whitespace
+  input = input.trim();
 
-	// Check if it's already a Steam ID 64
-	if (isValidSteamId64(input)) {
-		return input;
-	}
+  // Check if it's already a Steam ID 64
+  if (isValidSteamId64(input)) {
+    return input;
+  }
 
-	// Check if it's a Steam ID 32
-	if (isValidSteamId32(input)) {
-		return steamId64FromSteamId32(input);
-	}
+  // Check if it's a Steam ID 32
+  if (isValidSteamId32(input)) {
+    return steamId64FromSteamId32(input);
+  }
 
-	// Check if it's a profile URL
-	const profileMatch = input.match(/steamcommunity\.com\/profiles\/(\d+)/);
-	if (profileMatch && isValidSteamId64(profileMatch[1])) {
-		return profileMatch[1];
-	}
+  // Check if it's a profile URL
+  const profileMatch = input.match(/steamcommunity\.com\/profiles\/(\d+)/);
+  if (profileMatch && isValidSteamId64(profileMatch[1])) {
+    return profileMatch[1];
+  }
 
-	// Cannot extract from custom URL without API call
-	return null;
+  // Cannot extract from custom URL without API call
+  return null;
 }
-

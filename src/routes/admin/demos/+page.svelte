@@ -1,40 +1,48 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { PageData } from './$types';
-	
-	let { data }: { data: PageData } = $props();
-	
-	let showReviewed = $state(true);
-	let showRejected = $state(true);
-	let isSubmitting = $state(false);
-	
-	// Filter reports based on checkboxes
-	let filteredReports = $derived(
-		data.demoReports.filter(report => {
-			if (report.status === 'REVIEW') return true; // Always show pending
-			if (report.status === 'ACTION' && showReviewed) return true; // Reviewed (ACTION = reviewed/acted on)
-			if (report.status === 'CLEAR' && showRejected) return true; // Rejected (CLEAR = cleared/rejected)
-			return false;
-		})
-	);
-	
-	function getStatusLabel(status: string): string {
-		switch (status) {
-			case 'REVIEW': return 'Pending';
-			case 'ACTION': return 'Reviewed';
-			case 'CLEAR': return 'Rejected';
-			default: return status;
-		}
-	}
-	
-	function getStatusColor(status: string): string {
-		switch (status) {
-			case 'REVIEW': return 'bg-yellow-500 text-black';
-			case 'ACTION': return 'bg-green-500 text-white';
-			case 'CLEAR': return 'bg-red-500 text-white';
-			default: return 'bg-gray-500 text-white';
-		}
-	}
+import { enhance } from '$app/forms';
+import type { PageData } from './$types';
+
+let { data }: { data: PageData } = $props();
+
+let showReviewed = $state(true);
+let showRejected = $state(true);
+let isSubmitting = $state(false);
+
+// Filter reports based on checkboxes
+let filteredReports = $derived(
+  data.demoReports.filter((report) => {
+    if (report.status === 'REVIEW') return true; // Always show pending
+    if (report.status === 'ACTION' && showReviewed) return true; // Reviewed (ACTION = reviewed/acted on)
+    if (report.status === 'CLEAR' && showRejected) return true; // Rejected (CLEAR = cleared/rejected)
+    return false;
+  }),
+);
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'REVIEW':
+      return 'Pending';
+    case 'ACTION':
+      return 'Reviewed';
+    case 'CLEAR':
+      return 'Rejected';
+    default:
+      return status;
+  }
+}
+
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'REVIEW':
+      return 'bg-yellow-500 text-black';
+    case 'ACTION':
+      return 'bg-green-500 text-white';
+    case 'CLEAR':
+      return 'bg-red-500 text-white';
+    default:
+      return 'bg-gray-500 text-white';
+  }
+}
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">

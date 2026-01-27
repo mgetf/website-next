@@ -1,58 +1,58 @@
 <script lang="ts">
-	import { navigating } from '$app/stores';
-	import { onMount } from 'svelte';
-	
-	let progress = $state(0);
-	let isVisible = $state(false);
-	let animationFrame: number;
-	let unsubscribe: (() => void) | undefined;
-	
-	onMount(() => {
-		unsubscribe = navigating.subscribe((nav) => {
-			if (nav) {
-				isVisible = true;
-				progress = 0;
-				
-				const startTime = Date.now();
-				const duration = 3000;
-				
-				const animate = () => {
-					const elapsed = Date.now() - startTime;
-					const baseProgress = Math.min((elapsed / duration) * 100, 90);
-					
-					progress = baseProgress + Math.random() * 2;
-					
-					if (progress < 90) {
-						animationFrame = requestAnimationFrame(animate);
-					}
-				};
-				
-				if (animationFrame) {
-					cancelAnimationFrame(animationFrame);
-				}
-				animationFrame = requestAnimationFrame(animate);
-			} else if (isVisible) {
-				if (animationFrame) {
-					cancelAnimationFrame(animationFrame);
-				}
-				progress = 100;
-				
-				setTimeout(() => {
-					isVisible = false;
-					progress = 0;
-				}, 400);
-			}
-		});
-		
-		return () => {
-			if (unsubscribe) {
-				unsubscribe();
-			}
-			if (animationFrame) {
-				cancelAnimationFrame(animationFrame);
-			}
-		};
-	});
+import { navigating } from '$app/stores';
+import { onMount } from 'svelte';
+
+let progress = $state(0);
+let isVisible = $state(false);
+let animationFrame: number;
+let unsubscribe: (() => void) | undefined;
+
+onMount(() => {
+  unsubscribe = navigating.subscribe((nav) => {
+    if (nav) {
+      isVisible = true;
+      progress = 0;
+
+      const startTime = Date.now();
+      const duration = 3000;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const baseProgress = Math.min((elapsed / duration) * 100, 90);
+
+        progress = baseProgress + Math.random() * 2;
+
+        if (progress < 90) {
+          animationFrame = requestAnimationFrame(animate);
+        }
+      };
+
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+      animationFrame = requestAnimationFrame(animate);
+    } else if (isVisible) {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+      progress = 100;
+
+      setTimeout(() => {
+        isVisible = false;
+        progress = 0;
+      }, 400);
+    }
+  });
+
+  return () => {
+    if (unsubscribe) {
+      unsubscribe();
+    }
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+    }
+  };
+});
 </script>
 
 <div 

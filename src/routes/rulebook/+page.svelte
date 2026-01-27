@@ -1,94 +1,94 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
-	import RulebookTOC from '$lib/components/markdown/RulebookTOC.svelte';
-	import type { PageData } from './$types';
+import { onMount } from 'svelte';
+import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+import RulebookTOC from '$lib/components/markdown/RulebookTOC.svelte';
+import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+let { data }: { data: PageData } = $props();
 
-	interface TOCItem {
-		id: string;
-		text: string;
-		level: number;
-	}
+interface TOCItem {
+  id: string;
+  text: string;
+  level: number;
+}
 
-	let tocItems = $state<TOCItem[]>([]);
-	let activeId = $state('');
+let tocItems = $state<TOCItem[]>([]);
+let activeId = $state('');
 
-	// Parse headings from content to build TOC
-	function parseHeadings(markdown: string): TOCItem[] {
-		const headingRegex = /^(#{1,4})\s+(.+)$/gm;
-		const items: TOCItem[] = [];
-		let match;
+// Parse headings from content to build TOC
+function parseHeadings(markdown: string): TOCItem[] {
+  const headingRegex = /^(#{1,4})\s+(.+)$/gm;
+  const items: TOCItem[] = [];
+  let match;
 
-		while ((match = headingRegex.exec(markdown)) !== null) {
-			const level = match[1].length;
-			const text = match[2].trim();
-			const id = text
-				.toLowerCase()
-				.replace(/[^\w\s-]/g, '')
-				.replace(/\s+/g, '-');
+  while ((match = headingRegex.exec(markdown)) !== null) {
+    const level = match[1].length;
+    const text = match[2].trim();
+    const id = text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-');
 
-			items.push({ id, text, level });
-		}
+    items.push({ id, text, level });
+  }
 
-		return items;
-	}
+  return items;
+}
 
-	// Add IDs to headings in the rendered content
-	function addHeadingIds() {
-		const container = document.querySelector('.rulebook-content');
-		if (!container) return;
+// Add IDs to headings in the rendered content
+function addHeadingIds() {
+  const container = document.querySelector('.rulebook-content');
+  if (!container) return;
 
-		const headings = container.querySelectorAll('h1, h2, h3, h4');
-		headings.forEach((heading) => {
-			const text = heading.textContent || '';
-			const id = text
-				.toLowerCase()
-				.replace(/[^\w\s-]/g, '')
-				.replace(/\s+/g, '-');
-			heading.id = id;
-		});
-	}
+  const headings = container.querySelectorAll('h1, h2, h3, h4');
+  headings.forEach((heading) => {
+    const text = heading.textContent || '';
+    const id = text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-');
+    heading.id = id;
+  });
+}
 
-	// Track active section on scroll
-	function setupScrollSpy() {
-		const observer = new IntersectionObserver(
-			(entries) => {
-				entries.forEach((entry) => {
-					if (entry.isIntersecting) {
-						activeId = entry.target.id;
-					}
-				});
-			},
-			{
-				rootMargin: '-20% 0px -70% 0px'
-			}
-		);
+// Track active section on scroll
+function setupScrollSpy() {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          activeId = entry.target.id;
+        }
+      });
+    },
+    {
+      rootMargin: '-20% 0px -70% 0px',
+    },
+  );
 
-		const container = document.querySelector('.rulebook-content');
-		if (!container) return;
+  const container = document.querySelector('.rulebook-content');
+  if (!container) return;
 
-		const headings = container.querySelectorAll('h1, h2, h3, h4');
-		headings.forEach((heading) => {
-			if (heading.id) {
-				observer.observe(heading);
-			}
-		});
+  const headings = container.querySelectorAll('h1, h2, h3, h4');
+  headings.forEach((heading) => {
+    if (heading.id) {
+      observer.observe(heading);
+    }
+  });
 
-		return () => observer.disconnect();
-	}
+  return () => observer.disconnect();
+}
 
-	onMount(() => {
-		tocItems = parseHeadings(data.content);
+onMount(() => {
+  tocItems = parseHeadings(data.content);
 
-		// Wait for markdown to render, then add IDs
-		setTimeout(() => {
-			addHeadingIds();
-			const cleanup = setupScrollSpy();
-			return cleanup;
-		}, 100);
-	});
+  // Wait for markdown to render, then add IDs
+  setTimeout(() => {
+    addHeadingIds();
+    const cleanup = setupScrollSpy();
+    return cleanup;
+  }, 100);
+});
 </script>
 
 <svelte:head>

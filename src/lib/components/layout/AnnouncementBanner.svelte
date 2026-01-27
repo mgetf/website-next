@@ -1,18 +1,18 @@
 <script lang="ts">
-	type Props = {
-		announcements: Array<{
-			id: number;
-			content: string;
-			visible: number;
-		}>;
-	};
-	
-	let { announcements }: Props = $props();
-	
-	// Filter visible announcements (belt-and-suspenders check)
-	let visibleAnnouncements = $derived(
-		announcements.filter(a => a.visible === 1)
-	);
+type Props = {
+  announcements: Array<{
+    id: number;
+    content: string;
+    visible: number;
+  }>;
+};
+
+let { announcements }: Props = $props();
+
+// Filter visible announcements (belt-and-suspenders check)
+let visibleAnnouncements = $derived(
+  announcements.filter((a) => a.visible === 1),
+);
 </script>
 
 {#if visibleAnnouncements.length > 0}

@@ -12,27 +12,27 @@ import type { Match } from '$prisma/client.js';
  * @returns Week label with suffix if multiple matches, null if no week
  */
 export function calculateWeekLabel(
-	match: Match,
-	siblingsInWeek: { id: number }[]
+  match: Match,
+  siblingsInWeek: { id: number }[],
 ): string | null {
-	if (match.weekNo === null || match.weekNo === undefined) {
-		return null;
-	}
+  if (match.weekNo === null || match.weekNo === undefined) {
+    return null;
+  }
 
-	// If only 1 match in the week, no suffix needed
-	if (siblingsInWeek.length <= 1) {
-		return match.weekNo.toString();
-	}
+  // If only 1 match in the week, no suffix needed
+  if (siblingsInWeek.length <= 1) {
+    return match.weekNo.toString();
+  }
 
-	const idx = siblingsInWeek.findIndex((m) => m.id === match.id);
-	if (idx < 0) {
-		// Match not found in siblings (shouldn't happen), just return week number
-		return match.weekNo.toString();
-	}
+  const idx = siblingsInWeek.findIndex((m) => m.id === match.id);
+  if (idx < 0) {
+    // Match not found in siblings (shouldn't happen), just return week number
+    return match.weekNo.toString();
+  }
 
-	// Multiple matches in week - add letter suffix (a, b, c...)
-	const suffixChar = String.fromCharCode('a'.charCodeAt(0) + idx);
-	return `${match.weekNo}${suffixChar}`;
+  // Multiple matches in week - add letter suffix (a, b, c...)
+  const suffixChar = String.fromCharCode('a'.charCodeAt(0) + idx);
+  return `${match.weekNo}${suffixChar}`;
 }
 
 /**
@@ -41,21 +41,21 @@ export function calculateWeekLabel(
  * @returns Formatted date string
  */
 export function formatMatchDateTime(date: Date | string | null): string {
-	if (!date) return 'TBD';
+  if (!date) return 'TBD';
 
-	const d = typeof date === 'string' ? new Date(date) : date;
-	
-	if (isNaN(d.getTime())) return 'Invalid Date';
+  const d = typeof date === 'string' ? new Date(date) : date;
 
-	return d.toLocaleDateString('en-US', {
-		weekday: 'short',
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		timeZoneName: 'short'
-	});
+  if (isNaN(d.getTime())) return 'Invalid Date';
+
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
 }
 
 /**
@@ -64,20 +64,23 @@ export function formatMatchDateTime(date: Date | string | null): string {
  * @param hoursAllowed - Number of hours allowed
  * @returns Time remaining as "HH:MM:SS" or "00:00:00" if expired
  */
-export function calculateTimeRemaining(startTimestamp: number, hoursAllowed: number): string {
-	const now = Math.floor(Date.now() / 1000);
-	const deadline = startTimestamp + hoursAllowed * 60 * 60;
-	const secondsRemaining = deadline - now;
+export function calculateTimeRemaining(
+  startTimestamp: number,
+  hoursAllowed: number,
+): string {
+  const now = Math.floor(Date.now() / 1000);
+  const deadline = startTimestamp + hoursAllowed * 60 * 60;
+  const secondsRemaining = deadline - now;
 
-	if (secondsRemaining <= 0) {
-		return '00:00:00';
-	}
+  if (secondsRemaining <= 0) {
+    return '00:00:00';
+  }
 
-	const hours = Math.floor(secondsRemaining / 3600);
-	const minutes = Math.floor((secondsRemaining % 3600) / 60);
-	const seconds = secondsRemaining % 60;
+  const hours = Math.floor(secondsRemaining / 3600);
+  const minutes = Math.floor((secondsRemaining % 3600) / 60);
+  const seconds = secondsRemaining % 60;
 
-	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 /**
@@ -86,16 +89,16 @@ export function calculateTimeRemaining(startTimestamp: number, hoursAllowed: num
  * @returns Status label
  */
 export function getMatchStatusLabel(status: number): string {
-	switch (status) {
-		case 0:
-			return 'Unplayed';
-		case 1:
-			return 'Played';
-		case 2:
-			return 'Disputed';
-		default:
-			return 'Unknown';
-	}
+  switch (status) {
+    case 0:
+      return 'Unplayed';
+    case 1:
+      return 'Played';
+    case 2:
+      return 'Disputed';
+    default:
+      return 'Unknown';
+  }
 }
 
 /**
@@ -105,14 +108,14 @@ export function getMatchStatusLabel(status: number): string {
  * @returns True if dispute is allowed
  */
 export function canDisputeMatch(match: Match): boolean {
-	if (match.status !== 1) return false; // Must be PLAYED
-	if (!match.submittedAt) return false;
+  if (match.status !== 1) return false; // Must be PLAYED
+  if (!match.submittedAt) return false;
 
-	const now = Date.now();
-	const submittedTime = match.submittedAt.getTime();
-	const hoursSinceSubmission = (now - submittedTime) / (1000 * 3600);
+  const now = Date.now();
+  const submittedTime = match.submittedAt.getTime();
+  const hoursSinceSubmission = (now - submittedTime) / (1000 * 3600);
 
-	return hoursSinceSubmission < 24;
+  return hoursSinceSubmission < 24;
 }
 
 /**
@@ -122,7 +125,7 @@ export function canDisputeMatch(match: Match): boolean {
  * @returns True if reschedule is allowed
  */
 export function canRescheduleMatch(match: Match): boolean {
-	return match.status === 0; // UNPLAYED
+  return match.status === 0; // UNPLAYED
 }
 
 /**
@@ -132,8 +135,8 @@ export function canRescheduleMatch(match: Match): boolean {
  * @returns Win/loss ratio
  */
 export function calculateWinLossRatio(wins: number, losses: number): number {
-	if (losses === 0) return wins;
-	return wins / (wins + losses);
+  if (losses === 0) return wins;
+  return wins / (wins + losses);
 }
 
 /**
@@ -144,13 +147,13 @@ export function calculateWinLossRatio(wins: number, losses: number): number {
  * @returns Points per game average
  */
 export function calculatePointsPerGame(
-	pointsScored: number,
-	gamesWon: number,
-	gamesLost: number
+  pointsScored: number,
+  gamesWon: number,
+  gamesLost: number,
 ): number {
-	const totalGames = gamesWon + gamesLost;
-	if (totalGames === 0) return 0;
-	return pointsScored / totalGames;
+  const totalGames = gamesWon + gamesLost;
+  if (totalGames === 0) return 0;
+  return pointsScored / totalGames;
 }
 
 /**
@@ -160,20 +163,19 @@ export function calculatePointsPerGame(
  * @returns Object with formatted time and expiry status
  */
 export function getTimeRemainingInfo(
-	timestamp: number | null,
-	hours: number
+  timestamp: number | null,
+  hours: number,
 ): { formatted: string; expired: boolean; active: boolean } {
-	if (!timestamp) {
-		return { formatted: 'N/A', expired: false, active: false };
-	}
+  if (!timestamp) {
+    return { formatted: 'N/A', expired: false, active: false };
+  }
 
-	const remaining = calculateTimeRemaining(timestamp, hours);
-	const expired = remaining === '00:00:00';
+  const remaining = calculateTimeRemaining(timestamp, hours);
+  const expired = remaining === '00:00:00';
 
-	return {
-		formatted: remaining,
-		expired,
-		active: !expired
-	};
+  return {
+    formatted: remaining,
+    expired,
+    active: !expired,
+  };
 }
-

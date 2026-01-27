@@ -1,111 +1,139 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import { page } from '$app/stores';
-	
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	
-	// Get initial tab from URL query param, default to 'seasons'
-	const validTabs = ['seasons', 'regions', 'divisions', 'arenas', 'formats'] as const;
-	const urlTab = $page.url.searchParams.get('tab');
-	const initialTab = validTabs.includes(urlTab as any) ? urlTab as typeof validTabs[number] : 'seasons';
-	
-	let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' | 'formats' = $state(initialTab);
-	let isSubmitting = $state(false);
-	
-	// Seasons state
-	let showSeasonForm = $state(false);
-	let editingSeason: typeof data.seasons[0] | null = $state(null);
-	
-	// Regions state
-	let showRegionForm = $state(false);
-	let editingRegion: typeof data.regions[0] | null = $state(null);
-	
-	// Divisions state
-	let showDivisionForm = $state(false);
-	let editingDivision: typeof data.divisions[0] | null = $state(null);
-	let selectedCreateRegionId: number | null = $state(null);
-	let selectedEditRegionId: number | null = $state(null);
-	
-	// Get currency symbol for a region
-	function getCurrencySymbol(regionId: number | null): string {
-		if (!regionId) return '€'; // Default for shared divisions
-		const region = data.regions.find(r => r.id === regionId);
-		return region?.currencySymbol || '€';
-	}
-	
-	// Arenas state
-	let showArenaForm = $state(false);
-	let editingArena: typeof data.arenas[0] | null = $state(null);
-	let deletingArena: typeof data.arenas[0] | null = $state(null);
-	
-	// Map Ban Pools state
-	let showPoolForm = $state(false);
-	let editingPool: typeof data.mapBanPools[0] | null = $state(null);
-	let deletingPool: typeof data.mapBanPools[0] | null = $state(null);
-	let addingMapsToPool: typeof data.mapBanPools[0] | null = $state(null);
-	
-	// Formats state
-	let showFormatForm = $state(false);
-	let editingFormat: typeof data.formats[0] | null = $state(null);
-	
-	// Playoff management state
-	let showPlayoffModal: typeof data.seasons[0] | null = $state(null);
-	
-	let seasonsByRegion = $derived(data.seasons.reduce((acc, season) => {
-		if (!acc[season.region]) {
-			acc[season.region] = [];
-		}
-		acc[season.region].push(season);
-		return acc;
-	}, {} as Record<string, typeof data.seasons>));
+import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
+import { invalidateAll } from '$app/navigation';
+import { page } from '$app/stores';
 
-	let regionNames = $derived(Object.keys(seasonsByRegion).sort());
-	
-	// Group divisions by region
-	let divisionsByRegion = $derived(data.divisions.reduce((acc, division) => {
-		const region = data.regions.find(r => r.id === division.regionId);
-		const regionName = region?.name || 'Unknown';
-		if (!acc[regionName]) {
-			acc[regionName] = { region, divisions: [] };
-		}
-		acc[regionName].divisions.push(division);
-		return acc;
-	}, {} as Record<string, { region: typeof data.regions[0] | undefined; divisions: typeof data.divisions }>));
-	
-	let divisionRegionNames = $derived(Object.keys(divisionsByRegion).sort());
-	
-	function getStatusColor(status: string) {
-		if (status === 'Active') return 'bg-green-500/20 text-green-400 border-green-500/30';
-		if (status === 'Completed') return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-		if (status === 'Draft') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-		return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-	}
-	
-	function getStatusDot(status: string) {
-		if (status === 'Active') return 'bg-green-500';
-		if (status === 'Completed') return 'bg-gray-500';
-		if (status === 'Draft') return 'bg-yellow-500';
-		return 'bg-blue-500';
-	}
-	
-	// Change tab and update URL
-	function setTab(tab: typeof activeTab) {
-		activeTab = tab;
-		const url = new URL(window.location.href);
-		url.searchParams.set('tab', tab);
-		history.replaceState({}, '', url.toString());
-	}
-	
-	// Get the most important status for a region (priority: Active > Draft > Upcoming > Completed)
-	function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
-		const statuses = seasons.map(s => s.status);
-		if (statuses.includes('Active')) return 'Active';
-		if (statuses.includes('Draft')) return 'Draft';
-		if (statuses.includes('Upcoming')) return 'Upcoming';
-		return 'Completed';
-	}
+let { data, form }: { data: PageData; form: ActionData } = $props();
+
+// Get initial tab from URL query param, default to 'seasons'
+const validTabs = [
+  'seasons',
+  'regions',
+  'divisions',
+  'arenas',
+  'formats',
+] as const;
+const urlTab = $page.url.searchParams.get('tab');
+const initialTab = validTabs.includes(urlTab as any)
+  ? (urlTab as (typeof validTabs)[number])
+  : 'seasons';
+
+let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' | 'formats' =
+  $state(initialTab);
+let isSubmitting = $state(false);
+
+// Seasons state
+let showSeasonForm = $state(false);
+let editingSeason: (typeof data.seasons)[0] | null = $state(null);
+
+// Regions state
+let showRegionForm = $state(false);
+let editingRegion: (typeof data.regions)[0] | null = $state(null);
+
+// Divisions state
+let showDivisionForm = $state(false);
+let editingDivision: (typeof data.divisions)[0] | null = $state(null);
+let selectedCreateRegionId: number | null = $state(null);
+let selectedEditRegionId: number | null = $state(null);
+
+// Get currency symbol for a region
+function getCurrencySymbol(regionId: number | null): string {
+  if (!regionId) return '€'; // Default for shared divisions
+  const region = data.regions.find((r) => r.id === regionId);
+  return region?.currencySymbol || '€';
+}
+
+// Arenas state
+let showArenaForm = $state(false);
+let editingArena: (typeof data.arenas)[0] | null = $state(null);
+let deletingArena: (typeof data.arenas)[0] | null = $state(null);
+
+// Map Ban Pools state
+let showPoolForm = $state(false);
+let editingPool: (typeof data.mapBanPools)[0] | null = $state(null);
+let deletingPool: (typeof data.mapBanPools)[0] | null = $state(null);
+let addingMapsToPool: (typeof data.mapBanPools)[0] | null = $state(null);
+
+// Formats state
+let showFormatForm = $state(false);
+let editingFormat: (typeof data.formats)[0] | null = $state(null);
+
+// Playoff management state
+let showPlayoffModal: (typeof data.seasons)[0] | null = $state(null);
+
+let seasonsByRegion = $derived(
+  data.seasons.reduce(
+    (acc, season) => {
+      if (!acc[season.region]) {
+        acc[season.region] = [];
+      }
+      acc[season.region].push(season);
+      return acc;
+    },
+    {} as Record<string, typeof data.seasons>,
+  ),
+);
+
+let regionNames = $derived(Object.keys(seasonsByRegion).sort());
+
+// Group divisions by region
+let divisionsByRegion = $derived(
+  data.divisions.reduce(
+    (acc, division) => {
+      const region = data.regions.find((r) => r.id === division.regionId);
+      const regionName = region?.name || 'Unknown';
+      if (!acc[regionName]) {
+        acc[regionName] = { region, divisions: [] };
+      }
+      acc[regionName].divisions.push(division);
+      return acc;
+    },
+    {} as Record<
+      string,
+      {
+        region: (typeof data.regions)[0] | undefined;
+        divisions: typeof data.divisions;
+      }
+    >,
+  ),
+);
+
+let divisionRegionNames = $derived(Object.keys(divisionsByRegion).sort());
+
+function getStatusColor(status: string) {
+  if (status === 'Active')
+    return 'bg-green-500/20 text-green-400 border-green-500/30';
+  if (status === 'Completed')
+    return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  if (status === 'Draft')
+    return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+  return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+}
+
+function getStatusDot(status: string) {
+  if (status === 'Active') return 'bg-green-500';
+  if (status === 'Completed') return 'bg-gray-500';
+  if (status === 'Draft') return 'bg-yellow-500';
+  return 'bg-blue-500';
+}
+
+// Change tab and update URL
+function setTab(tab: typeof activeTab) {
+  activeTab = tab;
+  const url = new URL(window.location.href);
+  url.searchParams.set('tab', tab);
+  history.replaceState({}, '', url.toString());
+}
+
+// Get the most important status for a region (priority: Active > Draft > Upcoming > Completed)
+function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
+  const statuses = seasons.map((s) => s.status);
+  if (statuses.includes('Active')) return 'Active';
+  if (statuses.includes('Draft')) return 'Draft';
+  if (statuses.includes('Upcoming')) return 'Upcoming';
+  return 'Completed';
+}
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">

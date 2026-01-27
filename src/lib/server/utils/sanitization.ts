@@ -7,23 +7,23 @@
  * Remove HTML tags from string
  */
 export function stripHtml(input: string): string {
-	return input.replace(/<[^>]*>/g, '');
+  return input.replace(/<[^>]*>/g, '');
 }
 
 /**
  * Escape HTML special characters
  */
 export function escapeHtml(input: string): string {
-	const htmlEscapeMap: Record<string, string> = {
-		'&': '&amp;',
-		'<': '&lt;',
-		'>': '&gt;',
-		'"': '&quot;',
-		"'": '&#x27;',
-		'/': '&#x2F;'
-	};
+  const htmlEscapeMap: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '/': '&#x2F;',
+  };
 
-	return input.replace(/[&<>"'/]/g, (char) => htmlEscapeMap[char] || char);
+  return input.replace(/[&<>"'/]/g, (char) => htmlEscapeMap[char] || char);
 }
 
 /**
@@ -31,7 +31,7 @@ export function escapeHtml(input: string): string {
  * Removes HTML tags and trims whitespace
  */
 export function sanitizeText(input: string): string {
-	return stripHtml(input).trim();
+  return stripHtml(input).trim();
 }
 
 /**
@@ -39,10 +39,10 @@ export function sanitizeText(input: string): string {
  * Allows only alphanumeric, spaces, hyphens, underscores, and periods
  */
 export function sanitizeTeamName(input: string): string {
-	return input
-		.replace(/[^a-zA-Z0-9\s\-_.]/g, '')
-		.trim()
-		.substring(0, 50);
+  return input
+    .replace(/[^a-zA-Z0-9\s\-_.]/g, '')
+    .trim()
+    .substring(0, 50);
 }
 
 /**
@@ -50,10 +50,10 @@ export function sanitizeTeamName(input: string): string {
  * Allows only letters and numbers, converts to uppercase
  */
 export function sanitizeAcronym(input: string): string {
-	return input
-		.replace(/[^a-zA-Z0-9]/g, '')
-		.toUpperCase()
-		.substring(0, 6);
+  return input
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .substring(0, 6);
 }
 
 /**
@@ -61,16 +61,16 @@ export function sanitizeAcronym(input: string): string {
  * Validates and normalizes URLs
  */
 export function sanitizeUrl(input: string): string | null {
-	try {
-		const url = new URL(input);
-		// Only allow http and https protocols
-		if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-			return null;
-		}
-		return url.toString();
-	} catch {
-		return null;
-	}
+  try {
+    const url = new URL(input);
+    // Only allow http and https protocols
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -78,10 +78,8 @@ export function sanitizeUrl(input: string): string | null {
  * Allows basic formatting but removes dangerous HTML
  */
 export function sanitizeForumContent(input: string): string {
-	// For now, strip all HTML. In the future, could allow safe tags like <b>, <i>, <code>
-	return stripHtml(input)
-		.trim()
-		.substring(0, 5000);
+  // For now, strip all HTML. In the future, could allow safe tags like <b>, <i>, <code>
+  return stripHtml(input).trim().substring(0, 5000);
 }
 
 /**
@@ -90,10 +88,10 @@ export function sanitizeForumContent(input: string): string {
  * Note: Still use parameterized queries! This is defense in depth.
  */
 export function sanitizeSearchQuery(input: string): string {
-	return input
-		.replace(/[%_\\]/g, '') // Remove SQL wildcards and escape char
-		.trim()
-		.substring(0, 100);
+  return input
+    .replace(/[%_\\]/g, '') // Remove SQL wildcards and escape char
+    .trim()
+    .substring(0, 100);
 }
 
 /**
@@ -101,11 +99,11 @@ export function sanitizeSearchQuery(input: string): string {
  * Removes path traversal attempts and dangerous characters
  */
 export function sanitizeFilename(input: string): string {
-	return input
-		.replace(/[^a-zA-Z0-9._-]/g, '_')
-		.replace(/^\.+/, '') // Remove leading dots
-		.replace(/\.+$/, '') // Remove trailing dots
-		.substring(0, 255);
+  return input
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/^\.+/, '') // Remove leading dots
+    .replace(/\.+$/, '') // Remove trailing dots
+    .substring(0, 255);
 }
 
 /**
@@ -113,17 +111,17 @@ export function sanitizeFilename(input: string): string {
  * Replaces multiple spaces, tabs, newlines with single space
  */
 export function normalizeWhitespace(input: string): string {
-	return input.replace(/\s+/g, ' ').trim();
+  return input.replace(/\s+/g, ' ').trim();
 }
 
 /**
  * Truncate string to max length with ellipsis
  */
 export function truncate(input: string, maxLength: number): string {
-	if (input.length <= maxLength) {
-		return input;
-	}
-	return input.substring(0, maxLength - 3) + '...';
+  if (input.length <= maxLength) {
+    return input;
+  }
+  return input.substring(0, maxLength - 3) + '...';
 }
 
 /**
@@ -131,11 +129,11 @@ export function truncate(input: string, maxLength: number): string {
  * Ensures value is within min/max bounds
  */
 export function sanitizeInteger(
-	value: number,
-	min: number = Number.MIN_SAFE_INTEGER,
-	max: number = Number.MAX_SAFE_INTEGER
+  value: number,
+  min: number = Number.MIN_SAFE_INTEGER,
+  max: number = Number.MAX_SAFE_INTEGER,
 ): number {
-	return Math.max(min, Math.min(max, Math.floor(value)));
+  return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
 /**
@@ -143,15 +141,14 @@ export function sanitizeInteger(
  * Applies appropriate sanitization to all form fields
  */
 export function sanitizeFormData(formData: FormData): Map<string, string> {
-	const sanitized = new Map<string, string>();
+  const sanitized = new Map<string, string>();
 
-	for (const [key, value] of formData.entries()) {
-		if (typeof value === 'string') {
-			// Apply basic HTML sanitization to all text fields
-			sanitized.set(key, sanitizeText(value));
-		}
-	}
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === 'string') {
+      // Apply basic HTML sanitization to all text fields
+      sanitized.set(key, sanitizeText(value));
+    }
+  }
 
-	return sanitized;
+  return sanitized;
 }
-

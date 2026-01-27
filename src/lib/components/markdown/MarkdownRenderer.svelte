@@ -1,15 +1,15 @@
 <script lang="ts">
-	import Markdown from 'svelte-exmarkdown';
-	import { gfmPlugin } from 'svelte-exmarkdown/gfm';
+import Markdown from 'svelte-exmarkdown';
+import { gfmPlugin } from 'svelte-exmarkdown/gfm';
 
-	interface Props {
-		content: string;
-		class?: string;
-	}
+interface Props {
+  content: string;
+  class?: string;
+}
 
-	let { content, class: className = '' }: Props = $props();
+let { content, class: className = '' }: Props = $props();
 
-	const plugins = [gfmPlugin()];
+const plugins = [gfmPlugin()];
 </script>
 
 <div class="markdown-content prose prose-invert max-w-none {className}">

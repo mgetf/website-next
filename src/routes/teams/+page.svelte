@@ -1,84 +1,88 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
-	
-	let { data }: { data: PageData } = $props();
-	
-	let searchInput = $state(data.filters.search);
-	let regionFilter = $state(data.filters.region);
-	let seasonFilter = $state(data.filters.season);
-	
-	function handleSearch(event: Event) {
-		event.preventDefault();
-		updateFilters();
-	}
-	
-	function handleFilterChange() {
-		updateFilters();
-	}
-	
-	function updateFilters() {
-		const params = new URLSearchParams();
-		
-		if (searchInput) {
-			params.set('search', searchInput);
-		}
-		
-		if (regionFilter) {
-			params.set('region', regionFilter.toString());
-		}
-		
-		if (seasonFilter) {
-			params.set('season', seasonFilter.toString());
-		}
-		
-		params.set('page', '1');
-		
-		goto(`/teams?${params.toString()}`, { replaceState: true });
-	}
-	
-	function changePage(page: number) {
-		const params = new URLSearchParams();
-		
-		if (data.filters.search) {
-			params.set('search', data.filters.search);
-		}
-		
-		if (data.filters.region) {
-			params.set('region', data.filters.region.toString());
-		}
-		
-		if (data.filters.season) {
-			params.set('season', data.filters.season.toString());
-		}
-		
-		params.set('page', page.toString());
-		
-		goto(`/teams?${params.toString()}`);
-	}
-	
-	function clearFilters() {
-		searchInput = '';
-		regionFilter = '';
-		seasonFilter = '';
-		goto('/teams');
-	}
-	
-	function getStatusBadge(status: string) {
-		if (status === 'ACTIVE') return 'bg-green-500/20 text-green-300 border border-green-500/30';
-		if (status === 'READY') return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
-		if (status === 'UNREADY') return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-		if (status === 'DISBANDED') return 'bg-red-500/20 text-red-300 border border-red-500/30';
-		return 'bg-zinc-800 text-gray-400 border border-zinc-700';
-	}
-	
-	function getStatusLabel(status: string) {
-		if (status === 'ACTIVE') return 'Active';
-		if (status === 'READY') return 'Ready';
-		if (status === 'UNREADY') return 'Not Ready';
-		if (status === 'DISBANDED') return 'Disbanded';
-		return status;
-	}
+import type { PageData } from './$types';
+import { goto } from '$app/navigation';
+
+let { data }: { data: PageData } = $props();
+
+let searchInput = $state(data.filters.search);
+let regionFilter = $state(data.filters.region);
+let seasonFilter = $state(data.filters.season);
+
+function handleSearch(event: Event) {
+  event.preventDefault();
+  updateFilters();
+}
+
+function handleFilterChange() {
+  updateFilters();
+}
+
+function updateFilters() {
+  const params = new URLSearchParams();
+
+  if (searchInput) {
+    params.set('search', searchInput);
+  }
+
+  if (regionFilter) {
+    params.set('region', regionFilter.toString());
+  }
+
+  if (seasonFilter) {
+    params.set('season', seasonFilter.toString());
+  }
+
+  params.set('page', '1');
+
+  goto(`/teams?${params.toString()}`, { replaceState: true });
+}
+
+function changePage(page: number) {
+  const params = new URLSearchParams();
+
+  if (data.filters.search) {
+    params.set('search', data.filters.search);
+  }
+
+  if (data.filters.region) {
+    params.set('region', data.filters.region.toString());
+  }
+
+  if (data.filters.season) {
+    params.set('season', data.filters.season.toString());
+  }
+
+  params.set('page', page.toString());
+
+  goto(`/teams?${params.toString()}`);
+}
+
+function clearFilters() {
+  searchInput = '';
+  regionFilter = '';
+  seasonFilter = '';
+  goto('/teams');
+}
+
+function getStatusBadge(status: string) {
+  if (status === 'ACTIVE')
+    return 'bg-green-500/20 text-green-300 border border-green-500/30';
+  if (status === 'READY')
+    return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+  if (status === 'UNREADY')
+    return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+  if (status === 'DISBANDED')
+    return 'bg-red-500/20 text-red-300 border border-red-500/30';
+  return 'bg-zinc-800 text-gray-400 border border-zinc-700';
+}
+
+function getStatusLabel(status: string) {
+  if (status === 'ACTIVE') return 'Active';
+  if (status === 'READY') return 'Ready';
+  if (status === 'UNREADY') return 'Not Ready';
+  if (status === 'DISBANDED') return 'Disbanded';
+  return status;
+}
 </script>
 
 <svelte:head>

@@ -20,4 +20,3 @@ export * from './steamid';
 
 // Validation
 export * from './validation';
-

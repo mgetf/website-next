@@ -18,29 +18,33 @@ const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
  * Uses a fallback only in development mode
  */
 function getSessionSecret(): string {
-	const secret = process.env.SESSION_SECRET;
-	if (!secret) {
-		if (dev) {
-			// Allow development without setting SESSION_SECRET
-			console.warn('Warning: SESSION_SECRET not set, using insecure fallback for development');
-			return 'dev-only-insecure-secret-do-not-use-in-production';
-		}
-		throw new Error('SESSION_SECRET environment variable is required in production');
-	}
-	return secret;
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (dev) {
+      // Allow development without setting SESSION_SECRET
+      console.warn(
+        'Warning: SESSION_SECRET not set, using insecure fallback for development',
+      );
+      return 'dev-only-insecure-secret-do-not-use-in-production';
+    }
+    throw new Error(
+      'SESSION_SECRET environment variable is required in production',
+    );
+  }
+  return secret;
 }
 
 /**
  * Sign session data with HMAC to prevent tampering
  */
 function signSessionData(data: string): string {
-	const secret = getSessionSecret();
-	const hmac = crypto.createHmac('sha256', secret);
-	hmac.update(data);
-	const signature = hmac.digest('base64url');
-	// Format: base64url(data).signature
-	const encodedData = Buffer.from(data).toString('base64url');
-	return `${encodedData}.${signature}`;
+  const secret = getSessionSecret();
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(data);
+  const signature = hmac.digest('base64url');
+  // Format: base64url(data).signature
+  const encodedData = Buffer.from(data).toString('base64url');
+  return `${encodedData}.${signature}`;
 }
 
 /**
@@ -48,38 +52,38 @@ function signSessionData(data: string): string {
  * Returns null if signature is invalid or data is corrupted
  */
 function verifySessionData(signedData: string): string | null {
-	try {
-		const secret = getSessionSecret();
-		const [encodedData, signature] = signedData.split('.');
-		
-		if (!encodedData || !signature) {
-			return null;
-		}
+  try {
+    const secret = getSessionSecret();
+    const [encodedData, signature] = signedData.split('.');
 
-		// Decode the data first
-		const data = Buffer.from(encodedData, 'base64url').toString('utf8');
+    if (!encodedData || !signature) {
+      return null;
+    }
 
-		// Recompute the signature
-		const hmac = crypto.createHmac('sha256', secret);
-		hmac.update(data);
-		const expectedSignature = hmac.digest('base64url');
+    // Decode the data first
+    const data = Buffer.from(encodedData, 'base64url').toString('utf8');
 
-		// Use timing-safe comparison to prevent timing attacks
-		const signatureBuffer = Buffer.from(signature);
-		const expectedBuffer = Buffer.from(expectedSignature);
-		
-		if (signatureBuffer.length !== expectedBuffer.length) {
-			return null;
-		}
+    // Recompute the signature
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(data);
+    const expectedSignature = hmac.digest('base64url');
 
-		if (!crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
-			return null;
-		}
+    // Use timing-safe comparison to prevent timing attacks
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
 
-		return data;
-	} catch {
-		return null;
-	}
+    if (signatureBuffer.length !== expectedBuffer.length) {
+      return null;
+    }
+
+    if (!crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
+      return null;
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -87,27 +91,27 @@ function verifySessionData(signedData: string): string | null {
  * Verifies the signature before parsing
  */
 export function getSession(cookies: Cookies): SessionUser | null {
-	const signedSessionData = cookies.get(SESSION_COOKIE_NAME);
-	
-	if (!signedSessionData) {
-		return null;
-	}
+  const signedSessionData = cookies.get(SESSION_COOKIE_NAME);
 
-	// Verify signature and extract data
-	const sessionData = verifySessionData(signedSessionData);
-	
-	if (!sessionData) {
-		// Invalid signature - could be tampering attempt or old unsigned session
-		// Clear the invalid cookie
-		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-		return null;
-	}
+  if (!signedSessionData) {
+    return null;
+  }
 
-	try {
-		return JSON.parse(sessionData) as SessionUser;
-	} catch {
-		return null;
-	}
+  // Verify signature and extract data
+  const sessionData = verifySessionData(signedSessionData);
+
+  if (!sessionData) {
+    // Invalid signature - could be tampering attempt or old unsigned session
+    // Clear the invalid cookie
+    cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+    return null;
+  }
+
+  try {
+    return JSON.parse(sessionData) as SessionUser;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -115,46 +119,45 @@ export function getSession(cookies: Cookies): SessionUser | null {
  * Signs the session data before storing
  */
 export function setSession(cookies: Cookies, user: SessionUser): void {
-	const sessionData = JSON.stringify(user);
-	const signedData = signSessionData(sessionData);
-	
-	cookies.set(SESSION_COOKIE_NAME, signedData, {
-		path: '/',
-		httpOnly: true,
-		sameSite: 'lax',
-		secure: !dev,
-		maxAge: SESSION_MAX_AGE
-	});
+  const sessionData = JSON.stringify(user);
+  const signedData = signSessionData(sessionData);
+
+  cookies.set(SESSION_COOKIE_NAME, signedData, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: !dev,
+    maxAge: SESSION_MAX_AGE,
+  });
 }
 
 /**
  * Clear user session
  */
 export function clearSession(cookies: Cookies): void {
-	cookies.delete(SESSION_COOKIE_NAME, {
-		path: '/'
-	});
+  cookies.delete(SESSION_COOKIE_NAME, {
+    path: '/',
+  });
 }
 
 /**
  * Store redirect URL for post-login navigation
  */
 export function setRedirectUrl(cookies: Cookies, url: string): void {
-	cookies.set('mge_redirect', url, {
-		path: '/',
-		httpOnly: true,
-		sameSite: 'lax',
-		secure: !dev,
-		maxAge: 600 // 10 minutes
-	});
+  cookies.set('mge_redirect', url, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: !dev,
+    maxAge: 600, // 10 minutes
+  });
 }
 
 /**
  * Get and clear redirect URL
  */
 export function getAndClearRedirectUrl(cookies: Cookies): string {
-	const url = cookies.get('mge_redirect') || '/';
-	cookies.delete('mge_redirect', { path: '/' });
-	return url;
+  const url = cookies.get('mge_redirect') || '/';
+  cookies.delete('mge_redirect', { path: '/' });
+  return url;
 }
-

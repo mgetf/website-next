@@ -1,44 +1,48 @@
 <script lang="ts">
-	import type { LayoutData } from './$types';
-	import { page } from '$app/state';
-	
-	import dashboardIcon from '$lib/assets/icons/dashboard.png';
-	import trophyIcon from '$lib/assets/icons/trophy.png';
-	import groupIcon from '$lib/assets/icons/group.png';
-	import battleIcon from '$lib/assets/icons/battle.png';
-	import hourglassIcon from '$lib/assets/icons/hourglass.png';
-	import videoCameraIcon from '$lib/assets/icons/video-camera.png';
-	import maceIcon from '$lib/assets/icons/mace.png';
-	import userIcon from '$lib/assets/icons/user.png';
-	import webIcon from '$lib/assets/icons/web.png';
-	import settingIcon from '$lib/assets/icons/setting.png';
-	
-	let { data, children }: { data: LayoutData; children: any } = $props();
-	
-	// Determine active page for sidebar highlighting
-	const isActive = (path: string) => {
-		if (path === '/admin') {
-			return page.url.pathname === '/admin';
-		}
-		return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
-	};
-	
-	// Sidebar menu items
-	const menuItems = [
-		{ name: 'Dashboard', path: '/admin', icon: dashboardIcon },
-		{ name: 'League', path: '/admin/league', icon: trophyIcon },
-		{ name: 'Teams', path: '/admin/teams', icon: groupIcon },
-		{ name: 'Matches', path: '/admin/matches', icon: battleIcon },
-		{ name: 'Pending Players', path: '/admin/pending-players', icon: hourglassIcon },
-		{ name: 'Demos', path: '/admin/demos', icon: videoCameraIcon },
-		{ name: 'Disputes', path: '/admin/disputes', icon: maceIcon },
-		{ name: 'Users', path: '/admin/users', icon: userIcon },
-		{ name: 'Global', path: '/admin/global', icon: webIcon },
-		{ name: 'Site', path: '/admin/site', icon: settingIcon }
-	];
-	
-	// Mobile menu state
-	let mobileMenuOpen = $state(false);
+import type { LayoutData } from './$types';
+import { page } from '$app/state';
+
+import dashboardIcon from '$lib/assets/icons/dashboard.png';
+import trophyIcon from '$lib/assets/icons/trophy.png';
+import groupIcon from '$lib/assets/icons/group.png';
+import battleIcon from '$lib/assets/icons/battle.png';
+import hourglassIcon from '$lib/assets/icons/hourglass.png';
+import videoCameraIcon from '$lib/assets/icons/video-camera.png';
+import maceIcon from '$lib/assets/icons/mace.png';
+import userIcon from '$lib/assets/icons/user.png';
+import webIcon from '$lib/assets/icons/web.png';
+import settingIcon from '$lib/assets/icons/setting.png';
+
+let { data, children }: { data: LayoutData; children: any } = $props();
+
+// Determine active page for sidebar highlighting
+const isActive = (path: string) => {
+  if (path === '/admin') {
+    return page.url.pathname === '/admin';
+  }
+  return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
+};
+
+// Sidebar menu items
+const menuItems = [
+  { name: 'Dashboard', path: '/admin', icon: dashboardIcon },
+  { name: 'League', path: '/admin/league', icon: trophyIcon },
+  { name: 'Teams', path: '/admin/teams', icon: groupIcon },
+  { name: 'Matches', path: '/admin/matches', icon: battleIcon },
+  {
+    name: 'Pending Players',
+    path: '/admin/pending-players',
+    icon: hourglassIcon,
+  },
+  { name: 'Demos', path: '/admin/demos', icon: videoCameraIcon },
+  { name: 'Disputes', path: '/admin/disputes', icon: maceIcon },
+  { name: 'Users', path: '/admin/users', icon: userIcon },
+  { name: 'Global', path: '/admin/global', icon: webIcon },
+  { name: 'Site', path: '/admin/site', icon: settingIcon },
+];
+
+// Mobile menu state
+let mobileMenuOpen = $state(false);
 </script>
 
 <svelte:head>

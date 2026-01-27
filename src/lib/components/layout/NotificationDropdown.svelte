@@ -1,69 +1,69 @@
 <script lang="ts">
-	type Notification = {
-		id: number;
-		type: string;
-		url: string;
-		createdAt: Date;
-	};
-	
-	type Props = {
-		notifications: Notification[];
-		notificationCount: number;
-	};
-	
-	let { notifications, notificationCount }: Props = $props();
-	
-	let open = $state(false);
-	
-	function toggleDropdown() {
-		open = !open;
-	}
-	
-	// Close dropdown when clicking outside
-	function handleClickOutside(event: MouseEvent) {
-		const target = event.target as HTMLElement;
-		if (!target.closest('.notification-dropdown-container')) {
-			open = false;
-		}
-	}
-	
-	async function handleNotificationClick(notificationId: number, url: string) {
-		try {
-			await fetch(`/api/notifications/${notificationId}/read`, {
-				method: 'POST'
-			});
-		} catch (error) {
-			console.error('Error marking notification as read:', error);
-		} finally {
-			window.location.href = url;
-		}
-	}
-	
-	async function handleMarkAllRead() {
-		try {
-			await fetch('/api/notifications/mark-all-read', {
-				method: 'POST'
-			});
-			window.location.reload();
-		} catch (error) {
-			console.error('Error marking all as read:', error);
-		}
-	}
-	
-	function getNotificationText(type: string): string {
-		switch (type) {
-			case 'MATCH_COMM':
-				return 'New match activity';
-			case 'PENDING_PLAYER':
-				return 'New player join request';
-			default:
-				return 'New notification';
-		}
-	}
-	
-	function formatDate(date: Date): string {
-		return new Date(date).toLocaleString();
-	}
+type Notification = {
+  id: number;
+  type: string;
+  url: string;
+  createdAt: Date;
+};
+
+type Props = {
+  notifications: Notification[];
+  notificationCount: number;
+};
+
+let { notifications, notificationCount }: Props = $props();
+
+let open = $state(false);
+
+function toggleDropdown() {
+  open = !open;
+}
+
+// Close dropdown when clicking outside
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement;
+  if (!target.closest('.notification-dropdown-container')) {
+    open = false;
+  }
+}
+
+async function handleNotificationClick(notificationId: number, url: string) {
+  try {
+    await fetch(`/api/notifications/${notificationId}/read`, {
+      method: 'POST',
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+  } finally {
+    window.location.href = url;
+  }
+}
+
+async function handleMarkAllRead() {
+  try {
+    await fetch('/api/notifications/mark-all-read', {
+      method: 'POST',
+    });
+    window.location.reload();
+  } catch (error) {
+    console.error('Error marking all as read:', error);
+  }
+}
+
+function getNotificationText(type: string): string {
+  switch (type) {
+    case 'MATCH_COMM':
+      return 'New match activity';
+    case 'PENDING_PLAYER':
+      return 'New player join request';
+    default:
+      return 'New notification';
+  }
+}
+
+function formatDate(date: Date): string {
+  return new Date(date).toLocaleString();
+}
 </script>
 
 <svelte:window onclick={handleClickOutside} />

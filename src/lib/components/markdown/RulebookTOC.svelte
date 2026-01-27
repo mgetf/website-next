@@ -1,70 +1,70 @@
 <script lang="ts">
-	import Fuse from 'fuse.js';
+import Fuse from 'fuse.js';
 
-	interface TOCItem {
-		id: string;
-		text: string;
-		level: number;
-	}
+interface TOCItem {
+  id: string;
+  text: string;
+  level: number;
+}
 
-	interface Props {
-		items: TOCItem[];
-		activeId?: string;
-	}
+interface Props {
+  items: TOCItem[];
+  activeId?: string;
+}
 
-	let { items, activeId = '' }: Props = $props();
+let { items, activeId = '' }: Props = $props();
 
-	let searchQuery = $state('');
-	let isCollapsed = $state(false);
+let searchQuery = $state('');
+let isCollapsed = $state(false);
 
-	// Create Fuse instance for fuzzy search
-	const fuse = $derived(
-		new Fuse(items, {
-			keys: ['text'],
-			threshold: 0.4,
-			includeScore: true
-		})
-	);
+// Create Fuse instance for fuzzy search
+const fuse = $derived(
+  new Fuse(items, {
+    keys: ['text'],
+    threshold: 0.4,
+    includeScore: true,
+  }),
+);
 
-	// Filter items based on search
-	const filteredItems = $derived(() => {
-		if (!searchQuery.trim()) return items;
-		const results = fuse.search(searchQuery);
-		return results.map((r) => r.item);
-	});
+// Filter items based on search
+const filteredItems = $derived(() => {
+  if (!searchQuery.trim()) return items;
+  const results = fuse.search(searchQuery);
+  return results.map((r) => r.item);
+});
 
-	function scrollToSection(id: string) {
-		const element = document.getElementById(id);
-		if (element) {
-			element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-		}
-	}
+function scrollToSection(id: string) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
 
-	function getIndentClass(level: number): string {
-		switch (level) {
-			case 1:
-				return '';
-			case 2:
-				return 'pl-3';
-			case 3:
-				return 'pl-6';
-			case 4:
-				return 'pl-9';
-			default:
-				return 'pl-12';
-		}
-	}
+function getIndentClass(level: number): string {
+  switch (level) {
+    case 1:
+      return '';
+    case 2:
+      return 'pl-3';
+    case 3:
+      return 'pl-6';
+    case 4:
+      return 'pl-9';
+    default:
+      return 'pl-12';
+  }
+}
 
-	function getFontClass(level: number): string {
-		switch (level) {
-			case 1:
-				return 'font-bold text-white';
-			case 2:
-				return 'font-semibold text-gray-200';
-			default:
-				return 'font-normal text-gray-400';
-		}
-	}
+function getFontClass(level: number): string {
+  switch (level) {
+    case 1:
+      return 'font-bold text-white';
+    case 2:
+      return 'font-semibold text-gray-200';
+    default:
+      return 'font-normal text-gray-400';
+  }
+}
 </script>
 
 <div class="toc-container bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">

@@ -1,53 +1,53 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
+import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let activeTab: 'info' | 'roster' | 'pending' | 'invite' = $state('info');
-	let isSubmitting = $state(false);
-	let showDisbandConfirm = $state(false);
-	let avatarPreview: string | null = $state(data.team.avatar);
-	let showCopyToast = $state(false);
+let activeTab: 'info' | 'roster' | 'pending' | 'invite' = $state('info');
+let isSubmitting = $state(false);
+let showDisbandConfirm = $state(false);
+let avatarPreview: string | null = $state(data.team.avatar);
+let showCopyToast = $state(false);
 
-	// Force refresh avatar preview when team changes
-	$effect(() => {
-		avatarPreview = data.team.avatar;
-		showDisbandConfirm = false;
-	});
+// Force refresh avatar preview when team changes
+$effect(() => {
+  avatarPreview = data.team.avatar;
+  showDisbandConfirm = false;
+});
 
-	// Helper to get role name
-	function getRoleName(level: number): string {
-		if (level === 2) return 'Owner';
-		if (level === 1) return 'Admin';
-		return 'Member';
-	}
+// Helper to get role name
+function getRoleName(level: number): string {
+  if (level === 2) return 'Owner';
+  if (level === 1) return 'Admin';
+  return 'Member';
+}
 
-	// Helper to get active players
-	let activePlayers = $derived(data.players.filter((p) => p.active === 1));
+// Helper to get active players
+let activePlayers = $derived(data.players.filter((p) => p.active === 1));
 
-	function handleAvatarChange(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-		if (file) {
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				avatarPreview = e.target?.result as string;
-			};
-			reader.readAsDataURL(file);
-		}
-	}
+function handleAvatarChange(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      avatarPreview = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+}
 
-	async function copyInviteLink() {
-		const fullUrl = `${window.location.origin}${data.inviteUrl}`;
-		await navigator.clipboard.writeText(fullUrl);
-		
-		// Show toast notification
-		showCopyToast = true;
-		setTimeout(() => {
-			showCopyToast = false;
-		}, 3000);
-	}
+async function copyInviteLink() {
+  const fullUrl = `${window.location.origin}${data.inviteUrl}`;
+  await navigator.clipboard.writeText(fullUrl);
+
+  // Show toast notification
+  showCopyToast = true;
+  setTimeout(() => {
+    showCopyToast = false;
+  }, 3000);
+}
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] px-4 py-12">

@@ -1,91 +1,95 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import type { PageData } from './$types';
+import { goto } from '$app/navigation';
+import { page } from '$app/stores';
+import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+let { data }: { data: PageData } = $props();
 
-	// Check for success message from create page redirect
-	const createdCount = $derived($page.url.searchParams.get('created'));
+// Check for success message from create page redirect
+const createdCount = $derived($page.url.searchParams.get('created'));
 
-	// Current filter values
-	let selectedRegion = $state(data.filters.regionId || '');
-	let selectedSeason = $state(data.filters.seasonId || '');
-	let selectedWeek = $state(data.filters.week || '1');
+// Current filter values
+let selectedRegion = $state(data.filters.regionId || '');
+let selectedSeason = $state(data.filters.seasonId || '');
+let selectedWeek = $state(data.filters.week || '1');
 
-	function onRegionChange(event: Event) {
-		const select = event.target as HTMLSelectElement;
-		selectedRegion = select.value;
-		selectedSeason = ''; // Reset season when region changes
-		applyFilters();
-	}
+function onRegionChange(event: Event) {
+  const select = event.target as HTMLSelectElement;
+  selectedRegion = select.value;
+  selectedSeason = ''; // Reset season when region changes
+  applyFilters();
+}
 
-	function onSeasonChange(event: Event) {
-		const select = event.target as HTMLSelectElement;
-		selectedSeason = select.value;
-		applyFilters();
-	}
+function onSeasonChange(event: Event) {
+  const select = event.target as HTMLSelectElement;
+  selectedSeason = select.value;
+  applyFilters();
+}
 
-	function onWeekChange(event: Event) {
-		const select = event.target as HTMLSelectElement;
-		selectedWeek = select.value;
-		applyFilters();
-	}
+function onWeekChange(event: Event) {
+  const select = event.target as HTMLSelectElement;
+  selectedWeek = select.value;
+  applyFilters();
+}
 
-	function applyFilters() {
-		const params = new URLSearchParams();
-		if (selectedRegion) params.set('regionId', selectedRegion);
-		if (selectedSeason) params.set('seasonId', selectedSeason);
-		if (selectedWeek) params.set('week', selectedWeek);
-		goto(`/admin/matches?${params.toString()}`);
-	}
+function applyFilters() {
+  const params = new URLSearchParams();
+  if (selectedRegion) params.set('regionId', selectedRegion);
+  if (selectedSeason) params.set('seasonId', selectedSeason);
+  if (selectedWeek) params.set('week', selectedWeek);
+  goto(`/admin/matches?${params.toString()}`);
+}
 
-	function formatMatchDate(dateTime: string | Date | null): string {
-		if (!dateTime) return '-';
-		const date = new Date(dateTime);
-		return date.toLocaleDateString('en-US', {
-			month: '2-digit',
-			day: '2-digit',
-			year: 'numeric'
-		}) + ' ' + date.toLocaleTimeString('en-US', {
-			hour: '2-digit',
-			minute: '2-digit',
-			hour12: true,
-			timeZoneName: 'short'
-		});
-	}
+function formatMatchDate(dateTime: string | Date | null): string {
+  if (!dateTime) return '-';
+  const date = new Date(dateTime);
+  return (
+    date.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+    }) +
+    ' ' +
+    date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZoneName: 'short',
+    })
+  );
+}
 
-	function getMatchTitle(match: any): string {
-		const divisionName = match.homeTeam?.division?.name || '';
-		
-		if (match.playoffRound) {
-			const playoffName = match.playoff?.name || 'Playoffs';
-			if (match.playoffRound === 4) return `${playoffName} - Grand Finals`;
-			if (match.playoffRound === 3) return `${playoffName} - Semifinals`;
-			if (match.playoffRound === 2) return `${playoffName} - Quarterfinals`;
-			return `${playoffName} - Round ${match.playoffRound}`;
-		}
-		
-		// Format: "Week 1A - Invite" or "Week 1 - Invite"
-		const weekLabel = match.weekLabel || match.weekNo;
-		return `Week ${weekLabel} - ${divisionName}`;
-	}
+function getMatchTitle(match: any): string {
+  const divisionName = match.homeTeam?.division?.name || '';
 
-	function getScoreDisplay(match: any): string {
-		if (match.winnerId) {
-			// Determine which team won and format score correctly
-			const homeWon = match.winnerId === match.homeTeamId;
-			const homeScore = homeWon ? match.winnerScore : match.loserScore;
-			const awayScore = homeWon ? match.loserScore : match.winnerScore;
-			return `${homeScore} - ${awayScore}`;
-		}
-		return '-';
-	}
+  if (match.playoffRound) {
+    const playoffName = match.playoff?.name || 'Playoffs';
+    if (match.playoffRound === 4) return `${playoffName} - Grand Finals`;
+    if (match.playoffRound === 3) return `${playoffName} - Semifinals`;
+    if (match.playoffRound === 2) return `${playoffName} - Quarterfinals`;
+    return `${playoffName} - Round ${match.playoffRound}`;
+  }
 
-	function getWinnerClass(match: any, teamId: number): string {
-		if (!match.winnerId) return '';
-		return match.winnerId === teamId ? 'font-bold' : 'opacity-60';
-	}
+  // Format: "Week 1A - Invite" or "Week 1 - Invite"
+  const weekLabel = match.weekLabel || match.weekNo;
+  return `Week ${weekLabel} - ${divisionName}`;
+}
+
+function getScoreDisplay(match: any): string {
+  if (match.winnerId) {
+    // Determine which team won and format score correctly
+    const homeWon = match.winnerId === match.homeTeamId;
+    const homeScore = homeWon ? match.winnerScore : match.loserScore;
+    const awayScore = homeWon ? match.loserScore : match.winnerScore;
+    return `${homeScore} - ${awayScore}`;
+  }
+  return '-';
+}
+
+function getWinnerClass(match: any, teamId: number): string {
+  if (!match.winnerId) return '';
+  return match.winnerId === teamId ? 'font-bold' : 'opacity-60';
+}
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">

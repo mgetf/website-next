@@ -1,35 +1,44 @@
 <script lang="ts">
-	import type { SessionUser } from '$lib/types/user';
-	import NotificationDropdown from './NotificationDropdown.svelte';
-	import UserDropdown from './UserDropdown.svelte';
-	import { page } from '$app/state';
-	import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
-	
-	type Props = {
-		user: SessionUser | null;
-		notifications: Array<{
-			id: number;
-			type: number;
-			url: string;
-			createdAt: Date;
-		}>;
-		notificationCount: number;
-		signupClosed?: boolean;
-		isInTeam?: boolean;
-		userTeam?: { id: number; name: string } | null;
-	};
-	
-	let { user, notifications, notificationCount, signupClosed = true, isInTeam = false, userTeam = null }: Props = $props();
-	
-	// Mobile menu state
-	let mobileMenuOpen = $state(false);
-	
-	// Get current page path for redirect after login
-	const loginUrl = $derived(`/auth/login?redirect=${encodeURIComponent(page.url.pathname)}`);
-	
-	function toggleMobileMenu() {
-		mobileMenuOpen = !mobileMenuOpen;
-	}
+import type { SessionUser } from '$lib/types/user';
+import NotificationDropdown from './NotificationDropdown.svelte';
+import UserDropdown from './UserDropdown.svelte';
+import { page } from '$app/state';
+import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
+
+type Props = {
+  user: SessionUser | null;
+  notifications: Array<{
+    id: number;
+    type: number;
+    url: string;
+    createdAt: Date;
+  }>;
+  notificationCount: number;
+  signupClosed?: boolean;
+  isInTeam?: boolean;
+  userTeam?: { id: number; name: string } | null;
+};
+
+let {
+  user,
+  notifications,
+  notificationCount,
+  signupClosed = true,
+  isInTeam = false,
+  userTeam = null,
+}: Props = $props();
+
+// Mobile menu state
+let mobileMenuOpen = $state(false);
+
+// Get current page path for redirect after login
+const loginUrl = $derived(
+  `/auth/login?redirect=${encodeURIComponent(page.url.pathname)}`,
+);
+
+function toggleMobileMenu() {
+  mobileMenuOpen = !mobileMenuOpen;
+}
 </script>
 
 <!-- Modern Navigation Bar with great contrast -->

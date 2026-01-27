@@ -1,66 +1,66 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
-	import type { PageData } from './$types';
+import { enhance } from '$app/forms';
+import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+let { data }: { data: PageData } = $props();
 
-	// Tabs
-	type Tab = 'settings' | 'homepage' | 'rulebook';
-	let activeTab = $state<Tab>('settings');
+// Tabs
+type Tab = 'settings' | 'homepage' | 'rulebook';
+let activeTab = $state<Tab>('settings');
 
-	// Form states
-	let isSubmitting = $state(false);
-	let successMessage = $state('');
-	let errorMessage = $state('');
+// Form states
+let isSubmitting = $state(false);
+let successMessage = $state('');
+let errorMessage = $state('');
 
-	// Content states - initialized from data
-	let siteTitle = $state(data.settings.siteTitle);
-	let homepageSubtitle = $state(data.content.homepage_subtitle || '');
-	let homepageAbout = $state(data.content.homepage_about || '');
-	let rulebookContent = $state(data.rulebookContent);
+// Content states - initialized from data
+let siteTitle = $state(data.settings.siteTitle);
+let homepageSubtitle = $state(data.content.homepage_subtitle || '');
+let homepageAbout = $state(data.content.homepage_about || '');
+let rulebookContent = $state(data.rulebookContent);
 
-	// Sync state when data changes (after form submission)
-	$effect(() => {
-		siteTitle = data.settings.siteTitle;
-	});
-	$effect(() => {
-		homepageSubtitle = data.content.homepage_subtitle || '';
-	});
-	$effect(() => {
-		homepageAbout = data.content.homepage_about || '';
-	});
-	$effect(() => {
-		rulebookContent = data.rulebookContent;
-	});
+// Sync state when data changes (after form submission)
+$effect(() => {
+  siteTitle = data.settings.siteTitle;
+});
+$effect(() => {
+  homepageSubtitle = data.content.homepage_subtitle || '';
+});
+$effect(() => {
+  homepageAbout = data.content.homepage_about || '';
+});
+$effect(() => {
+  rulebookContent = data.rulebookContent;
+});
 
-	// Preview toggle for rulebook
-	let showPreview = $state(false);
+// Preview toggle for rulebook
+let showPreview = $state(false);
 
-	function handleEnhance(action: string) {
-		return () => {
-			isSubmitting = true;
-			successMessage = '';
-			errorMessage = '';
+function handleEnhance(action: string) {
+  return () => {
+    isSubmitting = true;
+    successMessage = '';
+    errorMessage = '';
 
-			return async ({ result, update }: any) => {
-				isSubmitting = false;
-				if (result.type === 'success') {
-					successMessage = result.data?.message || 'Saved successfully';
-					setTimeout(() => (successMessage = ''), 3000);
-				} else if (result.type === 'failure') {
-					errorMessage = result.data?.error || 'Failed to save';
-				}
-				await update();
-			};
-		};
-	}
+    return async ({ result, update }: any) => {
+      isSubmitting = false;
+      if (result.type === 'success') {
+        successMessage = result.data?.message || 'Saved successfully';
+        setTimeout(() => (successMessage = ''), 3000);
+      } else if (result.type === 'failure') {
+        errorMessage = result.data?.error || 'Failed to save';
+      }
+      await update();
+    };
+  };
+}
 
-	const tabs: { id: Tab; label: string }[] = [
-		{ id: 'settings', label: 'Site Settings' },
-		{ id: 'homepage', label: 'Homepage Content' },
-		{ id: 'rulebook', label: 'Rulebook' }
-	];
+const tabs: { id: Tab; label: string }[] = [
+  { id: 'settings', label: 'Site Settings' },
+  { id: 'homepage', label: 'Homepage Content' },
+  { id: 'rulebook', label: 'Rulebook' },
+];
 </script>
 
 <div class="max-w-6xl mx-auto space-y-6">

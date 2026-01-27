@@ -1,155 +1,162 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { enhance } from '$app/forms';
-	
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	
-	let editingTeam: typeof data.teams[0] | null = $state(null);
-	let disbandingTeam: typeof data.teams[0] | null = $state(null);
-	let restoringTeam: typeof data.teams[0] | null = $state(null);
-	let isSubmitting = $state(false);
-	let isDisbanding = $state(false);
-	let isRestoring = $state(false);
-	
-	// TODO: TEMPORARY WORKAROUND - Remove this filtering logic when schema is refactored
-	// This filters seasons by selected region to avoid showing duplicate "Season 1" options
-	// from different regions in the dropdown (e.g., Season 1 NA and Season 1 EU both show as "Season 1")
-	// 
-	// Once schema is fixed to have unique season names/identifiers, this client-side
-	// filtering should be removed and all seasons can be shown without confusion
-	const filteredSeasons = $derived(() => {
-		if (data.filters.region === 'all') {
-			return data.seasons;
-		}
-		const regionId = parseInt(data.filters.region);
-		return data.seasons.filter(s => s.regionId === regionId);
-	});
-	
-	// Build filter URL
-	function updateFilters(updates: Record<string, string>) {
-		const params = new URLSearchParams(page.url.searchParams);
-		
-		// TODO: TEMPORARY WORKAROUND - Remove this auto-reset logic when schema is refactored
-		// This automatically clears the season filter when switching regions to prevent selecting
-		// a Season 1 from NA when viewing EU teams (since both regions have a "Season 1")
-		// Once seasons have unique identifiers/names, this logic should be removed
-		if (updates.region !== undefined) {
-			const newRegionId = updates.region === 'all' ? null : parseInt(updates.region);
-			const currentSeasonId = params.get('season');
-			
-			// If there's a season selected, check if it belongs to the new region
-			if (currentSeasonId && currentSeasonId !== 'all' && newRegionId) {
-				const currentSeason = data.seasons.find(s => s.id === parseInt(currentSeasonId));
-				if (currentSeason && currentSeason.regionId !== newRegionId) {
-					// Season doesn't match new region, reset it
-					params.delete('season');
-				}
-			}
-		}
-		
-		// Update/remove parameters
-		Object.entries(updates).forEach(([key, value]) => {
-			if (value && value !== 'all' && value !== '') {
-				params.set(key, value);
-			} else {
-				params.delete(key);
-			}
-		});
-		
-		// Reset to page 1 when filters change
-		if (!updates.page) {
-			params.delete('page');
-		}
-		
-		goto(`?${params.toString()}`, { keepFocus: true, replaceState: true });
-	}
-	
-	// Status mapping (TeamStatus enum from Prisma)
-	const statusNames: Record<string, string> = {
-		'UNREADY': 'Unready',
-		'PENDING': 'Pending',
-		'READY': 'Ready',
-		'DEAD': 'Dead'
-	};
-	
-	// Payment status mapping
-	const paymentNames: Record<number, string> = {
-		0: 'Unpaid',
-		1: 'Paid',
-		2: 'Exempt'
-	};
-	
-	function getStatusColor(status: string) {
-		if (status === 'READY') return 'bg-green-500/20 text-green-400';
-		if (status === 'PENDING') return 'bg-yellow-500/20 text-yellow-400';
-		if (status === 'DEAD') return 'bg-red-500/20 text-red-400';
-		return 'bg-gray-500/20 text-gray-400';
-	}
-	
-	function getPaymentColor(payment: number) {
-		if (payment === 1) return 'bg-green-500/20 text-green-400';
-		if (payment === 2) return 'bg-blue-500/20 text-blue-400';
-		return 'bg-red-500/20 text-red-400';
-	}
-	
-	// Pagination
-	function goToPage(pageNum: number) {
-		updateFilters({ page: pageNum.toString() });
-	}
-	
-	// Modal functions
-	function openEditModal(team: typeof data.teams[0]) {
-		editingTeam = { ...team };
-	}
-	
-	function closeEditModal() {
-		editingTeam = null;
-	}
-	
-	// Status to integer mapping for form
-	const statusToInt: Record<string, number> = {
-		'DEAD': -1,
-		'UNREADY': 0,
-		'PENDING': 1,
-		'READY': 2,
-		'PLACEMENT': 3
-	};
-	
-	// Generate page numbers for pagination
-	const pageNumbers = $derived(() => {
-		const { page, totalPages } = data.pagination;
-		const pages: (number | string)[] = [];
-		
-		if (totalPages <= 7) {
-			// Show all pages if 7 or fewer
-			for (let i = 1; i <= totalPages; i++) {
-				pages.push(i);
-			}
-		} else {
-			// Always show first page
-			pages.push(1);
-			
-			if (page > 3) {
-				pages.push('...');
-			}
-			
-			// Show pages around current page
-			for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
-				pages.push(i);
-			}
-			
-			if (page < totalPages - 2) {
-				pages.push('...');
-			}
-			
-			// Always show last page
-			pages.push(totalPages);
-		}
-		
-		return pages;
-	});
+import type { PageData, ActionData } from './$types';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import { enhance } from '$app/forms';
+
+let { data, form }: { data: PageData; form: ActionData } = $props();
+
+let editingTeam: (typeof data.teams)[0] | null = $state(null);
+let disbandingTeam: (typeof data.teams)[0] | null = $state(null);
+let restoringTeam: (typeof data.teams)[0] | null = $state(null);
+let isSubmitting = $state(false);
+let isDisbanding = $state(false);
+let isRestoring = $state(false);
+
+// TODO: TEMPORARY WORKAROUND - Remove this filtering logic when schema is refactored
+// This filters seasons by selected region to avoid showing duplicate "Season 1" options
+// from different regions in the dropdown (e.g., Season 1 NA and Season 1 EU both show as "Season 1")
+//
+// Once schema is fixed to have unique season names/identifiers, this client-side
+// filtering should be removed and all seasons can be shown without confusion
+const filteredSeasons = $derived(() => {
+  if (data.filters.region === 'all') {
+    return data.seasons;
+  }
+  const regionId = parseInt(data.filters.region);
+  return data.seasons.filter((s) => s.regionId === regionId);
+});
+
+// Build filter URL
+function updateFilters(updates: Record<string, string>) {
+  const params = new URLSearchParams(page.url.searchParams);
+
+  // TODO: TEMPORARY WORKAROUND - Remove this auto-reset logic when schema is refactored
+  // This automatically clears the season filter when switching regions to prevent selecting
+  // a Season 1 from NA when viewing EU teams (since both regions have a "Season 1")
+  // Once seasons have unique identifiers/names, this logic should be removed
+  if (updates.region !== undefined) {
+    const newRegionId =
+      updates.region === 'all' ? null : parseInt(updates.region);
+    const currentSeasonId = params.get('season');
+
+    // If there's a season selected, check if it belongs to the new region
+    if (currentSeasonId && currentSeasonId !== 'all' && newRegionId) {
+      const currentSeason = data.seasons.find(
+        (s) => s.id === parseInt(currentSeasonId),
+      );
+      if (currentSeason && currentSeason.regionId !== newRegionId) {
+        // Season doesn't match new region, reset it
+        params.delete('season');
+      }
+    }
+  }
+
+  // Update/remove parameters
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value && value !== 'all' && value !== '') {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+  });
+
+  // Reset to page 1 when filters change
+  if (!updates.page) {
+    params.delete('page');
+  }
+
+  goto(`?${params.toString()}`, { keepFocus: true, replaceState: true });
+}
+
+// Status mapping (TeamStatus enum from Prisma)
+const statusNames: Record<string, string> = {
+  UNREADY: 'Unready',
+  PENDING: 'Pending',
+  READY: 'Ready',
+  DEAD: 'Dead',
+};
+
+// Payment status mapping
+const paymentNames: Record<number, string> = {
+  0: 'Unpaid',
+  1: 'Paid',
+  2: 'Exempt',
+};
+
+function getStatusColor(status: string) {
+  if (status === 'READY') return 'bg-green-500/20 text-green-400';
+  if (status === 'PENDING') return 'bg-yellow-500/20 text-yellow-400';
+  if (status === 'DEAD') return 'bg-red-500/20 text-red-400';
+  return 'bg-gray-500/20 text-gray-400';
+}
+
+function getPaymentColor(payment: number) {
+  if (payment === 1) return 'bg-green-500/20 text-green-400';
+  if (payment === 2) return 'bg-blue-500/20 text-blue-400';
+  return 'bg-red-500/20 text-red-400';
+}
+
+// Pagination
+function goToPage(pageNum: number) {
+  updateFilters({ page: pageNum.toString() });
+}
+
+// Modal functions
+function openEditModal(team: (typeof data.teams)[0]) {
+  editingTeam = { ...team };
+}
+
+function closeEditModal() {
+  editingTeam = null;
+}
+
+// Status to integer mapping for form
+const statusToInt: Record<string, number> = {
+  DEAD: -1,
+  UNREADY: 0,
+  PENDING: 1,
+  READY: 2,
+  PLACEMENT: 3,
+};
+
+// Generate page numbers for pagination
+const pageNumbers = $derived(() => {
+  const { page, totalPages } = data.pagination;
+  const pages: (number | string)[] = [];
+
+  if (totalPages <= 7) {
+    // Show all pages if 7 or fewer
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+  } else {
+    // Always show first page
+    pages.push(1);
+
+    if (page > 3) {
+      pages.push('...');
+    }
+
+    // Show pages around current page
+    for (
+      let i = Math.max(2, page - 1);
+      i <= Math.min(totalPages - 1, page + 1);
+      i++
+    ) {
+      pages.push(i);
+    }
+
+    if (page < totalPages - 2) {
+      pages.push('...');
+    }
+
+    // Always show last page
+    pages.push(totalPages);
+  }
+
+  return pages;
+});
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">

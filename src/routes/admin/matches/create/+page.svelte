@@ -1,159 +1,168 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
+import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
 
-	let { data }: { data: PageData } = $props();
+let { data }: { data: PageData } = $props();
 
-	// Form state
-	let isPlayoff = $state(false);
-	let selectedRegionId = $state<number | null>(null);
-	let selectedDivisionId = $state<number | null>(null);
-	let selectedSeasonId = $state<number | null>(null);
-	let weekNo = $state<number | null>(null);
-	let boSeries = $state(1);
-	let selectedArenaId = $state<number | null>(null);
-	let matchDateTime = $state('');
-	let mapBanPoolId = $state<number | null>(null);
-	let playoffRound = $state<number | null>(null);
-	let boGames = $state<number | null>(null);
+// Form state
+let isPlayoff = $state(false);
+let selectedRegionId = $state<number | null>(null);
+let selectedDivisionId = $state<number | null>(null);
+let selectedSeasonId = $state<number | null>(null);
+let weekNo = $state<number | null>(null);
+let boSeries = $state(1);
+let selectedArenaId = $state<number | null>(null);
+let matchDateTime = $state('');
+let mapBanPoolId = $state<number | null>(null);
+let playoffRound = $state<number | null>(null);
+let boGames = $state<number | null>(null);
 
-	// Preview state
-	let previewMatchups = $state<any[]>([]);
-	let previewByeTeam = $state<any | null>(null);
-	let weekLabel = $state<string | null>(null);
-	let existingMatchSetsCount = $state(0);
-	let showPreview = $state(false);
-	
-	// Loading state
-	let isCreating = $state(false);
+// Preview state
+let previewMatchups = $state<any[]>([]);
+let previewByeTeam = $state<any | null>(null);
+let weekLabel = $state<string | null>(null);
+let existingMatchSetsCount = $state(0);
+let showPreview = $state(false);
 
-	// Computed values
-	const selectedSeason = $derived(
-		selectedSeasonId ? data.seasons.find((s) => s.id === selectedSeasonId) : null
-	);
+// Loading state
+let isCreating = $state(false);
 
-	// Only show regions that have at least one season
-	const regionsWithSeasons = $derived(
-		data.regions.filter((r) => data.seasons.some((s) => s.regionId === r.id))
-	);
+// Computed values
+const selectedSeason = $derived(
+  selectedSeasonId ? data.seasons.find((s) => s.id === selectedSeasonId) : null,
+);
 
-	const seasonsForRegion = $derived(
-		selectedRegionId ? data.seasons.filter((s) => s.regionId === selectedRegionId) : []
-	);
+// Only show regions that have at least one season
+const regionsWithSeasons = $derived(
+  data.regions.filter((r) => data.seasons.some((s) => s.regionId === r.id)),
+);
 
-	// Filter divisions by selected region
-	const divisionsForRegion = $derived(
-		selectedRegionId ? data.divisions.filter((d) => d.regionId === selectedRegionId) : []
-	);
+const seasonsForRegion = $derived(
+  selectedRegionId
+    ? data.seasons.filter((s) => s.regionId === selectedRegionId)
+    : [],
+);
 
-	const canPreview = $derived(
-		selectedRegionId && selectedDivisionId && selectedSeasonId && (isPlayoff ? playoffRound : weekNo)
-	);
+// Filter divisions by selected region
+const divisionsForRegion = $derived(
+  selectedRegionId
+    ? data.divisions.filter((d) => d.regionId === selectedRegionId)
+    : [],
+);
 
-	// Get playoff data for selected season
-	const selectedSeasonPlayoff = $derived(
-		selectedSeasonId ? data.playoffs?.find((p) => p.seasonId === selectedSeasonId) : null
-	);
+const canPreview = $derived(
+  selectedRegionId &&
+    selectedDivisionId &&
+    selectedSeasonId &&
+    (isPlayoff ? playoffRound : weekNo),
+);
 
-	// Generate playoff rounds for selector
-	const playoffRounds = $derived.by(() => {
-		if (!selectedSeasonPlayoff) return [];
-		
-		const rounds: { value: number; label: string }[] = [];
-		
-		// Upper bracket rounds (positive numbers)
-		if (selectedSeasonPlayoff.numRounds) {
-			for (let i = 1; i <= selectedSeasonPlayoff.numRounds; i++) {
-				rounds.push({
-					value: i,
-					label: `Upper Round ${i}`
-				});
-			}
-			
-			// Lower bracket rounds (negative numbers) if double elimination
-			if (selectedSeasonPlayoff.doubleElim === 1) {
-				for (let i = 1; i <= selectedSeasonPlayoff.numRounds * 2; i++) {
-					rounds.push({
-						value: -i,
-						label: `Lower Round ${i}`
-					});
-				}
-			}
-		}
-		
-		return rounds;
-	});
+// Get playoff data for selected season
+const selectedSeasonPlayoff = $derived(
+  selectedSeasonId
+    ? data.playoffs?.find((p) => p.seasonId === selectedSeasonId)
+    : null,
+);
 
-	// Preview data
-	let previewTeams = $state<any[]>([]);
+// Generate playoff rounds for selector
+const playoffRounds = $derived.by(() => {
+  if (!selectedSeasonPlayoff) return [];
 
-	// Handle preview form submission
-	const handlePreviewEnhance = () => {
-		return async ({ result, update }: any) => {
-			if (result.type === 'success' && result.data && 'preview' in result.data) {
-				const preview = (result.data as any).preview;
-				previewMatchups = preview.matchups || [];
-				previewByeTeam = preview.byeTeam || null;
-				previewTeams = preview.teams || [];
-				weekLabel = preview.weekLabel || null;
-				existingMatchSetsCount = preview.existingCount || 0;
-				showPreview = true;
+  const rounds: { value: number; label: string }[] = [];
 
-				console.log('Preview loaded:', {
-					matchups: previewMatchups.length,
-					byeTeam: previewByeTeam?.name,
-					teams: previewTeams.length,
-					weekLabel,
-					existingMatchSetsCount,
-					isPlayoff: preview.isPlayoff
-				});
-			} else if (result.type === 'failure') {
-				alert(`Error: ${result.data?.error || 'Failed to preview matches'}`);
-			}
-			// Don't call update() - prevents form reset
-		};
-	};
+  // Upper bracket rounds (positive numbers)
+  if (selectedSeasonPlayoff.numRounds) {
+    for (let i = 1; i <= selectedSeasonPlayoff.numRounds; i++) {
+      rounds.push({
+        value: i,
+        label: `Upper Round ${i}`,
+      });
+    }
 
-	// Handle create form submission
-	const handleCreateEnhance = () => {
-		isCreating = true;
-		
-		return async ({ result, update }: any) => {
-			console.log('Create form result:', result);
-			
-			if (result.type === 'failure') {
-				console.error('Form submission failed:', result);
-				isCreating = false;
-				alert(`Error: ${result.data?.error || 'Failed to create matches'}`);
-			}
-			
-			if (result.type === 'redirect') {
-				// Keep loading state true during redirect
-			} else {
-				isCreating = false;
-			}
-			
-			await update();
-		};
-	};
+    // Lower bracket rounds (negative numbers) if double elimination
+    if (selectedSeasonPlayoff.doubleElim === 1) {
+      for (let i = 1; i <= selectedSeasonPlayoff.numRounds * 2; i++) {
+        rounds.push({
+          value: -i,
+          label: `Lower Round ${i}`,
+        });
+      }
+    }
+  }
 
-	// Reset preview when user changes form fields
-	function onFieldChange() {
-		if (showPreview) {
-			showPreview = false;
-			previewMatchups = [];
-			previewByeTeam = null;
-			weekLabel = null;
-			existingMatchSetsCount = 0;
-		}
-	}
+  return rounds;
+});
 
-	// Reset dependent fields when region changes
-	function onRegionChange() {
-		selectedDivisionId = null;
-		selectedSeasonId = null;
-		onFieldChange();
-	}
+// Preview data
+let previewTeams = $state<any[]>([]);
+
+// Handle preview form submission
+const handlePreviewEnhance = () => {
+  return async ({ result, update }: any) => {
+    if (result.type === 'success' && result.data && 'preview' in result.data) {
+      const preview = (result.data as any).preview;
+      previewMatchups = preview.matchups || [];
+      previewByeTeam = preview.byeTeam || null;
+      previewTeams = preview.teams || [];
+      weekLabel = preview.weekLabel || null;
+      existingMatchSetsCount = preview.existingCount || 0;
+      showPreview = true;
+
+      console.log('Preview loaded:', {
+        matchups: previewMatchups.length,
+        byeTeam: previewByeTeam?.name,
+        teams: previewTeams.length,
+        weekLabel,
+        existingMatchSetsCount,
+        isPlayoff: preview.isPlayoff,
+      });
+    } else if (result.type === 'failure') {
+      alert(`Error: ${result.data?.error || 'Failed to preview matches'}`);
+    }
+    // Don't call update() - prevents form reset
+  };
+};
+
+// Handle create form submission
+const handleCreateEnhance = () => {
+  isCreating = true;
+
+  return async ({ result, update }: any) => {
+    console.log('Create form result:', result);
+
+    if (result.type === 'failure') {
+      console.error('Form submission failed:', result);
+      isCreating = false;
+      alert(`Error: ${result.data?.error || 'Failed to create matches'}`);
+    }
+
+    if (result.type === 'redirect') {
+      // Keep loading state true during redirect
+    } else {
+      isCreating = false;
+    }
+
+    await update();
+  };
+};
+
+// Reset preview when user changes form fields
+function onFieldChange() {
+  if (showPreview) {
+    showPreview = false;
+    previewMatchups = [];
+    previewByeTeam = null;
+    weekLabel = null;
+    existingMatchSetsCount = 0;
+  }
+}
+
+// Reset dependent fields when region changes
+function onRegionChange() {
+  selectedDivisionId = null;
+  selectedSeasonId = null;
+  onFieldChange();
+}
 </script>
 
 <div class="max-w-4xl mx-auto space-y-6">

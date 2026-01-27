@@ -1,17 +1,17 @@
-import type { PageServerLoad, Actions } from "./$types";
-import { error, fail, redirect } from "@sveltejs/kit";
-import { getTeamById, updateTeamStatus } from "$lib/server/services/teams";
-import { isAdmin, isTeamAdmin } from "$lib/server/auth/permissions";
-import { removePlayer } from "$lib/server/services/teamManagement";
-import { getSeasonSettingsByTeamId } from "$lib/server/services/settings";
-import { calculateWeekLabel } from "$lib/server/utils/matchHelpers";
-import { FORMAT_1V1 } from "$lib/server/constants/formats";
+import type { PageServerLoad, Actions } from './$types';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { getTeamById, updateTeamStatus } from '$lib/server/services/teams';
+import { isAdmin, isTeamAdmin } from '$lib/server/auth/permissions';
+import { removePlayer } from '$lib/server/services/teamManagement';
+import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
+import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const teamId = parseInt(params.id);
 
   if (isNaN(teamId)) {
-    throw error(400, "Invalid team ID");
+    throw error(400, 'Invalid team ID');
   }
 
   // Check for payment success query param
@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const team = await getTeamById(teamId);
 
   if (!team) {
-    throw error(404, "Team not found");
+    throw error(404, 'Team not found');
   }
 
   // Redirect 1v1 "teams" to the player's profile page
@@ -38,7 +38,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   // Check if user has admin permissions
   const isGlobalAdmin = locals.user ? isAdmin(locals.user) : false;
-  const isTeamAdminUser = locals.user ? await isTeamAdmin(locals.user, teamId) : false;
+  const isTeamAdminUser = locals.user
+    ? await isTeamAdmin(locals.user, teamId)
+    : false;
   const canManageTeam = isGlobalAdmin || isTeamAdminUser;
 
   // Get roster lock status from team's season (per-season setting)
@@ -96,23 +98,25 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const isWin = match.winnerId === teamId;
     const isDraw =
-      match.winnerId === null && match.status.toString() === "PLAYED";
+      match.winnerId === null && match.status.toString() === 'PLAYED';
 
     // Calculate week label with proper suffix (1a, 1b, etc.) for multiple match sets
-    let weekLabel = "TBD";
+    let weekLabel = 'TBD';
     if (match.weekNo !== null && match.weekNo !== undefined) {
       // Filter THIS team's matches to only those in the same week and season
       // This ensures each team gets their own sequential labeling (1a, 1b, etc.)
       const teamMatchesForThisWeek = allMatches.filter(
-        (m) => m.weekNo === match.weekNo && m.season.id === match.season.id
+        (m) => m.weekNo === match.weekNo && m.season.id === match.season.id,
       );
-      
+
       // Sort by match ID to ensure consistent ordering
       teamMatchesForThisWeek.sort((a, b) => a.id - b.id);
-      
+
       // Use centralized helper to calculate label (no code duplication)
       const calculatedLabel = calculateWeekLabel(match, teamMatchesForThisWeek);
-      weekLabel = calculatedLabel ? `Week ${calculatedLabel}` : `Week ${match.weekNo}`;
+      weekLabel = calculatedLabel
+        ? `Week ${calculatedLabel}`
+        : `Week ${match.weekNo}`;
     } else if (match.playoffRound) {
       weekLabel = `Round ${match.playoffRound}`;
     }
@@ -122,17 +126,17 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       opponent: match.opponent.name,
       opponentId: match.opponent.id,
       result: isDraw
-        ? "D"
+        ? 'D'
         : isWin
-        ? "W"
-        : match.status.toString() === "PLAYED"
-        ? "L"
-        : "TBD",
+          ? 'W'
+          : match.status.toString() === 'PLAYED'
+            ? 'L'
+            : 'TBD',
       score: match.winnerId
         ? `${match.winnerScore} - ${match.loserScore}`
-        : match.status.toString() === "PLAYED"
-        ? "N/A"
-        : "Unplayed",
+        : match.status.toString() === 'PLAYED'
+          ? 'N/A'
+          : 'Unplayed',
       date: match.matchDateTime,
       matchId: match.id,
     });
@@ -142,7 +146,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const matchesBySeason = Array.from(matchesBySeasonMap.entries())
     .map(([seasonId, matches]) => {
       const seasonData = allMatches.find(
-        (m) => m.season.id === seasonId
+        (m) => m.season.id === seasonId,
       )?.season;
       return {
         seasonId,
@@ -184,7 +188,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 export const actions: Actions = {
   removePlayer: async ({ request, params, locals }) => {
     if (!locals.user) {
-      return fail(401, { error: "You must be logged in" });
+      return fail(401, { error: 'You must be logged in' });
     }
 
     const teamId = parseInt(params.id);
@@ -192,14 +196,14 @@ export const actions: Actions = {
     const isTeamAdminUser = await isTeamAdmin(locals.user, teamId);
 
     if (!isGlobalAdmin && !isTeamAdminUser) {
-      return fail(403, { error: "You must be a team admin or global admin" });
+      return fail(403, { error: 'You must be a team admin or global admin' });
     }
 
     const formData = await request.formData();
-    const playerSteamId = formData.get("playerSteamId") as string;
+    const playerSteamId = formData.get('playerSteamId') as string;
 
     if (!playerSteamId) {
-      return fail(400, { error: "Player Steam ID is required" });
+      return fail(400, { error: 'Player Steam ID is required' });
     }
 
     // Check roster lock from team's season (admins can bypass)
@@ -207,44 +211,45 @@ export const actions: Actions = {
     const rosterLocked = seasonSettings?.rosterLocked ?? false;
 
     if (rosterLocked && !isGlobalAdmin) {
-      return fail(403, { error: "Rosters are currently locked" });
+      return fail(403, { error: 'Rosters are currently locked' });
     }
 
     try {
       await removePlayer(teamId, playerSteamId);
-      return { success: true, message: "Player removed successfully" };
+      return { success: true, message: 'Player removed successfully' };
     } catch (err) {
       return fail(500, {
-        error: err instanceof Error ? err.message : "Failed to remove player",
+        error: err instanceof Error ? err.message : 'Failed to remove player',
       });
     }
   },
 
   updateStatus: async ({ request, params, locals }) => {
     if (!locals.user) {
-      return fail(401, { error: "You must be logged in" });
+      return fail(401, { error: 'You must be logged in' });
     }
 
     const teamId = parseInt(params.id);
     const isGlobalAdmin = isAdmin(locals.user);
 
     if (!isGlobalAdmin) {
-      return fail(403, { error: "Only global admins can change team status" });
+      return fail(403, { error: 'Only global admins can change team status' });
     }
 
     const formData = await request.formData();
-    const status = formData.get("status") as string;
+    const status = formData.get('status') as string;
 
     if (!status) {
-      return fail(400, { error: "Status is required" });
+      return fail(400, { error: 'Status is required' });
     }
 
     try {
       await updateTeamStatus(teamId, status as any);
-      return { success: true, message: "Team status updated successfully" };
+      return { success: true, message: 'Team status updated successfully' };
     } catch (err) {
       return fail(500, {
-        error: err instanceof Error ? err.message : "Failed to update team status",
+        error:
+          err instanceof Error ? err.message : 'Failed to update team status',
       });
     }
   },

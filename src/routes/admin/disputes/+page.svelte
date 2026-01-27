@@ -1,28 +1,36 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { PageData } from './$types';
-	
-	let { data }: { data: PageData } = $props();
-	
-	let isSubmitting = $state(false);
-	
-	function getStatusLabel(status: string): string {
-		switch (status) {
-			case 'UNPLAYED': return 'Not Played';
-			case 'PLAYED': return 'Played';
-			case 'DISPUTE': return 'Disputed';
-			default: return status;
-		}
-	}
-	
-	function getStatusColor(status: string): string {
-		switch (status) {
-			case 'UNPLAYED': return 'bg-gray-500';
-			case 'PLAYED': return 'bg-green-500';
-			case 'DISPUTE': return 'bg-red-500';
-			default: return 'bg-gray-500';
-		}
-	}
+import { enhance } from '$app/forms';
+import type { PageData } from './$types';
+
+let { data }: { data: PageData } = $props();
+
+let isSubmitting = $state(false);
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'UNPLAYED':
+      return 'Not Played';
+    case 'PLAYED':
+      return 'Played';
+    case 'DISPUTE':
+      return 'Disputed';
+    default:
+      return status;
+  }
+}
+
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'UNPLAYED':
+      return 'bg-gray-500';
+    case 'PLAYED':
+      return 'bg-green-500';
+    case 'DISPUTE':
+      return 'bg-red-500';
+    default:
+      return 'bg-gray-500';
+  }
+}
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">

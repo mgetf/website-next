@@ -1,61 +1,70 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
-	import { onMount } from 'svelte';
-	
-	// Svelte 5 runes - get data from server
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	
-	// Destructure for easier access - use $derived to react to data changes
-	const team = $derived(data.team);
-	const currentRoster = $derived(data.currentRoster);
-	const pastRoster = $derived(data.pastRoster);
-	const matchesBySeason = $derived(data.matchesBySeason);
-	
-	// Payment success state
-	let showPaymentSuccess = $state(data.paymentSuccess);
-	
-	onMount(() => {
-		if (showPaymentSuccess) {
-			// Remove the query param from URL without reload
-			const url = new URL(window.location.href);
-			url.searchParams.delete('payment');
-			history.replaceState({}, '', url.pathname);
-			
-			// Auto-dismiss after 5 seconds
-			setTimeout(() => {
-				showPaymentSuccess = false;
-			}, 5000);
-		}
-	});
-	
-	// Format date helper
-	function formatDate(date: Date | string | null): string {
-		if (!date) return 'N/A';
-		const dateObj = typeof date === 'string' ? new Date(date) : date;
-		return dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' });
-	}
-	
-	// Get result color
-	function getResultColor(result: string): string {
-		if (result === 'W') return 'text-green-400';
-		if (result === 'L') return 'text-red-400';
-		if (result === 'D') return 'text-yellow-400';
-		return 'text-gray-400';
-	}
-	
-	// Get team status badge color
-	function getStatusColor(status: string): string {
-		const statusStr = status.toString();
-		if (statusStr === 'READY') return 'bg-green-500/20 text-green-400 border-green-500/30';
-		if (statusStr === 'PENDING') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-		if (statusStr === 'UNREADY') return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-		return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-	}
-	
-	// Calculate win rate - reactive
-	const totalGames = $derived(team.wins + team.losses);
-	const winRate = $derived(totalGames > 0 ? ((team.wins / totalGames) * 100).toFixed(1) : '0.0');
+import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
+import { onMount } from 'svelte';
+
+// Svelte 5 runes - get data from server
+let { data, form }: { data: PageData; form: ActionData } = $props();
+
+// Destructure for easier access - use $derived to react to data changes
+const team = $derived(data.team);
+const currentRoster = $derived(data.currentRoster);
+const pastRoster = $derived(data.pastRoster);
+const matchesBySeason = $derived(data.matchesBySeason);
+
+// Payment success state
+let showPaymentSuccess = $state(data.paymentSuccess);
+
+onMount(() => {
+  if (showPaymentSuccess) {
+    // Remove the query param from URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.delete('payment');
+    history.replaceState({}, '', url.pathname);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      showPaymentSuccess = false;
+    }, 5000);
+  }
+});
+
+// Format date helper
+function formatDate(date: Date | string | null): string {
+  if (!date) return 'N/A';
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
+}
+
+// Get result color
+function getResultColor(result: string): string {
+  if (result === 'W') return 'text-green-400';
+  if (result === 'L') return 'text-red-400';
+  if (result === 'D') return 'text-yellow-400';
+  return 'text-gray-400';
+}
+
+// Get team status badge color
+function getStatusColor(status: string): string {
+  const statusStr = status.toString();
+  if (statusStr === 'READY')
+    return 'bg-green-500/20 text-green-400 border-green-500/30';
+  if (statusStr === 'PENDING')
+    return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+  if (statusStr === 'UNREADY')
+    return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+}
+
+// Calculate win rate - reactive
+const totalGames = $derived(team.wins + team.losses);
+const winRate = $derived(
+  totalGames > 0 ? ((team.wins / totalGames) * 100).toFixed(1) : '0.0',
+);
 </script>
 
 <div class="min-h-screen pb-16">

@@ -1,87 +1,95 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+import { goto } from '$app/navigation';
 
-	interface PageData {
-		seasons: Array<{
-			id: number;
-			name: string;
-			seasonNum: number;
-			regionId: number;
-		}>;
-		regions: Array<{ id: number; name: string }>;
-		selectedSeasonId: number;
-		selectedRegionId: number;
-		selectedRegionName: string;
-		selectedSeasonNum: number;
-		entriesByDivision: Array<{
-			division: { id: number; name: string };
-			entries: Array<{
-				id: number;
-				teamId: number;
-				name: string;
-				avatar: string | null;
-				steamId: string | null;
-				wins: number;
-				losses: number;
-				points: number;
-				isWithdrawn?: boolean;
-			}>;
-		}>;
-		deadlines: {
-			signupClosed: boolean;
-			rosterLocked: boolean;
-			paymentRequired: boolean;
-		};
-	}
+interface PageData {
+  seasons: Array<{
+    id: number;
+    name: string;
+    seasonNum: number;
+    regionId: number;
+  }>;
+  regions: Array<{ id: number; name: string }>;
+  selectedSeasonId: number;
+  selectedRegionId: number;
+  selectedRegionName: string;
+  selectedSeasonNum: number;
+  entriesByDivision: Array<{
+    division: { id: number; name: string };
+    entries: Array<{
+      id: number;
+      teamId: number;
+      name: string;
+      avatar: string | null;
+      steamId: string | null;
+      wins: number;
+      losses: number;
+      points: number;
+      isWithdrawn?: boolean;
+    }>;
+  }>;
+  deadlines: {
+    signupClosed: boolean;
+    rosterLocked: boolean;
+    paymentRequired: boolean;
+  };
+}
 
-	let { data } = $props<{ data: PageData }>();
+let { data } = $props<{ data: PageData }>();
 
-	// Track selected season and region in state
-	let selectedSeason = $state(data.selectedSeasonId);
-	let selectedRegion = $state(data.selectedRegionId);
-	let isInitialized = $state(false);
+// Track selected season and region in state
+let selectedSeason = $state(data.selectedSeasonId);
+let selectedRegion = $state(data.selectedRegionId);
+let isInitialized = $state(false);
 
-	// Auto-switch to valid season when region changes
-	$effect(() => {
-		const seasonsForRegion = data.seasons.filter(
-			(s: (typeof data.seasons)[number]) => s.regionId === selectedRegion
-		);
-		if (!seasonsForRegion.find((s: (typeof data.seasons)[number]) => s.id === selectedSeason)) {
-			selectedSeason = seasonsForRegion[0]?.id || data.selectedSeasonId;
-		}
-	});
+// Auto-switch to valid season when region changes
+$effect(() => {
+  const seasonsForRegion = data.seasons.filter(
+    (s: (typeof data.seasons)[number]) => s.regionId === selectedRegion,
+  );
+  if (
+    !seasonsForRegion.find(
+      (s: (typeof data.seasons)[number]) => s.id === selectedSeason,
+    )
+  ) {
+    selectedSeason = seasonsForRegion[0]?.id || data.selectedSeasonId;
+  }
+});
 
-	// Navigate when season or region changes (after initial load)
-	$effect(() => {
-		if (!isInitialized) {
-			isInitialized = true;
-			return;
-		}
+// Navigate when season or region changes (after initial load)
+$effect(() => {
+  if (!isInitialized) {
+    isInitialized = true;
+    return;
+  }
 
-		const params = new URLSearchParams();
-		params.set('season', selectedSeason.toString());
-		params.set('region', selectedRegion.toString());
-		goto(`?${params.toString()}`, { keepFocus: true, replaceState: false });
-	});
+  const params = new URLSearchParams();
+  params.set('season', selectedSeason.toString());
+  params.set('region', selectedRegion.toString());
+  goto(`?${params.toString()}`, { keepFocus: true, replaceState: false });
+});
 
-	// Get region abbreviation
-	function getRegionAbbr(regionId: number): string {
-		const region = data.regions.find((r: (typeof data.regions)[number]) => r.id === regionId);
-		if (!region) return 'NA';
-		if (region.name.toLowerCase().includes('north america')) return 'NA';
-		if (region.name.toLowerCase().includes('europe')) return 'EU';
-		if (region.name.toLowerCase().includes('south america')) return 'SA';
-		if (region.name.toLowerCase().includes('australia')) return 'AUS';
-		if (region.name.toLowerCase().includes('asia')) return 'ASIA';
-		return region.name.substring(0, 3).toUpperCase();
-	}
+// Get region abbreviation
+function getRegionAbbr(regionId: number): string {
+  const region = data.regions.find(
+    (r: (typeof data.regions)[number]) => r.id === regionId,
+  );
+  if (!region) return 'NA';
+  if (region.name.toLowerCase().includes('north america')) return 'NA';
+  if (region.name.toLowerCase().includes('europe')) return 'EU';
+  if (region.name.toLowerCase().includes('south america')) return 'SA';
+  if (region.name.toLowerCase().includes('australia')) return 'AUS';
+  if (region.name.toLowerCase().includes('asia')) return 'ASIA';
+  return region.name.substring(0, 3).toUpperCase();
+}
 
-	// Filter regions to only show those with 1v1 seasons
-	const regionsWithSeasons = $derived(
-		data.regions.filter((region: (typeof data.regions)[number]) =>
-			data.seasons.some((s: (typeof data.seasons)[number]) => s.regionId === region.id)
-		)
-	);
+// Filter regions to only show those with 1v1 seasons
+const regionsWithSeasons = $derived(
+  data.regions.filter((region: (typeof data.regions)[number]) =>
+    data.seasons.some(
+      (s: (typeof data.seasons)[number]) => s.regionId === region.id,
+    ),
+  ),
+);
 </script>
 
 <div class="min-h-screen pb-16">

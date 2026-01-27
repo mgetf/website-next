@@ -1,222 +1,243 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { page } from '$app/stores';
-	import type { PageData, ActionData } from './$types';
+import { enhance } from '$app/forms';
+import { page } from '$app/stores';
+import type { PageData, ActionData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let showDisputeForm = $state(false);
-	let showRescheduleForm = $state(false);
-	let showDemoUploadModal = $state(false);
-	let showDemoReportModal = $state(false);
-	let selectedDemoForReport = $state<any>(null);
-	let messageContent = $state('');
-	let scoreSubmitError = $state<string | null>(null);
-	let scoreSubmitSuccess = $state(false);
-	let isSubmittingScore = $state(false);
-	let isSubmittingMessage = $state(false);
-	let isUploadingDemo = $state(false);
-	let isReportingDemo = $state(false);
-	
-	// Demo upload state
-	let selectedDemoFile = $state<File | null>(null);
-	let demoUploadError = $state<string | null>(null);
-	let demoUploadProgress = $state<string>('Preparing upload...');
+let showDisputeForm = $state(false);
+let showRescheduleForm = $state(false);
+let showDemoUploadModal = $state(false);
+let showDemoReportModal = $state(false);
+let selectedDemoForReport = $state<any>(null);
+let messageContent = $state('');
+let scoreSubmitError = $state<string | null>(null);
+let scoreSubmitSuccess = $state(false);
+let isSubmittingScore = $state(false);
+let isSubmittingMessage = $state(false);
+let isUploadingDemo = $state(false);
+let isReportingDemo = $state(false);
 
-	// Score submission state - track scores as user types
-	let gameScores = $state<{ home: number | null; away: number | null }[]>([]);
-	
-	// Initialize gameScores when match changes
-	$effect(() => {
-		const boSeries = data.match.boSeries || 3;
-		if (gameScores.length !== boSeries) {
-			gameScores = Array(boSeries).fill(null).map(() => ({ home: null, away: null }));
-		}
-	});
-	
-	// Calculate games won by each team based on current scores
-	const gamesWonByTeam = $derived(() => {
-		let homeWins = 0;
-		let awayWins = 0;
-		
-		for (const game of gameScores) {
-			if (game.home !== null && game.away !== null) {
-				if (game.home > game.away) homeWins++;
-				else if (game.away > game.home) awayWins++;
-			}
-		}
-		
-		return { home: homeWins, away: awayWins };
-	});
-	
-	// Calculate how many games needed to win the series
-	const gamesToWin = $derived(Math.ceil((data.match.boSeries || 3) / 2));
-	
-	// Determine if the match is already decided (one team has enough wins)
-	const matchDecided = $derived(() => {
-		const wins = gamesWonByTeam();
-		return wins.home >= gamesToWin || wins.away >= gamesToWin;
-	});
-	
-	// Determine which game number the match was decided at (first game where a team reached winning threshold)
-	const matchDecidedAtGame = $derived(() => {
-		let homeWins = 0;
-		let awayWins = 0;
-		
-		for (let i = 0; i < gameScores.length; i++) {
-			const game = gameScores[i];
-			if (game.home !== null && game.away !== null) {
-				if (game.home > game.away) homeWins++;
-				else if (game.away > game.home) awayWins++;
-				
-				if (homeWins >= gamesToWin || awayWins >= gamesToWin) {
-					return i; // Return the index where match was decided
-				}
-			}
-		}
-		
-		return null; // Match not yet decided
-	});
-	
-	// Check if a specific game should be disabled
-	// A game is disabled if:
-	// 1. The match is already decided before this game, OR
-	// 2. Any previous game hasn't been filled yet (enforce sequential order)
-	const isGameDisabled = (gameIndex: number) => {
-		// Check if match was decided before this game
-		const decidedAt = matchDecidedAtGame();
-		if (decidedAt !== null && gameIndex > decidedAt) {
-			return true;
-		}
-		
-		// Check if all previous games are filled (enforce order)
-		for (let i = 0; i < gameIndex; i++) {
-			const prevGame = gameScores[i];
-			if (prevGame?.home === null || prevGame?.away === null) {
-				return true; // Previous game not filled, disable this one
-			}
-		}
-		
-		return false;
-	};
+// Demo upload state
+let selectedDemoFile = $state<File | null>(null);
+let demoUploadError = $state<string | null>(null);
+let demoUploadProgress = $state<string>('Preparing upload...');
 
-	const match = $derived(data.match);
-	const isUnplayed = $derived(match.status === 'UNPLAYED');
-	const isPlayed = $derived(match.status === 'PLAYED');
-	const isDisputed = $derived(match.status === 'DISPUTE');
+// Score submission state - track scores as user types
+let gameScores = $state<{ home: number | null; away: number | null }[]>([]);
 
-	// Helper to get participant name (player name for 1v1, team name for 2v2)
-	const getHomeName = () => match.is1v1 && match.homePlayer ? match.homePlayer.steamUsername : match.homeTeam.name;
-	const getAwayName = () => match.is1v1 && match.awayPlayer ? match.awayPlayer.steamUsername : match.awayTeam.name;
-	
-	// Get unique arenas with full data (id, name, avatar)
-	const matchArenas = $derived(() => {
-		const seen = new Set<number>();
-		return match.games
-			.filter(g => g.arena && !seen.has(g.arena.id) && seen.add(g.arena.id))
-			.map(g => g.arena!);
-	});
-	
-	const canSubmitScores = $derived(
-		isUnplayed && (data.permissions.isHomeOwner || data.permissions.isAwayOwner || data.permissions.isAdmin)
-	);
+// Initialize gameScores when match changes
+$effect(() => {
+  const boSeries = data.match.boSeries || 3;
+  if (gameScores.length !== boSeries) {
+    gameScores = Array(boSeries)
+      .fill(null)
+      .map(() => ({ home: null, away: null }));
+  }
+});
 
-	const canDispute = $derived(
-		data.canDispute && (data.permissions.isHomeOwner || data.permissions.isAwayOwner)
-	);
+// Calculate games won by each team based on current scores
+const gamesWonByTeam = $derived(() => {
+  let homeWins = 0;
+  let awayWins = 0;
 
-	const getStatusBadge = (status: string) => {
-		if (status === 'UNPLAYED') return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-		if (status === 'PLAYED') return 'bg-green-500/20 text-green-300 border border-green-500/30';
-		if (status === 'DISPUTE') return 'bg-red-500/20 text-red-300 border border-red-500/30';
-		return 'bg-zinc-800 text-gray-300 border border-zinc-700';
-	};
+  for (const game of gameScores) {
+    if (game.home !== null && game.away !== null) {
+      if (game.home > game.away) homeWins++;
+      else if (game.away > game.home) awayWins++;
+    }
+  }
 
-	const getStatusLabel = (status: string) => {
-		if (status === 'UNPLAYED') return 'Unplayed';
-		if (status === 'PLAYED') return 'Played';
-		if (status === 'DISPUTE') return 'Disputed';
-		return 'Unknown';
-	};
+  return { home: homeWins, away: awayWins };
+});
 
-	// Map ban/pick state
-	const mapBanActive = $derived(
-		data.mapBanStatus && !data.mapBanStatus.isComplete && isUnplayed
-	);
-	const isUserTurn = $derived(() => {
-		if (!mapBanActive || !data.mapBanStatus) return false;
-		const currentTurn = data.mapBanStatus.matchMapBan.currentTurn;
-		const expectedTeamId = currentTurn === 0 ? match.homeTeamId : match.awayTeamId;
-		
-		if (data.permissions.isHomeOwner && expectedTeamId === match.homeTeamId) return true;
-		if (data.permissions.isAwayOwner && expectedTeamId === match.awayTeamId) return true;
-		return false;
-	});
+// Calculate how many games needed to win the series
+const gamesToWin = $derived(Math.ceil((data.match.boSeries || 3) / 2));
 
-	// Demo modal functions
-	const openDemoUploadModal = () => {
-		showDemoUploadModal = true;
-		selectedDemoFile = null;
-		demoUploadError = null;
-		demoUploadProgress = 'Preparing upload...';
-	};
+// Determine if the match is already decided (one team has enough wins)
+const matchDecided = $derived(() => {
+  const wins = gamesWonByTeam();
+  return wins.home >= gamesToWin || wins.away >= gamesToWin;
+});
 
-	const closeDemoUploadModal = () => {
-		showDemoUploadModal = false;
-		selectedDemoFile = null;
-		demoUploadError = null;
-	};
+// Determine which game number the match was decided at (first game where a team reached winning threshold)
+const matchDecidedAtGame = $derived(() => {
+  let homeWins = 0;
+  let awayWins = 0;
 
-	const handleDemoFileSelect = (event: Event) => {
-		const input = event.target as HTMLInputElement;
-		const file = input.files?.[0] || null;
-		selectedDemoFile = file;
-		demoUploadError = null;
-		
-		// Client-side validation
-		if (file) {
-			const maxSize = 200 * 1024 * 1024; // 200MB
-			if (file.size > maxSize) {
-				demoUploadError = `File too large (${formatFileSize(file.size)}). Maximum size is 200MB.`;
-				selectedDemoFile = null;
-				input.value = '';
-			} else if (!file.name.toLowerCase().endsWith('.dem')) {
-				demoUploadError = 'Invalid file type. Only .dem files are allowed.';
-				selectedDemoFile = null;
-				input.value = '';
-			}
-		}
-	};
+  for (let i = 0; i < gameScores.length; i++) {
+    const game = gameScores[i];
+    if (game.home !== null && game.away !== null) {
+      if (game.home > game.away) homeWins++;
+      else if (game.away > game.home) awayWins++;
 
-	const formatFileSize = (bytes: number): string => {
-		if (bytes < 1024) return bytes + ' B';
-		if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-		return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-	};
+      if (homeWins >= gamesToWin || awayWins >= gamesToWin) {
+        return i; // Return the index where match was decided
+      }
+    }
+  }
 
-	const openDemoReportModal = (demo: any) => {
-		selectedDemoForReport = demo;
-		showDemoReportModal = true;
-	};
+  return null; // Match not yet decided
+});
 
-	const closeDemoReportModal = () => {
-		showDemoReportModal = false;
-		selectedDemoForReport = null;
-	};
+// Check if a specific game should be disabled
+// A game is disabled if:
+// 1. The match is already decided before this game, OR
+// 2. Any previous game hasn't been filled yet (enforce sequential order)
+const isGameDisabled = (gameIndex: number) => {
+  // Check if match was decided before this game
+  const decidedAt = matchDecidedAtGame();
+  if (decidedAt !== null && gameIndex > decidedAt) {
+    return true;
+  }
 
-	const getDemoReportStatusBadge = (status: string) => {
-		if (status === 'REVIEW') return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-		if (status === 'ACTION') return 'bg-green-500/20 text-green-300 border border-green-500/30';
-		if (status === 'CLEAR') return 'bg-red-500/20 text-red-300 border border-red-500/30';
-		return 'bg-zinc-800 text-gray-300 border border-zinc-700';
-	};
+  // Check if all previous games are filled (enforce order)
+  for (let i = 0; i < gameIndex; i++) {
+    const prevGame = gameScores[i];
+    if (prevGame?.home === null || prevGame?.away === null) {
+      return true; // Previous game not filled, disable this one
+    }
+  }
 
-	const getDemoReportStatusLabel = (status: string) => {
-		if (status === 'REVIEW') return 'Pending Review';
-		if (status === 'ACTION') return 'Reviewed';
-		if (status === 'CLEAR') return 'Rejected';
-		return status;
-	};
+  return false;
+};
+
+const match = $derived(data.match);
+const isUnplayed = $derived(match.status === 'UNPLAYED');
+const isPlayed = $derived(match.status === 'PLAYED');
+const isDisputed = $derived(match.status === 'DISPUTE');
+
+// Helper to get participant name (player name for 1v1, team name for 2v2)
+const getHomeName = () =>
+  match.is1v1 && match.homePlayer
+    ? match.homePlayer.steamUsername
+    : match.homeTeam.name;
+const getAwayName = () =>
+  match.is1v1 && match.awayPlayer
+    ? match.awayPlayer.steamUsername
+    : match.awayTeam.name;
+
+// Get unique arenas with full data (id, name, avatar)
+const matchArenas = $derived(() => {
+  const seen = new Set<number>();
+  return match.games
+    .filter((g) => g.arena && !seen.has(g.arena.id) && seen.add(g.arena.id))
+    .map((g) => g.arena!);
+});
+
+const canSubmitScores = $derived(
+  isUnplayed &&
+    (data.permissions.isHomeOwner ||
+      data.permissions.isAwayOwner ||
+      data.permissions.isAdmin),
+);
+
+const canDispute = $derived(
+  data.canDispute &&
+    (data.permissions.isHomeOwner || data.permissions.isAwayOwner),
+);
+
+const getStatusBadge = (status: string) => {
+  if (status === 'UNPLAYED')
+    return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+  if (status === 'PLAYED')
+    return 'bg-green-500/20 text-green-300 border border-green-500/30';
+  if (status === 'DISPUTE')
+    return 'bg-red-500/20 text-red-300 border border-red-500/30';
+  return 'bg-zinc-800 text-gray-300 border border-zinc-700';
+};
+
+const getStatusLabel = (status: string) => {
+  if (status === 'UNPLAYED') return 'Unplayed';
+  if (status === 'PLAYED') return 'Played';
+  if (status === 'DISPUTE') return 'Disputed';
+  return 'Unknown';
+};
+
+// Map ban/pick state
+const mapBanActive = $derived(
+  data.mapBanStatus && !data.mapBanStatus.isComplete && isUnplayed,
+);
+const isUserTurn = $derived(() => {
+  if (!mapBanActive || !data.mapBanStatus) return false;
+  const currentTurn = data.mapBanStatus.matchMapBan.currentTurn;
+  const expectedTeamId =
+    currentTurn === 0 ? match.homeTeamId : match.awayTeamId;
+
+  if (data.permissions.isHomeOwner && expectedTeamId === match.homeTeamId)
+    return true;
+  if (data.permissions.isAwayOwner && expectedTeamId === match.awayTeamId)
+    return true;
+  return false;
+});
+
+// Demo modal functions
+const openDemoUploadModal = () => {
+  showDemoUploadModal = true;
+  selectedDemoFile = null;
+  demoUploadError = null;
+  demoUploadProgress = 'Preparing upload...';
+};
+
+const closeDemoUploadModal = () => {
+  showDemoUploadModal = false;
+  selectedDemoFile = null;
+  demoUploadError = null;
+};
+
+const handleDemoFileSelect = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0] || null;
+  selectedDemoFile = file;
+  demoUploadError = null;
+
+  // Client-side validation
+  if (file) {
+    const maxSize = 200 * 1024 * 1024; // 200MB
+    if (file.size > maxSize) {
+      demoUploadError = `File too large (${formatFileSize(file.size)}). Maximum size is 200MB.`;
+      selectedDemoFile = null;
+      input.value = '';
+    } else if (!file.name.toLowerCase().endsWith('.dem')) {
+      demoUploadError = 'Invalid file type. Only .dem files are allowed.';
+      selectedDemoFile = null;
+      input.value = '';
+    }
+  }
+};
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
+const openDemoReportModal = (demo: any) => {
+  selectedDemoForReport = demo;
+  showDemoReportModal = true;
+};
+
+const closeDemoReportModal = () => {
+  showDemoReportModal = false;
+  selectedDemoForReport = null;
+};
+
+const getDemoReportStatusBadge = (status: string) => {
+  if (status === 'REVIEW')
+    return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+  if (status === 'ACTION')
+    return 'bg-green-500/20 text-green-300 border border-green-500/30';
+  if (status === 'CLEAR')
+    return 'bg-red-500/20 text-red-300 border border-red-500/30';
+  return 'bg-zinc-800 text-gray-300 border border-zinc-700';
+};
+
+const getDemoReportStatusLabel = (status: string) => {
+  if (status === 'REVIEW') return 'Pending Review';
+  if (status === 'ACTION') return 'Reviewed';
+  if (status === 'CLEAR') return 'Rejected';
+  return status;
+};
 </script>
 
 <div class="container mx-auto px-4 py-8 max-w-7xl">

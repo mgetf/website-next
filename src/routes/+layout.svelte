@@ -1,29 +1,29 @@
 <script lang="ts">
-	import '../app.css';
-	import type { LayoutData } from './$types';
-	import Navigation from '$lib/components/layout/Navigation.svelte';
-	import AnnouncementBanner from '$lib/components/layout/AnnouncementBanner.svelte';
-	import LoadingBar from '$lib/components/layout/LoadingBar.svelte';
-	import { identifyUser } from '$lib/utils/posthog';
-	import { onMount } from 'svelte';
-	import { afterNavigate } from '$app/navigation';
+import '../app.css';
+import type { LayoutData } from './$types';
+import Navigation from '$lib/components/layout/Navigation.svelte';
+import AnnouncementBanner from '$lib/components/layout/AnnouncementBanner.svelte';
+import LoadingBar from '$lib/components/layout/LoadingBar.svelte';
+import { identifyUser } from '$lib/utils/posthog';
+import { onMount } from 'svelte';
+import { afterNavigate } from '$app/navigation';
 
-	let { data, children }: { data: LayoutData; children: any } = $props();
-	
-	// Identify user to PostHog when layout mounts
-	onMount(() => {
-		if (data.user) {
-			identifyUser(data.user);
-		}
-	});
+let { data, children }: { data: LayoutData; children: any } = $props();
 
-	// Scroll to top on every navigation
-	afterNavigate(() => {
-		const mainContent = document.getElementById('main-content');
-		if (mainContent) {
-			mainContent.scrollTo({ top: 0, behavior: 'instant' });
-		}
-	});
+// Identify user to PostHog when layout mounts
+onMount(() => {
+  if (data.user) {
+    identifyUser(data.user);
+  }
+});
+
+// Scroll to top on every navigation
+afterNavigate(() => {
+  const mainContent = document.getElementById('main-content');
+  if (mainContent) {
+    mainContent.scrollTo({ top: 0, behavior: 'instant' });
+  }
+});
 </script>
 
 <svelte:head>

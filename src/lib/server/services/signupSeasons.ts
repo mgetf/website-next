@@ -5,11 +5,13 @@ import { prisma } from '$lib/server/db';
  * @param formatId - Optional format ID to filter by (1 = 1v1, 2 = 2v2)
  * @returns Array of season IDs that are currently open for signups
  */
-export async function getCurrentSignupSeasonIds(formatId?: number): Promise<number[]> {
-	const activeSignups = await prisma.activeSignupSeason.findMany({
-		where: formatId ? { formatId } : undefined
-	});
-	return activeSignups.map((a) => a.seasonId);
+export async function getCurrentSignupSeasonIds(
+  formatId?: number,
+): Promise<number[]> {
+  const activeSignups = await prisma.activeSignupSeason.findMany({
+    where: formatId ? { formatId } : undefined,
+  });
+  return activeSignups.map((a) => a.seasonId);
 }
 
 /**
@@ -19,13 +21,13 @@ export async function getCurrentSignupSeasonIds(formatId?: number): Promise<numb
  * @returns Season ID if found, null otherwise
  */
 export async function getSignupSeasonForRegion(
-	regionId: number,
-	formatId: number
+  regionId: number,
+  formatId: number,
 ): Promise<number | null> {
-	const active = await prisma.activeSignupSeason.findUnique({
-		where: { regionId_formatId: { regionId, formatId } }
-	});
-	return active?.seasonId ?? null;
+  const active = await prisma.activeSignupSeason.findUnique({
+    where: { regionId_formatId: { regionId, formatId } },
+  });
+  return active?.seasonId ?? null;
 }
 
 /**
@@ -33,23 +35,23 @@ export async function getSignupSeasonForRegion(
  * Useful for admin panel display
  */
 export async function getAllActiveSignupSeasons() {
-	return prisma.activeSignupSeason.findMany({
-		include: {
-			region: true,
-			format: true,
-			season: {
-				include: {
-					_count: {
-						select: {
-							teams: true,
-							matches: true
-						}
-					}
-				}
-			}
-		},
-		orderBy: [{ regionId: 'asc' }, { formatId: 'asc' }]
-	});
+  return prisma.activeSignupSeason.findMany({
+    include: {
+      region: true,
+      format: true,
+      season: {
+        include: {
+          _count: {
+            select: {
+              teams: true,
+              matches: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [{ regionId: 'asc' }, { formatId: 'asc' }],
+  });
 }
 
 /**
@@ -59,21 +61,21 @@ export async function getAllActiveSignupSeasons() {
  * @param seasonId - Season ID to set, or null to clear
  */
 export async function setActiveSignupSeason(
-	regionId: number,
-	formatId: number,
-	seasonId: number | null
+  regionId: number,
+  formatId: number,
+  seasonId: number | null,
 ): Promise<void> {
-	if (seasonId === null) {
-		// Delete the entry if seasonId is null
-		await prisma.activeSignupSeason.deleteMany({
-			where: { regionId, formatId }
-		});
-	} else {
-		// Upsert the entry
-		await prisma.activeSignupSeason.upsert({
-			where: { regionId_formatId: { regionId, formatId } },
-			create: { regionId, formatId, seasonId },
-			update: { seasonId }
-		});
-	}
+  if (seasonId === null) {
+    // Delete the entry if seasonId is null
+    await prisma.activeSignupSeason.deleteMany({
+      where: { regionId, formatId },
+    });
+  } else {
+    // Upsert the entry
+    await prisma.activeSignupSeason.upsert({
+      where: { regionId_formatId: { regionId, formatId } },
+      create: { regionId, formatId, seasonId },
+      update: { seasonId },
+    });
+  }
 }

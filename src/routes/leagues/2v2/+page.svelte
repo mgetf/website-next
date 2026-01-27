@@ -1,92 +1,107 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+import { goto } from '$app/navigation';
 
-	interface PageData {
-		seasons: Array<{ id: number; name: string; seasonNum: number; regionId: number }>;
-		regions: Array<{ id: number; name: string }>;
-		selectedSeasonId: number;
-		selectedRegionId: number;
-		selectedRegionName: string;
-		selectedSeasonNum: number;
-		teamsByDivision: Array<{
-			division: { id: number; name: string };
-			teams: Array<{
-				id: number;
-				name: string;
-				wins: number;
-				losses: number;
-				points: number;
-			}>;
-		}>;
-		staffByDivision: Array<{
-			division: { id: number; name: string };
-			staff: Array<{
-				steamId: string;
-				name: string;
-				avatar: string | null;
-				role: string;
-			}>;
-		}>;
-		deadlines: {
-			signupClosed: boolean;
-			rosterLocked: boolean;
-			paymentRequired: boolean;
-		};
-	}
+interface PageData {
+  seasons: Array<{
+    id: number;
+    name: string;
+    seasonNum: number;
+    regionId: number;
+  }>;
+  regions: Array<{ id: number; name: string }>;
+  selectedSeasonId: number;
+  selectedRegionId: number;
+  selectedRegionName: string;
+  selectedSeasonNum: number;
+  teamsByDivision: Array<{
+    division: { id: number; name: string };
+    teams: Array<{
+      id: number;
+      name: string;
+      wins: number;
+      losses: number;
+      points: number;
+    }>;
+  }>;
+  staffByDivision: Array<{
+    division: { id: number; name: string };
+    staff: Array<{
+      steamId: string;
+      name: string;
+      avatar: string | null;
+      role: string;
+    }>;
+  }>;
+  deadlines: {
+    signupClosed: boolean;
+    rosterLocked: boolean;
+    paymentRequired: boolean;
+  };
+}
 
-	let { data } = $props<{ data: PageData }>();
-	
-	// Track selected season and region in state
-	let selectedSeason = $state(data.selectedSeasonId);
-	let selectedRegion = $state(data.selectedRegionId);
-	let isInitialized = $state(false);
+let { data } = $props<{ data: PageData }>();
 
-	// Filter regions to only show those with 2v2 seasons
-	const regionsWithSeasons = $derived(
-		data.regions.filter((region: (typeof data.regions)[number]) =>
-			data.seasons.some((s: (typeof data.seasons)[number]) => s.regionId === region.id)
-		)
-	);
+// Track selected season and region in state
+let selectedSeason = $state(data.selectedSeasonId);
+let selectedRegion = $state(data.selectedRegionId);
+let isInitialized = $state(false);
 
-	// TODO: TEMPORARY WORKAROUND - This auto-switching logic can be removed when schema is refactored
-	// Currently needed because seasons are not unique (Season 1 exists for both NA and EU)
-	// This effect automatically switches to a valid season when the user changes region
-	// to prevent showing empty results (e.g., Season 1 EU when viewing NA region)
-	// Once seasons have unique identifiers, this reactive logic can be simplified or removed
-	$effect(() => {
-		const seasonsForRegion = data.seasons.filter((s: typeof data.seasons[number]) => s.regionId === selectedRegion);
-		// If the current selected season is not in this region, pick the first one
-		if (!seasonsForRegion.find((s: typeof data.seasons[number]) => s.id === selectedSeason)) {
-			selectedSeason = seasonsForRegion[0]?.id || data.selectedSeasonId;
-		}
-	});
-	
-	// Automatically navigate when season or region changes (after initial load)
-	$effect(() => {
-		// Don't navigate on initial load (when component first mounts)
-		if (!isInitialized) {
-			isInitialized = true;
-			return;
-		}
-		
-		// Navigate when either value changes
-		const params = new URLSearchParams();
-		params.set('season', selectedSeason.toString());
-		params.set('region', selectedRegion.toString());
-		goto(`?${params.toString()}`, { keepFocus: true, replaceState: false });
-	});
-	
-	// Get region abbreviation
-	function getRegionAbbr(regionId: number): string {
-		const region = data.regions.find((r: typeof data.regions[number]) => r.id === regionId);
-		if (!region) return 'NA';
-		if (region.name.toLowerCase().includes('north america')) return 'NA';
-		if (region.name.toLowerCase().includes('europe')) return 'EU';
-		if (region.name.toLowerCase().includes('south america')) return 'SA';
-		if (region.name.toLowerCase().includes('australia')) return 'AUS';
-		if (region.name.toLowerCase().includes('asia')) return 'ASIA';
-		return region.name.substring(0, 3).toUpperCase();
-	}
+// Filter regions to only show those with 2v2 seasons
+const regionsWithSeasons = $derived(
+  data.regions.filter((region: (typeof data.regions)[number]) =>
+    data.seasons.some(
+      (s: (typeof data.seasons)[number]) => s.regionId === region.id,
+    ),
+  ),
+);
+
+// TODO: TEMPORARY WORKAROUND - This auto-switching logic can be removed when schema is refactored
+// Currently needed because seasons are not unique (Season 1 exists for both NA and EU)
+// This effect automatically switches to a valid season when the user changes region
+// to prevent showing empty results (e.g., Season 1 EU when viewing NA region)
+// Once seasons have unique identifiers, this reactive logic can be simplified or removed
+$effect(() => {
+  const seasonsForRegion = data.seasons.filter(
+    (s: (typeof data.seasons)[number]) => s.regionId === selectedRegion,
+  );
+  // If the current selected season is not in this region, pick the first one
+  if (
+    !seasonsForRegion.find(
+      (s: (typeof data.seasons)[number]) => s.id === selectedSeason,
+    )
+  ) {
+    selectedSeason = seasonsForRegion[0]?.id || data.selectedSeasonId;
+  }
+});
+
+// Automatically navigate when season or region changes (after initial load)
+$effect(() => {
+  // Don't navigate on initial load (when component first mounts)
+  if (!isInitialized) {
+    isInitialized = true;
+    return;
+  }
+
+  // Navigate when either value changes
+  const params = new URLSearchParams();
+  params.set('season', selectedSeason.toString());
+  params.set('region', selectedRegion.toString());
+  goto(`?${params.toString()}`, { keepFocus: true, replaceState: false });
+});
+
+// Get region abbreviation
+function getRegionAbbr(regionId: number): string {
+  const region = data.regions.find(
+    (r: (typeof data.regions)[number]) => r.id === regionId,
+  );
+  if (!region) return 'NA';
+  if (region.name.toLowerCase().includes('north america')) return 'NA';
+  if (region.name.toLowerCase().includes('europe')) return 'EU';
+  if (region.name.toLowerCase().includes('south america')) return 'SA';
+  if (region.name.toLowerCase().includes('australia')) return 'AUS';
+  if (region.name.toLowerCase().includes('asia')) return 'ASIA';
+  return region.name.substring(0, 3).toUpperCase();
+}
 </script>
 
 <div class="min-h-screen pb-16">

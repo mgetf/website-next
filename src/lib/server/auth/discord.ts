@@ -17,11 +17,11 @@ const DISCORD_USER_ENDPOINT = `${DISCORD_API_BASE}/users/@me`;
  * Discord user data returned from API
  */
 export interface DiscordUser {
-	id: string;
-	username: string;
-	discriminator: string;
-	avatar: string | null;
-	global_name: string | null;
+  id: string;
+  username: string;
+  discriminator: string;
+  avatar: string | null;
+  global_name: string | null;
 }
 
 /**
@@ -29,9 +29,9 @@ export interface DiscordUser {
  * Auto-detects http/https based on host
  */
 export function getDomain(request: Request): string {
-	const host = request.headers.get('host') || 'localhost:5173';
-	const protocol = host.includes('localhost') ? 'http' : 'https';
-	return `${protocol}://${host}`;
+  const host = request.headers.get('host') || 'localhost:5173';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  return `${protocol}://${host}`;
 }
 
 /**
@@ -41,21 +41,23 @@ export function getDomain(request: Request): string {
  * @returns Authorization URL to redirect user to
  */
 export function getDiscordAuthUrl(request: Request, steamId: string): string {
-	const domain = getDomain(request);
-	const redirectUri = `${domain}/auth/discord/callback`;
-	
-	// Encode steamId in state parameter for CSRF protection
-	const state = Buffer.from(JSON.stringify({ steamId, timestamp: Date.now() })).toString('base64');
-	
-	const params = new URLSearchParams({
-		client_id: env.DISCORD_CLIENT_ID || '',
-		redirect_uri: redirectUri,
-		response_type: 'code',
-		scope: 'identify',
-		state
-	});
-	
-	return `${DISCORD_OAUTH_AUTHORIZE}?${params.toString()}`;
+  const domain = getDomain(request);
+  const redirectUri = `${domain}/auth/discord/callback`;
+
+  // Encode steamId in state parameter for CSRF protection
+  const state = Buffer.from(
+    JSON.stringify({ steamId, timestamp: Date.now() }),
+  ).toString('base64');
+
+  const params = new URLSearchParams({
+    client_id: env.DISCORD_CLIENT_ID || '',
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'identify',
+    state,
+  });
+
+  return `${DISCORD_OAUTH_AUTHORIZE}?${params.toString()}`;
 }
 
 /**
@@ -66,72 +68,72 @@ export function getDiscordAuthUrl(request: Request, steamId: string): string {
  * @returns Discord user data and steamId from state
  */
 export async function handleDiscordCallback(
-	code: string,
-	state: string,
-	request: Request
+  code: string,
+  state: string,
+  request: Request,
 ): Promise<{ user: DiscordUser; steamId: string }> {
-	// Decode and validate state parameter
-	let stateData: { steamId: string; timestamp: number };
-	try {
-		stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
-	} catch (error) {
-		throw new Error('Invalid state parameter');
-	}
+  // Decode and validate state parameter
+  let stateData: { steamId: string; timestamp: number };
+  try {
+    stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+  } catch (error) {
+    throw new Error('Invalid state parameter');
+  }
 
-	// Check if state is not too old (5 minutes)
-	const stateAge = Date.now() - stateData.timestamp;
-	if (stateAge > 5 * 60 * 1000) {
-		throw new Error('State parameter expired');
-	}
+  // Check if state is not too old (5 minutes)
+  const stateAge = Date.now() - stateData.timestamp;
+  if (stateAge > 5 * 60 * 1000) {
+    throw new Error('State parameter expired');
+  }
 
-	// Exchange code for access token
-	const domain = getDomain(request);
-	const redirectUri = `${domain}/auth/discord/callback`;
-	
-	const tokenParams = new URLSearchParams({
-		client_id: env.DISCORD_CLIENT_ID || '',
-		client_secret: env.DISCORD_CLIENT_SECRET || '',
-		grant_type: 'authorization_code',
-		code,
-		redirect_uri: redirectUri
-	});
+  // Exchange code for access token
+  const domain = getDomain(request);
+  const redirectUri = `${domain}/auth/discord/callback`;
 
-	const tokenResponse = await fetch(DISCORD_OAUTH_TOKEN, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded'
-		},
-		body: tokenParams.toString()
-	});
+  const tokenParams = new URLSearchParams({
+    client_id: env.DISCORD_CLIENT_ID || '',
+    client_secret: env.DISCORD_CLIENT_SECRET || '',
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: redirectUri,
+  });
 
-	if (!tokenResponse.ok) {
-		const errorText = await tokenResponse.text();
-		console.error('Discord token exchange failed:', errorText);
-		throw new Error('Failed to exchange Discord authorization code');
-	}
+  const tokenResponse = await fetch(DISCORD_OAUTH_TOKEN, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: tokenParams.toString(),
+  });
 
-	const tokenData = await tokenResponse.json();
-	const accessToken = tokenData.access_token;
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    console.error('Discord token exchange failed:', errorText);
+    throw new Error('Failed to exchange Discord authorization code');
+  }
 
-	// Fetch user data
-	const userResponse = await fetch(DISCORD_USER_ENDPOINT, {
-		headers: {
-			Authorization: `Bearer ${accessToken}`
-		}
-	});
+  const tokenData = await tokenResponse.json();
+  const accessToken = tokenData.access_token;
 
-	if (!userResponse.ok) {
-		const errorText = await userResponse.text();
-		console.error('Discord user fetch failed:', errorText);
-		throw new Error('Failed to fetch Discord user data');
-	}
+  // Fetch user data
+  const userResponse = await fetch(DISCORD_USER_ENDPOINT, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
-	const user: DiscordUser = await userResponse.json();
+  if (!userResponse.ok) {
+    const errorText = await userResponse.text();
+    console.error('Discord user fetch failed:', errorText);
+    throw new Error('Failed to fetch Discord user data');
+  }
 
-	return {
-		user,
-		steamId: stateData.steamId
-	};
+  const user: DiscordUser = await userResponse.json();
+
+  return {
+    user,
+    steamId: stateData.steamId,
+  };
 }
 
 /**
@@ -139,18 +141,18 @@ export async function handleDiscordCallback(
  * Uses global_name if available, otherwise username#discriminator (legacy) or just username
  */
 export function formatDiscordUsername(user: DiscordUser): string {
-	// Prefer global_name (new Discord display names)
-	if (user.global_name) {
-		return user.global_name;
-	}
-	
-	// Legacy format with discriminator (if not #0)
-	if (user.discriminator && user.discriminator !== '0') {
-		return `${user.username}#${user.discriminator}`;
-	}
-	
-	// New format without discriminator
-	return user.username;
+  // Prefer global_name (new Discord display names)
+  if (user.global_name) {
+    return user.global_name;
+  }
+
+  // Legacy format with discriminator (if not #0)
+  if (user.discriminator && user.discriminator !== '0') {
+    return `${user.username}#${user.discriminator}`;
+  }
+
+  // New format without discriminator
+  return user.username;
 }
 
 /**
@@ -158,10 +160,9 @@ export function formatDiscordUsername(user: DiscordUser): string {
  * Returns null if user has no custom avatar
  */
 export function getDiscordAvatarUrl(user: DiscordUser): string | null {
-	if (!user.avatar) {
-		return null;
-	}
-	
-	return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
-}
+  if (!user.avatar) {
+    return null;
+  }
 
+  return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
+}

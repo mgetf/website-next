@@ -1,59 +1,67 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { PageData } from './$types';
-	import BarChart from '$lib/components/charts/BarChart.svelte';
-	import DoughnutChart from '$lib/components/charts/DoughnutChart.svelte';
+import { enhance } from '$app/forms';
+import type { PageData } from './$types';
+import BarChart from '$lib/components/charts/BarChart.svelte';
+import DoughnutChart from '$lib/components/charts/DoughnutChart.svelte';
 
-	let { data }: { data: PageData } = $props();
+let { data }: { data: PageData } = $props();
 
-	const analytics = $derived(data.analytics);
-	const pendingPlayers = $derived(data.pendingPlayers);
-	const recentMatches = $derived(data.recentMatches);
-	const matchDeadline = $derived(data.matchDeadline ? new Date(data.matchDeadline) : null);
-	const currentMatchWeek = $derived(data.currentMatchWeek);
+const analytics = $derived(data.analytics);
+const pendingPlayers = $derived(data.pendingPlayers);
+const recentMatches = $derived(data.recentMatches);
+const matchDeadline = $derived(
+  data.matchDeadline ? new Date(data.matchDeadline) : null,
+);
+const currentMatchWeek = $derived(data.currentMatchWeek);
 
-	let isSubmitting = $state(false);
-	let decliningPlayerId = $state<string | null>(null);
-	let declineReasons = $state<Record<string, string>>({});
+let isSubmitting = $state(false);
+let decliningPlayerId = $state<string | null>(null);
+let declineReasons = $state<Record<string, string>>({});
 
-	// Calculate time remaining until deadline
-	const deadlineInfo = $derived(() => {
-		if (!matchDeadline) return null;
-		
-		const now = new Date();
-		const diff = matchDeadline.getTime() - now.getTime();
-		const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-		const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-		
-		let status: 'green' | 'yellow' | 'red';
-		let timeText: string;
-		
-		if (diff < 0) {
-			status = 'red';
-			const overdueDays = Math.abs(days);
-			const overdueHours = Math.abs(hours);
-			timeText = overdueDays > 0 ? `${overdueDays} day${overdueDays !== 1 ? 's' : ''} overdue` : `${overdueHours} hour${overdueHours !== 1 ? 's' : ''} overdue`;
-		} else if (days < 1) {
-			status = 'red';
-			timeText = hours > 0 ? `${hours} hour${hours !== 1 ? 's' : ''} remaining` : 'Due now';
-		} else if (days <= 3) {
-			status = 'yellow';
-			timeText = `${days} day${days !== 1 ? 's' : ''} remaining`;
-		} else {
-			status = 'green';
-			timeText = `${days} day${days !== 1 ? 's' : ''} remaining`;
-		}
-		
-		const formattedDate = matchDeadline.toLocaleDateString('en-US', { 
-			weekday: 'long', 
-			month: 'short', 
-			day: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
-		});
-		
-		return { status, timeText, formattedDate };
-	});
+// Calculate time remaining until deadline
+const deadlineInfo = $derived(() => {
+  if (!matchDeadline) return null;
+
+  const now = new Date();
+  const diff = matchDeadline.getTime() - now.getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+  let status: 'green' | 'yellow' | 'red';
+  let timeText: string;
+
+  if (diff < 0) {
+    status = 'red';
+    const overdueDays = Math.abs(days);
+    const overdueHours = Math.abs(hours);
+    timeText =
+      overdueDays > 0
+        ? `${overdueDays} day${overdueDays !== 1 ? 's' : ''} overdue`
+        : `${overdueHours} hour${overdueHours !== 1 ? 's' : ''} overdue`;
+  } else if (days < 1) {
+    status = 'red';
+    timeText =
+      hours > 0
+        ? `${hours} hour${hours !== 1 ? 's' : ''} remaining`
+        : 'Due now';
+  } else if (days <= 3) {
+    status = 'yellow';
+    timeText = `${days} day${days !== 1 ? 's' : ''} remaining`;
+  } else {
+    status = 'green';
+    timeText = `${days} day${days !== 1 ? 's' : ''} remaining`;
+  }
+
+  const formattedDate = matchDeadline.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+  return { status, timeText, formattedDate };
+});
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">

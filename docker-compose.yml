@@ -8,6 +8,12 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       
+      # Application Environment (production | staging | development)
+      # - production: Live site (mge.tf) - Full public access
+      # - staging: Dev site (dev.mge.tf) - Admin-only access
+      # - development: Local development
+      APP_ENVIRONMENT: production
+      
       # Database
       DATABASE_URL: # TODO: Add PostgreSQL connection string (postgresql://user:password@host:port/database)
       

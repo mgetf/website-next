@@ -4,6 +4,7 @@ import type { LayoutData } from './$types';
 import Navigation from '$lib/components/layout/Navigation.svelte';
 import AnnouncementBanner from '$lib/components/layout/AnnouncementBanner.svelte';
 import LoadingBar from '$lib/components/layout/LoadingBar.svelte';
+import DevGate from '$lib/components/layout/DevGate.svelte';
 import { identifyUser } from '$lib/utils/posthog';
 import { onMount } from 'svelte';
 import { afterNavigate } from '$app/navigation';
@@ -36,30 +37,44 @@ afterNavigate(() => {
 	{/if}
 </svelte:head>
 
-<div class="subpixel-antialiased flex flex-col h-full overflow-hidden bg-zinc-950 text-gray-200">
-	<LoadingBar />
-	
-	<div class="flex flex-col flex-grow overflow-hidden w-full mx-auto">
-		<div class="flex flex-col h-full w-full mx-auto">
-			<Navigation 
-				user={data.user} 
-				notifications={data.notifications} 
-				notificationCount={data.notificationCount}
-				signupClosed={data.signupClosed}
-				isInTeam={data.isInTeam}
-				userTeam={data.userTeam}
-			/>
-			
-		{#if data.announcements.length > 0}
-			<AnnouncementBanner announcements={data.announcements} />
+<!-- Dev/Staging Gate: Show restricted access page for non-admins -->
+{#if data.devGated}
+	<DevGate user={data.user} />
+{:else}
+	<div class="subpixel-antialiased flex flex-col h-full overflow-hidden bg-zinc-950 text-gray-200">
+		<LoadingBar />
+		
+		<!-- Environment indicator banner for staging (shown to admins) -->
+		{#if data.appEnvironment === 'staging'}
+			<div class="bg-amber-500/20 border-b border-amber-500/50 px-4 py-1.5 text-center">
+				<span class="text-amber-400 text-sm font-medium">
+					⚠️ Development Environment — Changes here are not live
+				</span>
+			</div>
 		{/if}
-			
-			<div id="main-content" class="flex-grow overflow-y-auto bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
-				{@render children()}
+		
+		<div class="flex flex-col flex-grow overflow-hidden w-full mx-auto">
+			<div class="flex flex-col h-full w-full mx-auto">
+				<Navigation 
+					user={data.user} 
+					notifications={data.notifications} 
+					notificationCount={data.notificationCount}
+					signupClosed={data.signupClosed}
+					isInTeam={data.isInTeam}
+					userTeam={data.userTeam}
+				/>
+				
+			{#if data.announcements.length > 0}
+				<AnnouncementBanner announcements={data.announcements} />
+			{/if}
+				
+				<div id="main-content" class="flex-grow overflow-y-auto bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
+					{@render children()}
+				</div>
 			</div>
 		</div>
 	</div>
-</div>
+{/if}
 
 <style>
 	:global(html) {

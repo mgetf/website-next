@@ -1,11 +1,14 @@
 /**
  * SvelteKit Server Hooks
- * Handles session management, security headers, and makes user data available to all routes
+ * Handles session management, security headers, dev environment gating,
+ * and makes user data available to all routes
  */
 
 import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/session';
 import { dev } from '$app/environment';
+import { isStaging, isUngatedRoute, getAppEnvironment } from '$lib/server/utils/environment';
+import { isAdmin } from '$lib/server/auth/permissions';
 
 export const handle: Handle = async ({ event, resolve }) => {
   // Get user session from cookies
@@ -13,6 +16,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Make user available in locals for all server-side code
   event.locals.user = user;
+
+  // Store environment info for layouts/pages
+  event.locals.appEnvironment = getAppEnvironment();
+
+  // ===== DEV/STAGING ENVIRONMENT GATE =====
+  // In staging environment, only admins can access the site
+  // Non-admins see only a login page
+  if (isStaging() && !isUngatedRoute(event.url.pathname)) {
+    if (!isAdmin(user)) {
+      // Return early with a minimal response that will be handled by the layout
+      // The layout will show the DevGate component
+      event.locals.devGated = true;
+    }
+  }
 
   // Continue with request
   const response = await resolve(event);

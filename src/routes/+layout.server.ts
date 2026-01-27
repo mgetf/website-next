@@ -1,6 +1,6 @@
 /**
  * Root Layout Server Load
- * Provides session data, announcements, and notifications to all pages
+ * Provides session data, announcements, notifications, and environment info to all pages
  */
 
 import type { LayoutServerLoad } from './$types';
@@ -11,6 +11,26 @@ import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 import { getSiteSettings } from '$lib/server/services/siteSettings';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
+  // If site is dev-gated (staging mode, non-admin user), return minimal data
+  if (locals.devGated) {
+    return {
+      user: locals.user || null,
+      devGated: true,
+      appEnvironment: locals.appEnvironment,
+      // Provide empty defaults for other fields
+      announcements: [],
+      notificationCount: 0,
+      notifications: [],
+      signupClosed: true,
+      isInTeam: false,
+      userTeam: null,
+      siteSettings: {
+        siteTitle: 'MGE.tf Dev',
+        faviconPath: null,
+      },
+    };
+  }
+
   // Check if any active signup season has signups open
   const [anySignupsOpen, siteSettings] = await Promise.all([
     hasAnySignupsOpen(),
@@ -38,6 +58,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
   return {
     user: locals.user || null,
+    devGated: false,
+    appEnvironment: locals.appEnvironment,
     announcements,
     notificationCount,
     notifications,

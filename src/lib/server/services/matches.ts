@@ -10,6 +10,10 @@ import { UserRole, type SessionUser } from '$lib/types/user';
 import { error } from '@sveltejs/kit';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import {
+  createNotificationForTeamOwners,
+  createNotificationForAdmins,
+} from './notifications';
 
 /**
  * Get complete match details with all relations
@@ -458,8 +462,30 @@ export async function submitMatchScores(
     },
   });
 
-  // TODO: Create notification for opposing team about score submission (F19)
-  // TODO: If reschedule was canceled, notify requesting team (F19)
+  // Determine which team the submitter is on to notify the opposing team
+  const submitterTeam = await prisma.playerInTeam.findFirst({
+    where: {
+      playerSteamId: submittedBy,
+      teamId: { in: [match.homeTeamId, match.awayTeamId] },
+      active: 1,
+    },
+  });
+
+  if (submitterTeam) {
+    const opposingTeamId =
+      submitterTeam.teamId === match.homeTeamId
+        ? match.awayTeamId
+        : match.homeTeamId;
+
+    // Notify opposing team about score submission
+    await createNotificationForTeamOwners(
+      [opposingTeamId],
+      'MATCH_COMM',
+      `/matches/${matchId}`,
+      `Score submitted: ${winnerScore}-${loserScore}`,
+      submittedBy,
+    );
+  }
 
   return { winnerId, winnerScore, loserScore };
 }
@@ -515,5 +541,36 @@ export async function disputeMatch(
     },
   });
 
-  // TODO: Notify admins and opposing team of dispute (F19)
+  // Notify admins about the dispute
+  await createNotificationForAdmins(
+    'MATCH_COMM',
+    `/matches/${matchId}`,
+    `Match disputed: ${reason.substring(0, 50)}${reason.length > 50 ? '...' : ''}`,
+    disputedBy,
+  );
+
+  // Determine which team the disputer is on to notify the opposing team
+  const disputerTeam = await prisma.playerInTeam.findFirst({
+    where: {
+      playerSteamId: disputedBy,
+      teamId: { in: [match.homeTeamId, match.awayTeamId] },
+      active: 1,
+    },
+  });
+
+  if (disputerTeam) {
+    const opposingTeamId =
+      disputerTeam.teamId === match.homeTeamId
+        ? match.awayTeamId
+        : match.homeTeamId;
+
+    // Notify opposing team about the dispute
+    await createNotificationForTeamOwners(
+      [opposingTeamId],
+      'MATCH_COMM',
+      `/matches/${matchId}`,
+      'Match has been disputed',
+      disputedBy,
+    );
+  }
 }

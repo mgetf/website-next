@@ -11,6 +11,7 @@ import {
   calculateWinLossRatio,
   calculatePointsPerGame,
 } from '$lib/server/utils/matchHelpers';
+import { createNotificationForTeamOwners } from './notifications';
 
 /**
  * Sort teams by standings
@@ -181,12 +182,10 @@ export async function createMatchSet(
   const paymentRequired = season?.paymentRequired ?? false;
 
   // Build conditions for team selection
-  // NOTE: We intentionally do NOT filter by seasonId here, matching getEligibleTeams() behavior.
-  // Teams may not have seasonId updated immediately when registered, and teams can
-  // participate in matches across seasons. The seasonId is stored on the MATCH, not used for filtering.
   const conditions: any = {
     regionId,
     divisionId,
+    seasonId,
     status: TeamStatus.READY,
   };
 
@@ -275,7 +274,13 @@ Good luck to both teams!`,
       });
     }
 
-    // TODO: Send notifications to team owners (F19)
+    // Send notifications to team owners
+    await createNotificationForTeamOwners(
+      [homeTeam.id, awayTeam.id],
+      'MATCH_CREATED',
+      `/matches/${match.id}`,
+      `New match scheduled for Week ${weekNo}`,
+    );
 
     matches.push(match);
   }
@@ -390,21 +395,21 @@ Good luck to both teams!`,
     });
   }
 
-  // TODO: Send notifications to team owners (F19)
+  // Send notifications to team owners
+  const roundLabel = playoffRound > 0 ? `Round ${playoffRound}` : `Lower Round ${Math.abs(playoffRound)}`;
+  await createNotificationForTeamOwners(
+    [homeTeamId, awayTeamId],
+    'MATCH_CREATED',
+    `/matches/${match.id}`,
+    `New playoff match scheduled: ${roundLabel}`,
+  );
 
   return match;
 }
 
 /**
  * Get teams eligible for match creation
- *
- * NOTE: We intentionally do NOT filter by seasonId here, matching v1 behavior.
- * This is because:
- * - Teams may not have seasonId updated immediately when registered
- * - Teams can participate in matches across seasons
- * - The seasonId on teams serves a different purpose than match eligibility
- *
- * Instead, we filter by region, division, and READY status.
+ * Filters by region, division, season, and READY status.
  */
 export async function getEligibleTeams(
   regionId: number,
@@ -421,6 +426,7 @@ export async function getEligibleTeams(
   const conditions: any = {
     regionId,
     divisionId,
+    seasonId,
     status: TeamStatus.READY,
   };
 

@@ -291,7 +291,11 @@ export const actions: Actions = {
     try {
       await submitMatchScores(matchId, gameResults, locals.user.steamId);
 
-      await createNotificationForMatch(matchId, locals.user.steamId);
+      await createNotificationForMatch(
+        matchId,
+        'Match scores have been submitted',
+        locals.user.steamId,
+      );
 
       return { success: true, message: 'Scores submitted successfully' };
     } catch (err: any) {
@@ -326,7 +330,11 @@ export const actions: Actions = {
     try {
       await disputeMatch(matchId, reason, locals.user.steamId);
 
-      await createNotificationForMatch(matchId, locals.user.steamId);
+      await createNotificationForMatch(
+        matchId,
+        'Match has been disputed',
+        locals.user.steamId,
+      );
 
       return { success: true, message: 'Dispute filed successfully' };
     } catch (err: any) {
@@ -361,7 +369,11 @@ export const actions: Actions = {
     try {
       await createMatchComm(matchId, locals.user.steamId, content);
 
-      await createNotificationForMatch(matchId, locals.user.steamId);
+      await createNotificationForMatch(
+        matchId,
+        `New comment: "${content.substring(0, 40)}${content.length > 40 ? '...' : ''}"`,
+        locals.user.steamId,
+      );
 
       return { success: true };
     } catch (err: any) {
@@ -405,12 +417,22 @@ export const actions: Actions = {
 
     try {
       const utcDateTime = new Date(proposedDateTime + 'Z').toISOString();
+      const formattedDate = new Date(utcDateTime).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
 
       await createMatchComm(matchId, locals.user.steamId, '', {
         proposedDateTime: utcDateTime,
       });
 
-      await createNotificationForMatch(matchId, locals.user.steamId);
+      await createNotificationForMatch(
+        matchId,
+        `Reschedule proposed for ${formattedDate}`,
+        locals.user.steamId,
+      );
 
       return { success: true, message: 'Reschedule request sent' };
     } catch (err: any) {
@@ -451,7 +473,11 @@ export const actions: Actions = {
     try {
       await updateRescheduleStatus(commId, response, locals.user.steamId);
 
-      await createNotificationForMatch(matchId, locals.user.steamId);
+      await createNotificationForMatch(
+        matchId,
+        `Reschedule ${response}ed`,
+        locals.user.steamId,
+      );
 
       return {
         success: true,
@@ -518,7 +544,12 @@ export const actions: Actions = {
         actionType,
       );
 
-      await createNotificationForMatch(matchId, locals.user.steamId);
+      const actionLabel = actionType === 'BAN' ? 'banned' : 'picked';
+      await createNotificationForMatch(
+        matchId,
+        `Map ${actionLabel}`,
+        locals.user.steamId,
+      );
 
       return { success: true };
     } catch (err: any) {

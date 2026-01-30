@@ -68,6 +68,8 @@ enum PaymentStatus {
 enum NotificationType {
   MATCH_COMM // 0
   PENDING_PLAYER // 1
+  MATCH_CREATED // 2
+  PLAYER_INVITE // 3
 }
 
 enum MapBanActionType {
@@ -251,7 +253,8 @@ model User {
   demoReportsSubmitted     DemoReport[]              @relation("DemoReporter")
   demoReportsHandled       DemoReport[]              @relation("DemoReportAdmin")
   mapBanActions            MapBanAction[]
-  notifications            Notification[]
+  notificationsReceived    Notification[]            @relation("NotificationRecipient")
+  notificationsTriggered   Notification[]            @relation("NotificationActor")
   fightNightPlayer1        FightNightMatchup[]       @relation("FightNightPlayer1")
   fightNightPlayer2        FightNightMatchup[]       @relation("FightNightPlayer2")
   fightNightWinner         FightNightMatchup[]       @relation("FightNightWinner")
@@ -746,14 +749,17 @@ model MapBanAction {
 }
 
 model Notification {
-  id          Int              @id @default(autoincrement())
-  userSteamId String?          @map("user_steam_id")
-  type        NotificationType
-  url         String
-  isRead      Boolean          @default(false) @map("is_read")
-  createdAt   DateTime         @default(now()) @map("created_at")
+  id           Int              @id @default(autoincrement())
+  userSteamId  String?          @map("user_steam_id")
+  type         NotificationType
+  url          String
+  message      String?
+  actorSteamId String?          @map("actor_steam_id")
+  isRead       Boolean          @default(false) @map("is_read")
+  createdAt    DateTime         @default(now()) @map("created_at")
 
-  user User? @relation(fields: [userSteamId], references: [steamId])
+  user  User? @relation("NotificationRecipient", fields: [userSteamId], references: [steamId])
+  actor User? @relation("NotificationActor", fields: [actorSteamId], references: [steamId])
 
   @@map("notifications")
 }

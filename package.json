@@ -18,14 +18,14 @@
     "@sveltejs/adapter-node": "^5.5.2",
     "@sveltejs/kit": "^2.50.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
-    "@types/node": "^24.10.9",
-    "@typescript/native-preview": "^7.0.0-dev.20260127.1",
+    "@types/node": "^25.1.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260130.1",
     "brackets-model": "^1.6.0",
     "dotenv": "^17.2.3",
     "prisma": "^7.3.0",
-    "svelte": "^5.48.3",
+    "svelte": "^5.49.1",
     "svelte-check": "^4.3.5",
-    "typescript": "^7.0.0-dev.20260127.1",
+    "typescript": "^7.0.0-dev.20260130.1",
     "vite": "^7.3.1"
   },
   "overrides": {
@@ -39,7 +39,7 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.975.0",
+    "@aws-sdk/client-s3": "^3.978.0",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@tailwindcss/vite": "^4.1.18",
@@ -48,7 +48,6 @@
     "fuse.js": "^7.1.0",
     "jsonwebtoken": "^9.0.3",
     "marked": "^17.0.1",
-    "mongodb": "^6.21.0",
     "node-steam-openid": "^2.0.0",
     "svelte-exmarkdown": "^5.0.2",
     "tailwindcss": "^4.1.18",

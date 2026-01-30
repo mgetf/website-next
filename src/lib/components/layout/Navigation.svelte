@@ -115,7 +115,7 @@ function toggleMobileMenu() {
 				{:else}
 					<div class="flex items-center gap-3">
 						<UserDropdown {user} {userTeam} />
-						<NotificationDropdown {notifications} {notificationCount} />
+						<NotificationDropdown {notifications} userSteamId={user.steamId} />
 					</div>
 				{/if}
 				

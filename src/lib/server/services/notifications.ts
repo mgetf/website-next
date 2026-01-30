@@ -8,13 +8,22 @@ import { prisma } from '$lib/server/db';
 import type { NotificationType } from '$prisma/client.js';
 
 /**
- * Get all unread notifications for a user
+ * Get all unread notifications for a user (with actor info)
  */
 export async function getUnreadNotifications(userSteamId: string) {
   return await prisma.notification.findMany({
     where: {
       userSteamId,
       isRead: false,
+    },
+    include: {
+      actor: {
+        select: {
+          steamId: true,
+          steamUsername: true,
+          steamAvatar: true,
+        },
+      },
     },
     orderBy: {
       createdAt: 'desc',
@@ -24,18 +33,74 @@ export async function getUnreadNotifications(userSteamId: string) {
 }
 
 /**
- * Get all notifications for a user (with optional limit)
+ * Get notifications for dropdown (unread + recent read, max 10)
  */
-export async function getAllNotifications(userSteamId: string, limit = 50) {
+export async function getNotificationsForDropdown(userSteamId: string) {
   return await prisma.notification.findMany({
     where: {
       userSteamId,
     },
+    include: {
+      actor: {
+        select: {
+          steamId: true,
+          steamUsername: true,
+          steamAvatar: true,
+        },
+      },
+    },
+    orderBy: [
+      { isRead: 'asc' }, // Unread first
+      { createdAt: 'desc' },
+    ],
+    take: 10,
+  });
+}
+
+/**
+ * Get all notifications for a user (with optional limit and pagination)
+ * Used for the full notifications page
+ */
+export async function getAllNotifications(
+  userSteamId: string,
+  limit = 50,
+  offset = 0,
+) {
+  return await prisma.notification.findMany({
+    where: {
+      userSteamId,
+    },
+    include: {
+      actor: {
+        select: {
+          steamId: true,
+          steamUsername: true,
+          steamAvatar: true,
+        },
+      },
+    },
     orderBy: {
       createdAt: 'desc',
     },
+    skip: offset,
     take: limit,
   });
+}
+
+/**
+ * Get notification counts for a user
+ */
+export async function getNotificationCounts(userSteamId: string) {
+  const [unreadCount, totalCount] = await Promise.all([
+    prisma.notification.count({
+      where: { userSteamId, isRead: false },
+    }),
+    prisma.notification.count({
+      where: { userSteamId },
+    }),
+  ]);
+
+  return { unreadCount, totalCount };
 }
 
 /**
@@ -101,7 +166,8 @@ export async function deleteNotification(
  */
 export async function createNotificationForMatch(
   matchId: number,
-  excludeUserSteamId?: string,
+  message: string,
+  actorSteamId?: string,
 ) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
@@ -129,11 +195,13 @@ export async function createNotificationForMatch(
   });
 
   const notificationsToInsert = teamPlayers
-    .filter((player) => player.playerSteamId !== excludeUserSteamId)
+    .filter((player) => player.playerSteamId !== actorSteamId)
     .map((player) => ({
       userSteamId: player.playerSteamId,
       type: 'MATCH_COMM' as NotificationType,
       url: `/matches/${matchId}`,
+      message,
+      actorSteamId: actorSteamId || null,
       isRead: false,
     }));
 
@@ -150,7 +218,8 @@ export async function createNotificationForMatch(
  */
 export async function createNotificationForTeam(
   teamId: number,
-  excludeUserSteamId?: string,
+  message: string,
+  actorSteamId?: string,
 ) {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
@@ -172,11 +241,115 @@ export async function createNotificationForTeam(
   });
 
   const notificationsToInsert = teamPlayers
-    .filter((player) => player.playerSteamId !== excludeUserSteamId)
+    .filter((player) => player.playerSteamId !== actorSteamId)
     .map((player) => ({
       userSteamId: player.playerSteamId,
       type: 'PENDING_PLAYER' as NotificationType,
       url: `/teams/${teamId}`,
+      message,
+      actorSteamId: actorSteamId || null,
+      isRead: false,
+    }));
+
+  if (notificationsToInsert.length > 0) {
+    await prisma.notification.createMany({
+      data: notificationsToInsert,
+    });
+  }
+}
+
+/**
+ * Create notifications for team owners/admins only (permissionLevel >= 1)
+ * Used for match creation, score submissions, etc.
+ */
+export async function createNotificationForTeamOwners(
+  teamIds: number[],
+  type: NotificationType,
+  url: string,
+  message: string,
+  actorSteamId?: string,
+) {
+  const teamOwners = await prisma.playerInTeam.findMany({
+    where: {
+      teamId: { in: teamIds },
+      active: 1,
+      permissionLevel: { gte: 1 }, // 1 = Admin, 2 = Owner
+    },
+    select: {
+      playerSteamId: true,
+    },
+  });
+
+  const uniqueSteamIds = [...new Set(teamOwners.map((p) => p.playerSteamId))];
+
+  const notificationsToInsert = uniqueSteamIds
+    .filter((steamId) => steamId !== actorSteamId)
+    .map((steamId) => ({
+      userSteamId: steamId,
+      type,
+      url,
+      message,
+      actorSteamId: actorSteamId || null,
+      isRead: false,
+    }));
+
+  if (notificationsToInsert.length > 0) {
+    await prisma.notification.createMany({
+      data: notificationsToInsert,
+    });
+  }
+}
+
+/**
+ * Create a notification for a single user
+ * Used for player invitations, etc.
+ */
+export async function createNotificationForUser(
+  steamId: string,
+  type: NotificationType,
+  url: string,
+  message: string,
+  actorSteamId?: string,
+) {
+  await prisma.notification.create({
+    data: {
+      userSteamId: steamId,
+      type,
+      url,
+      message,
+      actorSteamId: actorSteamId || null,
+      isRead: false,
+    },
+  });
+}
+
+/**
+ * Create notifications for all site admins
+ * Used for disputes, important escalations, etc.
+ */
+export async function createNotificationForAdmins(
+  type: NotificationType,
+  url: string,
+  message: string,
+  actorSteamId?: string,
+) {
+  const admins = await prisma.user.findMany({
+    where: {
+      permissionLevel: 'ADMIN',
+    },
+    select: {
+      steamId: true,
+    },
+  });
+
+  const notificationsToInsert = admins
+    .filter((admin) => admin.steamId !== actorSteamId)
+    .map((admin) => ({
+      userSteamId: admin.steamId,
+      type,
+      url,
+      message,
+      actorSteamId: actorSteamId || null,
       isRead: false,
     }));
 

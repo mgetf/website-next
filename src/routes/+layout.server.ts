@@ -6,7 +6,7 @@
 import type { LayoutServerLoad } from './$types';
 import { hasAnySignupsOpen } from '$lib/server/services/settings';
 import { getUserActiveTeam } from '$lib/server/services/users';
-import { getUnreadNotifications } from '$lib/server/services/notifications';
+import { getNotificationsForDropdown } from '$lib/server/services/notifications';
 import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 import { getSiteSettings } from '$lib/server/services/siteSettings';
 
@@ -49,8 +49,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     userTeam = await getUserActiveTeam(locals.user.steamId);
     isInTeam = !!userTeam;
 
-    notifications = await getUnreadNotifications(locals.user.steamId);
-    notificationCount = notifications.length;
+    notifications = await getNotificationsForDropdown(locals.user.steamId);
+    notificationCount = notifications.filter((n: any) => !n.isRead).length;
   }
 
   // Load visible announcements for site-wide display

@@ -14,6 +14,7 @@ import {
 import path from 'path';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { createNotificationForUser } from './notifications';
 
 interface TeamEditData {
   team: any;
@@ -332,6 +333,7 @@ export async function demotePlayer(
 export async function invitePlayerBySteamId(
   teamId: number,
   steamId: string,
+  inviterSteamId?: string,
 ): Promise<void> {
   // Check if user exists
   const user = await prisma.user.findUnique({
@@ -341,6 +343,12 @@ export async function invitePlayerBySteamId(
   if (!user) {
     throw error(404, 'User with this Steam ID not found');
   }
+
+  // Get team name for notification
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { name: true },
+  });
 
   // Check if already in team
   const existingMember = await prisma.playerInTeam.findUnique({
@@ -379,7 +387,14 @@ export async function invitePlayerBySteamId(
     },
   });
 
-  // TODO: Send notification to player
+  // Send notification to invited player
+  await createNotificationForUser(
+    steamId,
+    'PLAYER_INVITE',
+    `/teams/${teamId}`,
+    `You've been invited to join ${team?.name || 'a team'}`,
+    inviterSteamId,
+  );
 }
 
 /**

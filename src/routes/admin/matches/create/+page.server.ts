@@ -402,7 +402,7 @@ export const actions: Actions = {
         );
       }
 
-      // TODO: Send notifications to all team owners (F19)
+      // Note: Notifications are sent to team owners inside createMatchSet/createPlayoffMatch
 
       // Redirect to matches list with success message
       throw redirect(303, `/admin/matches?created=${matches.length}`);

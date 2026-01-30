@@ -96,7 +96,11 @@ export const actions: Actions = {
     try {
       await requestJoinByPassword(teamId, locals.user.steamId, password);
 
-      await createNotificationForTeam(teamId, locals.user.steamId);
+      await createNotificationForTeam(
+        teamId,
+        `${locals.user.steamUsername} wants to join your team`,
+        locals.user.steamId,
+      );
 
       // Redirect to team page with success message
       throw redirect(303, `/teams/${teamId}?joined=pending`);

@@ -26,6 +26,7 @@ let showPreview = $state(false);
 
 // Loading state
 let isCreating = $state(false);
+let isPreviewing = $state(false);
 
 // Computed values
 const selectedSeason = $derived(
@@ -98,6 +99,8 @@ let previewTeams = $state<any[]>([]);
 
 // Handle preview form submission
 const handlePreviewEnhance = () => {
+  isPreviewing = true;
+
   return async ({ result, update }: any) => {
     if (result.type === 'success' && result.data && 'preview' in result.data) {
       const preview = (result.data as any).preview;
@@ -119,6 +122,8 @@ const handlePreviewEnhance = () => {
     } else if (result.type === 'failure') {
       alert(`Error: ${result.data?.error || 'Failed to preview matches'}`);
     }
+    
+    isPreviewing = false;
     // Don't call update() - prevents form reset
   };
 };
@@ -387,10 +392,10 @@ function onRegionChange() {
 				<!-- Preview Button -->
 				<button
 					type="submit"
-					disabled={!canPreview}
+					disabled={!canPreview || isPreviewing}
 					class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
 				>
-					Preview Match Set
+					{isPreviewing ? 'Loading Preview...' : 'Preview Match Set'}
 				</button>
 			</div>
 		</form>

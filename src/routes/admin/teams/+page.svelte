@@ -3,6 +3,7 @@ import type { PageData, ActionData } from './$types';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { enhance } from '$app/forms';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -13,12 +14,21 @@ let isSubmitting = $state(false);
 let isDisbanding = $state(false);
 let isRestoring = $state(false);
 
-// TODO: TEMPORARY WORKAROUND - Remove this filtering logic when schema is refactored
-// This filters seasons by selected region to avoid showing duplicate "Season 1" options
-// from different regions in the dropdown (e.g., Season 1 NA and Season 1 EU both show as "Season 1")
-//
-// Once schema is fixed to have unique season names/identifiers, this client-side
-// filtering should be removed and all seasons can be shown without confusion
+const columns = [
+	{ key: 'team', label: 'Team' },
+	{ key: 'season', label: 'Season' },
+	{ key: 'division', label: 'Division' },
+	{ key: 'region', label: 'Region' },
+	{ key: 'record', label: 'Record' },
+	{ key: 'status', label: 'Status' },
+	{ key: 'payment', label: 'Payment' },
+	{ key: 'actions', label: 'Actions', align: 'right' as const }
+];
+
+const paginationInfo = $derived(
+	`Showing ${((data.pagination.page - 1) * data.pagination.pageSize) + 1} to ${Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalTeams)} of ${data.pagination.totalTeams} teams`
+);
+
 const filteredSeasons = $derived(() => {
   if (data.filters.region === 'all') {
     return data.seasons;
@@ -27,32 +37,24 @@ const filteredSeasons = $derived(() => {
   return data.seasons.filter((s) => s.regionId === regionId);
 });
 
-// Build filter URL
 function updateFilters(updates: Record<string, string>) {
   const params = new URLSearchParams(page.url.searchParams);
 
-  // TODO: TEMPORARY WORKAROUND - Remove this auto-reset logic when schema is refactored
-  // This automatically clears the season filter when switching regions to prevent selecting
-  // a Season 1 from NA when viewing EU teams (since both regions have a "Season 1")
-  // Once seasons have unique identifiers/names, this logic should be removed
   if (updates.region !== undefined) {
     const newRegionId =
       updates.region === 'all' ? null : parseInt(updates.region);
     const currentSeasonId = params.get('season');
 
-    // If there's a season selected, check if it belongs to the new region
     if (currentSeasonId && currentSeasonId !== 'all' && newRegionId) {
       const currentSeason = data.seasons.find(
         (s) => s.id === parseInt(currentSeasonId),
       );
       if (currentSeason && currentSeason.regionId !== newRegionId) {
-        // Season doesn't match new region, reset it
         params.delete('season');
       }
     }
   }
 
-  // Update/remove parameters
   Object.entries(updates).forEach(([key, value]) => {
     if (value && value !== 'all' && value !== '') {
       params.set(key, value);
@@ -61,7 +63,6 @@ function updateFilters(updates: Record<string, string>) {
     }
   });
 
-  // Reset to page 1 when filters change
   if (!updates.page) {
     params.delete('page');
   }
@@ -69,7 +70,6 @@ function updateFilters(updates: Record<string, string>) {
   goto(`?${params.toString()}`, { keepFocus: true, replaceState: true });
 }
 
-// Status mapping (TeamStatus enum from Prisma)
 const statusNames: Record<string, string> = {
   UNREADY: 'Unready',
   PENDING: 'Pending',
@@ -77,7 +77,6 @@ const statusNames: Record<string, string> = {
   DEAD: 'Dead',
 };
 
-// Payment status mapping
 const paymentNames: Record<number, string> = {
   0: 'Unpaid',
   1: 'Paid',
@@ -97,12 +96,10 @@ function getPaymentColor(payment: number) {
   return 'bg-red-500/20 text-red-400';
 }
 
-// Pagination
 function goToPage(pageNum: number) {
   updateFilters({ page: pageNum.toString() });
 }
 
-// Modal functions
 function openEditModal(team: (typeof data.teams)[0]) {
   editingTeam = { ...team };
 }
@@ -111,7 +108,6 @@ function closeEditModal() {
   editingTeam = null;
 }
 
-// Status to integer mapping for form
 const statusToInt: Record<string, number> = {
   DEAD: -1,
   UNREADY: 0,
@@ -119,44 +115,6 @@ const statusToInt: Record<string, number> = {
   READY: 2,
   PLACEMENT: 3,
 };
-
-// Generate page numbers for pagination
-const pageNumbers = $derived(() => {
-  const { page, totalPages } = data.pagination;
-  const pages: (number | string)[] = [];
-
-  if (totalPages <= 7) {
-    // Show all pages if 7 or fewer
-    for (let i = 1; i <= totalPages; i++) {
-      pages.push(i);
-    }
-  } else {
-    // Always show first page
-    pages.push(1);
-
-    if (page > 3) {
-      pages.push('...');
-    }
-
-    // Show pages around current page
-    for (
-      let i = Math.max(2, page - 1);
-      i <= Math.min(totalPages - 1, page + 1);
-      i++
-    ) {
-      pages.push(i);
-    }
-
-    if (page < totalPages - 2) {
-      pages.push('...');
-    }
-
-    // Always show last page
-    pages.push(totalPages);
-  }
-
-  return pages;
-});
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
@@ -185,9 +143,6 @@ const pageNumbers = $derived(() => {
 			/>
 			
 			<!-- Season Filter -->
-			<!-- TODO: TEMPORARY WORKAROUND - Remove region name from display when schema is refactored -->
-			<!-- Currently showing "Season 1 (North America)" to disambiguate from "Season 1 (Europe)" -->
-			<!-- Once seasons have unique names, display can be simplified to just the season name -->
 			<select
 				name="season"
 				value={data.filters.season}
@@ -254,170 +209,95 @@ const pageNumbers = $derived(() => {
 	</div>
 	
 	<!-- Teams Table -->
-	<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-		<div class="overflow-x-auto">
-			<table class="w-full">
-				<thead class="bg-zinc-950 border-b border-zinc-800">
-					<tr>
-						<th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Team</th>
-						<th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Season</th>
-						<th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Division</th>
-						<th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Region</th>
-						<th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Record</th>
-						<th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Status</th>
-						<th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">Payment</th>
-						<th class="px-6 py-4 text-right text-sm font-semibold text-gray-300">Actions</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-zinc-800">
-					{#each data.teams as team}
-						<tr class="hover:bg-zinc-800/50 transition-colors">
-							<td class="px-6 py-4">
-								<div class="flex items-center gap-3">
-									{#if team.avatar}
-										<img src={team.avatar} alt={team.name} class="w-8 h-8 rounded" />
-									{:else}
-										<div class="w-8 h-8 bg-zinc-700 rounded flex items-center justify-center text-xs font-bold text-gray-400">
-											{team.acronym?.slice(0, 2) || team.name.slice(0, 2).toUpperCase()}
-										</div>
-									{/if}
-									<div>
-										<a href="/teams/{team.id}" class="text-white font-medium hover:text-orange-400">
-											{team.name}
-										</a>
-										<p class="text-sm text-gray-400">{team.acronym}</p>
-									</div>
-								</div>
-							</td>
-							<td class="px-6 py-4 text-gray-300">
-								{#if team.season}
-									S{team.season.seasonNum}
-								{:else}
-									<span class="text-gray-500">—</span>
-								{/if}
-							</td>
-							<td class="px-6 py-4 text-gray-300">
-								{team.division?.name || '—'}
-							</td>
-							<td class="px-6 py-4 text-gray-300">
-								{team.region?.name || '—'}
-							</td>
-							<td class="px-6 py-4 text-white font-mono">{team.record}</td>
-							<td class="px-6 py-4">
-								<span class="px-2 py-1 rounded text-xs font-medium {getStatusColor(team.status)}">
-									{statusNames[team.status]}
-								</span>
-							</td>
-							<td class="px-6 py-4">
-								<span class="px-2 py-1 rounded text-xs font-medium {getPaymentColor(team.paymentStatus)}">
-									{paymentNames[team.paymentStatus]}
-								</span>
-							</td>
-							<td class="px-6 py-4">
-								<div class="flex items-center justify-end gap-2">
-									{#if team.formatId !== 1}
-										<!-- Only show Manage Team for non-1v1 teams (1v1 teams redirect to player profile) -->
-										<a 
-											href="/teams/{team.id}"
-											class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-sm transition-colors"
-											title="View team page with full management access (roster, status, deletion)"
-										>
-											Manage Team
-										</a>
-									{/if}
-									<button 
-										onclick={() => openEditModal(team)}
-										class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors"
-										title="Quick edit team metadata"
-									>
-										Quick Edit
-									</button>
-									{#if team.status !== 'DEAD'}
-										<button 
-											type="button"
-											class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
-											title={team.formatId === 1 ? "Withdraw player from 1v1 league" : "Disband team (mark as dead and remove all players)"}
-											onclick={() => disbandingTeam = team}
-										>
-											{team.formatId === 1 ? 'Withdraw' : 'Disband'}
-										</button>
-									{:else if team.formatId === 1}
-										<!-- Show Restore button for withdrawn 1v1 entries -->
-										<button 
-											type="button"
-											class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-sm transition-colors"
-											title="Restore player to 1v1 league"
-											onclick={() => restoringTeam = team}
-										>
-											Restore
-										</button>
-									{/if}
-								</div>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-		
-		{#if data.teams.length === 0}
-			<div class="py-12 text-center">
-				<p class="text-gray-400">No teams found matching your filters</p>
-			</div>
-		{/if}
-	</div>
-	
-	<!-- Pagination -->
-	{#if data.pagination.totalPages > 1}
-		<div class="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-			<div class="text-sm text-gray-400">
-				Showing {((data.pagination.page - 1) * data.pagination.pageSize) + 1} to {Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalTeams)} of {data.pagination.totalTeams} teams
-			</div>
-			
-			<div class="flex items-center gap-2">
-				<!-- Previous Button -->
-				<button
-					onclick={() => goToPage(data.pagination.page - 1)}
-					disabled={data.pagination.page === 1}
-					class="px-3 py-1 bg-zinc-800 text-gray-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-				>
-					← Previous
-				</button>
-				
-				<!-- Page Numbers -->
-				{#each pageNumbers() as pageNum}
-					{#if pageNum === '...'}
-						<span class="px-2 text-gray-500">...</span>
+	<DataTable
+		data={data.teams}
+		{columns}
+		emptyMessage="No teams found matching your filters"
+		pagination={{
+			currentPage: data.pagination.page,
+			totalPages: data.pagination.totalPages,
+			onPageChange: goToPage,
+			infoText: paginationInfo
+		}}
+	>
+		{#snippet cell(team, col)}
+			{#if col.key === 'team'}
+				<div class="flex items-center gap-3">
+					{#if team.avatar}
+						<img src={team.avatar} alt={team.name} class="w-8 h-8 rounded" />
 					{:else}
-						<button
-							onclick={() => goToPage(pageNum as number)}
-							class="px-3 py-1 rounded transition-colors {
-								pageNum === data.pagination.page
-									? 'bg-orange-500 text-white font-medium'
-									: 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
-							}"
+						<div class="w-8 h-8 bg-zinc-700 rounded flex items-center justify-center text-xs font-bold text-gray-400">
+							{team.acronym?.slice(0, 2) || team.name.slice(0, 2).toUpperCase()}
+						</div>
+					{/if}
+					<div>
+						<a href="/teams/{team.id}" class="text-white font-medium hover:text-orange-400">
+							{team.name}
+						</a>
+						<p class="text-sm text-gray-400">{team.acronym}</p>
+					</div>
+				</div>
+			{:else if col.key === 'season'}
+				{#if team.season}
+					<span class="text-gray-300">S{team.season.seasonNum}</span>
+				{:else}
+					<span class="text-gray-500">—</span>
+				{/if}
+			{:else if col.key === 'division'}
+				<span class="text-gray-300">{team.division?.name || '—'}</span>
+			{:else if col.key === 'region'}
+				<span class="text-gray-300">{team.region?.name || '—'}</span>
+			{:else if col.key === 'record'}
+				<span class="text-white font-mono">{team.record}</span>
+			{:else if col.key === 'status'}
+				<span class="px-2 py-1 rounded text-xs font-medium {getStatusColor(team.status)}">
+					{statusNames[team.status]}
+				</span>
+			{:else if col.key === 'payment'}
+				<span class="px-2 py-1 rounded text-xs font-medium {getPaymentColor(team.paymentStatus)}">
+					{paymentNames[team.paymentStatus]}
+				</span>
+			{:else if col.key === 'actions'}
+				<div class="flex items-center justify-end gap-2">
+					{#if team.formatId !== 1}
+						<a 
+							href="/teams/{team.id}"
+							class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-sm transition-colors"
+							title="View team page with full management access (roster, status, deletion)"
 						>
-							{pageNum}
+							Manage Team
+						</a>
+					{/if}
+					<button 
+						onclick={() => openEditModal(team)}
+						class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors"
+						title="Quick edit team metadata"
+					>
+						Quick Edit
+					</button>
+					{#if team.status !== 'DEAD'}
+						<button 
+							type="button"
+							class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
+							title={team.formatId === 1 ? "Withdraw player from 1v1 league" : "Disband team (mark as dead and remove all players)"}
+							onclick={() => disbandingTeam = team}
+						>
+							{team.formatId === 1 ? 'Withdraw' : 'Disband'}
+						</button>
+					{:else if team.formatId === 1}
+						<button 
+							type="button"
+							class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-sm transition-colors"
+							title="Restore player to 1v1 league"
+							onclick={() => restoringTeam = team}
+						>
+							Restore
 						</button>
 					{/if}
-				{/each}
-				
-				<!-- Next Button -->
-				<button
-					onclick={() => goToPage(data.pagination.page + 1)}
-					disabled={data.pagination.page === data.pagination.totalPages}
-					class="px-3 py-1 bg-zinc-800 text-gray-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-				>
-					Next →
-				</button>
-			</div>
-		</div>
-	{:else}
-		<!-- Summary (when no pagination needed) -->
-		<div class="text-sm text-gray-400">
-			Showing {data.teams.length} of {data.pagination.totalTeams} teams
-		</div>
-	{/if}
+				</div>
+			{/if}
+		{/snippet}
+	</DataTable>
 	
 	<!-- Success/Error Messages -->
 	{#if form?.success && form?.message}
@@ -503,7 +383,6 @@ const pageNumbers = $derived(() => {
 					</div>
 					
 					{#if editingTeam.formatId !== 1}
-						<!-- Hide acronym field for 1v1 entries -->
 						<div class="md:col-span-2">
 							<label for="edit-acronym" class="block text-sm font-medium text-gray-300 mb-2">Acronym</label>
 							<input
@@ -518,7 +397,6 @@ const pageNumbers = $derived(() => {
 					
 					<div>
 						<label for="edit-seasonId" class="block text-sm font-medium text-gray-300 mb-2">Season</label>
-						<!-- TODO: TEMPORARY WORKAROUND - Remove region name from display when schema is refactored -->
 						<select
 							id="edit-seasonId"
 							name="seasonId"
@@ -565,8 +443,6 @@ const pageNumbers = $derived(() => {
 					</div>
 					
 				{#if editingTeam.formatId === 1}
-					<!-- 1v1 entries only have 2 states: READY or DEAD -->
-					<!-- Show a simple toggle instead of a dropdown -->
 					<div>
 						<span class="block text-sm font-medium text-gray-300 mb-2">Status</span>
 						<div class="flex items-center gap-3">
@@ -585,7 +461,6 @@ const pageNumbers = $derived(() => {
 								{editingTeam.status === 'READY' ? 'Withdraw' : 'Restore'}
 							</button>
 						</div>
-						<!-- Hidden input to submit the status value -->
 						<input type="hidden" name="status" value={statusToInt[editingTeam.status]} />
 					</div>
 				{:else}

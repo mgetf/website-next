@@ -3,6 +3,7 @@ import type { PageData, ActionData } from './$types';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { enhance } from '$app/forms';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -10,11 +11,21 @@ let editingUser: (typeof data.users)[0] | null = $state(null);
 let banningUser: (typeof data.users)[0] | null = $state(null);
 let isSubmitting = $state(false);
 
-// Build filter URL
+const columns = [
+	{ key: 'user', label: 'User' },
+	{ key: 'discord', label: 'Discord' },
+	{ key: 'role', label: 'Role' },
+	{ key: 'status', label: 'Status' },
+	{ key: 'actions', label: 'Actions', align: 'right' as const }
+];
+
+const paginationInfo = $derived(
+	`Showing ${((data.pagination.page - 1) * data.pagination.pageSize) + 1} to ${Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalUsers)} of ${data.pagination.totalUsers} users`
+);
+
 function updateFilters(updates: Record<string, string>) {
   const params = new URLSearchParams(page.url.searchParams);
 
-  // Update/remove parameters
   Object.entries(updates).forEach(([key, value]) => {
     if (value && value !== 'all' && value !== '') {
       params.set(key, value);
@@ -23,7 +34,6 @@ function updateFilters(updates: Record<string, string>) {
     }
   });
 
-  // Reset to page 1 when filters change
   if (!updates.page) {
     params.delete('page');
   }
@@ -31,7 +41,6 @@ function updateFilters(updates: Record<string, string>) {
   goto(`?${params.toString()}`, { keepFocus: true, replaceState: true });
 }
 
-// Permission level names
 const permissionNames: Record<string, string> = {
   GUEST: 'Guest',
   USER: 'User',
@@ -39,7 +48,6 @@ const permissionNames: Record<string, string> = {
   ADMIN: 'Admin',
 };
 
-// Ban status names
 const banStatusNames: Record<string, string> = {
   NONE: 'None',
   WARNING: 'Warning',
@@ -61,12 +69,10 @@ function getBanStatusColor(status: string) {
   return 'bg-green-500/20 text-green-400';
 }
 
-// Pagination
 function goToPage(pageNum: number) {
   updateFilters({ page: pageNum.toString() });
 }
 
-// Modal functions
 function openEditModal(user: (typeof data.users)[0]) {
   editingUser = { ...user };
 }
@@ -82,44 +88,6 @@ function openBanModal(user: (typeof data.users)[0]) {
 function closeBanModal() {
   banningUser = null;
 }
-
-// Generate page numbers for pagination
-const pageNumbers = $derived(() => {
-  const { page, totalPages } = data.pagination;
-  const pages: (number | string)[] = [];
-
-  if (totalPages <= 7) {
-    // Show all pages if 7 or fewer
-    for (let i = 1; i <= totalPages; i++) {
-      pages.push(i);
-    }
-  } else {
-    // Always show first page
-    pages.push(1);
-
-    if (page > 3) {
-      pages.push('...');
-    }
-
-    // Show pages around current page
-    for (
-      let i = Math.max(2, page - 1);
-      i <= Math.min(totalPages - 1, page + 1);
-      i++
-    ) {
-      pages.push(i);
-    }
-
-    if (page < totalPages - 2) {
-      pages.push('...');
-    }
-
-    // Always show last page
-    pages.push(totalPages);
-  }
-
-  return pages;
-});
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
@@ -182,149 +150,80 @@ const pageNumbers = $derived(() => {
 	</div>
 	
 	<!-- Users Table -->
-	<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-		<div class="overflow-x-auto">
-			<table class="w-full">
-				<thead class="bg-zinc-950 border-b border-zinc-800">
-					<tr>
-						<th class="px-4 py-3 text-left text-xs font-semibold text-gray-300">User</th>
-						<th class="px-4 py-3 text-left text-xs font-semibold text-gray-300">Discord</th>
-						<th class="px-4 py-3 text-left text-xs font-semibold text-gray-300">Role</th>
-						<th class="px-4 py-3 text-left text-xs font-semibold text-gray-300">Status</th>
-						<th class="px-4 py-3 text-right text-xs font-semibold text-gray-300">Actions</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-zinc-800">
-					{#each data.users as user}
-						<tr class="hover:bg-zinc-800/50 transition-colors">
-							<td class="px-4 py-2">
-								<div class="flex items-center gap-2">
-									{#if user.steamAvatar}
-										<img src={user.steamAvatar} alt={user.steamUsername} class="w-8 h-8 rounded" />
-									{:else}
-										<div class="w-8 h-8 bg-zinc-700 rounded flex items-center justify-center text-xs font-bold text-gray-400">
-											{user.steamUsername.slice(0, 2).toUpperCase()}
-										</div>
-									{/if}
-									<div class="min-w-0">
-										<a href="/users/{user.steamId}" class="text-white text-sm font-medium hover:text-orange-400 block truncate">
-											{user.steamUsername}
-										</a>
-										{#if user.isModerator}
-											<p class="text-xs text-purple-400 truncate">
-												Staff{user.moderatorDivision ? ` • ${user.moderatorDivision}` : ''}
-											</p>
-										{/if}
-									</div>
-								</div>
-							</td>
-							<td class="px-4 py-2">
-								{#if user.discordLinked && user.discordUsername}
-									<span class="text-green-400 text-xs truncate block max-w-[120px]" title={user.discordUsername}>
-										{user.discordUsername}
-									</span>
-								{:else if user.discordLinked}
-									<span class="text-green-400 text-xs">✓</span>
-								{:else}
-									<span class="text-gray-500 text-xs">—</span>
-								{/if}
-							</td>
-							<td class="px-4 py-2">
-								<span class="px-2 py-0.5 rounded text-xs font-medium {getPermissionColor(user.permissionLevel)}">
-									{permissionNames[user.permissionLevel]}
-								</span>
-							</td>
-							<td class="px-4 py-2">
-								<span class="px-2 py-0.5 rounded text-xs font-medium {getBanStatusColor(user.banStatus)}">
-									{banStatusNames[user.banStatus]}
-								</span>
-							</td>
-							<td class="px-4 py-2">
-								<div class="flex items-center justify-end gap-1">
-								<a 
-									href="/users/{user.steamId}"
-									class="px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-xs transition-colors"
-								>
-										View
-									</a>
-									<button 
-										onclick={() => openEditModal(user)}
-										class="px-2 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-xs transition-colors"
-									>
-										Edit
-									</button>
-									<button 
-										onclick={() => openBanModal(user)}
-										class="px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-xs transition-colors"
-									>
-										Punish
-									</button>
-								</div>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-		
-		{#if data.users.length === 0}
-			<div class="py-12 text-center">
-				<p class="text-gray-400">No users found matching your filters</p>
-			</div>
-		{/if}
-	</div>
-	
-	<!-- Pagination -->
-	{#if data.pagination.totalPages > 1}
-		<div class="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-			<div class="text-sm text-gray-400">
-				Showing {((data.pagination.page - 1) * data.pagination.pageSize) + 1} to {Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalUsers)} of {data.pagination.totalUsers} users
-			</div>
-			
-			<div class="flex items-center gap-2">
-				<!-- Previous Button -->
-				<button
-					onclick={() => goToPage(data.pagination.page - 1)}
-					disabled={data.pagination.page === 1}
-					class="px-3 py-1 bg-zinc-800 text-gray-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-				>
-					← Previous
-				</button>
-				
-				<!-- Page Numbers -->
-				{#each pageNumbers() as pageNum}
-					{#if pageNum === '...'}
-						<span class="px-2 text-gray-500">...</span>
+	<DataTable
+		data={data.users}
+		{columns}
+		emptyMessage="No users found matching your filters"
+		pagination={{
+			currentPage: data.pagination.page,
+			totalPages: data.pagination.totalPages,
+			onPageChange: goToPage,
+			infoText: paginationInfo
+		}}
+	>
+		{#snippet cell(user, col)}
+			{#if col.key === 'user'}
+				<div class="flex items-center gap-2">
+					{#if user.steamAvatar}
+						<img src={user.steamAvatar} alt={user.steamUsername} class="w-8 h-8 rounded" />
 					{:else}
-						<button
-							onclick={() => goToPage(pageNum as number)}
-							class="px-3 py-1 rounded transition-colors {
-								pageNum === data.pagination.page
-									? 'bg-orange-500 text-white font-medium'
-									: 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
-							}"
-						>
-							{pageNum}
-						</button>
+						<div class="w-8 h-8 bg-zinc-700 rounded flex items-center justify-center text-xs font-bold text-gray-400">
+							{user.steamUsername.slice(0, 2).toUpperCase()}
+						</div>
 					{/if}
-				{/each}
-				
-				<!-- Next Button -->
-				<button
-					onclick={() => goToPage(data.pagination.page + 1)}
-					disabled={data.pagination.page === data.pagination.totalPages}
-					class="px-3 py-1 bg-zinc-800 text-gray-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-				>
-					Next →
-				</button>
-			</div>
-		</div>
-	{:else}
-		<!-- Summary (when no pagination needed) -->
-		<div class="text-sm text-gray-400">
-			Showing {data.users.length} of {data.pagination.totalUsers} users
-		</div>
-	{/if}
+					<div class="min-w-0">
+						<a href="/users/{user.steamId}" class="text-white text-sm font-medium hover:text-orange-400 block truncate">
+							{user.steamUsername}
+						</a>
+						{#if user.isModerator}
+							<p class="text-xs text-purple-400 truncate">
+								Staff{user.moderatorDivision ? ` • ${user.moderatorDivision}` : ''}
+							</p>
+						{/if}
+					</div>
+				</div>
+			{:else if col.key === 'discord'}
+				{#if user.discordLinked && user.discordUsername}
+					<span class="text-green-400 text-xs truncate block max-w-[120px]" title={user.discordUsername}>
+						{user.discordUsername}
+					</span>
+				{:else if user.discordLinked}
+					<span class="text-green-400 text-xs">✓</span>
+				{:else}
+					<span class="text-gray-500 text-xs">—</span>
+				{/if}
+			{:else if col.key === 'role'}
+				<span class="px-2 py-1 rounded text-xs font-medium {getPermissionColor(user.permissionLevel)}">
+					{permissionNames[user.permissionLevel]}
+				</span>
+			{:else if col.key === 'status'}
+				<span class="px-2 py-1 rounded text-xs font-medium {getBanStatusColor(user.banStatus)}">
+					{banStatusNames[user.banStatus]}
+				</span>
+			{:else if col.key === 'actions'}
+				<div class="flex items-center justify-end gap-1">
+					<a 
+						href="/users/{user.steamId}"
+						class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-sm transition-colors"
+					>
+						View
+					</a>
+					<button 
+						onclick={() => openEditModal(user)}
+						class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors"
+					>
+						Edit
+					</button>
+					<button 
+						onclick={() => openBanModal(user)}
+						class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
+					>
+						Punish
+					</button>
+				</div>
+			{/if}
+		{/snippet}
+	</DataTable>
 	
 	<!-- Success/Error Messages -->
 	{#if form?.success && form?.message}

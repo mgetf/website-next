@@ -3,8 +3,54 @@ import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
 import { invalidateAll } from '$app/navigation';
 import { page } from '$app/stores';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
+
+const seasonColumns = [
+	{ key: 'season', label: 'Season' },
+	{ key: 'status', label: 'Status' },
+	{ key: 'format', label: 'Format' },
+	{ key: 'duration', label: 'Duration' },
+	{ key: 'teams', label: 'Teams' },
+	{ key: 'matches', label: 'Matches' },
+	{ key: 'playoffs', label: 'Playoffs' },
+	{ key: 'actions', label: 'Actions', align: 'right' as const }
+];
+
+const regionColumns = [
+	{ key: 'region', label: 'Region' },
+	{ key: 'currency', label: 'Currency' },
+	{ key: 'visibility', label: 'Visibility' },
+	{ key: 'seasons', label: 'Seasons' },
+	{ key: 'teams', label: 'Teams' },
+	{ key: 'actions', label: 'Actions', align: 'right' as const }
+];
+
+const divisionColumns = [
+	{ key: 'division', label: 'Division' },
+	{ key: 'cost', label: 'Signup Cost' },
+	{ key: 'visibility', label: 'Visibility' },
+	{ key: 'teams', label: 'Teams' },
+	{ key: 'actions', label: 'Actions', align: 'right' as const }
+];
+
+const arenaColumns = [
+	{ key: 'arena', label: 'Arena' },
+	{ key: 'playoff', label: 'Playoff Map' },
+	{ key: 'games', label: 'Games' },
+	{ key: 'actions', label: 'Actions', align: 'right' as const }
+];
+
+const formatColumns = [
+	{ key: 'id', label: 'ID' },
+	{ key: 'name', label: 'Name' },
+	{ key: 'code', label: 'Code' },
+	{ key: 'seasons', label: 'Seasons' },
+	{ key: 'teams', label: 'Teams' },
+	{ key: 'signups', label: 'Active Signups' },
+	{ key: 'actions', label: 'Actions', align: 'right' as const }
+];
 
 // Get initial tab from URL query param, default to 'seasons'
 const validTabs = [
@@ -347,84 +393,59 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 								</div>
 							</div>
 							
-							<div class="overflow-x-auto">
-								<table class="w-full">
-									<thead class="bg-zinc-800/30">
-										<tr class="text-left text-sm text-gray-400">
-											<th class="px-6 py-3 font-medium">Season</th>
-											<th class="px-6 py-3 font-medium">Status</th>
-											<th class="px-6 py-3 font-medium">Format</th>
-											<th class="px-6 py-3 font-medium">Duration</th>
-											<th class="px-6 py-3 font-medium">Teams</th>
-											<th class="px-6 py-3 font-medium">Matches</th>
-											<th class="px-6 py-3 font-medium">Playoffs</th>
-											<th class="px-6 py-3 font-medium text-right">Actions</th>
-										</tr>
-									</thead>
-									<tbody class="divide-y divide-zinc-800">
-										{#each seasonsByRegion[regionName].sort((a, b) => b.seasonNum - a.seasonNum) as season}
-											<tr class="hover:bg-zinc-800/30 transition-colors">
-												<td class="px-6 py-4">
-													<div class="flex items-center gap-3">
-														<div class="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
-															<span class="text-lg font-bold text-orange-400">{season.seasonNum}</span>
-														</div>
-														<div>
-															<div class="font-semibold text-white">Season {season.seasonNum}</div>
-															<div class="text-xs text-gray-500">ID: {season.id}</div>
-														</div>
-													</div>
-												</td>
-												<td class="px-6 py-4">
-													<div class="flex items-center gap-2">
-														<span class="w-2 h-2 rounded-full {getStatusDot(season.status)}"></span>
-														<span class="text-sm text-gray-300">{season.status}</span>
-													</div>
-												</td>
-												<td class="px-6 py-4">
-													<span class="px-2 py-1 text-xs font-medium bg-zinc-700 text-gray-300 rounded">{season.format}</span>
-												</td>
-												<td class="px-6 py-4">
-													<span class="text-sm text-gray-300">{season.numWeeks} weeks</span>
-												</td>
-												<td class="px-6 py-4">
-													<span class="text-sm font-medium text-white">{season.teams}</span>
-													<span class="text-xs text-gray-500 ml-1">teams</span>
-												</td>
-												<td class="px-6 py-4">
-													<span class="text-sm font-medium text-white">{season.matches}</span>
-													<span class="text-xs text-gray-500 ml-1">matches</span>
-												</td>
-												<td class="px-6 py-4">
-													{#if season.playoff}
-														<span class="text-sm text-gray-300">
-															{season.playoff.isTournament ? 'Tournament' : `${season.playoff.numRounds} Rounds`}
-														</span>
-													{:else}
-														<span class="text-sm text-gray-500">Not set</span>
-													{/if}
-												</td>
-												<td class="px-6 py-4">
-													<div class="flex items-center justify-end gap-2">
-														<button 
-															onclick={() => showPlayoffModal = season}
-															class="px-3 py-1.5 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
-														>
-															{season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
-														</button>
-														<button 
-															onclick={() => editingSeason = season}
-															class="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-														>
-															Edit
-														</button>
-													</div>
-												</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
+							<DataTable data={seasonsByRegion[regionName].sort((a, b) => b.seasonNum - a.seasonNum)} columns={seasonColumns}>
+								{#snippet cell(season, col)}
+									{#if col.key === 'season'}
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
+												<span class="text-lg font-bold text-orange-400">{season.seasonNum}</span>
+											</div>
+											<div>
+												<div class="font-semibold text-white">Season {season.seasonNum}</div>
+												<div class="text-xs text-gray-500">ID: {season.id}</div>
+											</div>
+										</div>
+									{:else if col.key === 'status'}
+										<div class="flex items-center gap-2">
+											<span class="w-2 h-2 rounded-full {getStatusDot(season.status)}"></span>
+											<span class="text-sm text-gray-300">{season.status}</span>
+										</div>
+									{:else if col.key === 'format'}
+										<span class="px-2 py-1 text-xs font-medium bg-zinc-700 text-gray-300 rounded">{season.format}</span>
+									{:else if col.key === 'weeks'}
+										<span class="text-sm text-gray-300">{season.numWeeks} weeks</span>
+									{:else if col.key === 'teams'}
+										<span class="text-sm font-medium text-white">{season.teams}</span>
+										<span class="text-xs text-gray-500 ml-1">teams</span>
+									{:else if col.key === 'matches'}
+										<span class="text-sm font-medium text-white">{season.matches}</span>
+										<span class="text-xs text-gray-500 ml-1">matches</span>
+									{:else if col.key === 'playoffs'}
+										{#if season.playoff}
+											<span class="text-sm text-gray-300">
+												{season.playoff.isTournament ? 'Tournament' : `${season.playoff.numRounds} Rounds`}
+											</span>
+										{:else}
+											<span class="text-sm text-gray-500">Not set</span>
+										{/if}
+									{:else if col.key === 'actions'}
+										<div class="flex items-center justify-end gap-2">
+											<button 
+												onclick={() => showPlayoffModal = season}
+												class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
+											>
+												{season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
+											</button>
+											<button 
+												onclick={() => editingSeason = season}
+												class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+											>
+												Edit
+											</button>
+										</div>
+									{/if}
+								{/snippet}
+							</DataTable>
 						</div>
 					{/each}
 				</div>
@@ -486,60 +507,43 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 				</div>
 			{/if}
 			
-		<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-			<table class="w-full">
-				<thead class="bg-zinc-800/30">
-					<tr class="text-left text-sm text-gray-400">
-						<th class="px-6 py-3 font-medium">Region</th>
-						<th class="px-6 py-3 font-medium">Currency</th>
-						<th class="px-6 py-3 font-medium">Visibility</th>
-						<th class="px-6 py-3 font-medium">Seasons</th>
-						<th class="px-6 py-3 font-medium">Teams</th>
-						<th class="px-6 py-3 font-medium text-right">Actions</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-zinc-800">
-					{#each data.regions as region}
-						<tr class="hover:bg-zinc-800/30 transition-colors">
-							<td class="px-6 py-4">
-								<span class="font-semibold text-white">{region.name}</span>
-							</td>
-							<td class="px-6 py-4">
-								<span class="px-2 py-1 rounded text-xs font-medium bg-zinc-800 text-gray-300">
-									{region.currencySymbol || '€'}
-								</span>
-							</td>
-							<td class="px-6 py-4">
-								<span class="px-2 py-1 rounded text-xs font-medium {region.hidden === 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
-									{region.hidden === 0 ? 'Visible' : 'Hidden'}
-								</span>
-							</td>
-							<td class="px-6 py-4 text-gray-300">{region.seasons}</td>
-							<td class="px-6 py-4 text-gray-300">{region.teams}</td>
-							<td class="px-6 py-4">
-								<div class="flex items-center justify-end gap-2">
-									<form method="POST" action="?/toggleRegionVisibility" use:enhance>
-										<input type="hidden" name="regionId" value={region.id} />
-										<button 
-											type="submit"
-											class="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-										>
-											{region.hidden === 0 ? 'Hide' : 'Show'}
-										</button>
-									</form>
-									<button 
-										onclick={() => editingRegion = region}
-										class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
-									>
-										Edit
-									</button>
-								</div>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+		<DataTable data={data.regions} columns={regionColumns}>
+			{#snippet cell(region: any, col: any)}
+				{#if col.key === 'region'}
+					<span class="font-semibold text-white">{region.name}</span>
+				{:else if col.key === 'currency'}
+					<span class="px-2 py-1 rounded text-xs font-medium bg-zinc-800 text-gray-300">
+						{region.currencySymbol || '€'}
+					</span>
+				{:else if col.key === 'visibility'}
+					<span class="px-2 py-1 rounded text-xs font-medium {region.hidden === 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
+						{region.hidden === 0 ? 'Visible' : 'Hidden'}
+					</span>
+				{:else if col.key === 'seasons'}
+					<span class="text-gray-300">{region.seasons}</span>
+				{:else if col.key === 'teams'}
+					<span class="text-gray-300">{region.teams}</span>
+				{:else if col.key === 'actions'}
+					<div class="flex items-center justify-end gap-2">
+						<form method="POST" action="?/toggleRegionVisibility" use:enhance>
+							<input type="hidden" name="regionId" value={region.id} />
+							<button 
+								type="submit"
+								class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+							>
+								{region.hidden === 0 ? 'Hide' : 'Show'}
+							</button>
+						</form>
+						<button 
+							onclick={() => editingRegion = region}
+							class="px-3 py-1 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
+						>
+							Edit
+						</button>
+					</div>
+				{/if}
+			{/snippet}
+		</DataTable>
 		</div>
 	{:else if activeTab === 'divisions'}
 		<!-- DIVISIONS TAB -->
@@ -664,71 +668,52 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 								</div>
 							</div>
 							
-							<div class="overflow-x-auto">
-								<table class="w-full">
-									<thead class="bg-zinc-800/30">
-										<tr class="text-left text-sm text-gray-400">
-											<th class="px-6 py-3 font-medium">Division</th>
-											<th class="px-6 py-3 font-medium">Signup Cost</th>
-											<th class="px-6 py-3 font-medium">Visibility</th>
-											<th class="px-6 py-3 font-medium">Teams</th>
-											<th class="px-6 py-3 font-medium text-right">Actions</th>
-										</tr>
-									</thead>
-									<tbody class="divide-y divide-zinc-800">
-										{#each regionData.divisions as division}
-											<tr class="hover:bg-zinc-800/30 transition-colors">
-												<td class="px-6 py-4">
-													<div class="flex items-center gap-3">
-														<div class="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
-															<span class="text-lg font-bold text-orange-400">{division.name.charAt(0).toUpperCase()}</span>
-														</div>
-														<div>
-															<div class="font-semibold text-white">{division.name}</div>
-															<div class="text-xs text-gray-500">ID: {division.id}</div>
-														</div>
-													</div>
-												</td>
-												<td class="px-6 py-4">
-													{#if division.signupCost > 0}
-														<span class="text-sm font-medium text-green-400">{regionData.region?.currencySymbol || '€'}{division.signupCost.toFixed(2)}</span>
-													{:else}
-														<span class="text-sm text-gray-500">Free</span>
-													{/if}
-												</td>
-												<td class="px-6 py-4">
-													<span class="px-2 py-1 rounded text-xs font-medium {division.hidden === 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
-														{division.hidden === 0 ? 'Visible' : 'Hidden'}
-													</span>
-												</td>
-												<td class="px-6 py-4">
-													<span class="text-sm font-medium text-white">{division.teams}</span>
-													<span class="text-xs text-gray-500 ml-1">teams</span>
-												</td>
-												<td class="px-6 py-4">
-													<div class="flex items-center justify-end gap-2">
-														<form method="POST" action="?/toggleDivisionVisibility" use:enhance>
-															<input type="hidden" name="divisionId" value={division.id} />
-															<button 
-																type="submit"
-																class="px-3 py-1.5 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-															>
-																{division.hidden === 0 ? 'Hide' : 'Show'}
-															</button>
-														</form>
-														<button 
-															onclick={() => editingDivision = division}
-															class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
-														>
-															Edit
-														</button>
-													</div>
-												</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
+							<DataTable data={regionData.divisions} columns={divisionColumns}>
+								{#snippet cell(division, col)}
+									{#if col.key === 'division'}
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
+												<span class="text-lg font-bold text-orange-400">{division.name.charAt(0).toUpperCase()}</span>
+											</div>
+											<div>
+												<div class="font-semibold text-white">{division.name}</div>
+												<div class="text-xs text-gray-500">ID: {division.id}</div>
+											</div>
+										</div>
+									{:else if col.key === 'cost'}
+										{#if division.signupCost > 0}
+											<span class="text-sm font-medium text-green-400">{regionData.region?.currencySymbol || '€'}{division.signupCost.toFixed(2)}</span>
+										{:else}
+											<span class="text-sm text-gray-500">Free</span>
+										{/if}
+									{:else if col.key === 'visibility'}
+										<span class="px-2 py-1 rounded text-xs font-medium {division.hidden === 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
+											{division.hidden === 0 ? 'Visible' : 'Hidden'}
+										</span>
+									{:else if col.key === 'teams'}
+										<span class="text-sm font-medium text-white">{division.teams}</span>
+										<span class="text-xs text-gray-500 ml-1">teams</span>
+									{:else if col.key === 'actions'}
+										<div class="flex items-center justify-end gap-2">
+											<form method="POST" action="?/toggleDivisionVisibility" use:enhance>
+												<input type="hidden" name="divisionId" value={division.id} />
+												<button 
+													type="submit"
+													class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+												>
+													{division.hidden === 0 ? 'Hide' : 'Show'}
+												</button>
+											</form>
+											<button 
+												onclick={() => editingDivision = division}
+												class="px-3 py-1 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
+											>
+												Edit
+											</button>
+										</div>
+									{/if}
+								{/snippet}
+							</DataTable>
 						</div>
 					{/each}
 				</div>
@@ -847,70 +832,53 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 						<p class="text-gray-500 text-sm">Create your first arena to get started</p>
 					</div>
 				{:else}
-					<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-						<table class="w-full">
-							<thead class="bg-zinc-800/30">
-								<tr class="text-left text-xs text-gray-400">
-									<th class="px-4 py-2 font-medium">Arena</th>
-									<th class="px-4 py-2 font-medium">Playoff Map</th>
-									<th class="px-4 py-2 font-medium">Games</th>
-									<th class="px-4 py-2 font-medium text-right">Actions</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-zinc-800">
-								{#each data.arenas as arena}
-									<tr class="hover:bg-zinc-800/30 transition-colors">
-										<td class="px-4 py-2">
-											<div class="flex items-center gap-2">
-												<div class="w-8 h-8 rounded bg-orange-500/10 border border-orange-500/30 flex items-center justify-center overflow-hidden flex-shrink-0">
-													{#if arena.avatar}
-														<img 
-															src={arena.avatar} 
-															alt={arena.name} 
-															class="w-full h-full object-cover"
-															onerror={(e) => { 
-																const img = e.target as HTMLImageElement;
-																img.style.display = 'none';
-																(img.nextElementSibling as HTMLElement)?.style.setProperty('display', 'block');
-															}}
-														/>
-														<span class="text-lg text-gray-500" style="display: none;">?</span>
-													{:else}
-														<span class="text-lg text-gray-500">?</span>
-													{/if}
-												</div>
-												<span class="text-sm font-medium text-white">{arena.name}</span>
-											</div>
-										</td>
-										<td class="px-4 py-2">
-											<span class="px-2 py-0.5 rounded text-xs font-medium {arena.playoffMap === 1 ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-500/20 text-gray-400'}">
-												{arena.playoffMap === 1 ? 'Yes' : 'No'}
-											</span>
-										</td>
-										<td class="px-4 py-2">
-											<span class="text-sm text-gray-300">{arena.games}</span>
-										</td>
-										<td class="px-4 py-2">
-											<div class="flex items-center justify-end gap-1.5">
-												<button 
-													onclick={() => editingArena = arena}
-													class="px-2 py-1 text-xs bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
-												>
-													Edit
-												</button>
-												<button 
-													onclick={() => deletingArena = arena}
-													class="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-												>
-													Delete
-												</button>
-											</div>
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
+					<DataTable data={data.arenas} columns={arenaColumns}>
+						{#snippet cell(arena, col)}
+							{#if col.key === 'arena'}
+								<div class="flex items-center gap-2">
+									<div class="w-8 h-8 rounded bg-orange-500/10 border border-orange-500/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+										{#if arena.avatar}
+											<img 
+												src={arena.avatar} 
+												alt={arena.name} 
+												class="w-full h-full object-cover"
+												onerror={(e) => { 
+													const img = e.target as HTMLImageElement;
+													img.style.display = 'none';
+													(img.nextElementSibling as HTMLElement)?.style.setProperty('display', 'block');
+												}}
+											/>
+											<span class="text-lg text-gray-500" style="display: none;">?</span>
+										{:else}
+											<span class="text-lg text-gray-500">?</span>
+										{/if}
+									</div>
+									<span class="text-sm font-medium text-white">{arena.name}</span>
+								</div>
+							{:else if col.key === 'playoff'}
+								<span class="px-2 py-1 rounded text-xs font-medium {arena.playoffMap === 1 ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-500/20 text-gray-400'}">
+									{arena.playoffMap === 1 ? 'Yes' : 'No'}
+								</span>
+							{:else if col.key === 'games'}
+								<span class="text-sm text-gray-300">{arena.games}</span>
+							{:else if col.key === 'actions'}
+								<div class="flex items-center justify-end gap-2">
+									<button 
+										onclick={() => editingArena = arena}
+										class="px-3 py-1 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
+									>
+										Edit
+									</button>
+									<button 
+										onclick={() => deletingArena = arena}
+										class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+									>
+										Delete
+									</button>
+								</div>
+							{/if}
+						{/snippet}
+					</DataTable>
 				{/if}
 			</div>
 
@@ -1147,50 +1115,37 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 			{/if}
 			
 			<!-- Formats List -->
-			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg overflow-hidden">
-				{#if data.formats.length === 0}
-					<div class="p-8 text-center text-gray-400">
-						<p>No formats created yet.</p>
-						<p class="text-sm mt-1">Add a format to get started.</p>
-					</div>
-				{:else}
-					<table class="w-full">
-						<thead class="bg-zinc-900/50">
-							<tr>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Code</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Seasons</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Teams</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Active Signups</th>
-								<th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-zinc-700">
-							{#each data.formats as format}
-								<tr class="hover:bg-zinc-800/30">
-									<td class="px-6 py-4 text-gray-400 text-sm">{format.id}</td>
-									<td class="px-6 py-4 text-white font-medium">{format.name}</td>
-									<td class="px-6 py-4">
-										<span class="px-2 py-1 bg-zinc-700 rounded text-gray-300 text-sm font-mono">{format.code}</span>
-									</td>
-									<td class="px-6 py-4 text-gray-300">{format.seasons}</td>
-									<td class="px-6 py-4 text-gray-300">{format.teams}</td>
-									<td class="px-6 py-4 text-gray-300">{format.activeSignupSeasons}</td>
-									<td class="px-6 py-4 text-right">
-										<button
-											onclick={() => editingFormat = format}
-											class="px-3 py-1 text-sm bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600/30 transition-colors"
-										>
-											Edit
-										</button>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				{/if}
-			</div>
+			{#if data.formats.length === 0}
+				<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
+					<p class="text-gray-400 text-lg mb-4">No formats created yet</p>
+					<p class="text-gray-500 text-sm">Add a format to get started</p>
+				</div>
+			{:else}
+				<DataTable data={data.formats} columns={formatColumns}>
+					{#snippet cell(format, col)}
+						{#if col.key === 'id'}
+							<span class="text-gray-400 text-sm">{format.id}</span>
+						{:else if col.key === 'name'}
+							<span class="text-white font-medium">{format.name}</span>
+						{:else if col.key === 'code'}
+							<span class="px-2 py-1 bg-zinc-700 rounded text-gray-300 text-sm font-mono">{format.code}</span>
+						{:else if col.key === 'seasons'}
+							<span class="text-gray-300">{format.seasons}</span>
+						{:else if col.key === 'teams'}
+							<span class="text-gray-300">{format.teams}</span>
+						{:else if col.key === 'activeSignups'}
+							<span class="text-gray-300">{format.activeSignupSeasons}</span>
+						{:else if col.key === 'actions'}
+							<button
+								onclick={() => editingFormat = format}
+								class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+							>
+								Edit
+							</button>
+						{/if}
+					{/snippet}
+				</DataTable>
+			{/if}
 		</div>
 	{/if}
 </div>

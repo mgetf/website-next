@@ -2,6 +2,7 @@
 import { enhance } from '$app/forms';
 import { page } from '$app/stores';
 import type { PageData, ActionData } from './$types';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -238,6 +239,20 @@ const getDemoReportStatusLabel = (status: string) => {
   if (status === 'CLEAR') return 'Rejected';
   return status;
 };
+
+// Table columns for game results
+const gameResultsColumns = $derived([
+  { key: 'game', label: 'Game' },
+  { key: 'arena', label: 'Arena' },
+  { key: 'homeScore', label: getHomeName(), align: 'center' as const },
+  { key: 'awayScore', label: getAwayName(), align: 'center' as const },
+  { key: 'winner', label: 'Winner' }
+]);
+
+// Filter games to only those with scores
+const playedGames = $derived(
+  match.games.filter(g => g.homeTeamScore !== null && g.awayTeamScore !== null)
+);
 </script>
 
 <div class="container mx-auto px-4 py-8 max-w-7xl">
@@ -617,44 +632,32 @@ const getDemoReportStatusLabel = (status: string) => {
 	{#if (isPlayed || isDisputed) && match.games.some((g) => g.homeTeamScore !== null)}
 		<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-md p-6 mb-6">
 			<h2 class="text-2xl font-bold text-white mb-4">Game Results</h2>
-			<div class="overflow-x-auto">
-				<table class="min-w-full">
-					<thead>
-						<tr class="border-b border-zinc-700">
-							<th class="text-left py-3 px-4 text-gray-300 font-semibold">Game</th>
-							<th class="text-left py-3 px-4 text-gray-300 font-semibold">Arena</th>
-							<th class="text-center py-3 px-4 text-gray-300 font-semibold">{getHomeName()}</th>
-							<th class="text-center py-3 px-4 text-gray-300 font-semibold">{getAwayName()}</th>
-							<th class="text-left py-3 px-4 text-gray-300 font-semibold">Winner</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each match.games as game}
-							{#if game.homeTeamScore !== null && game.awayTeamScore !== null}
-								<tr class="border-b border-zinc-700 hover:bg-zinc-800">
-									<td class="py-3 px-4 font-semibold">Game {game.gameNum}</td>
-									<td class="py-3 px-4">{game.arena?.name || 'N/A'}</td>
-									<td class="text-center py-3 px-4 {game.homeTeamScore > game.awayTeamScore ? 'font-bold text-green-400' : ''}">
-										{game.homeTeamScore}
-									</td>
-									<td class="text-center py-3 px-4 {game.awayTeamScore > game.homeTeamScore ? 'font-bold text-green-400' : ''}">
-										{game.awayTeamScore}
-									</td>
-									<td class="py-3 px-4">
-										{#if game.homeTeamScore > game.awayTeamScore}
-											{getHomeName()}
-										{:else if game.awayTeamScore > game.homeTeamScore}
-											{getAwayName()}
-										{:else}
-											Tie
-										{/if}
-									</td>
-								</tr>
-							{/if}
-						{/each}
-					</tbody>
-				</table>
-			</div>
+			
+			<DataTable data={playedGames} columns={gameResultsColumns}>
+				{#snippet cell(game, col)}
+					{#if col.key === 'game'}
+						<span class="font-semibold">Game {game.gameNum}</span>
+					{:else if col.key === 'arena'}
+						{game.arena?.name || 'N/A'}
+					{:else if col.key === 'homeScore'}
+						<span class="{game.homeTeamScore > game.awayTeamScore ? 'font-bold text-green-400' : ''}">
+							{game.homeTeamScore}
+						</span>
+					{:else if col.key === 'awayScore'}
+						<span class="{game.awayTeamScore > game.homeTeamScore ? 'font-bold text-green-400' : ''}">
+							{game.awayTeamScore}
+						</span>
+					{:else if col.key === 'winner'}
+						{#if game.homeTeamScore > game.awayTeamScore}
+							{getHomeName()}
+						{:else if game.awayTeamScore > game.homeTeamScore}
+							{getAwayName()}
+						{:else}
+							Tie
+						{/if}
+					{/if}
+				{/snippet}
+			</DataTable>
 
 			{#if canDispute && data.disputeTimeRemaining}
 				<div class="mt-4 p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg">

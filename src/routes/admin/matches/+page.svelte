@@ -2,8 +2,18 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/stores';
 import type { PageData } from './$types';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data }: { data: PageData } = $props();
+
+const matchColumns = [
+	{ key: 'match', label: 'Match' },
+	{ key: 'maps', label: 'Map(s)', align: 'center' as const },
+	{ key: 'date', label: 'Match Date', align: 'center' as const },
+	{ key: 'home', label: 'Home Team', align: 'right' as const },
+	{ key: 'score', label: 'Points', align: 'center' as const },
+	{ key: 'away', label: 'Away Team' }
+];
 
 // Check for success message from create page redirect
 const createdCount = $derived($page.url.searchParams.get('created'));
@@ -206,99 +216,67 @@ function getWinnerClass(match: any, teamId: number): string {
 				</div>
 
 				<!-- Match Table -->
-				<div class="overflow-x-auto">
-					<table class="w-full">
-						<thead class="bg-zinc-800/50">
-							<tr>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Match</th>
-								<th class="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Map(s)</th>
-								<th class="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Match Date</th>
-								<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Home Team</th>
-								<th class="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Points</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Away Team</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-zinc-800">
-							{#each division.matches as match}
-								<tr class="hover:bg-zinc-800/30 transition-colors">
-									<!-- Match Name -->
-									<td class="px-4 py-4">
-										<a 
-											href="/matches/{match.id}" 
-											class="text-blue-400 hover:text-blue-300 hover:underline"
-										>
-											{getMatchTitle(match)}
-										</a>
-									</td>
-
-									<!-- Maps -->
-									<td class="px-4 py-4">
-										<div class="flex items-center justify-center gap-1">
-											{#each match.games as game}
-												{#if game.arena}
-													<div class="relative group">
-														{#if game.arena.avatar}
-															<img 
-																src={game.arena.avatar} 
-																alt={game.arena.name}
-																class="w-8 h-8 rounded object-cover"
-																title={game.arena.name}
-															/>
-														{:else}
-															<div 
-																class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-xs text-gray-400"
-																title={game.arena.name}
-															>
-																{game.arena.name.slice(0, 2).toUpperCase()}
-															</div>
-														{/if}
-													</div>
-												{:else}
-													<div class="w-8 h-8 rounded bg-zinc-700/50 flex items-center justify-center text-xs text-gray-500">
-														?
-													</div>
-												{/if}
-											{/each}
-											{#if match.games.length === 0}
-												<span class="text-gray-500 text-sm">-</span>
+				<DataTable data={division.matches} columns={matchColumns}>
+					{#snippet cell(match, col)}
+						{#if col.key === 'match'}
+							<a 
+								href="/matches/{match.id}" 
+								class="text-blue-400 hover:text-blue-300 hover:underline"
+							>
+								{getMatchTitle(match)}
+							</a>
+						{:else if col.key === 'maps'}
+							<div class="flex items-center justify-center gap-1">
+								{#each match.games as game}
+									{#if game.arena}
+										<div class="relative group">
+											{#if game.arena.avatar}
+												<img 
+													src={game.arena.avatar} 
+													alt={game.arena.name}
+													class="w-8 h-8 rounded object-cover"
+													title={game.arena.name}
+												/>
+											{:else}
+												<div 
+													class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-xs text-gray-400"
+													title={game.arena.name}
+												>
+													{game.arena.name.slice(0, 2).toUpperCase()}
+												</div>
 											{/if}
 										</div>
-									</td>
-
-									<!-- Match Date -->
-									<td class="px-4 py-4 text-center text-sm text-gray-300">
-										{formatMatchDate(match.matchDateTime)}
-									</td>
-
-									<!-- Home Team -->
-									<td class="px-4 py-4 text-right">
-										<a 
-											href="/teams/{match.homeTeam.id}" 
-											class="text-orange-400 hover:text-orange-300 hover:underline {getWinnerClass(match, match.homeTeamId)}"
-										>
-											{match.homeTeam.name}
-										</a>
-									</td>
-
-									<!-- Score -->
-									<td class="px-4 py-4 text-center">
-										<span class="text-white font-semibold">{getScoreDisplay(match)}</span>
-									</td>
-
-									<!-- Away Team -->
-									<td class="px-4 py-4 text-left">
-										<a 
-											href="/teams/{match.awayTeam.id}" 
-											class="text-orange-400 hover:text-orange-300 hover:underline {getWinnerClass(match, match.awayTeamId)}"
-										>
-											{match.awayTeam.name}
-										</a>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
+									{:else}
+										<div class="w-8 h-8 rounded bg-zinc-700/50 flex items-center justify-center text-xs text-gray-500">
+											?
+										</div>
+									{/if}
+								{/each}
+								{#if match.games.length === 0}
+									<span class="text-gray-500 text-sm">-</span>
+								{/if}
+							</div>
+						{:else if col.key === 'date'}
+							<span class="text-sm text-gray-300">{formatMatchDate(match.matchDateTime)}</span>
+						{:else if col.key === 'home'}
+							<a 
+								href="/teams/{match.homeTeam.id}" 
+								class="text-orange-400 hover:text-orange-300 hover:underline {getWinnerClass(match, match.homeTeamId)}"
+							>
+								{match.homeTeam.name}
+							</a>
+						{:else if col.key === 'score'}
+							<span class="text-white font-semibold">{getScoreDisplay(match)}</span>
+						{:else if col.key === 'away'}
+							<a 
+								href="/teams/{match.awayTeam.id}" 
+								class="text-orange-400 hover:text-orange-300 hover:underline {getWinnerClass(match, match.awayTeamId)}"
+							>
+								{match.awayTeam.name}
+							</a>
+						{/if}
+					{/snippet}
+				</DataTable>
 
 				<!-- Division Footer -->
 				<div class="px-6 py-3 bg-zinc-800/30 border-t border-zinc-700 text-center">

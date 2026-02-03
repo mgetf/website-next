@@ -473,15 +473,16 @@ export const actions: Actions = {
     try {
       await updateRescheduleStatus(commId, response, locals.user.steamId);
 
+      const responseText = response === 'deny' ? 'denied' : `${response}ed`;
       await createNotificationForMatch(
         matchId,
-        `Reschedule ${response}ed`,
+        `Reschedule ${responseText}`,
         locals.user.steamId,
       );
 
       return {
         success: true,
-        message: `Reschedule ${response}ed successfully`,
+        message: `Reschedule ${responseText} successfully`,
       };
     } catch (err: any) {
       return fail(400, {

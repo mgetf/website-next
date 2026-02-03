@@ -1,12 +1,26 @@
 <script lang="ts">
 import type { PageData } from './$types';
 import { goto } from '$app/navigation';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data }: { data: PageData } = $props();
 
 let searchInput = $state(data.filters.search);
 let regionFilter = $state(data.filters.region);
 let seasonFilter = $state(data.filters.season);
+
+const columns = [
+	{ key: 'team', label: 'Team' },
+	{ key: 'division', label: 'Division' },
+	{ key: 'region', label: 'Region / Season' },
+	{ key: 'record', label: 'Record' },
+	{ key: 'players', label: 'Players' },
+	{ key: 'status', label: 'Status' }
+];
+
+const paginationInfo = $derived(
+	`Showing ${((data.pagination.currentPage - 1) * data.pagination.perPage) + 1} to ${Math.min(data.pagination.currentPage * data.pagination.perPage, data.pagination.totalCount)} of ${data.pagination.totalCount} teams`
+);
 
 function handleSearch(event: Event) {
   event.preventDefault();
@@ -175,144 +189,69 @@ function getStatusLabel(status: string) {
 	</div>
 
 	<!-- Teams Table -->
-	{#if data.teams.length === 0}
-		<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
-			<div class="text-6xl mb-4">👥</div>
-			<h3 class="text-xl font-bold text-white mb-2">No Teams Found</h3>
-			<p class="text-gray-400">Try adjusting your search filters</p>
-		</div>
-	{:else}
-		<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-			<div class="overflow-x-auto">
-				<table class="min-w-full divide-y divide-zinc-800">
-					<thead class="bg-zinc-800/50">
-						<tr>
-							<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-								Team
-							</th>
-							<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-								Division
-							</th>
-							<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-								Region / Season
-							</th>
-							<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-								Record
-							</th>
-							<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-								Players
-							</th>
-							<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-								Status
-							</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-zinc-800">
-						{#each data.teams as team}
-							<tr class="hover:bg-zinc-800/30 transition-colors">
-								<td class="px-6 py-3 whitespace-nowrap">
-									<a href="/teams/{team.id}" class="flex items-center space-x-3 group">
-										{#if team.avatar}
-											<img 
-												src={team.avatar} 
-												alt={team.name}
-												class="w-10 h-10 rounded"
-											/>
-										{:else}
-											<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center">
-												<span class="text-lg font-bold text-gray-400">
-													{team.acronym ? team.acronym.charAt(0).toUpperCase() : team.name.charAt(0).toUpperCase()}
-												</span>
-											</div>
-										{/if}
-										<div>
-											<div class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">
-												{team.name}
-											</div>
-											{#if team.acronym}
-												<div class="text-xs text-gray-500">{team.acronym}</div>
-											{/if}
-										</div>
-									</a>
-								</td>
-								<td class="px-6 py-3 whitespace-nowrap">
-									{#if team.division}
-										<span class="text-sm text-gray-300">{team.division.name}</span>
-									{:else}
-										<span class="text-sm text-gray-500">—</span>
-									{/if}
-								</td>
-								<td class="px-6 py-3 whitespace-nowrap">
-									{#if team.region}
-										<div class="text-sm text-gray-300">{team.region.name}</div>
-										{#if team.season}
-											<div class="text-xs text-gray-500">Season {team.season.seasonNum}</div>
-										{/if}
-									{:else}
-										<span class="text-sm text-gray-500">—</span>
-									{/if}
-								</td>
-								<td class="px-6 py-3 whitespace-nowrap">
-									<div class="text-sm font-medium text-white">
-										{team.wins}W - {team.losses}L
-									</div>
-								</td>
-								<td class="px-6 py-3 whitespace-nowrap">
-									<span class="text-sm text-gray-300">{team._count.players}</span>
-								</td>
-								<td class="px-6 py-3 whitespace-nowrap">
-									<span class="px-2 py-1 rounded text-xs font-semibold {getStatusBadge(team.status)}">
-										{getStatusLabel(team.status)}
-									</span>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		</div>
-
-		<!-- Pagination -->
-		{#if data.pagination.totalPages > 1}
-			<div class="mt-6 flex items-center justify-between">
-				<div class="text-sm text-gray-400">
-					Showing {((data.pagination.currentPage - 1) * data.pagination.perPage) + 1} to {Math.min(data.pagination.currentPage * data.pagination.perPage, data.pagination.totalCount)} of {data.pagination.totalCount} teams
-				</div>
-				
-				<div class="flex items-center gap-2">
-					<button
-						onclick={() => changePage(data.pagination.currentPage - 1)}
-						disabled={!data.pagination.hasPreviousPage}
-						class="px-4 py-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-					>
-						Previous
-					</button>
-					
-					<div class="flex items-center gap-1">
-						{#each Array.from({ length: data.pagination.totalPages }, (_, i) => i + 1) as pageNum}
-							{#if pageNum === 1 || pageNum === data.pagination.totalPages || (pageNum >= data.pagination.currentPage - 2 && pageNum <= data.pagination.currentPage + 2)}
-								<button
-									onclick={() => changePage(pageNum)}
-									class="px-3 py-2 rounded-lg transition-colors {pageNum === data.pagination.currentPage ? 'bg-blue-600 text-white font-bold' : 'bg-zinc-800 border border-zinc-700 text-gray-300 hover:bg-zinc-700'}"
-								>
-									{pageNum}
-								</button>
-							{:else if pageNum === data.pagination.currentPage - 3 || pageNum === data.pagination.currentPage + 3}
-								<span class="px-2 text-gray-500">...</span>
-							{/if}
-						{/each}
+	<DataTable
+		data={data.teams}
+		{columns}
+		emptyMessage="No Teams Found"
+		emptyIcon="👥"
+		pagination={{
+			currentPage: data.pagination.currentPage,
+			totalPages: data.pagination.totalPages,
+			onPageChange: changePage,
+			infoText: paginationInfo
+		}}
+	>
+		{#snippet cell(team, col)}
+			{#if col.key === 'team'}
+				<a href="/teams/{team.id}" class="flex items-center space-x-3 group whitespace-nowrap">
+					{#if team.avatar}
+						<img 
+							src={team.avatar} 
+							alt={team.name}
+							class="w-10 h-10 rounded"
+						/>
+					{:else}
+						<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center">
+							<span class="text-lg font-bold text-gray-400">
+								{team.acronym ? team.acronym.charAt(0).toUpperCase() : team.name.charAt(0).toUpperCase()}
+							</span>
+						</div>
+					{/if}
+					<div>
+						<div class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">
+							{team.name}
+						</div>
+						{#if team.acronym}
+							<div class="text-xs text-gray-500">{team.acronym}</div>
+						{/if}
 					</div>
-					
-					<button
-						onclick={() => changePage(data.pagination.currentPage + 1)}
-						disabled={!data.pagination.hasNextPage}
-						class="px-4 py-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-					>
-						Next
-					</button>
+				</a>
+			{:else if col.key === 'division'}
+				{#if team.division}
+					<span class="text-sm text-gray-300 whitespace-nowrap">{team.division.name}</span>
+				{:else}
+					<span class="text-sm text-gray-500">—</span>
+				{/if}
+			{:else if col.key === 'region'}
+				{#if team.region}
+					<div class="text-sm text-gray-300 whitespace-nowrap">{team.region.name}</div>
+					{#if team.season}
+						<div class="text-xs text-gray-500">Season {team.season.seasonNum}</div>
+					{/if}
+				{:else}
+					<span class="text-sm text-gray-500">—</span>
+				{/if}
+			{:else if col.key === 'record'}
+				<div class="text-sm font-medium text-white whitespace-nowrap">
+					{team.wins}W - {team.losses}L
 				</div>
-			</div>
-		{/if}
-	{/if}
+			{:else if col.key === 'players'}
+				<span class="text-sm text-gray-300">{team._count.players}</span>
+			{:else if col.key === 'status'}
+				<span class="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap {getStatusBadge(team.status)}">
+					{getStatusLabel(team.status)}
+				</span>
+			{/if}
+		{/snippet}
+	</DataTable>
 </div>
-

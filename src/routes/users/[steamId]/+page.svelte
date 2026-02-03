@@ -1,5 +1,6 @@
 <script lang="ts">
 import { enhance } from '$app/forms';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 // Get data from server load function (Svelte 5 syntax)
 interface PlayerData {
@@ -87,6 +88,47 @@ const entries1v1 = $derived(data.entries1v1);
 // State for 1v1 withdrawal confirmation modal
 let withdrawingEntry: (typeof data.entries1v1)[0] | null = $state(null);
 let isWithdrawing = $state(false);
+
+// Table column definitions
+const entries1v1Columns = $derived([
+	{ key: 'division', label: 'Division' },
+	{ key: 'region', label: 'Region' },
+	{ key: 'season', label: 'Season' },
+	{ key: 'record', label: 'Record' },
+	{ key: 'status', label: 'Status' },
+	...(isOwnProfile ? [{ key: 'actions', label: 'Actions' }] : [])
+]);
+
+const currentTeamsColumns = [
+	{ key: 'team', label: 'Team' },
+	{ key: 'division', label: 'Division' },
+	{ key: 'region', label: 'Region' },
+	{ key: 'season', label: 'Season' },
+	{ key: 'record', label: 'Record' },
+	{ key: 'joined', label: 'Joined' }
+];
+
+const teamHistoryColumns = [
+	{ key: 'team', label: 'Team' },
+	{ key: 'division', label: 'Division' },
+	{ key: 'region', label: 'Region' },
+	{ key: 'season', label: 'Season' },
+	{ key: 'record', label: 'Record' },
+	{ key: 'period', label: 'Period' }
+];
+
+const tournamentsColumns = [
+	{ key: 'tournament', label: 'Tournament' },
+	{ key: 'date', label: 'Date' },
+	{ key: 'placement', label: 'Placement' }
+];
+
+const fightNightsColumns = [
+	{ key: 'event', label: 'Event' },
+	{ key: 'opponent', label: 'Opponent' },
+	{ key: 'result', label: 'Result' },
+	{ key: 'date', label: 'Date' }
+];
 
 // Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
 function steamIdToSteam2(steamId64: string): string {
@@ -298,66 +340,46 @@ function getResultColor(result: string): string {
 							<p class="text-sm text-gray-400 mt-1">Individual Competition</p>
 						</div>
 						
-						<div class="overflow-x-auto">
-							<table class="w-full">
-								<thead class="bg-zinc-950/50">
-									<tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
-										<th class="px-4 py-2 font-medium">Division</th>
-										<th class="px-4 py-2 font-medium">Region</th>
-										<th class="px-4 py-2 font-medium">Season</th>
-										<th class="px-4 py-2 font-medium">Record</th>
-										<th class="px-4 py-2 font-medium">Status</th>
-										{#if isOwnProfile}
-											<th class="px-4 py-2 font-medium">Actions</th>
-										{/if}
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-zinc-800/50">
-									{#each entries1v1 as entry}
-										<tr class="hover:bg-zinc-800/30 transition-colors {entry.active ? 'bg-purple-500/5' : 'opacity-60'}">
-											<td class="px-4 py-2">
-												<span class="text-gray-300 text-sm">{entry.division}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-300 text-sm">{entry.region}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="px-2 py-0.5 {entry.active ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-zinc-800 text-gray-400'} text-xs rounded border">
-													S{entry.seasonNum}
-												</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="{entry.active ? 'text-purple-400' : 'text-gray-400'} text-sm font-medium">{entry.wins}-{entry.losses}</span>
-											</td>
-											<td class="px-4 py-2">
-												{#if entry.active}
-													<span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded border border-green-500/30">
-														Active
-													</span>
-												{:else}
-													<span class="text-gray-500 text-sm">
-														Ended {formatDate(entry.leftAt)}
-													</span>
-												{/if}
-											</td>
-											{#if isOwnProfile}
-												<td class="px-4 py-2">
-													{#if entry.active}
-														<button 
-															type="button"
-															class="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs rounded border border-red-500/30 transition-colors"
-															onclick={() => withdrawingEntry = entry}
-														>
-															Withdraw
-														</button>
-													{/if}
-												</td>
-											{/if}
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+						<DataTable
+							data={entries1v1}
+							columns={entries1v1Columns}
+							headerClass="bg-zinc-950/50"
+							rowClass={(entry) => entry.active ? 'bg-purple-500/5' : 'opacity-60'}
+						>
+							{#snippet cell(entry, col)}
+								{#if col.key === 'division'}
+									<span class="text-gray-300 text-sm">{entry.division}</span>
+								{:else if col.key === 'region'}
+									<span class="text-gray-300 text-sm">{entry.region}</span>
+								{:else if col.key === 'season'}
+									<span class="px-2 py-0.5 {entry.active ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-zinc-800 text-gray-400'} text-xs rounded border">
+										S{entry.seasonNum}
+									</span>
+								{:else if col.key === 'record'}
+									<span class="{entry.active ? 'text-purple-400' : 'text-gray-400'} text-sm font-medium">{entry.wins}-{entry.losses}</span>
+								{:else if col.key === 'status'}
+									{#if entry.active}
+										<span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded border border-green-500/30">
+											Active
+										</span>
+									{:else}
+										<span class="text-gray-500 text-sm">
+											Ended {formatDate(entry.leftAt)}
+										</span>
+									{/if}
+								{:else if col.key === 'actions'}
+									{#if entry.active}
+										<button 
+											type="button"
+											class="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs rounded border border-red-500/30 transition-colors"
+											onclick={() => withdrawingEntry = entry}
+										>
+											Withdraw
+										</button>
+									{/if}
+								{/if}
+							{/snippet}
+						</DataTable>
 					</div>
 				{/if}
 				
@@ -369,51 +391,35 @@ function getResultColor(result: string): string {
 							<p class="text-sm text-gray-400 mt-1">2v2 League</p>
 						</div>
 						
-						<div class="overflow-x-auto">
-							<table class="w-full">
-								<thead class="bg-zinc-950/50">
-									<tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
-										<th class="px-4 py-2 font-medium">Team</th>
-										<th class="px-4 py-2 font-medium">Division</th>
-										<th class="px-4 py-2 font-medium">Region</th>
-										<th class="px-4 py-2 font-medium">Season</th>
-										<th class="px-4 py-2 font-medium">Record</th>
-										<th class="px-4 py-2 font-medium">Joined</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-zinc-800/50">
-									{#each currentTeams as team}
-										<tr class="hover:bg-zinc-800/30 transition-colors bg-green-500/5">
-											<td class="px-4 py-2">
-												<a 
-													href="/teams/{team.teamId}" 
-													class="text-white font-medium hover:text-blue-400 transition-colors text-sm"
-												>
-													{team.teamName}
-												</a>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-300 text-sm">{team.division}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-300 text-sm">{team.regionName}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/30">
-													S{team.seasonNum}
-												</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-green-400 text-sm font-medium">{team.totalRecord}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-400 text-sm">{formatDate(team.joined)}</span>
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+						<DataTable
+							data={currentTeams}
+							columns={currentTeamsColumns}
+							headerClass="bg-zinc-950/50"
+							rowClass={() => 'bg-green-500/5'}
+						>
+							{#snippet cell(team, col)}
+								{#if col.key === 'team'}
+									<a 
+										href="/teams/{team.teamId}" 
+										class="text-white font-medium hover:text-blue-400 transition-colors text-sm"
+									>
+										{team.teamName}
+									</a>
+								{:else if col.key === 'division'}
+									<span class="text-gray-300 text-sm">{team.division}</span>
+								{:else if col.key === 'region'}
+									<span class="text-gray-300 text-sm">{team.regionName}</span>
+								{:else if col.key === 'season'}
+									<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/30">
+										S{team.seasonNum}
+									</span>
+								{:else if col.key === 'record'}
+									<span class="text-green-400 text-sm font-medium">{team.totalRecord}</span>
+								{:else if col.key === 'joined'}
+									<span class="text-gray-400 text-sm">{formatDate(team.joined)}</span>
+								{/if}
+							{/snippet}
+						</DataTable>
 					</div>
 				{/if}
 				
@@ -424,51 +430,35 @@ function getResultColor(result: string): string {
 							<h2 class="text-2xl font-bold text-white">Team History</h2>
 						</div>
 						
-						<div class="overflow-x-auto">
-							<table class="w-full">
-								<thead class="bg-zinc-950/50">
-									<tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
-										<th class="px-4 py-2 font-medium">Team</th>
-										<th class="px-4 py-2 font-medium">Division</th>
-										<th class="px-4 py-2 font-medium">Region</th>
-										<th class="px-4 py-2 font-medium">Season</th>
-										<th class="px-4 py-2 font-medium">Record</th>
-										<th class="px-4 py-2 font-medium">Period</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-zinc-800/50">
-									{#each teamHistory as team}
-										<tr class="hover:bg-zinc-800/30 transition-colors opacity-60">
-											<td class="px-4 py-2">
-												<a 
-													href="/teams/{team.teamId}" 
-													class="text-white font-medium hover:text-blue-400 transition-colors text-sm"
-												>
-													{team.teamName}
-												</a>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-300 text-sm">{team.division}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-300 text-sm">{team.regionName}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="px-2 py-0.5 bg-zinc-800 text-gray-400 text-xs rounded">
-													S{team.seasonNum}
-												</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-400 text-sm">{team.totalRecord}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-500 text-sm">{formatDate(team.joined)} - {formatDate(team.left)}</span>
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+						<DataTable
+							data={teamHistory}
+							columns={teamHistoryColumns}
+							headerClass="bg-zinc-950/50"
+							rowClass={() => 'opacity-60'}
+						>
+							{#snippet cell(team, col)}
+								{#if col.key === 'team'}
+									<a 
+										href="/teams/{team.teamId}" 
+										class="text-white font-medium hover:text-blue-400 transition-colors text-sm"
+									>
+										{team.teamName}
+									</a>
+								{:else if col.key === 'division'}
+									<span class="text-gray-300 text-sm">{team.division}</span>
+								{:else if col.key === 'region'}
+									<span class="text-gray-300 text-sm">{team.regionName}</span>
+								{:else if col.key === 'season'}
+									<span class="px-2 py-0.5 bg-zinc-800 text-gray-400 text-xs rounded">
+										S{team.seasonNum}
+									</span>
+								{:else if col.key === 'record'}
+									<span class="text-gray-400 text-sm">{team.totalRecord}</span>
+								{:else if col.key === 'period'}
+									<span class="text-gray-500 text-sm">{formatDate(team.joined)} - {formatDate(team.left)}</span>
+								{/if}
+							{/snippet}
+						</DataTable>
 					</div>
 				{/if}
 				
@@ -478,40 +468,24 @@ function getResultColor(result: string): string {
 						<h2 class="text-2xl font-bold text-white">Tournaments</h2>
 					</div>
 					
-					<div class="overflow-x-auto">
-						{#if tournaments.length > 0}
-							<table class="w-full">
-								<thead class="bg-zinc-950/50">
-									<tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
-										<th class="px-4 py-2 font-medium">Tournament</th>
-										<th class="px-4 py-2 font-medium">Date</th>
-										<th class="px-4 py-2 font-medium">Placement</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-zinc-800/50">
-									{#each tournaments as tournament}
-										<tr class="hover:bg-zinc-800/30 transition-colors">
-											<td class="px-4 py-2">
-												<span class="text-white font-medium text-sm">{tournament.name}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-400 text-sm">{formatDate(tournament.date)}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="{getPlacementColor(tournament.placement)} text-sm font-bold">
-													{tournament.placement}
-												</span>
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						{:else}
-							<div class="px-6 py-8 text-center">
-								<p class="text-gray-500 text-sm">No tournament participation recorded</p>
-							</div>
-						{/if}
-					</div>
+					<DataTable
+						data={tournaments}
+						columns={tournamentsColumns}
+						headerClass="bg-zinc-950/50"
+						emptyMessage="No tournament participation recorded"
+					>
+						{#snippet cell(tournament, col)}
+							{#if col.key === 'tournament'}
+								<span class="text-white font-medium text-sm">{tournament.name}</span>
+							{:else if col.key === 'date'}
+								<span class="text-gray-400 text-sm">{formatDate(tournament.date)}</span>
+							{:else if col.key === 'placement'}
+								<span class="{getPlacementColor(tournament.placement)} text-sm font-bold">
+									{tournament.placement}
+								</span>
+							{/if}
+						{/snippet}
+					</DataTable>
 				</div>
 				
 				<!-- Fight Nights Section -->
@@ -520,49 +494,31 @@ function getResultColor(result: string): string {
 						<h2 class="text-2xl font-bold text-white">Fight Nights</h2>
 					</div>
 					
-					<div class="overflow-x-auto">
-						{#if fightNights.length > 0}
-							<table class="w-full">
-								<thead class="bg-zinc-950/50">
-									<tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
-										<th class="px-4 py-2 font-medium">Event</th>
-										<th class="px-4 py-2 font-medium">Opponent</th>
-										<th class="px-4 py-2 font-medium">Result</th>
-										<th class="px-4 py-2 font-medium">Date</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-zinc-800/50">
-									{#each fightNights as fight}
-										<tr class="hover:bg-zinc-800/30 transition-colors">
-											<td class="px-4 py-2">
-												<a 
-													href="/fightnight/{fight.id}"
-													class="text-white font-medium text-sm hover:text-blue-400 transition-colors"
-												>
-													{fight.fightNightName}
-												</a>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-300 text-sm">{fight.opponent}</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="{getResultColor(fight.result)} text-sm font-bold">
-													{fight.result} ({fight.score})
-												</span>
-											</td>
-											<td class="px-4 py-2">
-												<span class="text-gray-400 text-sm">{formatDate(fight.date)}</span>
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						{:else}
-							<div class="px-6 py-8 text-center">
-								<p class="text-gray-500 text-sm">No Fight Night participation recorded</p>
-							</div>
-						{/if}
-					</div>
+					<DataTable
+						data={fightNights}
+						columns={fightNightsColumns}
+						headerClass="bg-zinc-950/50"
+						emptyMessage="No Fight Night participation recorded"
+					>
+						{#snippet cell(fight, col)}
+							{#if col.key === 'event'}
+								<a 
+									href="/fightnight/{fight.id}"
+									class="text-white font-medium text-sm hover:text-blue-400 transition-colors"
+								>
+									{fight.fightNightName}
+								</a>
+							{:else if col.key === 'opponent'}
+								<span class="text-gray-300 text-sm">{fight.opponent}</span>
+							{:else if col.key === 'result'}
+								<span class="{getResultColor(fight.result)} text-sm font-bold">
+									{fight.result} ({fight.score})
+								</span>
+							{:else if col.key === 'date'}
+								<span class="text-gray-400 text-sm">{formatDate(fight.date)}</span>
+							{/if}
+						{/snippet}
+					</DataTable>
 				</div>
 				
 			</main>

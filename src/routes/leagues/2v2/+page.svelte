@@ -1,5 +1,12 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import DataTable from '$lib/components/ui/DataTable.svelte';
+
+const standingsColumns = [
+	{ key: 'team', label: 'Team' },
+	{ key: 'record', label: 'Record' },
+	{ key: 'points', label: 'Avg Points' }
+];
 
 interface PageData {
   seasons: Array<{
@@ -18,6 +25,7 @@ interface PageData {
     teams: Array<{
       id: number;
       name: string;
+      avatar?: string | null;
       wins: number;
       losses: number;
       points: number;
@@ -41,12 +49,10 @@ interface PageData {
 
 let { data } = $props<{ data: PageData }>();
 
-// Track selected season and region in state
 let selectedSeason = $state(data.selectedSeasonId);
 let selectedRegion = $state(data.selectedRegionId);
 let isInitialized = $state(false);
 
-// Filter regions to only show those with 2v2 seasons
 const regionsWithSeasons = $derived(
   data.regions.filter((region: (typeof data.regions)[number]) =>
     data.seasons.some(
@@ -55,16 +61,10 @@ const regionsWithSeasons = $derived(
   ),
 );
 
-// TODO: TEMPORARY WORKAROUND - This auto-switching logic can be removed when schema is refactored
-// Currently needed because seasons are not unique (Season 1 exists for both NA and EU)
-// This effect automatically switches to a valid season when the user changes region
-// to prevent showing empty results (e.g., Season 1 EU when viewing NA region)
-// Once seasons have unique identifiers, this reactive logic can be simplified or removed
 $effect(() => {
   const seasonsForRegion = data.seasons.filter(
     (s: (typeof data.seasons)[number]) => s.regionId === selectedRegion,
   );
-  // If the current selected season is not in this region, pick the first one
   if (
     !seasonsForRegion.find(
       (s: (typeof data.seasons)[number]) => s.id === selectedSeason,
@@ -74,22 +74,18 @@ $effect(() => {
   }
 });
 
-// Automatically navigate when season or region changes (after initial load)
 $effect(() => {
-  // Don't navigate on initial load (when component first mounts)
   if (!isInitialized) {
     isInitialized = true;
     return;
   }
 
-  // Navigate when either value changes
   const params = new URLSearchParams();
   params.set('season', selectedSeason.toString());
   params.set('region', selectedRegion.toString());
   goto(`?${params.toString()}`, { keepFocus: true, replaceState: false });
 });
 
-// Get region abbreviation
 function getRegionAbbr(regionId: number): string {
   const region = data.regions.find(
     (r: (typeof data.regions)[number]) => r.id === regionId,
@@ -132,7 +128,6 @@ function getRegionAbbr(regionId: number): string {
 			
 			<div class="flex flex-col items-center gap-2">
 				<span class="text-sm font-medium text-gray-400">Season</span>
-				<!-- TODO: TEMPORARY WORKAROUND - Remove region name from display when schema is refactored -->
 				<select 
 					bind:value={selectedSeason}
 					class="px-6 py-2 bg-zinc-900 text-white rounded border border-zinc-800 hover:bg-zinc-800 transition-all cursor-pointer"
@@ -201,39 +196,28 @@ function getRegionAbbr(regionId: number): string {
 							</div>
 							
 							<!-- Standings Table -->
-							<div class="overflow-x-auto">
-								<table class="w-full">
-									<thead class="bg-zinc-950/50">
-										<tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
-											<th class="px-4 py-2 font-medium">Team</th>
-											<th class="px-4 py-2 font-medium">Record</th>
-											<th class="px-4 py-2 font-medium">Avg Points</th>
-										</tr>
-									</thead>
-									<tbody class="divide-y divide-zinc-800/50">
-										{#each divisionData.teams as team}
-											<tr class="hover:bg-zinc-800/30 transition-colors">
-												<td class="px-4 py-2">
-													<a href="/teams/{team.id}" class="flex items-center gap-2 text-white text-sm font-medium hover:text-blue-400 transition-colors">
-														<img 
-															src={team.avatar || `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
-															alt="{team.name} logo" 
-															class="w-8 h-8 rounded object-cover"
-														/>
-														<span>{team.name}</span>
-													</a>
-												</td>
-												<td class="px-4 py-2">
-													<span class="text-gray-300 text-sm">{team.wins}-{team.losses}</span>
-												</td>
-												<td class="px-4 py-2">
-													<span class="text-white text-sm font-medium">{team.points.toFixed(1)}</span>
-												</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
+							<DataTable
+								data={divisionData.teams}
+								columns={standingsColumns}
+								emptyMessage="No teams in this division"
+							>
+								{#snippet cell(team, col)}
+									{#if col.key === 'team'}
+										<a href="/teams/{team.id}" class="flex items-center gap-2 text-white text-sm font-medium hover:text-blue-400 transition-colors">
+											<img 
+												src={team.avatar || `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
+												alt="{team.name} logo" 
+												class="w-8 h-8 rounded object-cover"
+											/>
+											<span>{team.name}</span>
+										</a>
+									{:else if col.key === 'record'}
+										<span class="text-gray-300 text-sm">{team.wins}-{team.losses}</span>
+									{:else if col.key === 'points'}
+										<span class="text-white text-sm font-medium">{team.points.toFixed(1)}</span>
+									{/if}
+								{/snippet}
+							</DataTable>
 						</div>
 					{/each}
 				{/if}
@@ -273,7 +257,7 @@ function getRegionAbbr(regionId: number): string {
 												<div class="flex items-center gap-2">
 													<img 
 														src={member.avatar || `https://picsum.photos/seed/${member.name}/32`}
-														alt="{member.name}" 
+														alt={member.name}
 														class="w-7 h-7 rounded"
 													/>
 													<span class="text-sm text-white group-hover:text-blue-400 transition-colors">
@@ -296,4 +280,3 @@ function getRegionAbbr(regionId: number): string {
 		</div>
 	</div>
 </div>
-

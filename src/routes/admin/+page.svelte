@@ -3,8 +3,26 @@ import { enhance } from '$app/forms';
 import type { PageData } from './$types';
 import BarChart from '$lib/components/charts/BarChart.svelte';
 import DoughnutChart from '$lib/components/charts/DoughnutChart.svelte';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data }: { data: PageData } = $props();
+
+const matchColumns = [
+	{ key: 'match', label: 'Match' },
+	{ key: 'division', label: 'Division' },
+	{ key: 'season', label: 'Season' },
+	{ key: 'action', label: 'Action', align: 'right' as const }
+];
+
+const divisionColumns = [
+	{ key: 'division', label: 'Division' },
+	{ key: 'players', label: 'Players', align: 'right' as const }
+];
+
+const regionColumns = [
+	{ key: 'region', label: 'Region' },
+	{ key: 'teams', label: 'Teams', align: 'right' as const }
+];
 
 const analytics = $derived(data.analytics);
 const pendingPlayers = $derived(data.pendingPlayers);
@@ -353,47 +371,30 @@ const deadlineInfo = $derived(() => {
 				</p>
 			</div>
 		{:else}
-			<div class="overflow-x-auto">
-				<table class="min-w-full">
-					<thead class="bg-zinc-800/50">
-						<tr>
-							<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Match</th>
-							<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Division</th>
-							<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Season</th>
-							<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Action</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-zinc-800">
-						{#each recentMatches as match}
-							<tr class="hover:bg-zinc-800/30 transition">
-								<td class="px-4 py-3">
-									<div class="flex items-center gap-2">
-										<span class="text-white font-medium">{match.homeTeam.name}</span>
-										<span class="text-gray-500 text-sm">vs</span>
-										<span class="text-white font-medium">{match.awayTeam.name}</span>
-									</div>
-								</td>
-								<td class="px-4 py-3">
-									<span class="text-sm text-gray-300">{match.homeTeam.division?.name || '-'}</span>
-								</td>
-								<td class="px-4 py-3">
-									<span class="text-sm text-gray-400">
-										{match.season.region.name} S{match.season.seasonNum}
-									</span>
-								</td>
-								<td class="px-4 py-3 text-right">
-									<a
-										href="/matches/{match.id}"
-										class="text-blue-400 hover:text-blue-300 text-sm font-medium"
-									>
-										View
-									</a>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+			<DataTable data={recentMatches} columns={matchColumns} emptyMessage="No unplayed matches">
+				{#snippet cell(match, col)}
+					{#if col.key === 'match'}
+						<div class="flex items-center gap-2">
+							<span class="text-white font-medium">{match.homeTeam.name}</span>
+							<span class="text-gray-500 text-sm">vs</span>
+							<span class="text-white font-medium">{match.awayTeam.name}</span>
+						</div>
+					{:else if col.key === 'division'}
+						<span class="text-sm text-gray-300">{match.homeTeam.division?.name || '-'}</span>
+					{:else if col.key === 'season'}
+						<span class="text-sm text-gray-400">
+							{match.season.region.name} S{match.season.seasonNum}
+						</span>
+					{:else if col.key === 'action'}
+						<a
+							href="/matches/{match.id}"
+							class="text-blue-400 hover:text-blue-300 text-sm font-medium"
+						>
+							View
+						</a>
+					{/if}
+				{/snippet}
+			</DataTable>
 		{/if}
 	</div>
 
@@ -538,24 +539,15 @@ const deadlineInfo = $derived(() => {
 					</div>
 
 					<div class="max-h-48 overflow-y-auto">
-						<table class="w-full text-sm">
-							<thead class="bg-zinc-800/50 sticky top-0">
-								<tr>
-									<th class="px-3 py-2 text-left text-xs font-medium text-gray-400">Division</th>
-									<th class="px-3 py-2 text-right text-xs font-medium text-gray-400">Players</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-zinc-800/50">
-								{#each analytics.playersPerDivision as division}
-									<tr>
-										<td class="px-3 py-2 text-gray-300">{division.divisionName}</td>
-										<td class="px-3 py-2 text-gray-400 text-right font-mono"
-											>{division.playerCount}</td
-										>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
+						<DataTable data={analytics.playersPerDivision} columns={divisionColumns}>
+							{#snippet cell(division, col)}
+								{#if col.key === 'division'}
+									<span class="text-gray-300">{division.divisionName}</span>
+								{:else if col.key === 'players'}
+									<span class="text-gray-400 font-mono">{division.playerCount}</span>
+								{/if}
+							{/snippet}
+						</DataTable>
 					</div>
 				{:else}
 					<p class="text-gray-500 text-center py-8 text-sm">No active players</p>
@@ -576,22 +568,15 @@ const deadlineInfo = $derived(() => {
 					</div>
 
 					<div class="max-h-48 overflow-y-auto">
-						<table class="w-full text-sm">
-							<thead class="bg-zinc-800/50 sticky top-0">
-								<tr>
-									<th class="px-3 py-2 text-left text-xs font-medium text-gray-400">Region</th>
-									<th class="px-3 py-2 text-right text-xs font-medium text-gray-400">Teams</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-zinc-800/50">
-								{#each analytics.teamsPerRegion as region}
-									<tr>
-										<td class="px-3 py-2 text-gray-300">{region.regionName}</td>
-										<td class="px-3 py-2 text-gray-400 text-right font-mono">{region.teamCount}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
+						<DataTable data={analytics.teamsPerRegion} columns={regionColumns}>
+							{#snippet cell(region, col)}
+								{#if col.key === 'region'}
+									<span class="text-gray-300">{region.regionName}</span>
+								{:else if col.key === 'teams'}
+									<span class="text-gray-400 font-mono">{region.teamCount}</span>
+								{/if}
+							{/snippet}
+						</DataTable>
 					</div>
 				{:else}
 					<p class="text-gray-500 text-center py-8 text-sm">No active teams</p>

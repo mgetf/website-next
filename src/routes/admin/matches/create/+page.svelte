@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data }: { data: PageData } = $props();
 
@@ -168,6 +169,13 @@ function onRegionChange() {
   selectedSeasonId = null;
   onFieldChange();
 }
+
+// Table column definitions for match preview
+const matchPreviewColumns = [
+  { key: 'home', label: 'Home' },
+  { key: 'vs', label: '', align: 'center' as const },
+  { key: 'away', label: 'Away' }
+];
 </script>
 
 <div class="max-w-4xl mx-auto space-y-6">
@@ -511,75 +519,44 @@ function onRegionChange() {
 					</p>
 
 					<!-- Matchups Table -->
-					<div class="overflow-x-auto">
-						<table class="w-full">
-							<thead>
-								<tr class="border-b border-zinc-700">
-									<th class="text-left py-3 px-4 text-sm font-semibold text-gray-300">Home</th>
-									<th class="text-center py-3 px-4 text-sm font-semibold text-gray-300"></th>
-									<th class="text-left py-3 px-4 text-sm font-semibold text-gray-300">Away</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each previewMatchups as matchup, i}
-									<tr class="border-b border-zinc-800 hover:bg-zinc-800/50">
-										<!-- Home Team -->
-										<td class="py-3 px-4">
-											<div class="flex flex-col">
-												<span class="text-white font-semibold">{matchup.home.name}</span>
-												<span class="text-xs text-gray-400">
-													Seed #{matchup.home.seed} • {matchup.home.wins}-{matchup.home.losses}
-												</span>
-											</div>
-										</td>
-										
-										<!-- VS -->
-										<td class="py-3 px-4 text-center">
-											<span class="text-gray-500 text-sm">vs</span>
-										</td>
-										
-										<!-- Away Team -->
-										<td class="py-3 px-4">
-											<div class="flex flex-col">
-												<span class="text-white font-semibold">{matchup.away.name}</span>
-												<span class="text-xs text-gray-400">
-													Seed #{matchup.away.seed} • {matchup.away.wins}-{matchup.away.losses}
-												</span>
-											</div>
-										</td>
-									</tr>
-								{/each}
-								
-								<!-- Bye Team Row -->
-								{#if previewByeTeam}
-									<tr class="border-b border-zinc-800 bg-yellow-500/10">
-										<!-- Bye Team -->
-										<td class="py-3 px-4">
-											<div class="flex flex-col">
-												<span class="text-white font-semibold">{previewByeTeam.name}</span>
-												<span class="text-xs text-gray-400">
-													Seed #{previewByeTeam.seed} • {previewByeTeam.wins}-{previewByeTeam.losses}
-												</span>
-											</div>
-										</td>
-										
-										<!-- VS -->
-										<td class="py-3 px-4 text-center">
-											<span class="text-gray-500 text-sm">vs</span>
-										</td>
-										
-										<!-- BYE -->
-										<td class="py-3 px-4">
-											<div class="flex flex-col">
-												<span class="text-yellow-400 font-bold">BYE</span>
-												<span class="text-xs text-yellow-300">Receives bye week</span>
-											</div>
-										</td>
-									</tr>
-								{/if}
-							</tbody>
-						</table>
-					</div>
+					<DataTable data={previewMatchups} columns={matchPreviewColumns}>
+						{#snippet cell(matchup, col)}
+							{#if col.key === 'home'}
+								<div class="flex flex-col">
+									<span class="text-white font-semibold">{matchup.home.name}</span>
+									<span class="text-xs text-gray-400">
+										Seed #{matchup.home.seed} • {matchup.home.wins}-{matchup.home.losses}
+									</span>
+								</div>
+							{:else if col.key === 'vs'}
+								<span class="text-gray-500 text-sm">vs</span>
+							{:else if col.key === 'away'}
+								<div class="flex flex-col">
+									<span class="text-white font-semibold">{matchup.away.name}</span>
+									<span class="text-xs text-gray-400">
+										Seed #{matchup.away.seed} • {matchup.away.wins}-{matchup.away.losses}
+									</span>
+								</div>
+							{/if}
+						{/snippet}
+					</DataTable>
+					
+					<!-- Bye Team Row (separate from table) -->
+					{#if previewByeTeam}
+						<div class="mt-2 bg-yellow-500/10 border border-zinc-800 rounded-lg p-4 flex items-center">
+							<div class="flex-1">
+								<span class="text-white font-semibold">{previewByeTeam.name}</span>
+								<span class="text-xs text-gray-400 ml-2">
+									Seed #{previewByeTeam.seed} • {previewByeTeam.wins}-{previewByeTeam.losses}
+								</span>
+							</div>
+							<span class="text-gray-500 text-sm px-4">vs</span>
+							<div class="flex-1 text-right">
+								<span class="text-yellow-400 font-bold">BYE</span>
+								<span class="text-xs text-yellow-300 ml-2">Receives bye week</span>
+							</div>
+						</div>
+					{/if}
 
 					<!-- Create Button -->
 					<form method="POST" action="?/createMatchSet" use:enhance={handleCreateEnhance}>

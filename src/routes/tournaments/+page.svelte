@@ -1,8 +1,25 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import DataTable from '$lib/components/ui/DataTable.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
+
+const championshipsColumns = [
+	{ key: 'championship', label: 'Championship' },
+	{ key: 'date', label: 'Date' },
+	{ key: 'status', label: 'Status' },
+	{ key: 'participants', label: 'Participants' },
+	{ key: 'champion', label: 'Champion' }
+];
+
+const fightNightsColumns = [
+	{ key: 'event', label: 'Event' },
+	{ key: 'date', label: 'Date' },
+	{ key: 'matchups', label: 'Matchups' },
+	{ key: 'prize', label: 'Prize Pool' },
+	{ key: 'participants', label: 'Participants' }
+];
 
 let activeTab = $state<'cups' | 'championships' | 'fightnights'>('cups');
 let showCreateForm = $state(false);
@@ -236,7 +253,7 @@ const toggleExpanded = (id: number) => {
 		</nav>
 	</div>
 
-	<!-- Cups Tab -->
+	<!-- Cups Tab (uses custom table due to expandable admin rows) -->
 	{#if activeTab === 'cups'}
 		{#if data.tournaments.length === 0}
 			<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
@@ -247,30 +264,20 @@ const toggleExpanded = (id: number) => {
 		{:else}
 			<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
 				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-zinc-800">
-						<thead class="bg-zinc-800/50">
+					<table class="w-full">
+						<thead class="bg-zinc-900 border-b border-zinc-800">
 							<tr>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Tournament
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Date
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Format
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Winner
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Bracket
-								</th>
+								<th scope="col" class="px-4 py-3 text-sm font-semibold text-gray-300 text-left">Tournament</th>
+								<th scope="col" class="px-4 py-3 text-sm font-semibold text-gray-300 text-left">Date</th>
+								<th scope="col" class="px-4 py-3 text-sm font-semibold text-gray-300 text-left">Format</th>
+								<th scope="col" class="px-4 py-3 text-sm font-semibold text-gray-300 text-left">Winner</th>
+								<th scope="col" class="px-4 py-3 text-sm font-semibold text-gray-300 text-left">Bracket</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-zinc-800">
 							{#each data.tournaments as tournament}
-								<tr class="hover:bg-zinc-800/30 transition-colors">
-									<td class="px-6 py-4 whitespace-nowrap">
+								<tr class="hover:bg-zinc-800/50 transition-colors">
+									<td class="px-4 py-3 whitespace-nowrap">
 										<div class="flex items-center space-x-3">
 											{#if tournament.avatar}
 												<img 
@@ -295,12 +302,12 @@ const toggleExpanded = (id: number) => {
 											</div>
 										</div>
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
+									<td class="px-4 py-3 whitespace-nowrap">
 										<div class="text-sm text-gray-300">
 											{formatDate(tournament.startedAt)}
 										</div>
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
+									<td class="px-4 py-3 whitespace-nowrap">
 										{#if tournament.isTeamTournament}
 											<span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs font-semibold border border-purple-500/30">
 												2v2
@@ -311,7 +318,7 @@ const toggleExpanded = (id: number) => {
 											</span>
 										{/if}
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
+									<td class="px-4 py-3 whitespace-nowrap">
 										{#if tournament.isTeamTournament}
 											{#if tournament.winner1 && tournament.winner2}
 												<div class="flex items-center space-x-2">
@@ -358,7 +365,7 @@ const toggleExpanded = (id: number) => {
 											{/if}
 										{/if}
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
+									<td class="px-4 py-3 whitespace-nowrap">
 										<div class="flex items-center gap-3">
 											{#if tournament.bracketLink}
 												<a 
@@ -388,12 +395,10 @@ const toggleExpanded = (id: number) => {
 									</td>
 								</tr>
 								
-								<!-- Admin Expanded Row -->
 								{#if data.isGlobalAdmin && expandedTournament === tournament.id}
 									<tr class="bg-zinc-800/50">
-										<td colspan="5" class="px-6 py-4">
+										<td colspan="5" class="px-4 py-3">
 											<div class="space-y-4">
-												<!-- Set Winners Form -->
 												<form 
 													method="POST" 
 													action="?/setWinners"
@@ -410,7 +415,6 @@ const toggleExpanded = (id: number) => {
 													<h4 class="text-sm font-semibold text-white">Set Winners</h4>
 													
 													<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-														<!-- 1st Place -->
 														<div class="space-y-2">
 															<span class="text-xs text-yellow-400 font-medium">🥇 1st Place</span>
 															<input 
@@ -431,7 +435,6 @@ const toggleExpanded = (id: number) => {
 															{/if}
 														</div>
 														
-														<!-- 2nd Place -->
 														<div class="space-y-2">
 															<span class="text-xs text-gray-400 font-medium">🥈 2nd Place</span>
 															<input 
@@ -452,7 +455,6 @@ const toggleExpanded = (id: number) => {
 															{/if}
 														</div>
 														
-														<!-- 3rd Place -->
 														<div class="space-y-2">
 															<span class="text-xs text-orange-400 font-medium">🥉 3rd Place</span>
 															<input 
@@ -496,211 +498,146 @@ const toggleExpanded = (id: number) => {
 
 	<!-- World Championships Tab -->
 	{#if activeTab === 'championships'}
-		{#if data.championships.length === 0}
-			<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
-				<div class="text-6xl mb-4">🌍</div>
-				<h3 class="text-xl font-bold text-white mb-2">No Championships Yet</h3>
-				<p class="text-gray-400">The World Championship is our premier annual event</p>
-			</div>
-		{:else}
-			<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-zinc-800">
-						<thead class="bg-zinc-800/50">
-							<tr>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Championship
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Date
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Status
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Participants
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Champion
-								</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-zinc-800">
-							{#each data.championships as championship}
-								<tr class="hover:bg-zinc-800/30 transition-colors">
-									<td class="px-6 py-4 whitespace-nowrap">
-										<div class="flex items-center space-x-3">
-											{#if championship.avatar}
-												<img 
-													src={championship.avatar} 
-													alt={championship.name}
-													class="w-12 h-12 rounded object-cover"
-												/>
-											{:else}
-												<div class="w-12 h-12 rounded bg-gradient-to-br from-purple-900/30 to-zinc-800 flex items-center justify-center text-2xl">
-													🌍
-												</div>
-											{/if}
-											<div>
-												<div class="text-sm font-semibold text-white">
-													{championship.name}
-												</div>
-											</div>
-										</div>
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										<div class="text-sm text-gray-300">
-											{formatDate(championship.startedAt)}
-										</div>
-										{#if championship.endedAt}
-											<div class="text-xs text-gray-500">
-												Ended: {formatDate(championship.endedAt)}
-											</div>
-										{/if}
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										<span class="px-2 py-1 rounded text-xs font-semibold {getStatusBadge(championship.status)}">
-											{getStatusLabel(championship.status)}
-										</span>
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										<div class="text-sm text-gray-300">
-											{championship._count?.participants || 0} Players
-										</div>
-										{#if championship._count?.matches}
-											<div class="text-xs text-gray-500">
-												{championship._count.matches} Matches
-											</div>
-										{/if}
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										{#if championship.winnerUser}
-											<a href="/users/{championship.winnerUser.steamId}" class="flex items-center space-x-2 group/winner">
-												<img 
-													src={championship.winnerUser.steamAvatar || '/default-avatar.png'} 
-													alt={championship.winnerUser.steamUsername}
-													class="w-8 h-8 rounded-full"
-												/>
-												<span class="text-sm text-white font-semibold group-hover/winner:text-blue-400 transition-colors">
-													{championship.winnerUser.steamUsername}
-												</span>
-												<span class="text-yellow-400 text-lg">👑</span>
-											</a>
-										{:else if championship.status === 'REGISTRATION'}
-											<span class="text-sm text-blue-400">Open</span>
-										{:else}
-											<span class="text-sm text-gray-500">TBD</span>
-										{/if}
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		{/if}
+		<DataTable
+			data={data.championships}
+			columns={championshipsColumns}
+			emptyMessage="No Championships Yet"
+			emptyIcon="🌍"
+		>
+			{#snippet cell(championship, col)}
+				{#if col.key === 'championship'}
+					<div class="flex items-center space-x-3 whitespace-nowrap">
+						{#if championship.avatar}
+							<img 
+								src={championship.avatar} 
+								alt={championship.name}
+								class="w-12 h-12 rounded object-cover"
+							/>
+						{:else}
+							<div class="w-12 h-12 rounded bg-gradient-to-br from-purple-900/30 to-zinc-800 flex items-center justify-center text-2xl">
+								🌍
+							</div>
+						{/if}
+						<div>
+							<div class="text-sm font-semibold text-white">
+								{championship.name}
+							</div>
+						</div>
+					</div>
+				{:else if col.key === 'date'}
+					<div class="whitespace-nowrap">
+						<div class="text-sm text-gray-300">
+							{formatDate(championship.startedAt)}
+						</div>
+						{#if championship.endedAt}
+							<div class="text-xs text-gray-500">
+								Ended: {formatDate(championship.endedAt)}
+							</div>
+						{/if}
+					</div>
+				{:else if col.key === 'status'}
+					<span class="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap {getStatusBadge(championship.status)}">
+						{getStatusLabel(championship.status)}
+					</span>
+				{:else if col.key === 'participants'}
+					<div class="whitespace-nowrap">
+						<div class="text-sm text-gray-300">
+							{championship._count?.participants || 0} Players
+						</div>
+						{#if championship._count?.matches}
+							<div class="text-xs text-gray-500">
+								{championship._count.matches} Matches
+							</div>
+						{/if}
+					</div>
+				{:else if col.key === 'champion'}
+					{#if championship.winnerUser}
+						<a href="/users/{championship.winnerUser.steamId}" class="flex items-center space-x-2 group/winner whitespace-nowrap">
+							<img 
+								src={championship.winnerUser.steamAvatar || '/default-avatar.png'} 
+								alt={championship.winnerUser.steamUsername}
+								class="w-8 h-8 rounded-full"
+							/>
+							<span class="text-sm text-white font-semibold group-hover/winner:text-blue-400 transition-colors">
+								{championship.winnerUser.steamUsername}
+							</span>
+							<span class="text-yellow-400 text-lg">👑</span>
+						</a>
+					{:else if championship.status === 'REGISTRATION'}
+						<span class="text-sm text-blue-400">Open</span>
+					{:else}
+						<span class="text-sm text-gray-500">TBD</span>
+					{/if}
+				{/if}
+			{/snippet}
+		</DataTable>
 	{/if}
 
 	<!-- Fight Nights Tab -->
 	{#if activeTab === 'fightnights'}
-		{#if data.fightNights.length === 0}
-			<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
-				<div class="text-6xl mb-4">🥊</div>
-				<h3 class="text-xl font-bold text-white mb-2">No Fight Nights Yet</h3>
-				<p class="text-gray-400">Fight Night events feature exciting matchups and special formats</p>
-			</div>
-		{:else}
-			<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-zinc-800">
-						<thead class="bg-zinc-800/50">
-							<tr>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Event
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Date
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Matchups
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Prize Pool
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Participants
-								</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-zinc-800">
-							{#each data.fightNights as fightNight}
-								<tr class="hover:bg-zinc-800/30 transition-colors">
-									<td class="px-6 py-4 whitespace-nowrap">
-										<div class="flex items-center space-x-3">
-											<div class="w-12 h-12 rounded bg-gradient-to-br from-red-900/30 to-zinc-800 flex items-center justify-center text-2xl flex-shrink-0">
-												🥊
-											</div>
-											<div>
-												<div class="text-sm font-semibold text-white">
-													{fightNight.card || `Fight Night #${fightNight.id}`}
-												</div>
-												{#if fightNight.description}
-													<div class="text-xs text-gray-500 line-clamp-1 max-w-xs">
-														{fightNight.description}
-													</div>
-												{/if}
-											</div>
-										</div>
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										<div class="text-sm text-gray-300">
-											{formatDate(fightNight.startedAt)}
-										</div>
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										<div class="text-sm text-gray-300">
-											{fightNight.matchups?.length || 0} {(fightNight.matchups?.length || 0) === 1 ? 'Fight' : 'Fights'}
-										</div>
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										{#if fightNight.prizepool > 0}
-											<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs font-semibold border border-green-500/30">
-												${fightNight.prizepool}
-											</span>
-										{:else}
-											<span class="text-sm text-gray-500">—</span>
-										{/if}
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										{#if fightNight.matchups && fightNight.matchups.length > 0}
-											<div class="flex -space-x-2">
-												{#each fightNight.matchups.slice(0, 6) as matchup}
-													{#if matchup.player1}
-														<img 
-															src={matchup.player1.steamAvatar || '/default-avatar.png'} 
-															alt={matchup.player1.steamUsername}
-															class="w-8 h-8 rounded-full ring-2 ring-zinc-900"
-															title={matchup.player1.steamUsername}
-														/>
-													{/if}
-												{/each}
-												{#if fightNight.matchups.length > 6}
-													<div class="w-8 h-8 rounded-full bg-zinc-800 ring-2 ring-zinc-900 flex items-center justify-center">
-														<span class="text-xs text-gray-400">+{fightNight.matchups.length - 6}</span>
-													</div>
-												{/if}
-											</div>
-										{:else}
-											<span class="text-sm text-gray-500">—</span>
-										{/if}
-									</td>
-								</tr>
+		<DataTable
+			data={data.fightNights}
+			columns={fightNightsColumns}
+			emptyMessage="No Fight Nights Yet"
+			emptyIcon="🥊"
+		>
+			{#snippet cell(fightNight, col)}
+				{#if col.key === 'event'}
+					<div class="flex items-center space-x-3 whitespace-nowrap">
+						<div class="w-12 h-12 rounded bg-gradient-to-br from-red-900/30 to-zinc-800 flex items-center justify-center text-2xl flex-shrink-0">
+							🥊
+						</div>
+						<div>
+							<div class="text-sm font-semibold text-white">
+								{fightNight.card || `Fight Night #${fightNight.id}`}
+							</div>
+							{#if fightNight.description}
+								<div class="text-xs text-gray-500 line-clamp-1 max-w-xs">
+									{fightNight.description}
+								</div>
+							{/if}
+						</div>
+					</div>
+				{:else if col.key === 'date'}
+					<div class="text-sm text-gray-300 whitespace-nowrap">
+						{formatDate(fightNight.startedAt)}
+					</div>
+				{:else if col.key === 'matchups'}
+					<div class="text-sm text-gray-300 whitespace-nowrap">
+						{fightNight.matchups?.length || 0} {(fightNight.matchups?.length || 0) === 1 ? 'Fight' : 'Fights'}
+					</div>
+				{:else if col.key === 'prize'}
+					{#if fightNight.prizepool > 0}
+						<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs font-semibold border border-green-500/30 whitespace-nowrap">
+							${fightNight.prizepool}
+						</span>
+					{:else}
+						<span class="text-sm text-gray-500">—</span>
+					{/if}
+				{:else if col.key === 'participants'}
+					{#if fightNight.matchups && fightNight.matchups.length > 0}
+						<div class="flex -space-x-2">
+							{#each fightNight.matchups.slice(0, 6) as matchup}
+								{#if matchup.player1}
+									<img 
+										src={matchup.player1.steamAvatar || '/default-avatar.png'} 
+										alt={matchup.player1.steamUsername}
+										class="w-8 h-8 rounded-full ring-2 ring-zinc-900"
+										title={matchup.player1.steamUsername}
+									/>
+								{/if}
 							{/each}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		{/if}
+							{#if fightNight.matchups.length > 6}
+								<div class="w-8 h-8 rounded-full bg-zinc-800 ring-2 ring-zinc-900 flex items-center justify-center">
+									<span class="text-xs text-gray-400">+{fightNight.matchups.length - 6}</span>
+								</div>
+							{/if}
+						</div>
+					{:else}
+						<span class="text-sm text-gray-500">—</span>
+					{/if}
+				{/if}
+			{/snippet}
+		</DataTable>
 	{/if}
 </div>
-

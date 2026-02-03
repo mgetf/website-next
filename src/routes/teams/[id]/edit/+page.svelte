@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import FormError from '$lib/components/ui/form/FormError.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -109,16 +110,8 @@ async function copyInviteLink() {
 		</div>
 
 		<!-- Success/Error Messages -->
-		{#if form?.success}
-			<div class="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
-				<p class="text-green-400">{form.message}</p>
-			</div>
-		{/if}
-		{#if form?.error}
-			<div class="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-				<p class="text-red-400">{form.error}</p>
-			</div>
-		{/if}
+		<FormError success={form?.success ? form.message : null} />
+		<FormError error={form?.error} />
 
 		<!-- Tabs -->
 		<div class="bg-zinc-900 border border-zinc-800 rounded-lg">

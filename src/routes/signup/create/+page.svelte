@@ -1,6 +1,9 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import FormInput from '$lib/components/ui/form/FormInput.svelte';
+import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+import FormError from '$lib/components/ui/form/FormError.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -24,6 +27,20 @@ const filteredDivisions = $derived(
 // Get currency symbol from selected region (default to $)
 const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '$');
 
+// Options for FormSelect components
+const regionOptions = $derived(
+  data.regions.map((r) => ({ value: r.id.toString(), label: r.name }))
+);
+
+const divisionOptions = $derived(
+  filteredDivisions.map((d) => ({
+    value: d.id.toString(),
+    label: d.signupCost > 0
+      ? `${d.name} - ${currencySymbol}${d.signupCost.toFixed(2)}`
+      : `${d.name} - FREE`
+  }))
+);
+
 function handleAvatarChange(event: Event) {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
@@ -38,9 +55,8 @@ function handleAvatarChange(event: Event) {
   }
 }
 
-function handleRegionChange(event: Event) {
-  const target = event.target as HTMLSelectElement;
-  selectedRegionId = target.value ? parseInt(target.value) : null;
+function handleRegionChange(value: string) {
+  selectedRegionId = value ? parseInt(value) : null;
 }
 </script>
 
@@ -59,11 +75,7 @@ function handleRegionChange(event: Event) {
 		</div>
 
 		<!-- Error Message -->
-		{#if form?.error}
-			<div class="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-				<p class="text-red-400">{form.error}</p>
-			</div>
-		{/if}
+		<FormError error={form?.error} />
 
 		{#if !data.canCreate}
 			<!-- Unavailable Message -->
@@ -96,36 +108,22 @@ function handleRegionChange(event: Event) {
 			class="bg-zinc-900 border border-zinc-800 rounded-lg p-8"
 		>
 			<!-- Team Name -->
-			<div class="mb-6">
-				<label for="name" class="block text-sm font-medium text-gray-300 mb-2">
-					Team Name <span class="text-red-500">*</span>
-				</label>
-				<input
-					type="text"
-					id="name"
-					name="name"
-					required
-					maxlength="25"
-					placeholder="Enter team name (max 25 characters)"
-					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition-colors"
-				/>
-				<p class="text-xs text-gray-500 mt-1">No &lt; or &gt; characters allowed</p>
-			</div>
+			<FormInput
+				label="Team Name"
+				name="name"
+				required
+				maxlength={25}
+				placeholder="Enter team name (max 25 characters)"
+				hint="No < or > characters allowed"
+			/>
 
 			<!-- Acronym -->
-			<div class="mb-6">
-				<label for="acronym" class="block text-sm font-medium text-gray-300 mb-2">
-					Team Acronym <span class="text-gray-500">(optional)</span>
-				</label>
-				<input
-					type="text"
-					id="acronym"
-					name="acronym"
-					maxlength="4"
-					placeholder="e.g., MGE (max 4 characters)"
-					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition-colors"
-				/>
-			</div>
+			<FormInput
+				label="Team Acronym"
+				name="acronym"
+				maxlength={4}
+				placeholder="e.g., MGE (max 4 characters)"
+			/>
 
 			<!-- Avatar Upload -->
 			<div class="mb-6">
@@ -165,76 +163,34 @@ function handleRegionChange(event: Event) {
 			</div>
 
 			<!-- Region & Division Grid -->
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-				<!-- Region (First - controls division options) -->
-				<div>
-					<label for="regionId" class="block text-sm font-medium text-gray-300 mb-2">
-						Region <span class="text-red-500">*</span>
-					</label>
-					<select
-						id="regionId"
-						name="regionId"
-						required
-						onchange={handleRegionChange}
-						class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors"
-					>
-						<option value="">Select Region</option>
-						{#each data.regions as region}
-							<option value={region.id}>
-								{region.name}
-							</option>
-						{/each}
-					</select>
-				</div>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<FormSelect
+					label="Region"
+					name="regionId"
+					options={regionOptions}
+					placeholder="Select Region"
+					required
+					onChange={handleRegionChange}
+				/>
 
-				<!-- Division (Filtered by selected region) -->
-				<div>
-					<label for="divisionId" class="block text-sm font-medium text-gray-300 mb-2">
-						Division <span class="text-red-500">*</span>
-					</label>
-					<select
-						id="divisionId"
-						name="divisionId"
-						required
-						disabled={!selectedRegionId}
-						class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-					>
-						{#if !selectedRegionId}
-							<option value="">Select a region first</option>
-						{:else}
-							<option value="">Select Division</option>
-							{#each filteredDivisions as division}
-								<option value={division.id}>
-									{division.name}
-									{#if division.signupCost > 0}
-										- {currencySymbol}{division.signupCost.toFixed(2)}
-									{:else}
-										- FREE
-									{/if}
-								</option>
-							{/each}
-						{/if}
-					</select>
-				</div>
+				<FormSelect
+					label="Division"
+					name="divisionId"
+					options={divisionOptions}
+					placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
+					required
+					disabled={!selectedRegionId}
+				/>
 			</div>
 
 			<!-- Join Password -->
-			<div class="mb-6">
-				<label for="joinPassword" class="block text-sm font-medium text-gray-300 mb-2">
-					Team Join Password <span class="text-red-500">*</span>
-				</label>
-				<input
-					type="text"
-					id="joinPassword"
-					name="joinPassword"
-					required
-					placeholder="Create a password for players to join your team"
-					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition-colors"
-				/>
-				<p class="text-xs text-gray-500 mt-1">
-					Players will need this password to request joining your team
-				</p>
-			</div>
+			<FormInput
+				label="Team Join Password"
+				name="joinPassword"
+				required
+				placeholder="Create a password for players to join your team"
+				hint="Players will need this password to request joining your team"
+			/>
 
 			<!-- Terms & Conditions -->
 			<div class="mb-6 space-y-3">

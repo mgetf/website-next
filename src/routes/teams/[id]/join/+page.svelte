@@ -1,6 +1,8 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import FormInput from '$lib/components/ui/form/FormInput.svelte';
+import FormError from '$lib/components/ui/form/FormError.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -53,11 +55,7 @@ let isSubmitting = $state(false);
 					</div>
 
 					<!-- Error Message -->
-					{#if form?.error}
-						<div class="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-							<p class="text-red-400">{form.error}</p>
-						</div>
-					{/if}
+					<FormError error={form?.error} />
 
 					<!-- Join Form -->
 					<form
@@ -71,19 +69,13 @@ let isSubmitting = $state(false);
 							};
 						}}
 					>
-						<div class="mb-6">
-							<label for="password" class="block text-sm font-medium text-gray-300 mb-2">
-								Team Password
-							</label>
-							<input
-								type="password"
-								id="password"
-								name="password"
-								required
-								placeholder="Enter team password"
-								class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition-colors"
-							/>
-						</div>
+						<FormInput
+							label="Team Password"
+							name="password"
+							type="password"
+							required
+							placeholder="Enter team password"
+						/>
 
 						<button
 							type="submit"

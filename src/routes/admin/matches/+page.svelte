@@ -3,6 +3,7 @@ import { goto } from '$app/navigation';
 import { page } from '$app/stores';
 import type { PageData } from './$types';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 
 let { data }: { data: PageData } = $props();
 
@@ -23,22 +24,33 @@ let selectedRegion = $state(data.filters.regionId || '');
 let selectedSeason = $state(data.filters.seasonId || '');
 let selectedWeek = $state(data.filters.week || '1');
 
-function onRegionChange(event: Event) {
-  const select = event.target as HTMLSelectElement;
-  selectedRegion = select.value;
-  selectedSeason = ''; // Reset season when region changes
+const regionOptions = $derived(
+  data.regions.map((r) => ({ value: r.id.toString(), label: r.name }))
+);
+
+const seasonOptions = $derived(
+  data.seasons.map((s) => ({ value: s.id.toString(), label: `Season ${s.seasonNum}` }))
+);
+
+const weekOptions = $derived(
+  data.weekOptions.length > 0
+    ? data.weekOptions.map((o) => ({ value: o.value, label: o.label }))
+    : [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ value: n.toString(), label: `Week ${n}` }))
+);
+
+function onRegionChange(value: string) {
+  selectedRegion = value;
+  selectedSeason = '';
   applyFilters();
 }
 
-function onSeasonChange(event: Event) {
-  const select = event.target as HTMLSelectElement;
-  selectedSeason = select.value;
+function onSeasonChange(value: string) {
+  selectedSeason = value;
   applyFilters();
 }
 
-function onWeekChange(event: Event) {
-  const select = event.target as HTMLSelectElement;
-  selectedWeek = select.value;
+function onWeekChange(value: string) {
+  selectedWeek = value;
   applyFilters();
 }
 
@@ -143,60 +155,34 @@ function getWinnerClass(match: any, teamId: number): string {
 	<!-- Filters - Region, Season, Week Selection -->
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-			<!-- Region Selector -->
 			<div>
 				<label class="block text-sm font-medium text-gray-300 mb-2">Region</label>
-				<select
+				<SelectFilter
 					value={selectedRegion}
-					onchange={onRegionChange}
-					class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-				>
-					{#each data.regions as region}
-						<option value={region.id.toString()}>
-							{region.name}
-						</option>
-					{/each}
-				</select>
+					options={regionOptions}
+					showAllOption={false}
+					onChange={onRegionChange}
+				/>
 			</div>
 
-			<!-- Season Selector -->
 			<div>
 				<label class="block text-sm font-medium text-gray-300 mb-2">Season</label>
-				<select
+				<SelectFilter
 					value={selectedSeason}
-					onchange={onSeasonChange}
-					class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-				>
-					{#each data.seasons as season}
-						<option value={season.id.toString()}>
-							Season {season.seasonNum}
-						</option>
-					{/each}
-				</select>
+					options={seasonOptions}
+					showAllOption={false}
+					onChange={onSeasonChange}
+				/>
 			</div>
 
-			<!-- Week/Round Selector -->
 			<div>
 				<label class="block text-sm font-medium text-gray-300 mb-2">Round</label>
-				<select
+				<SelectFilter
 					value={selectedWeek}
-					onchange={onWeekChange}
-					class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-				>
-					{#each data.weekOptions as option}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-					{#if data.weekOptions.length === 0}
-						<option value="1">Week 1</option>
-						<option value="2">Week 2</option>
-						<option value="3">Week 3</option>
-						<option value="4">Week 4</option>
-						<option value="5">Week 5</option>
-						<option value="6">Week 6</option>
-						<option value="7">Week 7</option>
-						<option value="8">Week 8</option>
-					{/if}
-				</select>
+					options={weekOptions}
+					showAllOption={false}
+					onChange={onWeekChange}
+				/>
 			</div>
 		</div>
 	</div>

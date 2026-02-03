@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import FormError from '$lib/components/ui/form/FormError.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -137,11 +138,7 @@ let isSubmitting = $state(false);
 					{/if}
 
 					<!-- Error Message -->
-					{#if form?.error}
-						<div class="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-							<p class="text-red-400">{form.error}</p>
-						</div>
-					{/if}
+					<FormError error={form?.error} />
 
 					<!-- Actions -->
 					<div class="flex gap-3">

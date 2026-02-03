@@ -1,6 +1,8 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+import FormError from '$lib/components/ui/form/FormError.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -27,9 +29,22 @@ const filteredDivisions = $derived(
 // Get currency symbol from selected region (default to $)
 const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '$');
 
-function handleRegionChange(event: Event) {
-  const target = event.target as HTMLSelectElement;
-  selectedRegionId = target.value ? parseInt(target.value) : null;
+// Options for FormSelect components
+const regionOptions = $derived(
+  data.regions.map((r) => ({ value: r.id.toString(), label: r.name }))
+);
+
+const divisionOptions = $derived(
+  filteredDivisions.map((d) => ({
+    value: d.id.toString(),
+    label: d.signupCost > 0
+      ? `${d.name} - ${currencySymbol}${d.signupCost.toFixed(2)}`
+      : `${d.name} - FREE`
+  }))
+);
+
+function handleRegionChange(value: string) {
+  selectedRegionId = value ? parseInt(value) : null;
 }
 </script>
 
@@ -48,11 +63,7 @@ function handleRegionChange(event: Event) {
 		</div>
 
 		<!-- Error Message -->
-		{#if form?.error}
-			<div class="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-				<p class="text-red-400">{form.error}</p>
-			</div>
-		{/if}
+		<FormError error={form?.error} />
 
 		{#if !data.canReregister}
 			<!-- Unavailable Message -->
@@ -136,57 +147,24 @@ function handleRegionChange(event: Event) {
 			</div>
 
 			<!-- Region & Division Grid -->
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-				<!-- Region (First - controls division options) -->
-				<div>
-					<label for="regionId" class="block text-sm font-medium text-gray-300 mb-2">
-						New Region <span class="text-red-500">*</span>
-					</label>
-					<select
-						id="regionId"
-						name="regionId"
-						required
-						onchange={handleRegionChange}
-						class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors"
-					>
-						<option value="">Select Region</option>
-						{#each data.regions as region}
-							<option value={region.id}>
-								{region.name}
-							</option>
-						{/each}
-					</select>
-				</div>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<FormSelect
+					label="New Region"
+					name="regionId"
+					options={regionOptions}
+					placeholder="Select Region"
+					required
+					onChange={handleRegionChange}
+				/>
 
-				<!-- Division (Filtered by selected region) -->
-				<div>
-					<label for="divisionId" class="block text-sm font-medium text-gray-300 mb-2">
-						New Division <span class="text-red-500">*</span>
-					</label>
-					<select
-						id="divisionId"
-						name="divisionId"
-						required
-						disabled={!selectedRegionId}
-						class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-					>
-						{#if !selectedRegionId}
-							<option value="">Select a region first</option>
-						{:else}
-							<option value="">Select Division</option>
-							{#each filteredDivisions as division}
-								<option value={division.id}>
-									{division.name}
-									{#if division.signupCost > 0}
-										- {currencySymbol}{division.signupCost.toFixed(2)}
-									{:else}
-										- FREE
-									{/if}
-								</option>
-							{/each}
-						{/if}
-					</select>
-				</div>
+				<FormSelect
+					label="New Division"
+					name="divisionId"
+					options={divisionOptions}
+					placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
+					required
+					disabled={!selectedRegionId}
+				/>
 			</div>
 
 			<!-- Terms & Conditions -->

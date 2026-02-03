@@ -4,6 +4,8 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { enhance } from '$app/forms';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import SearchInput from '$lib/components/ui/SearchInput.svelte';
+import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -36,6 +38,28 @@ const filteredSeasons = $derived(() => {
   const regionId = parseInt(data.filters.region);
   return data.seasons.filter((s) => s.regionId === regionId);
 });
+
+const seasonOptions = $derived(
+  filteredSeasons().map((s) => ({
+    value: s.id.toString(),
+    label: `Season ${s.seasonNum} (${s.region.name})`
+  }))
+);
+
+const divisionOptions = $derived(
+  data.divisions.map((d) => ({ value: d.id.toString(), label: d.name }))
+);
+
+const regionOptions = $derived(
+  data.regions.map((r) => ({ value: r.id.toString(), label: r.name }))
+);
+
+const statusOptions = [
+  { value: '2', label: 'Ready' },
+  { value: '1', label: 'Pending' },
+  { value: '0', label: 'Unready' },
+  { value: '3', label: 'Dead' }
+];
 
 function updateFilters(updates: Record<string, string>) {
   const params = new URLSearchParams(page.url.searchParams);
@@ -131,73 +155,41 @@ const statusToInt: Record<string, number> = {
 	
 	<!-- Filters -->
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-		<form class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-			<!-- Search -->
-			<input
-				type="text"
-				name="search"
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+			<SearchInput
 				value={data.filters.search}
-				oninput={(e) => updateFilters({ search: e.currentTarget.value })}
 				placeholder="Search teams..."
-				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+				onSearch={(v) => updateFilters({ search: v })}
 			/>
 			
-			<!-- Season Filter -->
-			<select
-				name="season"
+			<SelectFilter
 				value={data.filters.season}
-				onchange={(e) => updateFilters({ season: e.currentTarget.value })}
-				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-			>
-				<option value="all">All Seasons</option>
-				{#each filteredSeasons() as season}
-					<option value={season.id.toString()}>
-						Season {season.seasonNum} ({season.region.name})
-					</option>
-				{/each}
-			</select>
+				options={seasonOptions}
+				allLabel="All Seasons"
+				onChange={(v) => updateFilters({ season: v || 'all' })}
+			/>
 			
-			<!-- Division Filter -->
-			<select
-				name="division"
+			<SelectFilter
 				value={data.filters.division}
-				onchange={(e) => updateFilters({ division: e.currentTarget.value })}
-				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-			>
-				<option value="all">All Divisions</option>
-				{#each data.divisions as division}
-					<option value={division.id.toString()}>{division.name}</option>
-				{/each}
-			</select>
+				options={divisionOptions}
+				allLabel="All Divisions"
+				onChange={(v) => updateFilters({ division: v || 'all' })}
+			/>
 			
-			<!-- Region Filter -->
-			<select
-				name="region"
+			<SelectFilter
 				value={data.filters.region}
-				onchange={(e) => updateFilters({ region: e.currentTarget.value })}
-				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-			>
-				<option value="all">All Regions</option>
-				{#each data.regions as region}
-					<option value={region.id.toString()}>{region.name}</option>
-				{/each}
-			</select>
+				options={regionOptions}
+				allLabel="All Regions"
+				onChange={(v) => updateFilters({ region: v || 'all' })}
+			/>
 			
-			<!-- Status Filter -->
-			<select
-				name="status"
+			<SelectFilter
 				value={data.filters.status}
-				onchange={(e) => updateFilters({ status: e.currentTarget.value })}
-				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-			>
-				<option value="all">All Status</option>
-				<option value="2">Ready</option>
-				<option value="1">Pending</option>
-				<option value="0">Unready</option>
-				<option value="3">Dead</option>
-			</select>
+				options={statusOptions}
+				allLabel="All Status"
+				onChange={(v) => updateFilters({ status: v || 'all' })}
+			/>
 			
-			<!-- Clear Filters Button -->
 			<button
 				type="button"
 				onclick={() => goto('/admin/teams')}
@@ -205,7 +197,7 @@ const statusToInt: Record<string, number> = {
 			>
 				Clear Filters
 			</button>
-		</form>
+		</div>
 	</div>
 	
 	<!-- Teams Table -->

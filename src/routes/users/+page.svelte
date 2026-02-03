@@ -2,11 +2,20 @@
 import type { PageData } from './$types';
 import { goto } from '$app/navigation';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import SearchInput from '$lib/components/ui/SearchInput.svelte';
+import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 
 let { data }: { data: PageData } = $props();
 
 let searchInput = $state(data.filters.search);
-let roleFilter = $state(data.filters.role);
+let roleFilter = $state(data.filters.role || '');
+
+const roleOptions = [
+	{ value: 'ADMIN', label: 'Admin' },
+	{ value: 'MODERATOR', label: 'Moderator' },
+	{ value: 'USER', label: 'User' },
+	{ value: 'GUEST', label: 'Guest' }
+];
 
 const columns = [
   { key: 'player', label: 'Player' },
@@ -119,12 +128,9 @@ function getBanLabel(status: string) {
 				<label for="search" class="block text-sm font-medium text-gray-400 mb-2">
 					Search
 				</label>
-				<input
-					type="text"
-					id="search"
+				<SearchInput
 					bind:value={searchInput}
 					placeholder="Search by username, Steam ID, or Discord..."
-					class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
 			</div>
 			
@@ -132,18 +138,12 @@ function getBanLabel(status: string) {
 				<label for="role" class="block text-sm font-medium text-gray-400 mb-2">
 					Filter by role
 				</label>
-				<select
-					id="role"
+				<SelectFilter
 					bind:value={roleFilter}
-					onchange={handleRoleChange}
-					class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-				>
-					<option value="">All Roles</option>
-					<option value="ADMIN">Admin</option>
-					<option value="MODERATOR">Moderator</option>
-					<option value="USER">User</option>
-					<option value="GUEST">Guest</option>
-				</select>
+					options={roleOptions}
+					allLabel="All Roles"
+					onChange={handleRoleChange}
+				/>
 			</div>
 			
 			<div class="flex items-end gap-2">

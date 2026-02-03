@@ -4,6 +4,8 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { enhance } from '$app/forms';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import SearchInput from '$lib/components/ui/SearchInput.svelte';
+import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -47,6 +49,20 @@ const permissionNames: Record<string, string> = {
   MODERATOR: 'Moderator',
   ADMIN: 'Admin',
 };
+
+const permissionOptions = [
+  { value: 'GUEST', label: 'Guest' },
+  { value: 'USER', label: 'User' },
+  { value: 'MODERATOR', label: 'Moderator' },
+  { value: 'ADMIN', label: 'Admin' }
+];
+
+const banStatusOptions = [
+  { value: 'NONE', label: 'Active' },
+  { value: 'WARNING', label: 'Warning' },
+  { value: 'SUSPENDED', label: 'Suspended' },
+  { value: 'BANNED', label: 'Banned' }
+];
 
 const banStatusNames: Record<string, string> = {
   NONE: 'None',
@@ -99,46 +115,27 @@ function closeBanModal() {
 	
 	<!-- Filters -->
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-		<form class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-			<!-- Search -->
-			<input
-				type="text"
-				name="search"
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+			<SearchInput
 				value={data.filters.search}
-				oninput={(e) => updateFilters({ search: e.currentTarget.value })}
 				placeholder="Search by username or Steam ID..."
-				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+				onSearch={(v) => updateFilters({ search: v })}
 			/>
 			
-			<!-- Permission Level Filter -->
-			<select
-				name="permissionLevel"
+			<SelectFilter
 				value={data.filters.permissionLevel}
-				onchange={(e) => updateFilters({ permissionLevel: e.currentTarget.value })}
-				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-			>
-				<option value="all">All Permissions</option>
-				<option value="GUEST">Guest</option>
-				<option value="USER">User</option>
-				<option value="MODERATOR">Moderator</option>
-				<option value="ADMIN">Admin</option>
-			</select>
+				options={permissionOptions}
+				allLabel="All Permissions"
+				onChange={(v) => updateFilters({ permissionLevel: v || 'all' })}
+			/>
 			
-			<!-- Ban Status Filter -->
-			<select
-				name="banStatus"
+			<SelectFilter
 				value={data.filters.banStatus}
-				onchange={(e) => updateFilters({ banStatus: e.currentTarget.value })}
-				class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-			>
-				<option value="all">All Status</option>
-				<option value="NONE">Active</option>
-				<option value="WARNING">Warning</option>
-				<option value="SUSPENDED">Suspended</option>
-				<option value="BANNED">Banned</option>
-			</select>
+				options={banStatusOptions}
+				allLabel="All Status"
+				onChange={(v) => updateFilters({ banStatus: v || 'all' })}
+			/>
 			
-			<!-- Clear Filters Button -->
 			<button
 				type="button"
 				onclick={() => goto('/admin/users')}
@@ -146,7 +143,7 @@ function closeBanModal() {
 			>
 				Clear Filters
 			</button>
-		</form>
+		</div>
 	</div>
 	
 	<!-- Users Table -->

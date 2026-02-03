@@ -2,12 +2,33 @@
 import type { PageData } from './$types';
 import { goto } from '$app/navigation';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import SearchInput from '$lib/components/ui/SearchInput.svelte';
+import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 
 let { data }: { data: PageData } = $props();
 
 let searchInput = $state(data.filters.search);
-let regionFilter = $state(data.filters.region);
-let seasonFilter = $state(data.filters.season);
+let regionFilter = $state(data.filters.region?.toString() || '');
+let seasonFilter = $state(data.filters.season?.toString() || '');
+
+const regionOptions = $derived(
+	data.regions.map((r) => ({ value: r.id.toString(), label: r.name }))
+);
+
+const filteredSeasons = $derived(
+	regionFilter
+		? data.seasons.filter((s) => s.regionId.toString() === regionFilter)
+		: data.seasons
+);
+
+const seasonOptions = $derived(
+	filteredSeasons.map((s) => ({
+		value: s.id.toString(),
+		label: regionFilter
+			? `Season ${s.seasonNum}`
+			: `${s.region?.name || 'Unknown'} - Season ${s.seasonNum}`
+	}))
+);
 
 const columns = [
 	{ key: 'team', label: 'Team' },
@@ -27,7 +48,19 @@ function handleSearch(event: Event) {
   updateFilters();
 }
 
-function handleFilterChange() {
+function handleRegionChange() {
+  if (regionFilter && seasonFilter) {
+    const seasonStillValid = data.seasons.some(
+      (s) => s.id.toString() === seasonFilter && s.regionId.toString() === regionFilter
+    );
+    if (!seasonStillValid) {
+      seasonFilter = '';
+    }
+  }
+  updateFilters();
+}
+
+function handleSeasonChange() {
   updateFilters();
 }
 
@@ -39,11 +72,11 @@ function updateFilters() {
   }
 
   if (regionFilter) {
-    params.set('region', regionFilter.toString());
+    params.set('region', regionFilter);
   }
 
   if (seasonFilter) {
-    params.set('season', seasonFilter.toString());
+    params.set('season', seasonFilter);
   }
 
   params.set('page', '1');
@@ -121,12 +154,9 @@ function getStatusLabel(status: string) {
 					<label for="search" class="block text-sm font-medium text-gray-400 mb-2">
 						Search
 					</label>
-					<input
-						type="text"
-						id="search"
+					<SearchInput
 						bind:value={searchInput}
 						placeholder="Search by team name or acronym..."
-						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 				</div>
 				
@@ -134,36 +164,24 @@ function getStatusLabel(status: string) {
 					<label for="region" class="block text-sm font-medium text-gray-400 mb-2">
 						Region
 					</label>
-					<select
-						id="region"
+					<SelectFilter
 						bind:value={regionFilter}
-						onchange={handleFilterChange}
-						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-					>
-						<option value="">All Regions</option>
-						{#each data.regions as region}
-							<option value={region.id}>{region.name}</option>
-						{/each}
-					</select>
+						options={regionOptions}
+						allLabel="All Regions"
+						onChange={handleRegionChange}
+					/>
 				</div>
 				
 				<div class="md:w-48">
 					<label for="season" class="block text-sm font-medium text-gray-400 mb-2">
 						Season
 					</label>
-					<select
-						id="season"
+					<SelectFilter
 						bind:value={seasonFilter}
-						onchange={handleFilterChange}
-						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-					>
-						<option value="">All Seasons</option>
-						{#each data.seasons as season}
-							<option value={season.id}>
-								{season.region?.name || 'Unknown'} - Season {season.seasonNum}
-							</option>
-						{/each}
-					</select>
+						options={seasonOptions}
+						allLabel="All Seasons"
+						onChange={handleSeasonChange}
+					/>
 				</div>
 			</div>
 			

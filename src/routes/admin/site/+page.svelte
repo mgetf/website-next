@@ -1,6 +1,7 @@
 <script lang="ts">
 import { enhance } from '$app/forms';
 import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+import FormError from '$lib/components/ui/form/FormError.svelte';
 import type { PageData } from './$types';
 
 let { data }: { data: PageData } = $props();
@@ -71,16 +72,8 @@ const tabs: { id: Tab; label: string }[] = [
 	</div>
 
 	<!-- Success/Error Messages -->
-	{#if successMessage}
-		<div class="bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400">
-			{successMessage}
-		</div>
-	{/if}
-	{#if errorMessage}
-		<div class="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400">
-			{errorMessage}
-		</div>
-	{/if}
+	<FormError success={successMessage || null} />
+	<FormError error={errorMessage || null} />
 
 	<!-- Tabs -->
 	<div class="border-b border-zinc-800">

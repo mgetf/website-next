@@ -232,14 +232,15 @@ model User {
   permissionLevel UserRole  @default(GUEST) @map("permission_level")
   banStatus       BanStatus @default(NONE) @map("ban_status")
   nameOverride    Int       @default(0) @map("name_override")
+  staffDivisionId Int?      @map("staff_division_id")
 
+  staffDivision            Division?                 @relation(fields: [staffDivisionId], references: [id])
   discord                  Discord?
   punishmentsReceived      Punishment[]              @relation("PunishedPlayer")
   punishmentsGiven         Punishment[]              @relation("Punisher")
   threads                  Thread[]
   posts                    Post[]
   activities               Activity[]
-  moderator                Moderator?
   matchesSubmitted         Match[]
   matchComms               MatchComm[]
   pendingTeams             PendingPlayer[]
@@ -343,16 +344,6 @@ model Activity {
   @@map("activity")
 }
 
-model Moderator {
-  steamId    String @id @map("steam_id")
-  staffType  Int?   @map("staff_type")
-  divisionId Int?   @map("division_id")
-
-  user     User      @relation(fields: [steamId], references: [steamId])
-  division Division? @relation(fields: [divisionId], references: [id])
-
-  @@map("moderators")
-}
 
 model Arena {
   id         Int     @id @default(autoincrement())
@@ -545,9 +536,9 @@ model Division {
   hidden     Int    @default(0)
   regionId   Int    @map("region_id")
 
-  region     Region @relation(fields: [regionId], references: [id])
-  teams      Team[]
-  moderators Moderator[]
+  region       Region @relation(fields: [regionId], references: [id])
+  teams        Team[]
+  staffMembers User[]
 
   @@unique([name, regionId])
   @@map("divisions")

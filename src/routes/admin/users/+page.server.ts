@@ -8,6 +8,8 @@ import {
   banUser,
   unlinkDiscord,
 } from '$lib/server/services/users';
+import { getDivisions } from '$lib/server/services/divisions';
+import { getRegions } from '$lib/server/services/regions';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);
@@ -26,14 +28,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     banStatus: banStatusFilter || undefined,
   });
 
-  // Fetch users with pagination
-  const users = await getUsers({
-    search,
-    permissionLevel: permissionLevelFilter || undefined,
-    banStatus: banStatusFilter || undefined,
-    page,
-    pageSize,
-  });
+  // Fetch users with pagination, divisions and regions for staff assignment
+  const [users, divisions, regions] = await Promise.all([
+    getUsers({
+      search,
+      permissionLevel: permissionLevelFilter || undefined,
+      banStatus: banStatusFilter || undefined,
+      page,
+      pageSize,
+    }),
+    getDivisions(),
+    getRegions(),
+  ]);
 
   return {
     users: users.map((user) => ({
@@ -45,8 +51,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       nameOverride: user.nameOverride,
       discordLinked: !!user.discord,
       discordUsername: user.discord?.discordUsername,
-      isModerator: !!user.moderator,
-      moderatorDivision: user.moderator?.division?.name,
+      staffDivisionId: user.staffDivisionId,
+      staffDivisionName: user.staffDivision?.name,
+      staffRegionId: user.staffDivision?.regionId,
+    })),
+    regions: regions.map((r) => ({
+      id: r.id,
+      name: r.name,
+    })),
+    divisions: divisions.map((d) => ({
+      id: d.id,
+      name: d.name,
+      regionId: d.regionId,
+      regionName: d.region?.name,
     })),
     pagination: {
       page,
@@ -71,6 +88,7 @@ export const actions: Actions = {
     const permissionLevel = formData.get('permissionLevel') as string;
     const banStatus = formData.get('banStatus') as string;
     const nameOverride = formData.get('nameOverride') as string;
+    const staffDivisionId = formData.get('staffDivisionId') as string;
 
     // Validate inputs
     if (!steamId) {
@@ -82,6 +100,7 @@ export const actions: Actions = {
         permissionLevel: permissionLevel || undefined,
         banStatus: banStatus || undefined,
         nameOverride: nameOverride ? parseInt(nameOverride) : undefined,
+        staffDivisionId: staffDivisionId === '' ? null : staffDivisionId ? parseInt(staffDivisionId) : undefined,
       });
 
       return { success: true, message: 'User updated successfully!' };

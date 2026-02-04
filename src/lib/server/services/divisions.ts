@@ -13,6 +13,12 @@ import { prisma } from '$lib/server/db';
 export async function getDivisions() {
   return await prisma.division.findMany({
     include: {
+      region: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       _count: {
         select: {
           teams: true,

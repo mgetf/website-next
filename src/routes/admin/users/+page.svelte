@@ -18,6 +18,13 @@ let editingUser: (typeof data.users)[0] | null = $state(null);
 let banningUser: (typeof data.users)[0] | null = $state(null);
 let isSubmitting = $state(false);
 let lastFormResult: ActionData = null;
+let selectedStaffRegionId: number | null = $state(null);
+
+const filteredDivisions = $derived(
+	selectedStaffRegionId
+		? data.divisions.filter((d: typeof data.divisions[0]) => d.regionId === selectedStaffRegionId)
+		: []
+);
 
 $effect(() => {
 	if (form && form !== lastFormResult) {
@@ -108,10 +115,12 @@ function goToPage(pageNum: number) {
 
 function openEditModal(user: (typeof data.users)[0]) {
   editingUser = { ...user };
+  selectedStaffRegionId = user.staffRegionId ?? null;
 }
 
 function closeEditModal() {
   editingUser = null;
+  selectedStaffRegionId = null;
 }
 
 function openBanModal(user: (typeof data.users)[0]) {
@@ -189,9 +198,9 @@ function closeBanModal() {
 						<a href="/users/{user.steamId}" class="text-white text-sm font-medium hover:text-orange-400 block truncate">
 							{user.steamUsername}
 						</a>
-						{#if user.isModerator}
+						{#if user.permissionLevel === 'MODERATOR' || user.permissionLevel === 'ADMIN'}
 							<p class="text-xs text-purple-400 truncate">
-								Staff{user.moderatorDivision ? ` • ${user.moderatorDivision}` : ''}
+								Staff{user.staffDivisionName ? ` • ${user.staffDivisionName}` : ''}
 							</p>
 						{/if}
 					</div>
@@ -266,6 +275,9 @@ function closeBanModal() {
 			}}
 		>
 			<input type="hidden" name="steamId" value={editingUser.steamId} />
+			{#if editingUser.permissionLevel !== 'MODERATOR' && editingUser.permissionLevel !== 'ADMIN'}
+				<input type="hidden" name="staffDivisionId" value="" />
+			{/if}
 
 			<FormSelect
 				label="Permission Level"
@@ -274,6 +286,52 @@ function closeBanModal() {
 				options={permissionOptions}
 				hint="Guests cannot sign up for leagues. Users can create teams. Moderators have staff access. Admins have full access."
 			/>
+
+			{#if editingUser.permissionLevel === 'MODERATOR' || editingUser.permissionLevel === 'ADMIN'}
+				<div class="mb-6">
+					<p class="block text-sm font-medium text-gray-300 mb-2">Staff Assignment</p>
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<label class="sr-only" for="staffRegion">Region</label>
+							<select
+								id="staffRegion"
+								class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+								value={selectedStaffRegionId ?? ''}
+								onchange={(e) => {
+									const val = e.currentTarget.value;
+									selectedStaffRegionId = val ? parseInt(val) : null;
+									if (editingUser) editingUser.staffDivisionId = null;
+								}}
+							>
+								<option value="">No region</option>
+								{#each data.regions as region}
+									<option value={region.id}>{region.name}</option>
+								{/each}
+							</select>
+						</div>
+						<div>
+							<label class="sr-only" for="staffDivision">Division</label>
+							<select
+								id="staffDivision"
+								name="staffDivisionId"
+								class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								disabled={!selectedStaffRegionId}
+								value={editingUser.staffDivisionId ?? ''}
+								onchange={(e) => {
+									const val = e.currentTarget.value;
+									if (editingUser) editingUser.staffDivisionId = val ? parseInt(val) : null;
+								}}
+							>
+								<option value="">No division</option>
+								{#each filteredDivisions as division}
+									<option value={division.id}>{division.name}</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+					<p class="mt-2 text-sm text-gray-500">Which region/division this staff member is assigned to (for display on league page).</p>
+				</div>
+			{/if}
 
 			<FormSelect
 				label="Ban Status"

@@ -6,10 +6,10 @@ import {
   getTeamsByDivision,
   findRecentSeasonWithTeams,
 } from '$lib/server/services/teams';
-import { getModerators } from '$lib/server/services/moderators';
+import { getStaffMembers, isUserSignedUpForSeason } from '$lib/server/services/users';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
   try {
     // Get query parameters (if any)
     const seasonParam = url.searchParams.get('season');
@@ -76,9 +76,8 @@ export const load: PageServerLoad = async ({ url }) => {
       }),
     );
 
-    // Fetch staff members - same approach as old website
-    // Query all moderators with their user info and division info in one go
-    const allModerators = await getModerators();
+    // Fetch staff members (users with MODERATOR or ADMIN permission level)
+    const allStaff = await getStaffMembers();
 
     // Create a set of division IDs that belong to the selected region
     const regionDivisionIds = new Set(
@@ -87,7 +86,7 @@ export const load: PageServerLoad = async ({ url }) => {
         .map((d) => d.id),
     );
 
-    // Group moderators by division (filtered to selected region only)
+    // Group staff by division (filtered to selected region only)
     const staffByDivisionMap = new Map<
       number,
       {
@@ -101,31 +100,31 @@ export const load: PageServerLoad = async ({ url }) => {
       }
     >();
 
-    allModerators.forEach((mod) => {
-      if (!mod.divisionId) return; // Skip moderators without a division assigned
+    allStaff.forEach((staff) => {
+      if (!staff.staffDivisionId) return; // Skip staff without a division assigned
 
       // Only include staff for divisions in the selected region
-      if (!regionDivisionIds.has(mod.divisionId)) return;
+      if (!regionDivisionIds.has(staff.staffDivisionId)) return;
 
-      if (!staffByDivisionMap.has(mod.divisionId)) {
-        staffByDivisionMap.set(mod.divisionId, {
+      if (!staffByDivisionMap.has(staff.staffDivisionId)) {
+        staffByDivisionMap.set(staff.staffDivisionId, {
           division: {
-            id: mod.divisionId,
-            name: mod.division?.name || 'Unknown',
+            id: staff.staffDivisionId,
+            name: staff.staffDivision?.name || 'Unknown',
           },
           staff: [],
         });
       }
 
-      staffByDivisionMap.get(mod.divisionId)!.staff.push({
-        steamId: mod.steamId,
-        name: mod.user.steamUsername,
-        avatar: mod.user.steamAvatar,
-        role: mod.staffType === 0 ? 'Head Admin' : 'Moderator',
+      staffByDivisionMap.get(staff.staffDivisionId)!.staff.push({
+        steamId: staff.steamId,
+        name: staff.steamUsername,
+        avatar: staff.steamAvatar,
+        role: staff.permissionLevel === 'ADMIN' ? 'Head Admin' : 'Moderator',
       });
     });
 
-    // Sort staff within each division by staffType (Head Admins first), then by name
+    // Sort staff within each division by role (Head Admins first), then by name
     staffByDivisionMap.forEach((divisionData) => {
       divisionData.staff.sort((a, b) => {
         if (a.role !== b.role) {
@@ -143,6 +142,16 @@ export const load: PageServerLoad = async ({ url }) => {
     // Get selected region and season info
     const selectedRegion = allRegions.find((r) => r.id === selectedRegionId);
     const selectedSeason = allSeasons.find((s) => s.id === selectedSeasonId);
+
+    // Check if the current user is already signed up for this season
+    let userAlreadySignedUp = false;
+    if (locals.user && selectedSeasonId) {
+      userAlreadySignedUp = await isUserSignedUpForSeason(
+        locals.user.steamId,
+        selectedSeasonId,
+        FORMAT_2V2,
+      );
+    }
 
     return {
       seasons: allSeasons.map((s) => ({
@@ -167,6 +176,7 @@ export const load: PageServerLoad = async ({ url }) => {
         rosterLocked: selectedSeason?.rosterLocked ?? false,
         paymentRequired: selectedSeason?.paymentRequired ?? false,
       },
+      userAlreadySignedUp,
     };
   } catch (error) {
     console.error('Error loading 2v2 league page:', error);
@@ -186,6 +196,7 @@ export const load: PageServerLoad = async ({ url }) => {
         rosterLocked: true,
         paymentRequired: false,
       },
+      userAlreadySignedUp: false,
     };
   }
 };

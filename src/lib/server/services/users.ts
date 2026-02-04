@@ -42,6 +42,33 @@ export async function getPlayerTeams(steamId: string) {
 }
 
 /**
+ * Check if a user is already signed up for a specific season
+ * For 2v2: checks if they're on an active team in that season
+ * For 1v1: checks if they have an entry (team) in that season
+ */
+export async function isUserSignedUpForSeason(
+  steamId: string,
+  seasonId: number,
+  formatId: number,
+): Promise<boolean> {
+  const entry = await prisma.playerInTeam.findFirst({
+    where: {
+      playerSteamId: steamId,
+      active: 1,
+      team: {
+        seasonId,
+        formatId,
+        status: {
+          notIn: ['DEAD'],
+        },
+      },
+    },
+  });
+
+  return !!entry;
+}
+
+/**
  * Get player's active 2v2 team (for navigation display)
  * Prioritizes teams in current signup seasons, falls back to any active team
  * Returns null if player is not in an active 2v2 team
@@ -400,11 +427,7 @@ export async function getUsers(options: {
     where,
     include: {
       discord: true,
-      moderator: {
-        include: {
-          division: true,
-        },
-      },
+      staffDivision: true,
     },
     orderBy: {
       steamUsername: 'asc',
@@ -448,7 +471,7 @@ export async function countUsers(options: {
 }
 
 /**
- * Update user's permission level and ban status
+ * Update user's permission level, ban status, and staff assignment
  * Admin only operation
  */
 export async function updateUser(
@@ -457,6 +480,7 @@ export async function updateUser(
     permissionLevel?: string;
     banStatus?: string;
     nameOverride?: number;
+    staffDivisionId?: number | null;
   },
 ) {
   // Check if user exists
@@ -482,9 +506,44 @@ export async function updateUser(
     updateData.nameOverride = data.nameOverride;
   }
 
+  if (data.staffDivisionId !== undefined) {
+    updateData.staffDivisionId = data.staffDivisionId;
+  }
+
   return await prisma.user.update({
     where: { steamId },
     data: updateData,
+  });
+}
+
+/**
+ * Get all staff members (users with MODERATOR or ADMIN permission level)
+ * Used for staff lists on league pages
+ */
+export async function getStaffMembers() {
+  return await prisma.user.findMany({
+    where: {
+      permissionLevel: {
+        in: ['MODERATOR', 'ADMIN'],
+      },
+    },
+    select: {
+      steamId: true,
+      steamUsername: true,
+      steamAvatar: true,
+      permissionLevel: true,
+      staffDivisionId: true,
+      staffDivision: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: [
+      { staffDivisionId: { sort: 'desc', nulls: 'last' } },
+      { steamUsername: 'asc' },
+    ],
   });
 }
 

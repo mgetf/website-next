@@ -45,6 +45,7 @@ interface PageData {
     rosterLocked: boolean;
     paymentRequired: boolean;
   };
+  userAlreadySignedUp: boolean;
 }
 
 let { data } = $props<{ data: PageData }>();
@@ -104,40 +105,44 @@ function getRegionAbbr(regionId: number): string {
 	<!-- Hero Header -->
 	<section class="relative py-16 px-6 text-center bg-gradient-to-b from-zinc-950 to-zinc-900">
 		<div class="max-w-7xl mx-auto">
-		<h1 class="text-6xl font-black mb-12 text-white drop-shadow-2xl">
-			2v2 MGE League
-		</h1>
-		
-		<!-- Region & Season Controls -->
-		<div class="flex items-start justify-center gap-8">
-			<div class="flex flex-col items-center gap-2">
-				<span class="text-sm font-medium text-gray-400">Region</span>
-				<div class="flex gap-2">
-					{#each regionsWithSeasons as region}
-						<button
-							onclick={() => { selectedRegion = region.id; }}
-							class="px-6 py-2 rounded font-medium transition-all {selectedRegion === region.id 
-								? 'bg-zinc-700 text-white border border-zinc-600' 
-								: 'bg-zinc-900 text-gray-300 hover:bg-zinc-800 border border-zinc-800'}"
+			<h1 class="text-6xl font-black mb-12 text-white drop-shadow-2xl">2v2 MGE League</h1>
+
+			{#if data.seasons.length === 0}
+				<p class="text-gray-400 text-lg">No 2v2 seasons have been created yet.</p>
+			{:else}
+				<!-- Region & Season Controls -->
+				<div class="flex items-start justify-center gap-8">
+					<div class="flex flex-col items-center gap-2">
+						<span class="text-sm font-medium text-gray-400">Region</span>
+						<div class="flex gap-2">
+							{#each regionsWithSeasons as region}
+								<button
+									onclick={() => {
+										selectedRegion = region.id;
+									}}
+									class="px-6 py-2 rounded font-medium transition-all {selectedRegion === region.id
+										? 'bg-zinc-700 text-white border border-zinc-600'
+										: 'bg-zinc-900 text-gray-300 hover:bg-zinc-800 border border-zinc-800'}"
+								>
+									{getRegionAbbr(region.id)}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<div class="flex flex-col items-center gap-2">
+						<span class="text-sm font-medium text-gray-400">Season</span>
+						<select
+							bind:value={selectedSeason}
+							class="px-6 py-2 bg-zinc-900 text-white rounded border border-zinc-800 hover:bg-zinc-800 transition-all cursor-pointer"
 						>
-							{getRegionAbbr(region.id)}
-						</button>
-					{/each}
+							{#each data.seasons.filter((s: (typeof data.seasons)[number]) => s.regionId === selectedRegion) as season}
+								<option value={season.id}>{season.name}</option>
+							{/each}
+						</select>
+					</div>
 				</div>
-			</div>
-			
-			<div class="flex flex-col items-center gap-2">
-				<span class="text-sm font-medium text-gray-400">Season</span>
-				<select 
-					bind:value={selectedSeason}
-					class="px-6 py-2 bg-zinc-900 text-white rounded border border-zinc-800 hover:bg-zinc-800 transition-all cursor-pointer"
-				>
-					{#each data.seasons.filter((s: typeof data.seasons[number]) => s.regionId === selectedRegion) as season}
-						<option value={season.id}>{season.name}</option>
-					{/each}
-				</select>
-			</div>
-		</div>
+			{/if}
 		</div>
 	</section>
 
@@ -153,6 +158,14 @@ function getRegionAbbr(regionId: number): string {
 					<div class="text-4xl font-black {data.deadlines.signupClosed ? 'text-red-500' : 'text-green-500'} mb-4">
 						{data.deadlines.signupClosed ? 'CLOSED' : 'OPEN'}
 					</div>
+					{#if !data.deadlines.signupClosed && !data.userAlreadySignedUp}
+						<a
+							href="/signup/2v2"
+							class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
+						>
+							Sign Up Now
+						</a>
+					{/if}
 				</div>
 				
 				<!-- Payments Due -->

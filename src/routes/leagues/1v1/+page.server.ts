@@ -3,6 +3,7 @@ import { getSeasons } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision } from '$lib/server/services/teams';
+import { getStaffMembers, isUserSignedUpForSeason } from '$lib/server/services/users';
 import { prisma } from '$lib/server/db';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
@@ -33,7 +34,7 @@ async function findRecent1v1SeasonWithEntries(
   return null;
 }
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
   try {
     // Get query parameters (if any)
     const seasonParam = url.searchParams.get('season');
@@ -141,6 +142,77 @@ export const load: PageServerLoad = async ({ url }) => {
     const selectedRegion = allRegions.find((r) => r.id === selectedRegionId);
     const selectedSeason = seasons1v1.find((s) => s.id === selectedSeasonId);
 
+    // Fetch staff members (users with MODERATOR or ADMIN permission level)
+    const allStaff = await getStaffMembers();
+
+    // Create a set of division IDs that belong to the selected region
+    const regionDivisionIds = new Set(
+      divisions
+        .filter((d) => d.regionId === selectedRegionId)
+        .map((d) => d.id),
+    );
+
+    // Group staff by division (filtered to selected region only)
+    const staffByDivisionMap = new Map<
+      number,
+      {
+        division: { id: number; name: string };
+        staff: Array<{
+          steamId: string;
+          name: string;
+          avatar: string | null;
+          role: string;
+        }>;
+      }
+    >();
+
+    allStaff.forEach((staff) => {
+      if (!staff.staffDivisionId) return;
+      if (!regionDivisionIds.has(staff.staffDivisionId)) return;
+
+      if (!staffByDivisionMap.has(staff.staffDivisionId)) {
+        staffByDivisionMap.set(staff.staffDivisionId, {
+          division: {
+            id: staff.staffDivisionId,
+            name: staff.staffDivision?.name || 'Unknown',
+          },
+          staff: [],
+        });
+      }
+
+      staffByDivisionMap.get(staff.staffDivisionId)!.staff.push({
+        steamId: staff.steamId,
+        name: staff.steamUsername,
+        avatar: staff.steamAvatar,
+        role: staff.permissionLevel === 'ADMIN' ? 'Head Admin' : 'Moderator',
+      });
+    });
+
+    // Sort staff within each division by role (Head Admins first), then by name
+    staffByDivisionMap.forEach((divisionData) => {
+      divisionData.staff.sort((a, b) => {
+        if (a.role !== b.role) {
+          return a.role === 'Head Admin' ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    });
+
+    // Convert map to array and sort divisions by ID (descending)
+    const staffByDivision = Array.from(staffByDivisionMap.values()).sort(
+      (a, b) => b.division.id - a.division.id,
+    );
+
+    // Check if the current user is already signed up for this season
+    let userAlreadySignedUp = false;
+    if (locals.user && selectedSeasonId) {
+      userAlreadySignedUp = await isUserSignedUpForSeason(
+        locals.user.steamId,
+        selectedSeasonId,
+        FORMAT_1V1,
+      );
+    }
+
     return {
       seasons: seasons1v1.map((s) => ({
         id: s.id,
@@ -157,12 +229,14 @@ export const load: PageServerLoad = async ({ url }) => {
       selectedRegionName: selectedRegion?.name || 'Unknown',
       selectedSeasonNum: selectedSeason?.seasonNum || 0,
       entriesByDivision: entriesByDivision.filter((d) => d.entries.length > 0),
+      staffByDivision,
       deadlines: {
         // Use per-season settings instead of global
         signupClosed: !selectedSeason?.signupsOpen,
         rosterLocked: selectedSeason?.rosterLocked ?? false,
         paymentRequired: selectedSeason?.paymentRequired ?? false,
       },
+      userAlreadySignedUp,
     };
   } catch (error) {
     console.error('Error loading 1v1 league page:', error);
@@ -176,11 +250,13 @@ export const load: PageServerLoad = async ({ url }) => {
       selectedRegionName: 'Unknown',
       selectedSeasonNum: 0,
       entriesByDivision: [],
+      staffByDivision: [],
       deadlines: {
         signupClosed: true,
         rosterLocked: true,
         paymentRequired: false,
       },
+      userAlreadySignedUp: false,
     };
   }
 };

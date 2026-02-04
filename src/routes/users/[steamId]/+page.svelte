@@ -94,6 +94,7 @@ let isWithdrawing = $state(false);
 
 // State for Discord unlink (admin only)
 let isUnlinkingDiscord = $state(false);
+let showUnlinkDiscordConfirm = $state(false);
 
 // Table column definitions
 const entries1v1Columns = $derived([
@@ -256,29 +257,17 @@ function getResultColor(result: string): string {
 						</svg>
 						<span>{player.discordUsername || 'Discord linked'}</span>
 						{#if isAdmin}
-							<form 
-								method="POST" 
-								action="?/unlinkDiscord"
-								use:enhance={() => {
-									isUnlinkingDiscord = true;
-									return async ({ update }) => {
-										await update();
-										isUnlinkingDiscord = false;
-									};
-								}}
-								class="absolute -top-1 -right-1"
+							<button 
+								type="button"
+								onclick={() => showUnlinkDiscordConfirm = true}
+								disabled={isUnlinkingDiscord}
+								class="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 text-gray-400 hover:bg-red-500/50 hover:border-red-500/50 hover:text-white opacity-0 group-hover/discord:opacity-100 transition-all disabled:opacity-50"
+								title="Unlink Discord (Admin)"
 							>
-								<button 
-									type="submit"
-									disabled={isUnlinkingDiscord}
-									class="w-4 h-4 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 text-gray-400 hover:bg-red-500/50 hover:border-red-500/50 hover:text-white opacity-0 group-hover/discord:opacity-100 transition-all disabled:opacity-50"
-									title="Unlink Discord (Admin)"
-								>
-									<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-									</svg>
-								</button>
-							</form>
+								<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+								</svg>
+							</button>
 						{/if}
 					</div>
 				{:else if isOwnProfile}
@@ -557,6 +546,59 @@ function getResultColor(result: string): string {
 		</div>
 	</div>
 </div>
+
+<!-- Discord Unlink Confirmation Modal -->
+<Dialog
+	open={showUnlinkDiscordConfirm}
+	title="Unlink Discord Account"
+	onClose={() => showUnlinkDiscordConfirm = false}
+>
+	<p class="text-gray-400 mb-4">
+		Are you sure you want to unlink <span class="text-white font-medium">{player.name}</span>'s Discord account?
+	</p>
+
+	{#if player.discordUsername}
+		<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+			<div class="flex items-center gap-2">
+				<svg class="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+					<path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/>
+				</svg>
+				<span class="text-green-400 text-sm">{player.discordUsername}</span>
+			</div>
+		</div>
+	{/if}
+
+	{#snippet footer()}
+		<button
+			type="button"
+			onclick={() => showUnlinkDiscordConfirm = false}
+			class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+		>
+			Cancel
+		</button>
+		<form
+			method="POST"
+			action="?/unlinkDiscord"
+			use:enhance={() => {
+				isUnlinkingDiscord = true;
+				return async ({ update }) => {
+					await update();
+					isUnlinkingDiscord = false;
+					showUnlinkDiscordConfirm = false;
+				};
+			}}
+			class="flex-1"
+		>
+			<button
+				type="submit"
+				disabled={isUnlinkingDiscord}
+				class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+			>
+				{isUnlinkingDiscord ? 'Unlinking...' : 'Unlink Discord'}
+			</button>
+		</form>
+	{/snippet}
+</Dialog>
 
 <!-- 1v1 Withdrawal Confirmation Modal -->
 <Dialog

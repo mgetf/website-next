@@ -4,6 +4,11 @@ import { enhance } from '$app/forms';
 import { invalidateAll } from '$app/navigation';
 import { page } from '$app/stores';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import Dialog from '$lib/components/ui/Dialog.svelte';
+import FormInput from '$lib/components/ui/form/FormInput.svelte';
+import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+import FormError from '$lib/components/ui/form/FormError.svelte';
+import { toast } from '$lib/state/toast.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -107,6 +112,24 @@ let editingFormat: (typeof data.formats)[0] | null = $state(null);
 
 // Playoff management state
 let showPlayoffModal: (typeof data.seasons)[0] | null = $state(null);
+let playoffFormat = $state<'tournament' | 'rounds'>('tournament');
+
+// Toast notifications for form results
+const isEditingAny = $derived(
+	!!(editingSeason || editingRegion || editingDivision || editingArena || deletingArena || editingFormat)
+);
+let lastFormResult: ActionData = null;
+
+$effect(() => {
+	if (form && form !== lastFormResult) {
+		lastFormResult = form;
+		if (form.success && form.message) {
+			toast.success(form.message);
+		} else if (form.error && !isEditingAny) {
+			toast.error(form.error);
+		}
+	}
+});
 
 let seasonsByRegion = $derived(
   data.seasons.reduce(
@@ -239,22 +262,9 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 					: 'text-gray-400 hover:text-white hover:bg-zinc-800'
 			}"
 		>
-			🎮 Formats
-		</button>
+		🎮 Formats
+	</button>
 	</div>
-	
-	<!-- Success/Error Messages -->
-	{#if form?.success && form?.message}
-		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50">
-			<p class="text-green-400">{form.message}</p>
-		</div>
-	{/if}
-	
-	{#if form?.error && !editingSeason && !editingRegion && !editingDivision && !editingArena && !deletingArena && !editingFormat}
-		<div class="fixed top-4 right-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg shadow-lg z-50">
-			<p class="text-red-400">{form.error}</p>
-		</div>
-	{/if}
 	
 	<!-- Tab Content -->
 	{#if activeTab === 'seasons'}
@@ -431,7 +441,10 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 									{:else if col.key === 'actions'}
 										<div class="flex items-center justify-end gap-2">
 											<button 
-												onclick={() => showPlayoffModal = season}
+												onclick={() => {
+													showPlayoffModal = season;
+													playoffFormat = (season as any).playoff?.isTournament !== false ? 'tournament' : 'rounds';
+												}}
 												class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
 											>
 												{season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
@@ -1150,115 +1163,71 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 	{/if}
 </div>
 
-<!-- Edit Format Modal -->
 {#if editingFormat}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => editingFormat = null}
-		onkeydown={(e) => e.key === 'Escape' && (editingFormat = null)}
-		role="button"
-		tabindex="-1"
+	<Dialog 
+		open={true} 
+		title="Edit Format" 
+		onClose={() => editingFormat = null}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			tabindex="-1"
+		<FormError error={form?.error} />
+		
+		<form 
+			method="POST" 
+			action="?/updateFormat"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						editingFormat = null;
+					}
+				};
+			}}
 		>
-			<h3 class="text-xl font-bold text-white mb-4">Edit Format</h3>
-			{#if form?.error}
-				<div class="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
-					<p class="text-red-400 text-sm">{form.error}</p>
-				</div>
-			{/if}
-			<form 
-				method="POST" 
-				action="?/updateFormat"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							editingFormat = null;
-						}
-					};
-				}}
-				class="space-y-4"
-			>
-				<input type="hidden" name="formatId" value={editingFormat.id} />
-				<div>
-					<label for="editFormatName" class="block text-sm font-medium text-gray-300 mb-2">Name</label>
-					<input 
-						type="text" 
-						id="editFormatName" 
-						name="name" 
-						value={editingFormat.name}
-						required
-						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-					/>
-				</div>
-				<div>
-					<label for="editFormatCode" class="block text-sm font-medium text-gray-300 mb-2">Code</label>
-					<input 
-						type="text" 
-						id="editFormatCode" 
-						name="code" 
-						value={editingFormat.code}
-						required
-						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-					/>
-					<p class="text-xs text-gray-500 mt-1">Must be unique across all formats</p>
-				</div>
-				<div class="flex justify-end gap-3 pt-2">
-					<button 
-						type="button"
-						onclick={() => editingFormat = null}
-						class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors disabled:opacity-50"
-					>
-						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
-<!-- Edit Region Modal -->
-{#if editingRegion}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => editingRegion = null}
-		onkeydown={(e) => e.key === 'Escape' && (editingRegion = null)}
-		role="button"
-		tabindex="-1"
-	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
-		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Edit Region</h3>
+			<input type="hidden" name="formatId" value={editingFormat.id} />
+			
+			<FormInput 
+				label="Name" 
+				name="name" 
+				value={editingFormat.name} 
+				required 
+			/>
+			
+			<FormInput 
+				label="Code" 
+				name="code" 
+				value={editingFormat.code} 
+				required 
+				hint="Must be unique across all formats"
+			/>
+			
+			<div class="flex justify-end gap-3 pt-2">
 				<button 
-					onclick={() => editingRegion = null}
-					class="text-gray-400 hover:text-white transition-colors"
+					type="button"
+					onclick={() => editingFormat = null}
+					class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
 				>
-					✕
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors disabled:opacity-50"
+				>
+					{isSubmitting ? 'Saving...' : 'Save Changes'}
 				</button>
 			</div>
-			
+		</form>
+	</Dialog>
+{/if}
+
+{#if editingRegion}
+	<Dialog 
+		open={true} 
+		title="Edit Region" 
+		onClose={() => editingRegion = null}
+	>
 		<form 
 			method="POST" 
 			action="?/updateRegion"
@@ -1275,39 +1244,28 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 		>
 			<input type="hidden" name="regionId" value={editingRegion.id} />
 			
-			<div class="space-y-4">
-				<div>
-					<label for="edit-region-name" class="block text-sm font-medium text-gray-300 mb-2">Region Name</label>
-					<input
-						id="edit-region-name"
-						name="name"
-						type="text"
-						value={editingRegion.name}
-						required
-						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-					/>
-				</div>
-				
-				<div>
-					<label for="edit-currency-symbol" class="block text-sm font-medium text-gray-300 mb-2">Currency Symbol</label>
-					<select
-						id="edit-currency-symbol"
-						name="currencySymbol"
-						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-					>
-						<option value="$" selected={editingRegion.currencySymbol === '$'}>$ (USD)</option>
-						<option value="€" selected={editingRegion.currencySymbol === '€'}>€ (EUR)</option>
-						<option value="£" selected={editingRegion.currencySymbol === '£'}>£ (GBP)</option>
-						<option value="A$" selected={editingRegion.currencySymbol === 'A$'}>A$ (AUD)</option>
-						<option value="R$" selected={editingRegion.currencySymbol === 'R$'}>R$ (BRL)</option>
-					</select>
-					<p class="text-xs text-gray-500 mt-1">
-						This currency will be shown for division signup costs in this region.
-					</p>
-				</div>
-			</div>
+			<FormInput 
+				label="Region Name" 
+				name="name" 
+				value={editingRegion.name} 
+				required 
+			/>
 			
-			<div class="mt-6 flex gap-3 justify-end">
+			<FormSelect 
+				label="Currency Symbol" 
+				name="currencySymbol" 
+				value={editingRegion.currencySymbol || '€'}
+				options={[
+					{ value: '$', label: '$ (USD)' },
+					{ value: '€', label: '€ (EUR)' },
+					{ value: '£', label: '£ (GBP)' },
+					{ value: 'A$', label: 'A$ (AUD)' },
+					{ value: 'R$', label: 'R$ (BRL)' }
+				]}
+				hint="This currency will be shown for division signup costs in this region."
+			/>
+			
+			<div class="flex gap-3 justify-end">
 				<button 
 					type="button"
 					onclick={() => editingRegion = null}
@@ -1324,433 +1282,284 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 				</button>
 			</div>
 		</form>
-		</div>
-	</div>
+	</Dialog>
 {/if}
 
-<!-- Edit Season Modal -->
 {#if editingSeason}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => editingSeason = null}
-		onkeydown={(e) => e.key === 'Escape' && (editingSeason = null)}
-		role="button"
-		tabindex="-1"
+	<Dialog 
+		open={true} 
+		title="Edit Season {editingSeason.seasonNum}" 
+		onClose={() => editingSeason = null}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
+		<FormError error={form?.error} />
+		
+		<form 
+			method="POST" 
+			action="?/updateSeason"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						editingSeason = null;
+					}
+				};
+			}}
 		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Edit Season {editingSeason.seasonNum}</h3>
+			<input type="hidden" name="seasonId" value={editingSeason.id} />
+			
+			<FormInput 
+				label="Season Number" 
+				name="seasonNum" 
+				type="number"
+				value={String(editingSeason.seasonNum)} 
+				required 
+			/>
+			
+			<FormSelect 
+				label="Region" 
+				name="regionId" 
+				value={String(editingSeason.regionId)}
+				options={data.regions.map(r => ({ value: String(r.id), label: r.name }))}
+				required 
+			/>
+			
+			<FormSelect 
+				label="Format" 
+				name="formatId" 
+				value={String(editingSeason.formatId)}
+				options={data.formats.map(f => ({ value: String(f.id), label: f.name }))}
+				required 
+			/>
+			
+			<FormInput 
+				label="Number of Weeks" 
+				name="numWeeks" 
+				type="number"
+				value={String(editingSeason.numWeeks)} 
+				required 
+			/>
+			
+			<div class="flex gap-3 justify-end">
 				<button 
+					type="button"
 					onclick={() => editingSeason = null}
-					class="text-gray-400 hover:text-white transition-colors"
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
 				>
-					✕
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Saving...' : 'Save Changes'}
 				</button>
 			</div>
-			
-			{#if form?.error}
-				<div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-					<p class="text-red-400 text-sm">{form.error}</p>
-				</div>
-			{/if}
-			
-			<form 
-				method="POST" 
-				action="?/updateSeason"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							editingSeason = null;
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="seasonId" value={editingSeason.id} />
-				
-				<div class="space-y-4">
-					<div>
-						<label for="edit-seasonNum" class="block text-sm font-medium text-gray-300 mb-2">Season Number</label>
-						<input
-							id="edit-seasonNum"
-							name="seasonNum"
-							type="number"
-							value={editingSeason.seasonNum}
-							required
-							min="1"
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
-					</div>
-					
-					<div>
-						<label for="edit-regionId" class="block text-sm font-medium text-gray-300 mb-2">Region</label>
-						<select
-							id="edit-regionId"
-							name="regionId"
-							value={editingSeason.regionId}
-							required
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							{#each data.regions as region}
-								<option value={region.id}>{region.name}</option>
-							{/each}
-						</select>
-					</div>
-					
-					<div>
-						<label for="edit-formatId" class="block text-sm font-medium text-gray-300 mb-2">Format</label>
-						<select
-							id="edit-formatId"
-							name="formatId"
-							value={editingSeason.formatId}
-							required
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							{#each data.formats as format}
-								<option value={format.id}>{format.name}</option>
-							{/each}
-						</select>
-					</div>
-					
-					<div>
-						<label for="edit-numWeeks" class="block text-sm font-medium text-gray-300 mb-2">Number of Weeks</label>
-						<input
-							id="edit-numWeeks"
-							name="numWeeks"
-							type="number"
-							value={editingSeason.numWeeks}
-							required
-							min="1"
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
-					</div>
-				</div>
-				
-				<div class="mt-6 flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => editingSeason = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
+		</form>
+	</Dialog>
 {/if}
 
-<!-- Edit Division Modal -->
 {#if editingDivision}
 	{@const effectiveRegionId = selectedEditRegionId !== null ? selectedEditRegionId : editingDivision.regionId}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => { editingDivision = null; selectedEditRegionId = null; }}
-		onkeydown={(e) => e.key === 'Escape' && (editingDivision = null, selectedEditRegionId = null)}
-		role="button"
-		tabindex="-1"
+	<Dialog 
+		open={true} 
+		title="Edit Division" 
+		onClose={() => { editingDivision = null; selectedEditRegionId = null; }}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
+		<form 
+			method="POST" 
+			action="?/updateDivision"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						editingDivision = null;
+						selectedEditRegionId = null;
+					}
+				};
+			}}
 		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Edit Division</h3>
-				<button 
-					onclick={() => { editingDivision = null; selectedEditRegionId = null; }}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
+			<input type="hidden" name="divisionId" value={editingDivision.id} />
 			
-			<form 
-				method="POST" 
-				action="?/updateDivision"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							editingDivision = null;
-							selectedEditRegionId = null;
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="divisionId" value={editingDivision.id} />
-				
-				<div class="space-y-4">
-					<div>
-						<label for="edit-division-name" class="block text-sm font-medium text-gray-300 mb-2">Division Name</label>
-						<input
-							id="edit-division-name"
-							name="name"
-							type="text"
-							value={editingDivision.name}
-							required
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
-					</div>
-					
-					<div>
-						<label for="edit-division-region" class="block text-sm font-medium text-gray-300 mb-2">
-							Region <span class="text-red-400">*</span>
-						</label>
-						<select
-							id="edit-division-region"
-							name="regionId"
-							required
-							onchange={(e) => {
-								const val = e.currentTarget.value;
-								selectedEditRegionId = val ? parseInt(val) : null;
-							}}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							{#each data.regions as region}
-								<option value={region.id} selected={editingDivision.regionId === region.id}>
-									{region.name}
-								</option>
-							{/each}
-						</select>
-						<p class="text-xs text-gray-500 mt-1">
-							Changing region allows you to have same-named divisions in different regions with different pricing.
-						</p>
-					</div>
-					
-					<div>
-						<label for="edit-signup-cost" class="block text-sm font-medium text-gray-300 mb-2">
-							Signup Cost ({getCurrencySymbol(effectiveRegionId)})
-						</label>
-						<div class="relative">
-							<span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{getCurrencySymbol(effectiveRegionId)}</span>
-							<input
-								id="edit-signup-cost"
-								name="signupCost"
-								type="number"
-								value={editingDivision.signupCost}
-								step="0.01"
-								min="0"
-								class="w-full pl-8 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-							/>
-						</div>
-					</div>
-				</div>
-				
-				<div class="mt-6 flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => { editingDivision = null; selectedEditRegionId = null; }}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
-<!-- Edit Arena Modal -->
-{#if editingArena}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => editingArena = null}
-		onkeydown={(e) => e.key === 'Escape' && (editingArena = null)}
-		role="button"
-		tabindex="-1"
-	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
-		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Edit Arena</h3>
-				<button 
-					onclick={() => editingArena = null}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
+			<FormInput 
+				label="Division Name" 
+				name="name" 
+				value={editingDivision.name} 
+				required 
+			/>
 			
-			<form 
-				method="POST" 
-				action="?/updateArena"
-				enctype="multipart/form-data"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							editingArena = null;
-							await invalidateAll();
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="arenaId" value={editingArena.id} />
-				
-				<div class="space-y-4">
-					<div>
-						<label for="edit-arena-name" class="block text-sm font-medium text-gray-300 mb-2">Arena Name</label>
-						<input
-							id="edit-arena-name"
-							name="name"
-							type="text"
-							value={editingArena.name}
-							required
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
-					</div>
-					
-					<div>
-						<label for="edit-arena-avatar-file" class="block text-sm font-medium text-gray-300 mb-2">
-							Arena Image
-							<span class="text-xs text-gray-500 ml-1">(JPEG, PNG, GIF, WebP - max 5MB)</span>
-						</label>
-						<div class="flex items-start gap-3 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
-							{#if editingArena.avatar}
-								<img src={editingArena.avatar} alt={editingArena.name} class="w-16 h-16 rounded object-cover flex-shrink-0" />
-							{:else}
-								<div class="w-16 h-16 rounded bg-zinc-700 flex items-center justify-center flex-shrink-0">
-									<span class="text-2xl text-gray-500">?</span>
-								</div>
-							{/if}
-							<div class="flex-1">
-								<input
-									id="edit-arena-avatar-file"
-									name="avatarFile"
-									type="file"
-									accept="image/jpeg,image/png,image/gif,image/webp"
-									class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500 file:cursor-pointer cursor-pointer"
-								/>
-								<input
-									type="hidden"
-									name="avatarUrl"
-									value={editingArena.avatar || ''}
-								/>
-							</div>
-						</div>
-					</div>
-					
-					<div>
-						<label for="edit-playoff-map" class="block text-sm font-medium text-gray-300 mb-2">Playoff Map</label>
-						<select
-							id="edit-playoff-map"
-							name="playoffMap"
-							value={editingArena.playoffMap === 1 ? 'true' : 'false'}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value="false">No</option>
-							<option value="true">Yes</option>
-						</select>
-					</div>
-				</div>
-				
-				<div class="mt-6 flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => editingArena = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
-<!-- Delete Arena Modal -->
-{#if deletingArena}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => deletingArena = null}
-		onkeydown={(e) => e.key === 'Escape' && (deletingArena = null)}
-		role="button"
-		tabindex="-1"
-	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
-		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Delete Arena</h3>
-				<button 
-					onclick={() => deletingArena = null}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
+			<FormSelect 
+				label="Region" 
+				name="regionId" 
+				value={String(editingDivision.regionId)}
+				options={data.regions.map(r => ({ value: String(r.id), label: r.name }))}
+				required 
+				hint="Changing region allows you to have same-named divisions in different regions with different pricing."
+				onChange={(val) => { selectedEditRegionId = val ? parseInt(val) : null; }}
+			/>
 			
 			<div class="mb-6">
-				<p class="text-gray-300 mb-4">
-					Are you sure you want to delete <strong class="text-white">{deletingArena.name}</strong>?
-				</p>
-				
-				{#if deletingArena.games > 0}
-					<div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-						<p class="text-yellow-400 text-sm font-medium mb-2">⚠️ Warning</p>
-						<p class="text-yellow-300 text-sm">
-							This arena has {deletingArena.games} game{deletingArena.games !== 1 ? 's' : ''} played on it. 
-							You cannot delete it until these are removed.
-						</p>
-					</div>
-				{:else}
-					<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-						<p class="text-red-400 text-sm">
-							⚠️ This action cannot be undone.
-						</p>
-					</div>
-				{/if}
+				<label for="edit-signup-cost" class="block text-sm font-medium text-gray-300 mb-2">
+					Signup Cost ({getCurrencySymbol(effectiveRegionId)})
+				</label>
+				<div class="relative">
+					<span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{getCurrencySymbol(effectiveRegionId)}</span>
+					<input
+						id="edit-signup-cost"
+						name="signupCost"
+						type="number"
+						value={editingDivision.signupCost}
+						step="0.01"
+						min="0"
+						class="w-full pl-8 pr-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+					/>
+				</div>
 			</div>
 			
+			<div class="flex gap-3 justify-end">
+				<button 
+					type="button"
+					onclick={() => { editingDivision = null; selectedEditRegionId = null; }}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+				>
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Saving...' : 'Save Changes'}
+				</button>
+			</div>
+		</form>
+	</Dialog>
+{/if}
+
+{#if editingArena}
+	<Dialog 
+		open={true} 
+		title="Edit Arena" 
+		onClose={() => editingArena = null}
+	>
+		<form 
+			method="POST" 
+			action="?/updateArena"
+			enctype="multipart/form-data"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						editingArena = null;
+						await invalidateAll();
+					}
+				};
+			}}
+		>
+			<input type="hidden" name="arenaId" value={editingArena.id} />
+			
+			<FormInput 
+				label="Arena Name" 
+				name="name" 
+				value={editingArena.name} 
+				required 
+			/>
+			
+			<div class="mb-6">
+				<label for="edit-arena-avatar-file" class="block text-sm font-medium text-gray-300 mb-2">
+					Arena Image
+					<span class="text-xs text-gray-500 ml-1">(JPEG, PNG, GIF, WebP - max 5MB)</span>
+				</label>
+				<div class="flex items-start gap-3 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+					{#if editingArena.avatar}
+						<img src={editingArena.avatar} alt={editingArena.name} class="w-16 h-16 rounded object-cover flex-shrink-0" />
+					{:else}
+						<div class="w-16 h-16 rounded bg-zinc-700 flex items-center justify-center flex-shrink-0">
+							<span class="text-2xl text-gray-500">?</span>
+						</div>
+					{/if}
+					<div class="flex-1">
+						<input
+							id="edit-arena-avatar-file"
+							name="avatarFile"
+							type="file"
+							accept="image/jpeg,image/png,image/gif,image/webp"
+							class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500 file:cursor-pointer cursor-pointer"
+						/>
+						<input
+							type="hidden"
+							name="avatarUrl"
+							value={editingArena.avatar || ''}
+						/>
+					</div>
+				</div>
+			</div>
+			
+			<FormSelect 
+				label="Playoff Map" 
+				name="playoffMap" 
+				value={editingArena.playoffMap === 1 ? 'true' : 'false'}
+				options={[
+					{ value: 'false', label: 'No' },
+					{ value: 'true', label: 'Yes' }
+				]}
+			/>
+			
+			<div class="flex gap-3 justify-end">
+				<button 
+					type="button"
+					onclick={() => editingArena = null}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+				>
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Saving...' : 'Save Changes'}
+				</button>
+			</div>
+		</form>
+	</Dialog>
+{/if}
+
+{#if deletingArena}
+	<Dialog 
+		open={true} 
+		title="Delete Arena" 
+		onClose={() => deletingArena = null}
+	>
+		<div class="mb-6">
+			<p class="text-gray-300 mb-4">
+				Are you sure you want to delete <strong class="text-white">{deletingArena.name}</strong>?
+			</p>
+			
+			{#if deletingArena.games > 0}
+				<div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+					<p class="text-yellow-400 text-sm font-medium mb-2">⚠️ Warning</p>
+					<p class="text-yellow-300 text-sm">
+						This arena has {deletingArena.games} game{deletingArena.games !== 1 ? 's' : ''} played on it. 
+						You cannot delete it until these are removed.
+					</p>
+				</div>
+			{:else}
+				<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+					<p class="text-red-400 text-sm">
+						⚠️ This action cannot be undone.
+					</p>
+				</div>
+			{/if}
+		</div>
+		
+		{#snippet footer()}
 			<form 
 				method="POST" 
 				action="?/deleteArena"
@@ -1764,155 +1573,106 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 						}
 					};
 				}}
+				class="flex gap-3"
 			>
 				<input type="hidden" name="arenaId" value={deletingArena.id} />
-				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => deletingArena = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting || deletingArena.games > 0}
-						class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Deleting...' : 'Delete Arena'}
-					</button>
-				</div>
+				<button 
+					type="button"
+					onclick={() => deletingArena = null}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+				>
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting || deletingArena.games > 0}
+					class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Deleting...' : 'Delete Arena'}
+				</button>
 			</form>
-		</div>
-	</div>
+		{/snippet}
+	</Dialog>
 {/if}
 
-<!-- Edit Map Ban Pool Modal -->
 {#if editingPool}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => editingPool = null}
-		onkeydown={(e) => e.key === 'Escape' && (editingPool = null)}
-		role="button"
-		tabindex="-1"
+	<Dialog 
+		open={true} 
+		title="Edit Map Ban Pool" 
+		onClose={() => editingPool = null}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
+		<form 
+			method="POST" 
+			action="?/updateMapBanPool"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						editingPool = null;
+					}
+				};
+			}}
 		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Edit Map Ban Pool</h3>
+			<input type="hidden" name="poolId" value={editingPool.id} />
+			
+			<FormInput 
+				label="Pool Name" 
+				name="name" 
+				value={editingPool.name} 
+				required 
+			/>
+			
+			<div class="flex gap-3 justify-end">
 				<button 
+					type="button"
 					onclick={() => editingPool = null}
-					class="text-gray-400 hover:text-white transition-colors"
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
 				>
-					✕
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Saving...' : 'Save Changes'}
 				</button>
 			</div>
-			
-			<form 
-				method="POST" 
-				action="?/updateMapBanPool"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							editingPool = null;
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="poolId" value={editingPool.id} />
-				
-				<div class="mb-4">
-					<label for="edit-pool-name" class="block text-sm font-medium text-gray-300 mb-2">Pool Name</label>
-					<input
-						id="edit-pool-name"
-						name="name"
-						type="text"
-						value={editingPool.name}
-						required
-						class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-					/>
-				</div>
-				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => editingPool = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
+		</form>
+	</Dialog>
 {/if}
 
-<!-- Delete Map Ban Pool Modal -->
 {#if deletingPool}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => deletingPool = null}
-		onkeydown={(e) => e.key === 'Escape' && (deletingPool = null)}
-		role="button"
-		tabindex="-1"
+	<Dialog 
+		open={true} 
+		title="Delete Map Ban Pool" 
+		onClose={() => deletingPool = null}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
-		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Delete Map Ban Pool</h3>
-				<button 
-					onclick={() => deletingPool = null}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
+		<div class="mb-6">
+			<p class="text-gray-300 mb-4">
+				Are you sure you want to delete <strong class="text-white">{deletingPool.name}</strong>?
+			</p>
 			
-			<div class="mb-6">
-				<p class="text-gray-300 mb-4">
-					Are you sure you want to delete <strong class="text-white">{deletingPool.name}</strong>?
-				</p>
-				
-				{#if deletingPool.matchesUsed > 0}
-					<div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-						<p class="text-yellow-400 text-sm font-medium mb-2">⚠️ Warning</p>
-						<p class="text-yellow-300 text-sm">
-							This pool is used in {deletingPool.matchesUsed} match{deletingPool.matchesUsed !== 1 ? 'es' : ''}. 
-							You cannot delete it until these are removed.
-						</p>
-					</div>
-				{:else}
-					<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-						<p class="text-red-400 text-sm">
-							⚠️ This action cannot be undone. All maps in this pool will be removed.
-						</p>
-					</div>
-				{/if}
-			</div>
-			
+			{#if deletingPool.matchesUsed > 0}
+				<div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+					<p class="text-yellow-400 text-sm font-medium mb-2">⚠️ Warning</p>
+					<p class="text-yellow-300 text-sm">
+						This pool is used in {deletingPool.matchesUsed} match{deletingPool.matchesUsed !== 1 ? 'es' : ''}. 
+						You cannot delete it until these are removed.
+					</p>
+				</div>
+			{:else}
+				<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+					<p class="text-red-400 text-sm">
+						⚠️ This action cannot be undone. All maps in this pool will be removed.
+					</p>
+				</div>
+			{/if}
+		</div>
+		
+		{#snippet footer()}
 			<form 
 				method="POST" 
 				action="?/deleteMapBanPool"
@@ -1926,211 +1686,174 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 						}
 					};
 				}}
+				class="flex gap-3"
 			>
 				<input type="hidden" name="poolId" value={deletingPool.id} />
-				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => deletingPool = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting || deletingPool.matchesUsed > 0}
-						class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Deleting...' : 'Delete Pool'}
-					</button>
-				</div>
+				<button 
+					type="button"
+					onclick={() => deletingPool = null}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+				>
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting || deletingPool.matchesUsed > 0}
+					class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Deleting...' : 'Delete Pool'}
+				</button>
 			</form>
-		</div>
-	</div>
+		{/snippet}
+	</Dialog>
 {/if}
 
-<!-- Add Maps to Pool Modal -->
 {#if addingMapsToPool}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={() => addingMapsToPool = null}
-		onkeydown={(e) => e.key === 'Escape' && (addingMapsToPool = null)}
-		role="button"
-		tabindex="-1"
+	<Dialog 
+		open={true} 
+		title="Add Maps to {addingMapsToPool.name}" 
+		maxWidth="2xl"
+		onClose={() => addingMapsToPool = null}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-2xl w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
+		<form 
+			method="POST" 
+			action="?/addMapsToPool"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						addingMapsToPool = null;
+					}
+				};
+			}}
 		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Add Maps to {addingMapsToPool.name}</h3>
-				<button 
-					onclick={() => addingMapsToPool = null}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
+			<input type="hidden" name="poolId" value={addingMapsToPool.id} />
+			
+			<div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 max-h-96 overflow-y-auto">
+				{#each data.arenas as arena}
+					{@const isInPool = addingMapsToPool.maps.some(m => m.id === arena.id)}
+					<label class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg border border-zinc-700 cursor-pointer hover:border-orange-500 transition-colors {isInPool ? 'opacity-50' : ''}">
+						<input 
+							type="checkbox" 
+							name="arenaIds" 
+							value={arena.id} 
+							disabled={isInPool}
+							class="rounded border-gray-600 bg-zinc-700"
+						/>
+						<div class="w-8 h-8 rounded flex items-center justify-center flex-shrink-0">
+							{#if arena.avatar}
+								<img 
+									src={arena.avatar} 
+									alt={arena.name} 
+									class="w-full h-full rounded object-cover"
+									onerror={(e) => { 
+										const img = e.target as HTMLImageElement;
+										img.style.display = 'none';
+										(img.nextElementSibling as HTMLElement)?.style.setProperty('display', 'block');
+									}}
+								/>
+								<span class="text-sm text-gray-500" style="display: none;">?</span>
+							{:else}
+								<span class="text-sm text-gray-500">?</span>
+							{/if}
+						</div>
+						<span class="text-sm text-gray-300">{arena.name}</span>
+					</label>
+				{/each}
 			</div>
 			
-			<form 
-				method="POST" 
-				action="?/addMapsToPool"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							addingMapsToPool = null;
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="poolId" value={addingMapsToPool.id} />
-				
-				<div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 max-h-96 overflow-y-auto">
-					{#each data.arenas as arena}
-						{@const isInPool = addingMapsToPool.maps.some(m => m.id === arena.id)}
-						<label class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg border border-zinc-700 cursor-pointer hover:border-orange-500 transition-colors {isInPool ? 'opacity-50' : ''}">
-							<input 
-								type="checkbox" 
-								name="arenaIds" 
-								value={arena.id} 
-								disabled={isInPool}
-								class="rounded border-gray-600 bg-zinc-700"
-							/>
-							<div class="w-8 h-8 rounded flex items-center justify-center flex-shrink-0">
-								{#if arena.avatar}
-									<img 
-										src={arena.avatar} 
-										alt={arena.name} 
-										class="w-full h-full rounded object-cover"
-										onerror={(e) => { 
-											const img = e.target as HTMLImageElement;
-											img.style.display = 'none';
-											(img.nextElementSibling as HTMLElement)?.style.setProperty('display', 'block');
-										}}
-									/>
-									<span class="text-sm text-gray-500" style="display: none;">?</span>
-								{:else}
-									<span class="text-sm text-gray-500">?</span>
-								{/if}
-							</div>
-							<span class="text-sm text-gray-300">{arena.name}</span>
-						</label>
-					{/each}
-				</div>
-				
-				<div class="flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={() => addingMapsToPool = null}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Adding...' : 'Add Selected Maps'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
+			<div class="flex gap-3 justify-end">
+				<button 
+					type="button"
+					onclick={() => addingMapsToPool = null}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+				>
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Adding...' : 'Add Selected Maps'}
+				</button>
+			</div>
+		</form>
+	</Dialog>
 {/if}
 
-<!-- Playoff Management Modal -->
 {#if showPlayoffModal}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-		<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl max-w-md w-full">
-			<div class="p-6">
-				<h3 class="text-xl font-bold text-white mb-4">Manage Playoffs</h3>
-				<p class="text-gray-400 text-sm mb-6">Configure playoff settings for Season {showPlayoffModal.seasonNum} ({showPlayoffModal.region})</p>
+	<Dialog 
+		open={true} 
+		title="Manage Playoffs" 
+		onClose={() => showPlayoffModal = null}
+	>
+		<p class="text-gray-400 text-sm mb-6">Configure playoff settings for Season {showPlayoffModal.seasonNum} ({showPlayoffModal.region})</p>
+		
+		<form 
+			method="POST" 
+			action="?/managePlayoff"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						showPlayoffModal = null;
+					}
+				};
+			}}
+		>
+			<input type="hidden" name="seasonId" value={showPlayoffModal.id} />
+			
+			<FormSelect 
+				label="Playoff Format" 
+				name="format" 
+				value={playoffFormat}
+				options={[
+					{ value: 'tournament', label: 'Tournament' },
+					{ value: 'rounds', label: 'Rounds' }
+				]}
+				onChange={(val) => { playoffFormat = val as 'tournament' | 'rounds'; }}
+			/>
+			
+			{#if playoffFormat === 'rounds'}
+				<FormInput 
+					label="Number of Rounds" 
+					name="numRounds" 
+					type="number"
+					value={String(showPlayoffModal.playoff?.numRounds || 2)}
+				/>
 				
-				<form 
-					method="POST" 
-					action="?/managePlayoff"
-					use:enhance={() => {
-						isSubmitting = true;
-						return async ({ update, result }) => {
-							await update();
-							isSubmitting = false;
-							if (result.type === 'success') {
-								showPlayoffModal = null;
-							}
-						};
-					}}
+				<FormSelect 
+					label="Double Elimination" 
+					name="doubleElim" 
+					value={String(showPlayoffModal.playoff?.doubleElim || 0)}
+					options={[
+						{ value: '0', label: 'No' },
+						{ value: '1', label: 'Yes' }
+					]}
+				/>
+			{/if}
+			
+			<div class="flex gap-3 justify-end">
+				<button 
+					type="button"
+					onclick={() => showPlayoffModal = null}
+					class="px-6 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
 				>
-					<input type="hidden" name="seasonId" value={showPlayoffModal.id} />
-					
-					<div class="space-y-4">
-						<div>
-							<label class="block text-sm font-medium text-gray-300 mb-2">Playoff Format</label>
-							<select 
-								name="format" 
-								id="playoffFormat"
-								class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-								onchange={(e) => {
-									const roundsInput = document.getElementById('roundsInput');
-									if (roundsInput) {
-										roundsInput.style.display = e.target.value === 'rounds' ? 'block' : 'none';
-									}
-								}}
-							>
-								<option value="tournament" selected={showPlayoffModal.playoff?.isTournament}>Tournament</option>
-								<option value="rounds" selected={!showPlayoffModal.playoff?.isTournament}>Rounds</option>
-							</select>
-						</div>
-						
-						<div id="roundsInput" style="display: {showPlayoffModal.playoff?.isTournament === false ? 'block' : 'none'};">
-							<label class="block text-sm font-medium text-gray-300 mb-2">Number of Rounds</label>
-							<input 
-								type="number" 
-								name="numRounds"
-								value={showPlayoffModal.playoff?.numRounds || 2}
-								min="1"
-								class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-							/>
-							
-							<div class="mt-4">
-								<label class="block text-sm font-medium text-gray-300 mb-2">Double Elimination</label>
-								<select 
-									name="doubleElim" 
-									class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-								>
-									<option value="0" selected={showPlayoffModal.playoff?.doubleElim === 0}>No</option>
-									<option value="1" selected={showPlayoffModal.playoff?.doubleElim === 1}>Yes</option>
-								</select>
-							</div>
-						</div>
-					</div>
-					
-					<div class="flex gap-3 justify-end mt-6">
-						<button 
-							type="button"
-							onclick={() => showPlayoffModal = null}
-							class="px-6 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-						>
-							Cancel
-						</button>
-						<button 
-							type="submit"
-							disabled={isSubmitting}
-							class="px-6 py-2 bg-orange-600 hover:bg-orange-500 disabled:bg-orange-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-						>
-							{isSubmitting ? 'Saving...' : 'Save'}
-						</button>
-					</div>
-				</form>
+					Cancel
+				</button>
+				<button 
+					type="submit"
+					disabled={isSubmitting}
+					class="px-6 py-2 bg-orange-600 hover:bg-orange-500 disabled:bg-orange-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Saving...' : 'Save'}
+				</button>
 			</div>
-		</div>
-	</div>
+		</form>
+	</Dialog>
 {/if}

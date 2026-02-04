@@ -2,6 +2,7 @@
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
 import FormError from '$lib/components/ui/form/FormError.svelte';
+import { toast } from '$lib/state/toast.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -9,7 +10,6 @@ let activeTab: 'info' | 'roster' | 'pending' | 'invite' = $state('info');
 let isSubmitting = $state(false);
 let showDisbandConfirm = $state(false);
 let avatarPreview: string | null = $state(data.team.avatar);
-let showCopyToast = $state(false);
 
 // Force refresh avatar preview when team changes
 $effect(() => {
@@ -42,23 +42,11 @@ function handleAvatarChange(event: Event) {
 async function copyInviteLink() {
   const fullUrl = `${window.location.origin}${data.inviteUrl}`;
   await navigator.clipboard.writeText(fullUrl);
-
-  // Show toast notification
-  showCopyToast = true;
-  setTimeout(() => {
-    showCopyToast = false;
-  }, 3000);
+  toast.success('Invite link copied to clipboard!');
 }
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] px-4 py-12">
-	<!-- Copy Toast Notification -->
-	{#if showCopyToast}
-		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50 animate-slide-in">
-			<p class="text-green-400">✓ Invite link copied to clipboard!</p>
-		</div>
-	{/if}
-
 	<div class="max-w-5xl mx-auto">
 		<!-- Header -->
 		<div class="mb-8">
@@ -527,20 +515,3 @@ async function copyInviteLink() {
 		</div>
 	</div>
 </div>
-
-<style>
-	@keyframes slide-in {
-		from {
-			transform: translateX(100%);
-			opacity: 0;
-		}
-		to {
-			transform: translateX(0);
-			opacity: 1;
-		}
-	}
-
-	:global(.animate-slide-in) {
-		animation: slide-in 0.3s ease-out;
-	}
-</style>

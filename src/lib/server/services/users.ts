@@ -521,6 +521,31 @@ export async function banUser(
 }
 
 /**
+ * Unlink a user's Discord account
+ * Can be used by the user themselves or by an admin
+ */
+export async function unlinkDiscord(steamId: string) {
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    include: { discord: true },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (!user.discord) {
+    throw new Error('No Discord account linked');
+  }
+
+  await prisma.discord.delete({
+    where: { discordId: user.discord.discordId },
+  });
+
+  return { success: true };
+}
+
+/**
  * Get all users for public listing with pagination
  * Used by /users page
  */

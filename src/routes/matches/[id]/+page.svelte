@@ -3,6 +3,9 @@ import { enhance } from '$app/forms';
 import { page } from '$app/stores';
 import type { PageData, ActionData } from './$types';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import Dialog from '$lib/components/ui/Dialog.svelte';
+import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+import FormError from '$lib/components/ui/form/FormError.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -1026,289 +1029,231 @@ const playedGames = $derived(
 </div>
 
 <!-- Demo Upload Modal -->
-{#if showDemoUploadModal}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
-		onclick={closeDemoUploadModal}
-		onkeydown={(e) => e.key === 'Escape' && closeDemoUploadModal()}
-		role="button"
-		tabindex="-1"
-	>
-		<div 
-			class="bg-zinc-800 p-6 rounded-lg w-[500px]" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog" 
-			aria-modal="true"
-			tabindex="0"
+<Dialog
+	open={showDemoUploadModal}
+	title="Upload Demo"
+	onClose={closeDemoUploadModal}
+>
+	{#if isUploadingDemo}
+		<!-- Upload Progress State -->
+		<div class="py-8">
+			<div class="flex flex-col items-center justify-center">
+				<div class="relative w-16 h-16 mb-4">
+					<div class="absolute inset-0 border-4 border-zinc-600 rounded-full"></div>
+					<div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+				</div>
+
+				<p class="text-white font-medium mb-2">Uploading Demo...</p>
+				<p class="text-gray-400 text-sm mb-4">{demoUploadProgress}</p>
+
+				{#if selectedDemoFile}
+					<div class="bg-zinc-700/50 rounded-lg px-4 py-2 text-sm">
+						<span class="text-gray-300">{selectedDemoFile.name}</span>
+						<span class="text-gray-500 ml-2">({formatFileSize(selectedDemoFile.size)})</span>
+					</div>
+				{/if}
+
+				<p class="text-xs text-gray-500 mt-4">Large files may take a few minutes</p>
+			</div>
+		</div>
+	{:else}
+		<!-- Upload Form -->
+		<form
+			method="POST"
+			action="?/uploadDemo"
+			enctype="multipart/form-data"
+			use:enhance={() => {
+				isUploadingDemo = true;
+				demoUploadError = null;
+				demoUploadProgress = 'Uploading file...';
+
+				const progressMessages = [
+					'Uploading file...',
+					'Processing demo...',
+					'Saving to storage...',
+					'Almost done...'
+				];
+				let msgIndex = 0;
+				const progressInterval = setInterval(() => {
+					msgIndex = Math.min(msgIndex + 1, progressMessages.length - 1);
+					demoUploadProgress = progressMessages[msgIndex];
+				}, 3000);
+
+				return async ({ result, update }) => {
+					clearInterval(progressInterval);
+					isUploadingDemo = false;
+
+					if (result.type === 'success') {
+						closeDemoUploadModal();
+					} else if (result.type === 'failure') {
+						const errorData = result.data as { error?: string } | undefined;
+						demoUploadError = errorData?.error || 'Upload failed. Please try again.';
+					} else if (result.type === 'error') {
+						demoUploadError = 'Network error. Please check your connection and try again.';
+					}
+
+					await update();
+				};
+			}}
 		>
-			<div class="flex justify-between items-center mb-4">
-				<h3 class="text-xl font-bold text-white">Upload Demo</h3>
-				<button onclick={closeDemoUploadModal} class="text-gray-400 hover:text-gray-200" aria-label="Close modal">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-				</button>
+			<FormSelect
+				label="Player"
+				name="playerSteamId"
+				required
+				options={data.allRoster.map(p => ({ value: p.steamId, label: p.username }))}
+				placeholder="Select a player..."
+			/>
+
+			<div class="mb-6">
+				<label for="demoFile" class="block text-sm font-medium text-gray-300 mb-2">
+					Demo File (.dem) <span class="text-red-500">*</span>
+				</label>
+				<input
+					type="file"
+					id="demoFile"
+					name="file"
+					accept=".dem"
+					required
+					onchange={handleDemoFileSelect}
+					class="w-full text-sm text-gray-200
+						   file:mr-4 file:py-2 file:px-4
+						   file:rounded file:border-0
+						   file:text-sm file:font-semibold
+						   file:bg-zinc-700 file:text-gray-200
+						   hover:file:bg-zinc-600
+						   cursor-pointer"
+				/>
+
+				{#if selectedDemoFile}
+					<div class="mt-2 p-2 bg-zinc-700/50 rounded flex items-center gap-2">
+						<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<span class="text-gray-200 text-sm">{selectedDemoFile.name}</span>
+						<span class="text-gray-400 text-xs">({formatFileSize(selectedDemoFile.size)})</span>
+					</div>
+				{:else}
+					<p class="text-xs text-gray-500 mt-1">Maximum file size: 200MB</p>
+				{/if}
 			</div>
 
-			{#if isUploadingDemo}
-				<!-- Upload Progress State -->
-				<div class="py-8">
-					<div class="flex flex-col items-center justify-center">
-						<!-- Animated spinner -->
-						<div class="relative w-16 h-16 mb-4">
-							<div class="absolute inset-0 border-4 border-zinc-600 rounded-full"></div>
-							<div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+			<div class="mb-6">
+				<label for="demoDescription" class="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
+				<textarea
+					id="demoDescription"
+					name="description"
+					rows="3"
+					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors resize-none"
+					placeholder="Add any notes about this demo..."
+				></textarea>
+			</div>
+
+			{#if demoUploadError}
+				<div class="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+					<div class="flex items-start gap-3">
+						<svg class="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<div>
+							<p class="text-red-300 font-medium text-sm">Upload Failed</p>
+							<p class="text-red-200/80 text-sm mt-1">{demoUploadError}</p>
+							<p class="text-red-200/60 text-xs mt-2">If this persists, try a smaller file or contact support.</p>
 						</div>
-						
-						<p class="text-white font-medium mb-2">Uploading Demo...</p>
-						<p class="text-gray-400 text-sm mb-4">{demoUploadProgress}</p>
-						
-						{#if selectedDemoFile}
-							<div class="bg-zinc-700/50 rounded-lg px-4 py-2 text-sm">
-								<span class="text-gray-300">{selectedDemoFile.name}</span>
-								<span class="text-gray-500 ml-2">({formatFileSize(selectedDemoFile.size)})</span>
-							</div>
-						{/if}
-						
-						<p class="text-xs text-gray-500 mt-4">Large files may take a few minutes</p>
 					</div>
 				</div>
-			{:else}
-				<!-- Upload Form -->
-				<form 
-					method="POST" 
-					action="?/uploadDemo" 
-					enctype="multipart/form-data"
-					use:enhance={() => {
-						isUploadingDemo = true;
-						demoUploadError = null;
-						demoUploadProgress = 'Uploading file...';
-						
-						const progressMessages = [
-							'Uploading file...',
-							'Processing demo...',
-							'Saving to storage...',
-							'Almost done...'
-						];
-						let msgIndex = 0;
-						const progressInterval = setInterval(() => {
-							msgIndex = Math.min(msgIndex + 1, progressMessages.length - 1);
-							demoUploadProgress = progressMessages[msgIndex];
-						}, 3000);
-						
-						return async ({ result, update }) => {
-							clearInterval(progressInterval);
-							isUploadingDemo = false;
-							
-							if (result.type === 'success') {
-								closeDemoUploadModal();
-							} else if (result.type === 'failure') {
-								const errorData = result.data as { error?: string } | undefined;
-								demoUploadError = errorData?.error || 'Upload failed. Please try again.';
-							} else if (result.type === 'error') {
-								demoUploadError = 'Network error. Please check your connection and try again.';
-							}
-							
-							await update();
-						};
-					}}
-				>
-					<div class="mb-4">
-						<label for="playerSteamId" class="block text-sm font-medium text-gray-200 mb-2">Player</label>
-						<select
-							id="playerSteamId"
-							name="playerSteamId"
-							required
-							class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
-						>
-							<option value="">Select a player...</option>
-							{#each data.allRoster as player}
-								<option value={player.steamId}>{player.username}</option>
-							{/each}
-						</select>
-					</div>
-
-					<div class="mb-4">
-						<label for="demoFile" class="block text-sm font-medium text-gray-200 mb-2">Demo File (.dem)</label>
-						<input
-							type="file"
-							id="demoFile"
-							name="file"
-							accept=".dem"
-							required
-							onchange={handleDemoFileSelect}
-							class="w-full text-sm text-gray-200
-								   file:mr-4 file:py-2 file:px-4
-								   file:rounded file:border-0
-								   file:text-sm file:font-semibold
-								   file:bg-zinc-700 file:text-gray-200
-								   hover:file:bg-zinc-600
-								   cursor-pointer"
-						/>
-						
-						<!-- File info display -->
-						{#if selectedDemoFile}
-							<div class="mt-2 p-2 bg-zinc-700/50 rounded flex items-center gap-2">
-								<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-								<span class="text-gray-200 text-sm">{selectedDemoFile.name}</span>
-								<span class="text-gray-400 text-xs">({formatFileSize(selectedDemoFile.size)})</span>
-							</div>
-						{:else}
-							<p class="text-xs text-gray-400 mt-1">Maximum file size: 200MB</p>
-						{/if}
-					</div>
-
-					<div class="mb-6">
-						<label for="demoDescription" class="block text-sm font-medium text-gray-200 mb-2">Description (Optional)</label>
-						<textarea
-							id="demoDescription"
-							name="description"
-							rows="3"
-							class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
-							placeholder="Add any notes about this demo..."
-						></textarea>
-					</div>
-
-					<!-- Error display -->
-					{#if demoUploadError}
-						<div class="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-							<div class="flex items-start gap-3">
-								<svg class="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-								<div>
-									<p class="text-red-300 font-medium text-sm">Upload Failed</p>
-									<p class="text-red-200/80 text-sm mt-1">{demoUploadError}</p>
-									<p class="text-red-200/60 text-xs mt-2">If this persists, try a smaller file or contact support.</p>
-								</div>
-							</div>
-						</div>
-					{/if}
-
-					<div class="flex justify-end space-x-3">
-						<button
-							type="button"
-							onclick={closeDemoUploadModal}
-							class="px-4 py-2 bg-zinc-700 text-gray-200 rounded hover:bg-zinc-600"
-							disabled={isUploadingDemo}
-						>
-							Cancel
-						</button>
-						<button
-							type="submit"
-							class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-							disabled={!selectedDemoFile || !!demoUploadError}
-						>
-							Upload Demo
-						</button>
-					</div>
-				</form>
 			{/if}
-		</div>
-	</div>
-{/if}
+
+			<div class="flex justify-end gap-3">
+				<button
+					type="button"
+					onclick={closeDemoUploadModal}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+					disabled={isUploadingDemo}
+				>
+					Cancel
+				</button>
+				<button
+					type="submit"
+					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+					disabled={!selectedDemoFile || !!demoUploadError}
+				>
+					Upload Demo
+				</button>
+			</div>
+		</form>
+	{/if}
+</Dialog>
 
 <!-- Demo Report Modal -->
-{#if showDemoReportModal && selectedDemoForReport}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
-		onclick={closeDemoReportModal}
-		onkeydown={(e) => e.key === 'Escape' && closeDemoReportModal()}
-		role="button"
-		tabindex="-1"
+{#if selectedDemoForReport}
+	<Dialog
+		open={showDemoReportModal}
+		title="Report Demo"
+		onClose={closeDemoReportModal}
 	>
-		<div 
-			class="bg-zinc-800 p-6 rounded-lg w-[500px]" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog" 
-			aria-modal="true"
-			tabindex="0"
+		<FormError error={form?.error} success={form?.success ? form.message : null} />
+
+		<div class="mb-4">
+			<p class="text-gray-300 mb-2">
+				Reporting demo for:
+				<span class="font-bold text-white">
+					{selectedDemoForReport.player?.steamUsername || 'Unknown Player'}
+				</span>
+			</p>
+			<p class="text-sm text-gray-400">
+				Please describe why you believe this demo should be reviewed for suspicious activity.
+			</p>
+		</div>
+
+		<form
+			method="POST"
+			action="?/reportDemo"
+			use:enhance={() => {
+				isReportingDemo = true;
+				return async ({ result, update }) => {
+					isReportingDemo = false;
+					if (result.type === 'success') {
+						closeDemoReportModal();
+					}
+					await update();
+				};
+			}}
 		>
-			<div class="flex justify-between items-center mb-4">
-				<h3 class="text-xl font-bold text-white">Report Demo</h3>
-				<button onclick={closeDemoReportModal} class="text-gray-400 hover:text-gray-200" aria-label="Close modal">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-				</button>
+			<input type="hidden" name="demoId" value={selectedDemoForReport.id} />
+
+			<div class="mb-6">
+				<label for="reportDescription" class="block text-sm font-medium text-gray-300 mb-2">
+					Description <span class="text-red-500">*</span>
+				</label>
+				<textarea
+					id="reportDescription"
+					name="description"
+					rows="4"
+					required
+					maxlength="1000"
+					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors resize-none"
+					placeholder="Describe the suspicious behavior (max 1000 characters)..."
+				></textarea>
 			</div>
 
-			<form 
-				method="POST" 
-				action="?/reportDemo"
-				use:enhance={() => {
-					isReportingDemo = true;
-					return async ({ result, update }) => {
-						isReportingDemo = false;
-						if (result.type === 'success') {
-							closeDemoReportModal();
-						}
-						await update();
-					};
-				}}
-			>
-				<input type="hidden" name="demoId" value={selectedDemoForReport.id} />
-
-				<div class="mb-4">
-					<p class="text-gray-200 mb-2">
-						Reporting demo for: 
-						<span class="font-bold text-white">
-							{selectedDemoForReport.player?.steamUsername || 'Unknown Player'}
-						</span>
-					</p>
-					<p class="text-sm text-gray-400">
-						Please describe why you believe this demo should be reviewed for suspicious activity.
-					</p>
-				</div>
-
-				<div class="mb-6">
-					<label for="reportDescription" class="block text-sm font-medium text-gray-200 mb-2">Description *</label>
-					<textarea
-						id="reportDescription"
-						name="description"
-						rows="4"
-						required
-						maxlength="1000"
-						class="w-full bg-zinc-700 text-gray-200 rounded-md p-2 text-sm border border-zinc-600"
-						placeholder="Describe the suspicious behavior (max 1000 characters)..."
-					></textarea>
-				</div>
-
-				{#if form?.error && !isReportingDemo}
-					<div class="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
-						{form.error}
-					</div>
-				{/if}
-
-				{#if form?.success && form?.message}
-					<div class="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
-						{form.message}
-					</div>
-				{/if}
-
-				<div class="flex justify-end space-x-3">
-					<button
-						type="button"
-						onclick={closeDemoReportModal}
-						class="px-4 py-2 bg-zinc-700 text-gray-200 rounded hover:bg-zinc-600"
-						disabled={isReportingDemo}
-					>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-						disabled={isReportingDemo}
-					>
-						{isReportingDemo ? 'Submitting...' : 'Submit Report'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
+			<div class="flex justify-end gap-3">
+				<button
+					type="button"
+					onclick={closeDemoReportModal}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+					disabled={isReportingDemo}
+				>
+					Cancel
+				</button>
+				<button
+					type="submit"
+					class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+					disabled={isReportingDemo}
+				>
+					{isReportingDemo ? 'Submitting...' : 'Submit Report'}
+				</button>
+			</div>
+		</form>
+	</Dialog>
 {/if}
 

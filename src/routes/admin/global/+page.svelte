@@ -1,6 +1,8 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import Dialog from '$lib/components/ui/Dialog.svelte';
+import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -493,35 +495,23 @@ function toggleEditForm(announcement: (typeof data.announcements)[0]) {
 			</div>
 			
 			<!-- Season Assignment Confirmation Modal -->
-			{#if showSeasonAssignmentWarning}
-				<div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onclick={() => showSeasonAssignmentWarning = false}>
-					<div class="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-md mx-4" onclick={(e) => e.stopPropagation()}>
-						<h4 class="text-xl font-bold text-white mb-4">⚠️ Confirm Season Assignment Update</h4>
-						<p class="text-gray-300 mb-4">
-							Are you sure you want to update the season assignments?
-						</p>
-						<p class="text-amber-400 text-sm mb-6">
-							This action will change which season new team signups are registered to. 
-							Teams that haven't completed signup for the previous season will need to 
-							re-register for the new season.
-						</p>
-						<div class="flex gap-3 justify-end">
-							<button
-								onclick={() => showSeasonAssignmentWarning = false}
-								class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
-							>
-								Cancel
-							</button>
-							<button
-								onclick={() => seasonAssignmentForm?.requestSubmit()}
-								class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
-							>
-								Yes, Update Assignments
-							</button>
-						</div>
-					</div>
-				</div>
-			{/if}
+			<ConfirmDialog
+				open={showSeasonAssignmentWarning}
+				title="Confirm Season Assignment Update"
+				description="Are you sure you want to update the season assignments?"
+				confirmLabel="Yes, Update Assignments"
+				variant="warning"
+				onConfirm={() => seasonAssignmentForm?.requestSubmit()}
+				onCancel={() => showSeasonAssignmentWarning = false}
+			>
+				{#snippet preview()}
+					<p class="text-amber-400 text-sm">
+						This action will change which season new team signups are registered to. 
+						Teams that haven't completed signup for the previous season will need to 
+						re-register for the new season.
+					</p>
+				{/snippet}
+			</ConfirmDialog>
 		{:else}
 			<div class="text-center py-12 text-gray-500">
 				<p class="text-gray-400">Global settings not initialized</p>
@@ -531,48 +521,53 @@ function toggleEditForm(announcement: (typeof data.announcements)[0]) {
 </div>
 
 <!-- Delete Confirmation Modal -->
-{#if deletingAnnouncement}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-		<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full">
-			<h3 class="text-xl font-bold text-white mb-4">Delete Announcement</h3>
-			<p class="text-gray-400 mb-6">
-				Are you sure you want to delete this announcement? This action cannot be undone.
-			</p>
-			<div class="bg-zinc-800 border border-zinc-700 rounded p-3 mb-6">
-				<p class="text-gray-300 text-sm">{deletingAnnouncement.content}</p>
-			</div>
-			<div class="flex gap-3">
-				<form 
-					method="POST" 
-					action="?/deleteAnnouncement"
-					use:enhance={() => {
-						isSubmitting = true;
-						return async ({ update }) => {
-							await update();
-							isSubmitting = false;
-							deletingAnnouncement = null;
-						};
-					}}
-					class="flex-1"
-				>
-					<input type="hidden" name="id" value={deletingAnnouncement.id} />
-					<button
-						type="submit"
-						disabled={isSubmitting}
-						class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-					>
-						{isSubmitting ? 'Deleting...' : 'Delete'}
-					</button>
-				</form>
-				<button
-					type="button"
-					onclick={() => deletingAnnouncement = null}
-					class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-md font-medium transition-colors"
-				>
-					Cancel
-				</button>
-			</div>
+<Dialog
+	open={!!deletingAnnouncement}
+	title="Delete Announcement"
+	onClose={() => deletingAnnouncement = null}
+>
+	<p class="text-gray-400 mb-4">
+		Are you sure you want to delete this announcement? This action cannot be undone.
+	</p>
+
+	{#if deletingAnnouncement}
+		<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+			<p class="text-gray-300 text-sm">{deletingAnnouncement.content}</p>
 		</div>
-	</div>
-{/if}
+	{/if}
+
+	{#snippet footer()}
+		<button
+			type="button"
+			onclick={() => deletingAnnouncement = null}
+			class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+		>
+			Cancel
+		</button>
+		{#if deletingAnnouncement}
+			<form
+				method="POST"
+				action="?/deleteAnnouncement"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ update }) => {
+						await update();
+						isSubmitting = false;
+						deletingAnnouncement = null;
+					};
+				}}
+				class="flex-1"
+			>
+				<input type="hidden" name="id" value={deletingAnnouncement.id} />
+				<button
+					type="submit"
+					disabled={isSubmitting}
+					class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					{isSubmitting ? 'Deleting...' : 'Delete'}
+				</button>
+			</form>
+		{/if}
+	{/snippet}
+</Dialog>
 

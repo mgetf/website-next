@@ -1,5 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
-import { getPlayerProfile } from '$lib/server/services/users';
+import { getPlayerProfile, unlinkDiscord } from '$lib/server/services/users';
 import { withdraw1v1Entry } from '$lib/server/services/signup1v1';
 import { isAdmin } from '$lib/server/auth/permissions';
 import type { PageServerLoad, Actions } from './$types';
@@ -16,10 +16,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     // Check if user is viewing their own profile
     const isOwnProfile = locals.user?.steamId === steamId;
+    const isUserAdmin = isAdmin(locals.user);
 
     return {
       ...profile,
       isOwnProfile,
+      isAdmin: isUserAdmin,
     };
   } catch (err) {
     console.error('Error loading user profile:', err);
@@ -66,6 +68,24 @@ export const actions: Actions = {
       console.error('Error withdrawing from 1v1:', err);
       return fail(err.status || 500, {
         error: err.body?.message || 'Failed to withdraw from 1v1 league',
+      });
+    }
+  },
+
+  unlinkDiscord: async ({ params, locals }) => {
+    if (!locals.user || !isAdmin(locals.user)) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const { steamId } = params;
+
+    try {
+      await unlinkDiscord(steamId);
+      return { success: true, message: 'Discord account unlinked' };
+    } catch (err: any) {
+      console.error('Error unlinking Discord:', err);
+      return fail(400, {
+        error: err.message || 'Failed to unlink Discord',
       });
     }
   },

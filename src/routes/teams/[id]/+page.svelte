@@ -2,6 +2,7 @@
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
 import { onMount } from 'svelte';
+import { toast } from '$lib/state/toast.svelte';
 
 // Svelte 5 runes - get data from server
 let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -11,22 +12,26 @@ const team = $derived(data.team);
 const currentRoster = $derived(data.currentRoster);
 const pastRoster = $derived(data.pastRoster);
 const matchesBySeason = $derived(data.matchesBySeason);
-
-// Payment success state
-let showPaymentSuccess = $state(data.paymentSuccess);
+let lastFormResult: ActionData = null;
 
 onMount(() => {
-  if (showPaymentSuccess) {
-    // Remove the query param from URL without reload
+  if (data.paymentSuccess) {
     const url = new URL(window.location.href);
     url.searchParams.delete('payment');
     history.replaceState({}, '', url.pathname);
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-      showPaymentSuccess = false;
-    }, 5000);
+    toast.success('Payment Successful! Your signup fee has been paid. Thank you!');
   }
+});
+
+$effect(() => {
+	if (form && form !== lastFormResult) {
+		lastFormResult = form;
+		if (form.success && form.message) {
+			toast.success(form.message);
+		} else if (form.error) {
+			toast.error(form.error);
+		}
+	}
 });
 
 // Format date helper
@@ -68,38 +73,6 @@ const winRate = $derived(
 </script>
 
 <div class="min-h-screen pb-16">
-	<!-- Payment Success Message -->
-	{#if showPaymentSuccess}
-		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50 max-w-sm animate-fade-in">
-			<div class="flex items-start gap-3">
-				<span class="text-2xl">✅</span>
-				<div>
-					<p class="text-green-400 font-semibold">Payment Successful!</p>
-					<p class="text-green-400/80 text-sm mt-1">Your signup fee has been paid. Thank you!</p>
-				</div>
-				<button 
-					onclick={() => showPaymentSuccess = false}
-					class="text-green-400/60 hover:text-green-400 ml-2"
-				>
-					✕
-				</button>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Success/Error Messages from Form Actions -->
-	{#if form?.success}
-		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50">
-			<p class="text-green-400">{form.message}</p>
-		</div>
-	{/if}
-	
-	{#if form?.error}
-		<div class="fixed top-4 right-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg shadow-lg z-50">
-			<p class="text-red-400">{form.error}</p>
-		</div>
-	{/if}
-
 	<!-- Team Hero Section -->
 	<section class="relative py-12 px-6 bg-gradient-to-b from-zinc-950 to-zinc-900">
 		<div class="max-w-6xl mx-auto">

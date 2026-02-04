@@ -5,6 +5,7 @@ import Navigation from '$lib/components/layout/Navigation.svelte';
 import AnnouncementBanner from '$lib/components/layout/AnnouncementBanner.svelte';
 import LoadingBar from '$lib/components/layout/LoadingBar.svelte';
 import DevGate from '$lib/components/layout/DevGate.svelte';
+import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
 import { identifyUser } from '$lib/utils/posthog';
 import { onMount } from 'svelte';
 import { afterNavigate } from '$app/navigation';
@@ -36,6 +37,9 @@ afterNavigate(() => {
 		<link rel="icon" href={data.siteSettings.faviconPath} />
 	{/if}
 </svelte:head>
+
+<!-- Global Toast Notifications -->
+<ToastContainer />
 
 <!-- Dev/Staging Gate: Show restricted access page for non-admins -->
 {#if data.devGated}

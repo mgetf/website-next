@@ -6,6 +6,7 @@ import {
   countUsers,
   updateUser,
   banUser,
+  unlinkDiscord,
 } from '$lib/server/services/users';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -55,8 +56,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     },
     filters: {
       search,
-      permissionLevel: permissionLevelFilter || 'all',
-      banStatus: banStatusFilter || 'all',
+      permissionLevel: permissionLevelFilter || '',
+      banStatus: banStatusFilter || '',
     },
   };
 };
@@ -136,6 +137,28 @@ export const actions: Actions = {
       console.error('Error banning user:', error);
       return fail(400, {
         error: error instanceof Error ? error.message : 'Failed to ban user',
+      });
+    }
+  },
+
+  unlinkDiscord: async ({ request, locals }) => {
+    requireAdmin(locals.user);
+
+    const formData = await request.formData();
+    const steamId = formData.get('steamId') as string;
+
+    if (!steamId) {
+      return fail(400, { error: 'Invalid user ID' });
+    }
+
+    try {
+      await unlinkDiscord(steamId);
+      return { success: true, message: 'Discord account unlinked' };
+    } catch (error) {
+      console.error('Error unlinking Discord:', error);
+      return fail(400, {
+        error:
+          error instanceof Error ? error.message : 'Failed to unlink Discord',
       });
     }
   },

@@ -6,12 +6,29 @@ import { enhance } from '$app/forms';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import SearchInput from '$lib/components/ui/SearchInput.svelte';
 import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+import Dialog from '$lib/components/ui/Dialog.svelte';
+import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+import FormInput from '$lib/components/ui/form/FormInput.svelte';
+import FormError from '$lib/components/ui/form/FormError.svelte';
+import { toast } from '$lib/state/toast.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
 let editingUser: (typeof data.users)[0] | null = $state(null);
 let banningUser: (typeof data.users)[0] | null = $state(null);
 let isSubmitting = $state(false);
+let lastFormResult: ActionData = null;
+
+$effect(() => {
+	if (form && form !== lastFormResult) {
+		lastFormResult = form;
+		if (form.success && form.message) {
+			toast.success(form.message);
+		} else if (form.error && !editingUser && !banningUser) {
+			toast.error(form.error);
+		}
+	}
+});
 
 const columns = [
 	{ key: 'user', label: 'User' },
@@ -29,7 +46,7 @@ function updateFilters(updates: Record<string, string>) {
   const params = new URLSearchParams(page.url.searchParams);
 
   Object.entries(updates).forEach(([key, value]) => {
-    if (value && value !== 'all' && value !== '') {
+    if (value) {
       params.set(key, value);
     } else {
       params.delete(key);
@@ -126,14 +143,14 @@ function closeBanModal() {
 				value={data.filters.permissionLevel}
 				options={permissionOptions}
 				allLabel="All Permissions"
-				onChange={(v) => updateFilters({ permissionLevel: v || 'all' })}
+				onChange={(v) => updateFilters({ permissionLevel: v })}
 			/>
 			
 			<SelectFilter
 				value={data.filters.banStatus}
 				options={banStatusOptions}
 				allLabel="All Status"
-				onChange={(v) => updateFilters({ banStatus: v || 'all' })}
+				onChange={(v) => updateFilters({ banStatus: v })}
 			/>
 			
 			<button
@@ -222,276 +239,220 @@ function closeBanModal() {
 		{/snippet}
 	</DataTable>
 	
-	<!-- Success/Error Messages -->
-	{#if form?.success && form?.message}
-		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50">
-			<p class="text-green-400">{form.message}</p>
-		</div>
-	{/if}
-	
-	{#if form?.error && !editingUser && !banningUser}
-		<div class="fixed top-4 right-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg shadow-lg z-50">
-			<p class="text-red-400">{form.error}</p>
-		</div>
-	{/if}
 </div>
 
 <!-- Edit User Modal -->
 {#if editingUser}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={closeEditModal}
-		onkeydown={(e) => e.key === 'Escape' && closeEditModal()}
-		role="button"
-		tabindex="-1"
+	<Dialog
+		open={true}
+		title="Edit User: {editingUser.steamUsername}"
+		maxWidth="2xl"
+		onClose={closeEditModal}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
+		<FormError error={form?.error} />
+
+		<form
+			method="POST"
+			action="?/updateUser"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						closeEditModal();
+					}
+				};
+			}}
 		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Edit User: {editingUser.steamUsername}</h3>
-				<button 
+			<input type="hidden" name="steamId" value={editingUser.steamId} />
+
+			<FormSelect
+				label="Permission Level"
+				name="permissionLevel"
+				bind:value={editingUser.permissionLevel}
+				options={permissionOptions}
+				hint="Guests cannot sign up for leagues. Users can create teams. Moderators have staff access. Admins have full access."
+			/>
+
+			<FormSelect
+				label="Ban Status"
+				name="banStatus"
+				bind:value={editingUser.banStatus}
+				options={[
+					{ value: 'NONE', label: 'None (Active)' },
+					{ value: 'WARNING', label: 'Warning' },
+					{ value: 'SUSPENDED', label: 'Suspended' },
+					{ value: 'BANNED', label: 'Banned' }
+				]}
+				hint="Use the Punish button to add a ban with a reason. This field is for quick status changes."
+			/>
+
+		<FormSelect
+			label="Name Override"
+			name="nameOverride"
+			value={String(editingUser.nameOverride)}
+			options={[
+				{ value: '0', label: 'Disabled (Use Steam Name)' },
+				{ value: '1', label: 'Enabled (Lock Current Name)' }
+			]}
+			hint="When enabled, the user's display name will not update automatically from Steam."
+		/>
+
+			<div class="flex gap-3 justify-end">
+				<button
+					type="button"
 					onclick={closeEditModal}
-					class="text-gray-400 hover:text-white transition-colors"
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
 				>
-					✕
+					Cancel
+				</button>
+				<button
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Saving...' : 'Save Changes'}
 				</button>
 			</div>
-			
-			{#if form?.error}
-				<div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-					<p class="text-red-400 text-sm">{form.error}</p>
-				</div>
-			{/if}
-			
-			<form 
-				method="POST" 
-				action="?/updateUser"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							closeEditModal();
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="steamId" value={editingUser.steamId} />
-				
-				<div class="space-y-4">
-					<div>
-						<label for="edit-permissionLevel" class="block text-sm font-medium text-gray-300 mb-2">Permission Level</label>
-						<select
-							id="edit-permissionLevel"
-							name="permissionLevel"
-							bind:value={editingUser.permissionLevel}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value="GUEST">Guest</option>
-							<option value="USER">User</option>
-							<option value="MODERATOR">Moderator</option>
-							<option value="ADMIN">Admin</option>
-						</select>
-						<p class="text-xs text-gray-500 mt-1">
-							Guests cannot sign up for leagues. Users can create teams. Moderators have staff access. Admins have full access.
-						</p>
+		</form>
+
+		{#if editingUser.discordLinked}
+			<div class="pt-4 mt-4 border-t border-zinc-800">
+				<p class="block text-sm font-medium text-gray-300 mb-2">Discord Account</p>
+				<div class="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
+					<div class="flex items-center gap-2">
+						<svg class="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+							<path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/>
+						</svg>
+						<span class="text-green-400 text-sm">{editingUser.discordUsername || 'Linked'}</span>
 					</div>
-					
-					<div>
-						<label for="edit-banStatus" class="block text-sm font-medium text-gray-300 mb-2">Ban Status</label>
-						<select
-							id="edit-banStatus"
-							name="banStatus"
-							bind:value={editingUser.banStatus}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value="NONE">None (Active)</option>
-							<option value="WARNING">Warning</option>
-							<option value="SUSPENDED">Suspended</option>
-							<option value="BANNED">Banned</option>
-						</select>
-						<p class="text-xs text-gray-500 mt-1">
-							Use the Ban button to add a ban with a reason. This field is for quick status changes.
-						</p>
-					</div>
-					
-					<div>
-						<label for="edit-nameOverride" class="block text-sm font-medium text-gray-300 mb-2">Name Override</label>
-						<select
-							id="edit-nameOverride"
-							name="nameOverride"
-							bind:value={editingUser.nameOverride}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value={0}>Disabled (Use Steam Name)</option>
-							<option value={1}>Enabled (Lock Current Name)</option>
-						</select>
-						<p class="text-xs text-gray-500 mt-1">
-							When enabled, the user's display name will not update automatically from Steam.
-						</p>
-					</div>
-				</div>
-				
-				<div class="mt-6 flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={closeEditModal}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+					<form
+						method="POST"
+						action="?/unlinkDiscord"
+						use:enhance={() => {
+							isSubmitting = true;
+							return async ({ update, result }) => {
+								await update();
+								isSubmitting = false;
+								if (result.type === 'success') {
+									closeEditModal();
+								}
+							};
+						}}
 					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
+						<input type="hidden" name="steamId" value={editingUser.steamId} />
+						<button
+							type="submit"
+							disabled={isSubmitting}
+							class="text-xs text-red-400 hover:text-red-300 hover:underline transition-colors disabled:opacity-50"
+						>
+							Unlink
+						</button>
+					</form>
 				</div>
-			</form>
-		</div>
-	</div>
+			</div>
+		{/if}
+	</Dialog>
 {/if}
 
 <!-- Punish User Modal -->
 {#if banningUser}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={closeBanModal}
-		onkeydown={(e) => e.key === 'Escape' && closeBanModal()}
-		role="button"
-		tabindex="-1"
+	<Dialog
+		open={true}
+		title="Punish User"
+		onClose={closeBanModal}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
+		<FormError error={form?.error} />
+
+		<div class="mb-6">
+			<div class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
+				{#if banningUser.steamAvatar}
+					<img src={banningUser.steamAvatar} alt={banningUser.steamUsername} class="w-10 h-10 rounded" />
+				{:else}
+					<div class="w-10 h-10 bg-zinc-700 rounded flex items-center justify-center text-sm font-bold text-gray-400">
+						{banningUser.steamUsername.slice(0, 2).toUpperCase()}
+					</div>
+				{/if}
+				<div>
+					<p class="text-white font-medium">{banningUser.steamUsername}</p>
+					<p class="text-sm text-gray-400 font-mono">{banningUser.steamId}</p>
+				</div>
+			</div>
+		</div>
+
+		<form
+			method="POST"
+			action="?/banUser"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						closeBanModal();
+					}
+				};
+			}}
 		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">Punish User</h3>
-				<button 
+			<input type="hidden" name="steamId" value={banningUser.steamId} />
+
+			<FormSelect
+				label="Severity"
+				name="severity"
+				required
+				options={[
+					{ value: 'WARNING', label: 'Warning' },
+					{ value: 'SUSPENDED', label: 'Suspended' },
+					{ value: 'BANNED', label: 'Banned' }
+				]}
+				placeholder="Select severity..."
+			/>
+
+			<FormInput
+				label="Duration (days)"
+				name="duration"
+				type="number"
+				placeholder="Leave empty for permanent"
+				hint="Leave empty for permanent punishment"
+			/>
+
+			<div class="mb-6">
+				<label for="ban-reason" class="block text-sm font-medium text-gray-300 mb-2">
+					Reason <span class="text-red-500">*</span>
+				</label>
+				<textarea
+					id="ban-reason"
+					name="reason"
+					rows="4"
+					required
+					placeholder="Explain why this user is being punished..."
+					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors resize-none"
+				></textarea>
+			</div>
+
+			<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg mb-6">
+				<p class="text-red-400 text-sm">
+					This will create a punishment record and update the user's status.
+				</p>
+			</div>
+
+			<div class="flex gap-3 justify-end">
+				<button
+					type="button"
 					onclick={closeBanModal}
-					class="text-gray-400 hover:text-white transition-colors"
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
 				>
-					✕
+					Cancel
+				</button>
+				<button
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Processing...' : 'Apply Punishment'}
 				</button>
 			</div>
-			
-			{#if form?.error}
-				<div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-					<p class="text-red-400 text-sm">{form.error}</p>
-				</div>
-			{/if}
-			
-			<div class="mb-6">
-				<div class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
-					{#if banningUser.steamAvatar}
-						<img src={banningUser.steamAvatar} alt={banningUser.steamUsername} class="w-10 h-10 rounded" />
-					{:else}
-						<div class="w-10 h-10 bg-zinc-700 rounded flex items-center justify-center text-sm font-bold text-gray-400">
-							{banningUser.steamUsername.slice(0, 2).toUpperCase()}
-						</div>
-					{/if}
-					<div>
-						<p class="text-white font-medium">{banningUser.steamUsername}</p>
-						<p class="text-sm text-gray-400 font-mono">{banningUser.steamId}</p>
-					</div>
-				</div>
-			</div>
-			
-			<form 
-				method="POST" 
-				action="?/banUser"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							closeBanModal();
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="steamId" value={banningUser.steamId} />
-				
-				<div class="space-y-4">
-					<div>
-						<label for="ban-severity" class="block text-sm font-medium text-gray-300 mb-2">Severity *</label>
-						<select
-							id="ban-severity"
-							name="severity"
-							required
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value="">Select severity...</option>
-							<option value="WARNING">Warning</option>
-							<option value="SUSPENDED">Suspended</option>
-							<option value="BANNED">Banned</option>
-						</select>
-					</div>
-					
-					<div>
-						<label for="ban-duration" class="block text-sm font-medium text-gray-300 mb-2">Duration (days)</label>
-						<input
-							id="ban-duration"
-							name="duration"
-							type="number"
-							min="0"
-							placeholder="Leave empty for permanent"
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
-						<p class="text-xs text-gray-500 mt-1">
-							Leave empty for permanent punishment
-						</p>
-					</div>
-					
-					<div>
-						<label for="ban-reason" class="block text-sm font-medium text-gray-300 mb-2">Reason *</label>
-						<textarea
-							id="ban-reason"
-							name="reason"
-							rows="4"
-							required
-							placeholder="Explain why this user is being punished..."
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500 resize-none"
-						></textarea>
-					</div>
-					
-					<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-						<p class="text-red-400 text-sm">
-							⚠️ This will create a punishment record and update the user's status.
-						</p>
-					</div>
-				</div>
-				
-				<div class="mt-6 flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={closeBanModal}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Processing...' : 'Apply Punishment'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
+		</form>
+	</Dialog>
 {/if}

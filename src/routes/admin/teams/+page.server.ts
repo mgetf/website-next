@@ -121,10 +121,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     },
     filters: {
       search,
-      division: divisionFilter || 'all',
-      region: regionFilter || 'all',
-      status: statusFilter || 'all',
-      season: seasonFilter || 'all',
+      division: divisionFilter || '',
+      region: regionFilter || '',
+      status: statusFilter || '',
+      season: seasonFilter || '',
     },
   };
 };

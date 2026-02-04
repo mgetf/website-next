@@ -6,6 +6,11 @@ import { enhance } from '$app/forms';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import SearchInput from '$lib/components/ui/SearchInput.svelte';
 import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+import Dialog from '$lib/components/ui/Dialog.svelte';
+import FormInput from '$lib/components/ui/form/FormInput.svelte';
+import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+import FormError from '$lib/components/ui/form/FormError.svelte';
+import { toast } from '$lib/state/toast.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -15,6 +20,18 @@ let restoringTeam: (typeof data.teams)[0] | null = $state(null);
 let isSubmitting = $state(false);
 let isDisbanding = $state(false);
 let isRestoring = $state(false);
+let lastFormResult: ActionData = null;
+
+$effect(() => {
+	if (form && form !== lastFormResult) {
+		lastFormResult = form;
+		if (form.success && form.message) {
+			toast.success(form.message);
+		} else if (form.error && !editingTeam) {
+			toast.error(form.error);
+		}
+	}
+});
 
 const columns = [
 	{ key: 'team', label: 'Team' },
@@ -32,7 +49,7 @@ const paginationInfo = $derived(
 );
 
 const filteredSeasons = $derived(() => {
-  if (data.filters.region === 'all') {
+  if (!data.filters.region) {
     return data.seasons;
   }
   const regionId = parseInt(data.filters.region);
@@ -65,11 +82,10 @@ function updateFilters(updates: Record<string, string>) {
   const params = new URLSearchParams(page.url.searchParams);
 
   if (updates.region !== undefined) {
-    const newRegionId =
-      updates.region === 'all' ? null : parseInt(updates.region);
+    const newRegionId = updates.region ? parseInt(updates.region) : null;
     const currentSeasonId = params.get('season');
 
-    if (currentSeasonId && currentSeasonId !== 'all' && newRegionId) {
+    if (currentSeasonId && newRegionId) {
       const currentSeason = data.seasons.find(
         (s) => s.id === parseInt(currentSeasonId),
       );
@@ -80,7 +96,7 @@ function updateFilters(updates: Record<string, string>) {
   }
 
   Object.entries(updates).forEach(([key, value]) => {
-    if (value && value !== 'all' && value !== '') {
+    if (value) {
       params.set(key, value);
     } else {
       params.delete(key);
@@ -143,14 +159,9 @@ const statusToInt: Record<string, number> = {
 
 <div class="max-w-7xl mx-auto space-y-6">
 	<!-- Page Header -->
-	<div class="flex items-center justify-between">
-		<div>
-			<h2 class="text-3xl font-bold text-white mb-2">Team Management</h2>
-			<p class="text-gray-400">View and manage all teams across all divisions</p>
-		</div>
-		<button class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors">
-			+ Create Team
-		</button>
+	<div>
+		<h2 class="text-3xl font-bold text-white mb-2">Team Management</h2>
+		<p class="text-gray-400">View and manage all teams across all divisions</p>
 	</div>
 	
 	<!-- Filters -->
@@ -166,28 +177,28 @@ const statusToInt: Record<string, number> = {
 				value={data.filters.season}
 				options={seasonOptions}
 				allLabel="All Seasons"
-				onChange={(v) => updateFilters({ season: v || 'all' })}
+				onChange={(v) => updateFilters({ season: v })}
 			/>
 			
 			<SelectFilter
 				value={data.filters.division}
 				options={divisionOptions}
 				allLabel="All Divisions"
-				onChange={(v) => updateFilters({ division: v || 'all' })}
+				onChange={(v) => updateFilters({ division: v })}
 			/>
 			
 			<SelectFilter
 				value={data.filters.region}
 				options={regionOptions}
 				allLabel="All Regions"
-				onChange={(v) => updateFilters({ region: v || 'all' })}
+				onChange={(v) => updateFilters({ region: v })}
 			/>
 			
 			<SelectFilter
 				value={data.filters.status}
 				options={statusOptions}
 				allLabel="All Status"
-				onChange={(v) => updateFilters({ status: v || 'all' })}
+				onChange={(v) => updateFilters({ status: v })}
 			/>
 			
 			<button
@@ -291,151 +302,94 @@ const statusToInt: Record<string, number> = {
 		{/snippet}
 	</DataTable>
 	
-	<!-- Success/Error Messages -->
-	{#if form?.success && form?.message}
-		<div class="fixed top-4 right-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg shadow-lg z-50">
-			<p class="text-green-400">{form.message}</p>
-		</div>
-	{/if}
-	
-	{#if form?.error && !editingTeam}
-		<div class="fixed top-4 right-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg shadow-lg z-50">
-			<p class="text-red-400">{form.error}</p>
-		</div>
-	{/if}
 </div>
 
 <!-- Edit Modal -->
 {#if editingTeam}
-	<div 
-		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
-		onclick={closeEditModal}
-		onkeydown={(e) => e.key === 'Escape' && closeEditModal()}
-		role="button"
-		tabindex="-1"
+	{@const editTitle = `Quick Edit: ${editingTeam.name}${editingTeam.formatId === 1 ? ' (1v1)' : ''}`}
+	<Dialog
+		open={true}
+		title={editTitle}
+		maxWidth="2xl"
+		onClose={closeEditModal}
 	>
-		<div 
-			class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" 
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			tabindex="0"
+		<FormError error={form?.error} />
+
+		{@const seasonOptions = [
+			{ value: 'none', label: 'No Season' },
+			...data.seasons.map(s => ({ value: String(s.id), label: `Season ${s.seasonNum} (${s.region.name})` }))
+		]}
+		{@const divisionOptions = [
+			{ value: 'none', label: 'No Division' },
+			...data.divisions.map(d => ({ value: String(d.id), label: d.name }))
+		]}
+		{@const regionOptions = [
+			{ value: 'none', label: 'No Region' },
+			...data.regions.map(r => ({ value: String(r.id), label: r.name }))
+		]}
+		{@const statusOptions = [
+			{ value: '-1', label: 'Dead' },
+			{ value: '0', label: 'Unready' },
+			{ value: '1', label: 'Pending' },
+			{ value: '2', label: 'Ready' },
+			{ value: '3', label: 'Placement' }
+		]}
+
+		<form
+			method="POST"
+			action="?/updateTeam"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isSubmitting = false;
+					if (result.type === 'success') {
+						closeEditModal();
+					}
+				};
+			}}
 		>
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-xl font-bold text-white">
-					Quick Edit: {editingTeam.name}
-					{#if editingTeam.formatId === 1}
-						<span class="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-500/20 text-purple-400 rounded">1v1</span>
-					{/if}
-				</h3>
-				<button 
-					onclick={closeEditModal}
-					class="text-gray-400 hover:text-white transition-colors"
-				>
-					✕
-				</button>
-			</div>
-			
-			{#if form?.error}
-				<div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-					<p class="text-red-400 text-sm">{form.error}</p>
-				</div>
+			<input type="hidden" name="teamId" value={editingTeam.id} />
+
+			<FormInput
+				label={editingTeam.formatId === 1 ? 'Player Name' : 'Team Name'}
+				name="name"
+				bind:value={editingTeam.name}
+				required
+			/>
+
+			{#if editingTeam.formatId !== 1}
+				<FormInput
+					label="Acronym"
+					name="acronym"
+					bind:value={editingTeam.acronym}
+				/>
 			{/if}
-			
-			<form 
-				method="POST" 
-				action="?/updateTeam"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update, result }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							closeEditModal();
-						}
-					};
-				}}
-			>
-				<input type="hidden" name="teamId" value={editingTeam.id} />
-				
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<div class="md:col-span-2">
-						<label for="edit-name" class="block text-sm font-medium text-gray-300 mb-2">
-							{editingTeam.formatId === 1 ? 'Player Name' : 'Team Name'}
-						</label>
-						<input
-							id="edit-name"
-							name="name"
-							type="text"
-							bind:value={editingTeam.name}
-							required
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						/>
-					</div>
-					
-					{#if editingTeam.formatId !== 1}
-						<div class="md:col-span-2">
-							<label for="edit-acronym" class="block text-sm font-medium text-gray-300 mb-2">Acronym</label>
-							<input
-								id="edit-acronym"
-								name="acronym"
-								type="text"
-								bind:value={editingTeam.acronym}
-								class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-							/>
-						</div>
-					{/if}
-					
-					<div>
-						<label for="edit-seasonId" class="block text-sm font-medium text-gray-300 mb-2">Season</label>
-						<select
-							id="edit-seasonId"
-							name="seasonId"
-							value={editingTeam.season?.id || 'none'}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value="none">No Season</option>
-							{#each data.seasons as season}
-								<option value={season.id}>
-									Season {season.seasonNum} ({season.region.name})
-								</option>
-							{/each}
-						</select>
-					</div>
-					
-					<div>
-						<label for="edit-divisionId" class="block text-sm font-medium text-gray-300 mb-2">Division</label>
-						<select
-							id="edit-divisionId"
-							name="divisionId"
-							value={editingTeam.division?.id || 'none'}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value="none">No Division</option>
-							{#each data.divisions as division}
-								<option value={division.id}>{division.name}</option>
-							{/each}
-						</select>
-					</div>
-					
-					<div>
-						<label for="edit-regionId" class="block text-sm font-medium text-gray-300 mb-2">Region</label>
-						<select
-							id="edit-regionId"
-							name="regionId"
-							value={editingTeam.region?.id || 'none'}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value="none">No Region</option>
-							{#each data.regions as region}
-								<option value={region.id}>{region.name}</option>
-							{/each}
-						</select>
-					</div>
-					
+
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+				<FormSelect
+					label="Season"
+					name="seasonId"
+					value={String(editingTeam.season?.id || 'none')}
+					options={seasonOptions}
+				/>
+
+				<FormSelect
+					label="Division"
+					name="divisionId"
+					value={String(editingTeam.division?.id || 'none')}
+					options={divisionOptions}
+				/>
+
+				<FormSelect
+					label="Region"
+					name="regionId"
+					value={String(editingTeam.region?.id || 'none')}
+					options={regionOptions}
+				/>
+
 				{#if editingTeam.formatId === 1}
-					<div>
+					<div class="mb-6">
 						<span class="block text-sm font-medium text-gray-300 mb-2">Status</span>
 						<div class="flex items-center gap-3">
 							<span class="px-3 py-2 rounded-lg text-sm font-medium {editingTeam.status === 'READY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
@@ -456,171 +410,163 @@ const statusToInt: Record<string, number> = {
 						<input type="hidden" name="status" value={statusToInt[editingTeam.status]} />
 					</div>
 				{:else}
-					<div>
-						<label for="edit-status" class="block text-sm font-medium text-gray-300 mb-2">Status</label>
-						<select
-							id="edit-status"
-							name="status"
-							value={statusToInt[editingTeam.status]}
-							class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-						>
-							<option value={-1}>Dead</option>
-							<option value={0}>Unready</option>
-							<option value={1}>Pending</option>
-							<option value={2}>Ready</option>
-							<option value={3}>Placement</option>
-						</select>
-					</div>
+					<FormSelect
+						label="Status"
+						name="status"
+						value={String(statusToInt[editingTeam.status])}
+						options={statusOptions}
+					/>
 				{/if}
-				</div>
-				
-				<div class="mt-6 flex gap-3 justify-end">
-					<button 
-						type="button"
-						onclick={closeEditModal}
-						class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-					>
-						Cancel
-					</button>
-					<button 
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-					>
-						{isSubmitting ? 'Saving...' : 'Save Changes'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
+			</div>
+
+			<div class="flex gap-3 justify-end">
+				<button
+					type="button"
+					onclick={closeEditModal}
+					class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
+				>
+					Cancel
+				</button>
+				<button
+					type="submit"
+					disabled={isSubmitting}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+				>
+					{isSubmitting ? 'Saving...' : 'Save Changes'}
+				</button>
+			</div>
+		</form>
+	</Dialog>
 {/if}
 
 <!-- Disband/Withdraw Team Confirmation Modal -->
 {#if disbandingTeam}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-		<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full">
-			<h3 class="text-xl font-bold text-white mb-4">
-				{disbandingTeam.formatId === 1 ? 'Withdraw Player' : 'Disband Team'}
-			</h3>
-			<p class="text-gray-400 mb-6">
-				{#if disbandingTeam.formatId === 1}
-					Are you sure you want to withdraw this player from the 1v1 league?
+	{@const disbandTitle = disbandingTeam.formatId === 1 ? 'Withdraw Player' : 'Disband Team'}
+	{@const disbandDesc = disbandingTeam.formatId === 1
+		? 'Are you sure you want to withdraw this player from the 1v1 league?'
+		: 'Are you sure you want to disband this team? This will mark the team as DEAD and deactivate all players.'}
+	<Dialog
+		open={true}
+		title={disbandTitle}
+		onClose={() => disbandingTeam = null}
+	>
+		<p class="text-gray-400 mb-4">{disbandDesc}</p>
+
+		<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+			<div class="flex items-center gap-3">
+				{#if disbandingTeam.avatar}
+					<img src={disbandingTeam.avatar} alt="" class="w-10 h-10 rounded" />
 				{:else}
-					Are you sure you want to disband this team? This will mark the team as DEAD and deactivate all players.
-				{/if}
-			</p>
-			<div class="bg-zinc-800 border border-zinc-700 rounded p-3 mb-6">
-				<div class="flex items-center gap-3">
-					{#if disbandingTeam.avatar}
-						<img src={disbandingTeam.avatar} alt="" class="w-10 h-10 rounded" />
-					{:else}
-						<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium">
-							{disbandingTeam.acronym?.slice(0, 2) || disbandingTeam.name.slice(0, 2).toUpperCase()}
-						</div>
-					{/if}
-					<div>
-						<p class="text-white font-medium">{disbandingTeam.name}</p>
-						<p class="text-gray-400 text-sm">
-							{disbandingTeam.division?.name || 'No division'} · {disbandingTeam.region?.name || 'No region'}
-						</p>
+					<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium">
+						{disbandingTeam.acronym?.slice(0, 2) || disbandingTeam.name.slice(0, 2).toUpperCase()}
 					</div>
+				{/if}
+				<div>
+					<p class="text-white font-medium">{disbandingTeam.name}</p>
+					<p class="text-gray-400 text-sm">
+						{disbandingTeam.division?.name || 'No division'} · {disbandingTeam.region?.name || 'No region'}
+					</p>
 				</div>
 			</div>
-			<div class="flex gap-3">
-				<form 
-					method="POST" 
-					action="?/disbandTeam"
-					use:enhance={() => {
-						isDisbanding = true;
-						return async ({ update }) => {
-							await update();
-							isDisbanding = false;
-							disbandingTeam = null;
-						};
-					}}
-					class="flex-1"
-				>
-					<input type="hidden" name="teamId" value={disbandingTeam.id} />
-					<button
-						type="submit"
-						disabled={isDisbanding}
-						class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-					>
-						{#if isDisbanding}
-							{disbandingTeam.formatId === 1 ? 'Withdrawing...' : 'Disbanding...'}
-						{:else}
-							{disbandingTeam.formatId === 1 ? 'Withdraw' : 'Disband Team'}
-						{/if}
-					</button>
-				</form>
-				<button
-					type="button"
-					onclick={() => disbandingTeam = null}
-					class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-md font-medium transition-colors"
-				>
-					Cancel
-				</button>
-			</div>
 		</div>
-	</div>
+
+		{#snippet footer()}
+			<button
+				type="button"
+				onclick={() => disbandingTeam = null}
+				class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+			>
+				Cancel
+			</button>
+			<form
+				method="POST"
+				action="?/disbandTeam"
+				use:enhance={() => {
+					isDisbanding = true;
+					return async ({ update }) => {
+						await update();
+						isDisbanding = false;
+						disbandingTeam = null;
+					};
+				}}
+				class="flex-1"
+			>
+				<input type="hidden" name="teamId" value={disbandingTeam.id} />
+				<button
+					type="submit"
+					disabled={isDisbanding}
+					class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					{#if isDisbanding}
+						{disbandingTeam.formatId === 1 ? 'Withdrawing...' : 'Disbanding...'}
+					{:else}
+						{disbandingTeam.formatId === 1 ? 'Withdraw' : 'Disband Team'}
+					{/if}
+				</button>
+			</form>
+		{/snippet}
+	</Dialog>
 {/if}
 
 <!-- Restore 1v1 Player Confirmation Modal -->
 {#if restoringTeam}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-		<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full">
-			<h3 class="text-xl font-bold text-white mb-4">Restore Player</h3>
-			<p class="text-gray-400 mb-6">
-				Are you sure you want to restore this player to the 1v1 league? They will be set back to active status.
-			</p>
-			<div class="bg-zinc-800 border border-zinc-700 rounded p-3 mb-6">
-				<div class="flex items-center gap-3">
-					{#if restoringTeam.avatar}
-						<img src={restoringTeam.avatar} alt="" class="w-10 h-10 rounded" />
-					{:else}
-						<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium">
-							{restoringTeam.name.slice(0, 2).toUpperCase()}
-						</div>
-					{/if}
-					<div>
-						<p class="text-white font-medium">{restoringTeam.name}</p>
-						<p class="text-gray-400 text-sm">
-							{restoringTeam.division?.name || 'No division'} · {restoringTeam.region?.name || 'No region'}
-						</p>
+	<Dialog
+		open={true}
+		title="Restore Player"
+		onClose={() => restoringTeam = null}
+	>
+		<p class="text-gray-400 mb-4">
+			Are you sure you want to restore this player to the 1v1 league? They will be set back to active status.
+		</p>
+
+		<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+			<div class="flex items-center gap-3">
+				{#if restoringTeam.avatar}
+					<img src={restoringTeam.avatar} alt="" class="w-10 h-10 rounded" />
+				{:else}
+					<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium">
+						{restoringTeam.name.slice(0, 2).toUpperCase()}
 					</div>
+				{/if}
+				<div>
+					<p class="text-white font-medium">{restoringTeam.name}</p>
+					<p class="text-gray-400 text-sm">
+						{restoringTeam.division?.name || 'No division'} · {restoringTeam.region?.name || 'No region'}
+					</p>
 				</div>
 			</div>
-			<div class="flex gap-3">
-				<form 
-					method="POST" 
-					action="?/restore1v1"
-					use:enhance={() => {
-						isRestoring = true;
-						return async ({ update }) => {
-							await update();
-							isRestoring = false;
-							restoringTeam = null;
-						};
-					}}
-					class="flex-1"
-				>
-					<input type="hidden" name="teamId" value={restoringTeam.id} />
-					<button
-						type="submit"
-						disabled={isRestoring}
-						class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-					>
-						{isRestoring ? 'Restoring...' : 'Restore'}
-					</button>
-				</form>
-				<button
-					type="button"
-					onclick={() => restoringTeam = null}
-					class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-md font-medium transition-colors"
-				>
-					Cancel
-				</button>
-			</div>
 		</div>
-	</div>
+
+		{#snippet footer()}
+			<button
+				type="button"
+				onclick={() => restoringTeam = null}
+				class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+			>
+				Cancel
+			</button>
+			<form
+				method="POST"
+				action="?/restore1v1"
+				use:enhance={() => {
+					isRestoring = true;
+					return async ({ update }) => {
+						await update();
+						isRestoring = false;
+						restoringTeam = null;
+					};
+				}}
+				class="flex-1"
+			>
+				<input type="hidden" name="teamId" value={restoringTeam.id} />
+				<button
+					type="submit"
+					disabled={isRestoring}
+					class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					{isRestoring ? 'Restoring...' : 'Restore'}
+				</button>
+			</form>
+		{/snippet}
+	</Dialog>
 {/if}

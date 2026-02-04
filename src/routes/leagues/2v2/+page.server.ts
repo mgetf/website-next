@@ -80,7 +80,14 @@ export const load: PageServerLoad = async ({ url }) => {
     // Query all moderators with their user info and division info in one go
     const allModerators = await getModerators();
 
-    // Group moderators by division
+    // Create a set of division IDs that belong to the selected region
+    const regionDivisionIds = new Set(
+      divisions
+        .filter((d) => d.regionId === selectedRegionId)
+        .map((d) => d.id),
+    );
+
+    // Group moderators by division (filtered to selected region only)
     const staffByDivisionMap = new Map<
       number,
       {
@@ -96,6 +103,9 @@ export const load: PageServerLoad = async ({ url }) => {
 
     allModerators.forEach((mod) => {
       if (!mod.divisionId) return; // Skip moderators without a division assigned
+
+      // Only include staff for divisions in the selected region
+      if (!regionDivisionIds.has(mod.divisionId)) return;
 
       if (!staffByDivisionMap.has(mod.divisionId)) {
         staffByDivisionMap.set(mod.divisionId, {

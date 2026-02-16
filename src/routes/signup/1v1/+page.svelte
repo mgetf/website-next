@@ -8,6 +8,7 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 
 let isSubmitting = $state(false);
 let selectedRegionId = $state<number | null>(null);
+let divisionValue = $state('');
 
 // Get the selected region object
 const selectedRegion = $derived(
@@ -44,6 +45,15 @@ const divisionOptions = $derived(
 
 function handleRegionChange(value: string) {
   selectedRegionId = value ? parseInt(value) : null;
+  const regionId = selectedRegionId;
+  if (regionId) {
+    const regionDivisions = data.divisions.filter(
+      (d: (typeof data.divisions)[number]) => d.regionId === regionId,
+    );
+    divisionValue = regionDivisions.length > 0 ? regionDivisions[0].id.toString() : '';
+  } else {
+    divisionValue = '';
+  }
 }
 </script>
 
@@ -130,14 +140,15 @@ function handleRegionChange(value: string) {
 				/>
 
 				<!-- Division -->
-				<FormSelect
-					label="Division"
-					name="divisionId"
-					options={divisionOptions}
-					placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
-					required
-					disabled={!selectedRegionId}
-				/>
+			<FormSelect
+				label="Division"
+				name="divisionId"
+				bind:value={divisionValue}
+				options={divisionOptions}
+				placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
+				required
+				disabled={!selectedRegionId}
+			/>
 
 				<!-- Info Box -->
 				<div class="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">

@@ -81,12 +81,14 @@ export async function getSignupContext(
   let hasActiveTeam = false;
 
   if (steamId) {
-    // Get teams owned by user (permissionLevel = 2)
     ownedTeams = await prisma.playerInTeam.findMany({
       where: {
         playerSteamId: steamId,
-        permissionLevel: 2, // Owner
+        permissionLevel: 2,
         active: 1,
+        team: {
+          formatId: FORMAT_2V2,
+        },
       },
       include: {
         team: {
@@ -266,12 +268,16 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
 export async function reregisterTeam(
   data: TeamReregistrationData,
 ): Promise<void> {
-  // Verify user owns the team
   const ownership = await prisma.playerInTeam.findUnique({
     where: {
       playerSteamId_teamId: {
         playerSteamId: data.ownerSteamId,
         teamId: data.teamId,
+      },
+    },
+    include: {
+      team: {
+        select: { formatId: true },
       },
     },
   });
@@ -280,7 +286,10 @@ export async function reregisterTeam(
     throw error(403, 'You must be the team owner to re-register');
   }
 
-  // Get the signup season for the region (2v2 format)
+  if (ownership.team.formatId !== FORMAT_2V2) {
+    throw error(400, 'Only 2v2 teams can be re-registered on this page');
+  }
+
   const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
 
   if (!seasonId) {

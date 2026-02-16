@@ -9,6 +9,7 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 let isSubmitting = $state(false);
 let selectedTeamId = $state<number | null>(null);
 let selectedRegionId = $state<number | null>(null);
+let divisionValue = $state('');
 
 let selectedTeam = $derived(
   data.ownedTeams.find((t) => t.id === selectedTeamId) || null,
@@ -45,6 +46,13 @@ const divisionOptions = $derived(
 
 function handleRegionChange(value: string) {
   selectedRegionId = value ? parseInt(value) : null;
+  const regionId = selectedRegionId;
+  if (regionId) {
+    const regionDivisions = data.divisions.filter((d) => d.regionId === regionId);
+    divisionValue = regionDivisions.length > 0 ? regionDivisions[0].id.toString() : '';
+  } else {
+    divisionValue = '';
+  }
 }
 </script>
 
@@ -157,14 +165,15 @@ function handleRegionChange(value: string) {
 					onChange={handleRegionChange}
 				/>
 
-				<FormSelect
-					label="New Division"
-					name="divisionId"
-					options={divisionOptions}
-					placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
-					required
-					disabled={!selectedRegionId}
-				/>
+			<FormSelect
+				label="New Division"
+				name="divisionId"
+				bind:value={divisionValue}
+				options={divisionOptions}
+				placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
+				required
+				disabled={!selectedRegionId}
+			/>
 			</div>
 
 			<!-- Terms & Conditions -->

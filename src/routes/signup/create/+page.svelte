@@ -11,6 +11,7 @@ let isSubmitting = $state(false);
 let avatarFile: File | null = $state(null);
 let avatarPreview: string | null = $state(null);
 let selectedRegionId = $state<number | null>(null);
+let divisionValue = $state('');
 
 // Get the selected region object
 const selectedRegion = $derived(
@@ -57,6 +58,13 @@ function handleAvatarChange(event: Event) {
 
 function handleRegionChange(value: string) {
   selectedRegionId = value ? parseInt(value) : null;
+  const regionId = selectedRegionId;
+  if (regionId) {
+    const regionDivisions = data.divisions.filter((d) => d.regionId === regionId);
+    divisionValue = regionDivisions.length > 0 ? regionDivisions[0].id.toString() : '';
+  } else {
+    divisionValue = '';
+  }
 }
 </script>
 
@@ -173,14 +181,15 @@ function handleRegionChange(value: string) {
 					onChange={handleRegionChange}
 				/>
 
-				<FormSelect
-					label="Division"
-					name="divisionId"
-					options={divisionOptions}
-					placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
-					required
-					disabled={!selectedRegionId}
-				/>
+			<FormSelect
+				label="Division"
+				name="divisionId"
+				bind:value={divisionValue}
+				options={divisionOptions}
+				placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
+				required
+				disabled={!selectedRegionId}
+			/>
 			</div>
 
 			<!-- Join Password -->

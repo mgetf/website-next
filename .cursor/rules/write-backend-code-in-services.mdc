@@ -1,0 +1,46 @@
+---
+description: Database access must be in service files, not page files
+alwaysApply: true
+---
+
+# Backend Code Goes in Services
+
+NEVER write Prisma/database access code directly in `+page.server.ts` or `+server.ts` files.
+
+ALL database operations MUST go in service files under `src/lib/server/services/`.
+
+## Correct Pattern
+
+```typescript
+// ✅ src/lib/server/services/teams.ts
+export async function getTeamById(id: number) {
+  return await prisma.team.findUnique({ where: { id } });
+}
+
+// ✅ src/routes/teams/[id]/+page.server.ts
+import { getTeamById } from '$lib/server/services/teams';
+
+export const load = async ({ params }) => {
+  const team = await getTeamById(parseInt(params.id));
+  return { team };
+};
+```
+
+## Wrong Pattern
+
+```typescript
+// ❌ WRONG - src/routes/teams/[id]/+page.server.ts
+import { prisma } from '$lib/server/db';
+
+export const load = async ({ params }) => {
+  // BAD: Direct prisma access in page file
+  const team = await prisma.team.findUnique({ where: { id: parseInt(params.id) } });
+  return { team };
+};
+```
+
+## Service File Location
+
+`src/lib/server/services/<domain>.ts`
+
+Examples: `teams.ts`, `matches.ts`, `notifications.ts`, `users.ts`

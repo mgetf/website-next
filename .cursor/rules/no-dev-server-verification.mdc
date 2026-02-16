@@ -1,0 +1,18 @@
+---
+alwaysApply: true
+---
+
+# Do Not Start Dev Server for Verification
+
+Do NOT start the dev server (`bun run dev`) just to verify that code compiles or changes work.
+
+The user runs their own dev server. Only start the dev server if explicitly requested.
+
+Acceptable reasons to start dev server:
+- User explicitly asks to start it
+- User asks to test something that requires a running server
+
+NOT acceptable:
+- "Let me verify the changes compile"
+- "Let me start the dev server to check"
+- Starting it after making code changes

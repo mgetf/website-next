@@ -24,6 +24,5 @@ vite.config.ts.timestamp-*
 
 /prisma/generated
 
-/.cursor
 *.code-workspace
 *.ps1

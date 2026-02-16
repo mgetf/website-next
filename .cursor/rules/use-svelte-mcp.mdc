@@ -1,0 +1,44 @@
+---
+description: Use latest Svelte 5 and SvelteKit 2 features with MCP verification
+alwaysApply: true
+---
+
+# Use Latest Svelte & SvelteKit Features
+
+ALWAYS use the Svelte MCP server (`user-svelte`) to verify best practices before writing Svelte code.
+
+## Svelte 5 Runes (Required)
+
+Use runes, NOT deprecated patterns:
+
+```svelte
+// ✅ CORRECT - Svelte 5
+let count = $state(0);
+let doubled = $derived(count * 2);
+$effect(() => { console.log(count); });
+
+// ❌ WRONG - Deprecated
+export let count;  // Use $props() instead
+$: doubled = count * 2;  // Use $derived instead
+```
+
+## Shared Reactive State
+
+Use `.svelte.ts` files with `$state`, NOT stores:
+
+```typescript
+// ✅ CORRECT - src/lib/state/myState.svelte.ts
+class MyState {
+  value = $state(0);
+}
+export const myState = new MyState();
+
+// ❌ WRONG - Deprecated stores
+import { writable } from 'svelte/store';
+export const myStore = writable(0);
+```
+
+## SvelteKit 2.12+
+
+- Use `$app/state` instead of deprecated `$app/stores`
+- Use `page` from `$app/state`, not `$page` store

@@ -1,0 +1,25 @@
+---
+description: This project uses Bun as the package manager
+alwaysApply: true
+---
+
+# Use Bun
+
+This project uses **Bun** as the package manager. Do NOT use npm, pnpm, or yarn.
+
+```bash
+# ✅ CORRECT
+bun install
+bun add <package>
+bun run dev
+bun run build
+bun prisma migrate dev
+
+# ❌ WRONG - Never use these
+npm install
+pnpm install
+yarn install
+npx prisma migrate dev
+```
+
+When running any shell commands, always use `bun` instead of npm/pnpm/yarn/npx.

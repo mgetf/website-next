@@ -1,5 +1,8 @@
 <script lang="ts">
 import { enhance } from '$app/forms';
+import { page } from '$app/state';
+import { goto } from '$app/navigation';
+import { toast } from '$lib/state/toast.svelte';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import Dialog from '$lib/components/ui/Dialog.svelte';
 
@@ -95,6 +98,18 @@ let isWithdrawing = $state(false);
 // State for Discord unlink (admin only)
 let isUnlinkingDiscord = $state(false);
 let showUnlinkDiscordConfirm = $state(false);
+
+$effect(() => {
+	const discord = page.url.searchParams.get('discord');
+	const error = page.url.searchParams.get('error');
+	if (discord === 'linked') {
+		toast.success('Discord account linked successfully!');
+		goto(page.url.pathname, { replaceState: true });
+	} else if (error === 'discord_auth_failed') {
+		toast.error('Failed to link Discord account');
+		goto(page.url.pathname, { replaceState: true });
+	}
+});
 
 // Table column definitions
 const entries1v1Columns = $derived([
@@ -581,10 +596,15 @@ function getResultColor(result: string): string {
 			action="?/unlinkDiscord"
 			use:enhance={() => {
 				isUnlinkingDiscord = true;
-				return async ({ update }) => {
+				return async ({ update, result }) => {
 					await update();
 					isUnlinkingDiscord = false;
 					showUnlinkDiscordConfirm = false;
+					if (result.type === 'success') {
+						toast.success('Discord account unlinked');
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.error as string || 'Failed to unlink Discord');
+					}
 				};
 			}}
 			class="flex-1"

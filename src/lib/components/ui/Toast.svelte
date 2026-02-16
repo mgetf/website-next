@@ -13,25 +13,25 @@
 		onDismiss?: () => void;
 	} = $props();
 
-	const typeStyles: Record<ToastType, { bg: string; text: string; icon: string }> = {
+	const typeStyles: Record<ToastType, { border: string; icon: string; iconColor: string }> = {
 		success: {
-			bg: 'bg-green-600',
-			text: 'text-white',
+			border: 'border-l-emerald-400',
+			iconColor: 'text-emerald-400',
 			icon: '✓'
 		},
 		error: {
-			bg: 'bg-red-600',
-			text: 'text-white',
+			border: 'border-l-red-400',
+			iconColor: 'text-red-400',
 			icon: '✕'
 		},
 		info: {
-			bg: 'bg-blue-600',
-			text: 'text-white',
+			border: 'border-l-blue-400',
+			iconColor: 'text-blue-400',
 			icon: 'ℹ'
 		},
 		warning: {
-			bg: 'bg-yellow-500',
-			text: 'text-black',
+			border: 'border-l-amber-400',
+			iconColor: 'text-amber-400',
 			icon: '⚠'
 		}
 	};
@@ -40,15 +40,15 @@
 </script>
 
 <div
-	class="flex items-start gap-3 px-4 py-3 {style.bg} rounded-lg shadow-lg max-w-sm animate-slide-up"
+	class="flex items-center gap-3 border-l-[3px] {style.border} bg-zinc-900/95 backdrop-blur-sm rounded-lg shadow-lg shadow-black/20 ring-1 ring-white/[0.06] max-w-sm px-4 py-3 animate-slide-up"
 	role="alert"
 >
-	<span class="{style.text} text-lg flex-shrink-0">{style.icon}</span>
-	<p class="{style.text} flex-1 text-sm font-medium">{message}</p>
+	<span class="{style.iconColor} text-base flex-shrink-0 leading-none">{style.icon}</span>
+	<p class="text-zinc-100 flex-1 text-sm font-medium leading-snug">{message}</p>
 	{#if dismissible && onDismiss}
 		<button
 			onclick={onDismiss}
-			class="{style.text} opacity-70 hover:opacity-100 transition-opacity flex-shrink-0"
+			class="text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0 ml-1"
 			aria-label="Dismiss notification"
 		>
 			✕

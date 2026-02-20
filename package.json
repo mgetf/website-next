@@ -15,16 +15,16 @@
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.3",
-    "@sveltejs/kit": "^2.52.0",
+    "@sveltejs/kit": "^2.53.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
-    "@types/node": "^25.2.3",
-    "@typescript/native-preview": "^7.0.0-dev.20260215.1",
+    "@types/node": "^25.3.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260220.1",
     "brackets-model": "^1.6.0",
     "dotenv": "^17.3.1",
-    "prisma": "^7.4.0",
-    "svelte": "^5.51.2",
-    "svelte-check": "^4.4.0",
-    "typescript": "^7.0.0-dev.20260215.1",
+    "prisma": "^7.4.1",
+    "svelte": "^5.53.0",
+    "svelte-check": "^4.4.3",
+    "typescript": "^7.0.0-dev.20260220.1",
     "vite": "^7.3.1"
   },
   "overrides": {
@@ -38,18 +38,18 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.990.0",
-    "@prisma/adapter-pg": "^7.4.0",
-    "@prisma/client": "^7.4.0",
-    "@tailwindcss/vite": "^4.1.18",
+    "@aws-sdk/client-s3": "^3.994.0",
+    "@prisma/adapter-pg": "^7.4.1",
+    "@prisma/client": "^7.4.1",
+    "@tailwindcss/vite": "^4.2.0",
     "@types/jsonwebtoken": "^9.0.10",
     "chart.js": "^4.5.1",
     "fuse.js": "^7.1.0",
     "jsonwebtoken": "^9.0.3",
-    "marked": "^17.0.2",
+    "marked": "^17.0.3",
     "node-steam-openid": "^2.0.0",
     "svelte-exmarkdown": "^5.0.2",
-    "tailwindcss": "^4.1.18",
+    "tailwindcss": "^4.2.0",
     "zod": "^4.3.6"
   }
 }

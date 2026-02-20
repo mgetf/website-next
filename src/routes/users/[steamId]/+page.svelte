@@ -5,6 +5,7 @@ import { goto } from '$app/navigation';
 import { toast } from '$lib/state/toast.svelte';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import Dialog from '$lib/components/ui/Dialog.svelte';
+import discordIcon from '$lib/assets/icons/discord.png';
 
 // Get data from server load function (Svelte 5 syntax)
 interface PlayerData {
@@ -15,6 +16,8 @@ interface PlayerData {
     discordLinked: boolean;
     discordUsername: string | null;
     permissionLevel: string;
+    banStatus: string;
+    nameOverride: number;
   };
   isOwnProfile: boolean;
   isAdmin: boolean;
@@ -98,6 +101,15 @@ let isWithdrawing = $state(false);
 // State for Discord unlink (admin only)
 let isUnlinkingDiscord = $state(false);
 let showUnlinkDiscordConfirm = $state(false);
+
+// State for admin actions
+let showEditName = $state(false);
+let showEditAvatar = $state(false);
+let showPunish = $state(false);
+let editNameValue = $state('');
+let editAvatarValue = $state('');
+let punishSeverity = $state('');
+let isAdminSubmitting = $state(false);
 
 $effect(() => {
 	const discord = page.url.searchParams.get('discord');
@@ -225,6 +237,23 @@ function getResultColor(result: string): string {
   if (result === 'L') return 'text-red-400';
   return 'text-gray-400';
 }
+
+function getBanBadge(status: string): { label: string; classes: string } | null {
+  if (status === 'WARNING') return { label: 'Warning', classes: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
+  if (status === 'SUSPENDED') return { label: 'Suspended', classes: 'bg-orange-500/20 text-orange-400 border-orange-500/30' };
+  if (status === 'BANNED') return { label: 'Banned', classes: 'bg-red-500/20 text-red-400 border-red-500/30' };
+  return null;
+}
+
+function openEditName() {
+  editNameValue = player.nameOverride === 1 ? player.name : '';
+  showEditName = true;
+}
+
+function openEditAvatar() {
+  editAvatarValue = player.avatar || '';
+  showEditAvatar = true;
+}
 </script>
 
 <div class="min-h-screen pb-16">
@@ -233,18 +262,44 @@ function getResultColor(result: string): string {
 		<div class="max-w-6xl mx-auto">
 			<div class="flex flex-col items-center gap-4">
 				<!-- Player Avatar -->
-				<div class="flex-shrink-0">
+				<div class="relative flex-shrink-0 group/avatar">
 					<img 
 						src={player.avatar} 
 						alt={player.name} 
 						class="w-32 h-32 rounded-lg border-4 border-zinc-700 shadow-2xl"
 					/>
+					{#if isAdmin}
+						<button
+							type="button"
+							onclick={openEditAvatar}
+							class="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 text-gray-400 hover:bg-blue-500/50 hover:border-blue-500/50 hover:text-white opacity-0 group-hover/avatar:opacity-100 transition-all"
+							title="Edit Avatar (Admin)"
+						>
+							<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+							</svg>
+						</button>
+					{/if}
 				</div>
 				
-				<!-- Player Name -->
+			<!-- Player Name -->
+			<div class="relative group/name">
 				<h1 class="text-5xl font-black text-white">
 					{player.name}
 				</h1>
+				{#if isAdmin}
+					<button
+						type="button"
+						onclick={openEditName}
+						class="absolute -top-1 -right-4 w-4 h-4 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 text-gray-400 hover:bg-blue-500/50 hover:border-blue-500/50 hover:text-white opacity-0 group-hover/name:opacity-100 transition-all"
+						title="Edit Name (Admin)"
+					>
+						<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+						</svg>
+					</button>
+				{/if}
+			</div>
 				
 				<!-- External Links -->
 				<div class="flex flex-wrap gap-2 justify-center">
@@ -267,9 +322,7 @@ function getResultColor(result: string): string {
 				<!-- Discord Status -->
 				{#if player.discordLinked}
 					<div class="relative inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-lg text-blue-400 text-sm group/discord">
-						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-							<path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/>
-						</svg>
+						<img src={discordIcon} alt="Discord" class="w-4 h-4" />
 						<span>{player.discordUsername || 'Discord linked'}</span>
 						{#if isAdmin}
 							<button 
@@ -290,22 +343,53 @@ function getResultColor(result: string): string {
 						href="/auth/discord/login"
 						class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white text-sm font-medium transition-colors cursor-pointer"
 					>
-						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-							<path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/>
-						</svg>
+						<img src={discordIcon} alt="Discord" class="w-4 h-4" />
 						<span>Link Discord Account</span>
 					</a>
-				{:else}
-					<div class="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-lg text-gray-400 text-sm">
-						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-							<path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/>
-						</svg>
-						<span>Discord not linked</span>
-					</div>
-				{/if}
-				
-			</div>
+			{:else}
+				<div class="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-lg text-gray-400 text-sm">
+					<img src={discordIcon} alt="Discord" class="w-4 h-4" />
+					<span>Discord not linked</span>
+				</div>
+			{/if}
+
 		</div>
+		</div>
+
+		<!-- Admin Zone -->
+		{#if isAdmin}
+			<div class="border-t border-zinc-800 mt-6 pt-4">
+				<div class="max-w-6xl mx-auto flex items-center justify-center gap-2">
+					<button
+						type="button"
+						onclick={openEditName}
+						class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/namebtn"
+					>
+						<span class="text-gray-500">Name</span>
+						<span class="{player.nameOverride === 1 ? 'text-orange-400' : 'text-gray-400'}">{player.nameOverride === 1 ? 'Locked' : 'Auto'}</span>
+						<svg class="w-2.5 h-2.5 text-gray-600 group-hover/namebtn:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+						</svg>
+					</button>
+					<button
+						type="button"
+						onclick={() => showPunish = true}
+						class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/statusbtn"
+					>
+						<span class="text-gray-500">Status</span>
+						{#if getBanBadge(player.banStatus)}
+							{@const badge = getBanBadge(player.banStatus)!}
+							<span class="{badge.classes.split(' ').filter(c => c.startsWith('text-')).join(' ')}">{badge.label}</span>
+						{:else}
+							<span class="text-green-400">Clean</span>
+						{/if}
+						<svg class="w-2.5 h-2.5 text-gray-600 group-hover/statusbtn:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+						</svg>
+					</button>
+				</div>
+			</div>
+		{/if}
 	</section>
 	
 	<!-- Main Content - Sidebar Layout -->
@@ -575,9 +659,7 @@ function getResultColor(result: string): string {
 	{#if player.discordUsername}
 		<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
 			<div class="flex items-center gap-2">
-				<svg class="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-					<path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/>
-				</svg>
+				<img src={discordIcon} alt="Discord" class="w-4 h-4" />
 				<span class="text-green-400 text-sm">{player.discordUsername}</span>
 			</div>
 		</div>
@@ -683,5 +765,376 @@ function getResultColor(result: string): string {
 				</button>
 			</form>
 		{/if}
+	{/snippet}
+</Dialog>
+
+<!-- Admin: Edit Name Modal -->
+<Dialog
+	open={showEditName}
+	title={player.nameOverride === 1 ? 'Manage Locked Name' : 'Set Custom Name'}
+	onClose={() => showEditName = false}
+>
+	<div class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg mb-4">
+		{#if player.avatar}
+			<img src={player.avatar} alt={player.name} class="w-10 h-10 rounded" />
+		{/if}
+		<div>
+			<p class="text-white font-medium">{player.name}</p>
+			<p class="text-xs text-gray-500 font-mono">{player.steamId}</p>
+		</div>
+		{#if player.nameOverride === 1}
+			<span class="ml-auto px-2 py-0.5 text-[10px] font-bold rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
+				LOCKED
+			</span>
+		{/if}
+	</div>
+
+	{#if player.nameOverride === 1}
+		<form
+			id="form-lock-name"
+			method="POST"
+			action="?/lockName"
+			use:enhance={() => {
+				isAdminSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isAdminSubmitting = false;
+					if (result.type === 'success') {
+						showEditName = false;
+						toast.success('Name updated');
+					} else if (result.type === 'failure') {
+						toast.error((result.data as any)?.error || 'Failed to update name');
+					}
+				};
+			}}
+		>
+			<div class="mb-4">
+				<label for="edit-name" class="block text-sm font-medium text-gray-300 mb-2">
+					Change locked name
+				</label>
+				<input
+					id="edit-name"
+					name="name"
+					type="text"
+					bind:value={editNameValue}
+					maxlength="64"
+					required
+					placeholder="New display name..."
+					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+				/>
+			</div>
+		</form>
+
+		<div class="border-t border-zinc-800 pt-4 mt-4">
+			<p class="text-xs text-gray-500">Or unlock the name to let it sync from Steam on next login.</p>
+			<form
+				id="form-unlock-name"
+				method="POST"
+				action="?/unlockName"
+				use:enhance={() => {
+					isAdminSubmitting = true;
+					return async ({ update, result }) => {
+						await update();
+						isAdminSubmitting = false;
+						if (result.type === 'success') {
+							showEditName = false;
+							toast.success((result.data as any)?.message || 'Name unlocked');
+						} else if (result.type === 'failure') {
+							toast.error((result.data as any)?.error || 'Failed to unlock name');
+						}
+					};
+				}}
+			></form>
+		</div>
+	{:else}
+		<p class="text-sm text-gray-400 mb-4">
+			This will set a custom name and lock it. The name will no longer auto-update from Steam.
+		</p>
+
+		<form
+			id="form-lock-name"
+			method="POST"
+			action="?/lockName"
+			use:enhance={() => {
+				isAdminSubmitting = true;
+				return async ({ update, result }) => {
+					await update();
+					isAdminSubmitting = false;
+					if (result.type === 'success') {
+						showEditName = false;
+						toast.success('Name set and locked');
+					} else if (result.type === 'failure') {
+						toast.error((result.data as any)?.error || 'Failed to update name');
+					}
+				};
+			}}
+		>
+			<div>
+				<label for="edit-name-new" class="block text-sm font-medium text-gray-300 mb-2">
+					Display Name
+				</label>
+				<input
+					id="edit-name-new"
+					name="name"
+					type="text"
+					bind:value={editNameValue}
+					maxlength="64"
+					required
+					placeholder={player.name}
+					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+				/>
+			</div>
+		</form>
+	{/if}
+
+	{#snippet footer()}
+		{#if player.nameOverride === 1}
+			<button
+				type="submit"
+				form="form-unlock-name"
+				disabled={isAdminSubmitting}
+				class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
+			>
+				{isAdminSubmitting ? 'Unlocking...' : 'Unlock Name'}
+			</button>
+			<div class="flex-1"></div>
+			<button
+				type="button"
+				onclick={() => showEditName = false}
+				class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+			>
+				Cancel
+			</button>
+			<button
+				type="submit"
+				form="form-lock-name"
+				disabled={isAdminSubmitting || !editNameValue.trim() || editNameValue.trim() === player.name}
+				class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+			>
+				{isAdminSubmitting ? 'Saving...' : 'Save'}
+			</button>
+		{:else}
+			<button
+				type="button"
+				onclick={() => showEditName = false}
+				class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+			>
+				Cancel
+			</button>
+			<button
+				type="submit"
+				form="form-lock-name"
+				disabled={isAdminSubmitting || !editNameValue.trim()}
+				class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+			>
+				{isAdminSubmitting ? 'Saving...' : 'Set & Lock Name'}
+			</button>
+		{/if}
+	{/snippet}
+</Dialog>
+
+<!-- Admin: Edit Avatar Modal -->
+<Dialog
+	open={showEditAvatar}
+	title="Edit Avatar"
+	onClose={() => showEditAvatar = false}
+>
+	<div class="flex items-center gap-4 mb-4">
+		<div class="flex-shrink-0">
+			<p class="text-xs text-gray-500 mb-1">Current</p>
+			{#if player.avatar}
+				<img src={player.avatar} alt={player.name} class="w-16 h-16 rounded-lg border border-zinc-700" />
+			{:else}
+				<div class="w-16 h-16 rounded-lg border border-zinc-700 bg-zinc-800 flex items-center justify-center text-gray-500 text-xs">None</div>
+			{/if}
+		</div>
+		{#if editAvatarValue.trim()}
+			<div class="flex-shrink-0">
+				<p class="text-xs text-gray-500 mb-1">Preview</p>
+				<img
+					src={editAvatarValue}
+					alt="Preview"
+					class="w-16 h-16 rounded-lg border border-zinc-700 object-cover"
+					onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+				/>
+			</div>
+		{/if}
+	</div>
+
+	<form
+		id="form-edit-avatar"
+		method="POST"
+		action="?/updateAvatar"
+		use:enhance={() => {
+			isAdminSubmitting = true;
+			return async ({ update, result }) => {
+				await update();
+				isAdminSubmitting = false;
+				if (result.type === 'success') {
+					showEditAvatar = false;
+					toast.success('Avatar updated');
+				} else if (result.type === 'failure') {
+					toast.error((result.data as any)?.error || 'Failed to update avatar');
+				}
+			};
+		}}
+	>
+		<div>
+			<label for="edit-avatar" class="block text-sm font-medium text-gray-300 mb-2">
+				Avatar URL
+			</label>
+			<input
+				id="edit-avatar"
+				name="avatarUrl"
+				type="url"
+				bind:value={editAvatarValue}
+				placeholder="https://example.com/avatar.png"
+				class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+			/>
+			<p class="mt-1.5 text-xs text-gray-500">Leave empty to clear the avatar. Steam avatars refresh on next login.</p>
+		</div>
+	</form>
+
+	{#snippet footer()}
+		<button
+			type="button"
+			onclick={() => showEditAvatar = false}
+			class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+		>
+			Cancel
+		</button>
+		<button
+			type="submit"
+			form="form-edit-avatar"
+			disabled={isAdminSubmitting}
+			class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+		>
+			{isAdminSubmitting ? 'Saving...' : 'Update Avatar'}
+		</button>
+	{/snippet}
+</Dialog>
+
+<!-- Admin: Manage Punishment Modal -->
+<Dialog
+	open={showPunish}
+	title="Manage Status"
+	onClose={() => { showPunish = false; punishSeverity = ''; }}
+>
+	<div class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg mb-4">
+		{#if player.avatar}
+			<img src={player.avatar} alt={player.name} class="w-10 h-10 rounded" />
+		{/if}
+		<div>
+			<p class="text-white font-medium">{player.name}</p>
+			<p class="text-xs text-gray-500 font-mono">{player.steamId}</p>
+		</div>
+		{#if getBanBadge(player.banStatus)}
+			{@const badge = getBanBadge(player.banStatus)!}
+			<span class="ml-auto px-2 py-0.5 text-xs font-bold rounded border {badge.classes}">
+				{badge.label}
+			</span>
+		{/if}
+	</div>
+
+	<form
+		id="form-punish"
+		method="POST"
+		action="?/punishUser"
+		use:enhance={() => {
+			isAdminSubmitting = true;
+			return async ({ update, result }) => {
+				await update();
+				isAdminSubmitting = false;
+				if (result.type === 'success') {
+					showPunish = false;
+					punishSeverity = '';
+					toast.success((result.data as any)?.message || 'Status updated');
+				} else if (result.type === 'failure') {
+					toast.error((result.data as any)?.error || 'Failed to update status');
+				}
+			};
+		}}
+	>
+		<div class="mb-4">
+			<label for="punish-severity" class="block text-sm font-medium text-gray-300 mb-2">
+				Status
+			</label>
+			<select
+				id="punish-severity"
+				name="severity"
+				required
+				bind:value={punishSeverity}
+				class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+			>
+				<option value="" disabled>Select status...</option>
+				<option value="NONE">None (Clear punishment)</option>
+				<option value="WARNING">Warning</option>
+				<option value="SUSPENDED">Suspended</option>
+				<option value="BANNED">Banned</option>
+			</select>
+		</div>
+
+		{#if punishSeverity && punishSeverity !== 'NONE'}
+			<div class="mb-4">
+				<label for="punish-duration" class="block text-sm font-medium text-gray-300 mb-2">
+					Duration (days)
+				</label>
+				<input
+					id="punish-duration"
+					name="duration"
+					type="number"
+					min="1"
+					placeholder="Leave empty for permanent"
+					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+				/>
+				<p class="mt-1.5 text-xs text-gray-500">Leave empty for permanent punishment.</p>
+			</div>
+
+			<div class="mb-4">
+				<label for="punish-reason" class="block text-sm font-medium text-gray-300 mb-2">
+					Reason <span class="text-red-500">*</span>
+				</label>
+				<textarea
+					id="punish-reason"
+					name="reason"
+					rows="3"
+					required
+					placeholder="Explain why this user is being punished..."
+					class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors resize-none"
+				></textarea>
+			</div>
+		{/if}
+
+		{#if punishSeverity === 'NONE'}
+			<div class="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+				<p class="text-green-400 text-xs">
+					This will clear the user's punishment status and deactivate all active records.
+				</p>
+			</div>
+		{:else if punishSeverity}
+			<div class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+				<p class="text-red-400 text-xs">
+					This will create a punishment record and update the user's ban status.
+				</p>
+			</div>
+		{/if}
+	</form>
+
+	{#snippet footer()}
+		<button
+			type="button"
+			onclick={() => { showPunish = false; punishSeverity = ''; }}
+			class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+		>
+			Cancel
+		</button>
+		<button
+			type="submit"
+			form="form-punish"
+			disabled={isAdminSubmitting || !punishSeverity}
+			class="flex-1 px-4 py-2 {punishSeverity === 'NONE' ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-600/50' : 'bg-red-600 hover:bg-red-500 disabled:bg-red-600/50'} disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+		>
+			{isAdminSubmitting ? 'Applying...' : punishSeverity === 'NONE' ? 'Clear Punishment' : 'Apply Punishment'}
+		</button>
 	{/snippet}
 </Dialog>

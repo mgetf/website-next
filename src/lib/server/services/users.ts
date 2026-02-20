@@ -363,6 +363,8 @@ export async function getPlayerProfile(steamId: string) {
       discordLinked: !!user.discord,
       discordUsername: user.discord?.discordUsername || null,
       permissionLevel: user.permissionLevel,
+      banStatus: user.banStatus,
+      nameOverride: user.nameOverride,
     },
     currentTeams,
     teamHistory,
@@ -550,6 +552,25 @@ export async function getStaffMembers() {
 /**
  * Ban a user with a reason
  */
+/**
+ * Clear a user's punishment status and deactivate active punishment records
+ */
+export async function clearPunishment(steamId: string, clearedBy: string) {
+  const user = await prisma.user.findUnique({ where: { steamId } });
+  if (!user) throw new Error('User not found');
+
+  await prisma.user.update({
+    where: { steamId },
+    data: { banStatus: 'NONE' },
+  });
+
+  // Deactivate all active punishment records
+  await prisma.punishment.updateMany({
+    where: { playerSteamId: steamId, status: 1 },
+    data: { status: 0 },
+  });
+}
+
 export async function banUser(
   steamId: string,
   bannedBy: string,
@@ -575,6 +596,102 @@ export async function banUser(
       duration,
       startDateTime: new Date(),
       status: 1, // Active
+    },
+  });
+}
+
+/**
+ * Admin: set a custom display name and lock it (prevents Steam auto-sync)
+ */
+export async function lockUserName(steamId: string, newName: string) {
+  const user = await prisma.user.findUnique({ where: { steamId } });
+  if (!user) throw new Error('User not found');
+
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed.length > 64) {
+    throw new Error('Name must be between 1 and 64 characters');
+  }
+
+  return await prisma.user.update({
+    where: { steamId },
+    data: {
+      steamUsername: trimmed,
+      nameOverride: 1,
+    },
+  });
+}
+
+/**
+ * Admin: unlock a user's name and immediately sync from Steam
+ */
+export async function unlockUserName(steamId: string) {
+  const user = await prisma.user.findUnique({ where: { steamId } });
+  if (!user) throw new Error('User not found');
+
+  const steamProfile = await fetchSteamProfile(steamId);
+
+  return await prisma.user.update({
+    where: { steamId },
+    data: {
+      nameOverride: 0,
+      ...(steamProfile && {
+        steamUsername: steamProfile.personaname,
+        steamAvatar: steamProfile.avatarfull,
+      }),
+    },
+  });
+}
+
+/**
+ * Fetch a user's current Steam profile via the Steam Web API
+ */
+async function fetchSteamProfile(
+  steamId: string,
+): Promise<{ personaname: string; avatarfull: string } | null> {
+  const apiKey = process.env.STEAM_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const res = await fetch(
+      `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${steamId}`,
+    );
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const player = data?.response?.players?.[0];
+    if (!player) return null;
+
+    return {
+      personaname: player.personaname,
+      avatarfull: player.avatarfull,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Admin: update a user's avatar URL (or clear it)
+ */
+export async function updateUserAvatar(
+  steamId: string,
+  avatarUrl: string | null,
+) {
+  const user = await prisma.user.findUnique({ where: { steamId } });
+  if (!user) throw new Error('User not found');
+
+  if (avatarUrl && avatarUrl.trim().length > 0) {
+    try {
+      new URL(avatarUrl);
+    } catch {
+      throw new Error('Invalid URL format');
+    }
+  }
+
+  return await prisma.user.update({
+    where: { steamId },
+    data: {
+      steamAvatar: avatarUrl?.trim() || null,
     },
   });
 }

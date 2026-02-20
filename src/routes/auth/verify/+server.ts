@@ -40,6 +40,11 @@ export const GET: RequestHandler = async ({ cookies, request }) => {
       },
     });
 
+    let finalUsername: string;
+    let finalAvatar: string;
+    let finalPermission: UserRole;
+    let finalBanStatus: BanStatus;
+
     if (!existingUser) {
       // Create new user
       await prisma.user.create({
@@ -50,22 +55,11 @@ export const GET: RequestHandler = async ({ cookies, request }) => {
           permissionLevel: PrismaUserRole.GUEST,
         },
       });
+      finalUsername = steamUser.personaname;
+      finalAvatar = steamUser.avatarfull;
+      finalPermission = UserRole.GUEST;
+      finalBanStatus = BanStatus.NONE;
     } else {
-      // Update user info if not using name override
-      if (
-        !existingUser.nameOverride &&
-        (existingUser.steamUsername !== steamUser.personaname ||
-          existingUser.steamAvatar !== steamUser.avatarfull)
-      ) {
-        await prisma.user.update({
-          where: { steamId: steamUser.steamid },
-          data: {
-            steamUsername: steamUser.personaname,
-            steamAvatar: steamUser.avatarfull,
-          },
-        });
-      }
-
       // Check if user is banned (non-admins only)
       if (
         existingUser.permissionLevel !== PrismaUserRole.ADMIN &&
@@ -76,18 +70,43 @@ export const GET: RequestHandler = async ({ cookies, request }) => {
           'Your account has been suspended. Please contact an administrator.',
         );
       }
+
+      if (existingUser.nameOverride) {
+        // Name is locked by admin — keep DB values
+        finalUsername = existingUser.steamUsername;
+        finalAvatar = existingUser.steamAvatar ?? steamUser.avatarfull;
+      } else {
+        // Sync from Steam
+        finalUsername = steamUser.personaname;
+        finalAvatar = steamUser.avatarfull;
+
+        if (
+          existingUser.steamUsername !== finalUsername ||
+          existingUser.steamAvatar !== finalAvatar
+        ) {
+          await prisma.user.update({
+            where: { steamId: steamUser.steamid },
+            data: {
+              steamUsername: finalUsername,
+              steamAvatar: finalAvatar,
+            },
+          });
+        }
+      }
+
+      finalPermission =
+        existingUser.permissionLevel as unknown as UserRole;
+      finalBanStatus =
+        existingUser.banStatus as unknown as BanStatus;
     }
 
-    // Create session (convert Prisma enums to shared enums)
+    // Create session using the resolved final values
     const sessionUser = {
       steamId: steamUser.steamid,
-      steamUsername: existingUser?.steamUsername ?? steamUser.personaname,
-      steamAvatar: existingUser?.steamAvatar ?? steamUser.avatarfull,
-      permissionLevel:
-        (existingUser?.permissionLevel as unknown as UserRole) ??
-        UserRole.GUEST,
-      banStatus:
-        (existingUser?.banStatus as unknown as BanStatus) ?? BanStatus.NONE,
+      steamUsername: finalUsername,
+      steamAvatar: finalAvatar,
+      permissionLevel: finalPermission,
+      banStatus: finalBanStatus,
     };
 
     setSession(cookies, sessionUser);

@@ -37,6 +37,7 @@ export const GET: RequestHandler = async ({ cookies, request }) => {
         permissionLevel: true,
         banStatus: true,
         nameOverride: true,
+        avatarOverride: true,
       },
     });
 
@@ -71,27 +72,27 @@ export const GET: RequestHandler = async ({ cookies, request }) => {
         );
       }
 
-      if (existingUser.nameOverride) {
-        // Name is locked by admin — keep DB values
-        finalUsername = existingUser.steamUsername;
-        finalAvatar = existingUser.steamAvatar ?? steamUser.avatarfull;
-      } else {
-        // Sync from Steam
-        finalUsername = steamUser.personaname;
-        finalAvatar = steamUser.avatarfull;
+      finalUsername = existingUser.nameOverride
+        ? existingUser.steamUsername
+        : steamUser.personaname;
 
-        if (
-          existingUser.steamUsername !== finalUsername ||
-          existingUser.steamAvatar !== finalAvatar
-        ) {
-          await prisma.user.update({
-            where: { steamId: steamUser.steamid },
-            data: {
-              steamUsername: finalUsername,
-              steamAvatar: finalAvatar,
-            },
-          });
-        }
+      finalAvatar = existingUser.avatarOverride
+        ? (existingUser.steamAvatar ?? steamUser.avatarfull)
+        : steamUser.avatarfull;
+
+      const updateData: Record<string, string> = {};
+      if (!existingUser.nameOverride && existingUser.steamUsername !== finalUsername) {
+        updateData.steamUsername = finalUsername;
+      }
+      if (!existingUser.avatarOverride && existingUser.steamAvatar !== finalAvatar) {
+        updateData.steamAvatar = finalAvatar;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.user.update({
+          where: { steamId: steamUser.steamid },
+          data: updateData,
+        });
       }
 
       finalPermission =

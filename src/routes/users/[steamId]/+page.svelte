@@ -18,6 +18,7 @@ interface PlayerData {
     permissionLevel: string;
     banStatus: string;
     nameOverride: number;
+    avatarOverride: number;
   };
   isOwnProfile: boolean;
   isAdmin: boolean;
@@ -251,14 +252,14 @@ function openEditName() {
 }
 
 function openEditAvatar() {
-  editAvatarValue = player.avatar || '';
+  editAvatarValue = player.avatarOverride === 1 ? (player.avatar || '') : '';
   showEditAvatar = true;
 }
 </script>
 
 <div class="min-h-screen pb-16">
 	<!-- Player Hero Section -->
-	<section class="relative py-12 px-6 bg-gradient-to-b from-zinc-950 to-zinc-900">
+	<section class="relative pt-12 pb-6 px-6 bg-gradient-to-b from-zinc-950 to-zinc-900">
 		<div class="max-w-6xl mx-auto">
 			<div class="flex flex-col items-center gap-4">
 				<!-- Player Avatar -->
@@ -358,8 +359,8 @@ function openEditAvatar() {
 
 		<!-- Admin Zone -->
 		{#if isAdmin}
-			<div class="border-t border-zinc-800 mt-6 pt-4">
-				<div class="max-w-6xl mx-auto flex items-center justify-center gap-2">
+		<div class="max-w-xs mx-auto mt-4 pt-3 border-t border-zinc-800">
+			<div class="flex items-center justify-center gap-2">
 					<button
 						type="button"
 						onclick={openEditName}
@@ -371,12 +372,23 @@ function openEditAvatar() {
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
 						</svg>
 					</button>
-					<button
-						type="button"
-						onclick={() => showPunish = true}
-						class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/statusbtn"
-					>
-						<span class="text-gray-500">Status</span>
+				<button
+					type="button"
+					onclick={openEditAvatar}
+					class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/avatarbtn"
+				>
+					<span class="text-gray-500">Avatar</span>
+					<span class="{player.avatarOverride === 1 ? 'text-orange-400' : 'text-gray-400'}">{player.avatarOverride === 1 ? 'Locked' : 'Auto'}</span>
+					<svg class="w-2.5 h-2.5 text-gray-600 group-hover/avatarbtn:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+					</svg>
+				</button>
+				<button
+					type="button"
+					onclick={() => showPunish = true}
+					class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/statusbtn"
+				>
+					<span class="text-gray-500">Status</span>
 						{#if getBanBadge(player.banStatus)}
 							{@const badge = getBanBadge(player.banStatus)!}
 							<span class="{badge.classes.split(' ').filter(c => c.startsWith('text-')).join(' ')}">{badge.label}</span>
@@ -936,7 +948,7 @@ function openEditAvatar() {
 <!-- Admin: Edit Avatar Modal -->
 <Dialog
 	open={showEditAvatar}
-	title="Edit Avatar"
+	title={player.avatarOverride === 1 ? 'Avatar (Locked)' : 'Set Avatar'}
 	onClose={() => showEditAvatar = false}
 >
 	<div class="flex items-center gap-4 mb-4">
@@ -964,7 +976,7 @@ function openEditAvatar() {
 	<form
 		id="form-edit-avatar"
 		method="POST"
-		action="?/updateAvatar"
+		action="?/lockAvatar"
 		use:enhance={() => {
 			isAdminSubmitting = true;
 			return async ({ update, result }) => {
@@ -972,7 +984,7 @@ function openEditAvatar() {
 				isAdminSubmitting = false;
 				if (result.type === 'success') {
 					showEditAvatar = false;
-					toast.success('Avatar updated');
+					toast.success('Avatar set and locked');
 				} else if (result.type === 'failure') {
 					toast.error((result.data as any)?.error || 'Failed to update avatar');
 				}
@@ -991,26 +1003,79 @@ function openEditAvatar() {
 				placeholder="https://example.com/avatar.png"
 				class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
 			/>
-			<p class="mt-1.5 text-xs text-gray-500">Leave empty to clear the avatar. Steam avatars refresh on next login.</p>
+			{#if player.avatarOverride === 0}
+				<p class="mt-1.5 text-xs text-gray-500">Setting an avatar URL will lock it, preventing Steam from overwriting it on login.</p>
+			{/if}
 		</div>
 	</form>
 
+	{#if player.avatarOverride === 1}
+		<div class="border-t border-zinc-800 pt-4 mt-4">
+			<p class="text-xs text-gray-500">Or unlock the avatar to let it sync from Steam on next login.</p>
+			<form
+				id="form-unlock-avatar"
+				method="POST"
+				action="?/unlockAvatar"
+				use:enhance={() => {
+					isAdminSubmitting = true;
+					return async ({ update, result }) => {
+						await update();
+						isAdminSubmitting = false;
+						if (result.type === 'success') {
+							showEditAvatar = false;
+							toast.success((result.data as any)?.message || 'Avatar unlocked');
+						} else if (result.type === 'failure') {
+							toast.error((result.data as any)?.error || 'Failed to unlock avatar');
+						}
+					};
+				}}
+			></form>
+		</div>
+	{/if}
+
 	{#snippet footer()}
-		<button
-			type="button"
-			onclick={() => showEditAvatar = false}
-			class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
-		>
-			Cancel
-		</button>
-		<button
-			type="submit"
-			form="form-edit-avatar"
-			disabled={isAdminSubmitting}
-			class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-		>
-			{isAdminSubmitting ? 'Saving...' : 'Update Avatar'}
-		</button>
+		{#if player.avatarOverride === 1}
+			<button
+				type="submit"
+				form="form-unlock-avatar"
+				disabled={isAdminSubmitting}
+				class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
+			>
+				{isAdminSubmitting ? 'Unlocking...' : 'Unlock Avatar'}
+			</button>
+			<div class="flex-1"></div>
+			<button
+				type="button"
+				onclick={() => showEditAvatar = false}
+				class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+			>
+				Cancel
+			</button>
+			<button
+				type="submit"
+				form="form-edit-avatar"
+				disabled={isAdminSubmitting || !editAvatarValue.trim()}
+				class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+			>
+				{isAdminSubmitting ? 'Saving...' : 'Save'}
+			</button>
+		{:else}
+			<button
+				type="button"
+				onclick={() => showEditAvatar = false}
+				class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+			>
+				Cancel
+			</button>
+			<button
+				type="submit"
+				form="form-edit-avatar"
+				disabled={isAdminSubmitting || !editAvatarValue.trim()}
+				class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+			>
+				{isAdminSubmitting ? 'Saving...' : 'Set & Lock Avatar'}
+			</button>
+		{/if}
 	{/snippet}
 </Dialog>
 

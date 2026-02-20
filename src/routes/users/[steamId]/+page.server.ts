@@ -4,7 +4,8 @@ import {
   unlinkDiscord,
   lockUserName,
   unlockUserName,
-  updateUserAvatar,
+  lockUserAvatar,
+  unlockUserAvatar,
   banUser,
   clearPunishment,
 } from '$lib/server/services/users';
@@ -154,7 +155,7 @@ export const actions: Actions = {
     }
   },
 
-  updateAvatar: async ({ request, params, locals }) => {
+  lockAvatar: async ({ request, params, locals, cookies }) => {
     if (!locals.user || !isAdmin(locals.user)) {
       return fail(403, { error: 'Admin access required' });
     }
@@ -164,11 +165,46 @@ export const actions: Actions = {
     const avatarUrl = formData.get('avatarUrl')?.toString() || '';
 
     try {
-      await updateUserAvatar(steamId, avatarUrl || null);
-      return { success: true, message: 'Avatar updated' };
+      const updated = await lockUserAvatar(steamId, avatarUrl);
+
+      if (locals.user.steamId === steamId) {
+        const session = getSession(cookies);
+        if (session) {
+          setSession(cookies, { ...session, steamAvatar: updated.steamAvatar ?? session.steamAvatar });
+        }
+      }
+
+      return { success: true, message: 'Avatar set and locked' };
     } catch (err: any) {
-      console.error('Error updating avatar:', err);
+      console.error('Error locking avatar:', err);
       return fail(400, { error: err.message || 'Failed to update avatar' });
+    }
+  },
+
+  unlockAvatar: async ({ params, locals, cookies }) => {
+    if (!locals.user || !isAdmin(locals.user)) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const { steamId } = params;
+
+    try {
+      const updated = await unlockUserAvatar(steamId);
+
+      if (locals.user.steamId === steamId) {
+        const session = getSession(cookies);
+        if (session) {
+          setSession(cookies, {
+            ...session,
+            steamAvatar: updated.steamAvatar ?? session.steamAvatar,
+          });
+        }
+      }
+
+      return { success: true, message: 'Avatar unlocked — synced from Steam' };
+    } catch (err: any) {
+      console.error('Error unlocking avatar:', err);
+      return fail(400, { error: err.message || 'Failed to unlock avatar' });
     }
   },
 

@@ -11,8 +11,9 @@ import {
   getDiscordAvatarUrl,
 } from '$lib/server/auth/discord';
 import { prisma } from '$lib/server/db';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
-export const GET: RequestHandler = async ({ url, request }) => {
+export const GET: RequestHandler = async ({ url, request, getClientAddress }) => {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
 
@@ -55,6 +56,16 @@ export const GET: RequestHandler = async ({ url, request }) => {
         discordAvatar,
         playerSteamId: steamId,
       },
+    });
+
+    await logAudit({
+      actorId: steamId,
+      category: AuditCategory.AUTH,
+      action: AuditAction.AUTH_DISCORD_LINKED,
+      targetType: 'User',
+      targetId: steamId,
+      metadata: { discordId: discordUser.id, discordUsername },
+      ipAddress: getClientAddress(),
     });
 
     // Redirect back to user profile with success message

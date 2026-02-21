@@ -272,6 +272,7 @@ model User {
   tournamentsSecondPlace2  Tournament[]              @relation("TournamentSecondPlace2")
   tournamentsThirdPlace1   Tournament[]              @relation("TournamentThirdPlace1")
   tournamentsThirdPlace2   Tournament[]              @relation("TournamentThirdPlace2")
+  auditLogs                AuditLog[]
 
   @@map("users")
 }
@@ -823,6 +824,28 @@ model ChampionshipGame {
   arena Arena?            @relation(fields: [arenaId], references: [id])
 
   @@map("championship_game")
+}
+
+// Audit Logging
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  timestamp  DateTime @default(now())
+  actorId    String?  @map("actor_id")
+  actorRole  String?  @map("actor_role")
+  category   String
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+
+  actor User? @relation(fields: [actorId], references: [steamId])
+
+  @@index([category])
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([timestamp])
+  @@map("audit_logs")
 }
 
 // Site Content Management

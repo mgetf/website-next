@@ -11,6 +11,7 @@ import {
 } from '$lib/server/services/disputes';
 import { MatchStatus } from '$prisma/client.js';
 import { fail } from '@sveltejs/kit';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  resolveDispute: async ({ request, locals }) => {
+  resolveDispute: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -40,6 +41,18 @@ export const actions: Actions = {
 
     try {
       await resolveDispute(matchId, status);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_DISPUTE_RESOLVED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { resolution: status },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Dispute resolved successfully' };
     } catch (error) {
       console.error('Error resolving dispute:', error);

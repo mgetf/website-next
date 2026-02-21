@@ -21,6 +21,7 @@ import { getRegions } from '$lib/server/services/regions';
 import { getSeasons } from '$lib/server/services/seasons';
 import { prisma } from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -108,7 +109,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  createAnnouncement: async ({ request, locals }) => {
+  createAnnouncement: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -126,6 +127,7 @@ export const actions: Actions = {
 
     try {
       await createAnnouncement(content);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.ANNOUNCEMENT_CREATED, metadata: { content }, ipAddress: getClientAddress() });
       return { success: true, message: 'Announcement created successfully' };
     } catch (error) {
       console.error('Error creating announcement:', error);
@@ -163,7 +165,7 @@ export const actions: Actions = {
     }
   },
 
-  toggleVisibility: async ({ request, locals }) => {
+  toggleVisibility: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -176,6 +178,7 @@ export const actions: Actions = {
 
     try {
       await toggleAnnouncementVisibility(id, visible);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.ANNOUNCEMENT_TOGGLED, targetType: 'Announcement', targetId: String(id), metadata: { visible }, ipAddress: getClientAddress() });
       return {
         success: true,
         message: `Announcement ${visible ? 'shown' : 'hidden'} successfully`,
@@ -293,7 +296,7 @@ export const actions: Actions = {
     }
   },
 
-  updateFees: async ({ request, locals }) => {
+  updateFees: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -305,6 +308,7 @@ export const actions: Actions = {
 
     try {
       await updateGlobalSettings({ leagueFees: fees });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.GLOBAL_SETTINGS_UPDATED, metadata: { leagueFees: fees }, ipAddress: getClientAddress() });
       return { success: true, message: 'League fees updated' };
     } catch (error) {
       console.error('Error updating league fees:', error);
@@ -312,7 +316,7 @@ export const actions: Actions = {
     }
   },
 
-  updateSeasonAssignments: async ({ request, locals }) => {
+  updateSeasonAssignments: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -341,6 +345,7 @@ export const actions: Actions = {
         }
       }
 
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SIGNUP, action: AuditAction.SIGNUP_SEASON_CHANGED, metadata: { updated: true }, ipAddress: getClientAddress() });
       return { success: true, message: 'Season assignments updated' };
     } catch (error) {
       console.error('Error updating season assignments:', error);

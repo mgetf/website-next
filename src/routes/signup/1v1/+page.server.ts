@@ -9,6 +9,7 @@ import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 // Zod schema for 1v1 signup form
 const signup1v1Schema = z.object({
@@ -69,7 +70,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  signup: async ({ request, locals }) => {
+  signup: async ({ request, locals, getClientAddress }) => {
     requireAuth(locals.user);
 
     const context = await get1v1SignupContext(locals.user.steamId);
@@ -113,19 +114,27 @@ export const actions: Actions = {
         seasonId,
       });
 
-      // Create 1v1 entry
       const teamId = await signup1v1({
         ownerSteamId: locals.user.steamId,
         regionId,
         divisionId,
       });
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.SIGNUP,
+        action: AuditAction.SIGNUP_1V1_CREATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { divisionId, regionId },
+        ipAddress: getClientAddress(),
+      });
+
       if (paymentInfo.required && !paymentInfo.alreadyPaid) {
-        // Redirect to checkout
         throw redirect(303, `/checkout/${locals.user.steamId}`);
       }
 
-      // Redirect to user profile with success message
       throw redirect(303, `/users/${locals.user.steamId}?signup=1v1`);
     } catch (err: any) {
       // If it's a redirect, let it through

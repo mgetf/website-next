@@ -10,6 +10,7 @@ import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { fail, redirect } from '@sveltejs/kit';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAuth(locals.user);
@@ -50,7 +51,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  reregisterTeam: async ({ request, locals }) => {
+  reregisterTeam: async ({ request, locals, getClientAddress }) => {
     requireAuth(locals.user);
 
     const context = await getSignupContext(locals.user.steamId);
@@ -81,7 +82,6 @@ export const actions: Actions = {
         seasonId: seasonId ?? undefined,
       });
 
-      // Re-register team
       await reregisterTeam({
         teamId,
         divisionId,
@@ -89,12 +89,21 @@ export const actions: Actions = {
         ownerSteamId: locals.user.steamId,
       });
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_CREATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { divisionId, regionId, reregistration: true },
+        ipAddress: getClientAddress(),
+      });
+
       if (paymentInfo.required && !paymentInfo.alreadyPaid) {
-        // Redirect to checkout
         throw redirect(303, `/checkout/${locals.user.steamId}`);
       }
 
-      // Redirect to team page
       throw redirect(303, `/teams/${teamId}`);
     } catch (err: any) {
       // If it's a redirect, let it through

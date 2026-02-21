@@ -50,6 +50,7 @@ import {
   createFormat,
   updateFormat,
 } from '$lib/server/services/formats';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -144,7 +145,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  createSeason: async ({ request, locals }) => {
+  createSeason: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -169,6 +170,7 @@ export const actions: Actions = {
 
     try {
       await createSeason({ seasonNum, regionId, formatId, numWeeks });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.SEASON_CREATED, targetType: 'Season', metadata: { seasonNum, regionId, formatId, numWeeks }, ipAddress: getClientAddress() });
       return { success: true, message: 'Season created successfully!' };
     } catch (error) {
       console.error('Error creating season:', error);
@@ -179,7 +181,7 @@ export const actions: Actions = {
     }
   },
 
-  updateSeason: async ({ request, locals }) => {
+  updateSeason: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -208,6 +210,7 @@ export const actions: Actions = {
 
     try {
       await updateSeason(seasonId, { seasonNum, regionId, formatId, numWeeks });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.SEASON_UPDATED, targetType: 'Season', targetId: String(seasonId), metadata: { seasonNum, regionId, formatId, numWeeks }, ipAddress: getClientAddress() });
       return { success: true, message: 'Season updated successfully!' };
     } catch (error) {
       console.error('Error updating season:', error);
@@ -219,7 +222,7 @@ export const actions: Actions = {
   },
 
   // REGION ACTIONS
-  createRegion: async ({ request, locals }) => {
+  createRegion: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -231,6 +234,7 @@ export const actions: Actions = {
 
     try {
       await createRegion(name);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_CREATED, metadata: { name }, ipAddress: getClientAddress() });
       return { success: true, message: 'Region created successfully!' };
     } catch (error) {
       console.error('Error creating region:', error);
@@ -241,7 +245,7 @@ export const actions: Actions = {
     }
   },
 
-  updateRegion: async ({ request, locals }) => {
+  updateRegion: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -261,6 +265,7 @@ export const actions: Actions = {
         name,
         currencySymbol: currencySymbol || '$',
       });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_CREATED, targetType: 'Region', targetId: String(regionId), metadata: { name, currencySymbol }, ipAddress: getClientAddress() });
       return { success: true, message: 'Region updated successfully!' };
     } catch (error) {
       console.error('Error updating region:', error);
@@ -271,7 +276,7 @@ export const actions: Actions = {
     }
   },
 
-  toggleRegionVisibility: async ({ request, locals }) => {
+  toggleRegionVisibility: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -283,6 +288,7 @@ export const actions: Actions = {
 
     try {
       const region = await toggleRegionVisibility(regionId);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_TOGGLED, targetType: 'Region', targetId: String(regionId), metadata: { hidden: region.hidden }, ipAddress: getClientAddress() });
       return {
         success: true,
         message: `Region ${region.hidden === 0 ? 'shown' : 'hidden'} successfully!`,
@@ -299,7 +305,7 @@ export const actions: Actions = {
   },
 
   // DIVISION ACTIONS
-  createDivision: async ({ request, locals }) => {
+  createDivision: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -317,6 +323,7 @@ export const actions: Actions = {
 
     try {
       await createDivision({ name, signupCost, regionId });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.DIVISION_CREATED, metadata: { name, signupCost, regionId }, ipAddress: getClientAddress() });
       return { success: true, message: 'Division created successfully!' };
     } catch (error) {
       console.error('Error creating division:', error);
@@ -327,7 +334,7 @@ export const actions: Actions = {
     }
   },
 
-  updateDivision: async ({ request, locals }) => {
+  updateDivision: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -349,6 +356,7 @@ export const actions: Actions = {
 
     try {
       await updateDivision(divisionId, { name, signupCost, regionId });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.DIVISION_UPDATED, targetType: 'Division', targetId: String(divisionId), metadata: { name, signupCost, regionId }, ipAddress: getClientAddress() });
       return { success: true, message: 'Division updated successfully!' };
     } catch (error) {
       console.error('Error updating division:', error);
@@ -359,7 +367,7 @@ export const actions: Actions = {
     }
   },
 
-  toggleDivisionVisibility: async ({ request, locals }) => {
+  toggleDivisionVisibility: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -387,7 +395,7 @@ export const actions: Actions = {
   },
 
   // ARENA ACTIONS
-  createArena: async ({ request, locals }) => {
+  createArena: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -424,6 +432,7 @@ export const actions: Actions = {
       }
 
       await createArena({ name, avatar: finalAvatarUrl, playoffMap });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.ARENA_CREATED, metadata: { name, playoffMap }, ipAddress: getClientAddress() });
       return { success: true, message: 'Arena created successfully!' };
     } catch (error) {
       console.error('Error creating arena:', error);
@@ -434,7 +443,7 @@ export const actions: Actions = {
     }
   },
 
-  updateArena: async ({ request, locals }) => {
+  updateArena: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -475,6 +484,7 @@ export const actions: Actions = {
       }
 
       await updateArena(arenaId, { name, avatar: finalAvatarUrl, playoffMap });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.ARENA_UPDATED, targetType: 'Arena', targetId: String(arenaId), metadata: { name, playoffMap }, ipAddress: getClientAddress() });
       return { success: true, message: 'Arena updated successfully!' };
     } catch (error) {
       console.error('Error updating arena:', error);
@@ -508,7 +518,7 @@ export const actions: Actions = {
   },
 
   // MAP BAN POOL ACTIONS
-  createMapBanPool: async ({ request, locals }) => {
+  createMapBanPool: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -520,6 +530,7 @@ export const actions: Actions = {
 
     try {
       await createMapBanPool(name);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.MAP_BAN, action: AuditAction.MAP_POOL_CREATED, metadata: { name }, ipAddress: getClientAddress() });
       return { success: true, message: 'Map ban pool created successfully!' };
     } catch (error) {
       console.error('Error creating map ban pool:', error);
@@ -665,7 +676,7 @@ export const actions: Actions = {
   },
 
   // PLAYOFF ACTIONS
-  managePlayoff: async ({ request, locals }) => {
+  managePlayoff: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -698,24 +709,24 @@ export const actions: Actions = {
       const existingPlayoff = await getPlayoffBySeason(seasonId);
 
       if (existingPlayoff) {
-        // Update existing playoff
         await updatePlayoffBySeason(seasonId, {
           numRounds: isTournament ? null : numRounds,
           doubleElim,
           isTournament,
         });
+        await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.PLAYOFF_UPDATED, targetType: 'Season', targetId: String(seasonId), metadata: { isTournament, numRounds, doubleElim }, ipAddress: getClientAddress() });
         return {
           success: true,
           message: 'Playoff configuration updated successfully!',
         };
       } else {
-        // Create new playoff
         await createPlayoff({
           seasonId,
           numRounds: isTournament ? null : numRounds,
           doubleElim,
           isTournament,
         });
+        await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.PLAYOFF_UPDATED, targetType: 'Season', targetId: String(seasonId), metadata: { isTournament, numRounds, doubleElim, created: true }, ipAddress: getClientAddress() });
         return {
           success: true,
           message: 'Playoff configuration created successfully!',
@@ -733,7 +744,7 @@ export const actions: Actions = {
   },
 
   // FORMAT ACTIONS
-  createFormat: async ({ request, locals }) => {
+  createFormat: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -749,6 +760,7 @@ export const actions: Actions = {
 
     try {
       await createFormat({ name, code });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.FORMAT_CREATED, metadata: { name, code }, ipAddress: getClientAddress() });
       return { success: true, message: 'Format created successfully!' };
     } catch (error) {
       console.error('Error creating format:', error);
@@ -759,7 +771,7 @@ export const actions: Actions = {
     }
   },
 
-  updateFormat: async ({ request, locals }) => {
+  updateFormat: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -779,6 +791,7 @@ export const actions: Actions = {
 
     try {
       await updateFormat(formatId, { name, code });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.FORMAT_UPDATED, targetType: 'Format', targetId: String(formatId), metadata: { name, code }, ipAddress: getClientAddress() });
       return { success: true, message: 'Format updated successfully!' };
     } catch (error) {
       console.error('Error updating format:', error);

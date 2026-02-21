@@ -12,6 +12,7 @@ import maceIcon from '$lib/assets/icons/mace.png';
 import userIcon from '$lib/assets/icons/user.png';
 import webIcon from '$lib/assets/icons/web.png';
 import settingIcon from '$lib/assets/icons/setting.png';
+import auditIcon from '$lib/assets/icons/audit.png';
 
 let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -39,6 +40,7 @@ const menuItems = [
   { name: 'Users', path: '/admin/users', icon: userIcon },
   { name: 'Global', path: '/admin/global', icon: webIcon },
   { name: 'Site', path: '/admin/site', icon: settingIcon },
+  { name: 'Audit Logs', path: '/admin/audit-logs', icon: auditIcon },
 ];
 
 // Mobile menu state

@@ -20,6 +20,7 @@ import {
   getAllPlayoffs,
   getPlayoffBySeason,
 } from '$lib/server/services/playoffs';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -205,7 +206,7 @@ export const actions: Actions = {
   /**
    * Create the match set
    */
-  createMatchSet: async ({ request, locals }) => {
+  createMatchSet: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -402,9 +403,17 @@ export const actions: Actions = {
         );
       }
 
-      // Note: Notifications are sent to team owners inside createMatchSet/createPlayoffMatch
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_CREATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { matchCount: matches.length, isPlayoff, divisionId, weekNo: weekNo ?? null },
+        ipAddress: getClientAddress(),
+      });
 
-      // Redirect to matches list with success message
       throw redirect(303, `/admin/matches?created=${matches.length}`);
     } catch (err: any) {
       console.error('Error creating match set:', err);

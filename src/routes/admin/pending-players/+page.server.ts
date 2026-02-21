@@ -13,6 +13,7 @@ import {
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { fail } from '@sveltejs/kit';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user); // Moderators and admins can manage
@@ -31,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  approve: async ({ request, locals }) => {
+  approve: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -44,6 +45,18 @@ export const actions: Actions = {
 
     try {
       await approvePlayer(playerSteamId, teamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_APPROVED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player approved successfully' };
     } catch (error) {
       console.error('Error approving player:', error);
@@ -51,7 +64,7 @@ export const actions: Actions = {
     }
   },
 
-  decline: async ({ request, locals }) => {
+  decline: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -69,6 +82,18 @@ export const actions: Actions = {
 
     try {
       await declinePlayer(playerSteamId, teamId, reason, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_DENIED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId, reason },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player declined successfully' };
     } catch (error) {
       console.error('Error declining player:', error);

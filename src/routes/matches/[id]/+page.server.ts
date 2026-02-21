@@ -7,6 +7,7 @@ import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { z } from 'zod';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 
 import { MatchStatus } from '$prisma/client.js';
@@ -194,7 +195,7 @@ export const actions: Actions = {
   /**
    * Submit match scores
    */
-  submitScores: async ({ params, request, locals }) => {
+  submitScores: async ({ params, request, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const matchId = parseInt(params.id);
 
@@ -297,6 +298,17 @@ export const actions: Actions = {
         locals.user.steamId,
       );
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_SCORES_SUBMITTED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { gameResults },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Scores submitted successfully' };
     } catch (err: any) {
       return fail(500, { error: err.message || 'Failed to submit scores' });
@@ -306,7 +318,7 @@ export const actions: Actions = {
   /**
    * File a dispute
    */
-  dispute: async ({ params, request, locals }) => {
+  dispute: async ({ params, request, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const matchId = parseInt(params.id);
 
@@ -335,6 +347,17 @@ export const actions: Actions = {
         'Match has been disputed',
         locals.user.steamId,
       );
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_DISPUTED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { reason },
+        ipAddress: getClientAddress(),
+      });
 
       return { success: true, message: 'Dispute filed successfully' };
     } catch (err: any) {
@@ -494,7 +517,7 @@ export const actions: Actions = {
   /**
    * Perform map ban or pick action
    */
-  mapAction: async ({ params, request, locals }) => {
+  mapAction: async ({ params, request, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const matchId = parseInt(params.id);
 
@@ -552,6 +575,17 @@ export const actions: Actions = {
         locals.user.steamId,
       );
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MAP_BAN,
+        action: actionType === 'ban' ? AuditAction.MAP_BANNED : AuditAction.MAP_PICKED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { arenaId, teamId: userTeamId },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true };
     } catch (err: any) {
       return fail(400, {
@@ -563,7 +597,7 @@ export const actions: Actions = {
   /**
    * Upload demo file
    */
-  uploadDemo: async ({ params, request, locals }) => {
+  uploadDemo: async ({ params, request, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const matchId = parseInt(params.id);
 
@@ -653,6 +687,18 @@ export const actions: Actions = {
       });
 
       console.log(`[Demo Upload] Success! Demo uploaded for match ${matchId}`);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.DEMO,
+        action: AuditAction.DEMO_UPLOADED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { playerSteamId, filename: file.name, size: file.size },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Demo uploaded successfully' };
     } catch (err: any) {
       console.error(`[Demo Upload] Error for match ${matchId}:`, err);
@@ -668,7 +714,7 @@ export const actions: Actions = {
   /**
    * Report demo for suspicious activity
    */
-  reportDemo: async ({ params, request, locals }) => {
+  reportDemo: async ({ params, request, locals, getClientAddress }) => {
     requireAuth(locals.user);
 
     try {
@@ -683,6 +729,17 @@ export const actions: Actions = {
       const { demoId, description } = validation.data;
 
       await reportDemo(demoId, locals.user.steamId, description);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.DEMO,
+        action: AuditAction.DEMO_REPORTED,
+        targetType: 'Demo',
+        targetId: String(demoId),
+        metadata: { matchId: parseInt(params.id), description },
+        ipAddress: getClientAddress(),
+      });
 
       return { success: true, message: 'Demo report submitted successfully' };
     } catch (err: any) {

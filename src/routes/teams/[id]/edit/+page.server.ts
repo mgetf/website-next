@@ -20,6 +20,7 @@ import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   requireAuth(locals.user);
@@ -73,7 +74,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-  updateInfo: async ({ request, params, locals }) => {
+  updateInfo: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
@@ -89,6 +90,18 @@ export const actions: Actions = {
 
     try {
       await updateTeamInfo(teamId, { name, acronym });
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_UPDATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { name, acronym },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Team info updated successfully' };
     } catch (err: any) {
       return fail(400, {
@@ -97,7 +110,7 @@ export const actions: Actions = {
     }
   },
 
-  updatePassword: async ({ request, params, locals }) => {
+  updatePassword: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
@@ -116,6 +129,18 @@ export const actions: Actions = {
 
     try {
       await updateTeamInfo(teamId, { joinPassword });
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_UPDATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { field: 'joinPassword' },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Join password updated successfully' };
     } catch (err: any) {
       return fail(400, {
@@ -124,7 +149,7 @@ export const actions: Actions = {
     }
   },
 
-  updateAvatar: async ({ request, params, locals }) => {
+  updateAvatar: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
@@ -150,6 +175,17 @@ export const actions: Actions = {
         });
       }
 
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_AVATAR_CHANGED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { avatarUrl },
+        ipAddress: getClientAddress(),
+      });
+
       return {
         success: true,
         message: 'Avatar updated successfully',
@@ -162,19 +198,15 @@ export const actions: Actions = {
     }
   },
 
-  removePlayer: async ({ request, params, locals }) => {
+  removePlayer: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
 
-    const { rosterLocked, isAdmin: isTeamAdmin } = await getTeamForEdit(
-      teamId,
-      locals.user.steamId,
-    );
-    const { isAdmin } = await import('$lib/server/auth/permissions');
-    const isGlobalAdmin = isAdmin(locals.user);
+    const { rosterLocked } = await getTeamForEdit(teamId, locals.user.steamId);
+    const { isAdmin: isAdminFn } = await import('$lib/server/auth/permissions');
+    const isGlobalAdmin = isAdminFn(locals.user);
 
-    // Global admins can bypass roster lock
     if (rosterLocked && !isGlobalAdmin) {
       return fail(400, { error: 'Rosters are locked' });
     }
@@ -184,6 +216,18 @@ export const actions: Actions = {
 
     try {
       await removePlayer(teamId, playerSteamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_REMOVED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player removed successfully' };
     } catch (err: any) {
       return fail(400, {
@@ -192,7 +236,7 @@ export const actions: Actions = {
     }
   },
 
-  promotePlayer: async ({ request, params, locals }) => {
+  promotePlayer: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
@@ -202,6 +246,18 @@ export const actions: Actions = {
 
     try {
       await promotePlayer(teamId, playerSteamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_PROMOTED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player promoted successfully' };
     } catch (err: any) {
       return fail(400, {
@@ -210,7 +266,7 @@ export const actions: Actions = {
     }
   },
 
-  demotePlayer: async ({ request, params, locals }) => {
+  demotePlayer: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
@@ -220,6 +276,18 @@ export const actions: Actions = {
 
     try {
       await demotePlayer(teamId, playerSteamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_DEMOTED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player demoted successfully' };
     } catch (err: any) {
       return fail(400, {
@@ -228,7 +296,7 @@ export const actions: Actions = {
     }
   },
 
-  invitePlayer: async ({ request, params, locals }) => {
+  invitePlayer: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
@@ -246,7 +314,19 @@ export const actions: Actions = {
     }
 
     try {
-      await invitePlayerBySteamId(teamId, steamId);
+      await invitePlayerBySteamId(teamId, steamId, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_INVITED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { invitedSteamId: steamId },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player invited successfully' };
     } catch (err: any) {
       return fail(400, {
@@ -255,7 +335,7 @@ export const actions: Actions = {
     }
   },
 
-  approvePlayer: async ({ request, params, locals }) => {
+  approvePlayer: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
@@ -270,6 +350,18 @@ export const actions: Actions = {
 
     try {
       await approvePlayer(teamId, playerSteamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_APPROVED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player approved successfully' };
     } catch (err: any) {
       return fail(400, {
@@ -278,7 +370,7 @@ export const actions: Actions = {
     }
   },
 
-  declinePlayer: async ({ request, params, locals }) => {
+  declinePlayer: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
@@ -293,6 +385,18 @@ export const actions: Actions = {
 
     try {
       await declinePlayer(teamId, playerSteamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_DENIED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player invitation declined' };
     } catch (err: any) {
       return fail(400, {
@@ -301,14 +405,13 @@ export const actions: Actions = {
     }
   },
 
-  disbandTeam: async ({ params, locals }) => {
+  disbandTeam: async ({ params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
 
-    // Must be owner OR global admin
     const { isOwner } = await getTeamForEdit(teamId, locals.user.steamId);
-    const { isAdmin } = await import('$lib/server/auth/permissions');
-    const isGlobalAdmin = isAdmin(locals.user);
+    const { isAdmin: isAdminFn } = await import('$lib/server/auth/permissions');
+    const isGlobalAdmin = isAdminFn(locals.user);
 
     if (!isOwner && !isGlobalAdmin) {
       return fail(403, {
@@ -318,7 +421,16 @@ export const actions: Actions = {
 
     await disbandTeam(teamId);
 
-    // Redirect to the team's main page after disbanding
+    await logAudit({
+      actorId: locals.user?.steamId,
+      actorRole: locals.user?.permissionLevel,
+      category: AuditCategory.TEAM,
+      action: AuditAction.TEAM_DISBANDED,
+      targetType: 'Team',
+      targetId: String(teamId),
+      ipAddress: getClientAddress(),
+    });
+
     throw redirect(303, `/teams/${teamId}`);
   },
 };

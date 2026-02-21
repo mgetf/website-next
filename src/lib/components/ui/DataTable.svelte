@@ -28,7 +28,10 @@
 		pagination,
 		onRowClick,
 		rowClass,
-		headerClass = ''
+		headerClass = '',
+		compact = false,
+		expandedRow,
+		expandedContent
 	}: {
 		data: T[];
 		columns: Column[];
@@ -39,6 +42,9 @@
 		onRowClick?: (row: T) => void;
 		rowClass?: (row: T) => string;
 		headerClass?: string;
+		compact?: boolean;
+		expandedRow?: (row: T) => boolean;
+		expandedContent?: Snippet<[T]>;
 	} = $props();
 
 	function getAlignClass(align?: 'left' | 'center' | 'right'): string {
@@ -57,6 +63,9 @@
 			onRowClick(row);
 		}
 	}
+
+	const cellPadding = $derived(compact ? 'px-4 py-1.5' : 'px-4 py-3');
+	const headPadding = $derived(compact ? 'px-4 py-2' : 'px-4 py-3');
 </script>
 
 {#if data.length === 0}
@@ -75,7 +84,7 @@
 						{#each columns as col}
 							<th
 								scope="col"
-								class="px-4 py-3 text-sm font-semibold text-gray-300 {getAlignClass(col.align)}"
+								class="{headPadding} text-sm font-semibold text-gray-300 {getAlignClass(col.align)}"
 								style={col.width ? `width: ${col.width}` : undefined}
 							>
 								{#if col.srOnly}
@@ -94,11 +103,18 @@
 							onclick={() => handleRowClick(row)}
 						>
 							{#each columns as col}
-								<td class="px-4 py-3 {getAlignClass(col.align)}">
+								<td class="{cellPadding} {getAlignClass(col.align)}">
 									{@render cell(row, col)}
 								</td>
 							{/each}
 						</tr>
+						{#if expandedRow?.(row) && expandedContent}
+							<tr class="bg-zinc-800/30">
+								<td colspan={columns.length} class="px-4 py-3">
+									{@render expandedContent(row)}
+								</td>
+							</tr>
+						{/if}
 					{/each}
 				</tbody>
 			</table>

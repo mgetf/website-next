@@ -14,6 +14,7 @@ import {
   deleteTempFile,
 } from '$lib/server/utils/r2Upload';
 import path from 'path';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAuth(locals.user);
@@ -50,7 +51,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  createTeam: async ({ request, locals }) => {
+  createTeam: async ({ request, locals, getClientAddress }) => {
     requireAuth(locals.user);
 
     const context = await getSignupContext(locals.user.steamId);
@@ -129,12 +130,21 @@ export const actions: Actions = {
         ownerSteamId: locals.user.steamId,
       });
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_CREATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { name, acronym: acronym || null, divisionId, regionId },
+        ipAddress: getClientAddress(),
+      });
+
       if (paymentInfo.required && !paymentInfo.alreadyPaid) {
-        // Redirect to checkout
         throw redirect(303, `/checkout/${locals.user.steamId}`);
       }
 
-      // Redirect to team page
       throw redirect(303, `/teams/${teamId}`);
     } catch (err: any) {
       // If it's a redirect, let it through

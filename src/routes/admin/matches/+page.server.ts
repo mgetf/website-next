@@ -19,6 +19,7 @@ import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getMapBanPools } from '$lib/server/services/mapBanPools';
 import { getMatchWeekLabels } from '$lib/server/services/matches';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);
@@ -247,7 +248,7 @@ export const actions: Actions = {
   /**
    * Create regular season matches
    */
-  createMatchSet: async ({ request, locals }) => {
+  createMatchSet: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -277,6 +278,17 @@ export const actions: Actions = {
         mapBanPoolId,
       });
 
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_CREATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { matchCount: matches.length, divisionId, weekNo, boSeries },
+        ipAddress: getClientAddress(),
+      });
+
       return {
         success: true,
         message: `Created ${matches.length} matches successfully`,
@@ -289,7 +301,7 @@ export const actions: Actions = {
   /**
    * Create single playoff match
    */
-  createPlayoffMatch: async ({ request, locals }) => {
+  createPlayoffMatch: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -327,6 +339,17 @@ export const actions: Actions = {
         mapBanPoolId,
       });
 
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_CREATED,
+        targetType: 'Match',
+        targetId: String(match.id),
+        metadata: { playoffRound, homeTeamId, awayTeamId, boSeries, seasonId },
+        ipAddress: getClientAddress(),
+      });
+
       return {
         success: true,
         message: `Playoff match created successfully`,
@@ -342,7 +365,7 @@ export const actions: Actions = {
   /**
    * Update match status (resolve disputes, force status changes)
    */
-  updateMatchStatus: async ({ request, locals }) => {
+  updateMatchStatus: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -358,6 +381,17 @@ export const actions: Actions = {
     try {
       await updateMatchStatus(matchId, newStatus);
 
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_STATUS_CHANGED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { newStatus },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Match status updated' };
     } catch (err: any) {
       return fail(500, { error: 'Failed to update match status' });
@@ -367,7 +401,7 @@ export const actions: Actions = {
   /**
    * Admin score override (reverses old stats and applies new)
    */
-  updateScores: async ({ request, locals }) => {
+  updateScores: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -394,6 +428,18 @@ export const actions: Actions = {
 
     try {
       await adminUpdateScores(matchId, gameResults);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_SCORES_OVERRIDDEN,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { gameResults },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Scores updated successfully' };
     } catch (err: any) {
       return fail(500, { error: err.message || 'Failed to update scores' });

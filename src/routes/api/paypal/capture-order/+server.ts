@@ -7,8 +7,9 @@ import {
 } from '$lib/server/services/paypal';
 import { logError } from '$lib/server/utils/logger';
 import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, getClientAddress }) => {
   try {
     // Require authentication
     requireAuth(locals.user);
@@ -136,6 +137,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         data: { paymentStatus: 1 },
       });
     }
+
+    await logAudit({
+      actorId: locals.user?.steamId,
+      actorRole: locals.user?.permissionLevel,
+      category: AuditCategory.PAYMENT,
+      action: AuditAction.PAYMENT_CAPTURED,
+      targetType: 'Team',
+      targetId: String(teamId),
+      metadata: { paymentId: capture.id, amount, currency, steamId },
+      ipAddress: getClientAddress(),
+    });
 
     return json({ success: true, teamId });
   } catch (err) {

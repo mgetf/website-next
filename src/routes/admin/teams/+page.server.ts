@@ -9,6 +9,7 @@ import { getTeams, countTeams, updateTeam } from '$lib/server/services/teams';
 import { disbandTeam } from '$lib/server/services/teamManagement';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 // Zod schema for team update form
 const updateTeamSchema = z.object({
@@ -130,7 +131,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-  updateTeam: async ({ request, locals }) => {
+  updateTeam: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -172,6 +173,17 @@ export const actions: Actions = {
         status: teamStatus,
       });
 
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: teamStatus ? AuditAction.TEAM_STATUS_CHANGED : AuditAction.TEAM_UPDATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { name, acronym, status: teamStatus ?? null },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Team updated successfully!' };
     } catch (error) {
       console.error('Error updating team:', error);
@@ -181,7 +193,7 @@ export const actions: Actions = {
     }
   },
 
-  disbandTeam: async ({ request, locals }) => {
+  disbandTeam: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -196,6 +208,17 @@ export const actions: Actions = {
 
     try {
       await disbandTeam(teamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_DISBANDED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Team disbanded successfully!' };
     } catch (error) {
       console.error('Error disbanding team:', error);
@@ -206,7 +229,7 @@ export const actions: Actions = {
     }
   },
 
-  restore1v1: async ({ request, locals }) => {
+  restore1v1: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -220,10 +243,20 @@ export const actions: Actions = {
     const { teamId } = validation.data;
 
     try {
-      const { restore1v1Entry } = await import(
-        '$lib/server/services/signup1v1'
-      );
+      const { restore1v1Entry } = await import('$lib/server/services/signup1v1');
       await restore1v1Entry(teamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SIGNUP,
+        action: AuditAction.SIGNUP_1V1_CREATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { action: 'restore' },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Player restored successfully!' };
     } catch (error) {
       console.error('Error restoring 1v1 entry:', error);

@@ -10,6 +10,7 @@ import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   requireAuth(locals.user);
@@ -72,7 +73,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-  joinTeam: async ({ request, params, locals }) => {
+  joinTeam: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
 
     const teamId = parseInt(params.id);
@@ -102,7 +103,17 @@ export const actions: Actions = {
         locals.user.steamId,
       );
 
-      // Redirect to team page with success message
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_JOINED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { status: 'pending' },
+        ipAddress: getClientAddress(),
+      });
+
       throw redirect(303, `/teams/${teamId}?joined=pending`);
     } catch (err: any) {
       if (err.status === 303) {

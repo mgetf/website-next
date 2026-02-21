@@ -13,6 +13,7 @@ import { withdraw1v1Entry } from '$lib/server/services/signup1v1';
 import { isAdmin } from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const { steamId } = params;
@@ -47,7 +48,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-  withdraw1v1: async ({ request, params, locals }) => {
+  withdraw1v1: async ({ request, params, locals, getClientAddress }) => {
     if (!locals.user) {
       return fail(401, { error: 'You must be logged in' });
     }
@@ -70,6 +71,18 @@ export const actions: Actions = {
 
     try {
       await withdraw1v1Entry(teamId, locals.user.steamId, isGlobalAdmin);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.SIGNUP,
+        action: AuditAction.SIGNUP_1V1_WITHDRAWN,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { targetSteamId: steamId },
+        ipAddress: getClientAddress(),
+      });
+
       return {
         success: true,
         message: 'Successfully withdrawn from 1v1 league',
@@ -82,7 +95,7 @@ export const actions: Actions = {
     }
   },
 
-  unlinkDiscord: async ({ params, locals }) => {
+  unlinkDiscord: async ({ params, locals, getClientAddress }) => {
     if (!locals.user || !isAdmin(locals.user)) {
       return fail(403, { error: 'Admin access required' });
     }
@@ -91,6 +104,17 @@ export const actions: Actions = {
 
     try {
       await unlinkDiscord(steamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_DISCORD_UNLINKED,
+        targetType: 'User',
+        targetId: steamId,
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Discord account unlinked' };
     } catch (err: any) {
       console.error('Error unlinking Discord:', err);
@@ -100,7 +124,7 @@ export const actions: Actions = {
     }
   },
 
-  lockName: async ({ request, params, locals, cookies }) => {
+  lockName: async ({ request, params, locals, cookies, getClientAddress }) => {
     if (!locals.user || !isAdmin(locals.user)) {
       return fail(403, { error: 'Admin access required' });
     }
@@ -112,13 +136,23 @@ export const actions: Actions = {
     try {
       const updated = await lockUserName(steamId, newName);
 
-      // If the admin changed their own name, refresh the session cookie
       if (locals.user.steamId === steamId) {
         const session = getSession(cookies);
         if (session) {
           setSession(cookies, { ...session, steamUsername: updated.steamUsername });
         }
       }
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_NAME_LOCKED,
+        targetType: 'User',
+        targetId: steamId,
+        metadata: { newName },
+        ipAddress: getClientAddress(),
+      });
 
       return { success: true, message: 'Name set and locked' };
     } catch (err: any) {
@@ -127,7 +161,7 @@ export const actions: Actions = {
     }
   },
 
-  unlockName: async ({ params, locals, cookies }) => {
+  unlockName: async ({ params, locals, cookies, getClientAddress }) => {
     if (!locals.user || !isAdmin(locals.user)) {
       return fail(403, { error: 'Admin access required' });
     }
@@ -148,6 +182,16 @@ export const actions: Actions = {
         }
       }
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_NAME_UNLOCKED,
+        targetType: 'User',
+        targetId: steamId,
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: `Name unlocked — synced to "${updated.steamUsername}"` };
     } catch (err: any) {
       console.error('Error unlocking username:', err);
@@ -155,7 +199,7 @@ export const actions: Actions = {
     }
   },
 
-  lockAvatar: async ({ request, params, locals, cookies }) => {
+  lockAvatar: async ({ request, params, locals, cookies, getClientAddress }) => {
     if (!locals.user || !isAdmin(locals.user)) {
       return fail(403, { error: 'Admin access required' });
     }
@@ -174,6 +218,17 @@ export const actions: Actions = {
         }
       }
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_AVATAR_LOCKED,
+        targetType: 'User',
+        targetId: steamId,
+        metadata: { avatarUrl },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Avatar set and locked' };
     } catch (err: any) {
       console.error('Error locking avatar:', err);
@@ -181,7 +236,7 @@ export const actions: Actions = {
     }
   },
 
-  unlockAvatar: async ({ params, locals, cookies }) => {
+  unlockAvatar: async ({ params, locals, cookies, getClientAddress }) => {
     if (!locals.user || !isAdmin(locals.user)) {
       return fail(403, { error: 'Admin access required' });
     }
@@ -201,6 +256,16 @@ export const actions: Actions = {
         }
       }
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_AVATAR_UNLOCKED,
+        targetType: 'User',
+        targetId: steamId,
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Avatar unlocked — synced from Steam' };
     } catch (err: any) {
       console.error('Error unlocking avatar:', err);
@@ -208,7 +273,7 @@ export const actions: Actions = {
     }
   },
 
-  punishUser: async ({ request, params, locals }) => {
+  punishUser: async ({ request, params, locals, getClientAddress }) => {
     if (!locals.user || !isAdmin(locals.user)) {
       return fail(403, { error: 'Admin access required' });
     }
@@ -224,6 +289,17 @@ export const actions: Actions = {
     try {
       if (severity === 'NONE') {
         await clearPunishment(steamId, locals.user.steamId);
+
+        await logAudit({
+          actorId: locals.user.steamId,
+          actorRole: locals.user.permissionLevel,
+          category: AuditCategory.USER,
+          action: AuditAction.USER_UNBANNED,
+          targetType: 'User',
+          targetId: steamId,
+          ipAddress: getClientAddress(),
+        });
+
         return { success: true, message: 'Punishment cleared' };
       }
 
@@ -236,6 +312,18 @@ export const actions: Actions = {
       }
 
       await banUser(steamId, locals.user.steamId, severity as 'WARNING' | 'SUSPENDED' | 'BANNED', reason, duration);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_BANNED,
+        targetType: 'User',
+        targetId: steamId,
+        metadata: { severity, reason, duration: duration ?? null },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: `User punished: ${severity}` };
     } catch (err: any) {
       console.error('Error updating punishment:', err);

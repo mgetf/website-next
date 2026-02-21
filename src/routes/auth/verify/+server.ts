@@ -14,8 +14,9 @@ import {
   UserRole as PrismaUserRole,
 } from '$prisma/client.js';
 import { BanStatus, UserRole } from '$lib/types/user';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
-export const GET: RequestHandler = async ({ cookies, request }) => {
+export const GET: RequestHandler = async ({ cookies, request, getClientAddress }) => {
   try {
     // Create Steam auth instance and authenticate
     const steam = createSteamAuth(request);
@@ -111,6 +112,17 @@ export const GET: RequestHandler = async ({ cookies, request }) => {
     };
 
     setSession(cookies, sessionUser);
+
+    await logAudit({
+      actorId: steamUser.steamid,
+      actorRole: finalPermission,
+      category: AuditCategory.AUTH,
+      action: AuditAction.AUTH_LOGIN,
+      targetType: 'User',
+      targetId: steamUser.steamid,
+      metadata: { isNewUser: !existingUser, steamUsername: finalUsername },
+      ipAddress: getClientAddress(),
+    });
 
     // Redirect to original page or home
     const returnUrl = getAndClearRedirectUrl(cookies);

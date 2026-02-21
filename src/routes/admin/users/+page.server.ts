@@ -7,9 +7,15 @@ import {
   updateUser,
   banUser,
   unlinkDiscord,
+  clearPunishment,
+  lockUserName,
+  unlockUserName,
+  lockUserAvatar,
+  unlockUserAvatar,
 } from '$lib/server/services/users';
 import { getDivisions } from '$lib/server/services/divisions';
 import { getRegions } from '$lib/server/services/regions';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);
@@ -80,7 +86,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-  updateUser: async ({ request, locals }) => {
+  updateUser: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -90,7 +96,6 @@ export const actions: Actions = {
     const nameOverride = formData.get('nameOverride') as string;
     const staffDivisionId = formData.get('staffDivisionId') as string;
 
-    // Validate inputs
     if (!steamId) {
       return fail(400, { error: 'Invalid user ID' });
     }
@@ -103,6 +108,19 @@ export const actions: Actions = {
         staffDivisionId: staffDivisionId === '' ? null : staffDivisionId ? parseInt(staffDivisionId) : undefined,
       });
 
+      if (permissionLevel) {
+        await logAudit({
+          actorId: locals.user?.steamId,
+          actorRole: locals.user?.permissionLevel,
+          category: AuditCategory.USER,
+          action: AuditAction.USER_ROLE_CHANGED,
+          targetType: 'User',
+          targetId: steamId,
+          metadata: { newRole: permissionLevel },
+          ipAddress: getClientAddress(),
+        });
+      }
+
       return { success: true, message: 'User updated successfully!' };
     } catch (error) {
       console.error('Error updating user:', error);
@@ -112,7 +130,7 @@ export const actions: Actions = {
     }
   },
 
-  banUser: async ({ request, locals }) => {
+  banUser: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     if (!locals.user) {
@@ -121,14 +139,10 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const steamId = formData.get('steamId') as string;
-    const severity = formData.get('severity') as
-      | 'WARNING'
-      | 'SUSPENDED'
-      | 'BANNED';
+    const severity = formData.get('severity') as 'WARNING' | 'SUSPENDED' | 'BANNED';
     const reason = formData.get('reason') as string;
     const duration = formData.get('duration') as string;
 
-    // Validate inputs
     if (!steamId) {
       return fail(400, { error: 'Invalid user ID' });
     }
@@ -148,6 +162,17 @@ export const actions: Actions = {
         duration ? parseInt(duration) : undefined,
       );
 
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_BANNED,
+        targetType: 'User',
+        targetId: steamId,
+        metadata: { severity, reason, duration: duration ? parseInt(duration) : null },
+        ipAddress: getClientAddress(),
+      });
+
       return {
         success: true,
         message: `User ${severity.toLowerCase()} successfully!`,
@@ -160,7 +185,175 @@ export const actions: Actions = {
     }
   },
 
-  unlinkDiscord: async ({ request, locals }) => {
+  clearPunishment: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    if (!locals.user) {
+      return fail(401, { error: 'Unauthorized' });
+    }
+
+    const formData = await request.formData();
+    const steamId = formData.get('steamId') as string;
+
+    if (!steamId) {
+      return fail(400, { error: 'Invalid user ID' });
+    }
+
+    try {
+      await clearPunishment(steamId, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_UNBANNED,
+        targetType: 'User',
+        targetId: steamId,
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Punishment cleared successfully!' };
+    } catch (error) {
+      console.error('Error clearing punishment:', error);
+      return fail(400, {
+        error: error instanceof Error ? error.message : 'Failed to clear punishment',
+      });
+    }
+  },
+
+  lockUserName: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    const formData = await request.formData();
+    const steamId = formData.get('steamId') as string;
+    const newName = formData.get('newName') as string;
+
+    if (!steamId || !newName) {
+      return fail(400, { error: 'Steam ID and name are required' });
+    }
+
+    try {
+      await lockUserName(steamId, newName);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_NAME_LOCKED,
+        targetType: 'User',
+        targetId: steamId,
+        metadata: { newName },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Name locked successfully!' };
+    } catch (error) {
+      console.error('Error locking user name:', error);
+      return fail(400, {
+        error: error instanceof Error ? error.message : 'Failed to lock name',
+      });
+    }
+  },
+
+  unlockUserName: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    const formData = await request.formData();
+    const steamId = formData.get('steamId') as string;
+
+    if (!steamId) {
+      return fail(400, { error: 'Invalid user ID' });
+    }
+
+    try {
+      await unlockUserName(steamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_NAME_UNLOCKED,
+        targetType: 'User',
+        targetId: steamId,
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Name unlocked successfully!' };
+    } catch (error) {
+      console.error('Error unlocking user name:', error);
+      return fail(400, {
+        error: error instanceof Error ? error.message : 'Failed to unlock name',
+      });
+    }
+  },
+
+  lockUserAvatar: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    const formData = await request.formData();
+    const steamId = formData.get('steamId') as string;
+    const avatarUrl = formData.get('avatarUrl') as string;
+
+    if (!steamId || !avatarUrl) {
+      return fail(400, { error: 'Steam ID and avatar URL are required' });
+    }
+
+    try {
+      await lockUserAvatar(steamId, avatarUrl);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_AVATAR_LOCKED,
+        targetType: 'User',
+        targetId: steamId,
+        metadata: { avatarUrl },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Avatar locked successfully!' };
+    } catch (error) {
+      console.error('Error locking user avatar:', error);
+      return fail(400, {
+        error: error instanceof Error ? error.message : 'Failed to lock avatar',
+      });
+    }
+  },
+
+  unlockUserAvatar: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    const formData = await request.formData();
+    const steamId = formData.get('steamId') as string;
+
+    if (!steamId) {
+      return fail(400, { error: 'Invalid user ID' });
+    }
+
+    try {
+      await unlockUserAvatar(steamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_AVATAR_UNLOCKED,
+        targetType: 'User',
+        targetId: steamId,
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Avatar unlocked successfully!' };
+    } catch (error) {
+      console.error('Error unlocking user avatar:', error);
+      return fail(400, {
+        error: error instanceof Error ? error.message : 'Failed to unlock avatar',
+      });
+    }
+  },
+
+  unlinkDiscord: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -172,6 +365,17 @@ export const actions: Actions = {
 
     try {
       await unlinkDiscord(steamId);
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_DISCORD_UNLINKED,
+        targetType: 'User',
+        targetId: steamId,
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Discord account unlinked' };
     } catch (error) {
       console.error('Error unlinking Discord:', error);

@@ -14,6 +14,7 @@ import {
 } from '$lib/server/services/tournaments';
 import { getAllChampionships } from '$lib/server/services/championships';
 import { isAdmin } from '$lib/server/auth/permissions';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const [tournaments, championships, fightNights] = await Promise.all([
@@ -34,7 +35,7 @@ export const actions: Actions = {
   /**
    * Create a new tournament (Admin only)
    */
-  create: async ({ request, locals }) => {
+  create: async ({ request, locals, getClientAddress }) => {
     if (!isAdmin(locals.user)) {
       return fail(403, { error: 'Unauthorized - Admin access required' });
     }
@@ -63,6 +64,15 @@ export const actions: Actions = {
         isTeamTournament,
       });
 
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.TOURNAMENT,
+        action: AuditAction.TOURNAMENT_CREATED,
+        metadata: { name: name.trim(), isTeamTournament },
+        ipAddress: getClientAddress(),
+      });
+
       return { success: true, message: 'Tournament created successfully' };
     } catch (error) {
       console.error('Error creating tournament:', error);
@@ -73,7 +83,7 @@ export const actions: Actions = {
   /**
    * Set tournament winners (Admin only)
    */
-  setWinners: async ({ request, locals }) => {
+  setWinners: async ({ request, locals, getClientAddress }) => {
     if (!isAdmin(locals.user)) {
       return fail(403, { error: 'Unauthorized - Admin access required' });
     }
@@ -107,6 +117,17 @@ export const actions: Actions = {
         secondPlace2SteamId: secondPlace2SteamId || undefined,
         thirdPlace1SteamId: thirdPlace1SteamId || undefined,
         thirdPlace2SteamId: thirdPlace2SteamId || undefined,
+      });
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.TOURNAMENT,
+        action: AuditAction.TOURNAMENT_UPDATED,
+        targetType: 'Tournament',
+        targetId: String(tournamentId),
+        metadata: { winner1SteamId, winner2SteamId, secondPlace1SteamId, secondPlace2SteamId },
+        ipAddress: getClientAddress(),
       });
 
       return { success: true, message: 'Winners updated successfully' };

@@ -18,13 +18,13 @@
     "@sveltejs/kit": "^2.53.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@types/node": "^25.3.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260220.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260222.1",
     "brackets-model": "^1.6.0",
     "dotenv": "^17.3.1",
     "prisma": "^7.4.1",
-    "svelte": "^5.53.0",
+    "svelte": "^5.53.2",
     "svelte-check": "^4.4.3",
-    "typescript": "^7.0.0-dev.20260220.1",
+    "typescript": "^7.0.0-dev.20260222.1",
     "vite": "^7.3.1"
   },
   "overrides": {
@@ -38,7 +38,7 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.994.0",
+    "@aws-sdk/client-s3": "^3.995.0",
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
     "@tailwindcss/vite": "^4.2.0",

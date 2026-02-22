@@ -25,24 +25,27 @@ export interface DiscordUser {
 }
 
 /**
- * Get domain from request headers
- * Auto-detects http/https based on host
+ * Get the Discord OAuth2 redirect URI.
+ * Uses DISCORD_REDIRECT_URI env var if set, otherwise falls back to
+ * deriving it from the request host (for local dev without env vars).
  */
-export function getDomain(request: Request): string {
+function getRedirectUri(request: Request): string {
+  if (env.DISCORD_REDIRECT_URI) {
+    return env.DISCORD_REDIRECT_URI;
+  }
   const host = request.headers.get('host') || 'localhost:5173';
   const protocol = host.includes('localhost') ? 'http' : 'https';
-  return `${protocol}://${host}`;
+  return `${protocol}://${host}/auth/discord/callback`;
 }
 
 /**
  * Generate Discord OAuth2 authorization URL
- * @param request - The incoming request (for dynamic domain detection)
+ * @param request - The incoming request (fallback for local dev domain detection)
  * @param steamId - User's Steam ID to include in state parameter
  * @returns Authorization URL to redirect user to
  */
 export function getDiscordAuthUrl(request: Request, steamId: string): string {
-  const domain = getDomain(request);
-  const redirectUri = `${domain}/auth/discord/callback`;
+  const redirectUri = getRedirectUri(request);
 
   // Encode steamId in state parameter for CSRF protection
   const state = Buffer.from(
@@ -87,8 +90,7 @@ export async function handleDiscordCallback(
   }
 
   // Exchange code for access token
-  const domain = getDomain(request);
-  const redirectUri = `${domain}/auth/discord/callback`;
+  const redirectUri = getRedirectUri(request);
 
   const tokenParams = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID || '',

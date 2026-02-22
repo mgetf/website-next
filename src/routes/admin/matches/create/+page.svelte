@@ -200,8 +200,9 @@ const matchPreviewColumns = [
 
 				<!-- Region -->
 				<div>
-					<label class="block text-sm font-medium text-gray-300 mb-1">Region</label>
+					<label for="regionId" class="block text-sm font-medium text-gray-300 mb-1">Region</label>
 					<select
+						id="regionId"
 						name="regionId"
 						bind:value={selectedRegionId}
 						onchange={onRegionChange}
@@ -217,8 +218,9 @@ const matchPreviewColumns = [
 
 				<!-- Division -->
 				<div>
-					<label class="block text-sm font-medium text-gray-300 mb-1">Division</label>
+					<label for="divisionId" class="block text-sm font-medium text-gray-300 mb-1">Division</label>
 					<select
+						id="divisionId"
 						name="divisionId"
 						bind:value={selectedDivisionId}
 						onchange={onFieldChange}
@@ -237,8 +239,9 @@ const matchPreviewColumns = [
 
 				<!-- Season -->
 				<div>
-					<label class="block text-sm font-medium text-gray-300 mb-1">Season</label>
+					<label for="seasonId" class="block text-sm font-medium text-gray-300 mb-1">Season</label>
 					<select
+						id="seasonId"
 						name="seasonId"
 						bind:value={selectedSeasonId}
 						onchange={onFieldChange}
@@ -258,8 +261,9 @@ const matchPreviewColumns = [
 				<!-- Playoff Round -->
 				{#if isPlayoff}
 					<div>
-						<label class="block text-sm font-medium text-gray-300 mb-1">Playoff Round</label>
+						<label for="playoffRound" class="block text-sm font-medium text-gray-300 mb-1">Playoff Round</label>
 						<select
+							id="playoffRound"
 							name="playoffRound"
 							bind:value={playoffRound}
 							onchange={onFieldChange}
@@ -285,8 +289,9 @@ const matchPreviewColumns = [
 				<!-- Week Number -->
 				{#if !isPlayoff}
 					<div>
-						<label class="block text-sm font-medium text-gray-300 mb-1">Week Number</label>
+						<label for="weekNo" class="block text-sm font-medium text-gray-300 mb-1">Week Number</label>
 						<input
+							id="weekNo"
 							type="number"
 							name="weekNo"
 							bind:value={weekNo}
@@ -311,8 +316,9 @@ const matchPreviewColumns = [
 				<!-- Arena (Regular Matches Only) -->
 				{#if !isPlayoff}
 					<div>
-						<label class="block text-sm font-medium text-gray-300 mb-1">Arena</label>
+						<label for="arenaId" class="block text-sm font-medium text-gray-300 mb-1">Arena</label>
 						<select
+							id="arenaId"
 							name="arenaId"
 							bind:value={selectedArenaId}
 							class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
@@ -329,8 +335,9 @@ const matchPreviewColumns = [
 				<!-- Map Ban Pool (Playoff Matches Only) -->
 				{#if isPlayoff}
 					<div>
-						<label class="block text-sm font-medium text-gray-300 mb-1">Map Ban Pool</label>
+						<label for="mapBanPoolId" class="block text-sm font-medium text-gray-300 mb-1">Map Ban Pool</label>
 						<select
+							id="mapBanPoolId"
 							name="mapBanPoolId"
 							bind:value={mapBanPoolId}
 							required
@@ -348,8 +355,9 @@ const matchPreviewColumns = [
 				<!-- Best of Games (Playoff Matches Only) -->
 				{#if isPlayoff}
 					<div>
-						<label class="block text-sm font-medium text-gray-300 mb-1">Best of Games (per Arena)</label>
+						<label for="boGames" class="block text-sm font-medium text-gray-300 mb-1">Best of Games (per Arena)</label>
 						<select
+							id="boGames"
 							name="boGames"
 							bind:value={boGames}
 							class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
@@ -366,8 +374,9 @@ const matchPreviewColumns = [
 
 				<!-- Best of Series -->
 				<div>
-					<label class="block text-sm font-medium text-gray-300 mb-1">Best of Series</label>
+					<label for="boSeries" class="block text-sm font-medium text-gray-300 mb-1">Best of Series</label>
 					<select
+						id="boSeries"
 						name="boSeries"
 						bind:value={boSeries}
 						required
@@ -382,8 +391,9 @@ const matchPreviewColumns = [
 
 			<!-- Match Date and Time -->
 			<div>
-				<label class="block text-sm font-medium text-gray-300 mb-1">Match Date and Time (UTC)</label>
+				<label for="matchDateTime" class="block text-sm font-medium text-gray-300 mb-1">Match Date and Time (UTC)</label>
 				<input
+					id="matchDateTime"
 					type="datetime-local"
 					name="matchDateTime"
 					bind:value={matchDateTime}
@@ -467,8 +477,9 @@ const matchPreviewColumns = [
 								<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 									<!-- Home Team Selection -->
 									<div>
-										<label class="block text-sm font-medium text-gray-300 mb-2">Home Team</label>
+										<label for="homeTeamIds-{i}" class="block text-sm font-medium text-gray-300 mb-2">Home Team</label>
 										<select 
+											id="homeTeamIds-{i}"
 											name="homeTeamIds"
 											class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
 											required
@@ -484,8 +495,9 @@ const matchPreviewColumns = [
 
 									<!-- Away Team Selection -->
 									<div>
-										<label class="block text-sm font-medium text-gray-300 mb-2">Away Team</label>
+										<label for="awayTeamIds-{i}" class="block text-sm font-medium text-gray-300 mb-2">Away Team</label>
 										<select 
+											id="awayTeamIds-{i}"
 											name="awayTeamIds"
 											class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
 											required

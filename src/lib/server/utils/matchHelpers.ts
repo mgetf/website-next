@@ -108,7 +108,7 @@ export function getMatchStatusLabel(status: number): string {
  * @returns True if dispute is allowed
  */
 export function canDisputeMatch(match: Match): boolean {
-  if (match.status !== 1) return false; // Must be PLAYED
+  if (match.status !== 'PLAYED') return false;
   if (!match.submittedAt) return false;
 
   const now = Date.now();
@@ -125,7 +125,7 @@ export function canDisputeMatch(match: Match): boolean {
  * @returns True if reschedule is allowed
  */
 export function canRescheduleMatch(match: Match): boolean {
-  return match.status === 0; // UNPLAYED
+  return match.status === 'UNPLAYED';
 }
 
 /**

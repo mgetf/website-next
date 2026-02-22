@@ -41,13 +41,16 @@ interface PageData {
 
 let { data } = $props<{ data: PageData }>();
 
-// Destructure the data from the server with fallbacks
-const leagueData = data.leagueData || { season: 'Season 1', topTeams: [] };
-const tournamentData = data.tournamentData || {
-  recentEvents: [],
-  totalCounts: { cups: 0, championships: 0, fightNights: 0 },
-};
-const siteContent = data.siteContent || { subtitle: '', about: '' };
+const leagueData = $derived(
+  data.leagueData || { season: 'Season 1', topTeams: [] },
+);
+const tournamentData = $derived(
+  data.tournamentData || {
+    recentEvents: [],
+    totalCounts: { cups: 0, championships: 0, fightNights: 0 },
+  },
+);
+const siteContent = $derived(data.siteContent || { subtitle: '', about: '' });
 
 const formatEventDate = (date: Date | null) => {
   if (!date) return 'TBD';

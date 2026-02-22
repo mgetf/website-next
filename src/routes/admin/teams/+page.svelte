@@ -491,16 +491,16 @@ const statusToInt: Record<string, number> = {
 				}}
 				class="flex-1"
 			>
-				<input type="hidden" name="teamId" value={disbandingTeam.id} />
+				<input type="hidden" name="teamId" value={disbandingTeam!.id} />
 				<button
 					type="submit"
 					disabled={isDisbanding}
 					class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					{#if isDisbanding}
-						{disbandingTeam.formatId === 1 ? 'Withdrawing...' : 'Disbanding...'}
+						{disbandingTeam!.formatId === 1 ? 'Withdrawing...' : 'Disbanding...'}
 					{:else}
-						{disbandingTeam.formatId === 1 ? 'Withdraw' : 'Disband Team'}
+						{disbandingTeam!.formatId === 1 ? 'Withdraw' : 'Disband Team'}
 					{/if}
 				</button>
 			</form>
@@ -558,7 +558,7 @@ const statusToInt: Record<string, number> = {
 				}}
 				class="flex-1"
 			>
-				<input type="hidden" name="teamId" value={restoringTeam.id} />
+				<input type="hidden" name="teamId" value={restoringTeam!.id} />
 				<button
 					type="submit"
 					disabled={isRestoring}

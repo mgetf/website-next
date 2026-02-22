@@ -79,7 +79,7 @@ function handleRegionChange(value: string) {
 				<div class="text-6xl mb-4">🚫</div>
 				<h2 class="text-2xl font-bold text-white mb-4">Team Re-registration Unavailable</h2>
 				<p class="text-gray-400 text-lg mb-6">
-					{data.reregisterDisabledReason}
+					{data.disabledReason}
 				</p>
 				<a
 					href="/signup"
@@ -104,9 +104,9 @@ function handleRegionChange(value: string) {
 		>
 			<!-- Team Selection -->
 			<div class="mb-6">
-				<label class="block text-sm font-medium text-gray-300 mb-3">
+				<div class="block text-sm font-medium text-gray-300 mb-3">
 					Select Team <span class="text-red-500">*</span>
-				</label>
+				</div>
 				<div class="space-y-3">
 					{#each data.ownedTeams as team}
 						<label

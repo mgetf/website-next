@@ -50,9 +50,14 @@ interface PageData {
 
 let { data } = $props<{ data: PageData }>();
 
-let selectedSeason = $state(data.selectedSeasonId);
-let selectedRegion = $state(data.selectedRegionId);
+let selectedSeason = $state(0);
+let selectedRegion = $state(0);
 let isInitialized = $state(false);
+
+$effect(() => {
+  selectedSeason = data.selectedSeasonId;
+  selectedRegion = data.selectedRegionId;
+});
 
 const regionsWithSeasons = $derived(
   data.regions.filter((region: (typeof data.regions)[number]) =>
@@ -214,7 +219,7 @@ function getRegionAbbr(regionId: number): string {
 								columns={standingsColumns}
 								emptyMessage="No teams in this division"
 							>
-								{#snippet cell(team, col)}
+								{#snippet cell(team: PageData['teamsByDivision'][0]['teams'][0], col)}
 									{#if col.key === 'team'}
 										<a href="/teams/{team.id}" class="flex items-center gap-2 text-white text-sm font-medium hover:text-blue-400 transition-colors">
 											<img 

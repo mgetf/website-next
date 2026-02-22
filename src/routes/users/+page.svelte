@@ -8,8 +8,13 @@ import discordIcon from '$lib/assets/icons/discord.png';
 
 let { data }: { data: PageData } = $props();
 
-let searchInput = $state(data.filters.search);
-let roleFilter = $state(data.filters.role || '');
+let searchInput = $state('');
+let roleFilter = $state('');
+
+$effect(() => {
+  searchInput = data.filters.search;
+  roleFilter = data.filters.role || '';
+});
 
 const roleOptions = [
 	{ value: 'ADMIN', label: 'Admin' },

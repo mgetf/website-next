@@ -251,5 +251,5 @@ export function isFormSuccess<T>(
 export function isFormError(
   result: FormResult<unknown>,
 ): result is ActionFailure<FormError> {
-  return 'success' in result && result.success === false;
+  return 'success' in result && !result.success;
 }

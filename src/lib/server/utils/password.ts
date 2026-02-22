@@ -7,7 +7,12 @@
 import crypto from 'crypto';
 import { promisify } from 'util';
 
-const scryptAsync = promisify(crypto.scrypt);
+const scryptAsync = promisify(crypto.scrypt) as (
+  password: crypto.BinaryLike,
+  salt: crypto.BinaryLike,
+  keylen: number,
+  options: crypto.ScryptOptions,
+) => Promise<Buffer>;
 
 // Configuration
 const SALT_LENGTH = 32;

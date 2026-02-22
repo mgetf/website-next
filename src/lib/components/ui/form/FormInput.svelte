@@ -3,7 +3,7 @@
 		label,
 		name,
 		type = 'text',
-		value = $bindable(''),
+		value = $bindable<string | null>(''),
 		placeholder = '',
 		required = false,
 		disabled = false,
@@ -15,7 +15,7 @@
 		label: string;
 		name: string;
 		type?: 'text' | 'email' | 'password' | 'url' | 'tel' | 'number';
-		value?: string;
+		value?: string | null;
 		placeholder?: string;
 		required?: boolean;
 		disabled?: boolean;

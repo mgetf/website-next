@@ -441,7 +441,7 @@ function closeBanModal() {
 				}}
 				class="flex-1"
 			>
-				<input type="hidden" name="steamId" value={unlinkingDiscordUser.steamId} />
+				<input type="hidden" name="steamId" value={unlinkingDiscordUser!.steamId} />
 				<button
 					type="submit"
 					disabled={isSubmitting}

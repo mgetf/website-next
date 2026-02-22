@@ -181,9 +181,9 @@ export function formatValidationErrors(
 ): Record<string, string> {
   const formatted: Record<string, string> = {};
 
-  errors.errors.forEach((error) => {
-    const path = error.path.join('.');
-    formatted[path] = error.message;
+  errors.issues.forEach((issue) => {
+    const path = issue.path.join('.');
+    formatted[path] = issue.message;
   });
 
   return formatted;

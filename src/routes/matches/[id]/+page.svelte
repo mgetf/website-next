@@ -548,10 +548,11 @@ const playedGames = $derived(
 							</div>
 							<div class="grid grid-cols-3 gap-4 items-center">
 								<div>
-									<label class="block text-sm font-medium text-gray-300 mb-1">
+									<label for="homeScore-{i}" class="block text-sm font-medium text-gray-300 mb-1">
 										{getHomeName()}
 									</label>
 									<input
+										id="homeScore-{i}"
 										type="number"
 										name="homeScore_{i}"
 										min="0"
@@ -569,10 +570,11 @@ const playedGames = $derived(
 								</div>
 								<div class="text-center text-gray-400 font-semibold">VS</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-300 mb-1">
+									<label for="awayScore-{i}" class="block text-sm font-medium text-gray-300 mb-1">
 										{getAwayName()}
 									</label>
 									<input
+										id="awayScore-{i}"
 										type="number"
 										name="awayScore_{i}"
 										min="0"
@@ -593,8 +595,9 @@ const playedGames = $derived(
 								{@const gameArena = match.games[i]?.arena}
 								{@const defaultArenaId = gameArena?.id ?? (matchArenas().length === 1 ? matchArenas()[0].id : null)}
 								<div class="mt-3">
-									<label class="block text-sm font-medium text-gray-300 mb-1">Arena/Map</label>
+									<label for="arenaId-{i}" class="block text-sm font-medium text-gray-300 mb-1">Arena/Map</label>
 									<select
+										id="arenaId-{i}"
 										name="arenaId_{i}"
 										disabled={disabled}
 										class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-gray-500"
@@ -643,17 +646,17 @@ const playedGames = $derived(
 					{:else if col.key === 'arena'}
 						{game.arena?.name || 'N/A'}
 					{:else if col.key === 'homeScore'}
-						<span class="{game.homeTeamScore > game.awayTeamScore ? 'font-bold text-green-400' : ''}">
+						<span class="{(game.homeTeamScore ?? 0) > (game.awayTeamScore ?? 0) ? 'font-bold text-green-400' : ''}">
 							{game.homeTeamScore}
 						</span>
 					{:else if col.key === 'awayScore'}
-						<span class="{game.awayTeamScore > game.homeTeamScore ? 'font-bold text-green-400' : ''}">
+						<span class="{(game.awayTeamScore ?? 0) > (game.homeTeamScore ?? 0) ? 'font-bold text-green-400' : ''}">
 							{game.awayTeamScore}
 						</span>
 					{:else if col.key === 'winner'}
-						{#if game.homeTeamScore > game.awayTeamScore}
+						{#if (game.homeTeamScore ?? 0) > (game.awayTeamScore ?? 0)}
 							{getHomeName()}
-						{:else if game.awayTeamScore > game.homeTeamScore}
+						{:else if (game.awayTeamScore ?? 0) > (game.homeTeamScore ?? 0)}
 							{getAwayName()}
 						{:else}
 							Tie
@@ -689,8 +692,9 @@ const playedGames = $derived(
 			<h2 class="text-2xl font-bold text-white mb-4">File Match Dispute</h2>
 			<form method="POST" action="?/dispute" use:enhance>
 				<div class="mb-4">
-					<label class="block text-sm font-medium text-gray-300 mb-2">Dispute Reason</label>
+					<label for="disputeReason" class="block text-sm font-medium text-gray-300 mb-2">Dispute Reason</label>
 					<textarea
+						id="disputeReason"
 						name="reason"
 						rows="4"
 						required
@@ -885,8 +889,9 @@ const playedGames = $derived(
 				<div class="mb-6 p-4 bg-zinc-800 rounded-lg">
 					<form method="POST" action="?/requestReschedule" use:enhance>
 						<div class="mb-3">
-							<label class="block text-sm font-medium text-gray-300 mb-1">Proposed Date/Time (UTC)</label>
+							<label for="proposedDateTime" class="block text-sm font-medium text-gray-300 mb-1">Proposed Date/Time (UTC)</label>
 							<input
+								id="proposedDateTime"
 								type="datetime-local"
 								name="proposedDateTime"
 								required

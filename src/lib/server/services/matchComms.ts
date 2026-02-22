@@ -93,7 +93,7 @@ export async function getAllReschedules(matchId: number) {
  * Requester can cancel their own request
  */
 export function canRespondToReschedule(
-  user: User | null,
+  user: { steamId: string; permissionLevel: UserRole } | null,
   comm: MatchComm,
   match: Match & {
     homeTeam: {

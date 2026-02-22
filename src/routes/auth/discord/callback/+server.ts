@@ -3,8 +3,7 @@
  * GET /auth/discord/callback - Discord redirects here after authorization
  */
 
-import { redirect, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { redirect, error, type RequestHandler } from '@sveltejs/kit';
 import {
   handleDiscordCallback,
   formatDiscordUsername,

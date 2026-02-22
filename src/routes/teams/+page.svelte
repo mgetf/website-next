@@ -7,9 +7,15 @@ import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 
 let { data }: { data: PageData } = $props();
 
-let searchInput = $state(data.filters.search);
-let regionFilter = $state(data.filters.region?.toString() || '');
-let seasonFilter = $state(data.filters.season?.toString() || '');
+let searchInput = $state('');
+let regionFilter = $state('');
+let seasonFilter = $state('');
+
+$effect(() => {
+	searchInput = data.filters.search;
+	regionFilter = data.filters.region?.toString() || '';
+	seasonFilter = data.filters.season?.toString() || '';
+});
 
 const regionOptions = $derived(
 	data.regions.map((r) => ({ value: r.id.toString(), label: r.name }))

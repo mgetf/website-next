@@ -9,7 +9,7 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 let activeTab: 'info' | 'roster' | 'pending' | 'invite' = $state('info');
 let isSubmitting = $state(false);
 let showDisbandConfirm = $state(false);
-let avatarPreview: string | null = $state(data.team.avatar);
+let avatarPreview: string | null = $state(null);
 
 // Force refresh avatar preview when team changes
 $effect(() => {

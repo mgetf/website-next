@@ -42,7 +42,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
   // Check if user is in a team (to hide signup button if they are)
   let isInTeam = false;
   let userTeam: { id: number; name: string } | null = null;
-  let notifications: any[] = [];
+  let notifications: Awaited<ReturnType<typeof getNotificationsForDropdown>> = [];
   let notificationCount = 0;
 
   if (locals.user) {
@@ -50,7 +50,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     isInTeam = !!userTeam;
 
     notifications = await getNotificationsForDropdown(locals.user.steamId);
-    notificationCount = notifications.filter((n: any) => !n.isRead).length;
+    notificationCount = notifications.filter((n) => !n.isRead).length;
   }
 
   // Load visible announcements for site-wide display

@@ -160,7 +160,7 @@ export async function logAudit(params: AuditLogParams): Promise<void> {
         action: params.action,
         targetType: params.targetType ?? null,
         targetId: params.targetId ?? null,
-        metadata: params.metadata ?? undefined,
+        metadata: (params.metadata as Record<string, string | number | boolean | null>) ?? undefined,
         ipAddress: params.ipAddress ?? null,
       },
     });

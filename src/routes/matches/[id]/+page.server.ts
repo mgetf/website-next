@@ -65,14 +65,14 @@ const requestRescheduleSchema = z.object({
 const respondRescheduleSchema = z.object({
   commId: z.coerce.number().int().positive('Invalid comm ID'),
   response: z.enum(['accept', 'deny', 'cancel'], {
-    errorMap: () => ({ message: 'Invalid response' }),
+    error: 'Invalid response',
   }),
 });
 
 const mapActionSchema = z.object({
   arenaId: z.coerce.number().int().positive('Invalid arena ID'),
   actionType: z.enum(['ban', 'pick'], {
-    errorMap: () => ({ message: 'Invalid action type' }),
+    error: 'Invalid action type',
   }),
 });
 
@@ -540,10 +540,10 @@ export const actions: Actions = {
 
     // Determine which team the user is on
     const isHomeTeam = match.homeTeam.players.some(
-      (p) => p.playerSteamId === locals.user.steamId && p.active === 1,
+      (p) => p.playerSteamId === locals.user!.steamId && p.active === 1,
     );
     const isAwayTeam = match.awayTeam.players.some(
-      (p) => p.playerSteamId === locals.user.steamId && p.active === 1,
+      (p) => p.playerSteamId === locals.user!.steamId && p.active === 1,
     );
 
     if (!isHomeTeam && !isAwayTeam) {
@@ -568,7 +568,7 @@ export const actions: Actions = {
         actionType,
       );
 
-      const actionLabel = actionType === 'BAN' ? 'banned' : 'picked';
+      const actionLabel = actionType === 'ban' ? 'banned' : 'picked';
       await createNotificationForMatch(
         matchId,
         `Map ${actionLabel}`,

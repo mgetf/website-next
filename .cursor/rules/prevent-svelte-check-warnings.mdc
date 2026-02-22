@@ -1,0 +1,51 @@
+---
+description: Prevent common Svelte warnings (state capture, invalid nesting, a11y labels)
+alwaysApply: true
+---
+
+# Prevent Svelte Warning Regressions
+
+When editing Svelte files, avoid patterns that trigger recurring `svelte-check` warnings.
+
+## 1) Avoid `state_referenced_locally` with page `data`
+
+- Do not initialize `$state(...)` directly from `data.*` values from `$props()`.
+- For read-only derived values, use `$derived(...)`.
+- For editable form state, initialize with literals and sync from `data` in `$effect(...)`.
+
+```svelte
+<!-- ❌ BAD -->
+let { data } = $props();
+let search = $state(data.filters.search);
+
+<!-- ✅ GOOD -->
+let { data } = $props();
+let search = $state('');
+$effect(() => { search = data.filters.search; });
+```
+
+## 2) Never nest invalid interactive/form elements
+
+- Never put `<button>` inside another `<button>`.
+- Never put `<form>` inside another `<form>`.
+- For per-action submits inside a main form, use submit buttons with `formaction`/`formmethod`.
+
+```svelte
+<!-- ✅ preferred inside an existing form -->
+<button type="submit" formaction="?/toggleThing" formmethod="POST" name="id" value={item.id}>
+  Toggle
+</button>
+```
+
+## 3) Ensure every `<label>` is associated to a control
+
+- Use `for="..."` + matching control `id="..."`, or wrap the control inside `<label>`.
+- If text is only a visual section heading (not a label), use `<div>`/`<span>` instead of `<label>`.
+
+```svelte
+<!-- ✅ GOOD -->
+<label for="seasonId">Season</label>
+<select id="seasonId" name="seasonId"></select>
+```
+
+Before finishing Svelte/UI work, run `bun run check` and address new warnings in touched files.

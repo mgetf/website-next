@@ -388,85 +388,55 @@ function toggleEditForm(announcement: (typeof data.announcements)[0]) {
 										{#if currentSeasonId && seasonSettings}
 											<div class="flex flex-wrap items-center gap-3 pt-3 border-t border-zinc-800">
 												<!-- Signups Toggle -->
-												<form 
-													method="POST" 
-													action="?/toggleSeasonSignups"
-													use:enhance={() => {
-														isSubmitting = true;
-														return async ({ update }) => {
-															await update();
-															isSubmitting = false;
-														};
-													}}
-													class="inline"
+												<button
+													type="submit"
+													formaction="?/toggleSeasonSignups"
+													formmethod="POST"
+													name="seasonId"
+													value={currentSeasonId}
+													disabled={isSubmitting}
+													class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
+														seasonSettings.signupsOpen
+															? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
+															: 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+													}"
 												>
-													<input type="hidden" name="seasonId" value={currentSeasonId} />
-													<button
-														type="submit"
-														disabled={isSubmitting}
-														class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
-															seasonSettings.signupsOpen
-																? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
-																: 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
-														}"
-													>
-														Signups: {seasonSettings.signupsOpen ? 'OPEN' : 'CLOSED'}
-													</button>
-												</form>
+													Signups: {seasonSettings.signupsOpen ? 'OPEN' : 'CLOSED'}
+												</button>
 												
 												<!-- Roster Lock Toggle -->
-												<form 
-													method="POST" 
-													action="?/toggleSeasonRoster"
-													use:enhance={() => {
-														isSubmitting = true;
-														return async ({ update }) => {
-															await update();
-															isSubmitting = false;
-														};
-													}}
-													class="inline"
+												<button
+													type="submit"
+													formaction="?/toggleSeasonRoster"
+													formmethod="POST"
+													name="seasonId"
+													value={currentSeasonId}
+													disabled={isSubmitting}
+													class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
+														seasonSettings.rosterLocked
+															? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+															: 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
+													}"
 												>
-													<input type="hidden" name="seasonId" value={currentSeasonId} />
-													<button
-														type="submit"
-														disabled={isSubmitting}
-														class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
-															seasonSettings.rosterLocked
-																? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
-																: 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
-														}"
-													>
-														Rosters: {seasonSettings.rosterLocked ? 'LOCKED' : 'OPEN'}
-													</button>
-												</form>
+													Rosters: {seasonSettings.rosterLocked ? 'LOCKED' : 'OPEN'}
+												</button>
 												
 												<!-- Payment Toggle -->
-												<form 
-													method="POST" 
-													action="?/toggleSeasonPayment"
-													use:enhance={() => {
-														isSubmitting = true;
-														return async ({ update }) => {
-															await update();
-															isSubmitting = false;
-														};
-													}}
-													class="inline"
+												<button
+													type="submit"
+													formaction="?/toggleSeasonPayment"
+													formmethod="POST"
+													name="seasonId"
+													value={currentSeasonId}
+													disabled={isSubmitting}
+													class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
+														seasonSettings.paymentRequired
+															? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30'
+															: 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30'
+													}"
 												>
-													<input type="hidden" name="seasonId" value={currentSeasonId} />
-													<button
-														type="submit"
-														disabled={isSubmitting}
-														class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {
-															seasonSettings.paymentRequired
-																? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30'
-																: 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30'
-														}"
-													>
-														Payment: {seasonSettings.paymentRequired ? 'REQUIRED' : 'NOT REQ'}
-													</button>
-												</form>
+													Payment: {seasonSettings.paymentRequired ? 'REQUIRED' : 'NOT REQ'}
+												</button>
 												
 												<!-- Match Week Info -->
 												{#if seasonSettings.matchWeek}

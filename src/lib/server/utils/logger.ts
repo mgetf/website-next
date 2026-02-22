@@ -54,12 +54,15 @@ function createLogEntry(
   message: string,
   data?: unknown,
 ): LogEntry {
-  return {
+  const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
     message,
-    ...(data && { data }),
   };
+  if (data !== undefined && data !== null) {
+    entry.data = data;
+  }
+  return entry;
 }
 
 /**

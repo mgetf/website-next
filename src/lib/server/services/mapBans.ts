@@ -217,6 +217,9 @@ export async function processBanPickAction(
   }
 
   const match = matchMapBan.match;
+  if (!match) {
+    throw error(400, 'Match not found for map ban');
+  }
   const actionCount = matchMapBan.actions.length;
 
   // Verify correct action type
@@ -375,15 +378,15 @@ export async function getMapBanStatus(matchId: number) {
     .filter((a) => a.actionType === MapBanActionType.PICK)
     .map((a) => a.arenaId);
 
-  const availableArenas = matchMapBan.pool.mapsInPool.filter(
+  const availableArenas = matchMapBan.pool?.mapsInPool.filter(
     (m) =>
       !bannedArenaIds.includes(m.arenaId) &&
       !pickedArenaIds.includes(m.arenaId),
-  );
+  ) ?? [];
 
   const nextAction = determineNextAction(
     matchMapBan.actions.length,
-    matchMapBan.match.boSeries || 3,
+    matchMapBan.match?.boSeries || 3,
   );
 
   return {

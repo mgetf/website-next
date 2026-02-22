@@ -72,19 +72,13 @@ export function handleError(err: unknown, context?: string): never {
 
   // Handle different error types
   if (err instanceof AppError) {
-    throw error(err.statusCode as NumericRange<400, 599>, {
-      message: err.message,
-      code: err.code,
-    });
+    throw error(err.statusCode as NumericRange<400, 599>, err.message);
   }
 
   if (err instanceof ZodError) {
-    const firstError = err.errors[0];
-    const message = firstError?.message || 'Validation failed';
-    throw error(400, {
-      message,
-      code: 'VALIDATION_ERROR',
-    });
+    const firstIssue = err.issues[0];
+    const message = firstIssue?.message || 'Validation failed';
+    throw error(400, message);
   }
 
   // Database errors

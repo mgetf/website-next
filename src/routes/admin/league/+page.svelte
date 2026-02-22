@@ -1575,7 +1575,7 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 				}}
 				class="flex gap-3"
 			>
-				<input type="hidden" name="arenaId" value={deletingArena.id} />
+				<input type="hidden" name="arenaId" value={deletingArena!.id} />
 				<button 
 					type="button"
 					onclick={() => deletingArena = null}
@@ -1585,7 +1585,7 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 				</button>
 				<button 
 					type="submit"
-					disabled={isSubmitting || deletingArena.games > 0}
+					disabled={isSubmitting || deletingArena!.games > 0}
 					class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
 				>
 					{isSubmitting ? 'Deleting...' : 'Delete Arena'}
@@ -1688,7 +1688,7 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 				}}
 				class="flex gap-3"
 			>
-				<input type="hidden" name="poolId" value={deletingPool.id} />
+				<input type="hidden" name="poolId" value={deletingPool!.id} />
 				<button 
 					type="button"
 					onclick={() => deletingPool = null}
@@ -1698,7 +1698,7 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 				</button>
 				<button 
 					type="submit"
-					disabled={isSubmitting || deletingPool.matchesUsed > 0}
+					disabled={isSubmitting || deletingPool!.matchesUsed > 0}
 					class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
 				>
 					{isSubmitting ? 'Deleting...' : 'Delete Pool'}

@@ -15,11 +15,11 @@ let isSubmitting = $state(false);
 let successMessage = $state('');
 let errorMessage = $state('');
 
-// Content states - initialized from data
-let siteTitle = $state(data.settings.siteTitle);
-let homepageSubtitle = $state(data.content.homepage_subtitle || '');
-let homepageAbout = $state(data.content.homepage_about || '');
-let rulebookContent = $state(data.rulebookContent);
+// Content states
+let siteTitle = $state('');
+let homepageSubtitle = $state('');
+let homepageAbout = $state('');
+let rulebookContent = $state('');
 
 // Sync state when data changes (after form submission)
 $effect(() => {

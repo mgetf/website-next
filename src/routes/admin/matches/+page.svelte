@@ -20,9 +20,15 @@ const matchColumns = [
 const createdCount = $derived($page.url.searchParams.get('created'));
 
 // Current filter values
-let selectedRegion = $state(data.filters.regionId || '');
-let selectedSeason = $state(data.filters.seasonId || '');
-let selectedWeek = $state(data.filters.week || '1');
+let selectedRegion = $state('');
+let selectedSeason = $state('');
+let selectedWeek = $state('1');
+
+$effect(() => {
+  selectedRegion = data.filters.regionId || '';
+  selectedSeason = data.filters.seasonId || '';
+  selectedWeek = data.filters.week || '1';
+});
 
 const regionOptions = $derived(
   data.regions.map((r) => ({ value: r.id.toString(), label: r.name }))
@@ -156,7 +162,7 @@ function getWinnerClass(match: any, teamId: number): string {
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 			<div>
-				<label class="block text-sm font-medium text-gray-300 mb-2">Region</label>
+				<div class="block text-sm font-medium text-gray-300 mb-2">Region</div>
 				<SelectFilter
 					value={selectedRegion}
 					options={regionOptions}
@@ -166,7 +172,7 @@ function getWinnerClass(match: any, teamId: number): string {
 			</div>
 
 			<div>
-				<label class="block text-sm font-medium text-gray-300 mb-2">Season</label>
+				<div class="block text-sm font-medium text-gray-300 mb-2">Season</div>
 				<SelectFilter
 					value={selectedSeason}
 					options={seasonOptions}
@@ -176,7 +182,7 @@ function getWinnerClass(match: any, teamId: number): string {
 			</div>
 
 			<div>
-				<label class="block text-sm font-medium text-gray-300 mb-2">Round</label>
+				<div class="block text-sm font-medium text-gray-300 mb-2">Round</div>
 				<SelectFilter
 					value={selectedWeek}
 					options={weekOptions}

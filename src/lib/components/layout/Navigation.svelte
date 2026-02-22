@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { SessionUser } from '$lib/types/user';
+import type { Notification } from '$lib/state/notifications.svelte';
 import NotificationDropdown from './NotificationDropdown.svelte';
 import UserDropdown from './UserDropdown.svelte';
 import { page } from '$app/state';
@@ -7,12 +8,7 @@ import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
 
 type Props = {
   user: SessionUser | null;
-  notifications: Array<{
-    id: number;
-    type: number;
-    url: string;
-    createdAt: Date;
-  }>;
+  notifications: Notification[];
   notificationCount: number;
   signupClosed?: boolean;
   isInTeam?: boolean;

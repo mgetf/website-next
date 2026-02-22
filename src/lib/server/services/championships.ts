@@ -117,14 +117,14 @@ export async function getChampionshipById(id: number) {
                 select: {
                   id: true,
                   name: true,
-                  imageUrl: true,
+                  avatar: true,
                 },
               },
             },
             orderBy: { gameNumber: 'asc' },
           },
         },
-        orderBy: { round: 'asc' },
+        orderBy: { id: 'asc' },
       },
     },
   });
@@ -156,7 +156,7 @@ export async function getLatestChampionship() {
 
   // Get winner info if championship is complete
   let winner = null;
-  if (latestChampionship.winner && latestChampionship.status > 0) {
+  if (latestChampionship.winner && latestChampionship.status !== 'REGISTRATION') {
     winner = await prisma.user.findUnique({
       where: { steamId: latestChampionship.winner },
       select: {
@@ -169,9 +169,9 @@ export async function getLatestChampionship() {
 
   // Determine next championship date
   let nextDate = 'TBD 2025';
-  if (latestChampionship.status === 0) {
+  if (latestChampionship.status === 'IN_PROGRESS') {
     nextDate = 'In Progress';
-  } else if (latestChampionship.status === 1) {
+  } else if (latestChampionship.status === 'COMPLETED') {
     nextDate = 'Completed';
   }
 

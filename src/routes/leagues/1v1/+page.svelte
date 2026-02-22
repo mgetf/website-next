@@ -53,9 +53,14 @@ interface PageData {
 
 let { data } = $props<{ data: PageData }>();
 
-let selectedSeason = $state(data.selectedSeasonId);
-let selectedRegion = $state(data.selectedRegionId);
+let selectedSeason = $state(0);
+let selectedRegion = $state(0);
 let isInitialized = $state(false);
+
+$effect(() => {
+  selectedSeason = data.selectedSeasonId;
+  selectedRegion = data.selectedRegionId;
+});
 
 $effect(() => {
   const seasonsForRegion = data.seasons.filter(
@@ -224,7 +229,7 @@ const regionsWithSeasons = $derived(
 								columns={standingsColumns}
 								emptyMessage="No players in this division"
 							>
-								{#snippet cell(entry, col)}
+								{#snippet cell(entry: PageData['entriesByDivision'][0]['entries'][0], col)}
 									{#if col.key === 'player'}
 										<a
 											href={entry.steamId

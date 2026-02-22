@@ -710,7 +710,7 @@ export const actions: Actions = {
 
       if (existingPlayoff) {
         await updatePlayoffBySeason(seasonId, {
-          numRounds: isTournament ? null : numRounds,
+          numRounds: isTournament ? undefined : (numRounds ?? undefined),
           doubleElim,
           isTournament,
         });
@@ -722,7 +722,7 @@ export const actions: Actions = {
       } else {
         await createPlayoff({
           seasonId,
-          numRounds: isTournament ? null : numRounds,
+          numRounds: isTournament ? undefined : (numRounds ?? undefined),
           doubleElim,
           isTournament,
         });

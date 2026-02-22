@@ -292,11 +292,11 @@ export async function getFightNightById(id: number) {
                 select: {
                   id: true,
                   name: true,
-                  imageUrl: true,
+                  avatar: true,
                 },
               },
             },
-            orderBy: { gameNumber: 'asc' },
+            orderBy: { gameNum: 'asc' },
           },
         },
         orderBy: { orderNum: 'asc' },

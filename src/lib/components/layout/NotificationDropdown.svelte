@@ -159,8 +159,16 @@ function formatRelativeTime(date: Date | string): string {
 			{#if notificationState.dropdownNotifications.length > 0}
 				<div class="max-h-96 overflow-y-auto">
 					{#each notificationState.dropdownNotifications as notification (notification.id)}
-						<button
+						<div
+							role="button"
+							tabindex="0"
 							onclick={() => handleNotificationClick(notification)}
+							onkeydown={(event) => {
+								if (event.key === 'Enter' || event.key === ' ') {
+									event.preventDefault();
+									handleNotificationClick(notification);
+								}
+							}}
 							class="w-full text-left px-4 py-3 border-b border-zinc-800/50 last:border-b-0 transition-all group
 								{notification.isRead 
 									? 'bg-transparent hover:bg-zinc-800/30' 
@@ -208,7 +216,7 @@ function formatRelativeTime(date: Date | string): string {
 									</button>
 								{/if}
 							</div>
-						</button>
+						</div>
 					{/each}
 				</div>
 

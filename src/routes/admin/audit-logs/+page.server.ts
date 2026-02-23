@@ -36,6 +36,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       action: log.action,
       targetType: log.targetType,
       targetId: log.targetId,
+      targetUsername: log.targetUser?.steamUsername ?? null,
+      targetAvatar: log.targetUser?.steamAvatar ?? null,
       metadata: log.metadata,
       ipAddress: log.ipAddress,
     })),

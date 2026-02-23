@@ -148,6 +148,55 @@ export async function updateSeason(
 }
 
 /**
+ * Delete a season
+ *
+ * Business logic validation:
+ * - Season must exist
+ * - Cannot delete if any dependent records exist (teams, matches, history, playoffs, payments, signups)
+ */
+export async function deleteSeason(id: number) {
+  const season = await prisma.season.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: {
+          teams: true,
+          matches: true,
+          teamsHistory: true,
+          playoffs: true,
+          paymentTrackers: true,
+          activeSignupSeasons: true,
+        },
+      },
+    },
+  });
+
+  if (!season) {
+    throw new Error('Season not found');
+  }
+
+  const blockers: string[] = [];
+  if (season._count.teams > 0)
+    blockers.push(`${season._count.teams} team${season._count.teams !== 1 ? 's' : ''}`);
+  if (season._count.matches > 0)
+    blockers.push(`${season._count.matches} match${season._count.matches !== 1 ? 'es' : ''}`);
+  if (season._count.teamsHistory > 0)
+    blockers.push(`${season._count.teamsHistory} team history record${season._count.teamsHistory !== 1 ? 's' : ''}`);
+  if (season._count.playoffs > 0)
+    blockers.push('a playoff bracket');
+  if (season._count.paymentTrackers > 0)
+    blockers.push(`${season._count.paymentTrackers} payment record${season._count.paymentTrackers !== 1 ? 's' : ''}`);
+  if (season._count.activeSignupSeasons > 0)
+    blockers.push('active signup configuration');
+
+  if (blockers.length > 0) {
+    throw new Error(`Cannot delete season: it has ${blockers.join(', ')}.`);
+  }
+
+  return await prisma.season.delete({ where: { id } });
+}
+
+/**
  * Get seasons for dropdown/filter UI (simplified)
  * Returns id, seasonNum, and region info for disambiguation
  *

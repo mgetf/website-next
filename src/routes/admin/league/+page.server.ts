@@ -1,22 +1,25 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { fail, redirect } from '@sveltejs/kit';
 import {
   getSeasons,
   createSeason,
   updateSeason,
+  deleteSeason,
   transformSeasonForUI,
 } from '$lib/server/services/seasons';
 import {
   getRegions,
   createRegion,
   updateRegion,
+  deleteRegion,
   toggleRegionVisibility,
 } from '$lib/server/services/regions';
 import {
   getDivisions,
   createDivision,
   updateDivision,
+  deleteDivision,
   toggleDivisionVisibility,
 } from '$lib/server/services/divisions';
 import {
@@ -49,6 +52,7 @@ import {
   getFormats,
   createFormat,
   updateFormat,
+  deleteFormat,
 } from '$lib/server/services/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
@@ -97,6 +101,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   );
 
   return {
+    isStrictAdmin: isStrictAdmin(locals.user),
     seasons: seasonsData,
     regions: allRegions.map((r) => ({
       id: r.id,
@@ -495,8 +500,8 @@ export const actions: Actions = {
     }
   },
 
-  deleteArena: async ({ request, locals }) => {
-    requireAdmin(locals.user);
+  deleteArena: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const arenaId = parseInt(formData.get('arenaId') as string);
@@ -507,6 +512,7 @@ export const actions: Actions = {
 
     try {
       await deleteArena(arenaId);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.ARENA_DELETED, targetType: 'Arena', targetId: String(arenaId), ipAddress: getClientAddress() });
       return { success: true, message: 'Arena deleted successfully!' };
     } catch (error) {
       console.error('Error deleting arena:', error);
@@ -798,6 +804,98 @@ export const actions: Actions = {
       return fail(400, {
         error:
           error instanceof Error ? error.message : 'Failed to update format',
+      });
+    }
+  },
+
+  deleteSeason: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const seasonId = parseInt(formData.get('seasonId') as string);
+
+    if (!seasonId || seasonId < 1) {
+      return fail(400, { error: 'Invalid season ID' });
+    }
+
+    try {
+      await deleteSeason(seasonId);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.SEASON_DELETED, targetType: 'Season', targetId: String(seasonId), ipAddress: getClientAddress() });
+      return { success: true, message: 'Season deleted successfully!' };
+    } catch (error) {
+      console.error('Error deleting season:', error);
+      return fail(400, {
+        error:
+          error instanceof Error ? error.message : 'Failed to delete season',
+      });
+    }
+  },
+
+  deleteRegion: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const regionId = parseInt(formData.get('regionId') as string);
+
+    if (!regionId || regionId < 1) {
+      return fail(400, { error: 'Invalid region ID' });
+    }
+
+    try {
+      await deleteRegion(regionId);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_DELETED, targetType: 'Region', targetId: String(regionId), ipAddress: getClientAddress() });
+      return { success: true, message: 'Region deleted successfully!' };
+    } catch (error) {
+      console.error('Error deleting region:', error);
+      return fail(400, {
+        error:
+          error instanceof Error ? error.message : 'Failed to delete region',
+      });
+    }
+  },
+
+  deleteDivision: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const divisionId = parseInt(formData.get('divisionId') as string);
+
+    if (!divisionId || divisionId < 1) {
+      return fail(400, { error: 'Invalid division ID' });
+    }
+
+    try {
+      await deleteDivision(divisionId);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.DIVISION_DELETED, targetType: 'Division', targetId: String(divisionId), ipAddress: getClientAddress() });
+      return { success: true, message: 'Division deleted successfully!' };
+    } catch (error) {
+      console.error('Error deleting division:', error);
+      return fail(400, {
+        error:
+          error instanceof Error ? error.message : 'Failed to delete division',
+      });
+    }
+  },
+
+  deleteFormat: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const formatId = parseInt(formData.get('formatId') as string);
+
+    if (!formatId || formatId < 1) {
+      return fail(400, { error: 'Invalid format ID' });
+    }
+
+    try {
+      await deleteFormat(formatId);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.FORMAT_DELETED, targetType: 'Format', targetId: String(formatId), ipAddress: getClientAddress() });
+      return { success: true, message: 'Format deleted successfully!' };
+    } catch (error) {
+      console.error('Error deleting format:', error);
+      return fail(400, {
+        error:
+          error instanceof Error ? error.message : 'Failed to delete format',
       });
     }
   },

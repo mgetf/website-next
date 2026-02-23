@@ -18,6 +18,8 @@ type LogEntry = {
 	action: string;
 	targetType: string | null;
 	targetId: string | null;
+	targetUsername: string | null;
+	targetAvatar: string | null;
 	metadata: unknown;
 	ipAddress: string | null;
 };
@@ -296,15 +298,28 @@ const paginationInfo = $derived(
 				</span>
 			{:else if col.key === 'action'}
 				<span class="font-mono text-xs text-gray-200">{log.action}</span>
-			{:else if col.key === 'target'}
-				{#if log.targetType}
-					<span class="text-xs text-gray-500">{log.targetType}</span>
-					{#if log.targetId}
-						<span class="text-xs text-gray-400 ml-1 font-mono">#{log.targetId}</span>
+		{:else if col.key === 'target'}
+			{#if log.targetType === 'User' && log.targetId}
+				<div class="flex items-center gap-2 min-w-0">
+					{#if log.targetAvatar}
+						<img src={log.targetAvatar} alt="" class="w-5 h-5 rounded flex-shrink-0" />
 					{/if}
-				{:else}
-					<span class="text-xs text-gray-600">—</span>
+					<a
+						href="/users/{log.targetId}"
+						onclick={(e) => e.stopPropagation()}
+						class="text-xs text-white hover:text-orange-400 transition-colors truncate"
+					>
+						{log.targetUsername ?? log.targetId}
+					</a>
+				</div>
+			{:else if log.targetType}
+				<span class="text-xs text-gray-500">{log.targetType}</span>
+				{#if log.targetId}
+					<span class="text-xs text-gray-400 ml-1 font-mono">#{log.targetId}</span>
 				{/if}
+			{:else}
+				<span class="text-xs text-gray-600">—</span>
+			{/if}
 			{:else if col.key === 'ip'}
 				<span class="font-mono text-xs text-gray-500">{log.ipAddress ?? '—'}</span>
 			{:else if col.key === 'expand'}

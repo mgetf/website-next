@@ -194,6 +194,43 @@ export async function updateDivision(
 }
 
 /**
+ * Delete a division
+ *
+ * Business logic validation:
+ * - Division must exist
+ * - Cannot delete if any teams are assigned to it or any staff members are assigned to it
+ */
+export async function deleteDivision(id: number) {
+  const division = await prisma.division.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: {
+          teams: true,
+          staffMembers: true,
+        },
+      },
+    },
+  });
+
+  if (!division) {
+    throw new Error('Division not found');
+  }
+
+  const blockers: string[] = [];
+  if (division._count.teams > 0)
+    blockers.push(`${division._count.teams} team${division._count.teams !== 1 ? 's' : ''}`);
+  if (division._count.staffMembers > 0)
+    blockers.push(`${division._count.staffMembers} staff member${division._count.staffMembers !== 1 ? 's' : ''} assigned to it`);
+
+  if (blockers.length > 0) {
+    throw new Error(`Cannot delete division: it has ${blockers.join(', ')}.`);
+  }
+
+  return await prisma.division.delete({ where: { id } });
+}
+
+/**
  * Toggle division visibility (hidden/visible)
  */
 export async function toggleDivisionVisibility(id: number) {

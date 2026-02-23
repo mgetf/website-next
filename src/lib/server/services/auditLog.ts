@@ -93,14 +93,19 @@ export const AuditAction = {
   // LEAGUE_CONFIG
   SEASON_CREATED: 'SEASON_CREATED',
   SEASON_UPDATED: 'SEASON_UPDATED',
+  SEASON_DELETED: 'SEASON_DELETED',
   REGION_CREATED: 'REGION_CREATED',
   REGION_TOGGLED: 'REGION_TOGGLED',
+  REGION_DELETED: 'REGION_DELETED',
   DIVISION_CREATED: 'DIVISION_CREATED',
   DIVISION_UPDATED: 'DIVISION_UPDATED',
+  DIVISION_DELETED: 'DIVISION_DELETED',
   FORMAT_CREATED: 'FORMAT_CREATED',
   FORMAT_UPDATED: 'FORMAT_UPDATED',
+  FORMAT_DELETED: 'FORMAT_DELETED',
   ARENA_CREATED: 'ARENA_CREATED',
   ARENA_UPDATED: 'ARENA_UPDATED',
+  ARENA_DELETED: 'ARENA_DELETED',
   PLAYOFF_UPDATED: 'PLAYOFF_UPDATED',
 
   // TOURNAMENT
@@ -224,8 +229,35 @@ export async function getAuditLogs(filters: AuditLogFilters = {}) {
     prisma.auditLog.count({ where }),
   ]);
 
+  const targetUserIds = [
+    ...new Set(
+      logs
+        .filter((l) => l.targetType === 'User' && l.targetId)
+        .map((l) => l.targetId!)
+    ),
+  ];
+
+  const targetUsersMap = new Map<string, { steamUsername: string | null; steamAvatar: string | null }>();
+
+  if (targetUserIds.length > 0) {
+    const targetUsers = await prisma.user.findMany({
+      where: { steamId: { in: targetUserIds } },
+      select: { steamId: true, steamUsername: true, steamAvatar: true },
+    });
+    for (const u of targetUsers) {
+      targetUsersMap.set(u.steamId, { steamUsername: u.steamUsername, steamAvatar: u.steamAvatar });
+    }
+  }
+
+  const logsWithTargetUsers = logs.map((log) => ({
+    ...log,
+    targetUser: log.targetType === 'User' && log.targetId
+      ? targetUsersMap.get(log.targetId) ?? null
+      : null,
+  }));
+
   return {
-    logs,
+    logs: logsWithTargetUsers,
     pagination: {
       page,
       pageSize,

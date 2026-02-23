@@ -53,6 +53,42 @@ export async function createFormat(data: { name: string; code: string }) {
   });
 }
 
+export async function deleteFormat(id: number) {
+  const format = await prisma.format.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: {
+          seasons: true,
+          teams: true,
+          teamHistory: true,
+          activeSignupSeasons: true,
+        },
+      },
+    },
+  });
+
+  if (!format) {
+    throw new Error('Format not found');
+  }
+
+  const blockers: string[] = [];
+  if (format._count.seasons > 0)
+    blockers.push(`${format._count.seasons} season${format._count.seasons !== 1 ? 's' : ''}`);
+  if (format._count.teams > 0)
+    blockers.push(`${format._count.teams} team${format._count.teams !== 1 ? 's' : ''}`);
+  if (format._count.teamHistory > 0)
+    blockers.push(`${format._count.teamHistory} team history record${format._count.teamHistory !== 1 ? 's' : ''}`);
+  if (format._count.activeSignupSeasons > 0)
+    blockers.push('active signup configuration');
+
+  if (blockers.length > 0) {
+    throw new Error(`Cannot delete format: it has ${blockers.join(', ')}.`);
+  }
+
+  return await prisma.format.delete({ where: { id } });
+}
+
 export async function updateFormat(
   id: number,
   data: { name: string; code: string },

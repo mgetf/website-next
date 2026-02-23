@@ -145,6 +145,49 @@ export async function updateRegion(
 }
 
 /**
+ * Delete a region
+ *
+ * Business logic validation:
+ * - Region must exist
+ * - Cannot delete if any dependent records exist (seasons, teams, divisions, signups)
+ */
+export async function deleteRegion(id: number) {
+  const region = await prisma.region.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: {
+          seasons: true,
+          teams: true,
+          divisions: true,
+          activeSignupSeasons: true,
+        },
+      },
+    },
+  });
+
+  if (!region) {
+    throw new Error('Region not found');
+  }
+
+  const blockers: string[] = [];
+  if (region._count.seasons > 0)
+    blockers.push(`${region._count.seasons} season${region._count.seasons !== 1 ? 's' : ''}`);
+  if (region._count.teams > 0)
+    blockers.push(`${region._count.teams} team${region._count.teams !== 1 ? 's' : ''}`);
+  if (region._count.divisions > 0)
+    blockers.push(`${region._count.divisions} division${region._count.divisions !== 1 ? 's' : ''}`);
+  if (region._count.activeSignupSeasons > 0)
+    blockers.push('active signup configuration');
+
+  if (blockers.length > 0) {
+    throw new Error(`Cannot delete region: it has ${blockers.join(', ')}.`);
+  }
+
+  return await prisma.region.delete({ where: { id } });
+}
+
+/**
  * Toggle region visibility (hidden/visible)
  */
 export async function toggleRegionVisibility(id: number) {

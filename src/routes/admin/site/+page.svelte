@@ -10,6 +10,30 @@ let { data }: { data: PageData } = $props();
 type Tab = 'settings' | 'homepage' | 'rulebook';
 let activeTab = $state<Tab>('settings');
 
+// Background image state
+let bgBlur = $state(0);
+let bgBrightness = $state(1);
+let bgOverlay = $state(0.85);
+let bgPreviewUrl = $state<string | null>(null);
+
+$effect(() => {
+  bgBlur = data.settings.backgroundBlur;
+});
+$effect(() => {
+  bgBrightness = data.settings.backgroundBrightness;
+});
+$effect(() => {
+  bgOverlay = data.settings.backgroundOverlay;
+});
+
+function onBgFileSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    if (bgPreviewUrl) URL.revokeObjectURL(bgPreviewUrl);
+    bgPreviewUrl = URL.createObjectURL(file);
+  }
+}
+
 // Form states
 let isSubmitting = $state(false);
 let successMessage = $state('');
@@ -56,6 +80,7 @@ function handleEnhance(action: string) {
     };
   };
 }
+
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'settings', label: 'Site Settings' },
@@ -131,6 +156,196 @@ const tabs: { id: Tab; label: string }[] = [
 						</div>
 					</div>
 				</form>
+
+				<!-- Background Image -->
+				<div class="border-t border-zinc-800 pt-8">
+					<h3 class="text-lg font-semibold text-white mb-1">Background Image</h3>
+					<p class="text-sm text-gray-400 mb-6">Upload a site-wide background image and tune its appearance. Changes take effect immediately for all visitors.</p>
+
+					{#if !data.isR2Available}
+						<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm">
+							File storage (R2) is not configured. Background image upload is disabled.
+						</div>
+					{:else}
+						<!-- Live Preview -->
+						{#if bgPreviewUrl || data.settings.backgroundImagePath}
+							<div class="mb-6">
+								<p class="text-sm font-medium text-gray-300 mb-2">Preview</p>
+								<div class="relative w-full h-56 rounded-lg overflow-hidden border border-zinc-700">
+									<img
+										src={bgPreviewUrl ?? data.settings.backgroundImagePath ?? ''}
+										alt="Background preview"
+										class="w-full h-full object-cover"
+										style="filter: blur({bgBlur}px) brightness({bgBrightness}); transform: scale(1.05)"
+									/>
+									<div
+										class="absolute inset-0"
+										style="background: rgba(9, 9, 11, {bgOverlay})"
+									></div>
+									<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+										<p class="text-white text-sm font-medium opacity-60 select-none">Site content appears here</p>
+									</div>
+								</div>
+							</div>
+						{/if}
+
+						<form
+							method="POST"
+							action="?/updateBackground"
+							enctype="multipart/form-data"
+							use:enhance={handleEnhance('background')}
+						>
+							<!-- Hidden inputs for slider values -->
+							<input type="hidden" name="blur" value={bgBlur} />
+							<input type="hidden" name="brightness" value={bgBrightness} />
+							<input type="hidden" name="overlay" value={bgOverlay} />
+
+							<div class="space-y-6">
+								<!-- File upload -->
+								<div>
+									<label for="backgroundImage" class="block text-sm font-medium text-gray-300 mb-2">
+										{data.settings.backgroundImagePath ? 'Replace Image' : 'Upload Image'}
+									</label>
+									<input
+										type="file"
+										id="backgroundImage"
+										name="backgroundImage"
+										accept="image/png,image/jpeg,image/gif,image/webp"
+										onchange={onBgFileSelected}
+										class="block w-full max-w-md text-sm text-gray-400
+											file:mr-4 file:py-2 file:px-4
+											file:rounded-lg file:border-0
+											file:text-sm file:font-medium
+											file:bg-zinc-800 file:text-white
+											hover:file:bg-zinc-700
+											file:cursor-pointer cursor-pointer"
+									/>
+									<p class="text-xs text-gray-500 mt-1">PNG, JPG, GIF, or WebP. Max 5MB. Leave empty to only update filters.</p>
+								</div>
+
+								<!-- Sliders -->
+								<div class="grid grid-cols-1 gap-5 max-w-lg">
+									<!-- Blur -->
+									<div>
+										<div class="flex justify-between items-center mb-1">
+											<label for="blurSlider" class="text-sm font-medium text-gray-300">Gaussian Blur</label>
+											<span class="text-sm text-gray-400 tabular-nums">{bgBlur.toFixed(0)}px</span>
+										</div>
+										<input
+											type="range"
+											id="blurSlider"
+											min="0"
+											max="30"
+											step="1"
+											bind:value={bgBlur}
+											class="w-full accent-blue-500"
+										/>
+										<div class="flex justify-between text-xs text-gray-600 mt-0.5">
+											<span>None</span>
+											<span>Max (30px)</span>
+										</div>
+									</div>
+
+									<!-- Brightness -->
+									<div>
+										<div class="flex justify-between items-center mb-1">
+											<label for="brightnessSlider" class="text-sm font-medium text-gray-300">Brightness</label>
+											<span class="text-sm text-gray-400 tabular-nums">{bgBrightness.toFixed(2)}</span>
+										</div>
+										<input
+											type="range"
+											id="brightnessSlider"
+											min="0.1"
+											max="1.5"
+											step="0.05"
+											bind:value={bgBrightness}
+											class="w-full accent-blue-500"
+										/>
+										<div class="flex justify-between text-xs text-gray-600 mt-0.5">
+											<span>Dark (0.1)</span>
+											<span>Bright (1.5)</span>
+										</div>
+									</div>
+
+									<!-- Overlay -->
+									<div>
+										<div class="flex justify-between items-center mb-1">
+											<label for="overlaySlider" class="text-sm font-medium text-gray-300">Dark Overlay</label>
+											<span class="text-sm text-gray-400 tabular-nums">{Math.round(bgOverlay * 100)}%</span>
+										</div>
+										<input
+											type="range"
+											id="overlaySlider"
+											min="0"
+											max="1"
+											step="0.05"
+											bind:value={bgOverlay}
+											class="w-full accent-blue-500"
+										/>
+										<div class="flex justify-between text-xs text-gray-600 mt-0.5">
+											<span>None</span>
+											<span>Full black</span>
+										</div>
+									</div>
+								</div>
+
+								{#if !data.isHeadAdmin}
+									<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm">
+										Only head admins can update the background image.
+									</div>
+								{/if}
+
+								<div class="pt-2">
+									<button
+										type="submit"
+										disabled={isSubmitting || !data.isHeadAdmin}
+										class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
+									>
+										{isSubmitting ? 'Saving...' : 'Save Background'}
+									</button>
+								</div>
+							</div>
+						</form>
+
+						<!-- Remove background (separate form) -->
+						{#if data.settings.backgroundImagePath}
+							<form
+								method="POST"
+								action="?/removeBackground"
+								class="mt-4"
+								use:enhance={() => {
+									isSubmitting = true;
+									successMessage = '';
+									errorMessage = '';
+									return async ({ result, update }) => {
+										isSubmitting = false;
+										bgPreviewUrl = null;
+										if (result.type === 'success') {
+											successMessage = (result.data as any)?.message || 'Background removed';
+											setTimeout(() => (successMessage = ''), 3000);
+										} else if (result.type === 'failure') {
+											errorMessage = (result.data as any)?.error || 'Failed to remove background';
+										}
+										await update();
+									};
+								}}
+							>
+								<button
+									type="submit"
+									disabled={isSubmitting || !data.isHeadAdmin}
+									onclick={(e) => {
+										if (!confirm('Remove the background image and restore the default gradient?')) {
+											e.preventDefault();
+										}
+									}}
+									class="bg-zinc-700 hover:bg-red-900/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 hover:text-white font-medium px-4 py-2 rounded-lg transition text-sm"
+								>
+									Remove Background
+								</button>
+							</form>
+						{/if}
+					{/if}
+				</div>
 
 				<!-- Favicon Upload -->
 				<div class="border-t border-zinc-800 pt-8">

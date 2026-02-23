@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
+import PageHero from '$lib/components/layout/PageHero.svelte';
 import { onMount } from 'svelte';
 import { toast } from '$lib/state/toast.svelte';
 
@@ -74,8 +75,7 @@ const winRate = $derived(
 
 <div class="min-h-screen pb-16">
 	<!-- Team Hero Section -->
-	<section class="relative py-12 px-6 bg-gradient-to-b from-zinc-950 to-zinc-900">
-		<div class="max-w-6xl mx-auto">
+	<PageHero maxWidth="max-w-6xl">
 			<!-- Admin Badge -->
 			{#if data.isGlobalAdmin}
 				<div class="mb-4 p-3 bg-purple-500/20 border border-purple-500/50 rounded-lg">
@@ -159,8 +159,7 @@ const winRate = $derived(
 					</div>
 				</div>
 			</div>
-		</div>
-	</section>
+	</PageHero>
 	
 	<!-- Main Content - Two Column Layout -->
 	<div class="max-w-7xl mx-auto px-6 py-8">

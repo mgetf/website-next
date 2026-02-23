@@ -27,6 +27,10 @@ export const load: LayoutServerLoad = async ({ locals }) => {
       siteSettings: {
         siteTitle: 'MGE.tf Dev',
         faviconPath: null,
+        backgroundImagePath: null,
+        backgroundBlur: 0,
+        backgroundBrightness: 1,
+        backgroundOverlay: 0.85,
       },
     };
   }
@@ -69,6 +73,10 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     siteSettings: {
       siteTitle: siteSettings.siteTitle,
       faviconPath: siteSettings.faviconPath,
+      backgroundImagePath: siteSettings.backgroundImagePath,
+      backgroundBlur: siteSettings.backgroundBlur,
+      backgroundBrightness: siteSettings.backgroundBrightness,
+      backgroundOverlay: siteSettings.backgroundOverlay,
     },
   };
 };

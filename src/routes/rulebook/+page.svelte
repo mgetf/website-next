@@ -2,6 +2,7 @@
 import { onMount } from 'svelte';
 import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
 import RulebookTOC from '$lib/components/markdown/RulebookTOC.svelte';
+import PageHero from '$lib/components/layout/PageHero.svelte';
 import type { PageData } from './$types';
 
 let { data }: { data: PageData } = $props();
@@ -96,14 +97,8 @@ onMount(() => {
 	<meta name="description" content="Official rules and regulations for MGE.tf competitive league" />
 </svelte:head>
 
-<div class="min-h-screen bg-zinc-950">
-	<!-- Header -->
-	<div class="bg-gradient-to-b from-zinc-900 to-zinc-950 border-b border-zinc-800">
-		<div class="max-w-7xl mx-auto px-6 py-12">
-			<h1 class="text-4xl font-black text-white mb-2">Rulebook</h1>
-			<p class="text-gray-400">Official rules and regulations for MGE.tf</p>
-		</div>
-	</div>
+<div>
+	<PageHero title="Rulebook" subtitle="Official rules and regulations for MGE.tf" maxWidth="max-w-7xl" border />
 
 	<!-- Content -->
 	<div class="max-w-7xl mx-auto px-6 py-8">
@@ -117,7 +112,7 @@ onMount(() => {
 
 			<!-- Main Content -->
 			<main class="lg:col-span-9">
-				<div class="rulebook-content bg-zinc-900 border border-zinc-800 rounded-lg p-6 lg:p-10">
+				<div class="rulebook-content bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-lg p-6 lg:p-10">
 					<MarkdownRenderer content={data.content} />
 				</div>
 			</main>

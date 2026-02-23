@@ -1,6 +1,7 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import PageHero from '$lib/components/layout/PageHero.svelte';
 
 const standingsColumns = [
 	{ key: 'team', label: 'Team' },
@@ -108,8 +109,7 @@ function getRegionAbbr(regionId: number): string {
 
 <div class="min-h-screen pb-16">
 	<!-- Hero Header -->
-	<section class="relative py-16 px-6 text-center bg-gradient-to-b from-zinc-950 to-zinc-900">
-		<div class="max-w-7xl mx-auto">
+	<PageHero maxWidth="max-w-7xl" class="py-16 text-center">
 			<h1 class="text-6xl font-black mb-12 text-white drop-shadow-2xl">2v2 MGE League</h1>
 
 			{#if data.seasons.length === 0}
@@ -148,8 +148,7 @@ function getRegionAbbr(regionId: number): string {
 					</div>
 				</div>
 			{/if}
-		</div>
-	</section>
+	</PageHero>
 
 	<!-- Main Content with Sidebars -->
 	<div class="max-w-[1600px] mx-auto px-6 py-8">

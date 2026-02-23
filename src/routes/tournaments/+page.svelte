@@ -2,6 +2,7 @@
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import PageHero from '$lib/components/layout/PageHero.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -68,14 +69,13 @@ const toggleExpanded = (id: number) => {
 	<meta name="description" content="Browse all MGE.tf tournaments including Cups, World Championships, and Fight Night events" />
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8 max-w-7xl">
-	<!-- Page Header -->
-	<div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+<div>
+<PageHero maxWidth="max-w-7xl" border>
+	<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 		<div>
-			<h1 class="text-4xl font-bold text-white mb-2">Tournaments</h1>
-			<p class="text-gray-400 text-lg">Browse all historic MGE.tf tournaments and competitive events</p>
+			<h1 class="text-5xl font-black text-white mb-2">Tournaments</h1>
+			<p class="text-xl text-gray-400">Browse all historic MGE.tf tournaments and competitive events</p>
 		</div>
-		
 		{#if data.isGlobalAdmin}
 			<button
 				onclick={() => showCreateForm = !showCreateForm}
@@ -89,6 +89,8 @@ const toggleExpanded = (id: number) => {
 			</button>
 		{/if}
 	</div>
+</PageHero>
+<div class="container mx-auto px-4 py-8 max-w-7xl">
 	
 	<!-- Form Messages -->
 	{#if form?.error}
@@ -640,4 +642,5 @@ const toggleExpanded = (id: number) => {
 			{/snippet}
 		</DataTable>
 	{/if}
+</div>
 </div>

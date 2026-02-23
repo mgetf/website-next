@@ -69,17 +69,17 @@
 </script>
 
 {#if data.length === 0}
-	<div class="bg-zinc-900 border border-zinc-800 rounded-lg py-12 text-center">
+	<div class="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-lg py-12 text-center">
 		{#if emptyIcon}
 			<div class="text-5xl mb-4">{emptyIcon}</div>
 		{/if}
 		<p class="text-gray-400">{emptyMessage}</p>
 	</div>
 {:else}
-	<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+	<div class="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-lg overflow-hidden">
 		<div class="overflow-x-auto">
 			<table class="w-full">
-				<thead class="{headerClass || 'bg-zinc-900'} border-b border-zinc-800">
+				<thead class="{headerClass || 'bg-zinc-900/80'} border-b border-zinc-800">
 					<tr>
 						{#each columns as col}
 							<th

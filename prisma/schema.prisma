@@ -860,10 +860,14 @@ model SiteContent {
 }
 
 model SiteSettings {
-  id          Int      @id @default(autoincrement())
-  siteTitle   String   @default("MGE.tf") @map("site_title")
-  faviconPath String?  @map("favicon_path") // Path to uploaded favicon
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                   Int      @id @default(autoincrement())
+  siteTitle            String   @default("MGE.tf") @map("site_title")
+  faviconPath          String?  @map("favicon_path")
+  backgroundImagePath  String?  @map("background_image_path")
+  backgroundBlur       Float    @default(0) @map("background_blur")
+  backgroundBrightness Float    @default(1) @map("background_brightness")
+  backgroundOverlay    Float    @default(0.85) @map("background_overlay")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("site_settings")
 }

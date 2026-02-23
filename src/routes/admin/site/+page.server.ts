@@ -9,6 +9,9 @@ import {
   getSiteSettings,
   updateSiteSettings,
   updateFavicon,
+  updateBackgroundImage,
+  updateBackgroundSettings,
+  removeBackgroundImage,
 } from '$lib/server/services/siteSettings';
 import {
   getAllContent,
@@ -125,6 +128,80 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error updating rulebook:', error);
       return fail(500, { error: 'Failed to update rulebook' });
+    }
+  },
+
+  updateBackground: async ({ request, locals }) => {
+    requireAdmin(locals.user);
+
+    if (locals.user.permissionLevel !== UserRole.ADMIN) {
+      return fail(403, { error: 'Only head admins can update the background image' });
+    }
+
+    if (!isR2Available()) {
+      return fail(400, { error: 'File storage is not configured' });
+    }
+
+    const formData = await request.formData();
+    const file = formData.get('backgroundImage') as File | null;
+    const blur = parseFloat(formData.get('blur')?.toString() || '0');
+    const brightness = parseFloat(formData.get('brightness')?.toString() || '1');
+    const overlay = parseFloat(formData.get('overlay')?.toString() || '0.85');
+
+    // Clamp values to valid ranges
+    const clampedBlur = Math.max(0, Math.min(30, isNaN(blur) ? 0 : blur));
+    const clampedBrightness = Math.max(0.1, Math.min(1.5, isNaN(brightness) ? 1 : brightness));
+    const clampedOverlay = Math.max(0, Math.min(1, isNaN(overlay) ? 0.85 : overlay));
+
+    let tempPath: string | null = null;
+    try {
+      if (file && file.size > 0) {
+        // Validate image (5MB max)
+        try {
+          validateUploadedFile(file, 'image');
+        } catch (e: any) {
+          return fail(400, { error: e.body?.message || 'Invalid file' });
+        }
+
+        tempPath = await saveTempFile(file);
+        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const remotePath = `site/background-${Date.now()}.${ext}`;
+        const publicUrl = await uploadToR2(tempPath, remotePath);
+
+        if (!publicUrl) {
+          return fail(500, { error: 'Failed to upload background image' });
+        }
+
+        await updateBackgroundImage(publicUrl, clampedBlur, clampedBrightness, clampedOverlay);
+      } else {
+        // No new image — just update the filter settings
+        await updateBackgroundSettings(clampedBlur, clampedBrightness, clampedOverlay);
+      }
+
+      return { success: true, message: 'Background updated successfully' };
+    } catch (error) {
+      console.error('Error updating background:', error);
+      return fail(500, { error: 'Failed to update background' });
+    } finally {
+      if (tempPath) {
+        deleteTempFile(tempPath);
+      }
+    }
+  },
+
+  removeBackground: async ({ locals }) => {
+    requireAdmin(locals.user);
+
+    if (locals.user.permissionLevel !== UserRole.ADMIN) {
+      return fail(403, { error: 'Only head admins can remove the background image' });
+    }
+
+    try {
+      await removeBackgroundImage();
+      return { success: true, message: 'Background removed' };
+    } catch (error) {
+      console.error('Error removing background:', error);
+      return fail(500, { error: 'Failed to remove background' });
     }
   },
 

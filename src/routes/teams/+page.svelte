@@ -4,6 +4,7 @@ import { goto } from '$app/navigation';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import SearchInput from '$lib/components/ui/SearchInput.svelte';
 import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+import PageHero from '$lib/components/layout/PageHero.svelte';
 
 let { data }: { data: PageData } = $props();
 
@@ -143,14 +144,9 @@ function getStatusLabel(status: string) {
 	<meta name="description" content="Browse all MGE.tf teams" />
 </svelte:head>
 
+<div>
+<PageHero title="Teams" subtitle="{data.pagination.totalCount.toLocaleString()} teams" maxWidth="max-w-7xl" border />
 <div class="container mx-auto px-4 py-8 max-w-7xl">
-	<!-- Page Header -->
-	<div class="mb-8">
-		<h1 class="text-4xl font-bold text-white mb-2">Teams</h1>
-		<p class="text-gray-400 text-lg">
-			{data.pagination.totalCount.toLocaleString()} teams
-		</p>
-	</div>
 
 	<!-- Filters -->
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-6">
@@ -278,4 +274,5 @@ function getStatusLabel(status: string) {
 			{/if}
 		{/snippet}
 	</DataTable>
+</div>
 </div>

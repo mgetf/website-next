@@ -45,13 +45,29 @@ afterNavigate(() => {
 {#if data.devGated}
 	<DevGate user={data.user} />
 {:else}
-	<div class="subpixel-antialiased flex flex-col h-full overflow-hidden bg-zinc-950 text-gray-200">
+	<!-- Background image layer (fixed, at document root level) -->
+	{#if data.siteSettings?.backgroundImagePath}
+		<div class="fixed inset-0 z-0 overflow-hidden">
+			<img
+				src={data.siteSettings.backgroundImagePath}
+				alt=""
+				class="w-full h-full object-cover"
+				style="filter: blur({data.siteSettings.backgroundBlur}px) brightness({data.siteSettings.backgroundBrightness}); transform: scale(1.05)"
+			/>
+			<div
+				class="absolute inset-0"
+				style="background: rgba(9, 9, 11, {data.siteSettings.backgroundOverlay})"
+			></div>
+		</div>
+	{/if}
+
+	<div class="subpixel-antialiased flex flex-col h-full overflow-hidden text-gray-200 relative z-10 {data.siteSettings?.backgroundImagePath ? '' : 'bg-zinc-950'}">
 		<LoadingBar />
 		
 		<!-- Environment indicator banner for staging (shown to admins) -->
 		{#if data.appEnvironment === 'staging'}
-			<div class="bg-amber-500/20 border-b border-amber-500/50 px-4 py-1.5 text-center">
-				<span class="text-amber-400 text-sm font-medium">
+			<div class="bg-amber-600 px-4 py-1.5 text-center relative z-20">
+				<span class="text-white text-sm font-semibold">
 					⚠️ Development Environment — Changes here are not live
 				</span>
 			</div>
@@ -72,7 +88,12 @@ afterNavigate(() => {
 				<AnnouncementBanner announcements={data.announcements} />
 			{/if}
 				
-				<div id="main-content" class="flex-grow overflow-y-auto bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
+				<div
+					id="main-content"
+					class="flex-grow overflow-y-auto {data.siteSettings?.backgroundImagePath
+						? 'bg-gradient-to-b from-zinc-950/50 via-zinc-900/30 to-zinc-950/50'
+						: 'bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950'}"
+				>
 					{@render children()}
 				</div>
 			</div>

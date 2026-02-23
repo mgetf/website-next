@@ -2,6 +2,7 @@
 import { enhance } from '$app/forms';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
+import PageHero from '$lib/components/layout/PageHero.svelte';
 import { toast } from '$lib/state/toast.svelte';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import Dialog from '$lib/components/ui/Dialog.svelte';
@@ -259,8 +260,7 @@ function openEditAvatar() {
 
 <div class="min-h-screen pb-16">
 	<!-- Player Hero Section -->
-	<section class="relative pt-12 pb-6 px-6 bg-gradient-to-b from-zinc-950 to-zinc-900">
-		<div class="max-w-6xl mx-auto">
+	<PageHero maxWidth="max-w-6xl">
 			<div class="flex flex-col items-center gap-4">
 				<!-- Player Avatar -->
 				<div class="relative flex-shrink-0 group/avatar">
@@ -355,7 +355,6 @@ function openEditAvatar() {
 			{/if}
 
 		</div>
-		</div>
 
 		<!-- Admin Zone -->
 		{#if isAdmin}
@@ -402,7 +401,7 @@ function openEditAvatar() {
 				</div>
 			</div>
 		{/if}
-	</section>
+	</PageHero>
 	
 	<!-- Main Content - Sidebar Layout -->
 	<div class="max-w-[1600px] mx-auto px-6 py-8">

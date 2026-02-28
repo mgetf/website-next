@@ -24,18 +24,16 @@ export interface DiscordUser {
   global_name: string | null;
 }
 
-/**
- * Get the Discord OAuth2 redirect URI.
- * Uses DISCORD_REDIRECT_URI env var if set, otherwise falls back to
- * deriving it from the request host (for local dev without env vars).
- */
 function getRedirectUri(request: Request): string {
   if (env.DISCORD_REDIRECT_URI) {
-    return env.DISCORD_REDIRECT_URI;
+    const uri = env.DISCORD_REDIRECT_URI.trim().replace(/^["']|["']$/g, '');
+    console.log('[Discord OAuth] Using configured redirect URI:', uri);
+    return uri;
   }
-  const host = request.headers.get('host') || 'localhost:5173';
-  const protocol = host.includes('localhost') ? 'http' : 'https';
-  return `${protocol}://${host}/auth/discord/callback`;
+  const url = new URL(request.url);
+  const uri = `${url.protocol}//${url.host}/auth/discord/callback`;
+  console.log('[Discord OAuth] Using derived redirect URI:', uri);
+  return uri;
 }
 
 /**
@@ -47,10 +45,9 @@ function getRedirectUri(request: Request): string {
 export function getDiscordAuthUrl(request: Request, steamId: string): string {
   const redirectUri = getRedirectUri(request);
 
-  // Encode steamId in state parameter for CSRF protection
   const state = Buffer.from(
     JSON.stringify({ steamId, timestamp: Date.now() }),
-  ).toString('base64');
+  ).toString('base64url');
 
   const params = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID || '',
@@ -78,7 +75,7 @@ export async function handleDiscordCallback(
   // Decode and validate state parameter
   let stateData: { steamId: string; timestamp: number };
   try {
-    stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+    stateData = JSON.parse(Buffer.from(state, 'base64url').toString('utf-8'));
   } catch (error) {
     throw new Error('Invalid state parameter');
   }

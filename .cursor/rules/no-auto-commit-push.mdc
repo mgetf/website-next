@@ -1,0 +1,16 @@
+---
+description: Never commit or push without explicit user approval
+alwaysApply: true
+---
+
+# No Auto Commit or Push
+
+NEVER run `git commit` or `git push` without the user's explicit approval.
+
+Before committing or pushing:
+
+1. Show the user what files will be committed (`git status`, `git diff`)
+2. Propose a commit message
+3. **Wait for the user to approve** before executing
+
+This applies to ALL git operations that modify history or remote state: `commit`, `push`, `merge`, `rebase`, `cherry-pick`, `tag`, etc.

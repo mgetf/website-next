@@ -921,15 +921,19 @@ const playedGames = $derived(
 							</span>
 						</div>
 						<img
-							src={comm.user?.steamAvatar || '/default-avatar.png'}
+							src={comm.owner ? (comm.user?.steamAvatar || '/default-avatar.png') : '/mge_transparent_logo.png'}
 							alt={comm.user?.steamUsername || 'System'}
 							class="w-10 h-10 rounded-full"
 						/>
 						<div class="flex-1">
 							<div class="flex items-center space-x-2">
-								<a href="/users/{comm.owner}" class="font-semibold text-white hover:text-blue-400">
-									{comm.user?.steamUsername || 'System'}
-								</a>
+								{#if comm.owner}
+									<a href="/users/{comm.owner}" class="font-semibold text-white hover:text-blue-400">
+										{comm.user?.steamUsername || 'System'}
+									</a>
+								{:else}
+									<span class="font-semibold text-gray-400">System</span>
+								{/if}
 								{#if comm.createdAt}
 									<span class="text-xs text-gray-400">
 										{new Date(comm.createdAt).toLocaleString()}

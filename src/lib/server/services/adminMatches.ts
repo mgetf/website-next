@@ -243,7 +243,7 @@ export async function createMatchSet(
     await prisma.matchComm.create({
       data: {
         matchId: match.id,
-        owner: '76561199005229176', // System user
+        owner: null,
         content: `Match Created! Important Information:
 
 1. Contact: Please reach out to your opponent via Discord or Steam.
@@ -364,7 +364,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
   await prisma.matchComm.create({
     data: {
       matchId: match.id,
-      owner: '76561199005229176', // System user
+      owner: null,
       content: `Match Created! Important Information:
 
 1. Contact: Please reach out to your opponent via Discord or Steam.

@@ -30,13 +30,20 @@ import {
 import { fail } from '@sveltejs/kit';
 import { UserRole } from '$lib/types/user';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import {
+  createApiKey,
+  getApiKeys,
+  toggleApiKey,
+  deleteApiKey,
+} from '$lib/server/services/apiKeys';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
 
-  const [settings, allContent] = await Promise.all([
+  const [settings, allContent, apiKeys] = await Promise.all([
     getSiteSettings(),
     getAllContent(),
+    getApiKeys(),
   ]);
 
   // Build content map with defaults for missing keys
@@ -62,6 +69,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       rulebookContent || getDefaultContent(CONTENT_KEYS.RULEBOOK),
     isHeadAdmin: locals.user.permissionLevel === UserRole.ADMIN,
     isR2Available: isR2Available(),
+    apiKeys,
   };
 };
 
@@ -202,6 +210,100 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error removing background:', error);
       return fail(500, { error: 'Failed to remove background' });
+    }
+  },
+
+  createApiKey: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    if (locals.user.permissionLevel !== UserRole.ADMIN) {
+      return fail(403, { error: 'Only head admins can manage API keys' });
+    }
+
+    const formData = await request.formData();
+    const name = formData.get('name')?.toString()?.trim();
+
+    if (!name) {
+      return fail(400, { error: 'API key name is required' });
+    }
+
+    try {
+      const apiKey = await createApiKey(name, locals.user.steamId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.API_KEY_CREATED,
+        metadata: { name, keyId: apiKey.id },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: `API key "${name}" created`, newKey: apiKey.key };
+    } catch (error) {
+      console.error('Error creating API key:', error);
+      return fail(500, { error: 'Failed to create API key' });
+    }
+  },
+
+  toggleApiKey: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    if (locals.user.permissionLevel !== UserRole.ADMIN) {
+      return fail(403, { error: 'Only head admins can manage API keys' });
+    }
+
+    const formData = await request.formData();
+    const id = parseInt(formData.get('id')?.toString() || '');
+    const active = formData.get('active') === 'true';
+
+    if (isNaN(id)) {
+      return fail(400, { error: 'Invalid API key ID' });
+    }
+
+    try {
+      await toggleApiKey(id, active);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.API_KEY_TOGGLED,
+        metadata: { keyId: id, active },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: `API key ${active ? 'enabled' : 'disabled'}` };
+    } catch (error) {
+      console.error('Error toggling API key:', error);
+      return fail(500, { error: 'Failed to update API key' });
+    }
+  },
+
+  deleteApiKey: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    if (locals.user.permissionLevel !== UserRole.ADMIN) {
+      return fail(403, { error: 'Only head admins can manage API keys' });
+    }
+
+    const formData = await request.formData();
+    const id = parseInt(formData.get('id')?.toString() || '');
+
+    if (isNaN(id)) {
+      return fail(400, { error: 'Invalid API key ID' });
+    }
+
+    try {
+      await deleteApiKey(id);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.API_KEY_DELETED,
+        metadata: { keyId: id },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'API key deleted' };
+    } catch (error) {
+      console.error('Error deleting API key:', error);
+      return fail(500, { error: 'Failed to delete API key' });
     }
   },
 

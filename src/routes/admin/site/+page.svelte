@@ -7,7 +7,7 @@ import type { PageData } from './$types';
 let { data }: { data: PageData } = $props();
 
 // Tabs
-type Tab = 'settings' | 'homepage' | 'rulebook';
+type Tab = 'settings' | 'homepage' | 'rulebook' | 'apikeys';
 let activeTab = $state<Tab>('settings');
 
 // Background image state
@@ -86,7 +86,42 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'settings', label: 'Site Settings' },
   { id: 'homepage', label: 'Homepage Content' },
   { id: 'rulebook', label: 'Rulebook' },
+  { id: 'apikeys', label: 'API Keys' },
 ];
+
+// API Keys state
+let newKeyName = $state('');
+let isCreatingKey = $state(false);
+let createdKey = $state<string | null>(null);
+let copiedKeyId = $state<number | null>(null);
+
+function copyKey(key: string, id: number) {
+  navigator.clipboard.writeText(key);
+  copiedKeyId = id;
+  setTimeout(() => (copiedKeyId = null), 2000);
+}
+
+function handleApiKeyEnhance(actionName: string) {
+  return () => {
+    isSubmitting = true;
+    successMessage = '';
+    errorMessage = '';
+    return async ({ result, update }: any) => {
+      isSubmitting = false;
+      if (result.type === 'success') {
+        successMessage = result.data?.message || 'Done';
+        if (actionName === 'create' && result.data?.newKey) {
+          createdKey = result.data.newKey;
+          newKeyName = '';
+        }
+        setTimeout(() => (successMessage = ''), 4000);
+      } else if (result.type === 'failure') {
+        errorMessage = result.data?.error || 'Action failed';
+      }
+      await update();
+    };
+  };
+}
 </script>
 
 <div class="max-w-6xl mx-auto space-y-6">
@@ -468,7 +503,161 @@ const tabs: { id: Tab; label: string }[] = [
 				</div>
 			</form>
 
-		{:else if activeTab === 'rulebook'}
+		{:else if activeTab === 'apikeys'}
+		<!-- API Keys -->
+		<div class="space-y-8">
+			<div>
+				<h3 class="text-lg font-semibold text-white mb-1">API Keys</h3>
+				<p class="text-sm text-gray-400">
+					Service-to-service keys used by external integrations (e.g. the Discord verification bot).
+					Keys are stored in plaintext — treat them like passwords.
+				</p>
+			</div>
+
+			{#if !data.isHeadAdmin}
+				<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm">
+					Only head admins can manage API keys.
+				</div>
+			{/if}
+
+			<!-- Newly created key banner -->
+			{#if createdKey}
+				<div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4 space-y-2">
+					<p class="text-green-400 text-sm font-medium">API key created. Copy it now — it will not be shown again in a special way, but remains viewable in the table below.</p>
+					<div class="flex items-center gap-3">
+						<code class="flex-1 bg-zinc-800 text-green-300 text-sm px-3 py-2 rounded-lg font-mono break-all">{createdKey}</code>
+						<button
+							type="button"
+							onclick={() => { navigator.clipboard.writeText(createdKey!); }}
+							class="shrink-0 bg-zinc-700 hover:bg-zinc-600 text-white text-sm px-3 py-2 rounded-lg transition"
+						>
+							Copy
+						</button>
+						<button
+							type="button"
+							onclick={() => (createdKey = null)}
+							class="shrink-0 text-gray-500 hover:text-gray-300 text-sm transition"
+						>
+							Dismiss
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Create new key form -->
+			<form method="POST" action="?/createApiKey" use:enhance={handleApiKeyEnhance('create')}>
+				<div class="flex items-end gap-3">
+					<div class="flex-1 max-w-sm">
+						<label for="apiKeyName" class="block text-sm font-medium text-gray-300 mb-2">New API Key Name</label>
+						<input
+							type="text"
+							id="apiKeyName"
+							name="name"
+							bind:value={newKeyName}
+							placeholder="e.g. Discord Verification Bot"
+							class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						/>
+					</div>
+					<button
+						type="submit"
+						disabled={isSubmitting || !data.isHeadAdmin || !newKeyName.trim()}
+						class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition"
+					>
+						{isSubmitting ? 'Creating...' : 'Create Key'}
+					</button>
+				</div>
+			</form>
+
+			<!-- Keys table -->
+			{#if data.apiKeys.length === 0}
+				<div class="text-center py-12 text-gray-500 text-sm">No API keys yet.</div>
+			{:else}
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="text-left text-gray-400 border-b border-zinc-800">
+								<th class="pb-3 pr-4 font-medium">Name</th>
+								<th class="pb-3 pr-4 font-medium">Key</th>
+								<th class="pb-3 pr-4 font-medium">Status</th>
+								<th class="pb-3 pr-4 font-medium">Created by</th>
+								<th class="pb-3 pr-4 font-medium">Last used</th>
+								<th class="pb-3 pr-4 font-medium">Created</th>
+								<th class="pb-3 font-medium">Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-zinc-800">
+							{#each data.apiKeys as apiKey (apiKey.id)}
+								<tr class="text-gray-300">
+									<td class="py-3 pr-4 font-medium text-white">{apiKey.name}</td>
+									<td class="py-3 pr-4">
+										<div class="flex items-center gap-2">
+											<code class="font-mono text-xs text-gray-400 max-w-48 truncate">{apiKey.key}</code>
+											<button
+												type="button"
+												onclick={() => copyKey(apiKey.key, apiKey.id)}
+												class="shrink-0 text-xs text-gray-500 hover:text-gray-200 transition"
+												title="Copy key"
+											>
+												{copiedKeyId === apiKey.id ? '✓' : 'Copy'}
+											</button>
+										</div>
+									</td>
+									<td class="py-3 pr-4">
+										{#if apiKey.active}
+											<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-400">Active</span>
+										{:else}
+											<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-700 text-gray-400">Inactive</span>
+										{/if}
+									</td>
+									<td class="py-3 pr-4 text-gray-400">{apiKey.creator.steamUsername}</td>
+									<td class="py-3 pr-4 text-gray-400">
+										{apiKey.lastUsedAt ? new Date(apiKey.lastUsedAt).toLocaleDateString() : 'Never'}
+									</td>
+									<td class="py-3 pr-4 text-gray-400">{new Date(apiKey.createdAt).toLocaleDateString()}</td>
+									<td class="py-3">
+										<div class="flex items-center gap-2">
+											<!-- Toggle active/inactive -->
+											<form method="POST" action="?/toggleApiKey" use:enhance={handleApiKeyEnhance('toggle')}>
+												<input type="hidden" name="id" value={apiKey.id} />
+												<input type="hidden" name="active" value={String(!apiKey.active)} />
+												<button
+													type="submit"
+													disabled={isSubmitting || !data.isHeadAdmin}
+													class="text-xs px-3 py-1 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed
+														{apiKey.active
+															? 'bg-zinc-700 hover:bg-zinc-600 text-gray-300'
+															: 'bg-green-600/20 hover:bg-green-600/30 text-green-400'}"
+												>
+													{apiKey.active ? 'Disable' : 'Enable'}
+												</button>
+											</form>
+											<!-- Delete -->
+											<form method="POST" action="?/deleteApiKey" use:enhance={handleApiKeyEnhance('delete')}>
+												<input type="hidden" name="id" value={apiKey.id} />
+												<button
+													type="submit"
+													disabled={isSubmitting || !data.isHeadAdmin}
+													onclick={(e) => {
+														if (!confirm(`Delete API key "${apiKey.name}"? This cannot be undone.`)) {
+															e.preventDefault();
+														}
+													}}
+													class="text-xs px-3 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
+												>
+													Delete
+												</button>
+											</form>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+		</div>
+
+	{:else if activeTab === 'rulebook'}
 			<!-- Rulebook Editor -->
 			<form method="POST" action="?/updateRulebook" use:enhance={handleEnhance('rulebook')}>
 				<div class="space-y-4">

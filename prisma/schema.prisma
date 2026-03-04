@@ -273,6 +273,7 @@ model User {
   tournamentsThirdPlace1   Tournament[]              @relation("TournamentThirdPlace1")
   tournamentsThirdPlace2   Tournament[]              @relation("TournamentThirdPlace2")
   auditLogs                AuditLog[]
+  apiKeys                  ApiKey[]
 
   @@map("users")
 }
@@ -870,4 +871,19 @@ model SiteSettings {
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("site_settings")
+}
+
+// API Key Management
+model ApiKey {
+  id          Int       @id @default(autoincrement())
+  name        String
+  key         String    @unique
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdBy   String    @map("created_by")
+
+  creator     User      @relation(fields: [createdBy], references: [steamId])
+
+  @@map("api_keys")
 }

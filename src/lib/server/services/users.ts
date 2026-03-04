@@ -21,6 +21,17 @@ export async function getUserBySteamId(steamId: string) {
 }
 
 /**
+ * Look up a user by their linked Discord ID.
+ * Returns the Discord record (with player relation) or null if not linked.
+ */
+export async function getUserByDiscordId(discordId: string) {
+  return await prisma.discord.findUnique({
+    where: { discordId },
+    include: { player: true },
+  });
+}
+
+/**
  * Get player's team memberships (current and past)
  */
 export async function getPlayerTeams(steamId: string) {

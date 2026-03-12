@@ -245,6 +245,23 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   const amountPaid = existingPayment?.amount || 0;
   const isPaid = division.signupCost === 0 || amountPaid >= division.signupCost;
 
+  // Deactivate any stale memberships on other 2v2 teams from previous seasons
+  // before adding the owner to the new team
+  await prisma.playerInTeam.updateMany({
+    where: {
+      playerSteamId: data.ownerSteamId,
+      active: 1,
+      team: {
+        formatId: FORMAT_2V2,
+        seasonId: { not: seasonId },
+      },
+    },
+    data: {
+      active: 0,
+      leftAt: new Date(),
+    },
+  });
+
   // Add owner as player with permissionLevel = 2 (Owner)
   await prisma.playerInTeam.create({
     data: {
@@ -310,6 +327,23 @@ export async function reregisterTeam(
     data.divisionId === 3 || data.divisionId === 4
       ? TeamStatus.PLACEMENT
       : TeamStatus.UNREADY;
+
+  // Deactivate any stale memberships on other 2v2 teams from previous seasons
+  await prisma.playerInTeam.updateMany({
+    where: {
+      playerSteamId: data.ownerSteamId,
+      active: 1,
+      team: {
+        formatId: FORMAT_2V2,
+        id: { not: data.teamId },
+        seasonId: { not: seasonId },
+      },
+    },
+    data: {
+      active: 0,
+      leftAt: new Date(),
+    },
+  });
 
   // Update team with new season/division/region and reset stats
   await prisma.team.update({

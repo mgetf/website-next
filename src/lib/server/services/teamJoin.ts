@@ -279,6 +279,22 @@ export async function acceptInviteByToken(
 
   const paymentStatus = team.division?.signupCost === 0 ? 1 : 0;
 
+  // Deactivate any stale memberships on other 2v2 teams from previous seasons
+  await prisma.playerInTeam.updateMany({
+    where: {
+      playerSteamId: steamId,
+      active: 1,
+      team: {
+        formatId: FORMAT_2V2,
+        seasonId: { not: team.seasonId },
+      },
+    },
+    data: {
+      active: 0,
+      leftAt: new Date(),
+    },
+  });
+
   // Add player to team
   await prisma.playerInTeam.upsert({
     where: {

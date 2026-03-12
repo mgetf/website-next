@@ -5,6 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 /**
  * Get all pending player requests with related data
@@ -84,6 +85,22 @@ export async function approvePlayer(playerSteamId: string, teamId: number) {
 
   // Use transaction to ensure atomicity
   await prisma.$transaction(async (tx) => {
+    // Deactivate any stale memberships on other 2v2 teams from previous seasons
+    await tx.playerInTeam.updateMany({
+      where: {
+        playerSteamId,
+        active: 1,
+        team: {
+          formatId: FORMAT_2V2,
+          seasonId: { not: team.seasonId },
+        },
+      },
+      data: {
+        active: 0,
+        leftAt: new Date(),
+      },
+    });
+
     // Add player to team
     await tx.playerInTeam.create({
       data: {

@@ -1,9 +1,10 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
-import { page } from '$app/stores';
+import { page } from '$app/state';
 import type { PageData } from './$types';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+import { toast } from '$lib/state/toast.svelte';
 
 let { data }: { data: PageData } = $props();
 
@@ -16,8 +17,15 @@ const matchColumns = [
 	{ key: 'away', label: 'Away Team' }
 ];
 
-// Check for success message from create page redirect
-const createdCount = $derived($page.url.searchParams.get('created'));
+$effect(() => {
+	const created = page.url.searchParams.get('created');
+	if (created) {
+		toast.success(`Successfully created ${created} match${created === '1' ? '' : 'es'}!`);
+		const url = new URL(page.url);
+		url.searchParams.delete('created');
+		goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+	}
+});
 
 // Current filter values
 let selectedRegion = $state('');
@@ -135,28 +143,7 @@ function getWinnerClass(match: any, teamId: number): string {
 		</a>
 	</div>
 
-	<!-- Success Message (from create page redirect) -->
-	{#if createdCount}
-		<div class="bg-green-500/20 border border-green-500/50 rounded-lg p-4">
-			<div class="flex items-center space-x-3">
-				<div class="text-2xl">✅</div>
-				<div class="flex-1">
-					<p class="text-green-400 font-semibold">
-						Successfully created {createdCount} match{createdCount === '1' ? '' : 'es'}!
-					</p>
-					<p class="text-green-300 text-sm mt-1">
-						The matches are now visible in the list below.
-					</p>
-				</div>
-				<a 
-					href="/admin/matches?regionId={selectedRegion}&seasonId={selectedSeason}&week={selectedWeek}" 
-					class="text-green-400 hover:text-green-300 text-sm"
-				>
-					Dismiss
-				</a>
-			</div>
-		</div>
-	{/if}
+
 
 	<!-- Filters - Region, Season, Week Selection -->
 	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">

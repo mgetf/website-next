@@ -1,8 +1,8 @@
 <script lang="ts">
 import { enhance } from '$app/forms';
 import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
-import FormError from '$lib/components/ui/form/FormError.svelte';
 import type { PageData } from './$types';
+import { toast } from '$lib/state/toast.svelte';
 
 let { data }: { data: PageData } = $props();
 
@@ -36,8 +36,6 @@ function onBgFileSelected(e: Event) {
 
 // Form states
 let isSubmitting = $state(false);
-let successMessage = $state('');
-let errorMessage = $state('');
 
 // Content states
 let siteTitle = $state('');
@@ -65,16 +63,13 @@ let showPreview = $state(false);
 function handleEnhance(action: string) {
   return () => {
     isSubmitting = true;
-    successMessage = '';
-    errorMessage = '';
 
     return async ({ result, update }: any) => {
       isSubmitting = false;
       if (result.type === 'success') {
-        successMessage = result.data?.message || 'Saved successfully';
-        setTimeout(() => (successMessage = ''), 3000);
+        toast.success(result.data?.message || 'Saved successfully');
       } else if (result.type === 'failure') {
-        errorMessage = result.data?.error || 'Failed to save';
+        toast.error(result.data?.error || 'Failed to save');
       }
       await update();
     };
@@ -104,19 +99,16 @@ function copyKey(key: string, id: number) {
 function handleApiKeyEnhance(actionName: string) {
   return () => {
     isSubmitting = true;
-    successMessage = '';
-    errorMessage = '';
     return async ({ result, update }: any) => {
       isSubmitting = false;
       if (result.type === 'success') {
-        successMessage = result.data?.message || 'Done';
+        toast.success(result.data?.message || 'Done');
         if (actionName === 'create' && result.data?.newKey) {
           createdKey = result.data.newKey;
           newKeyName = '';
         }
-        setTimeout(() => (successMessage = ''), 4000);
       } else if (result.type === 'failure') {
-        errorMessage = result.data?.error || 'Action failed';
+        toast.error(result.data?.error || 'Action failed');
       }
       await update();
     };
@@ -130,10 +122,6 @@ function handleApiKeyEnhance(actionName: string) {
 		<h1 class="text-3xl font-bold text-white mb-2">Site Management</h1>
 		<p class="text-gray-400">Manage site content and settings</p>
 	</div>
-
-	<!-- Success/Error Messages -->
-	<FormError success={successMessage || null} />
-	<FormError error={errorMessage || null} />
 
 	<!-- Tabs -->
 	<div class="border-b border-zinc-800">
@@ -350,16 +338,13 @@ function handleApiKeyEnhance(actionName: string) {
 								class="mt-4"
 								use:enhance={() => {
 									isSubmitting = true;
-									successMessage = '';
-									errorMessage = '';
 									return async ({ result, update }) => {
 										isSubmitting = false;
 										bgPreviewUrl = null;
 										if (result.type === 'success') {
-											successMessage = (result.data as any)?.message || 'Background removed';
-											setTimeout(() => (successMessage = ''), 3000);
+											toast.success((result.data as any)?.message || 'Background removed');
 										} else if (result.type === 'failure') {
-											errorMessage = (result.data as any)?.error || 'Failed to remove background';
+											toast.error((result.data as any)?.error || 'Failed to remove background');
 										}
 										await update();
 									};

@@ -3,8 +3,21 @@ import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
 import Dialog from '$lib/components/ui/Dialog.svelte';
 import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+import { toast } from '$lib/state/toast.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
+
+let lastFormResult: ActionData = null;
+$effect(() => {
+	if (form && form !== lastFormResult) {
+		lastFormResult = form;
+		if (form.success && form.message) {
+			toast.success(form.message);
+		} else if (form.error) {
+			toast.error(form.error);
+		}
+	}
+});
 
 let editingAnnouncement: (typeof data.announcements)[0] | null = $state(null);
 let deletingAnnouncement: (typeof data.announcements)[0] | null = $state(null);
@@ -63,19 +76,6 @@ function toggleEditForm(announcement: (typeof data.announcements)[0]) {
 		<h2 class="text-3xl font-bold text-white mb-2">Global Configuration</h2>
 		<p class="text-gray-400">Manage site-wide settings and announcements</p>
 	</div>
-	
-	<!-- Success/Error Messages -->
-	{#if form?.success}
-		<div class="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
-			<p class="text-green-400 font-medium">{form.message}</p>
-		</div>
-	{/if}
-	
-	{#if form?.error}
-		<div class="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
-			<p class="text-red-400 font-medium">{form.error}</p>
-		</div>
-	{/if}
 	
 	<!-- Section 1: Global Announcements -->
 	<section class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">

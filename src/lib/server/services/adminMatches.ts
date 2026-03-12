@@ -174,10 +174,10 @@ export async function createMatchSet(
     );
   }
 
-  // Get season settings for payment requirement (per-season setting)
+  // Get season settings for payment requirement and format (per-season setting)
   const season = await prisma.season.findUnique({
     where: { id: seasonId },
-    select: { paymentRequired: true },
+    select: { paymentRequired: true, formatId: true },
   });
   const paymentRequired = season?.paymentRequired ?? false;
 
@@ -186,6 +186,7 @@ export async function createMatchSet(
     regionId,
     divisionId,
     seasonId,
+    formatId: season?.formatId,
     status: TeamStatus.READY,
   };
 
@@ -209,11 +210,21 @@ export async function createMatchSet(
     throw error(400, 'No valid team pairings found');
   }
 
+  const seasonFormatId = season?.formatId;
+
   // Create matches
   const matches = [];
   for (let i = 0; i < pairedTeams.length - 1; i += 2) {
     const homeTeam = pairedTeams[i];
     const awayTeam = pairedTeams[i + 1];
+
+    if (homeTeam.formatId !== seasonFormatId || awayTeam.formatId !== seasonFormatId) {
+      throw error(
+        400,
+        `Format mismatch: teams must match the season's format. ` +
+        `Season formatId=${seasonFormatId}, home formatId=${homeTeam.formatId}, away formatId=${awayTeam.formatId}`,
+      );
+    }
 
     const match = await prisma.match.create({
       data: {
@@ -329,6 +340,30 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
     throw error(404, 'Playoff not found');
   }
 
+  // Validate that both teams match the season's format
+  const [seasonData, homeTeam, awayTeam] = await Promise.all([
+    prisma.season.findUnique({ where: { id: seasonId }, select: { formatId: true } }),
+    prisma.team.findUnique({ where: { id: homeTeamId }, select: { formatId: true, name: true } }),
+    prisma.team.findUnique({ where: { id: awayTeamId }, select: { formatId: true, name: true } }),
+  ]);
+
+  if (!homeTeam) throw error(404, `Home team ${homeTeamId} not found`);
+  if (!awayTeam) throw error(404, `Away team ${awayTeamId} not found`);
+
+  const seasonFormatId = seasonData?.formatId;
+  if (homeTeam.formatId !== seasonFormatId) {
+    throw error(
+      400,
+      `Format mismatch: home team "${homeTeam.name}" (formatId=${homeTeam.formatId}) does not match season format (formatId=${seasonFormatId})`,
+    );
+  }
+  if (awayTeam.formatId !== seasonFormatId) {
+    throw error(
+      400,
+      `Format mismatch: away team "${awayTeam.name}" (formatId=${awayTeam.formatId}) does not match season format (formatId=${seasonFormatId})`,
+    );
+  }
+
   // Create match
   const match = await prisma.match.create({
     data: {
@@ -416,10 +451,10 @@ export async function getEligibleTeams(
   divisionId: number,
   seasonId: number,
 ) {
-  // Get season settings for payment requirement (per-season setting)
+  // Get season settings for payment requirement and format (per-season setting)
   const season = await prisma.season.findUnique({
     where: { id: seasonId },
-    select: { paymentRequired: true },
+    select: { paymentRequired: true, formatId: true },
   });
   const paymentRequired = season?.paymentRequired ?? false;
 
@@ -427,6 +462,7 @@ export async function getEligibleTeams(
     regionId,
     divisionId,
     seasonId,
+    formatId: season?.formatId,
     status: TeamStatus.READY,
   };
 

@@ -253,9 +253,20 @@ const matchPreviewColumns = [
 						{selectedRegionId ? 'Select Season' : 'Select Region First'}
 					</option>
 					{#each seasonsForRegion as season}
-						<option value={season.id}>Season {season.seasonNum}</option>
+						<option value={season.id}>Season {season.seasonNum} ({season.format.name})</option>
 					{/each}
 					</select>
+					{#if selectedSeason}
+						{@const formatName = selectedSeason.format.name}
+						{@const colorClasses = formatName === '1v1'
+							? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
+							: formatName === '2v2'
+								? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+								: 'bg-zinc-800 border-zinc-700 text-gray-300'}
+						<p class="mt-2 px-3 py-1.5 rounded-md border text-sm font-medium inline-block {colorClasses}">
+							Format: {formatName}
+						</p>
+					{/if}
 				</div>
 
 				<!-- Playoff Round -->

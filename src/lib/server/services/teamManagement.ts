@@ -15,6 +15,7 @@ import path from 'path';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { createNotificationForUser } from './notifications';
+import { hashPassword } from '../utils/password';
 
 interface TeamEditData {
   team: any;
@@ -155,13 +156,18 @@ export async function updateTeamInfo(
     throw error(400, 'Team acronym must be 4 characters or less');
   }
 
+  // Hash the new password if provided
+  const hashedPassword = data.joinPassword
+    ? await hashPassword(data.joinPassword)
+    : undefined;
+
   // Update team
   await prisma.team.update({
     where: { id: teamId },
     data: {
       ...(data.name && { name: data.name }),
       ...(data.acronym !== undefined && { acronym: data.acronym }),
-      ...(data.joinPassword && { joinPassword: data.joinPassword }),
+      ...(hashedPassword && { joinPassword: hashedPassword }),
     },
   });
 }

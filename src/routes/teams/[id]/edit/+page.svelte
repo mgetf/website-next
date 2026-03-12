@@ -265,11 +265,11 @@ async function copyInviteLink() {
 								<input
 									type="text"
 									name="joinPassword"
-									value={data.team.joinPassword || ''}
 									disabled={data.rosterLocked}
-									placeholder="Team join password"
+									placeholder="Enter a new password to change it"
 									class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white disabled:opacity-50 focus:outline-none focus:border-orange-500"
 								/>
+								<p class="text-xs text-gray-500">Leave blank to keep your current password.</p>
 								<button
 									type="submit"
 									disabled={isSubmitting || data.rosterLocked}

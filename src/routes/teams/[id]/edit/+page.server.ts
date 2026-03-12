@@ -121,10 +121,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const joinPassword = formData.get('joinPassword') as string;
+    const joinPassword = (formData.get('joinPassword') as string)?.trim();
 
     if (!joinPassword) {
-      return fail(400, { error: 'Password is required' });
+      return { success: true, message: 'No changes made' };
     }
 
     try {

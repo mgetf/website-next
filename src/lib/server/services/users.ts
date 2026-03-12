@@ -36,7 +36,12 @@ export async function getUserByDiscordId(discordId: string) {
  */
 export async function getPlayerTeams(steamId: string) {
   return await prisma.playerInTeam.findMany({
-    where: { playerSteamId: steamId },
+    where: {
+      playerSteamId: steamId,
+      team: {
+        formatId: FORMAT_2V2,
+      },
+    },
     include: {
       team: {
         include: {

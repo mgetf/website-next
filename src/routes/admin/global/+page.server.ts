@@ -135,7 +135,7 @@ export const actions: Actions = {
     }
   },
 
-  editAnnouncement: async ({ request, locals }) => {
+  editAnnouncement: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -158,6 +158,7 @@ export const actions: Actions = {
 
     try {
       await updateAnnouncement(id, content);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.ANNOUNCEMENT_UPDATED, targetType: 'Announcement', targetId: String(id), metadata: { content }, ipAddress: getClientAddress() });
       return { success: true, message: 'Announcement updated successfully' };
     } catch (error) {
       console.error('Error updating announcement:', error);
@@ -189,7 +190,7 @@ export const actions: Actions = {
     }
   },
 
-  deleteAnnouncement: async ({ request, locals }) => {
+  deleteAnnouncement: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -201,6 +202,7 @@ export const actions: Actions = {
 
     try {
       await deleteAnnouncement(id);
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.ANNOUNCEMENT_DELETED, targetType: 'Announcement', targetId: String(id), ipAddress: getClientAddress() });
       return { success: true, message: 'Announcement deleted successfully' };
     } catch (error) {
       console.error('Error deleting announcement:', error);

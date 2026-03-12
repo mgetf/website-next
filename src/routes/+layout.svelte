@@ -9,6 +9,7 @@ import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
 import { identifyUser } from '$lib/utils/posthog';
 import { onMount } from 'svelte';
 import { afterNavigate } from '$app/navigation';
+import { page } from '$app/state';
 
 let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -84,9 +85,11 @@ afterNavigate(() => {
 					userTeam={data.userTeam}
 				/>
 				
-			{#if data.announcements.length > 0}
+		{#if data.announcements.length > 0 && !page.url.pathname.startsWith('/admin')}
+			<div class="{data.siteSettings?.backgroundImagePath ? 'bg-zinc-950/50' : ''}">
 				<AnnouncementBanner announcements={data.announcements} />
-			{/if}
+			</div>
+		{/if}
 				
 				<div
 					id="main-content"

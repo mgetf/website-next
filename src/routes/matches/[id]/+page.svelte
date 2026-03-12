@@ -1,11 +1,11 @@
 <script lang="ts">
 import { enhance } from '$app/forms';
-import { page } from '$app/stores';
 import type { PageData, ActionData } from './$types';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import Dialog from '$lib/components/ui/Dialog.svelte';
 import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
 import FormError from '$lib/components/ui/form/FormError.svelte';
+import { toast } from '$lib/state/toast.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -15,8 +15,6 @@ let showDemoUploadModal = $state(false);
 let showDemoReportModal = $state(false);
 let selectedDemoForReport = $state<any>(null);
 let messageContent = $state('');
-let scoreSubmitError = $state<string | null>(null);
-let scoreSubmitSuccess = $state(false);
 let isSubmittingScore = $state(false);
 let isSubmittingMessage = $state(false);
 let isUploadingDemo = $state(false);
@@ -489,49 +487,66 @@ const playedGames = $derived(
 	{#if canSubmitScores}
 		<div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-md p-6 mb-6">
 			<h2 class="text-2xl font-bold text-white mb-4">Submit Match Scores</h2>
-			
-			<!-- Error Message -->
-			{#if scoreSubmitError}
-				<div class="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
-					<p class="text-red-300 font-semibold">Error</p>
-					<p class="text-red-200 text-sm">{scoreSubmitError}</p>
-				</div>
-			{/if}
-			
-			<!-- Success Message -->
-			{#if scoreSubmitSuccess}
-				<div class="mb-4 p-4 bg-green-900/20 border border-green-700 rounded-lg">
-					<p class="text-green-300 font-semibold">Success!</p>
-					<p class="text-green-200 text-sm">Scores submitted successfully</p>
-				</div>
-			{/if}
-			
-			<form 
-				method="POST" 
-				action="?/submitScores" 
+
+			<form
+				method="POST"
+				action="?/submitScores"
 				use:enhance={() => {
 					isSubmittingScore = true;
-					scoreSubmitError = null;
-					scoreSubmitSuccess = false;
-					
-				return async ({ result, update }) => {
-					isSubmittingScore = false;
-					
-					if (result.type === 'failure') {
-						const errorData = result.data as { error?: string } | undefined;
-						scoreSubmitError = errorData?.error || 'Failed to submit scores';
-					} else if (result.type === 'success') {
-						scoreSubmitSuccess = true;
-						// Clear success message after a delay
-						setTimeout(() => {
-							scoreSubmitSuccess = false;
-						}, 3000);
-					}
-					
-					await update();
-				};
+
+					return async ({ result, update }) => {
+						isSubmittingScore = false;
+
+						if (result.type === 'failure') {
+							const errorData = result.data as { error?: string } | undefined;
+							toast.error(errorData?.error || 'Failed to submit scores');
+						} else if (result.type === 'success') {
+							toast.success('Scores submitted successfully!');
+						}
+
+						await update();
+					};
 				}}
 			>
+				<!-- Team column headers -->
+				<div class="grid grid-cols-3 gap-4 items-center mb-5 pb-4 border-b border-zinc-700">
+					<div class="flex items-center gap-3">
+						<img
+							src={match.is1v1 && match.homePlayer
+								? (match.homePlayer.steamAvatar || '/default-avatar.png')
+								: (match.homeTeam.avatar || '/default-avatar.png')}
+							alt={getHomeName()}
+							class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+						/>
+						<div>
+							<p class="font-semibold text-white">{getHomeName()}</p>
+							{#if data.permissions.isHomeOwner}
+								<p class="text-xs text-blue-400 font-medium">You</p>
+							{:else}
+								<p class="text-xs text-gray-500">Home</p>
+							{/if}
+						</div>
+					</div>
+					<div></div>
+					<div class="flex items-center gap-3 justify-end">
+						<div class="text-right">
+							<p class="font-semibold text-white">{getAwayName()}</p>
+							{#if data.permissions.isAwayOwner}
+								<p class="text-xs text-blue-400 font-medium">You</p>
+							{:else}
+								<p class="text-xs text-gray-500">Away</p>
+							{/if}
+						</div>
+						<img
+							src={match.is1v1 && match.awayPlayer
+								? (match.awayPlayer.steamAvatar || '/default-avatar.png')
+								: (match.awayTeam.avatar || '/default-avatar.png')}
+							alt={getAwayName()}
+							class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+						/>
+					</div>
+				</div>
+
 				<div class="space-y-4">
 					{#each Array(match.boSeries || 3) as _, i}
 						{@const disabled = isGameDisabled(i)}
@@ -548,9 +563,7 @@ const playedGames = $derived(
 							</div>
 							<div class="grid grid-cols-3 gap-4 items-center">
 								<div>
-									<label for="homeScore-{i}" class="block text-sm font-medium text-gray-300 mb-1">
-										{getHomeName()}
-									</label>
+									<label for="homeScore-{i}" class="sr-only">{getHomeName()} score</label>
 									<input
 										id="homeScore-{i}"
 										type="number"
@@ -570,9 +583,7 @@ const playedGames = $derived(
 								</div>
 								<div class="text-center text-gray-400 font-semibold">VS</div>
 								<div>
-									<label for="awayScore-{i}" class="block text-sm font-medium text-gray-300 mb-1">
-										{getAwayName()}
-									</label>
+									<label for="awayScore-{i}" class="sr-only">{getAwayName()} score</label>
 									<input
 										id="awayScore-{i}"
 										type="number"
@@ -712,7 +723,7 @@ const playedGames = $derived(
 					<button
 						type="button"
 						onclick={() => (showDisputeForm = false)}
-						class="bg-gray-300 text-gray-300 px-6 py-3 rounded-lg hover:bg-gray-400 transition font-semibold"
+						class="bg-zinc-700 text-gray-200 px-6 py-3 rounded-lg hover:bg-zinc-600 transition font-semibold"
 					>
 						Cancel
 					</button>

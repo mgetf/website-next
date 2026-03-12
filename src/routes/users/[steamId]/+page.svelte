@@ -573,13 +573,9 @@ function winPct(wins: number, losses: number): string {
 														<tr class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result === 'TBD' ? 'opacity-50' : ''}">
 															<td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap">{match.week}</td>
 															<td class="px-6 py-2.5">
-																{#if match.opponentId}
-																	<a href="/users/{match.opponentId}" class="text-white hover:text-blue-400 transition-colors font-medium text-sm">
-																		{match.opponentName}
-																	</a>
-																{:else}
-																	<span class="text-gray-600 italic text-sm">TBD</span>
-																{/if}
+																<a href="/matches/{match.matchId}" class="text-white hover:text-blue-400 transition-colors font-medium text-sm">
+																	{match.opponentName || 'TBD'}
+																</a>
 															</td>
 															<td class="px-6 py-2.5 text-center">
 																<span class="inline-block px-2 py-0.5 rounded text-xs font-bold border {getResultBg(match.result)}">

@@ -2,8 +2,9 @@
 import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
 
 interface PageData {
-  leagueData: {
+  league2v2Data: {
     season: string;
+    signupsOpen: boolean;
     topTeams: Array<{
       rank: number;
       name: string;
@@ -12,26 +13,18 @@ interface PageData {
       id: number;
     }>;
   };
-  tournamentData: {
-    recentEvents: Array<{
-      type: 'cup' | 'championship' | 'fightnight';
+  league1v1Data: {
+    season: string;
+    signupsOpen: boolean;
+    topEntries: Array<{
+      rank: number;
       id: number;
       name: string;
-      date: Date | null;
-      icon: string;
-      format?: string;
-      winner?: {
-        steamId: string;
-        steamUsername: string;
-        steamAvatar: string;
-      } | null;
-      matchupCount?: number;
+      avatar: string | null;
+      steamId: string | null;
+      record: string;
+      points: number;
     }>;
-    totalCounts: {
-      cups: number;
-      championships: number;
-      fightNights: number;
-    };
   };
   siteContent: {
     subtitle: string;
@@ -41,30 +34,13 @@ interface PageData {
 
 let { data } = $props<{ data: PageData }>();
 
-const leagueData = $derived(
-  data.leagueData || { season: 'Season 1', topTeams: [] },
+const league2v2Data = $derived(
+  data.league2v2Data || { season: 'Season 1', signupsOpen: false, topTeams: [] },
 );
-const tournamentData = $derived(
-  data.tournamentData || {
-    recentEvents: [],
-    totalCounts: { cups: 0, championships: 0, fightNights: 0 },
-  },
+const league1v1Data = $derived(
+  data.league1v1Data || { season: 'Season 1', signupsOpen: false, topEntries: [] },
 );
 const siteContent = $derived(data.siteContent || { subtitle: '', about: '' });
-
-const formatEventDate = (date: Date | null) => {
-  if (!date) return 'TBD';
-  try {
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return 'TBD';
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return 'TBD';
-  }
-};
 </script>
 
 <div class="min-h-screen">
@@ -84,134 +60,151 @@ const formatEventDate = (date: Date | null) => {
 	<!-- Competition Cards -->
 	<section class="max-w-7xl mx-auto px-6 mb-16">
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-			
+
 			<!-- 2v2 League Card -->
-			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-blue-500 hover:border-blue-400 transition-all shadow-xl shadow-blue-500/10 hover:shadow-blue-500/20 flex flex-col">
-				<div class="mb-4">
-					<h3 class="text-2xl font-bold text-blue-400">2v2 LEAGUE</h3>
-				</div>
-				
-				<div class="mb-6">
-					<p class="text-gray-400 text-sm mb-2">Current Season</p>
-					<p class="text-xl font-semibold text-white">{leagueData.season}</p>
-				</div>
-
-				<div class="mb-6">
-					<p class="text-gray-400 text-sm mb-3">Premier Division Top 3</p>
-					<div class="space-y-2">
-						{#if leagueData.topTeams.length > 0}
-							{#each leagueData.topTeams as team}
-								<a 
-									href="/teams/{team.id}"
-									class="flex items-center justify-between bg-gray-800 bg-opacity-50 rounded p-2 hover:bg-gray-700 transition-colors"
-								>
-									<div class="flex items-center gap-3">
-										<span class="text-gray-400 font-mono w-6">#{team.rank}</span>
-										<span class="text-white font-medium">{team.name}</span>
-									</div>
-									<div class="text-right">
-										<div class="text-sm text-gray-400">{team.record}</div>
-										<div class="text-xs text-gray-500">{team.points} ppg</div>
-									</div>
-								</a>
-							{/each}
-						{:else}
-							<div class="text-center py-4 text-gray-500">
-								No teams yet this season
-							</div>
-						{/if}
+			{#if league2v2Data.signupsOpen}
+				<div class="rounded-xl border-2 border-blue-400 shadow-2xl shadow-blue-500/25 flex flex-col overflow-hidden">
+					<div class="h-1.5 w-full bg-blue-400"></div>
+					<div class="bg-zinc-900 p-8 flex flex-col flex-grow">
+						<p class="text-blue-400 text-sm font-bold tracking-widest uppercase mb-6">2v2 League &mdash; {league2v2Data.season}</p>
+						<div class="flex-grow flex flex-col justify-center mb-8">
+							<p class="text-5xl font-black text-white uppercase leading-none mb-2">Signups</p>
+							<p class="text-5xl font-black text-blue-400 uppercase leading-none mb-6">Are Open.</p>
+							<p class="text-gray-400 text-base leading-relaxed">
+								New season, new teams. Get registered before it fills up.
+							</p>
+						</div>
+						<a
+							href="/signup"
+							class="block w-full py-5 px-6 bg-blue-500 hover:bg-blue-400 text-white font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-blue-500/40 hover:shadow-blue-400/60 mb-3"
+						>
+							Register Your Team →
+						</a>
+						<a
+							href="/leagues/2v2"
+							class="block w-full py-2.5 px-4 text-gray-500 hover:text-gray-300 font-medium text-sm rounded-lg text-center transition-colors"
+						>
+							View Standings
+						</a>
 					</div>
 				</div>
-
-				<a 
-					href="/leagues/2v2" 
-					class="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-center transition-colors mt-auto"
-				>
-					View Full Standings →
-				</a>
-			</div>
-
-			<!-- Tournaments Card -->
-			<div class="bg-zinc-900 rounded-xl p-8 border-2 border-purple-500 hover:border-purple-400 transition-all shadow-xl shadow-purple-500/10 hover:shadow-purple-500/20 flex flex-col">
-				<div class="mb-6">
-					<h3 class="text-2xl font-bold text-purple-400">TOURNAMENTS</h3>
-				</div>
-				
-				<!-- Recent Events -->
-				<div class="mb-6 flex-grow">
-					<p class="text-gray-400 text-sm mb-3">Recent Events</p>
-					<div class="space-y-3">
-						{#if tournamentData.recentEvents.length > 0}
-							{#each tournamentData.recentEvents as event}
-								<div class="bg-zinc-800 rounded-lg p-3 border border-zinc-700 hover:border-purple-500/50 transition-colors">
-									<div class="flex items-start gap-3">
-										<span class="text-2xl">{event.icon}</span>
-										<div class="flex-1 min-w-0">
-											<div class="flex items-center gap-2 mb-1">
-												<p class="text-white font-semibold text-sm truncate">{event.name}</p>
-												{#if event.format}
-													<span class="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs font-medium border border-purple-500/30 flex-shrink-0">
-														{event.format}
-													</span>
-												{/if}
-											</div>
-											{#if event.winner}
-												<div class="flex items-center gap-2">
-													<img 
-														src={event.winner.steamAvatar || '/default-avatar.png'} 
-														alt={event.winner.steamUsername}
-														class="w-5 h-5 rounded-full"
-													/>
-													<p class="text-xs text-gray-400 truncate">
-														Winner: <span class="text-gray-300">{event.winner.steamUsername}</span>
-													</p>
-												</div>
-											{:else if event.matchupCount !== undefined}
-												<p class="text-xs text-gray-400">
-													{event.matchupCount} {event.matchupCount === 1 ? 'matchup' : 'matchups'}
-												</p>
-											{/if}
-											<p class="text-xs text-gray-500 mt-1">{formatEventDate(event.date)}</p>
+			{:else}
+				<div class="bg-zinc-900 rounded-xl p-8 border-2 border-blue-500 hover:border-blue-400 transition-all shadow-xl shadow-blue-500/10 hover:shadow-blue-500/20 flex flex-col">
+					<div class="mb-4">
+						<h3 class="text-2xl font-bold text-blue-400">2v2 LEAGUE</h3>
+					</div>
+					<div class="mb-6">
+						<p class="text-gray-400 text-sm mb-2">Current Season</p>
+						<p class="text-xl font-semibold text-white">{league2v2Data.season}</p>
+					</div>
+					<div class="mb-6">
+						<p class="text-gray-400 text-sm mb-3">Premier Division Top 3</p>
+						<div class="space-y-2">
+							{#if league2v2Data.topTeams.length > 0}
+								{#each league2v2Data.topTeams as team}
+									<a
+										href="/teams/{team.id}"
+										class="flex items-center justify-between bg-gray-800 bg-opacity-50 rounded p-2 hover:bg-gray-700 transition-colors"
+									>
+										<div class="flex items-center gap-3">
+											<span class="text-gray-400 font-mono w-6">#{team.rank}</span>
+											<span class="text-white font-medium">{team.name}</span>
 										</div>
-									</div>
+										<div class="text-right">
+											<div class="text-sm text-gray-400">{team.record}</div>
+											<div class="text-xs text-gray-500">{team.points} ppg</div>
+										</div>
+									</a>
+								{/each}
+							{:else}
+								<div class="text-center py-4 text-gray-500">
+									No teams yet this season
 								</div>
-							{/each}
-						{:else}
-							<div class="text-center py-8 text-gray-500">
-								<p class="text-2xl mb-2">🏆</p>
-								<p class="text-sm">No tournaments yet</p>
-							</div>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Total Counts -->
-				<div class="mb-6 pt-4 border-t border-zinc-800">
-					<div class="flex items-center justify-center gap-4 text-xs text-gray-400">
-						<div class="text-center">
-							<p class="text-white font-bold text-lg">{tournamentData.totalCounts.cups}</p>
-							<p>Cups</p>
-						</div>
-						<div class="w-px h-8 bg-zinc-700"></div>
-						<div class="text-center">
-							<p class="text-white font-bold text-lg">{tournamentData.totalCounts.championships}</p>
-							<p>Championships</p>
-						</div>
-						<div class="w-px h-8 bg-zinc-700"></div>
-						<div class="text-center">
-							<p class="text-white font-bold text-lg">{tournamentData.totalCounts.fightNights}</p>
-							<p>Fight Nights</p>
+							{/if}
 						</div>
 					</div>
+					<a
+						href="/leagues/2v2"
+						class="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-center transition-colors mt-auto"
+					>
+						View Full Standings →
+					</a>
 				</div>
+			{/if}
 
-				<a 
-					href="/tournaments" 
-					class="block w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-purple-500/30"
-				>
-					View All Tournaments →
-				</a>
-			</div>
+			<!-- 1v1 League Card -->
+			{#if league1v1Data.signupsOpen}
+				<div class="rounded-xl border-2 border-purple-400 shadow-2xl shadow-purple-500/25 flex flex-col overflow-hidden">
+					<div class="h-1.5 w-full bg-purple-400"></div>
+					<div class="bg-zinc-900 p-8 flex flex-col flex-grow">
+						<p class="text-purple-400 text-sm font-bold tracking-widest uppercase mb-6">1v1 League &mdash; {league1v1Data.season}</p>
+						<div class="flex-grow flex flex-col justify-center mb-8">
+							<p class="text-5xl font-black text-white uppercase leading-none mb-2">Signups</p>
+							<p class="text-5xl font-black text-purple-400 uppercase leading-none mb-6">Are Open.</p>
+							<p class="text-gray-400 text-base leading-relaxed">
+								New season starting soon. Get your name on the list.
+							</p>
+						</div>
+						<a
+							href="/signup"
+							class="block w-full py-5 px-6 bg-purple-600 hover:bg-purple-500 text-white font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-purple-500/40 hover:shadow-purple-500/60 mb-3"
+						>
+							Sign Up Now →
+						</a>
+						<a
+							href="/leagues/1v1"
+							class="block w-full py-2.5 px-4 text-gray-500 hover:text-gray-300 font-medium text-sm rounded-lg text-center transition-colors"
+						>
+							View Standings
+						</a>
+					</div>
+				</div>
+			{:else}
+				<div class="bg-zinc-900 rounded-xl p-8 border-2 border-purple-500 hover:border-purple-400 transition-all shadow-xl shadow-purple-500/10 hover:shadow-purple-500/20 flex flex-col">
+					<div class="mb-4">
+						<h3 class="text-2xl font-bold text-purple-400">1v1 LEAGUE</h3>
+					</div>
+					<div class="mb-6">
+						<p class="text-gray-400 text-sm mb-2">Current Season</p>
+						<p class="text-xl font-semibold text-white">{league1v1Data.season}</p>
+					</div>
+					<div class="mb-6">
+						<p class="text-gray-400 text-sm mb-3">Premier Division Top 3</p>
+						<div class="space-y-2">
+							{#if league1v1Data.topEntries.length > 0}
+								{#each league1v1Data.topEntries as entry}
+									<a
+										href={entry.steamId ? `/users/${entry.steamId}` : `/leagues/1v1`}
+										class="flex items-center justify-between bg-gray-800 bg-opacity-50 rounded p-2 hover:bg-gray-700 transition-colors"
+									>
+										<div class="flex items-center gap-3">
+											<span class="text-gray-400 font-mono w-6">#{entry.rank}</span>
+											{#if entry.avatar}
+												<img src={entry.avatar} alt={entry.name} class="w-6 h-6 rounded-full" />
+											{/if}
+											<span class="text-white font-medium">{entry.name}</span>
+										</div>
+										<div class="text-right">
+											<div class="text-sm text-gray-400">{entry.record}</div>
+											<div class="text-xs text-gray-500">{entry.points} ppg</div>
+										</div>
+									</a>
+								{/each}
+							{:else}
+								<div class="text-center py-4 text-gray-500">
+									No players yet this season
+								</div>
+							{/if}
+						</div>
+					</div>
+					<a
+						href="/leagues/1v1"
+						class="block w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-center transition-all shadow-lg hover:shadow-purple-500/30 mt-auto"
+					>
+						View Full Standings →
+					</a>
+				</div>
+			{/if}
 
 		</div>
 	</section>

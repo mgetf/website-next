@@ -1,9 +1,9 @@
-import { getCurrentSeason } from '$lib/server/services/seasons';
+import { getCurrentSeasonByFormat } from '$lib/server/services/seasons';
 import {
   getTeamsForStandings,
   calculateStandingsStats,
+  getTop1v1EntriesForHomepage,
 } from '$lib/server/services/teams';
-import { getRecentTournamentActivity } from '$lib/server/services/tournaments';
 import { TeamStatus } from '$prisma/client.js';
 import { findDivisionByName } from '$lib/server/services/divisions';
 import {
@@ -11,35 +11,37 @@ import {
   CONTENT_KEYS,
   getDefaultContent,
 } from '$lib/server/services/siteContent';
+import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 
 export const load = async () => {
   try {
-    // Fetch all data in parallel using services
-    const [
-      season,
-      premierDivision,
-      tournamentActivity,
-      homepageSubtitle,
-      homepageAbout,
-    ] = await Promise.all([
-      getCurrentSeason(),
-      findDivisionByName('Premier'),
-      getRecentTournamentActivity(),
-      getContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
-      getContent(CONTENT_KEYS.HOMEPAGE_ABOUT),
-    ]);
+    const [season2v2, season1v1, premierDivision, homepageSubtitle, homepageAbout] =
+      await Promise.all([
+        getCurrentSeasonByFormat(FORMAT_2V2),
+        getCurrentSeasonByFormat(FORMAT_1V1),
+        findDivisionByName('Premier'),
+        getContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
+        getContent(CONTENT_KEYS.HOMEPAGE_ABOUT),
+      ]);
 
-    // Get top 3 premier division teams for current season
-    let topTeams: any[] = [];
-    if (season && premierDivision) {
+    // 2v2 card data
+    let topTeams2v2: Array<{
+      rank: number;
+      name: string;
+      record: string;
+      points: number;
+      id: number;
+    }> = [];
+
+    if (season2v2 && !season2v2.signupsOpen && premierDivision) {
       const teams = await getTeamsForStandings({
-        seasonId: season.id,
+        seasonId: season2v2.id,
         divisionId: premierDivision.id,
         statuses: [TeamStatus.READY],
         limit: 3,
       });
 
-      topTeams = teams.map((team, index) => {
+      topTeams2v2 = teams.map((team, index) => {
         const stats = calculateStandingsStats(team);
         return {
           rank: index + 1,
@@ -51,15 +53,45 @@ export const load = async () => {
       });
     }
 
-    // Transform data for the homepage
+    // 1v1 card data
+    let topEntries1v1: Array<{
+      rank: number;
+      id: number;
+      name: string;
+      avatar: string | null;
+      steamId: string | null;
+      record: string;
+      points: number;
+    }> = [];
+
+    if (season1v1 && !season1v1.signupsOpen && premierDivision) {
+      const entries = await getTop1v1EntriesForHomepage({
+        seasonId: season1v1.id,
+        divisionId: premierDivision.id,
+        limit: 3,
+      });
+
+      topEntries1v1 = entries.map((e) => ({
+        rank: e.rank,
+        id: e.id,
+        name: e.name,
+        avatar: e.avatar,
+        steamId: e.steamId,
+        record: e.record,
+        points: e.pointsPerGame,
+      }));
+    }
+
     return {
-      leagueData: {
-        season: season ? `Season ${season.seasonNum}` : 'Season 1',
-        topTeams,
+      league2v2Data: {
+        season: season2v2 ? `Season ${season2v2.seasonNum}` : 'Season 1',
+        signupsOpen: season2v2?.signupsOpen ?? false,
+        topTeams: topTeams2v2,
       },
-      tournamentData: {
-        recentEvents: tournamentActivity.recentEvents,
-        totalCounts: tournamentActivity.totalCounts,
+      league1v1Data: {
+        season: season1v1 ? `Season ${season1v1.seasonNum}` : 'Season 1',
+        signupsOpen: season1v1?.signupsOpen ?? false,
+        topEntries: topEntries1v1,
       },
       siteContent: {
         subtitle:
@@ -70,19 +102,16 @@ export const load = async () => {
   } catch (error) {
     console.error('Error loading homepage:', error);
 
-    // Return fallback data if services fail
     return {
-      leagueData: {
+      league2v2Data: {
         season: 'Season 1',
+        signupsOpen: false,
         topTeams: [],
       },
-      tournamentData: {
-        recentEvents: [],
-        totalCounts: {
-          cups: 0,
-          championships: 0,
-          fightNights: 0,
-        },
+      league1v1Data: {
+        season: 'Season 1',
+        signupsOpen: false,
+        topEntries: [],
       },
       siteContent: {
         subtitle: getDefaultContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),

@@ -480,6 +480,67 @@ export async function findRecentSeasonWithTeams(
 }
 
 /**
+ * Get top 1v1 entries for the homepage card
+ * Includes player steamId for profile links
+ */
+export async function getTop1v1EntriesForHomepage(options: {
+  seasonId: number;
+  divisionId: number;
+  limit?: number;
+}) {
+  const { seasonId, divisionId, limit = 3 } = options;
+
+  const teams = await prisma.team.findMany({
+    where: {
+      seasonId,
+      divisionId,
+      status: 'READY',
+    },
+    select: {
+      id: true,
+      name: true,
+      avatar: true,
+      wins: true,
+      losses: true,
+      gamesWon: true,
+      gamesLost: true,
+      pointsScored: true,
+      players: {
+        select: {
+          player: {
+            select: {
+              steamId: true,
+            },
+          },
+        },
+        take: 1,
+      },
+    },
+    orderBy: [{ wins: 'desc' }, { losses: 'asc' }, { pointsScored: 'desc' }],
+    take: limit,
+  });
+
+  return teams.map((team, index) => {
+    const totalGames = team.gamesWon + team.gamesLost;
+    const pointsPerGame =
+      totalGames > 0
+        ? parseFloat((team.pointsScored / totalGames).toFixed(1))
+        : 0;
+    return {
+      rank: index + 1,
+      id: team.id,
+      name: team.name,
+      avatar: team.avatar,
+      steamId: team.players[0]?.player?.steamId ?? null,
+      wins: team.wins,
+      losses: team.losses,
+      record: `${team.wins}-${team.losses}`,
+      pointsPerGame,
+    };
+  });
+}
+
+/**
  * Helper: Calculate standings stats for a team
  */
 export function calculateStandingsStats(team: {

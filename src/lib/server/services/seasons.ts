@@ -59,6 +59,17 @@ export async function getCurrentSeason() {
 }
 
 /**
+ * Get the current (most recent) season for a specific format
+ */
+export async function getCurrentSeasonByFormat(formatId: number) {
+  return await prisma.season.findFirst({
+    where: { formatId },
+    orderBy: { seasonNum: 'desc' },
+    include: { region: true },
+  });
+}
+
+/**
  * Create a new season
  *
  * Business logic validation:

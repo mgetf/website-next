@@ -325,6 +325,88 @@ export function buildAchievements(tournamentResults: any[]) {
     }));
 }
 
+export interface ProfileMatch {
+  matchId: number;
+  week: string;
+  opponentName: string;
+  opponentId: number;
+  result: 'W' | 'L' | 'TBD';
+  score: string;
+}
+
+/**
+ * Fetch all league matches for a set of team IDs in one query.
+ * Returns a map of teamId → ordered match list (chronological within each season).
+ */
+async function getMatchesByTeamIds(
+  teamIds: number[],
+): Promise<Map<number, ProfileMatch[]>> {
+  if (teamIds.length === 0) return new Map();
+
+  const matches = await prisma.match.findMany({
+    where: {
+      OR: [{ homeTeamId: { in: teamIds } }, { awayTeamId: { in: teamIds } }],
+    },
+    include: {
+      homeTeam: { select: { id: true, name: true } },
+      awayTeam: { select: { id: true, name: true } },
+    },
+    orderBy: [{ weekNo: 'asc' }, { playoffRound: 'asc' }],
+  });
+
+  const result = new Map<number, ProfileMatch[]>();
+  for (const id of teamIds) result.set(id, []);
+
+  const teamIdSet = new Set(teamIds);
+
+  for (const match of matches) {
+    const processForTeam = (teamId: number, isHome: boolean) => {
+      if (!teamIdSet.has(teamId)) return;
+
+      const opponent = isHome ? match.awayTeam : match.homeTeam;
+      const won = match.winnerId === teamId;
+      const matchResult: 'W' | 'L' | 'TBD' = match.winnerId
+        ? won
+          ? 'W'
+          : 'L'
+        : 'TBD';
+
+      let score = 'TBD';
+      if (match.winnerScore !== null && match.loserScore !== null) {
+        score = won
+          ? `${match.winnerScore}-${match.loserScore}`
+          : `${match.loserScore}-${match.winnerScore}`;
+      }
+
+      let week = '—';
+      if (match.playoffRound !== null) {
+        week =
+          match.playoffRound === 1
+            ? 'Semifinal'
+            : match.playoffRound === 2
+              ? 'Final'
+              : `Playoff R${match.playoffRound}`;
+      } else if (match.weekNo !== null) {
+        week = `Week ${match.weekNo}`;
+      }
+
+      result.get(teamId)!.push({
+        matchId: match.id,
+        week,
+        opponentName: opponent.name,
+        opponentId: opponent.id,
+        result: matchResult,
+        score,
+      });
+    };
+
+    processForTeam(match.homeTeamId, true);
+    processForTeam(match.awayTeamId, false);
+  }
+
+  return result;
+}
+
 /**
  * Get complete player profile data
  * Used by player/[steamId] page
@@ -359,7 +441,7 @@ export async function getPlayerProfile(steamId: string) {
   const current1v1Entry = player1v1Entries.find(
     (e) => e.team.status === 'READY',
   );
-  const entries1v1 = player1v1Entries.map((entry) => ({
+  const entries1v1Base = player1v1Entries.map((entry) => ({
     id: entry.team.id,
     active: entry.team.status === 'READY',
     division: entry.team.division?.name || 'Unknown',
@@ -369,6 +451,28 @@ export async function getPlayerProfile(steamId: string) {
     losses: entry.team.losses,
     startedAt: entry.startedAt,
     leftAt: entry.leftAt,
+  }));
+
+  // Batch-fetch all league matches for 2v2 teams and 1v1 entries
+  const allTeamIds = [
+    ...currentTeams.map((t) => t.teamId),
+    ...teamHistory.map((t) => t.teamId),
+    ...entries1v1Base.map((e) => e.id),
+  ];
+  const matchesMap = await getMatchesByTeamIds(allTeamIds);
+
+  // Attach matches to each team and entry
+  const currentTeamsWithMatches = currentTeams.map((t) => ({
+    ...t,
+    matches: matchesMap.get(t.teamId) ?? [],
+  }));
+  const teamHistoryWithMatches = teamHistory.map((t) => ({
+    ...t,
+    matches: matchesMap.get(t.teamId) ?? [],
+  }));
+  const entries1v1 = entries1v1Base.map((e) => ({
+    ...e,
+    matches: matchesMap.get(e.id) ?? [],
   }));
 
   return {
@@ -383,8 +487,8 @@ export async function getPlayerProfile(steamId: string) {
       nameOverride: user.nameOverride,
       avatarOverride: user.avatarOverride,
     },
-    currentTeams,
-    teamHistory,
+    currentTeams: currentTeamsWithMatches,
+    teamHistory: teamHistoryWithMatches,
     tournaments: tournamentResults,
     fightNights,
     achievements,

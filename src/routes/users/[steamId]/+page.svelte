@@ -4,11 +4,38 @@ import { page } from '$app/state';
 import { goto } from '$app/navigation';
 import PageHero from '$lib/components/layout/PageHero.svelte';
 import { toast } from '$lib/state/toast.svelte';
-import DataTable from '$lib/components/ui/DataTable.svelte';
 import Dialog from '$lib/components/ui/Dialog.svelte';
 import discordIcon from '$lib/assets/icons/discord.png';
+import type { ProfileMatch } from '$lib/server/services/users';
 
-// Get data from server load function (Svelte 5 syntax)
+interface TeamWithMatches {
+  teamId: number;
+  teamName: string;
+  division: string;
+  regionName: string;
+  seasonNum: number;
+  wins: number;
+  losses: number;
+  totalRecord: string;
+  joined: Date;
+  permissionLevel?: string;
+  left?: Date | null;
+  matches: ProfileMatch[];
+}
+
+interface Entry1v1WithMatches {
+  id: number;
+  active: boolean;
+  division: string;
+  region: string;
+  seasonNum: number;
+  wins: number;
+  losses: number;
+  startedAt: Date | null;
+  leftAt: Date | null;
+  matches: ProfileMatch[];
+}
+
 interface PlayerData {
   player: {
     steamId: string;
@@ -23,25 +50,8 @@ interface PlayerData {
   };
   isOwnProfile: boolean;
   isAdmin: boolean;
-  currentTeams: Array<{
-    teamId: number;
-    teamName: string;
-    division: string;
-    regionName: string;
-    seasonNum: number;
-    totalRecord: string;
-    joined: Date;
-  }>;
-  teamHistory: Array<{
-    teamId: number;
-    teamName: string;
-    division: string;
-    regionName: string;
-    seasonNum: number;
-    totalRecord: string;
-    joined: Date;
-    left: Date | null;
-  }>;
+  currentTeams: TeamWithMatches[];
+  teamHistory: TeamWithMatches[];
   tournaments: Array<{
     id: number;
     name: string;
@@ -69,22 +79,11 @@ interface PlayerData {
     wins: number;
     losses: number;
   } | null;
-  entries1v1: Array<{
-    id: number;
-    active: boolean;
-    division: string;
-    region: string;
-    seasonNum: number;
-    wins: number;
-    losses: number;
-    startedAt: Date | null;
-    leftAt: Date | null;
-  }>;
+  entries1v1: Entry1v1WithMatches[];
 }
 
 let { data }: { data: PlayerData } = $props();
 
-// Destructure data - use $derived to react to data changes when navigating between player profiles
 const player = $derived(data.player);
 const currentTeams = $derived(data.currentTeams);
 const teamHistory = $derived(data.teamHistory);
@@ -95,6 +94,32 @@ const isOwnProfile = $derived(data.isOwnProfile);
 const isAdmin = $derived(data.isAdmin);
 const current1v1Entry = $derived(data.current1v1Entry);
 const entries1v1 = $derived(data.entries1v1);
+
+// Merged 2v2 list: active teams first (current), then history, each sorted by seasonNum desc
+const teams2v2 = $derived([
+  ...currentTeams.map((t) => ({ ...t, active: true })),
+  ...teamHistory.map((t) => ({ ...t, active: false })),
+]);
+
+// Accordion expanded state — active entries/teams start expanded
+let expanded1v1 = $state<Record<number, boolean>>({});
+let expanded2v2 = $state<Record<number, boolean>>({});
+
+$effect(() => {
+  const next1v1: Record<number, boolean> = {};
+  for (const e of entries1v1) {
+    if (!(e.id in expanded1v1)) next1v1[e.id] = e.active;
+  }
+  Object.assign(expanded1v1, next1v1);
+});
+
+$effect(() => {
+  const next2v2: Record<number, boolean> = {};
+  for (const t of teams2v2) {
+    if (!(t.teamId in expanded2v2)) next2v2[t.teamId] = t.active;
+  }
+  Object.assign(expanded2v2, next2v2);
+});
 
 // State for 1v1 withdrawal confirmation modal
 let withdrawingEntry: (typeof data.entries1v1)[0] | null = $state(null);
@@ -124,47 +149,6 @@ $effect(() => {
 		goto(page.url.pathname, { replaceState: true });
 	}
 });
-
-// Table column definitions
-const entries1v1Columns = $derived([
-	{ key: 'division', label: 'Division' },
-	{ key: 'region', label: 'Region' },
-	{ key: 'season', label: 'Season' },
-	{ key: 'record', label: 'Record' },
-	{ key: 'status', label: 'Status' },
-	...(isOwnProfile ? [{ key: 'actions', label: 'Actions' }] : [])
-]);
-
-const currentTeamsColumns = [
-	{ key: 'team', label: 'Team' },
-	{ key: 'division', label: 'Division' },
-	{ key: 'region', label: 'Region' },
-	{ key: 'season', label: 'Season' },
-	{ key: 'record', label: 'Record' },
-	{ key: 'joined', label: 'Joined' }
-];
-
-const teamHistoryColumns = [
-	{ key: 'team', label: 'Team' },
-	{ key: 'division', label: 'Division' },
-	{ key: 'region', label: 'Region' },
-	{ key: 'season', label: 'Season' },
-	{ key: 'record', label: 'Record' },
-	{ key: 'period', label: 'Period' }
-];
-
-const tournamentsColumns = [
-	{ key: 'tournament', label: 'Tournament' },
-	{ key: 'date', label: 'Date' },
-	{ key: 'placement', label: 'Placement' }
-];
-
-const fightNightsColumns = [
-	{ key: 'event', label: 'Event' },
-	{ key: 'opponent', label: 'Opponent' },
-	{ key: 'result', label: 'Result' },
-	{ key: 'date', label: 'Date' }
-];
 
 // Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
 function steamIdToSteam2(steamId64: string): string {
@@ -206,6 +190,7 @@ const externalLinks = $derived([
     name: 'SteamHistory',
     url: `https://steamhistory.net/id/${player.steamId}`,
     logo: '/steamhistory_logo.jpg',
+    rounded: true,
   },
   {
     name: 'SteamLadder',
@@ -240,6 +225,12 @@ function getResultColor(result: string): string {
   return 'text-gray-400';
 }
 
+function getResultBg(result: string): string {
+  if (result === 'W') return 'bg-green-500/20 text-green-400 border-green-500/30';
+  if (result === 'L') return 'bg-red-500/20 text-red-400 border-red-500/30';
+  return 'bg-zinc-800 text-gray-500 border-zinc-700';
+}
+
 function getBanBadge(status: string): { label: string; classes: string } | null {
   if (status === 'WARNING') return { label: 'Warning', classes: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
   if (status === 'SUSPENDED') return { label: 'Suspended', classes: 'bg-orange-500/20 text-orange-400 border-orange-500/30' };
@@ -255,6 +246,12 @@ function openEditName() {
 function openEditAvatar() {
   editAvatarValue = player.avatarOverride === 1 ? (player.avatar || '') : '';
   showEditAvatar = true;
+}
+
+function winPct(wins: number, losses: number): string {
+  const total = wins + losses;
+  if (total === 0) return '0';
+  return ((wins / total) * 100).toFixed(0);
 }
 </script>
 
@@ -304,7 +301,7 @@ function openEditAvatar() {
 				
 				<!-- External Links -->
 				<div class="flex flex-wrap gap-2 justify-center">
-					{#each externalLinks as link}
+					{#each externalLinks as link (link.name)}
 						<a 
 							href={link.url}
 							target="_blank"
@@ -312,7 +309,7 @@ function openEditAvatar() {
 							class="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-2 group"
 							title={link.name}
 						>
-							<img src={link.logo} alt={link.name} class="w-5 h-5 {link.name === 'SteamHistory' ? 'rounded' : ''}" />
+							<img src={link.logo} alt={link.name} class="w-5 h-5 {link.rounded ? 'rounded' : ''}" />
 							<span class="text-xs text-gray-400 group-hover:text-white hidden sm:inline">
 								{link.name}
 							</span>
@@ -403,40 +400,34 @@ function openEditAvatar() {
 		{/if}
 	</PageHero>
 	
-	<!-- Main Content - Sidebar Layout -->
+	<!-- Main Content -->
 	<div class="max-w-[1600px] mx-auto px-6 py-8">
 		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-			
-			<!-- Left Sidebar - Achievements -->
+
+			<!-- Left Sidebar -->
 			<aside class="lg:col-span-3 space-y-6">
-				<!-- Achievements Card -->
+
+				<!-- Achievements -->
 				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
 					<div class="bg-zinc-950/80 px-4 py-3 border-b border-zinc-800">
 						<h3 class="text-lg font-bold text-white">Achievements</h3>
 					</div>
-					
 					{#if achievements.length > 0}
 						<div class="divide-y divide-zinc-800/50">
-							{#each achievements as achievement}
+							{#each achievements as achievement (achievement.event)}
 								<div class="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/30 transition-colors">
-									<!-- Trophy Icon -->
 									<div class="flex-shrink-0">
-										<svg class="w-5 h-5 {achievement.placement === '1st' ? 'text-yellow-400' : 
-											 achievement.placement === '2nd' ? 'text-gray-300' : 
-											 achievement.placement === '3rd' ? 'text-orange-400' : 
+										<svg class="w-5 h-5 {achievement.placement === '1st Place' ? 'text-yellow-400' : 
+											 achievement.placement === '2nd Place' ? 'text-gray-300' : 
+											 achievement.placement === '3rd Place' ? 'text-orange-400' : 
 											 'text-gray-500'}" 
 											 fill="currentColor" viewBox="0 0 24 24">
 											<path d="M5.166 2.621v.858c-1.035.148-2.059.33-3.071.543a.75.75 0 0 0-.584.859 6.753 6.753 0 0 0 6.138 5.6 6.73 6.73 0 0 0 2.743 1.346A6.707 6.707 0 0 1 9.279 15H8.54c-1.036 0-1.875.84-1.875 1.875V19.5h-.75a2.25 2.25 0 0 0-2.25 2.25c0 .414.336.75.75.75h15a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-2.25-2.25h-.75v-2.625c0-1.036-.84-1.875-1.875-1.875h-.739a6.706 6.706 0 0 1-1.112-3.173 6.73 6.73 0 0 0 2.743-1.347 6.753 6.753 0 0 0 6.139-5.6.75.75 0 0 0-.585-.858 47.077 47.077 0 0 0-3.07-.543V2.62a.75.75 0 0 0-.658-.744 49.22 49.22 0 0 0-6.093-.377c-2.063 0-4.096.128-6.093.377a.75.75 0 0 0-.657.744Zm0 2.629c0 1.196.312 2.32.857 3.294A5.266 5.266 0 0 1 3.16 5.337a45.6 45.6 0 0 1 2.006-.343v.256Zm13.5 0v-.256c.674.1 1.343.214 2.006.343a5.265 5.265 0 0 1-2.863 3.207 6.72 6.72 0 0 0 .857-3.294Z"/>
 										</svg>
 									</div>
-									
-									<!-- Event Info -->
 									<div class="flex-1 min-w-0">
 										<div class="flex items-center gap-2">
-											<span class="text-xs font-bold {achievement.placement === '1st' ? 'text-yellow-400' : 
-												 achievement.placement === '2nd' ? 'text-gray-300' : 
-												 achievement.placement === '3rd' ? 'text-orange-400' : 
-												 'text-gray-500'}">
+											<span class="text-xs font-bold {getPlacementColor(achievement.placement)}">
 												{achievement.placement}
 											</span>
 											<span class="text-sm font-medium text-white truncate">
@@ -456,203 +447,262 @@ function openEditAvatar() {
 						</div>
 					{/if}
 				</div>
-				
+
+				<!-- Tournaments -->
+				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
+					<div class="bg-zinc-950/80 px-4 py-3 border-b border-zinc-800">
+						<h3 class="text-lg font-bold text-white">Tournaments</h3>
+					</div>
+					{#if tournaments.length > 0}
+						<div class="divide-y divide-zinc-800/50">
+							{#each tournaments as t (t.id)}
+								<div class="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/30 transition-colors">
+									<div class="min-w-0">
+										<div class="text-sm text-white truncate">{t.name}</div>
+										<div class="text-xs text-gray-600">{formatDate(t.date)}</div>
+									</div>
+									<span class="text-xs font-bold ml-3 whitespace-nowrap {getPlacementColor(t.placement)}">{t.placement}</span>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="px-4 py-6 text-center text-gray-500 text-sm">No tournament history</div>
+					{/if}
+				</div>
+
+				<!-- Fight Nights -->
+				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
+					<div class="bg-zinc-950/80 px-4 py-3 border-b border-zinc-800">
+						<h3 class="text-lg font-bold text-white">Fight Nights</h3>
+					</div>
+					{#if fightNights.length > 0}
+						<div class="divide-y divide-zinc-800/50">
+							{#each fightNights as fn (fn.id)}
+								<div class="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/30 transition-colors">
+									<div class="min-w-0">
+										<div class="text-sm text-white">{fn.fightNightName}</div>
+										<div class="text-xs text-gray-500">vs {fn.opponent}</div>
+									</div>
+									<span class="text-xs font-bold font-mono ml-3 whitespace-nowrap {getResultColor(fn.result)}">
+										{fn.result} {fn.score}
+									</span>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="px-4 py-6 text-center text-gray-500 text-sm">No Fight Night history</div>
+					{/if}
+				</div>
+
 			</aside>
-			
-			<!-- Main Content - Teams & Tournaments -->
+
+			<!-- Main Content -->
 			<main class="lg:col-span-9 space-y-6">
-				
-				<!-- 1v1 League Section -->
-				{#if current1v1Entry || entries1v1.length > 0}
-					<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-purple-800/50 overflow-hidden">
-						<div class="bg-zinc-950/80 px-6 py-4 border-b border-purple-800/50">
-							<h2 class="text-2xl font-bold text-white">1v1 League</h2>
-							<p class="text-sm text-gray-400 mt-1">Individual Competition</p>
-						</div>
-						
-						<DataTable
-							data={entries1v1}
-							columns={entries1v1Columns}
-							headerClass="bg-zinc-950/50"
-							rowClass={(entry) => entry.active ? 'bg-purple-500/5' : 'opacity-60'}
-						>
-							{#snippet cell(entry, col)}
-								{#if col.key === 'division'}
-									<span class="text-gray-300 text-sm">{entry.division}</span>
-								{:else if col.key === 'region'}
-									<span class="text-gray-300 text-sm">{entry.region}</span>
-								{:else if col.key === 'season'}
-									<span class="px-2 py-0.5 {entry.active ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-zinc-800 text-gray-400'} text-xs rounded border">
-										S{entry.seasonNum}
-									</span>
-								{:else if col.key === 'record'}
-									<span class="{entry.active ? 'text-purple-400' : 'text-gray-400'} text-sm font-medium">{entry.wins}-{entry.losses}</span>
-								{:else if col.key === 'status'}
-									{#if entry.active}
-										<span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded border border-green-500/30">
-											Active
-										</span>
-									{:else}
-										<span class="text-gray-500 text-sm">
-											Ended {formatDate(entry.leftAt)}
-										</span>
-									{/if}
-								{:else if col.key === 'actions'}
-									{#if entry.active}
-										<button 
-											type="button"
-											class="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs rounded border border-red-500/30 transition-colors"
-											onclick={() => withdrawingEntry = entry}
-										>
-											Withdraw
-										</button>
-									{/if}
-								{/if}
-							{/snippet}
-						</DataTable>
+
+				<!-- 1v1 League -->
+				{#if entries1v1.length > 0 || current1v1Entry}
+				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-purple-800/50 overflow-hidden">
+					<div class="bg-zinc-950/80 px-6 py-4 border-b border-purple-800/50">
+						<h2 class="text-2xl font-bold text-white">1v1 League</h2>
+						<p class="text-sm text-gray-400 mt-1">Individual Competition</p>
 					</div>
-				{/if}
-				
-				<!-- Current Teams Section -->
-				{#if currentTeams.length > 0}
-					<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-						<div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
-							<h2 class="text-2xl font-bold text-white">Current Teams</h2>
-							<p class="text-sm text-gray-400 mt-1">2v2 League</p>
-						</div>
-						
-						<DataTable
-							data={currentTeams}
-							columns={currentTeamsColumns}
-							headerClass="bg-zinc-950/50"
-							rowClass={() => 'bg-green-500/5'}
-						>
-							{#snippet cell(team, col)}
-								{#if col.key === 'team'}
-									<a 
-										href="/teams/{team.teamId}" 
-										class="text-white font-medium hover:text-blue-400 transition-colors text-sm"
+
+					<div class="divide-y divide-zinc-800/50">
+						{#each entries1v1 as entry (entry.id)}
+							{@const isOpen = expanded1v1[entry.id] ?? entry.active}
+							{@const pct = winPct(entry.wins, entry.losses)}
+
+							<div>
+								<div class="flex items-center {entry.active ? 'bg-purple-500/5' : 'opacity-70'}">
+									<button
+										type="button"
+										onclick={() => expanded1v1[entry.id] = !isOpen}
+										class="flex-1 flex items-center justify-between px-6 py-4 hover:bg-zinc-800/30 transition-colors text-left"
 									>
-										{team.teamName}
-									</a>
-								{:else if col.key === 'division'}
-									<span class="text-gray-300 text-sm">{team.division}</span>
-								{:else if col.key === 'region'}
-									<span class="text-gray-300 text-sm">{team.regionName}</span>
-								{:else if col.key === 'season'}
-									<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/30">
-										S{team.seasonNum}
-									</span>
-								{:else if col.key === 'record'}
-									<span class="text-green-400 text-sm font-medium">{team.totalRecord}</span>
-								{:else if col.key === 'joined'}
-									<span class="text-gray-400 text-sm">{formatDate(team.joined)}</span>
+										<div class="flex items-center gap-4">
+											<span class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {entry.active ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-zinc-800 text-gray-500 border-zinc-700'}">
+												S{entry.seasonNum}
+											</span>
+											<div>
+												<span class="font-semibold text-white text-sm">
+													{entry.division}
+													<span class="text-gray-500 font-normal ml-1">· {entry.region}</span>
+												</span>
+												<div class="flex items-center gap-3 mt-0.5">
+													<span class="text-sm font-mono {entry.active ? 'text-purple-400' : 'text-gray-400'}">
+														{entry.wins}–{entry.losses}
+													</span>
+													<span class="text-xs text-gray-600">{pct}% WR</span>
+													{#if entry.active}
+														<span class="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded border border-green-500/30">Active</span>
+													{/if}
+												</div>
+											</div>
+										</div>
+										<svg class="w-4 h-4 text-gray-600 transition-transform duration-200 flex-shrink-0 {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+										</svg>
+									</button>
+									{#if isOwnProfile && entry.active}
+										<div class="pr-4">
+											<button
+												type="button"
+												class="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors whitespace-nowrap"
+												onclick={() => withdrawingEntry = entry}
+											>
+												Withdraw
+											</button>
+										</div>
+									{/if}
+								</div>
+
+								{#if isOpen}
+									<div class="border-t border-zinc-800/50">
+										{#if entry.matches.length > 0}
+											<table class="w-full text-sm">
+												<thead>
+													<tr class="bg-zinc-950/60 text-xs text-gray-600 uppercase tracking-wide">
+														<th class="text-left px-6 py-2 font-medium">Week</th>
+														<th class="text-left px-6 py-2 font-medium">Opponent</th>
+														<th class="text-center px-6 py-2 font-medium">Result</th>
+														<th class="text-center px-6 py-2 font-medium">Score</th>
+													</tr>
+												</thead>
+												<tbody>
+													{#each entry.matches as match (match.matchId)}
+														<tr class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result === 'TBD' ? 'opacity-50' : ''}">
+															<td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap">{match.week}</td>
+															<td class="px-6 py-2.5">
+																{#if match.opponentId}
+																	<a href="/users/{match.opponentId}" class="text-white hover:text-blue-400 transition-colors font-medium text-sm">
+																		{match.opponentName}
+																	</a>
+																{:else}
+																	<span class="text-gray-600 italic text-sm">TBD</span>
+																{/if}
+															</td>
+															<td class="px-6 py-2.5 text-center">
+																<span class="inline-block px-2 py-0.5 rounded text-xs font-bold border {getResultBg(match.result)}">
+																	{match.result}
+																</span>
+															</td>
+															<td class="px-6 py-2.5 text-center font-mono text-xs {getResultColor(match.result)}">
+																{match.score}
+															</td>
+														</tr>
+													{/each}
+												</tbody>
+											</table>
+										{:else}
+											<div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
+										{/if}
+									</div>
 								{/if}
-							{/snippet}
-						</DataTable>
+							</div>
+						{/each}
 					</div>
-				{/if}
-				
-				<!-- Team History Section -->
-				{#if teamHistory.length > 0}
-					<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-						<div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
-							<h2 class="text-2xl font-bold text-white">Team History</h2>
-						</div>
-						
-						<DataTable
-							data={teamHistory}
-							columns={teamHistoryColumns}
-							headerClass="bg-zinc-950/50"
-							rowClass={() => 'opacity-60'}
-						>
-							{#snippet cell(team, col)}
-								{#if col.key === 'team'}
-									<a 
-										href="/teams/{team.teamId}" 
-										class="text-white font-medium hover:text-blue-400 transition-colors text-sm"
-									>
-										{team.teamName}
-									</a>
-								{:else if col.key === 'division'}
-									<span class="text-gray-300 text-sm">{team.division}</span>
-								{:else if col.key === 'region'}
-									<span class="text-gray-300 text-sm">{team.regionName}</span>
-								{:else if col.key === 'season'}
-									<span class="px-2 py-0.5 bg-zinc-800 text-gray-400 text-xs rounded">
-										S{team.seasonNum}
-									</span>
-								{:else if col.key === 'record'}
-									<span class="text-gray-400 text-sm">{team.totalRecord}</span>
-								{:else if col.key === 'period'}
-									<span class="text-gray-500 text-sm">{formatDate(team.joined)} - {formatDate(team.left)}</span>
-								{/if}
-							{/snippet}
-						</DataTable>
-					</div>
-				{/if}
-				
-				<!-- Tournaments Section -->
-				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-					<div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
-						<h2 class="text-2xl font-bold text-white">Tournaments</h2>
-					</div>
-					
-					<DataTable
-						data={tournaments}
-						columns={tournamentsColumns}
-						headerClass="bg-zinc-950/50"
-						emptyMessage="No tournament participation recorded"
-					>
-						{#snippet cell(tournament, col)}
-							{#if col.key === 'tournament'}
-								<span class="text-white font-medium text-sm">{tournament.name}</span>
-							{:else if col.key === 'date'}
-								<span class="text-gray-400 text-sm">{formatDate(tournament.date)}</span>
-							{:else if col.key === 'placement'}
-								<span class="{getPlacementColor(tournament.placement)} text-sm font-bold">
-									{tournament.placement}
-								</span>
-							{/if}
-						{/snippet}
-					</DataTable>
 				</div>
-				
-				<!-- Fight Nights Section -->
+				{/if}
+
+				<!-- 2v2 League -->
+				{#if teams2v2.length > 0}
 				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
 					<div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
-						<h2 class="text-2xl font-bold text-white">Fight Nights</h2>
+						<h2 class="text-2xl font-bold text-white">2v2 League</h2>
+						<p class="text-sm text-gray-400 mt-1">Team Competition</p>
 					</div>
-					
-					<DataTable
-						data={fightNights}
-						columns={fightNightsColumns}
-						headerClass="bg-zinc-950/50"
-						emptyMessage="No Fight Night participation recorded"
-					>
-						{#snippet cell(fight, col)}
-							{#if col.key === 'event'}
-								<a 
-									href="/fightnight/{fight.id}"
-									class="text-white font-medium text-sm hover:text-blue-400 transition-colors"
+
+					<div class="divide-y divide-zinc-800/50">
+						{#each teams2v2 as team (team.teamId)}
+							{@const isOpen = expanded2v2[team.teamId] ?? team.active}
+							{@const pct = winPct(team.wins, team.losses)}
+
+							<div>
+								<button
+									type="button"
+									onclick={() => expanded2v2[team.teamId] = !isOpen}
+									class="w-full flex items-center justify-between px-6 py-4 hover:bg-zinc-800/30 transition-colors text-left {team.active ? 'bg-green-500/5' : 'opacity-70'}"
 								>
-									{fight.fightNightName}
-								</a>
-							{:else if col.key === 'opponent'}
-								<span class="text-gray-300 text-sm">{fight.opponent}</span>
-							{:else if col.key === 'result'}
-								<span class="{getResultColor(fight.result)} text-sm font-bold">
-									{fight.result} ({fight.score})
-								</span>
-							{:else if col.key === 'date'}
-								<span class="text-gray-400 text-sm">{formatDate(fight.date)}</span>
-							{/if}
-						{/snippet}
-					</DataTable>
+									<div class="flex items-center gap-4">
+										<span class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {team.active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-zinc-800 text-gray-500 border-zinc-700'}">
+											S{team.seasonNum}
+										</span>
+										<div>
+											<span class="font-semibold text-white text-sm">
+												<a
+													href="/teams/{team.teamId}"
+													class="hover:text-blue-400 transition-colors"
+													onclick={(e) => e.stopPropagation()}
+												>
+													{team.teamName}
+												</a>
+												<span class="text-gray-500 font-normal ml-1">· {team.division} · {team.regionName}</span>
+											</span>
+											<div class="flex items-center gap-3 mt-0.5">
+												<span class="text-sm font-mono {team.active ? 'text-green-400' : 'text-gray-400'}">
+													{team.wins}–{team.losses}
+												</span>
+												<span class="text-xs text-gray-600">{pct}% WR</span>
+												{#if team.active}
+													<span class="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded border border-green-500/30">Active</span>
+												{/if}
+											</div>
+										</div>
+									</div>
+									<svg class="w-4 h-4 text-gray-600 transition-transform duration-200 flex-shrink-0 {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+									</svg>
+								</button>
+
+								{#if isOpen}
+									<div class="border-t border-zinc-800/50">
+										{#if team.matches.length > 0}
+											<table class="w-full text-sm">
+												<thead>
+													<tr class="bg-zinc-950/60 text-xs text-gray-600 uppercase tracking-wide">
+														<th class="text-left px-6 py-2 font-medium">Week</th>
+														<th class="text-left px-6 py-2 font-medium">Opponent</th>
+														<th class="text-center px-6 py-2 font-medium">Result</th>
+														<th class="text-center px-6 py-2 font-medium">Score</th>
+													</tr>
+												</thead>
+												<tbody>
+													{#each team.matches as match (match.matchId)}
+														<tr class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result === 'TBD' ? 'opacity-50' : ''}">
+															<td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap">{match.week}</td>
+															<td class="px-6 py-2.5">
+																{#if match.opponentId}
+																	<a href="/teams/{match.opponentId}" class="text-white hover:text-blue-400 transition-colors font-medium text-sm">
+																		{match.opponentName}
+																	</a>
+																{:else}
+																	<span class="text-gray-600 italic text-sm">TBD</span>
+																{/if}
+															</td>
+															<td class="px-6 py-2.5 text-center">
+																<span class="inline-block px-2 py-0.5 rounded text-xs font-bold border {getResultBg(match.result)}">
+																	{match.result}
+																</span>
+															</td>
+															<td class="px-6 py-2.5 text-center font-mono text-xs {getResultColor(match.result)}">
+																{match.score}
+															</td>
+														</tr>
+													{/each}
+												</tbody>
+											</table>
+										{:else}
+											<div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
+										{/if}
+									</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
 				</div>
-				
+				{/if}
+
 			</main>
-			
 		</div>
 	</div>
 </div>

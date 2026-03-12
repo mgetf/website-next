@@ -164,7 +164,7 @@ function getRegionAbbr(regionId: number): string {
 					</div>
 					{#if !data.deadlines.signupClosed && !data.userAlreadySignedUp}
 						<a
-							href="/signup/2v2"
+							href="/signup"
 							class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
 						>
 							Sign Up Now

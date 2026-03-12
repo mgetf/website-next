@@ -420,12 +420,13 @@ export async function getPlayerProfile(steamId: string) {
   }
 
   // Fetch all related data in parallel
-  const [playerTeams, tournaments, fightNightMatchups, player1v1Entries] =
+  const [playerTeams, tournaments, fightNightMatchups, player1v1Entries, punishmentCount] =
     await Promise.all([
       getPlayerTeams(steamId),
       getPlayerTournamentPlacements(steamId),
       getPlayerFightNightMatchups(steamId),
       getPlayer1v1Entries(steamId),
+      prisma.punishment.count({ where: { playerSteamId: steamId } }),
     ]);
 
   // Transform data
@@ -484,6 +485,7 @@ export async function getPlayerProfile(steamId: string) {
       discordUsername: user.discord?.discordUsername || null,
       permissionLevel: user.permissionLevel,
       banStatus: user.banStatus,
+      punishmentCount,
       nameOverride: user.nameOverride,
       avatarOverride: user.avatarOverride,
     },

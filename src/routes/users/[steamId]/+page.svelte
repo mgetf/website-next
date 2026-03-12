@@ -45,6 +45,7 @@ interface PlayerData {
     discordUsername: string | null;
     permissionLevel: string;
     banStatus: string;
+    punishmentCount: number;
     nameOverride: number;
     avatarOverride: number;
   };
@@ -362,7 +363,7 @@ function winPct(wins: number, losses: number): string {
 						onclick={openEditName}
 						class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/namebtn"
 					>
-						<span class="text-gray-500">Name</span>
+						<span class="text-gray-500">Name:</span>
 						<span class="{player.nameOverride === 1 ? 'text-orange-400' : 'text-gray-400'}">{player.nameOverride === 1 ? 'Locked' : 'Auto'}</span>
 						<svg class="w-2.5 h-2.5 text-gray-600 group-hover/namebtn:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
@@ -373,7 +374,7 @@ function winPct(wins: number, losses: number): string {
 					onclick={openEditAvatar}
 					class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/avatarbtn"
 				>
-					<span class="text-gray-500">Avatar</span>
+					<span class="text-gray-500">Avatar:</span>
 					<span class="{player.avatarOverride === 1 ? 'text-orange-400' : 'text-gray-400'}">{player.avatarOverride === 1 ? 'Locked' : 'Auto'}</span>
 					<svg class="w-2.5 h-2.5 text-gray-600 group-hover/avatarbtn:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
@@ -384,13 +385,13 @@ function winPct(wins: number, losses: number): string {
 					onclick={() => showPunish = true}
 					class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/statusbtn"
 				>
-					<span class="text-gray-500">Status</span>
-						{#if getBanBadge(player.banStatus)}
-							{@const badge = getBanBadge(player.banStatus)!}
-							<span class="{badge.classes.split(' ').filter(c => c.startsWith('text-')).join(' ')}">{badge.label}</span>
-						{:else}
-							<span class="text-green-400">Clean</span>
-						{/if}
+					<span class="text-gray-500">Status:</span>
+				{#if getBanBadge(player.banStatus)}
+					{@const badge = getBanBadge(player.banStatus)!}
+					<span class="whitespace-nowrap {badge.classes.split(' ').filter(c => c.startsWith('text-')).join(' ')}">{badge.label}{player.punishmentCount > 1 ? ` (${player.punishmentCount})` : ''}</span>
+				{:else}
+					<span class="whitespace-nowrap text-green-400">Clean{player.punishmentCount > 0 ? ` (${player.punishmentCount})` : ''}</span>
+				{/if}
 						<svg class="w-2.5 h-2.5 text-gray-600 group-hover/statusbtn:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
 						</svg>
@@ -1138,16 +1139,16 @@ function winPct(wins: number, losses: number): string {
 			<p class="text-white font-medium">{player.name}</p>
 			<p class="text-xs text-gray-500 font-mono">{player.steamId}</p>
 		</div>
-		{#if getBanBadge(player.banStatus)}
-			{@const badge = getBanBadge(player.banStatus)!}
-			<span class="ml-auto px-2 py-0.5 text-xs font-bold rounded border {badge.classes}">
-				{badge.label}
-			</span>
-		{/if}
-	</div>
+	{#if getBanBadge(player.banStatus)}
+		{@const badge = getBanBadge(player.banStatus)!}
+		<span class="ml-auto px-2 py-0.5 text-xs font-bold rounded border {badge.classes}">
+			{badge.label}
+		</span>
+	{/if}
+</div>
 
-	<form
-		id="form-punish"
+<form
+	id="form-punish"
 		method="POST"
 		action="?/punishUser"
 		use:enhance={() => {

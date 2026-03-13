@@ -501,40 +501,155 @@ function winPct(wins: number, losses: number): string {
 			<main class="lg:col-span-9 space-y-6">
 
 				<!-- 1v1 League -->
-				{#if entries1v1.length > 0 || current1v1Entry}
 				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-purple-800/50 overflow-hidden">
 					<div class="bg-zinc-950/80 px-6 py-4 border-b border-purple-800/50">
 						<h2 class="text-2xl font-bold text-white">1v1 League</h2>
 						<p class="text-sm text-gray-400 mt-1">Individual Competition</p>
 					</div>
 
-					<div class="divide-y divide-zinc-800/50">
-						{#each entries1v1 as entry (entry.id)}
-							{@const isOpen = expanded1v1[entry.id] ?? entry.active}
-							{@const pct = winPct(entry.wins, entry.losses)}
+					{#if entries1v1.length > 0}
+						<div class="divide-y divide-zinc-800/50">
+							{#each entries1v1 as entry (entry.id)}
+								{@const isOpen = expanded1v1[entry.id] ?? entry.active}
+								{@const pct = winPct(entry.wins, entry.losses)}
 
-							<div>
-								<div class="flex items-center {entry.active ? 'bg-purple-500/5' : 'opacity-70'}">
+								<div>
+									<div class="flex items-center {entry.active ? 'bg-purple-500/5' : 'opacity-70'}">
+										<button
+											type="button"
+											onclick={() => expanded1v1[entry.id] = !isOpen}
+											class="flex-1 flex items-center justify-between px-6 py-4 hover:bg-zinc-800/30 transition-colors text-left"
+										>
+											<div class="flex items-center gap-4">
+												<span class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {entry.active ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-zinc-800 text-gray-500 border-zinc-700'}">
+													S{entry.seasonNum}
+												</span>
+												<div>
+													<span class="font-semibold text-white text-sm">
+														{entry.division}
+														<span class="text-gray-500 font-normal ml-1">· {entry.region}</span>
+													</span>
+													<div class="flex items-center gap-3 mt-0.5">
+														<span class="text-sm font-mono {entry.active ? 'text-purple-400' : 'text-gray-400'}">
+															{entry.wins}–{entry.losses}
+														</span>
+														<span class="text-xs text-gray-600">{pct}% WR</span>
+														{#if entry.active}
+															<span class="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded border border-green-500/30">Active</span>
+														{/if}
+													</div>
+												</div>
+											</div>
+											<svg class="w-4 h-4 text-gray-600 transition-transform duration-200 flex-shrink-0 {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+											</svg>
+										</button>
+										{#if isOwnProfile && entry.active}
+											<div class="pr-4">
+												<button
+													type="button"
+													class="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors whitespace-nowrap"
+													onclick={() => withdrawingEntry = entry}
+												>
+													Withdraw
+												</button>
+											</div>
+										{/if}
+									</div>
+
+									{#if isOpen}
+										<div class="border-t border-zinc-800/50">
+											{#if entry.matches.length > 0}
+												<table class="w-full text-sm">
+													<thead>
+														<tr class="bg-zinc-950/60 text-xs text-gray-600 uppercase tracking-wide">
+															<th class="text-left px-6 py-2 font-medium">Week</th>
+															<th class="text-left px-6 py-2 font-medium">Opponent</th>
+															<th class="text-center px-6 py-2 font-medium">Result</th>
+															<th class="text-center px-6 py-2 font-medium">Score</th>
+														</tr>
+													</thead>
+													<tbody>
+														{#each entry.matches as match (match.matchId)}
+															<tr class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result === 'TBD' ? 'opacity-50' : ''}">
+																<td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap">{match.week}</td>
+																<td class="px-6 py-2.5">
+																	<a href="/matches/{match.matchId}" class="text-white hover:text-blue-400 transition-colors font-medium text-sm">
+																		{match.opponentName || 'TBD'}
+																	</a>
+																</td>
+																<td class="px-6 py-2.5 text-center">
+																	<span class="inline-block px-2 py-0.5 rounded text-xs font-bold border {getResultBg(match.result)}">
+																		{match.result}
+																	</span>
+																</td>
+																<td class="px-6 py-2.5 text-center font-mono text-xs {getResultColor(match.result)}">
+																	{match.score}
+																</td>
+															</tr>
+														{/each}
+													</tbody>
+												</table>
+											{:else}
+												<div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
+											{/if}
+										</div>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="px-6 py-8 text-center">
+							<p class="text-gray-500 text-sm">No 1v1 season history</p>
+							{#if isOwnProfile}
+								<a href="/leagues/1v1" class="inline-block mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors">
+									Browse 1v1 League
+								</a>
+							{/if}
+						</div>
+					{/if}
+				</div>
+
+				<!-- 2v2 League -->
+				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
+					<div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+						<h2 class="text-2xl font-bold text-white">2v2 League</h2>
+						<p class="text-sm text-gray-400 mt-1">Team Competition</p>
+					</div>
+
+					{#if teams2v2.length > 0}
+						<div class="divide-y divide-zinc-800/50">
+							{#each teams2v2 as team (team.teamId)}
+								{@const isOpen = expanded2v2[team.teamId] ?? team.active}
+								{@const pct = winPct(team.wins, team.losses)}
+
+								<div>
 									<button
 										type="button"
-										onclick={() => expanded1v1[entry.id] = !isOpen}
-										class="flex-1 flex items-center justify-between px-6 py-4 hover:bg-zinc-800/30 transition-colors text-left"
+										onclick={() => expanded2v2[team.teamId] = !isOpen}
+										class="w-full flex items-center justify-between px-6 py-4 hover:bg-zinc-800/30 transition-colors text-left {team.active ? 'bg-green-500/5' : 'opacity-70'}"
 									>
 										<div class="flex items-center gap-4">
-											<span class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {entry.active ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-zinc-800 text-gray-500 border-zinc-700'}">
-												S{entry.seasonNum}
+											<span class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {team.active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-zinc-800 text-gray-500 border-zinc-700'}">
+												S{team.seasonNum}
 											</span>
 											<div>
 												<span class="font-semibold text-white text-sm">
-													{entry.division}
-													<span class="text-gray-500 font-normal ml-1">· {entry.region}</span>
+													<a
+														href="/teams/{team.teamId}"
+														class="hover:text-blue-400 transition-colors"
+														onclick={(e) => e.stopPropagation()}
+													>
+														{team.teamName}
+													</a>
+													<span class="text-gray-500 font-normal ml-1">· {team.division} · {team.regionName}</span>
 												</span>
 												<div class="flex items-center gap-3 mt-0.5">
-													<span class="text-sm font-mono {entry.active ? 'text-purple-400' : 'text-gray-400'}">
-														{entry.wins}–{entry.losses}
+													<span class="text-sm font-mono {team.active ? 'text-green-400' : 'text-gray-400'}">
+														{team.wins}–{team.losses}
 													</span>
 													<span class="text-xs text-gray-600">{pct}% WR</span>
-													{#if entry.active}
+													{#if team.active}
 														<span class="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded border border-green-500/30">Active</span>
 													{/if}
 												</div>
@@ -544,160 +659,63 @@ function winPct(wins: number, losses: number): string {
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
 										</svg>
 									</button>
-									{#if isOwnProfile && entry.active}
-										<div class="pr-4">
-											<button
-												type="button"
-												class="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors whitespace-nowrap"
-												onclick={() => withdrawingEntry = entry}
-											>
-												Withdraw
-											</button>
+
+									{#if isOpen}
+										<div class="border-t border-zinc-800/50">
+											{#if team.matches.length > 0}
+												<table class="w-full text-sm">
+													<thead>
+														<tr class="bg-zinc-950/60 text-xs text-gray-600 uppercase tracking-wide">
+															<th class="text-left px-6 py-2 font-medium">Week</th>
+															<th class="text-left px-6 py-2 font-medium">Opponent</th>
+															<th class="text-center px-6 py-2 font-medium">Result</th>
+															<th class="text-center px-6 py-2 font-medium">Score</th>
+														</tr>
+													</thead>
+													<tbody>
+														{#each team.matches as match (match.matchId)}
+															<tr class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result === 'TBD' ? 'opacity-50' : ''}">
+																<td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap">{match.week}</td>
+																<td class="px-6 py-2.5">
+																	{#if match.opponentId}
+																		<a href="/teams/{match.opponentId}" class="text-white hover:text-blue-400 transition-colors font-medium text-sm">
+																			{match.opponentName}
+																		</a>
+																	{:else}
+																		<span class="text-gray-600 italic text-sm">TBD</span>
+																	{/if}
+																</td>
+																<td class="px-6 py-2.5 text-center">
+																	<span class="inline-block px-2 py-0.5 rounded text-xs font-bold border {getResultBg(match.result)}">
+																		{match.result}
+																	</span>
+																</td>
+																<td class="px-6 py-2.5 text-center font-mono text-xs {getResultColor(match.result)}">
+																	{match.score}
+																</td>
+															</tr>
+														{/each}
+													</tbody>
+												</table>
+											{:else}
+												<div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
+											{/if}
 										</div>
 									{/if}
 								</div>
-
-								{#if isOpen}
-									<div class="border-t border-zinc-800/50">
-										{#if entry.matches.length > 0}
-											<table class="w-full text-sm">
-												<thead>
-													<tr class="bg-zinc-950/60 text-xs text-gray-600 uppercase tracking-wide">
-														<th class="text-left px-6 py-2 font-medium">Week</th>
-														<th class="text-left px-6 py-2 font-medium">Opponent</th>
-														<th class="text-center px-6 py-2 font-medium">Result</th>
-														<th class="text-center px-6 py-2 font-medium">Score</th>
-													</tr>
-												</thead>
-												<tbody>
-													{#each entry.matches as match (match.matchId)}
-														<tr class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result === 'TBD' ? 'opacity-50' : ''}">
-															<td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap">{match.week}</td>
-															<td class="px-6 py-2.5">
-																<a href="/matches/{match.matchId}" class="text-white hover:text-blue-400 transition-colors font-medium text-sm">
-																	{match.opponentName || 'TBD'}
-																</a>
-															</td>
-															<td class="px-6 py-2.5 text-center">
-																<span class="inline-block px-2 py-0.5 rounded text-xs font-bold border {getResultBg(match.result)}">
-																	{match.result}
-																</span>
-															</td>
-															<td class="px-6 py-2.5 text-center font-mono text-xs {getResultColor(match.result)}">
-																{match.score}
-															</td>
-														</tr>
-													{/each}
-												</tbody>
-											</table>
-										{:else}
-											<div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
-										{/if}
-									</div>
-								{/if}
-							</div>
-						{/each}
-					</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="px-6 py-8 text-center">
+							<p class="text-gray-500 text-sm">No 2v2 season history</p>
+							{#if isOwnProfile}
+								<a href="/leagues/2v2" class="inline-block mt-3 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 text-sm font-medium rounded-lg border border-zinc-700 transition-colors">
+									Browse 2v2 League
+								</a>
+							{/if}
+						</div>
+					{/if}
 				</div>
-				{/if}
-
-				<!-- 2v2 League -->
-				{#if teams2v2.length > 0}
-				<div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-					<div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
-						<h2 class="text-2xl font-bold text-white">2v2 League</h2>
-						<p class="text-sm text-gray-400 mt-1">Team Competition</p>
-					</div>
-
-					<div class="divide-y divide-zinc-800/50">
-						{#each teams2v2 as team (team.teamId)}
-							{@const isOpen = expanded2v2[team.teamId] ?? team.active}
-							{@const pct = winPct(team.wins, team.losses)}
-
-							<div>
-								<button
-									type="button"
-									onclick={() => expanded2v2[team.teamId] = !isOpen}
-									class="w-full flex items-center justify-between px-6 py-4 hover:bg-zinc-800/30 transition-colors text-left {team.active ? 'bg-green-500/5' : 'opacity-70'}"
-								>
-									<div class="flex items-center gap-4">
-										<span class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {team.active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-zinc-800 text-gray-500 border-zinc-700'}">
-											S{team.seasonNum}
-										</span>
-										<div>
-											<span class="font-semibold text-white text-sm">
-												<a
-													href="/teams/{team.teamId}"
-													class="hover:text-blue-400 transition-colors"
-													onclick={(e) => e.stopPropagation()}
-												>
-													{team.teamName}
-												</a>
-												<span class="text-gray-500 font-normal ml-1">· {team.division} · {team.regionName}</span>
-											</span>
-											<div class="flex items-center gap-3 mt-0.5">
-												<span class="text-sm font-mono {team.active ? 'text-green-400' : 'text-gray-400'}">
-													{team.wins}–{team.losses}
-												</span>
-												<span class="text-xs text-gray-600">{pct}% WR</span>
-												{#if team.active}
-													<span class="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded border border-green-500/30">Active</span>
-												{/if}
-											</div>
-										</div>
-									</div>
-									<svg class="w-4 h-4 text-gray-600 transition-transform duration-200 flex-shrink-0 {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-									</svg>
-								</button>
-
-								{#if isOpen}
-									<div class="border-t border-zinc-800/50">
-										{#if team.matches.length > 0}
-											<table class="w-full text-sm">
-												<thead>
-													<tr class="bg-zinc-950/60 text-xs text-gray-600 uppercase tracking-wide">
-														<th class="text-left px-6 py-2 font-medium">Week</th>
-														<th class="text-left px-6 py-2 font-medium">Opponent</th>
-														<th class="text-center px-6 py-2 font-medium">Result</th>
-														<th class="text-center px-6 py-2 font-medium">Score</th>
-													</tr>
-												</thead>
-												<tbody>
-													{#each team.matches as match (match.matchId)}
-														<tr class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result === 'TBD' ? 'opacity-50' : ''}">
-															<td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap">{match.week}</td>
-															<td class="px-6 py-2.5">
-																{#if match.opponentId}
-																	<a href="/teams/{match.opponentId}" class="text-white hover:text-blue-400 transition-colors font-medium text-sm">
-																		{match.opponentName}
-																	</a>
-																{:else}
-																	<span class="text-gray-600 italic text-sm">TBD</span>
-																{/if}
-															</td>
-															<td class="px-6 py-2.5 text-center">
-																<span class="inline-block px-2 py-0.5 rounded text-xs font-bold border {getResultBg(match.result)}">
-																	{match.result}
-																</span>
-															</td>
-															<td class="px-6 py-2.5 text-center font-mono text-xs {getResultColor(match.result)}">
-																{match.score}
-															</td>
-														</tr>
-													{/each}
-												</tbody>
-											</table>
-										{:else}
-											<div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
-										{/if}
-									</div>
-								{/if}
-							</div>
-						{/each}
-					</div>
-				</div>
-				{/if}
 
 			</main>
 		</div>

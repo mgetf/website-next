@@ -15,10 +15,10 @@
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.4",
-    "@sveltejs/kit": "^2.54.0",
+    "@sveltejs/kit": "^2.55.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@types/node": "^25.5.0",
-    "brackets-model": "^1.6.1",
+    "brackets-model": "^1.6.2",
     "dotenv": "^17.3.1",
     "prisma": "^7.5.0",
     "svelte": "^5.53.11",
@@ -34,7 +34,7 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1007.0",
+    "@aws-sdk/client-s3": "^3.1009.0",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "@tailwindcss/vite": "^4.2.1",

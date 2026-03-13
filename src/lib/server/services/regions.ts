@@ -37,6 +37,7 @@ export async function getVisibleRegions() {
       id: true,
       name: true,
       currencySymbol: true,
+      currencyCode: true,
     },
     orderBy: { id: 'asc' },
   });
@@ -98,6 +99,15 @@ export async function createRegion(name: string) {
   });
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
+  EUR: '€',
+};
+
+function currencySymbolFromCode(code: string): string {
+  return CURRENCY_SYMBOLS[code] ?? '€';
+}
+
 /**
  * Update an existing region
  *
@@ -107,7 +117,7 @@ export async function createRegion(name: string) {
  */
 export async function updateRegion(
   id: number,
-  data: { name: string; currencySymbol?: string },
+  data: { name: string; currencyCode?: string },
 ) {
   const trimmedName = data.name.trim();
 
@@ -133,13 +143,15 @@ export async function updateRegion(
     throw new Error('Region with this name already exists');
   }
 
+  const currencyCode = data.currencyCode ?? region.currencyCode;
+  const currencySymbol = currencySymbolFromCode(currencyCode);
+
   return await prisma.region.update({
     where: { id },
     data: {
       name: trimmedName,
-      ...(data.currencySymbol !== undefined && {
-        currencySymbol: data.currencySymbol,
-      }),
+      currencyCode,
+      currencySymbol,
     },
   });
 }

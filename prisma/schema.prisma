@@ -552,6 +552,7 @@ model Region {
   name           String
   hidden         Int    @default(0)
   currencySymbol String @default("€") @map("currency_symbol")
+  currencyCode   String @default("EUR") @map("currency_code")
 
   seasons             Season[]
   teams               Team[]

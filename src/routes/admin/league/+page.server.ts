@@ -108,6 +108,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       name: r.name,
       hidden: r.hidden,
       currencySymbol: r.currencySymbol,
+      currencyCode: r.currencyCode,
       seasons: r._count.seasons,
       teams: r._count.teams,
     })),
@@ -256,7 +257,7 @@ export const actions: Actions = {
     const formData = await request.formData();
     const regionId = parseInt(formData.get('regionId') as string);
     const name = formData.get('name') as string;
-    const currencySymbol = formData.get('currencySymbol') as string;
+    const currencyCode = formData.get('currencyCode') as string;
 
     if (!regionId || regionId < 1) {
       return fail(400, { error: 'Invalid region ID' });
@@ -268,9 +269,9 @@ export const actions: Actions = {
     try {
       await updateRegion(regionId, {
         name,
-        currencySymbol: currencySymbol || '$',
+        currencyCode: currencyCode || 'USD',
       });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_CREATED, targetType: 'Region', targetId: String(regionId), metadata: { name, currencySymbol }, ipAddress: getClientAddress() });
+      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_CREATED, targetType: 'Region', targetId: String(regionId), metadata: { name, currencyCode }, ipAddress: getClientAddress() });
       return { success: true, message: 'Region updated successfully!' };
     } catch (error) {
       console.error('Error updating region:', error);

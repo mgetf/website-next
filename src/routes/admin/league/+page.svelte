@@ -1295,19 +1295,16 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 				required 
 			/>
 			
-			<FormSelect 
-				label="Currency Symbol" 
-				name="currencySymbol" 
-				value={editingRegion.currencySymbol || '€'}
-				options={[
-					{ value: '$', label: '$ (USD)' },
-					{ value: '€', label: '€ (EUR)' },
-					{ value: '£', label: '£ (GBP)' },
-					{ value: 'A$', label: 'A$ (AUD)' },
-					{ value: 'R$', label: 'R$ (BRL)' }
-				]}
-				hint="This currency will be shown for division signup costs in this region."
-			/>
+		<FormSelect 
+			label="Currency" 
+			name="currencyCode" 
+			value={editingRegion.currencyCode || 'USD'}
+			options={[
+				{ value: 'USD', label: '$ (USD)' },
+				{ value: 'EUR', label: '€ (EUR)' }
+			]}
+			hint="The currency used for PayPal charges and displaying signup costs in this region."
+		/>
 			
 			<div class="flex gap-3 justify-end">
 				<button 

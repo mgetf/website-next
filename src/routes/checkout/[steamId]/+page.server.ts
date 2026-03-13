@@ -63,12 +63,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     throw redirect(303, `/teams/${team.id}`);
   }
 
-  // Determine currency based on region
-  let currency = 'USD';
-  if (team.regionId === 2) {
-    // EU
-    currency = 'EUR';
-  }
+  const currency = team.region?.currencyCode ?? 'USD';
 
   const paypalClientId = process.env.PAYPAL_CLIENT_ID || '';
   const isTestMode = isPayPalTestMode();

@@ -64,7 +64,7 @@ export async function getCurrentSeason() {
 export async function getCurrentSeasonByFormat(formatId: number) {
   return await prisma.season.findFirst({
     where: { formatId },
-    orderBy: { seasonNum: 'desc' },
+    orderBy: [{ seasonNum: 'desc' }, { signupsOpen: 'desc' }],
     include: { region: true },
   });
 }

@@ -44,6 +44,10 @@ const divisionOptions = $derived(
   }))
 );
 
+const isNewcomerSelected = $derived(
+  filteredDivisions.some((d) => d.id.toString() === divisionValue && d.name.toLowerCase().includes('newcomer'))
+);
+
 function handleRegionChange(value: string) {
   selectedRegionId = value ? parseInt(value) : null;
   const regionId = selectedRegionId;
@@ -182,15 +186,17 @@ function handleRegionChange(value: string) {
 					onChange={handleRegionChange}
 				/>
 
-			<FormSelect
-				label="New Division"
-				name="divisionId"
-				bind:value={divisionValue}
-				options={divisionOptions}
-				placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
-				required
-				disabled={!selectedRegionId}
-			/>
+		<FormSelect
+			label="New Division"
+			name="divisionId"
+			bind:value={divisionValue}
+			options={divisionOptions}
+			placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
+			required
+			disabled={!selectedRegionId}
+			hint={isNewcomerSelected ? 'Newcomer is ONLY for players with no previous competitive experience' : undefined}
+			hintVariant={isNewcomerSelected ? 'warning' : 'default'}
+		/>
 			</div>
 
 			<!-- Terms & Conditions -->
@@ -239,5 +245,3 @@ function handleRegionChange(value: string) {
 		{/if}
 	</div>
 </div>
-
-

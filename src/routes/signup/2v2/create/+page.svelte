@@ -42,6 +42,10 @@ const divisionOptions = $derived(
   }))
 );
 
+const isNewcomerSelected = $derived(
+  filteredDivisions.some((d) => d.id.toString() === divisionValue && d.name.toLowerCase().includes('newcomer'))
+);
+
 function handleAvatarChange(event: Event) {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
@@ -206,6 +210,8 @@ function handleRegionChange(value: string) {
 				placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
 				required
 				disabled={!selectedRegionId}
+				hint={isNewcomerSelected ? 'Newcomer is ONLY for players with no previous competitive experience' : undefined}
+				hintVariant={isNewcomerSelected ? 'warning' : 'default'}
 			/>
 			</div>
 
@@ -219,22 +225,7 @@ function handleRegionChange(value: string) {
 			/>
 
 			<!-- Terms & Conditions -->
-			<div class="mb-6 space-y-3">
-				<label class="flex items-start gap-3 cursor-pointer">
-					<input
-						type="checkbox"
-						name="terms"
-						required
-						class="mt-1 w-4 h-4 rounded border-gray-600 bg-zinc-800 text-orange-600 focus:ring-orange-500 focus:ring-offset-zinc-900"
-					/>
-					<span class="text-sm text-gray-300">
-						I have read and agree to the
-						<a href="/rulebook" target="_blank" class="text-orange-500 hover:text-orange-400">
-							Terms and Conditions
-						</a>
-					</span>
-				</label>
-
+			<div class="mb-6">
 				<label class="flex items-start gap-3 cursor-pointer">
 					<input
 						type="checkbox"
@@ -271,5 +262,3 @@ function handleRegionChange(value: string) {
 		{/if}
 	</div>
 </div>
-
-

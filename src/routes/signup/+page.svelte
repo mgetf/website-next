@@ -35,7 +35,7 @@ let { data }: { data: PageData } = $props();
 				<!-- Create New Team -->
 				{#if data.canCreateNew}
 					<a
-						href="/signup/create"
+						href="/signup/2v2/create"
 						class="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-orange-500/20"
 					>
 						<div class="text-center">
@@ -70,7 +70,7 @@ let { data }: { data: PageData } = $props();
 				<!-- Re-register Existing Team -->
 				{#if data.canReregister}
 					<a
-						href="/signup/existing"
+						href="/signup/2v2/existing"
 						class="group bg-zinc-900 border border-zinc-800 hover:border-blue-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-blue-500/20"
 					>
 						<div class="text-center">

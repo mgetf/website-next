@@ -4,7 +4,7 @@
  * and makes user data available to all routes
  */
 
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getSession } from '$lib/server/session';
 import { dev } from '$app/environment';
 import { isStaging, isUngatedRoute, getAppEnvironment } from '$lib/server/utils/environment';
@@ -90,4 +90,19 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   return response;
+};
+
+export const handleError: HandleServerError = async ({ error, status, message }) => {
+  const errorId = crypto.randomUUID();
+
+  if (dev) {
+    console.error(`[${errorId}] ${status}:`, error);
+  } else {
+    console.error(`[${errorId}] Unexpected server error (${status}):`, error);
+  }
+
+  return {
+    message,
+    code: errorId,
+  };
 };

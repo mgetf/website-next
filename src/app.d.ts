@@ -2,7 +2,10 @@
 // for information about these interfaces
 declare global {
   namespace App {
-    // interface Error {}
+    interface Error {
+      message: string;
+      code?: string;
+    }
     interface Locals {
       user: import('$lib/types/user').SessionUser | null;
       /** Current deployment environment (production, staging, development) */

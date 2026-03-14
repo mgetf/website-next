@@ -27,9 +27,11 @@ let {
 // Mobile menu state
 let mobileMenuOpen = $state(false);
 
-// Get current page path for redirect after login
 const loginUrl = $derived(
   `/auth/login?redirect=${encodeURIComponent(page.url.pathname)}`,
+);
+const signupHref = $derived(
+  user ? '/signup' : '/auth/login?redirect=%2Fsignup',
 );
 
 function toggleMobileMenu() {
@@ -85,15 +87,14 @@ function toggleMobileMenu() {
 			
 			<!-- Right: Actions -->
 			<div class="flex items-center gap-3">
-				<!-- Signup Button (if logged in and signups open and not in team) -->
-				{#if user && !signupClosed && !isInTeam}
-					<a
-						href="/signup"
-						class="hidden md:block px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg transition-colors"
-					>
-						Sign Up
-					</a>
-				{/if}
+			{#if user && !signupClosed && !isInTeam}
+				<a
+					href="/signup"
+					class="hidden md:block px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg transition-colors"
+				>
+					Sign Up
+				</a>
+			{/if}
 				
 				<!-- User Section -->
 				{#if !user}
@@ -156,11 +157,11 @@ function toggleMobileMenu() {
 					Rules
 				</a>
 				
-				{#if user && !signupClosed && !isInTeam}
-					<a href="/signup" class="block px-4 py-2 text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-center">
-						Sign Up
-					</a>
-				{/if}
+			{#if user && !signupClosed && !isInTeam}
+				<a href="/signup" class="block px-4 py-2 text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-center">
+					Sign Up
+				</a>
+			{/if}
 				
 				<div class="pt-3 border-t border-zinc-800">
 					{#if user}

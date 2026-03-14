@@ -10,6 +10,7 @@ const standingsColumns = [
 ];
 
 interface PageData {
+  user: any;
   seasons: Array<{
     id: number;
     name: string;
@@ -50,6 +51,10 @@ interface PageData {
 }
 
 let { data } = $props<{ data: PageData }>();
+
+const signupHref = $derived(
+  data.user ? '/signup' : '/auth/login?redirect=%2Fsignup',
+);
 
 let selectedSeason = $state(0);
 let selectedRegion = $state(0);
@@ -162,14 +167,14 @@ function getRegionAbbr(regionId: number): string {
 					<div class="text-4xl font-black {data.deadlines.signupClosed ? 'text-red-500' : 'text-green-500'} mb-4">
 						{data.deadlines.signupClosed ? 'CLOSED' : 'OPEN'}
 					</div>
-					{#if !data.deadlines.signupClosed && !data.userAlreadySignedUp}
-						<a
-							href="/signup"
-							class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
-						>
-							Sign Up Now
-						</a>
-					{/if}
+				{#if !data.deadlines.signupClosed && !data.userAlreadySignedUp}
+					<a
+						href={signupHref}
+						class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
+					>
+						Sign Up Now
+					</a>
+				{/if}
 				</div>
 				
 				<!-- Payments Due -->

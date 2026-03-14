@@ -2,6 +2,7 @@
 import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
 
 interface PageData {
+  user: any;
   league2v2Data: {
     season: string;
     signupsOpen: boolean;
@@ -41,6 +42,9 @@ const league1v1Data = $derived(
   data.league1v1Data || { season: 'Season 1', signupsOpen: false, topEntries: [] },
 );
 const siteContent = $derived(data.siteContent || { subtitle: '', about: '' });
+const signupHref = $derived(
+  data.user ? '/signup' : '/auth/login?redirect=%2Fsignup',
+);
 </script>
 
 <div class="min-h-screen">
@@ -74,12 +78,12 @@ const siteContent = $derived(data.siteContent || { subtitle: '', about: '' });
 								New season, new teams. Get registered before it fills up.
 							</p>
 						</div>
-						<a
-							href="/signup"
-							class="block w-full py-5 px-6 bg-blue-500 hover:bg-blue-400 text-white font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-blue-500/40 hover:shadow-blue-400/60 mb-3"
-						>
-							Register Your Team →
-						</a>
+					<a
+						href={signupHref}
+						class="block w-full py-5 px-6 bg-blue-500 hover:bg-blue-400 text-white font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-blue-500/40 hover:shadow-blue-400/60 mb-3"
+					>
+						Register Your Team →
+					</a>
 						<a
 							href="/leagues/2v2"
 							class="block w-full py-2.5 px-4 text-gray-500 hover:text-gray-300 font-medium text-sm rounded-lg text-center transition-colors"
@@ -145,12 +149,12 @@ const siteContent = $derived(data.siteContent || { subtitle: '', about: '' });
 								New season starting soon. Get your name on the list.
 							</p>
 						</div>
-						<a
-							href="/signup"
-							class="block w-full py-5 px-6 bg-purple-600 hover:bg-purple-500 text-white font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-purple-500/40 hover:shadow-purple-500/60 mb-3"
-						>
-							Sign Up Now →
-						</a>
+					<a
+						href={signupHref}
+						class="block w-full py-5 px-6 bg-purple-600 hover:bg-purple-500 text-white font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-purple-500/40 hover:shadow-purple-500/60 mb-3"
+					>
+						Sign Up Now →
+					</a>
 						<a
 							href="/leagues/1v1"
 							class="block w-full py-2.5 px-4 text-gray-500 hover:text-gray-300 font-medium text-sm rounded-lg text-center transition-colors"

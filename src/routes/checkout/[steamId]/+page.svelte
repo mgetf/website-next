@@ -22,17 +22,25 @@ onMount(() => {
     return;
   }
 
-  // Check if PayPal SDK is already loaded (e.g., from previous navigation)
-  if ((window as any).paypal) {
+  // If PayPal SDK is already loaded with the correct currency, reuse it
+  if ((window as any).paypal && (window as any).__paypalCurrency === pageData.currency) {
     paypalLoaded = true;
     return;
   }
 
-  // Load PayPal SDK
+  // Remove stale PayPal SDK loaded with a different currency
+  if ((window as any).paypal) {
+    delete (window as any).paypal;
+    buttonsInitialized = false;
+    const oldScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
+    oldScript?.remove();
+  }
+
   const script = document.createElement('script');
   script.src = `https://www.paypal.com/sdk/js?client-id=${pageData.paypalClientId}&currency=${pageData.currency}`;
   script.async = true;
   script.onload = () => {
+    (window as any).__paypalCurrency = pageData.currency;
     paypalLoaded = true;
   };
   script.onerror = () => {
@@ -280,29 +288,29 @@ function initPayPalButtons() {
 					<div class="flex justify-between items-center mb-3">
 						<span class="text-gray-400">Division Signup Fee</span>
 						<span class="text-white font-semibold">
-							{pageData.currency === 'EUR' ? '€' : '$'}{pageData.signupCost.toFixed(2)}
+						{pageData.currencySymbol}{pageData.signupCost.toFixed(2)}
+					</span>
+				</div>
+				{#if pageData.leagueFees > 0}
+					<div class="flex justify-between items-center mb-3">
+						<span class="text-gray-400">League Fees</span>
+						<span class="text-white font-semibold">
+							{pageData.currencySymbol}{pageData.leagueFees.toFixed(2)}
 						</span>
 					</div>
-					{#if pageData.leagueFees > 0}
-						<div class="flex justify-between items-center mb-3">
-							<span class="text-gray-400">League Fees</span>
-							<span class="text-white font-semibold">
-								{pageData.currency === 'EUR' ? '€' : '$'}{pageData.leagueFees.toFixed(2)}
-							</span>
-						</div>
-					{/if}
-					{#if pageData.amountPaid > 0}
-						<div class="flex justify-between items-center mb-3">
-							<span class="text-gray-400">Already Paid</span>
-							<span class="text-green-400 font-semibold">
-								-{pageData.currency === 'EUR' ? '€' : '$'}{pageData.amountPaid.toFixed(2)}
-							</span>
-						</div>
-					{/if}
-					<div class="border-t border-zinc-700 pt-4 flex justify-between items-center">
-						<span class="text-white font-bold">Total Due</span>
-						<span class="text-2xl font-bold text-white">
-							{pageData.currency === 'EUR' ? '€' : '$'}{pageData.totalAmount.toFixed(2)}
+				{/if}
+				{#if pageData.amountPaid > 0}
+					<div class="flex justify-between items-center mb-3">
+						<span class="text-gray-400">Already Paid</span>
+						<span class="text-green-400 font-semibold">
+							-{pageData.currencySymbol}{pageData.amountPaid.toFixed(2)}
+						</span>
+					</div>
+				{/if}
+				<div class="border-t border-zinc-700 pt-4 flex justify-between items-center">
+					<span class="text-white font-bold">Total Due</span>
+					<span class="text-2xl font-bold text-white">
+						{pageData.currencySymbol}{pageData.totalAmount.toFixed(2)}
 						</span>
 					</div>
 				</div>

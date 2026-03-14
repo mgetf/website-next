@@ -67,6 +67,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   }
 
   const currency = team.region?.currencyCode ?? 'USD';
+  const currencySymbol = team.region?.currencySymbol ?? '$';
 
   const paypalClientId = process.env.PAYPAL_CLIENT_ID || '';
   const isTestMode = isPayPalTestMode();
@@ -80,6 +81,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     amountPaid,
     isFirstPayment,
     currency,
+    currencySymbol,
     steamId,
     paypalClientId,
     isTestMode,

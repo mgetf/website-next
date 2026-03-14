@@ -1,61 +1,45 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
-	const errorConfig: Record<number, { title: string; description: string; icon: string }> = {
+	const errorConfig: Record<number, { title: string; description: string }> = {
 		400: {
 			title: 'Bad Request',
-			description: "The server couldn't understand that request. Double-check the URL or try again.",
-			icon: '⚠️'
+			description: "The server couldn't understand that request. Double-check the URL or try again."
 		},
 		401: {
 			title: 'Unauthorized',
-			description: 'You need to log in to access this page.',
-			icon: '🔒'
+			description: 'You need to log in to access this page.'
 		},
 		403: {
 			title: 'Access Denied',
-			description: "You don't have permission to view this page.",
-			icon: '🚫'
+			description: "You don't have permission to view this page."
 		},
 		404: {
 			title: 'Page Not Found',
-			description: "The page you're looking for doesn't exist or may have been moved.",
-			icon: '🔍'
+			description: "The page you're looking for doesn't exist or may have been moved."
 		},
 		500: {
 			title: 'Server Error',
-			description: 'Something went wrong on our end. Please try again later.',
-			icon: '💥'
+			description: 'Something went wrong on our end. Please try again later.'
 		}
 	};
 
 	const fallback = {
 		title: 'Something Went Wrong',
-		description: 'An unexpected error occurred. Please try again later.',
-		icon: '⚡'
+		description: 'An unexpected error occurred. Please try again later.'
 	};
 
 	let config = $derived(errorConfig[page.status] ?? fallback);
 </script>
 
 <div class="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center">
-	<span class="text-6xl mb-6" role="img" aria-label={config.title}>{config.icon}</span>
-
 	<p class="text-8xl font-black text-orange-500 mb-2 tabular-nums">{page.status}</p>
 
 	<h1 class="text-3xl font-bold text-white mb-3">{config.title}</h1>
 
-	<p class="text-lg text-gray-400 max-w-md mb-2">
+	<p class="text-lg text-gray-400 max-w-md mb-8">
 		{config.description}
 	</p>
-
-	{#if page.error?.message && page.error.message !== config.title}
-		<p class="text-sm text-gray-500 max-w-md mb-8 font-mono bg-zinc-900 px-4 py-2 rounded-lg border border-zinc-800">
-			{page.error.message}
-		</p>
-	{:else}
-		<div class="mb-8"></div>
-	{/if}
 
 	<div class="flex gap-4">
 		<a

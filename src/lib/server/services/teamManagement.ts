@@ -432,3 +432,89 @@ export async function disbandTeam(teamId: number): Promise<void> {
     where: { teamId },
   });
 }
+
+/**
+ * Permanently delete a team and all related records.
+ * When `cascadeMatches` is false (default), blocks if the team has matches.
+ * When `cascadeMatches` is true, deletes all matches and their children too.
+ */
+export async function hardDeleteTeam(
+  teamId: number,
+  cascadeMatches = false,
+): Promise<{ teamName: string; deletedMatches: number }> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: {
+      name: true,
+      _count: {
+        select: {
+          homeMatches: true,
+          awayMatches: true,
+        },
+      },
+    },
+  });
+
+  if (!team) {
+    throw error(404, 'Team not found');
+  }
+
+  const matchCount = team._count.homeMatches + team._count.awayMatches;
+
+  if (matchCount > 0 && !cascadeMatches) {
+    throw error(
+      400,
+      `Cannot delete team with ${matchCount} match${matchCount !== 1 ? 'es' : ''}. Remove matches first.`,
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (matchCount > 0) {
+      const matchIds = (
+        await tx.match.findMany({
+          where: { OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }] },
+          select: { id: true },
+        })
+      ).map((m) => m.id);
+
+      const demoIds = (
+        await tx.demo.findMany({
+          where: { matchId: { in: matchIds } },
+          select: { id: true },
+        })
+      ).map((d) => d.id);
+
+      if (demoIds.length > 0) {
+        await tx.demoReport.deleteMany({ where: { demoId: { in: demoIds } } });
+        await tx.demo.deleteMany({ where: { id: { in: demoIds } } });
+      }
+
+      const mapBanIds = (
+        await tx.matchMapBan.findMany({
+          where: { matchId: { in: matchIds } },
+          select: { id: true },
+        })
+      ).map((b) => b.id);
+
+      if (mapBanIds.length > 0) {
+        await tx.mapBanAction.deleteMany({ where: { matchMapBanId: { in: mapBanIds } } });
+        await tx.matchMapBan.deleteMany({ where: { id: { in: mapBanIds } } });
+      }
+
+      await tx.matchComm.deleteMany({ where: { matchId: { in: matchIds } } });
+      await tx.game.deleteMany({ where: { matchId: { in: matchIds } } });
+      await tx.match.deleteMany({ where: { id: { in: matchIds } } });
+    }
+
+    await tx.mapBanAction.deleteMany({ where: { teamId } });
+    await tx.pendingPlayer.deleteMany({ where: { teamId } });
+    await tx.deniedPlayer.deleteMany({ where: { teamId } });
+    await tx.playerInTeam.deleteMany({ where: { teamId } });
+    await tx.teamHistory.deleteMany({ where: { teamId } });
+    await tx.teamNameHistory.deleteMany({ where: { teamId } });
+    await tx.payment.updateMany({ where: { teamId }, data: { teamId: null } });
+    await tx.team.delete({ where: { id: teamId } });
+  });
+
+  return { teamName: team.name, deletedMatches: matchCount };
+}

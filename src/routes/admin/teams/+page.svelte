@@ -17,9 +17,12 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 let editingTeam: (typeof data.teams)[0] | null = $state(null);
 let disbandingTeam: (typeof data.teams)[0] | null = $state(null);
 let restoringTeam: (typeof data.teams)[0] | null = $state(null);
+let deletingTeam: (typeof data.teams)[0] | null = $state(null);
+let deleteConfirmText = $state('');
 let isSubmitting = $state(false);
 let isDisbanding = $state(false);
 let isRestoring = $state(false);
+let isDeleting = $state(false);
 let lastFormResult: ActionData = null;
 
 $effect(() => {
@@ -278,25 +281,35 @@ const statusToInt: Record<string, number> = {
 					>
 						Quick Edit
 					</button>
-					{#if team.status !== 'DEAD'}
-						<button 
-							type="button"
-							class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
-							title={team.formatId === 1 ? "Withdraw player from 1v1 league" : "Disband team (mark as dead and remove all players)"}
-							onclick={() => disbandingTeam = team}
-						>
-							{team.formatId === 1 ? 'Withdraw' : 'Disband'}
-						</button>
-					{:else if team.formatId === 1}
-						<button 
-							type="button"
-							class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-sm transition-colors"
-							title="Restore player to 1v1 league"
-							onclick={() => restoringTeam = team}
-						>
-							Restore
-						</button>
-					{/if}
+				{#if team.status !== 'DEAD'}
+					<button 
+						type="button"
+						class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
+						title={team.formatId === 1 ? "Withdraw player from 1v1 league" : "Disband team (mark as dead and remove all players)"}
+						onclick={() => disbandingTeam = team}
+					>
+						{team.formatId === 1 ? 'Withdraw' : 'Disband'}
+					</button>
+				{:else if team.formatId === 1}
+					<button 
+						type="button"
+						class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-sm transition-colors"
+						title="Restore player to 1v1 league"
+						onclick={() => restoringTeam = team}
+					>
+						Restore
+					</button>
+				{/if}
+				{#if data.isStrictAdmin}
+					<button
+						type="button"
+						class="px-3 py-1 bg-red-900/40 text-red-300 hover:bg-red-900/60 rounded text-sm transition-colors"
+						title="Permanently delete team and all related data"
+						onclick={() => { deletingTeam = team; deleteConfirmText = ''; }}
+					>
+						Delete
+					</button>
+				{/if}
 				</div>
 			{/if}
 		{/snippet}
@@ -565,6 +578,142 @@ const statusToInt: Record<string, number> = {
 					class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					{isRestoring ? 'Restoring...' : 'Restore'}
+				</button>
+			</form>
+		{/snippet}
+	</Dialog>
+{/if}
+
+<!-- Hard Delete Team Confirmation Modal -->
+{#if deletingTeam}
+	{@const hasMatches = deletingTeam.matchCount > 0}
+	<Dialog
+		open={true}
+		title="Permanently Delete Team"
+		maxWidth="2xl"
+		onClose={() => deletingTeam = null}
+	>
+		<div class="mb-6">
+			<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+				<div class="flex items-center gap-3">
+					{#if deletingTeam.avatar}
+						<img src={deletingTeam.avatar} alt="" class="w-10 h-10 rounded" />
+					{:else}
+						<div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium">
+							{deletingTeam.acronym?.slice(0, 2) || deletingTeam.name.slice(0, 2).toUpperCase()}
+						</div>
+					{/if}
+					<div>
+						<p class="text-white font-medium">{deletingTeam.name}</p>
+						<p class="text-gray-400 text-sm">
+							{deletingTeam.division?.name || 'No division'} · {deletingTeam.region?.name || 'No region'}
+						</p>
+					</div>
+				</div>
+			</div>
+
+			{#if hasMatches}
+				<div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg mb-4">
+					<p class="text-yellow-400 text-sm font-medium mb-1">
+						{deletingTeam.matchCount} match{deletingTeam.matchCount !== 1 ? 'es' : ''} will also be deleted
+					</p>
+					<p class="text-yellow-300 text-sm">
+						The following matches (and their games, demos, comms, map bans) will be permanently removed.
+					</p>
+				</div>
+
+				<div class="max-h-48 overflow-y-auto border border-zinc-700 rounded-lg mb-4">
+					<table class="w-full text-sm">
+						<thead class="bg-zinc-800 sticky top-0">
+							<tr class="text-gray-400 text-left">
+								<th class="px-3 py-2">Week</th>
+								<th class="px-3 py-2">Match</th>
+								<th class="px-3 py-2">Score</th>
+								<th class="px-3 py-2">Status</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-zinc-800">
+							{#each deletingTeam.matches as match}
+								<tr class="text-gray-300">
+									<td class="px-3 py-2 text-gray-500">{match.weekNo ?? '—'}</td>
+									<td class="px-3 py-2">
+										<span class={match.homeTeam === deletingTeam.name ? 'text-white font-medium' : ''}>{match.homeTeam}</span>
+										<span class="text-gray-500 mx-1">vs</span>
+										<span class={match.awayTeam === deletingTeam.name ? 'text-white font-medium' : ''}>{match.awayTeam}</span>
+									</td>
+									<td class="px-3 py-2 font-mono">
+										{#if match.winnerScore != null && match.loserScore != null}
+											{match.winnerScore}-{match.loserScore}
+										{:else}
+											<span class="text-gray-500">—</span>
+										{/if}
+									</td>
+									<td class="px-3 py-2 text-gray-500">{match.status}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+
+			<div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg mb-4">
+				<p class="text-red-400 text-sm font-medium mb-1">This action cannot be undone</p>
+				<p class="text-red-300 text-sm">
+					This will permanently remove the team, all roster records, pending players,
+					denied players, name history{hasMatches ? ', and all matches listed above' : ', and team history'} from the database.
+				</p>
+			</div>
+			<div>
+				<label for="deleteTeamConfirm" class="block text-sm text-gray-400 mb-1">
+					Type <strong class="text-white">DELETE</strong> to confirm
+				</label>
+				<input
+					id="deleteTeamConfirm"
+					type="text"
+					bind:value={deleteConfirmText}
+					placeholder="DELETE"
+					class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+				/>
+			</div>
+		</div>
+
+		{#snippet footer()}
+			<button
+				type="button"
+				onclick={() => deletingTeam = null}
+				class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+			>
+				Cancel
+			</button>
+			<form
+				method="POST"
+				action="?/hardDeleteTeam"
+				use:enhance={() => {
+					isDeleting = true;
+					return async ({ update }) => {
+						await update();
+						isDeleting = false;
+						deletingTeam = null;
+					};
+				}}
+				class="flex-1"
+			>
+				<input type="hidden" name="teamId" value={deletingTeam!.id} />
+				{#if hasMatches}
+					<input type="hidden" name="cascadeMatches" value="true" />
+				{/if}
+				<button
+					type="submit"
+					disabled={isDeleting || deleteConfirmText !== 'DELETE'}
+					class="w-full px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					{#if isDeleting}
+						Deleting...
+					{:else if hasMatches}
+						Delete Team & {deletingTeam!.matchCount} Match{deletingTeam!.matchCount !== 1 ? 'es' : ''}
+					{:else}
+						Permanently Delete
+					{/if}
 				</button>
 			</form>
 		{/snippet}

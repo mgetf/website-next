@@ -67,6 +67,12 @@ export async function getTeams(options: {
           seasonNum: true,
         },
       },
+      _count: {
+        select: {
+          homeMatches: true,
+          awayMatches: true,
+        },
+      },
     },
     orderBy: [{ status: 'desc' }, { wins: 'desc' }, { losses: 'asc' }],
     skip: (page - 1) * pageSize,

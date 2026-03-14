@@ -1,12 +1,13 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { TeamStatus } from '$prisma/client.js';
 import { fail } from '@sveltejs/kit';
 import { getSeasonsForFilter } from '$lib/server/services/seasons';
 import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getDivisionsForFilter } from '$lib/server/services/divisions';
 import { getTeams, countTeams, updateTeam } from '$lib/server/services/teams';
-import { disbandTeam } from '$lib/server/services/teamManagement';
+import { disbandTeam, hardDeleteTeam } from '$lib/server/services/teamManagement';
+import { prisma } from '$lib/server/db';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -30,7 +31,11 @@ const disbandTeamSchema = z.object({
   teamId: z.coerce.number().int().positive('Invalid team ID'),
 });
 
-// Zod schema for 1v1 restore form
+const hardDeleteTeamSchema = z.object({
+  teamId: z.coerce.number().int().positive('Invalid team ID'),
+  cascadeMatches: z.coerce.boolean().optional().default(false),
+});
+
 const restore1v1Schema = z.object({
   teamId: z.coerce.number().int().positive('Invalid team ID'),
 });
@@ -95,6 +100,43 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   // Fetch seasons for filter
   const seasons = await getSeasonsForFilter();
 
+  const teamIds = teams.map((t) => t.id);
+
+  const matchesByTeam = isStrictAdmin(locals.user) && teamIds.length > 0
+    ? await prisma.match.findMany({
+        where: {
+          OR: [
+            { homeTeamId: { in: teamIds } },
+            { awayTeamId: { in: teamIds } },
+          ],
+        },
+        select: {
+          id: true,
+          homeTeamId: true,
+          awayTeamId: true,
+          weekNo: true,
+          status: true,
+          winnerScore: true,
+          loserScore: true,
+          matchDateTime: true,
+          homeTeam: { select: { name: true } },
+          awayTeam: { select: { name: true } },
+        },
+        orderBy: { weekNo: 'asc' },
+      })
+    : [];
+
+  const matchMap = new Map<number, typeof matchesByTeam>();
+  for (const match of matchesByTeam) {
+    for (const tid of [match.homeTeamId, match.awayTeamId]) {
+      if (teamIds.includes(tid)) {
+        const list = matchMap.get(tid) || [];
+        list.push(match);
+        matchMap.set(tid, list);
+      }
+    }
+  }
+
   return {
     teams: teams.map((team) => ({
       id: team.id,
@@ -110,6 +152,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       division: team.division,
       region: team.region,
       season: team.season,
+      matchCount: team._count.homeMatches + team._count.awayMatches,
+      matches: (matchMap.get(team.id) || []).map((m) => ({
+        id: m.id,
+        weekNo: m.weekNo,
+        status: m.status,
+        winnerScore: m.winnerScore,
+        loserScore: m.loserScore,
+        matchDateTime: m.matchDateTime?.toISOString() ?? null,
+        homeTeam: m.homeTeam.name,
+        awayTeam: m.awayTeam.name,
+      })),
     })),
     divisions,
     regions,
@@ -127,6 +180,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       status: statusFilter || '',
       season: seasonFilter || '',
     },
+    isStrictAdmin: isStrictAdmin(locals.user),
   };
 };
 
@@ -225,6 +279,45 @@ export const actions: Actions = {
       return fail(400, {
         error:
           error instanceof Error ? error.message : 'Failed to disband team',
+      });
+    }
+  },
+
+  hardDeleteTeam: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+
+    const validation = validateForm(formData, hardDeleteTeamSchema);
+    if (!validation.success) {
+      return validationError(validation.errors, 'Invalid form data');
+    }
+
+    const { teamId, cascadeMatches } = validation.data;
+
+    try {
+      const { teamName, deletedMatches } = await hardDeleteTeam(teamId, cascadeMatches);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_DELETED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { teamName, deletedMatches, cascadeMatches },
+        ipAddress: getClientAddress(),
+      });
+
+      const matchMsg = deletedMatches > 0
+        ? ` and ${deletedMatches} match${deletedMatches !== 1 ? 'es' : ''}`
+        : '';
+      return { success: true, message: `Team "${teamName}"${matchMsg} permanently deleted.` };
+    } catch (error) {
+      console.error('Error hard-deleting team:', error);
+      return fail(400, {
+        error:
+          error instanceof Error ? error.message : 'Failed to delete team',
       });
     }
   },

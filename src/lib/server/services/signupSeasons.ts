@@ -66,12 +66,25 @@ export async function setActiveSignupSeason(
   seasonId: number | null,
 ): Promise<void> {
   if (seasonId === null) {
-    // Delete the entry if seasonId is null
     await prisma.activeSignupSeason.deleteMany({
       where: { regionId, formatId },
     });
   } else {
-    // Upsert the entry
+    const season = await prisma.season.findUnique({
+      where: { id: seasonId },
+      select: { formatId: true },
+    });
+
+    if (!season) {
+      throw new Error(`Season ${seasonId} not found`);
+    }
+
+    if (season.formatId !== formatId) {
+      throw new Error(
+        `Season ${seasonId} belongs to format ${season.formatId}, cannot assign to format ${formatId}`,
+      );
+    }
+
     await prisma.activeSignupSeason.upsert({
       where: { regionId_formatId: { regionId, formatId } },
       create: { regionId, formatId, seasonId },

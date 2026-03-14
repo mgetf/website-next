@@ -7,37 +7,50 @@
 import { prisma } from '$lib/server/db';
 import { error } from '@sveltejs/kit';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 /**
- * Get user's active 2v2 team for checkout
- * Prioritizes teams in current signup seasons (most likely to need payment)
+ * Get user's active team for checkout.
+ * When teamId is provided, looks up that specific team.
+ * Otherwise finds the first unpaid team in a current signup season.
  */
-export async function getUserActiveTeamForCheckout(steamId: string) {
+export async function getUserActiveTeamForCheckout(
+  steamId: string,
+  teamId?: number,
+) {
+  const include = {
+    team: {
+      include: {
+        division: true,
+        region: true,
+        season: true,
+      },
+    },
+  } as const;
+
+  if (teamId) {
+    return await prisma.playerInTeam.findFirst({
+      where: {
+        playerSteamId: steamId,
+        active: 1,
+        teamId,
+      },
+      include,
+    });
+  }
+
   const currentSeasonIds = await getCurrentSignupSeasonIds();
 
-  // First, try to find a team in the current signup season
   if (currentSeasonIds.length > 0) {
     const currentSeasonTeam = await prisma.playerInTeam.findFirst({
       where: {
         playerSteamId: steamId,
         active: 1,
+        paymentStatus: 0,
         team: {
-          formatId: FORMAT_2V2,
-          seasonId: {
-            in: currentSeasonIds,
-          },
+          seasonId: { in: currentSeasonIds },
         },
       },
-      include: {
-        team: {
-          include: {
-            division: true,
-            region: true,
-            season: true,
-          },
-        },
-      },
+      include,
     });
 
     if (currentSeasonTeam) {
@@ -45,27 +58,14 @@ export async function getUserActiveTeamForCheckout(steamId: string) {
     }
   }
 
-  // Fall back to any active team
-  const playerInTeam = await prisma.playerInTeam.findFirst({
+  return await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-      },
+      paymentStatus: 0,
     },
-    include: {
-      team: {
-        include: {
-          division: true,
-          region: true,
-          season: true,
-        },
-      },
-    },
+    include,
   });
-
-  return playerInTeam;
 }
 
 /**

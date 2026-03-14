@@ -9,7 +9,7 @@ import {
 import { isPayPalTestMode } from '$lib/server/services/paypal';
 import { redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
   requireAuth(locals.user);
 
   const steamId = params.steamId;
@@ -19,8 +19,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     throw redirect(303, '/');
   }
 
+  const teamIdParam = url.searchParams.get('teamId');
+  const teamId = teamIdParam ? parseInt(teamIdParam, 10) : undefined;
+
   // Get user's current team
-  const playerInTeam = await getUserActiveTeamForCheckout(steamId);
+  const playerInTeam = await getUserActiveTeamForCheckout(steamId, teamId);
 
   if (!playerInTeam || !playerInTeam.team) {
     throw redirect(303, '/');

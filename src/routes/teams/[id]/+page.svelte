@@ -208,8 +208,8 @@ const winRate = $derived(
 									<div class="flex items-center gap-2">
 										{#if !player.isPaid}
 											{#if player.steamId === data.currentUserSteamId}
-												<a 
-													href="/checkout/{player.steamId}"
+												<a
+													href="/checkout/{player.steamId}?teamId={data.team.id}"
 													class="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-medium rounded border border-red-500/30 hover:bg-red-500/30 hover:text-red-300 transition-colors"
 												>
 													Payment Required

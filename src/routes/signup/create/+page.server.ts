@@ -143,7 +143,7 @@ export const actions: Actions = {
       });
 
       if (paymentInfo.required && !paymentInfo.alreadyPaid) {
-        throw redirect(303, `/checkout/${locals.user.steamId}`);
+        throw redirect(303, `/checkout/${locals.user.steamId}?teamId=${teamId}`);
       }
 
       throw redirect(303, `/teams/${teamId}`);

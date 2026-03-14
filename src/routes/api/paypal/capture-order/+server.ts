@@ -8,6 +8,7 @@ import {
 import { logError } from '$lib/server/utils/logger';
 import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
 export const POST: RequestHandler = async ({ request, locals, getClientAddress }) => {
   try {
@@ -102,7 +103,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       prisma.paymentTracker.upsert({
         where: { playerSteamId_seasonId: { playerSteamId: steamId, seasonId } },
         create: { playerSteamId: steamId, seasonId, amount },
-        update: { amount },
+        update: { amount: { increment: amount } },
       }),
       prisma.payment.create({
         data: {
@@ -122,7 +123,8 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       }),
     ]);
 
-    // Check if 2+ players have paid, update team payment status
+    // Update team payment status based on format:
+    // 1v1 teams need 1 paid player, 2v2 teams need 2
     const paidPlayersCount = await prisma.playerInTeam.count({
       where: {
         teamId,
@@ -131,7 +133,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       },
     });
 
-    if (paidPlayersCount >= 2) {
+    const requiredPaidPlayers = playerInTeam.team.formatId === FORMAT_1V1 ? 1 : 2;
+
+    if (paidPlayersCount >= requiredPaidPlayers) {
       await prisma.team.update({
         where: { id: teamId },
         data: { paymentStatus: 1 },

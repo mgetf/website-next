@@ -70,10 +70,27 @@ function handleRegionChange(value: string) {
 			<p class="text-gray-400">Sign up one of your existing teams for the new season</p>
 		</div>
 
-		<!-- Error Message -->
-		<FormError error={form?.error} />
+	<!-- Error Message -->
+	<FormError error={form?.error} />
 
-		{#if !data.canReregister}
+	{#if data.previousSeasonNonOwnedTeams.length > 0}
+		<div class="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+			<p class="text-yellow-400 text-sm font-semibold mb-1">Heads up: you will leave your previous team</p>
+			<p class="text-yellow-300/80 text-sm">
+				Completing this re-registration will automatically remove you from
+				{#if data.previousSeasonNonOwnedTeams.length === 1}
+					<a href="/teams/{data.previousSeasonNonOwnedTeams[0].id}" class="font-semibold underline hover:text-yellow-200">{data.previousSeasonNonOwnedTeams[0].name}</a>,
+				{:else}
+					{#each data.previousSeasonNonOwnedTeams as team, i}
+						<a href="/teams/{team.id}" class="font-semibold underline hover:text-yellow-200">{team.name}</a>{i < data.previousSeasonNonOwnedTeams.length - 1 ? ', ' : ''}
+					{/each},
+				{/if}
+				which {data.previousSeasonNonOwnedTeams.length === 1 ? 'is' : 'are'} from a previous season.
+			</p>
+		</div>
+	{/if}
+
+	{#if !data.canReregister}
 			<!-- Unavailable Message -->
 			<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
 				<div class="text-6xl mb-4">🚫</div>

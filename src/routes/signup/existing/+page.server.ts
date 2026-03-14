@@ -41,12 +41,20 @@ export const load: PageServerLoad = async ({ locals }) => {
     disabledReason = 'You are already in an active 2v2 team';
   }
 
+  // For re-registration, the user keeps whichever owned team they select.
+  // Warn only about other old-season memberships (non-owned) that will be auto-removed.
+  const ownedTeamIds = new Set(context.ownedTeams.map((t: { id: number }) => t.id));
+  const previousSeasonNonOwnedTeams = context.previousSeasonTeams.filter(
+    (t) => !ownedTeamIds.has(t.id),
+  );
+
   return {
     ownedTeams: context.ownedTeams,
     divisions,
     regions,
     canReregister,
     disabledReason,
+    previousSeasonNonOwnedTeams,
   };
 };
 

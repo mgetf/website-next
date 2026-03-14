@@ -24,6 +24,7 @@ interface SignupContext {
   hasActiveTeam: boolean;
   signupClosed: boolean;
   rosterLocked: boolean;
+  previousSeasonTeams: { id: number; name: string }[];
 }
 
 interface TeamCreationData {
@@ -120,12 +121,36 @@ export async function getSignupContext(
     hasActiveTeam = !!activeTeamMembership;
   }
 
+  // Find active memberships on old-season teams that would be auto-removed on signup.
+  // Only relevant when the user can actually proceed (no current-season team blocking them).
+  let previousSeasonTeams: { id: number; name: string }[] = [];
+  if (steamId && !hasActiveTeam) {
+    const oldMemberships = await prisma.playerInTeam.findMany({
+      where: {
+        playerSteamId: steamId,
+        active: 1,
+        team: {
+          formatId: FORMAT_2V2,
+          seasonId: {
+            notIn: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
+          },
+        },
+      },
+      include: { team: { select: { id: true, name: true } } },
+    });
+    previousSeasonTeams = oldMemberships.map((m) => ({
+      id: m.team.id,
+      name: m.team.name,
+    }));
+  }
+
   return {
     isLoggedIn: !!steamId,
     ownedTeams: ownedTeams.map((pt) => pt.team),
     hasActiveTeam,
     signupClosed: !anySignupsOpen, // Inverted: signupsOpen=false means signupClosed=true
     rosterLocked: allRostersLocked,
+    previousSeasonTeams,
   };
 }
 

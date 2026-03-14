@@ -47,6 +47,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     regions,
     canCreate,
     disabledReason,
+    previousSeasonTeams: context.previousSeasonTeams,
   };
 };
 

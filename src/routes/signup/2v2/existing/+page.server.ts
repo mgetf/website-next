@@ -112,7 +112,7 @@ export const actions: Actions = {
         throw redirect(303, `/checkout/${locals.user.steamId}?teamId=${teamId}`);
       }
 
-      throw redirect(303, `/teams/${teamId}`);
+      throw redirect(303, `/teams/${teamId}?signup=reregistered`);
     } catch (err: any) {
       // If it's a redirect, let it through
       if (err.status === 303) {

@@ -15,7 +15,7 @@ import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
 
   try {
@@ -25,14 +25,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       throw error(404, 'User not found');
     }
 
-    // Check if user is viewing their own profile
     const isOwnProfile = locals.user?.steamId === steamId;
     const isUserAdmin = isAdmin(locals.user);
+    const signupSuccess = url.searchParams.get('signup');
 
     return {
       ...profile,
       isOwnProfile,
       isAdmin: isUserAdmin,
+      signupSuccess,
     };
   } catch (err) {
     console.error('Error loading user profile:', err);

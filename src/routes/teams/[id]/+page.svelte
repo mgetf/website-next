@@ -17,10 +17,11 @@ let lastFormResult: ActionData = null;
 
 onMount(() => {
   if (data.paymentSuccess) {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('payment');
-    history.replaceState({}, '', url.pathname);
+    history.replaceState({}, '', window.location.pathname);
     toast.success('Payment Successful! Your signup fee has been paid. Thank you!');
+  } else if (data.signupSuccess) {
+    history.replaceState({}, '', window.location.pathname);
+    toast.success('Team created successfully! Your registration is complete.');
   }
 });
 

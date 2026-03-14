@@ -142,11 +142,15 @@ let isAdminSubmitting = $state(false);
 $effect(() => {
 	const discord = page.url.searchParams.get('discord');
 	const error = page.url.searchParams.get('error');
+	const signup = page.url.searchParams.get('signup');
 	if (discord === 'linked') {
 		toast.success('Discord account linked successfully!');
 		goto(page.url.pathname, { replaceState: true });
 	} else if (error === 'discord_auth_failed') {
 		toast.error('Failed to link Discord account');
+		goto(page.url.pathname, { replaceState: true });
+	} else if (signup === '1v1') {
+		toast.success('Successfully signed up for the 1v1 league!');
 		goto(page.url.pathname, { replaceState: true });
 	}
 });

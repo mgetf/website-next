@@ -14,8 +14,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     throw error(400, 'Invalid team ID');
   }
 
-  // Check for payment success query param
   const paymentSuccess = url.searchParams.get('payment') === 'success';
+  const signupSuccess = url.searchParams.get('signup');
 
   // Fetch team with related data
   const team = await getTeamById(teamId);
@@ -182,6 +182,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     rosterLocked,
     currentUserSteamId: locals.user?.steamId || null,
     paymentSuccess,
+    signupSuccess,
   };
 };
 

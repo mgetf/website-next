@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth } from '$lib/server/auth/permissions';
+import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import {
   getSignupContext,
   reregisterTeam,
@@ -27,7 +27,10 @@ export const load: PageServerLoad = async ({ locals }) => {
   let canReregister = true;
   let disabledReason = '';
 
-  if (context.signupClosed) {
+  if (isBanned(locals.user)) {
+    canReregister = false;
+    disabledReason = 'Your account is suspended or banned';
+  } else if (context.signupClosed) {
     canReregister = false;
     disabledReason = 'Team signups are currently closed';
   } else if (context.ownedTeams.length === 0) {
@@ -60,7 +63,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   reregisterTeam: async ({ request, locals, getClientAddress }) => {
-    requireAuth(locals.user);
+    requireNotBanned(locals.user);
 
     const context = await getSignupContext(locals.user.steamId);
 

@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth } from '$lib/server/auth/permissions';
+import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import {
   requestJoinByPassword,
   isPlayerInTeam,
@@ -25,6 +25,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   if (!team) {
     throw redirect(303, '/');
+  }
+
+  if (isBanned(locals.user)) {
+    return {
+      team,
+      error: 'Your account is suspended or banned',
+      canJoin: false,
+      rosterLocked: false,
+    };
   }
 
   // Check if team is 1v1
@@ -74,7 +83,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
   joinTeam: async ({ request, params, locals, getClientAddress }) => {
-    requireAuth(locals.user);
+    requireNotBanned(locals.user);
 
     const teamId = parseInt(params.id);
     if (isNaN(teamId)) {

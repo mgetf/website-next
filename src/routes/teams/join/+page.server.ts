@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth } from '$lib/server/auth/permissions';
+import { requireAuth, requireNotBanned } from '$lib/server/auth/permissions';
 import {
   validateTokenAndGetTeam,
   acceptInviteByToken,
@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 export const actions: Actions = {
   accept: async ({ request, locals }) => {
-    requireAuth(locals.user);
+    requireNotBanned(locals.user);
 
     const formData = await request.formData();
     const token = formData.get('token') as string;

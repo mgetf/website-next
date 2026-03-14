@@ -3,16 +3,13 @@
  * GET /auth/verify - Steam redirects here after authentication
  */
 
-import { redirect, error } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createSteamAuth } from '$lib/server/auth/steam';
 import { setSession, getAndClearRedirectUrl } from '$lib/server/session';
 import { prisma } from '$lib/server/db';
 import { getPermissionLevel } from '$lib/server/auth/permissions';
-import {
-  BanStatus as PrismaBanStatus,
-  UserRole as PrismaUserRole,
-} from '$prisma/client.js';
+import { UserRole as PrismaUserRole } from '$prisma/client.js';
 import { BanStatus, UserRole } from '$lib/types/user';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
@@ -62,17 +59,6 @@ export const GET: RequestHandler = async ({ cookies, request, getClientAddress }
       finalPermission = UserRole.GUEST;
       finalBanStatus = BanStatus.NONE;
     } else {
-      // Check if user is banned (non-admins only)
-      if (
-        existingUser.permissionLevel !== PrismaUserRole.ADMIN &&
-        existingUser.banStatus !== PrismaBanStatus.NONE
-      ) {
-        throw error(
-          403,
-          'Your account has been suspended. Please contact an administrator.',
-        );
-      }
-
       finalUsername = existingUser.nameOverride
         ? existingUser.steamUsername
         : steamUser.personaname;

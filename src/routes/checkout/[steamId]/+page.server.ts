@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { requireAuth } from '$lib/server/auth/permissions';
+import { requireAuth, isBanned } from '$lib/server/auth/permissions';
 import {
   getUserActiveTeamForCheckout,
   getExistingPayment,
@@ -14,8 +14,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   const steamId = params.steamId;
 
-  // Verify user is checking out for themselves
-  if (steamId !== locals.user.steamId) {
+  if (steamId !== locals.user.steamId || isBanned(locals.user)) {
     throw redirect(303, '/');
   }
 

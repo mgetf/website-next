@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth } from '$lib/server/auth/permissions';
+import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import { get1v1SignupContext, signup1v1 } from '$lib/server/services/signup1v1';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
@@ -32,7 +32,10 @@ export const load: PageServerLoad = async ({ locals }) => {
   let canSignup = true;
   let disabledReason = '';
 
-  if (context.signupClosed) {
+  if (isBanned(locals.user)) {
+    canSignup = false;
+    disabledReason = 'Your account is suspended or banned';
+  } else if (context.signupClosed) {
     canSignup = false;
     disabledReason = 'Signups are currently closed';
   } else if (context.hasActive1v1Entry) {
@@ -71,7 +74,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   signup: async ({ request, locals, getClientAddress }) => {
-    requireAuth(locals.user);
+    requireNotBanned(locals.user);
 
     const context = await get1v1SignupContext(locals.user.steamId);
 

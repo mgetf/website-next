@@ -4,7 +4,7 @@
  */
 
 import type { SessionUser } from '$lib/types/user';
-import { UserRole } from '$lib/types/user';
+import { UserRole, BanStatus } from '$lib/types/user';
 import { UserRole as PrismaUserRole } from '$prisma/client.js';
 import { prisma } from '../db';
 import { unauthorized, forbidden } from '../utils/errors';
@@ -162,6 +162,34 @@ export async function requireTeamAdmin(
   if (!isTeamAdminUser) {
     forbidden(
       'You must be a team admin or global admin to perform this action',
+    );
+  }
+}
+
+// ===== Ban Check Functions =====
+
+/**
+ * Check if user is suspended or banned
+ */
+export function isBanned(user: SessionUser | null): boolean {
+  if (!user) return false;
+  return (
+    user.banStatus === BanStatus.SUSPENDED ||
+    user.banStatus === BanStatus.BANNED
+  );
+}
+
+/**
+ * Require user to not be suspended or banned
+ * Throws 401 if not authenticated, 403 if banned/suspended
+ */
+export function requireNotBanned(
+  user: SessionUser | null,
+): asserts user is SessionUser {
+  requireAuth(user);
+  if (isBanned(user)) {
+    forbidden(
+      'Your account is suspended or banned. You cannot participate in league activities.',
     );
   }
 }

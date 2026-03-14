@@ -1,11 +1,22 @@
 /**
  * Pending Players Service
  *
- * All pending player approval/denial business logic and database operations.
+ * Single source of truth for approving/declining pending player join requests.
+ * Audit logging is built in — callers pass an AuditContext so every code path
+ * is automatically tracked.
  */
 
 import { prisma } from '$lib/server/db';
+import { error } from '@sveltejs/kit';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { getCurrentSignupSeasonIds } from './signupSeasons';
+import { logAudit, AuditCategory, AuditAction } from './auditLog';
+
+export interface AuditContext {
+  actorId: string;
+  actorRole: string;
+  ipAddress: string;
+}
 
 /**
  * Get all pending player requests with related data
@@ -50,26 +61,47 @@ export async function getPendingPlayers() {
 }
 
 /**
- * Approve a pending player and add them to the team
+ * Approve a pending player and add them to the team.
+ * Validates roster size, duplicate season membership, computes payment status,
+ * cleans up stale memberships, and logs the action.
  */
-export async function approvePlayer(playerSteamId: string, teamId: number) {
-  // Get team info for payment check
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    include: {
-      division: {
-        select: {
-          signupCost: true,
+export async function approvePlayer(
+  playerSteamId: string,
+  teamId: number,
+  audit: AuditContext,
+) {
+  const activePlayersCount = await prisma.playerInTeam.count({
+    where: { teamId, active: 1 },
+  });
+  if (activePlayersCount >= 3) {
+    throw error(400, 'Team is full (maximum 3 players)');
+  }
+
+  const currentSeasonIds = await getCurrentSignupSeasonIds();
+  const playerInOtherTeam = await prisma.playerInTeam.findFirst({
+    where: {
+      playerSteamId,
+      active: 1,
+      team: {
+        formatId: FORMAT_2V2,
+        seasonId: {
+          in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
         },
       },
     },
   });
-
-  if (!team?.seasonId || !team?.divisionId) {
-    throw new Error('Team missing season or division');
+  if (playerInOtherTeam) {
+    throw error(400, 'Player is already in another 2v2 team for this season');
   }
 
-  // Check existing payment for this season
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: { division: { select: { signupCost: true } } },
+  });
+  if (!team?.seasonId || !team?.divisionId) {
+    throw error(400, 'Team missing season or division');
+  }
+
   const payment = await prisma.paymentTracker.findUnique({
     where: {
       playerSteamId_seasonId: {
@@ -78,14 +110,11 @@ export async function approvePlayer(playerSteamId: string, teamId: number) {
       },
     },
   });
-
   const amountPaid = payment?.amount || 0;
   const signupCost = team.division?.signupCost || 0;
   const paymentStatus = amountPaid >= signupCost ? 1 : 0;
 
-  // Use transaction to ensure atomicity
   await prisma.$transaction(async (tx) => {
-    // Deactivate any stale memberships on other 2v2 teams from previous seasons
     await tx.playerInTeam.updateMany({
       where: {
         playerSteamId,
@@ -101,73 +130,92 @@ export async function approvePlayer(playerSteamId: string, teamId: number) {
       },
     });
 
-    // Add player to team
-    await tx.playerInTeam.create({
-      data: {
+    await tx.playerInTeam.upsert({
+      where: {
+        playerSteamId_teamId: { playerSteamId, teamId },
+      },
+      create: {
         playerSteamId,
         teamId,
         active: 1,
-        permissionLevel: 0, // 0 = MEMBER
+        permissionLevel: 0,
         paymentStatus,
       },
+      update: {
+        active: 1,
+        permissionLevel: 0,
+        paymentStatus,
+        startedAt: new Date(),
+      },
     });
 
-    // Remove from pending
     await tx.pendingPlayer.delete({
       where: {
-        playerSteamId_teamId: {
-          playerSteamId,
-          teamId,
-        },
+        playerSteamId_teamId: { playerSteamId, teamId },
       },
     });
 
-    // Update team payment status (paid if at least 2 players have paid)
     const paidPlayersCount = await tx.playerInTeam.count({
-      where: {
-        teamId,
-        active: 1,
-        paymentStatus: 1,
-      },
+      where: { teamId, active: 1, paymentStatus: 1 },
     });
 
     await tx.team.update({
       where: { id: teamId },
       data: {
-        paymentStatus: paidPlayersCount >= 2 ? 1 : 0, // 1 = PAID, 0 = UNPAID
+        paymentStatus: paidPlayersCount >= 2 ? 1 : 0,
       },
     });
+  });
+
+  await logAudit({
+    actorId: audit.actorId,
+    actorRole: audit.actorRole,
+    category: AuditCategory.ROSTER,
+    action: AuditAction.PLAYER_APPROVED,
+    targetType: 'Team',
+    targetId: String(teamId),
+    metadata: { playerSteamId },
+    ipAddress: audit.ipAddress,
   });
 }
 
 /**
- * Decline a pending player request with a reason
+ * Decline a pending player request.
+ * Always creates a DeniedPlayer record for the audit trail.
+ * `reason` is optional — admin routes enforce it at the form-validation level,
+ * but team captains may decline without one.
  */
 export async function declinePlayer(
   playerSteamId: string,
   teamId: number,
-  reason: string,
-  adminSteamId: string,
+  audit: AuditContext,
+  reason?: string,
 ) {
   await prisma.$transaction(async (tx) => {
-    // Add to denied players list
     await tx.deniedPlayer.create({
       data: {
         playerSteamId,
         teamId,
-        reason,
-        adminId: adminSteamId,
+        reason: reason || null,
+        adminId: audit.actorId,
       },
     });
 
-    // Remove from pending
     await tx.pendingPlayer.delete({
       where: {
-        playerSteamId_teamId: {
-          playerSteamId,
-          teamId,
-        },
+        playerSteamId_teamId: { playerSteamId, teamId },
       },
     });
+  });
+
+  await logAudit({
+    actorId: audit.actorId,
+    actorRole: audit.actorRole,
+    category: AuditCategory.ROSTER,
+    action: AuditAction.PLAYER_DENIED,
+    targetType: 'Team',
+    targetId: String(teamId),
+    metadata: { playerSteamId, ...(reason ? { reason } : {}) },
+    ipAddress: audit.ipAddress,
   });
 }

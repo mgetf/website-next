@@ -11,6 +11,7 @@ import {
   approvePlayer,
   declinePlayer,
 } from '$lib/server/services/pendingPlayers';
+import type { AuditContext } from '$lib/server/services/pendingPlayers';
 import { getRecentUnplayedMatches } from '$lib/server/services/adminMatches';
 import { prisma } from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
@@ -61,7 +62,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  approve: async ({ request, locals }) => {
+  approve: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -72,8 +73,14 @@ export const actions: Actions = {
       return fail(400, { error: 'Invalid parameters' });
     }
 
+    const audit: AuditContext = {
+      actorId: locals.user.steamId,
+      actorRole: locals.user.permissionLevel,
+      ipAddress: getClientAddress(),
+    };
+
     try {
-      await approvePlayer(playerSteamId, teamId);
+      await approvePlayer(playerSteamId, teamId, audit);
       return { success: true, message: 'Player approved successfully' };
     } catch (error) {
       console.error('Error approving player:', error);
@@ -81,7 +88,7 @@ export const actions: Actions = {
     }
   },
 
-  decline: async ({ request, locals }) => {
+  decline: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -97,8 +104,14 @@ export const actions: Actions = {
       return fail(400, { error: 'Decline reason is required' });
     }
 
+    const audit: AuditContext = {
+      actorId: locals.user.steamId,
+      actorRole: locals.user.permissionLevel,
+      ipAddress: getClientAddress(),
+    };
+
     try {
-      await declinePlayer(playerSteamId, teamId, reason, locals.user.steamId);
+      await declinePlayer(playerSteamId, teamId, audit, reason);
       return { success: true, message: 'Player declined successfully' };
     } catch (error) {
       console.error('Error declining player:', error);

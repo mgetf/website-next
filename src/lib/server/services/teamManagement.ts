@@ -12,7 +12,6 @@ import {
   validateUploadedFile,
 } from '../utils/r2Upload';
 import path from 'path';
-import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { createNotificationForUser } from './notifications';
 import { hashPassword } from '../utils/password';
@@ -401,125 +400,6 @@ export async function invitePlayerBySteamId(
     `You've been invited to join ${team?.name || 'a team'}`,
     inviterSteamId,
   );
-}
-
-/**
- * Approve pending player
- */
-export async function approvePlayer(
-  teamId: number,
-  playerSteamId: string,
-): Promise<void> {
-  // Check roster size (max 3 active players)
-  const activePlayersCount = await prisma.playerInTeam.count({
-    where: {
-      teamId,
-      active: 1,
-    },
-  });
-
-  if (activePlayersCount >= 3) {
-    throw error(400, 'Team is full (maximum 3 players)');
-  }
-
-  // Check if player is in another 2v2 team for the CURRENT signup season
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
-  const playerInOtherTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-        seasonId: {
-          in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
-        },
-      },
-    },
-  });
-
-  if (playerInOtherTeam) {
-    throw error(400, 'Player is already in another 2v2 team for this season');
-  }
-
-  // Get team info for payment status
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    include: { division: true, season: true },
-  });
-
-  if (!team) {
-    throw error(404, 'Team not found');
-  }
-
-  const paymentStatus = team.division?.signupCost === 0 ? 1 : 0;
-
-  // Add player to team
-  await prisma.playerInTeam.upsert({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId,
-        teamId,
-      },
-    },
-    create: {
-      playerSteamId,
-      teamId,
-      permissionLevel: 0, // Member
-      active: 1,
-      paymentStatus,
-    },
-    update: {
-      active: 1,
-      permissionLevel: 0,
-      paymentStatus,
-      startedAt: new Date(),
-    },
-  });
-
-  // Remove from pending
-  await prisma.pendingPlayer.delete({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId,
-        teamId,
-      },
-    },
-  });
-
-  // Create notification for admins
-  const admins = await prisma.user.findMany({
-    where: {
-      permissionLevel: 'ADMIN',
-    },
-  });
-
-  for (const admin of admins) {
-    await prisma.notification.create({
-      data: {
-        userSteamId: admin.steamId,
-        type: 'PENDING_PLAYER',
-        url: '/admin',
-      },
-    });
-  }
-}
-
-/**
- * Decline pending player
- */
-export async function declinePlayer(
-  teamId: number,
-  playerSteamId: string,
-): Promise<void> {
-  // Delete from pending
-  await prisma.pendingPlayer.delete({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId,
-        teamId,
-      },
-    },
-  });
 }
 
 /**

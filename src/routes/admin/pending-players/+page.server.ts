@@ -1,8 +1,3 @@
-/**
- * Admin Pending Players Page - Server Load and Actions
- * Allows admins/moderators to approve or decline player join requests
- */
-
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import {
@@ -10,13 +5,13 @@ import {
   approvePlayer,
   declinePlayer,
 } from '$lib/server/services/pendingPlayers';
+import type { AuditContext } from '$lib/server/services/pendingPlayers';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { fail } from '@sveltejs/kit';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  requireAdmin(locals.user); // Moderators and admins can manage
+  requireAdmin(locals.user);
 
   const [pendingPlayers, divisions, regions] = await Promise.all([
     getPendingPlayers(),
@@ -43,20 +38,14 @@ export const actions: Actions = {
       return fail(400, { error: 'Invalid parameters' });
     }
 
+    const audit: AuditContext = {
+      actorId: locals.user.steamId,
+      actorRole: locals.user.permissionLevel,
+      ipAddress: getClientAddress(),
+    };
+
     try {
-      await approvePlayer(playerSteamId, teamId);
-
-      await logAudit({
-        actorId: locals.user?.steamId,
-        actorRole: locals.user?.permissionLevel,
-        category: AuditCategory.ROSTER,
-        action: AuditAction.PLAYER_APPROVED,
-        targetType: 'Team',
-        targetId: String(teamId),
-        metadata: { playerSteamId },
-        ipAddress: getClientAddress(),
-      });
-
+      await approvePlayer(playerSteamId, teamId, audit);
       return { success: true, message: 'Player approved successfully' };
     } catch (error) {
       console.error('Error approving player:', error);
@@ -80,20 +69,14 @@ export const actions: Actions = {
       return fail(400, { error: 'Decline reason is required' });
     }
 
+    const audit: AuditContext = {
+      actorId: locals.user.steamId,
+      actorRole: locals.user.permissionLevel,
+      ipAddress: getClientAddress(),
+    };
+
     try {
-      await declinePlayer(playerSteamId, teamId, reason, locals.user.steamId);
-
-      await logAudit({
-        actorId: locals.user?.steamId,
-        actorRole: locals.user?.permissionLevel,
-        category: AuditCategory.ROSTER,
-        action: AuditAction.PLAYER_DENIED,
-        targetType: 'Team',
-        targetId: String(teamId),
-        metadata: { playerSteamId, reason },
-        ipAddress: getClientAddress(),
-      });
-
+      await declinePlayer(playerSteamId, teamId, audit, reason);
       return { success: true, message: 'Player declined successfully' };
     } catch (error) {
       console.error('Error declining player:', error);

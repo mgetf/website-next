@@ -6,6 +6,12 @@ import { removePlayer } from '$lib/server/services/teamManagement';
 import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import {
+  getPendingStatusForTeam,
+  hasAnyPendingRequest,
+  acceptTeamInvite,
+  declineInvitation,
+} from '$lib/server/services/teamJoin';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const teamId = parseInt(params.id);
@@ -156,6 +162,23 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     })
     .sort((a, b) => b.seasonId - a.seasonId);
 
+  const currentUserSteamId = locals.user?.steamId || null;
+  const currentUserInTeam = currentUserSteamId
+    ? team.players.find((p) => p.playerSteamId === currentUserSteamId && p.active === 1)
+    : null;
+  const isOnTeam = !!currentUserInTeam;
+  const isOwner = currentUserInTeam?.permissionLevel === 2;
+
+  const pendingStatus =
+    currentUserSteamId && !isOnTeam
+      ? await getPendingStatusForTeam(currentUserSteamId, teamId)
+      : null;
+
+  const hasPendingRequestElsewhere =
+    currentUserSteamId && !isOnTeam && pendingStatus === null
+      ? await hasAnyPendingRequest(currentUserSteamId)
+      : false;
+
   return {
     team: {
       id: team.id,
@@ -179,8 +202,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     matchesBySeason,
     canManageTeam,
     isGlobalAdmin,
+    isAuthenticated: !!locals.user,
+    isOnTeam,
+    isOwner,
+    pendingStatus,
+    hasPendingRequestElsewhere,
     rosterLocked,
-    currentUserSteamId: locals.user?.steamId || null,
+    currentUserSteamId,
     paymentSuccess,
     signupSuccess,
   };
@@ -251,6 +279,64 @@ export const actions: Actions = {
       return fail(500, {
         error:
           err instanceof Error ? err.message : 'Failed to update team status',
+      });
+    }
+  },
+
+  acceptInvitation: async ({ params, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: 'You must be logged in' });
+    }
+
+    const teamId = parseInt(params.id);
+
+    try {
+      await acceptTeamInvite(locals.user.steamId, teamId);
+      return { success: true, message: 'Join request submitted! An admin will review it shortly.' };
+    } catch (err) {
+      return fail(400, {
+        error: err instanceof Error ? err.message : 'Failed to accept invitation',
+      });
+    }
+  },
+
+  declineInvitation: async ({ params, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: 'You must be logged in' });
+    }
+
+    const teamId = parseInt(params.id);
+
+    try {
+      await declineInvitation(locals.user.steamId, teamId);
+      return { success: true, message: 'Invitation declined' };
+    } catch (err) {
+      return fail(500, {
+        error: err instanceof Error ? err.message : 'Failed to decline invitation',
+      });
+    }
+  },
+
+  leaveTeam: async ({ params, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: 'You must be logged in' });
+    }
+
+    const teamId = parseInt(params.id);
+
+    const seasonSettings = await getSeasonSettingsByTeamId(teamId);
+    const rosterLocked = seasonSettings?.rosterLocked ?? false;
+
+    if (rosterLocked) {
+      return fail(403, { error: 'Rosters are currently locked' });
+    }
+
+    try {
+      await removePlayer(teamId, locals.user.steamId);
+      return { success: true, message: 'You have left the team' };
+    } catch (err) {
+      return fail(500, {
+        error: err instanceof Error ? err.message : 'Failed to leave team',
       });
     }
   },

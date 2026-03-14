@@ -9,6 +9,7 @@ interface Props {
 	title: string;
 	description: string;
 	confirmLabel?: string;
+	loadingLabel?: string;
 	cancelLabel?: string;
 	variant?: ConfirmVariant;
 	isLoading?: boolean;
@@ -22,6 +23,7 @@ let {
 	title,
 	description,
 	confirmLabel = 'Confirm',
+	loadingLabel,
 	cancelLabel = 'Cancel',
 	variant = 'danger',
 	isLoading = false,
@@ -76,7 +78,7 @@ const currentVariant = $derived(variantStyles[variant]);
 			disabled={isLoading}
 			class="flex-1 px-4 py-2 {currentVariant.button} text-white rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
 		>
-			{isLoading ? currentVariant.loading : confirmLabel}
+			{isLoading ? (loadingLabel ?? currentVariant.loading) : confirmLabel}
 		</button>
 	{/snippet}
 </Dialog>

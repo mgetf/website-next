@@ -14,8 +14,7 @@ import {
   invitePlayerBySteamId,
   disbandTeam,
 } from '$lib/server/services/teamManagement';
-import { approvePlayer, declinePlayer } from '$lib/server/services/pendingPlayers';
-import type { AuditContext } from '$lib/server/services/pendingPlayers';
+import { declineInvitation } from '$lib/server/services/teamJoin';
 import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
@@ -335,60 +334,20 @@ export const actions: Actions = {
     }
   },
 
-  approvePlayer: async ({ request, params, locals, getClientAddress }) => {
+  cancelInvite: async ({ request, params, locals }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
     await requireTeamAdmin(locals.user, teamId);
 
-    const { rosterLocked } = await getTeamForEdit(teamId, locals.user.steamId);
-    if (rosterLocked) {
-      return fail(400, { error: 'Rosters are locked' });
-    }
-
     const formData = await request.formData();
     const playerSteamId = formData.get('playerSteamId') as string;
 
-    const audit: AuditContext = {
-      actorId: locals.user.steamId,
-      actorRole: locals.user.permissionLevel,
-      ipAddress: getClientAddress(),
-    };
-
     try {
-      await approvePlayer(playerSteamId, teamId, audit);
-      return { success: true, message: 'Player approved successfully' };
+      await declineInvitation(playerSteamId, teamId);
+      return { success: true, message: 'Invitation cancelled' };
     } catch (err: any) {
       return fail(400, {
-        error: err.body?.message || 'Failed to approve player',
-      });
-    }
-  },
-
-  declinePlayer: async ({ request, params, locals, getClientAddress }) => {
-    requireAuth(locals.user);
-    const teamId = parseInt(params.id);
-    await requireTeamAdmin(locals.user, teamId);
-
-    const { rosterLocked } = await getTeamForEdit(teamId, locals.user.steamId);
-    if (rosterLocked) {
-      return fail(400, { error: 'Rosters are locked' });
-    }
-
-    const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId') as string;
-
-    const audit: AuditContext = {
-      actorId: locals.user.steamId,
-      actorRole: locals.user.permissionLevel,
-      ipAddress: getClientAddress(),
-    };
-
-    try {
-      await declinePlayer(playerSteamId, teamId, audit);
-      return { success: true, message: 'Player invitation declined' };
-    } catch (err: any) {
-      return fail(400, {
-        error: err.body?.message || 'Failed to decline player',
+        error: err.body?.message || 'Failed to cancel invitation',
       });
     }
   },

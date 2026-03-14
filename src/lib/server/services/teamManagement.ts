@@ -19,7 +19,8 @@ import { hashPassword } from '../utils/password';
 interface TeamEditData {
   team: any;
   players: any[];
-  pendingPlayers: any[];
+  sentInvites: any[];
+  awaitingAdmin: any[];
   deniedPlayers: any[];
   rosterLocked: boolean;
   isOwner: boolean;
@@ -64,7 +65,7 @@ export async function getTeamForEdit(
       },
       pendingPlayers: {
         where: {
-          status: 0, // Pending
+          status: { in: [0, 1] },
         },
         include: {
           player: true,
@@ -97,7 +98,8 @@ export async function getTeamForEdit(
   return {
     team,
     players: team.players,
-    pendingPlayers: team.pendingPlayers,
+    sentInvites: team.pendingPlayers.filter((p: any) => p.status === 0),
+    awaitingAdmin: team.pendingPlayers.filter((p: any) => p.status === 1),
     deniedPlayers: team.deniedPlayers,
     rosterLocked,
     isOwner,

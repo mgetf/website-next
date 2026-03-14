@@ -23,6 +23,7 @@ export interface AuditContext {
  */
 export async function getPendingPlayers() {
   return await prisma.pendingPlayer.findMany({
+    where: { status: 1 },
     include: {
       player: {
         select: {

@@ -2,18 +2,25 @@
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
 import PageHero from '$lib/components/layout/PageHero.svelte';
+import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 import { onMount } from 'svelte';
 import { toast } from '$lib/state/toast.svelte';
 
-// Svelte 5 runes - get data from server
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
-// Destructure for easier access - use $derived to react to data changes
 const team = $derived(data.team);
 const currentRoster = $derived(data.currentRoster);
 const pastRoster = $derived(data.pastRoster);
 const matchesBySeason = $derived(data.matchesBySeason);
 let lastFormResult: ActionData = null;
+
+let submittingAction = $state<string | null>(null);
+let showLeaveDialog = $state(false);
+let showRemoveDialog = $state(false);
+let removeTarget: { steamId: string; name: string } | null = $state(null);
+
+let leaveFormEl: HTMLFormElement | undefined = $state();
+let removeFormEl: HTMLFormElement | undefined = $state();
 
 onMount(() => {
   if (data.paymentSuccess) {
@@ -23,11 +30,20 @@ onMount(() => {
     history.replaceState({}, '', window.location.pathname);
     toast.success('Team created successfully! Your registration is complete.');
   }
+
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('joined') === 'awaiting-admin') {
+    history.replaceState({}, '', window.location.pathname);
+    toast.success('Join request submitted! An admin will review it shortly.');
+  }
 });
 
 $effect(() => {
 	if (form && form !== lastFormResult) {
 		lastFormResult = form;
+		showLeaveDialog = false;
+		showRemoveDialog = false;
+		removeTarget = null;
 		if (form.success && form.message) {
 			toast.success(form.message);
 		} else if (form.error) {
@@ -36,7 +52,6 @@ $effect(() => {
 	}
 });
 
-// Format date helper
 function formatDate(date: Date | string | null): string {
   if (!date) return 'N/A';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -47,7 +62,6 @@ function formatDate(date: Date | string | null): string {
   });
 }
 
-// Get result color
 function getResultColor(result: string): string {
   if (result === 'W') return 'text-green-400';
   if (result === 'L') return 'text-red-400';
@@ -55,7 +69,6 @@ function getResultColor(result: string): string {
   return 'text-gray-400';
 }
 
-// Get team status badge color
 function getStatusColor(status: string): string {
   const statusStr = status.toString();
   if (statusStr === 'READY')
@@ -67,11 +80,21 @@ function getStatusColor(status: string): string {
   return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
 }
 
-// Calculate win rate - reactive
 const totalGames = $derived(team.wins + team.losses);
 const winRate = $derived(
   totalGames > 0 ? ((team.wins / totalGames) * 100).toFixed(1) : '0.0',
 );
+
+function makeEnhance(action: string) {
+  return ({ cancel }: { cancel: () => void }) => {
+    if (submittingAction !== null) { cancel(); return; }
+    submittingAction = action;
+    return async ({ update }: { update: () => Promise<void> }) => {
+      await update();
+      submittingAction = null;
+    };
+  };
+}
 </script>
 
 <div class="min-h-screen pb-16">
@@ -158,6 +181,65 @@ const winRate = $derived(
 							<span class="text-white font-medium ml-2">{formatDate(team.createdAt)}</span>
 						</div>
 					</div>
+
+					{#if data.isAuthenticated && !data.isOnTeam && !data.canManageTeam && team.status !== 'DEAD'}
+						<div class="mt-4">
+							{#if data.pendingStatus === 0}
+								<!-- Steam ID invite: player needs to accept/decline -->
+								<p class="text-sm text-emerald-400 mb-2">You have been invited to join this team</p>
+								<div class="flex flex-wrap gap-3 justify-center md:justify-start">
+								<form method="POST" action="?/acceptInvitation" use:enhance={makeEnhance('acceptInvitation')}>
+									<button
+										type="submit"
+										disabled={submittingAction !== null}
+										class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+									>
+										{submittingAction === 'acceptInvitation' ? 'Submitting...' : 'Accept Invitation'}
+									</button>
+								</form>
+								<form method="POST" action="?/declineInvitation" use:enhance={makeEnhance('declineInvitation')}>
+									<button
+										type="submit"
+										disabled={submittingAction !== null}
+										class="px-6 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-700/50 disabled:cursor-not-allowed text-gray-300 font-medium rounded-lg transition-colors"
+									>
+										{submittingAction === 'declineInvitation' ? 'Declining...' : 'Decline'}
+									</button>
+								</form>
+								</div>
+							{:else if data.pendingStatus === 1}
+								<!-- Awaiting admin approval -->
+								<div class="flex items-center gap-2">
+									<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-lg text-amber-400 text-sm font-medium">
+										<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+										Pending admin approval
+									</span>
+								<form method="POST" action="?/declineInvitation" use:enhance={makeEnhance('declineInvitation')}>
+									<button
+										type="submit"
+										disabled={submittingAction !== null}
+										class="px-3 py-1.5 text-sm bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 rounded-lg transition-colors"
+									>
+										{submittingAction === 'declineInvitation' ? 'Withdrawing...' : 'Withdraw'}
+									</button>
+								</form>
+								</div>
+							{:else if data.hasPendingRequestElsewhere}
+								<!-- Has a pending request for a different team -->
+								<p class="text-sm text-amber-400">
+									You have a pending join request for another team. Resolve it before joining here.
+								</p>
+							{:else if !data.rosterLocked}
+								<!-- Normal join flow -->
+								<a
+									href="/teams/{team.id}/join"
+									class="inline-block px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-medium rounded-lg transition-colors"
+								>
+									Join Team
+								</a>
+							{/if}
+						</div>
+					{/if}
 				</div>
 			</div>
 	</PageHero>
@@ -222,23 +304,24 @@ const winRate = $derived(
 											{/if}
 										{/if}
 										
-										<!-- Remove Player Button (for admins/team admins, not for owner) -->
 										{#if data.canManageTeam && player.permissionLevel !== 2 && player.steamId !== data.currentUserSteamId && (!data.rosterLocked || data.isGlobalAdmin)}
-											<form method="POST" action="?/removePlayer" use:enhance>
-												<input type="hidden" name="playerSteamId" value={player.steamId} />
-												<button
-													type="submit"
-													onclick={(e) => {
-														if (!confirm(`Remove ${player.name} from the team?`)) {
-															e.preventDefault();
-														}
-													}}
-													class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-													title="Remove player from team"
-												>
-													Remove
-												</button>
-											</form>
+											<button
+												type="button"
+												onclick={() => { removeTarget = { steamId: player.steamId, name: player.name }; showRemoveDialog = true; }}
+												class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+											>
+												Remove
+											</button>
+										{/if}
+
+										{#if player.steamId === data.currentUserSteamId && !data.isOwner && !data.rosterLocked}
+											<button
+												type="button"
+												onclick={() => showLeaveDialog = true}
+												class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+											>
+												Leave Team
+											</button>
 										{/if}
 									</div>
 								</div>
@@ -409,4 +492,46 @@ const winRate = $derived(
 		{/if}
 	</div>
 </div>
+
+<form
+	bind:this={leaveFormEl}
+	method="POST"
+	action="?/leaveTeam"
+	use:enhance={makeEnhance('leaveTeam')}
+	class="hidden"
+></form>
+
+<form
+	bind:this={removeFormEl}
+	method="POST"
+	action="?/removePlayer"
+	use:enhance={makeEnhance('removePlayer')}
+	class="hidden"
+>
+	<input type="hidden" name="playerSteamId" value={removeTarget?.steamId ?? ''} />
+</form>
+
+<ConfirmDialog
+	open={showLeaveDialog}
+	title="Leave Team"
+	description="Are you sure you want to leave {team.name}? You will need to be re-invited or request to join again."
+	confirmLabel="Leave Team"
+	loadingLabel="Leaving..."
+	variant="danger"
+	isLoading={submittingAction === 'leaveTeam'}
+	onConfirm={() => leaveFormEl?.requestSubmit()}
+	onCancel={() => showLeaveDialog = false}
+/>
+
+<ConfirmDialog
+	open={showRemoveDialog}
+	title="Remove Player"
+	description="Remove {removeTarget?.name ?? 'this player'} from the team? They will need to be re-invited or request to join again."
+	confirmLabel="Remove Player"
+	loadingLabel="Removing..."
+	variant="danger"
+	isLoading={submittingAction === 'removePlayer'}
+	onConfirm={() => removeFormEl?.requestSubmit()}
+	onCancel={() => { showRemoveDialog = false; removeTarget = null; }}
+/>
 

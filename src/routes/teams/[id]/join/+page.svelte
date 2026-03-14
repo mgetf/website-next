@@ -87,7 +87,7 @@ let isSubmitting = $state(false);
 					</form>
 
 					<p class="text-xs text-gray-500 text-center mt-4">
-						Your request will be reviewed by the team captain
+						Your request will be reviewed by admins
 					</p>
 				{/if}
 			</div>

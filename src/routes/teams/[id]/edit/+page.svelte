@@ -1,7 +1,6 @@
 <script lang="ts">
 import type { PageData, ActionData } from './$types';
 import { enhance } from '$app/forms';
-import FormError from '$lib/components/ui/form/FormError.svelte';
 import { toast } from '$lib/state/toast.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -10,11 +9,23 @@ let activeTab: 'info' | 'roster' | 'pending' | 'invite' = $state('info');
 let isSubmitting = $state(false);
 let showDisbandConfirm = $state(false);
 let avatarPreview: string | null = $state(null);
+let lastFormResult: ActionData = null;
 
 // Force refresh avatar preview when team changes
 $effect(() => {
   avatarPreview = data.team.avatar;
   showDisbandConfirm = false;
+});
+
+$effect(() => {
+	if (form && form !== lastFormResult) {
+		lastFormResult = form;
+		if (form.success && form.message) {
+			toast.success(form.message);
+		} else if (form.error) {
+			toast.error(form.error);
+		}
+	}
 });
 
 // Helper to get role name
@@ -97,10 +108,6 @@ async function copyInviteLink() {
 			{/if}
 		</div>
 
-		<!-- Success/Error Messages -->
-		<FormError success={form?.success ? form.message : null} />
-		<FormError error={form?.error} />
-
 		<!-- Tabs -->
 		<div class="bg-zinc-900 border border-zinc-800 rounded-lg">
 			<!-- Tab Headers -->
@@ -127,7 +134,7 @@ async function copyInviteLink() {
 						? 'bg-orange-600 text-white font-medium'
 						: 'text-gray-400 hover:text-white hover:bg-zinc-800'}"
 				>
-					Pending {#if data.pendingPlayers.length > 0}({data.pendingPlayers.length}){/if}
+					Pending {#if (data.sentInvites.length + data.awaitingAdmin.length) > 0}({data.sentInvites.length + data.awaitingAdmin.length}){/if}
 				</button>
 				<button
 					onclick={() => (activeTab = 'invite')}
@@ -392,15 +399,17 @@ async function copyInviteLink() {
 							</div>
 						{/if}
 					</div>
-				{:else if activeTab === 'pending'}
-					<!-- Pending Players Tab -->
+			{:else if activeTab === 'pending'}
+				<!-- Pending Players Tab -->
+				<div class="space-y-6">
+					<!-- Sent invites awaiting player response -->
 					<div>
-						<h3 class="text-xl font-bold text-white mb-4">Pending Invitations</h3>
-						{#if data.pendingPlayers.length === 0}
+						<h3 class="text-xl font-bold text-white mb-4">Sent Invitations</h3>
+						{#if data.sentInvites.length === 0}
 							<p class="text-gray-400 text-center py-8">No pending invitations</p>
 						{:else}
 							<div class="space-y-3">
-								{#each data.pendingPlayers as pending}
+								{#each data.sentInvites as pending}
 									<div class="flex items-center justify-between p-4 bg-zinc-800 rounded-lg">
 										<div class="flex items-center gap-3">
 											<img
@@ -410,36 +419,60 @@ async function copyInviteLink() {
 											/>
 											<div>
 												<div class="font-semibold text-white">{pending.player.steamUsername}</div>
-												<div class="text-sm text-gray-400">Pending approval</div>
+												<div class="text-sm text-gray-400">Awaiting player response</div>
 											</div>
 										</div>
-										{#if !data.rosterLocked}
-											<div class="flex gap-2">
-												<form method="POST" action="?/approvePlayer" use:enhance>
-													<input type="hidden" name="playerSteamId" value={pending.playerSteamId} />
-													<button
-														type="submit"
-														class="px-3 py-1.5 text-sm bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded transition-colors"
-													>
-														Approve
-													</button>
-												</form>
-												<form method="POST" action="?/declinePlayer" use:enhance>
-													<input type="hidden" name="playerSteamId" value={pending.playerSteamId} />
-													<button
-														type="submit"
-														class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-													>
-														Decline
-													</button>
-												</form>
-											</div>
-										{/if}
+										<form method="POST" action="?/cancelInvite" use:enhance>
+											<input type="hidden" name="playerSteamId" value={pending.playerSteamId} />
+											<button
+												type="submit"
+												class="px-3 py-1.5 text-sm bg-zinc-700 hover:bg-zinc-600 text-gray-400 rounded transition-colors"
+											>
+												Cancel
+											</button>
+										</form>
 									</div>
 								{/each}
 							</div>
 						{/if}
 					</div>
+
+					<!-- Players awaiting admin approval -->
+					{#if data.awaitingAdmin.length > 0}
+						<div>
+							<h3 class="text-xl font-bold text-white mb-4">Awaiting Admin Approval</h3>
+							<div class="space-y-3">
+								{#each data.awaitingAdmin as pending}
+									<div class="flex items-center justify-between p-4 bg-zinc-800 rounded-lg">
+										<div class="flex items-center gap-3">
+											<img
+												src={pending.player.steamAvatar}
+												alt={pending.player.steamUsername}
+												class="w-12 h-12 rounded-full"
+											/>
+											<div>
+												<div class="font-semibold text-white">{pending.player.steamUsername}</div>
+												<span class="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded text-amber-400 text-xs font-medium">
+													<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+													Pending admin approval
+												</span>
+											</div>
+										</div>
+										<form method="POST" action="?/cancelInvite" use:enhance>
+											<input type="hidden" name="playerSteamId" value={pending.playerSteamId} />
+											<button
+												type="submit"
+												class="px-3 py-1.5 text-sm bg-zinc-700 hover:bg-zinc-600 text-gray-400 rounded transition-colors"
+											>
+												Cancel
+											</button>
+										</form>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
 				{:else if activeTab === 'invite'}
 					<!-- Invite Players Tab -->
 					<div class="space-y-6">

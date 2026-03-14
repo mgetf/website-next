@@ -118,26 +118,23 @@ export async function validateJoinPassword(
 }
 
 /**
- * Request to join team by password (creates pending player)
+ * Join team by password — validates the password then creates a PendingPlayer
+ * record with status=1 (awaiting admin approval).
  */
-export async function requestJoinByPassword(
+export async function joinByPassword(
   teamId: number,
   steamId: string,
   password: string,
 ): Promise<void> {
-  // Validate password
   const isValid = await validateJoinPassword(teamId, password);
   if (!isValid) {
     throw error(400, 'Incorrect team password');
   }
 
-  // Check if team exists and is not 1v1
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
-      players: {
-        where: { active: 1 },
-      },
+      players: { where: { active: 1 } },
     },
   });
 
@@ -149,16 +146,17 @@ export async function requestJoinByPassword(
     throw error(400, 'Cannot join 1v1 teams');
   }
 
-  // Check if user is trying to join their own team
+  if (team.players.length >= 3) {
+    throw error(400, 'Team is full (maximum 3 players)');
+  }
+
   const isTeamMember = team.players.some(
     (p) => p.playerSteamId === steamId && p.permissionLevel >= 0,
   );
   if (isTeamMember) {
-    throw error(400, 'You cannot invite yourself to your own team');
+    throw error(400, 'You are already on this team');
   }
 
-  // Check if user is already in another 2v2 team for the CURRENT signup season
-  // (allows joining teams in new seasons if only active in old season teams)
   const currentSeasonIds = await getCurrentSignupSeasonIds();
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
@@ -166,9 +164,7 @@ export async function requestJoinByPassword(
       active: 1,
       team: {
         formatId: FORMAT_2V2,
-        seasonId: {
-          in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
-        },
+        seasonId: { in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1] },
       },
     },
   });
@@ -177,48 +173,27 @@ export async function requestJoinByPassword(
     throw error(400, 'You are already in another 2v2 team for this season');
   }
 
-  // Check if already has pending request
-  const existingPending = await prisma.pendingPlayer.findUnique({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId: steamId,
-        teamId,
-      },
-    },
-  });
-
-  if (existingPending) {
-    throw error(400, 'You already have a pending request for this team');
-  }
-
-  // Create pending player
-  await prisma.pendingPlayer.create({
-    data: {
-      playerSteamId: steamId,
-      teamId,
-      status: 0,
-    },
+  await prisma.pendingPlayer.upsert({
+    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+    create: { playerSteamId: steamId, teamId, status: 1 },
+    update: { status: 1 },
   });
 }
 
 /**
- * Accept invite by token (automatically adds to roster)
+ * Accept invite by token — creates a PendingPlayer record with status=1
+ * (awaiting admin approval). Returns teamId for redirect.
  */
 export async function acceptInviteByToken(
   token: string,
   steamId: string,
 ): Promise<number> {
-  // Validate token and get team
   const { teamId } = validateJoinToken(token);
 
-  // Get team info
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
-      division: true,
-      players: {
-        where: { active: 1 },
-      },
+      players: { where: { active: 1 } },
     },
   });
 
@@ -226,12 +201,10 @@ export async function acceptInviteByToken(
     throw error(404, 'Team not found');
   }
 
-  // Check if team is 1v1
   if (team.formatId === FORMAT_1V1) {
     throw error(400, 'Cannot join 1v1 teams');
   }
 
-  // Check if user is trying to join their own team
   const isTeamMember = team.players.some(
     (p) => p.playerSteamId === steamId && p.permissionLevel >= 0,
   );
@@ -239,12 +212,10 @@ export async function acceptInviteByToken(
     throw error(400, 'You cannot invite yourself to your own team');
   }
 
-  // Check roster size
   if (team.players.length >= 3) {
     throw error(400, 'Team is full (maximum 3 players)');
   }
 
-  // Check if user is already in another 2v2 team for the CURRENT signup season
   const currentSeasonIds = await getCurrentSignupSeasonIds();
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
@@ -252,9 +223,7 @@ export async function acceptInviteByToken(
       active: 1,
       team: {
         formatId: FORMAT_2V2,
-        seasonId: {
-          in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
-        },
+        seasonId: { in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1] },
       },
     },
   });
@@ -263,96 +232,56 @@ export async function acceptInviteByToken(
     throw error(400, 'You are already in another 2v2 team for this season');
   }
 
-  // Check if already in this team
-  const existingMember = await prisma.playerInTeam.findUnique({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId: steamId,
-        teamId,
-      },
-    },
-  });
-
-  if (existingMember && existingMember.active === 1) {
-    throw error(400, 'You are already in this team');
-  }
-
-  const paymentStatus = team.division?.signupCost === 0 ? 1 : 0;
-
-  // Deactivate any stale memberships on other 2v2 teams from previous seasons
-  await prisma.playerInTeam.updateMany({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-        seasonId: { not: team.seasonId },
-      },
-    },
-    data: {
-      active: 0,
-      leftAt: new Date(),
-    },
-  });
-
-  // Add player to team
-  await prisma.playerInTeam.upsert({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId: steamId,
-        teamId,
-      },
-    },
-    create: {
-      playerSteamId: steamId,
-      teamId,
-      permissionLevel: 0,
-      active: 1,
-      paymentStatus,
-    },
-    update: {
-      active: 1,
-      permissionLevel: 0,
-      paymentStatus,
-      startedAt: new Date(),
-    },
-  });
-
-  // Remove any pending player record
-  await prisma.pendingPlayer.deleteMany({
-    where: {
-      playerSteamId: steamId,
-      teamId,
-    },
+  await prisma.pendingPlayer.upsert({
+    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+    create: { playerSteamId: steamId, teamId, status: 1 },
+    update: { status: 1 },
   });
 
   return teamId;
 }
 
 /**
- * Get user's pending invitations
+ * Accept a Steam ID invite — upgrades the player's PendingPlayer record
+ * from status=0 (team invite) to status=1 (awaiting admin approval).
+ */
+export async function acceptTeamInvite(
+  steamId: string,
+  teamId: number,
+): Promise<void> {
+  const pending = await prisma.pendingPlayer.findUnique({
+    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+  });
+
+  if (!pending || pending.status !== 0) {
+    throw error(400, 'No pending invitation found for this team');
+  }
+
+  await prisma.pendingPlayer.update({
+    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+    data: { status: 1 },
+  });
+}
+
+/**
+ * Get all pending records for a user (both status=0 team invites and
+ * status=1 awaiting-admin requests).
  */
 export async function getUserPendingInvites(steamId: string) {
-  const pendingInvites = await prisma.pendingPlayer.findMany({
-    where: {
-      playerSteamId: steamId,
-      status: 0,
-    },
+  return await prisma.pendingPlayer.findMany({
+    where: { playerSteamId: steamId },
     include: {
       team: {
         include: {
           division: true,
           region: true,
           season: true,
-          players: {
-            where: { active: 1 },
-          },
+          players: { where: { active: 1 } },
         },
       },
     },
+    orderBy: { teamId: 'asc' },
   });
-
-  return pendingInvites;
 }
 
 /**
@@ -398,6 +327,35 @@ export async function isPlayerInAnyActiveTeam(
   });
 
   return !!playerInOtherTeam;
+}
+
+/**
+ * Returns the status of a player's pending record for a specific team,
+ * or null if no record exists.
+ * 0 = team invite awaiting player acceptance
+ * 1 = awaiting admin approval
+ */
+export async function getPendingStatusForTeam(
+  steamId: string,
+  teamId: number,
+): Promise<number | null> {
+  const pending = await prisma.pendingPlayer.findUnique({
+    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+    select: { status: true },
+  });
+  return pending?.status ?? null;
+}
+
+/**
+ * Returns true if the player has an active join request (status=1) for any team.
+ * status=0 records are unaccepted invites and do not block joining elsewhere.
+ */
+export async function hasAnyPendingRequest(steamId: string): Promise<boolean> {
+  const pending = await prisma.pendingPlayer.findFirst({
+    where: { playerSteamId: steamId, status: 1 },
+    select: { teamId: true },
+  });
+  return !!pending;
 }
 
 /**

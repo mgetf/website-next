@@ -4,6 +4,7 @@ import {
   validateTokenAndGetTeam,
   acceptInviteByToken,
   declineInvitation,
+  hasAnyPendingRequest,
 } from '$lib/server/services/teamJoin';
 import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
@@ -20,11 +21,18 @@ export const load: PageServerLoad = async ({ url, locals }) => {
   try {
     const teamInfo = await validateTokenAndGetTeam(token, locals.user.steamId);
 
-    // Check if rosters are locked for this team's season
     const rosterLocked = teamInfo.team?.season?.rosterLocked ?? false;
+
+    const hasPending = teamInfo.canJoin
+      ? await hasAnyPendingRequest(locals.user.steamId)
+      : false;
 
     return {
       ...teamInfo,
+      canJoin: teamInfo.canJoin && !hasPending,
+      error: hasPending
+        ? 'You already have a pending join request. Please wait for it to be resolved before accepting another invitation.'
+        : teamInfo.error,
       token,
       rosterLocked,
     };
@@ -65,7 +73,7 @@ export const actions: Actions = {
 
     try {
       const teamId = await acceptInviteByToken(token, locals.user.steamId);
-      throw redirect(303, `/teams/${teamId}`);
+      throw redirect(303, `/teams/${teamId}?joined=awaiting-admin`);
     } catch (err: any) {
       if (err.status === 303) {
         throw err;

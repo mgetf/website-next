@@ -43,6 +43,10 @@ const divisionOptions = $derived(
   }))
 );
 
+const isNewcomerSelected = $derived(
+  filteredDivisions.some((d: (typeof filteredDivisions)[number]) => d.id.toString() === divisionValue && d.name.toLowerCase().includes('newcomer'))
+);
+
 function handleRegionChange(value: string) {
   selectedRegionId = value ? parseInt(value) : null;
   const regionId = selectedRegionId;
@@ -140,15 +144,17 @@ function handleRegionChange(value: string) {
 				/>
 
 				<!-- Division -->
-			<FormSelect
-				label="Division"
-				name="divisionId"
-				bind:value={divisionValue}
-				options={divisionOptions}
-				placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
-				required
-				disabled={!selectedRegionId}
-			/>
+		<FormSelect
+			label="Division"
+			name="divisionId"
+			bind:value={divisionValue}
+			options={divisionOptions}
+			placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
+			required
+			disabled={!selectedRegionId}
+			hint={isNewcomerSelected ? 'Newcomer is ONLY for players with no previous competitive experience!' : undefined}
+			hintVariant={isNewcomerSelected ? 'warning' : 'default'}
+		/>
 
 				<!-- Info Box -->
 				<div class="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
@@ -162,22 +168,7 @@ function handleRegionChange(value: string) {
 				</div>
 
 				<!-- Terms & Conditions -->
-				<div class="mb-6 space-y-3">
-					<label class="flex items-start gap-3 cursor-pointer">
-						<input
-							type="checkbox"
-							name="terms"
-							required
-							class="mt-1 w-4 h-4 rounded border-gray-600 bg-zinc-800 text-orange-600 focus:ring-orange-500 focus:ring-offset-zinc-900"
-						/>
-						<span class="text-sm text-gray-300">
-							I have read and agree to the
-							<a href="/rulebook" target="_blank" class="text-orange-500 hover:text-orange-400">
-								Terms and Conditions
-							</a>
-						</span>
-					</label>
-
+				<div class="mb-6">
 					<label class="flex items-start gap-3 cursor-pointer">
 						<input
 							type="checkbox"

@@ -15,6 +15,7 @@
 		disabled = false,
 		error,
 		hint,
+		hintVariant = 'default',
 		onChange,
 		class: className = ''
 	}: {
@@ -27,6 +28,7 @@
 		disabled?: boolean;
 		error?: string;
 		hint?: string;
+		hintVariant?: 'default' | 'warning';
 		onChange?: (value: string) => void;
 		class?: string;
 	} = $props();
@@ -58,7 +60,7 @@
 		{/each}
 	</select>
 	{#if hint && !error}
-		<p class="text-xs text-gray-500 mt-1">{hint}</p>
+		<p class={hintVariant === 'warning' ? 'text-xs font-semibold text-amber-400/90 mt-1.5' : 'text-xs text-gray-500 mt-1'}>{hint}</p>
 	{/if}
 	{#if error}
 		<p class="text-xs text-red-400 mt-1">{error}</p>

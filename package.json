@@ -11,7 +11,10 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "generate": "prisma generate",
-    "migrate": "prisma migrate dev"
+    "migrate": "prisma migrate dev",
+    "migrate:prod": "dotenv -e .env.production -- prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:studio:prod": "dotenv -e .env.production -- prisma studio"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.4",
@@ -20,6 +23,7 @@
     "@types/node": "^25.5.0",
     "brackets-model": "^1.6.2",
     "dotenv": "^17.3.1",
+    "dotenv-cli": "^11.0.0",
     "prisma": "^7.5.0",
     "svelte": "^5.53.11",
     "svelte-check": "^4.4.5",

@@ -71,14 +71,12 @@ function updateFilters(updates: Record<string, string>) {
 
 const permissionNames: Record<string, string> = {
   GUEST: 'Guest',
-  USER: 'User',
   MODERATOR: 'Moderator',
   ADMIN: 'Admin',
 };
 
 const permissionOptions = [
   { value: 'GUEST', label: 'Guest' },
-  { value: 'USER', label: 'User' },
   { value: 'MODERATOR', label: 'Moderator' },
   { value: 'ADMIN', label: 'Admin' }
 ];
@@ -100,7 +98,6 @@ const banStatusNames: Record<string, string> = {
 function getPermissionColor(permission: string) {
   if (permission === 'ADMIN') return 'bg-red-500/20 text-red-400';
   if (permission === 'MODERATOR') return 'bg-purple-500/20 text-purple-400';
-  if (permission === 'USER') return 'bg-blue-500/20 text-blue-400';
   return 'bg-gray-500/20 text-gray-400';
 }
 
@@ -286,7 +283,6 @@ function closeBanModal() {
 				name="permissionLevel"
 				bind:value={editingUser.permissionLevel}
 				options={permissionOptions}
-				hint="Guests cannot sign up for leagues. Users can create teams. Moderators have staff access. Admins have full access."
 			/>
 
 			{#if editingUser.permissionLevel === 'MODERATOR' || editingUser.permissionLevel === 'ADMIN'}

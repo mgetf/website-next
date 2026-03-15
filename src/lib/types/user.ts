@@ -6,7 +6,6 @@
 // Mirror of Prisma's UserRole enum for client-side use
 export enum UserRole {
   GUEST = 'GUEST',
-  USER = 'USER',
   MODERATOR = 'MODERATOR',
   ADMIN = 'ADMIN',
 }

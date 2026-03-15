@@ -17,9 +17,8 @@ export function hasRole(user: SessionUser | null, minRole: UserRole): boolean {
 
   const roleOrder: Record<UserRole, number> = {
     GUEST: 0,
-    USER: 1,
-    MODERATOR: 2,
-    ADMIN: 3,
+    MODERATOR: 1,
+    ADMIN: 2,
   };
 
   const userLevel = roleOrder[user.permissionLevel as unknown as UserRole] ?? 0;

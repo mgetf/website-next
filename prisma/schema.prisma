@@ -9,10 +9,9 @@ datasource db {
 
 // Enums
 enum UserRole {
-  GUEST // 0
-  USER // 1
-  MODERATOR // 2
-  ADMIN // 3
+  GUEST
+  MODERATOR
+  ADMIN
 }
 
 enum BanStatus {

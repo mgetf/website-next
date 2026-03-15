@@ -5,6 +5,8 @@ import NotificationDropdown from './NotificationDropdown.svelte';
 import UserDropdown from './UserDropdown.svelte';
 import { page } from '$app/state';
 import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
+import YoutubeIcon from '$lib/components/icons/YoutubeIcon.svelte';
+import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
 
 type Props = {
   user: SessionUser | null;
@@ -87,6 +89,27 @@ function toggleMobileMenu() {
 			
 			<!-- Right: Actions -->
 			<div class="flex items-center gap-3">
+				<!-- Social Links -->
+				<div class="hidden md:flex items-center gap-1">
+					<a
+						href="https://www.youtube.com/channel/UCtVU1Zc_KiIjDAsH0GGRqww"
+						target="_blank"
+						rel="noopener noreferrer"
+						aria-label="MGE on YouTube"
+						class="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-md hover:bg-zinc-800/50"
+					>
+						<YoutubeIcon />
+					</a>
+					<a
+						href="https://mge.tf/discord"
+						target="_blank"
+						rel="noopener noreferrer"
+						aria-label="MGE Discord"
+						class="p-1.5 text-gray-400 hover:text-indigo-400 transition-colors rounded-md hover:bg-zinc-800/50"
+					>
+						<DiscordIcon />
+					</a>
+				</div>
 			{#if user && !signupClosed && !isInTeam}
 				<a
 					href="/signup"

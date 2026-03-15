@@ -5,7 +5,7 @@ import { goto } from '$app/navigation';
 import PageHero from '$lib/components/layout/PageHero.svelte';
 import { toast } from '$lib/state/toast.svelte';
 import Dialog from '$lib/components/ui/Dialog.svelte';
-import discordIcon from '$lib/assets/icons/discord.png';
+import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
 import type { ProfileMatch } from '$lib/server/services/users';
 
 interface TeamWithMatches {
@@ -326,8 +326,8 @@ function winPct(wins: number, losses: number): string {
 				
 				<!-- Discord Status -->
 				{#if player.discordLinked}
-					<div class="relative inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-lg text-blue-400 text-sm group/discord">
-						<img src={discordIcon} alt="Discord" class="w-4 h-4" />
+				<div class="relative inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-lg text-blue-400 text-sm group/discord">
+					<DiscordIcon size={16} />
 						<span>{player.discordUsername || 'Discord linked'}</span>
 						{#if isAdmin}
 							<button 
@@ -348,12 +348,12 @@ function winPct(wins: number, losses: number): string {
 						href="/auth/discord/login"
 						class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white text-sm font-medium transition-colors cursor-pointer"
 					>
-						<img src={discordIcon} alt="Discord" class="w-4 h-4" />
+						<DiscordIcon size={16} />
 						<span>Link Discord Account</span>
 					</a>
 			{:else}
-				<div class="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-lg text-gray-400 text-sm">
-					<img src={discordIcon} alt="Discord" class="w-4 h-4" />
+			<div class="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-lg text-gray-400 text-sm">
+				<DiscordIcon size={16} />
 					<span>Discord not linked</span>
 				</div>
 			{/if}
@@ -766,10 +766,10 @@ function winPct(wins: number, losses: number): string {
 
 	{#if player.discordUsername}
 		<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
-			<div class="flex items-center gap-2">
-				<img src={discordIcon} alt="Discord" class="w-4 h-4" />
-				<span class="text-green-400 text-sm">{player.discordUsername}</span>
-			</div>
+		<div class="flex items-center gap-2">
+			<DiscordIcon size={16} />
+			<span class="text-green-400 text-sm">{player.discordUsername}</span>
+		</div>
 		</div>
 	{/if}
 

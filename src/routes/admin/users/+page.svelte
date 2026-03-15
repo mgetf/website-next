@@ -11,7 +11,7 @@ import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
 import FormInput from '$lib/components/ui/form/FormInput.svelte';
 import FormError from '$lib/components/ui/form/FormError.svelte';
 import { toast } from '$lib/state/toast.svelte';
-import discordIcon from '$lib/assets/icons/discord.png';
+import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -378,7 +378,7 @@ function closeBanModal() {
 				<p class="block text-sm font-medium text-gray-300 mb-2">Discord Account</p>
 				<div class="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
 					<div class="flex items-center gap-2">
-						<img src={discordIcon} alt="Discord" class="w-4 h-4" />
+						<DiscordIcon size={16} />
 						<span class="text-green-400 text-sm">{editingUser.discordUsername || 'Linked'}</span>
 					</div>
 					<button
@@ -408,7 +408,7 @@ function closeBanModal() {
 
 		<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
 			<div class="flex items-center gap-2">
-				<img src={discordIcon} alt="Discord" class="w-4 h-4" />
+				<DiscordIcon size={16} />
 				<span class="text-green-400 text-sm">{unlinkingDiscordUser.discordUsername || 'Linked'}</span>
 			</div>
 		</div>

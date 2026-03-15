@@ -4,7 +4,7 @@ import { goto } from '$app/navigation';
 import DataTable from '$lib/components/ui/DataTable.svelte';
 import SearchInput from '$lib/components/ui/SearchInput.svelte';
 import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-import discordIcon from '$lib/assets/icons/discord.png';
+import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
 import PageHero from '$lib/components/layout/PageHero.svelte';
 
 let { data }: { data: PageData } = $props();
@@ -193,7 +193,7 @@ function getBanLabel(status: string) {
 			{:else if col.key === 'discord'}
 				{#if user.discord?.discordUsername}
 					<div class="flex items-center space-x-2 whitespace-nowrap">
-						<img src={discordIcon} alt="Discord" class="w-4 h-4" />
+						<DiscordIcon size={16} />
 						<span class="text-sm text-gray-300">
 							{user.discord.discordUsername}
 						</span>

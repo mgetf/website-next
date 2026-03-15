@@ -7,6 +7,7 @@
 import { prisma } from '$lib/server/db';
 import { TeamStatus } from '$prisma/client.js';
 import type { Prisma } from '$prisma/client.js';
+import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 /**
  * Get teams with filtering, search, and pagination
@@ -94,7 +95,7 @@ export async function getTeamsPublic(
   const TEAMS_PER_PAGE = 50;
   const skip = (page - 1) * TEAMS_PER_PAGE;
 
-  const where: Prisma.TeamWhereInput = {};
+  const where: Prisma.TeamWhereInput = { formatId: FORMAT_2V2 };
 
   if (search && search.trim().length > 0) {
     where.OR = [

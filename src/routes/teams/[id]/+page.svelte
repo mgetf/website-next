@@ -18,9 +18,12 @@ let submittingAction = $state<string | null>(null);
 let showLeaveDialog = $state(false);
 let showRemoveDialog = $state(false);
 let removeTarget: { steamId: string; name: string } | null = $state(null);
+let showMarkPaidDialog = $state(false);
+let markPaidTarget: { steamId: string; name: string } | null = $state(null);
 
 let leaveFormEl: HTMLFormElement | undefined = $state();
 let removeFormEl: HTMLFormElement | undefined = $state();
+let markPaidFormEl: HTMLFormElement | undefined = $state();
 
 onMount(() => {
   if (data.paymentSuccess) {
@@ -36,6 +39,10 @@ onMount(() => {
     history.replaceState({}, '', window.location.pathname);
     toast.success('Join request submitted! An admin will review it shortly.');
   }
+  if (url.searchParams.get('disbanded') === '1') {
+    history.replaceState({}, '', window.location.pathname);
+    toast.success('Team has been disbanded.');
+  }
 });
 
 $effect(() => {
@@ -44,6 +51,8 @@ $effect(() => {
 		showLeaveDialog = false;
 		showRemoveDialog = false;
 		removeTarget = null;
+		showMarkPaidDialog = false;
+		markPaidTarget = null;
 		if (form.success && form.message) {
 			toast.success(form.message);
 		} else if (form.error) {
@@ -293,14 +302,23 @@ function makeEnhance(action: string) {
 											{#if player.steamId === data.currentUserSteamId}
 												<a
 													href="/checkout/{player.steamId}?teamId={data.team.id}"
-													class="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-medium rounded border border-red-500/30 hover:bg-red-500/30 hover:text-red-300 transition-colors"
+													class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
 												>
 													Payment Required
 												</a>
 											{:else}
-												<span class="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-medium rounded border border-red-500/30">
+												<span class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400">
 													Payment Required
 												</span>
+											{/if}
+											{#if data.isGlobalAdmin}
+												<button
+													type="button"
+													onclick={() => { markPaidTarget = { steamId: player.steamId, name: player.name }; showMarkPaidDialog = true; }}
+													class="px-3 py-1 text-xs font-medium rounded border bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors"
+												>
+													Mark as Paid
+												</button>
 											{/if}
 										{/if}
 										
@@ -308,7 +326,7 @@ function makeEnhance(action: string) {
 											<button
 												type="button"
 												onclick={() => { removeTarget = { steamId: player.steamId, name: player.name }; showRemoveDialog = true; }}
-												class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+												class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
 											>
 												Remove
 											</button>
@@ -318,7 +336,7 @@ function makeEnhance(action: string) {
 											<button
 												type="button"
 												onclick={() => showLeaveDialog = true}
-												class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+												class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
 											>
 												Leave Team
 											</button>
@@ -511,6 +529,16 @@ function makeEnhance(action: string) {
 	<input type="hidden" name="playerSteamId" value={removeTarget?.steamId ?? ''} />
 </form>
 
+<form
+	bind:this={markPaidFormEl}
+	method="POST"
+	action="?/markPlayerPaid"
+	use:enhance={makeEnhance('markPlayerPaid')}
+	class="hidden"
+>
+	<input type="hidden" name="playerSteamId" value={markPaidTarget?.steamId ?? ''} />
+</form>
+
 <ConfirmDialog
 	open={showLeaveDialog}
 	title="Leave Team"
@@ -533,5 +561,17 @@ function makeEnhance(action: string) {
 	isLoading={submittingAction === 'removePlayer'}
 	onConfirm={() => removeFormEl?.requestSubmit()}
 	onCancel={() => { showRemoveDialog = false; removeTarget = null; }}
+/>
+
+<ConfirmDialog
+	open={showMarkPaidDialog}
+	title="Mark Player as Paid"
+	description="Mark {markPaidTarget?.name ?? 'this player'} as paid? This records a manual payment outside of the automatic payment options."
+	confirmLabel="Mark as Paid"
+	loadingLabel="Saving..."
+	variant="success"
+	isLoading={submittingAction === 'markPlayerPaid'}
+	onConfirm={() => markPaidFormEl?.requestSubmit()}
+	onCancel={() => { showMarkPaidDialog = false; markPaidTarget = null; }}
 />
 

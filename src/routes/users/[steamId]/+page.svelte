@@ -34,6 +34,8 @@ interface Entry1v1WithMatches {
   startedAt: Date | null;
   leftAt: Date | null;
   matches: ProfileMatch[];
+  isPaid: boolean;
+  signupCost: number;
 }
 
 interface PlayerData {
@@ -548,15 +550,41 @@ function winPct(wins: number, losses: number): string {
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
 											</svg>
 										</button>
-										{#if isOwnProfile && entry.active}
-											<div class="pr-4">
-												<button
-													type="button"
-													class="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors whitespace-nowrap"
-													onclick={() => withdrawingEntry = entry}
-												>
-													Withdraw
-												</button>
+										{#if (isOwnProfile || isAdmin) && entry.active}
+											<div class="pr-4 flex items-center gap-2">
+												{#if isAdmin && !entry.isPaid && entry.signupCost > 0}
+													<form
+														method="POST"
+														action="?/mark1v1Paid"
+														use:enhance={() => {
+															return async ({ result, update }) => {
+																await update({ reset: false });
+																if (result.type === 'success') {
+																	toast.success((result.data as any)?.message || 'Player marked as paid');
+																} else if (result.type === 'failure') {
+																	toast.error((result.data as any)?.error || 'Failed to mark player as paid');
+																}
+															};
+														}}
+													>
+														<input type="hidden" name="teamId" value={entry.id} />
+														<button
+															type="submit"
+															class="text-xs px-2 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded border border-green-500/30 transition-colors whitespace-nowrap"
+														>
+															Mark as Paid
+														</button>
+													</form>
+												{/if}
+												{#if isOwnProfile}
+													<button
+														type="button"
+														class="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors whitespace-nowrap"
+														onclick={() => withdrawingEntry = entry}
+													>
+														Withdraw
+													</button>
+												{/if}
 											</div>
 										{/if}
 									</div>

@@ -3,6 +3,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { getTeamById, updateTeamStatus } from '$lib/server/services/teams';
 import { isAdmin, isTeamAdmin } from '$lib/server/auth/permissions';
 import { removePlayer } from '$lib/server/services/teamManagement';
+import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
@@ -12,6 +13,7 @@ import {
   acceptTeamInvite,
   declineInvitation,
 } from '$lib/server/services/teamJoin';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const teamId = parseInt(params.id);
@@ -337,6 +339,45 @@ export const actions: Actions = {
     } catch (err) {
       return fail(500, {
         error: err instanceof Error ? err.message : 'Failed to leave team',
+      });
+    }
+  },
+
+  markPlayerPaid: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user) {
+      return fail(401, { error: 'You must be logged in' });
+    }
+
+    if (!isAdmin(locals.user)) {
+      return fail(403, { error: 'Only global admins can manually mark players as paid' });
+    }
+
+    const teamId = parseInt(params.id);
+    const formData = await request.formData();
+    const playerSteamId = formData.get('playerSteamId') as string;
+
+    if (!playerSteamId) {
+      return fail(400, { error: 'Player Steam ID is required' });
+    }
+
+    try {
+      await markPlayerAsPaidManually(playerSteamId, teamId, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.PAYMENT,
+        action: AuditAction.PAYMENT_MARKED_MANUALLY,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Player marked as paid' };
+    } catch (err) {
+      return fail(err instanceof Error && 'status' in (err as any) ? (err as any).status : 500, {
+        error: err instanceof Error ? err.message : 'Failed to mark player as paid',
       });
     }
   },

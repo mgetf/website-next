@@ -378,6 +378,6 @@ export const actions: Actions = {
       ipAddress: getClientAddress(),
     });
 
-    throw redirect(303, `/teams/${teamId}`);
+    throw redirect(303, `/teams/${teamId}?disbanded=1`);
   },
 };

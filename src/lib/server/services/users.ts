@@ -452,6 +452,8 @@ export async function getPlayerProfile(steamId: string) {
     losses: entry.team.losses,
     startedAt: entry.startedAt,
     leftAt: entry.leftAt,
+    isPaid: entry.paymentStatus === 1,
+    signupCost: entry.team.division?.signupCost ?? 0,
   }));
 
   // Batch-fetch all league matches for 2v2 teams and 1v1 entries

@@ -10,6 +10,7 @@ import {
   clearPunishment,
 } from '$lib/server/services/users';
 import { withdraw1v1Entry } from '$lib/server/services/signup1v1';
+import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { isAdmin } from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
@@ -329,6 +330,42 @@ export const actions: Actions = {
     } catch (err: any) {
       console.error('Error updating punishment:', err);
       return fail(400, { error: err.message || 'Failed to update punishment' });
+    }
+  },
+
+  mark1v1Paid: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user || !isAdmin(locals.user)) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const { steamId } = params;
+    const formData = await request.formData();
+    const teamId = parseInt(formData.get('teamId')?.toString() || '');
+
+    if (!teamId || isNaN(teamId)) {
+      return fail(400, { error: 'Invalid team ID' });
+    }
+
+    try {
+      await markPlayerAsPaidManually(steamId, teamId, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.PAYMENT,
+        action: AuditAction.PAYMENT_MARKED_MANUALLY,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { targetSteamId: steamId },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Player marked as paid' };
+    } catch (err: any) {
+      console.error('Error marking 1v1 player as paid:', err);
+      return fail(err.status || 500, {
+        error: err.body?.message || err.message || 'Failed to mark player as paid',
+      });
     }
   },
 };

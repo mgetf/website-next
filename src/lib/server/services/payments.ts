@@ -7,6 +7,7 @@
 import { prisma } from '$lib/server/db';
 import { error } from '@sveltejs/kit';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
 /**
  * Get user's active team for checkout.
@@ -106,6 +107,83 @@ export async function updatePlayerPaymentStatus(
 export async function getLeagueFees(): Promise<number> {
   const global = await prisma.global.findFirst();
   return global?.leagueFees ?? 0;
+}
+
+/**
+ * Mark a player as paid manually (for payments made outside PayPal).
+ * Records a Payment and PaymentTracker entry for audit consistency,
+ * then updates PlayerInTeam and Team payment statuses.
+ */
+export async function markPlayerAsPaidManually(
+  steamId: string,
+  teamId: number,
+  adminSteamId: string,
+): Promise<void> {
+  const playerInTeam = await prisma.playerInTeam.findUnique({
+    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+    include: {
+      team: {
+        include: { division: true },
+      },
+    },
+  });
+
+  if (!playerInTeam) {
+    throw error(404, 'Player is not on this team');
+  }
+
+  if (playerInTeam.paymentStatus === 1) {
+    throw error(400, 'Player is already marked as paid');
+  }
+
+  if (!playerInTeam.team.seasonId) {
+    throw error(400, 'Team has no associated season');
+  }
+
+  const seasonId = playerInTeam.team.seasonId;
+  const signupCost = playerInTeam.team.division?.signupCost ?? 0;
+  const paymentId = `manual-${Date.now()}-${steamId}`;
+
+  await prisma.$transaction(async (tx) => {
+    if (signupCost > 0) {
+      await tx.paymentTracker.upsert({
+        where: { playerSteamId_seasonId: { playerSteamId: steamId, seasonId } },
+        create: { playerSteamId: steamId, seasonId, amount: signupCost },
+        update: { amount: { increment: signupCost } },
+      });
+
+      await tx.payment.create({
+        data: {
+          paymentId,
+          purchasedFor: steamId,
+          purchasedBy: adminSteamId,
+          amount: signupCost.toString(),
+          currency: 'MANUAL',
+          purchaseDate: new Date(),
+          description: `Manual payment - Team #${teamId}`,
+          teamId,
+        },
+      });
+    }
+
+    await tx.playerInTeam.update({
+      where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+      data: { paymentStatus: 1 },
+    });
+
+    const paidPlayersCount = await tx.playerInTeam.count({
+      where: { teamId, active: 1, paymentStatus: 1 },
+    });
+
+    const requiredPaidPlayers = playerInTeam.team.formatId === FORMAT_1V1 ? 1 : 2;
+
+    if (paidPlayersCount >= requiredPaidPlayers) {
+      await tx.team.update({
+        where: { id: teamId },
+        data: { paymentStatus: 1 },
+      });
+    }
+  });
 }
 
 /**

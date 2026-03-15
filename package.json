@@ -11,7 +11,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "generate": "prisma generate",
-    "migrate": "prisma migrate dev",
+    "migrate": "prisma migrate deploy",
     "migrate:prod": "dotenv -e .env.production -- prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:studio:prod": "dotenv -e .env.production -- prisma studio"

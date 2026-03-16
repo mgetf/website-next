@@ -228,6 +228,7 @@ export async function getSeasonsForFilter(limit = 50) {
       id: true,
       seasonNum: true,
       regionId: true,
+      formatId: true,
       region: {
         select: {
           id: true,

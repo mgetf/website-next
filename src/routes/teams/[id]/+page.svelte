@@ -109,30 +109,7 @@ function makeEnhance(action: string) {
 <div class="min-h-screen pb-16">
 	<!-- Team Hero Section -->
 	<PageHero maxWidth="max-w-6xl">
-			<!-- Admin Badge -->
-			{#if data.isGlobalAdmin}
-				<div class="mb-4 p-3 bg-purple-500/20 border border-purple-500/50 rounded-lg">
-					<p class="text-purple-400 text-sm">
-						👑 <strong>Admin Mode:</strong> You have full management access to this team
-					</p>
-				</div>
-			{/if}
-			
-			<!-- Roster Lock Warning -->
-			{#if data.rosterLocked && data.canManageTeam}
-				<div class="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-					<p class="text-yellow-400 text-sm">
-						🔒 <strong>Rosters are locked.</strong>
-						{#if data.isGlobalAdmin}
-							You can bypass this restriction as an admin.
-						{:else}
-							Roster changes are currently disabled.
-						{/if}
-					</p>
-				</div>
-			{/if}
-			
-			<div class="flex flex-col md:flex-row items-center gap-8">
+		<div class="flex flex-col md:flex-row items-center gap-8">
 				<!-- Team Logo -->
 				<div class="flex-shrink-0">
 					{#if team.avatar}

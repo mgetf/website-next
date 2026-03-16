@@ -1,6 +1,7 @@
 <script lang="ts">
 import { enhance } from '$app/forms';
 import type { PageData } from './$types';
+import FilterBar from '$lib/components/ui/FilterBar.svelte';
 
 let { data }: { data: PageData } = $props();
 
@@ -53,26 +54,26 @@ function getStatusColor(status: string): string {
 	</div>
 	
 	<!-- Filters -->
-	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-		<div class="flex gap-6">
+	<FilterBar>
+		{#snippet filters()}
 			<label class="flex items-center gap-2 text-gray-300 cursor-pointer">
-				<input 
-					type="checkbox" 
+				<input
+					type="checkbox"
 					bind:checked={showReviewed}
 					class="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-orange-500 focus:ring-orange-500"
 				/>
-				<span>Show Reviewed</span>
+				<span class="text-sm font-medium">Show Reviewed</span>
 			</label>
 			<label class="flex items-center gap-2 text-gray-300 cursor-pointer">
-				<input 
-					type="checkbox" 
+				<input
+					type="checkbox"
 					bind:checked={showRejected}
 					class="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-orange-500 focus:ring-orange-500"
 				/>
-				<span>Show Rejected</span>
+				<span class="text-sm font-medium">Show Rejected</span>
 			</label>
-		</div>
-	</div>
+		{/snippet}
+	</FilterBar>
 	
 	<!-- Reports List -->
 	<div class="space-y-4">

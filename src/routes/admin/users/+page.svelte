@@ -4,6 +4,7 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { enhance } from '$app/forms';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import FilterBar from '$lib/components/ui/FilterBar.svelte';
 import SearchInput from '$lib/components/ui/SearchInput.svelte';
 import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 import Dialog from '$lib/components/ui/Dialog.svelte';
@@ -50,6 +51,25 @@ const columns = [
 const paginationInfo = $derived(
 	`Showing ${((data.pagination.page - 1) * data.pagination.pageSize) + 1} to ${Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalUsers)} of ${data.pagination.totalUsers} users`
 );
+
+let searchInput = $state('');
+
+$effect(() => {
+  searchInput = data.filters.search;
+});
+
+const hasActiveFilters = $derived(
+  !!(data.filters.search || data.filters.permissionLevel || data.filters.banStatus)
+);
+
+function handleSearch() {
+  updateFilters({ search: searchInput });
+}
+
+function clearFilters() {
+  searchInput = '';
+  goto('/admin/users');
+}
 
 function updateFilters(updates: Record<string, string>) {
   const params = new URLSearchParams(page.url.searchParams);
@@ -139,37 +159,38 @@ function closeBanModal() {
 	</div>
 	
 	<!-- Filters -->
-	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-			<SearchInput
-				value={data.filters.search}
-				placeholder="Search by username or Steam ID..."
-				onSearch={(v) => updateFilters({ search: v })}
-			/>
-			
-			<SelectFilter
-				value={data.filters.permissionLevel}
-				options={permissionOptions}
-				allLabel="All Permissions"
-				onChange={(v) => updateFilters({ permissionLevel: v })}
-			/>
-			
-			<SelectFilter
-				value={data.filters.banStatus}
-				options={banStatusOptions}
-				allLabel="All Status"
-				onChange={(v) => updateFilters({ banStatus: v })}
-			/>
-			
-			<button
-				type="button"
-				onclick={() => goto('/admin/users')}
-				class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-gray-300 hover:text-white transition-colors"
-			>
-				Clear Filters
-			</button>
-		</div>
-	</div>
+	<FilterBar
+		onSubmit={handleSearch}
+		onClear={clearFilters}
+		{hasActiveFilters}
+	>
+		{#snippet filters()}
+			<div class="flex-1">
+				<label for="search" class="block text-sm font-medium text-gray-400 mb-2">Search</label>
+				<SearchInput bind:value={searchInput} placeholder="Search by username or Steam ID..." />
+			</div>
+
+			<div class="md:w-48">
+				<label for="permissionLevel" class="block text-sm font-medium text-gray-400 mb-2">Permission</label>
+				<SelectFilter
+					value={data.filters.permissionLevel}
+					options={permissionOptions}
+					allLabel="All Permissions"
+					onChange={(v) => updateFilters({ permissionLevel: v })}
+				/>
+			</div>
+
+			<div class="md:w-48">
+				<label for="banStatus" class="block text-sm font-medium text-gray-400 mb-2">Status</label>
+				<SelectFilter
+					value={data.filters.banStatus}
+					options={banStatusOptions}
+					allLabel="All Status"
+					onChange={(v) => updateFilters({ banStatus: v })}
+				/>
+			</div>
+		{/snippet}
+	</FilterBar>
 	
 	<!-- Users Table -->
 	<DataTable

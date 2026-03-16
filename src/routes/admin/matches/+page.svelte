@@ -3,6 +3,7 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import type { PageData } from './$types';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import FilterBar from '$lib/components/ui/FilterBar.svelte';
 import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 import { toast } from '$lib/state/toast.svelte';
 
@@ -146,10 +147,10 @@ function getWinnerClass(match: any, teamId: number): string {
 
 
 	<!-- Filters - Region, Season, Week Selection -->
-	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-			<div>
-				<div class="block text-sm font-medium text-gray-300 mb-2">Region</div>
+	<FilterBar>
+		{#snippet filters()}
+			<div class="md:w-48">
+				<label for="region" class="block text-sm font-medium text-gray-400 mb-2">Region</label>
 				<SelectFilter
 					value={selectedRegion}
 					options={regionOptions}
@@ -158,8 +159,8 @@ function getWinnerClass(match: any, teamId: number): string {
 				/>
 			</div>
 
-			<div>
-				<div class="block text-sm font-medium text-gray-300 mb-2">Season</div>
+			<div class="md:w-48">
+				<label for="season" class="block text-sm font-medium text-gray-400 mb-2">Season</label>
 				<SelectFilter
 					value={selectedSeason}
 					options={seasonOptions}
@@ -168,8 +169,8 @@ function getWinnerClass(match: any, teamId: number): string {
 				/>
 			</div>
 
-			<div>
-				<div class="block text-sm font-medium text-gray-300 mb-2">Round</div>
+			<div class="md:w-48">
+				<label for="round" class="block text-sm font-medium text-gray-400 mb-2">Round</label>
 				<SelectFilter
 					value={selectedWeek}
 					options={weekOptions}
@@ -177,8 +178,8 @@ function getWinnerClass(match: any, teamId: number): string {
 					onChange={onWeekChange}
 				/>
 			</div>
-		</div>
-	</div>
+		{/snippet}
+	</FilterBar>
 
 	<!-- Matches by Division -->
 	{#if data.matchesByDivision.length === 0}

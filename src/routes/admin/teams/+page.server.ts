@@ -51,6 +51,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const regionFilter = url.searchParams.get('region');
   const statusFilter = url.searchParams.get('status');
   const seasonFilter = url.searchParams.get('season');
+  const formatFilter = url.searchParams.get('format');
 
   // Parse filters
   const divisionId =
@@ -61,6 +62,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     regionFilter && regionFilter !== 'all' ? parseInt(regionFilter) : undefined;
   const seasonId =
     seasonFilter && seasonFilter !== 'all' ? parseInt(seasonFilter) : undefined;
+  const formatId =
+    formatFilter && formatFilter !== 'all' ? parseInt(formatFilter) : undefined;
 
   let status: TeamStatus | undefined;
   if (statusFilter && statusFilter !== 'all') {
@@ -78,6 +81,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     regionId,
     status,
     seasonId,
+    formatId,
   });
 
   // Fetch teams with pagination
@@ -87,6 +91,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     regionId,
     status,
     seasonId,
+    formatId,
     page,
     pageSize,
   });
@@ -99,6 +104,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   // Fetch seasons for filter
   const seasons = await getSeasonsForFilter();
+
+  // Fetch formats for filter
+  const formats = await prisma.format.findMany({
+    select: { id: true, name: true },
+    orderBy: { id: 'asc' },
+  });
 
   const teamIds = teams.map((t) => t.id);
 
@@ -167,6 +178,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     divisions,
     regions,
     seasons,
+    formats,
     pagination: {
       page,
       pageSize,
@@ -179,6 +191,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       region: regionFilter || '',
       status: statusFilter || '',
       season: seasonFilter || '',
+      format: formatFilter || '',
     },
     isStrictAdmin: isStrictAdmin(locals.user),
   };

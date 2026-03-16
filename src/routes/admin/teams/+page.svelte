@@ -4,6 +4,7 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { enhance } from '$app/forms';
 import DataTable from '$lib/components/ui/DataTable.svelte';
+import FilterBar from '$lib/components/ui/FilterBar.svelte';
 import SearchInput from '$lib/components/ui/SearchInput.svelte';
 import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
 import Dialog from '$lib/components/ui/Dialog.svelte';
@@ -15,6 +16,8 @@ import { toast } from '$lib/state/toast.svelte';
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
 let editingTeam: (typeof data.teams)[0] | null = $state(null);
+let editModalRegionId: number | null = $state(null);
+let editModalSeasonId: number | null = $state(null);
 let disbandingTeam: (typeof data.teams)[0] | null = $state(null);
 let restoringTeam: (typeof data.teams)[0] | null = $state(null);
 let deletingTeam: (typeof data.teams)[0] | null = $state(null);
@@ -24,6 +27,21 @@ let isDisbanding = $state(false);
 let isRestoring = $state(false);
 let isDeleting = $state(false);
 let lastFormResult: ActionData = null;
+
+const editModalSeasonOptions = $derived(
+  editModalRegionId
+    ? data.seasons.filter((s) =>
+        s.regionId === editModalRegionId &&
+        (!editingTeam || s.formatId === editingTeam.formatId)
+      )
+    : []
+);
+
+const editModalDivisionOptions = $derived(
+  editModalRegionId
+    ? data.divisions.filter((d) => d.regionId === editModalRegionId)
+    : []
+);
 
 $effect(() => {
 	if (form && form !== lastFormResult) {
@@ -38,6 +56,7 @@ $effect(() => {
 
 const columns = [
 	{ key: 'team', label: 'Team' },
+	{ key: 'format', label: 'Format' },
 	{ key: 'season', label: 'Season' },
 	{ key: 'division', label: 'Division' },
 	{ key: 'region', label: 'Region' },
@@ -52,11 +71,16 @@ const paginationInfo = $derived(
 );
 
 const filteredSeasons = $derived(() => {
-  if (!data.filters.region) {
-    return data.seasons;
+  let seasons = data.seasons;
+  if (data.filters.region) {
+    const regionId = parseInt(data.filters.region);
+    seasons = seasons.filter((s) => s.regionId === regionId);
   }
-  const regionId = parseInt(data.filters.region);
-  return data.seasons.filter((s) => s.regionId === regionId);
+  if (data.filters.format) {
+    const formatId = parseInt(data.filters.format);
+    seasons = seasons.filter((s) => s.formatId === formatId);
+  }
+  return seasons;
 });
 
 const seasonOptions = $derived(
@@ -67,11 +91,17 @@ const seasonOptions = $derived(
 );
 
 const divisionOptions = $derived(
-  data.divisions.map((d) => ({ value: d.id.toString(), label: d.name }))
+  data.divisions
+    .filter((d) => !data.filters.region || d.regionId === parseInt(data.filters.region))
+    .map((d) => ({ value: d.id.toString(), label: d.name }))
 );
 
 const regionOptions = $derived(
   data.regions.map((r) => ({ value: r.id.toString(), label: r.name }))
+);
+
+const formatOptions = $derived(
+  (data.formats ?? []).map((f) => ({ value: f.id.toString(), label: f.name }))
 );
 
 const statusOptions = [
@@ -81,19 +111,46 @@ const statusOptions = [
   { value: '3', label: 'Dead' }
 ];
 
+let searchInput = $state('');
+
+$effect(() => {
+  searchInput = data.filters.search;
+});
+
+const hasActiveFilters = $derived(
+  !!(data.filters.search || data.filters.format || data.filters.region ||
+     data.filters.season || data.filters.division || data.filters.status)
+);
+
+function handleSearch() {
+  updateFilters({ search: searchInput });
+}
+
+function clearFilters() {
+  searchInput = '';
+  goto('/admin/teams');
+}
+
 function updateFilters(updates: Record<string, string>) {
   const params = new URLSearchParams(page.url.searchParams);
 
-  if (updates.region !== undefined) {
-    const newRegionId = updates.region ? parseInt(updates.region) : null;
+  if (updates.region !== undefined || updates.format !== undefined) {
+    const newRegionId = updates.region !== undefined
+      ? (updates.region ? parseInt(updates.region) : null)
+      : (params.get('region') ? parseInt(params.get('region')!) : null);
+    const newFormatId = updates.format !== undefined
+      ? (updates.format ? parseInt(updates.format) : null)
+      : (params.get('format') ? parseInt(params.get('format')!) : null);
     const currentSeasonId = params.get('season');
 
-    if (currentSeasonId && newRegionId) {
-      const currentSeason = data.seasons.find(
-        (s) => s.id === parseInt(currentSeasonId),
-      );
-      if (currentSeason && currentSeason.regionId !== newRegionId) {
-        params.delete('season');
+    if (currentSeasonId) {
+      const currentSeason = data.seasons.find((s) => s.id === parseInt(currentSeasonId));
+      if (currentSeason) {
+        const regionMismatch = newRegionId && currentSeason.regionId !== newRegionId;
+        const formatMismatch = newFormatId && currentSeason.formatId !== newFormatId;
+        if (regionMismatch || formatMismatch) {
+          params.delete('season');
+        }
       }
     }
   }
@@ -145,10 +202,14 @@ function goToPage(pageNum: number) {
 
 function openEditModal(team: (typeof data.teams)[0]) {
   editingTeam = { ...team };
+  editModalRegionId = team.region?.id ?? null;
+  editModalSeasonId = team.season?.id ?? null;
 }
 
 function closeEditModal() {
   editingTeam = null;
+  editModalRegionId = null;
+  editModalSeasonId = null;
 }
 
 const statusToInt: Record<string, number> = {
@@ -168,51 +229,68 @@ const statusToInt: Record<string, number> = {
 	</div>
 	
 	<!-- Filters -->
-	<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-			<SearchInput
-				value={data.filters.search}
-				placeholder="Search teams..."
-				onSearch={(v) => updateFilters({ search: v })}
-			/>
-			
-			<SelectFilter
-				value={data.filters.season}
-				options={seasonOptions}
-				allLabel="All Seasons"
-				onChange={(v) => updateFilters({ season: v })}
-			/>
-			
-			<SelectFilter
-				value={data.filters.division}
-				options={divisionOptions}
-				allLabel="All Divisions"
-				onChange={(v) => updateFilters({ division: v })}
-			/>
-			
-			<SelectFilter
-				value={data.filters.region}
-				options={regionOptions}
-				allLabel="All Regions"
-				onChange={(v) => updateFilters({ region: v })}
-			/>
-			
-			<SelectFilter
-				value={data.filters.status}
-				options={statusOptions}
-				allLabel="All Status"
-				onChange={(v) => updateFilters({ status: v })}
-			/>
-			
-			<button
-				type="button"
-				onclick={() => goto('/admin/teams')}
-				class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-gray-300 hover:text-white transition-colors"
-			>
-				Clear Filters
-			</button>
-		</div>
-	</div>
+	<FilterBar
+		onSubmit={handleSearch}
+		onClear={clearFilters}
+		{hasActiveFilters}
+	>
+		{#snippet filters()}
+			<div class="flex-1">
+				<label for="search" class="block text-sm font-medium text-gray-400 mb-2">Search</label>
+				<SearchInput bind:value={searchInput} placeholder="Search teams..." />
+			</div>
+
+			<div class="md:w-40">
+				<label for="format" class="block text-sm font-medium text-gray-400 mb-2">Format</label>
+				<SelectFilter
+					value={data.filters.format}
+					options={formatOptions}
+					allLabel="All Formats"
+					onChange={(v) => updateFilters({ format: v })}
+				/>
+			</div>
+
+			<div class="md:w-40">
+				<label for="region" class="block text-sm font-medium text-gray-400 mb-2">Region</label>
+				<SelectFilter
+					value={data.filters.region}
+					options={regionOptions}
+					allLabel="All Regions"
+					onChange={(v) => updateFilters({ region: v })}
+				/>
+			</div>
+
+			<div class="md:w-44">
+				<label for="season" class="block text-sm font-medium text-gray-400 mb-2">Season</label>
+				<SelectFilter
+					value={data.filters.season}
+					options={seasonOptions}
+					allLabel="All Seasons"
+					onChange={(v) => updateFilters({ season: v })}
+				/>
+			</div>
+
+			<div class="md:w-44">
+				<label for="division" class="block text-sm font-medium text-gray-400 mb-2">Division</label>
+				<SelectFilter
+					value={data.filters.division}
+					options={divisionOptions}
+					allLabel="All Divisions"
+					onChange={(v) => updateFilters({ division: v })}
+				/>
+			</div>
+
+			<div class="md:w-40">
+				<label for="status" class="block text-sm font-medium text-gray-400 mb-2">Status</label>
+				<SelectFilter
+					value={data.filters.status}
+					options={statusOptions}
+					allLabel="All Status"
+					onChange={(v) => updateFilters({ status: v })}
+				/>
+			</div>
+		{/snippet}
+	</FilterBar>
 	
 	<!-- Teams Table -->
 	<DataTable
@@ -243,6 +321,11 @@ const statusToInt: Record<string, number> = {
 						<p class="text-sm text-gray-400">{team.acronym}</p>
 					</div>
 				</div>
+			{:else if col.key === 'format'}
+				{@const format = data.formats?.find(f => f.id === team.formatId)}
+				<span class="px-2 py-1 rounded text-xs font-medium {team.formatId === 1 ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}">
+					{format?.name ?? team.formatId}
+				</span>
 			{:else if col.key === 'season'}
 				{#if team.season}
 					<span class="text-gray-300">S{team.season.seasonNum}</span>
@@ -328,17 +411,17 @@ const statusToInt: Record<string, number> = {
 	>
 		<FormError error={form?.error} />
 
-		{@const seasonOptions = [
-			{ value: 'none', label: 'No Season' },
-			...data.seasons.map(s => ({ value: String(s.id), label: `Season ${s.seasonNum} (${s.region.name})` }))
-		]}
-		{@const divisionOptions = [
-			{ value: 'none', label: 'No Division' },
-			...data.divisions.map(d => ({ value: String(d.id), label: d.name }))
-		]}
-		{@const regionOptions = [
+		{@const modalRegionOptions = [
 			{ value: 'none', label: 'No Region' },
 			...data.regions.map(r => ({ value: String(r.id), label: r.name }))
+		]}
+		{@const modalSeasonOptions = [
+			{ value: 'none', label: 'No Season' },
+			...editModalSeasonOptions.map(s => ({ value: String(s.id), label: `Season ${s.seasonNum}` }))
+		]}
+		{@const modalDivisionOptions = [
+			{ value: 'none', label: 'No Division' },
+			...editModalDivisionOptions.map(d => ({ value: String(d.id), label: d.name }))
 		]}
 		{@const statusOptions = [
 			{ value: '-1', label: 'Dead' },
@@ -381,24 +464,54 @@ const statusToInt: Record<string, number> = {
 
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
 				<FormSelect
+					label="Region"
+					name="regionId"
+					value={editModalRegionId ? String(editModalRegionId) : 'none'}
+					options={modalRegionOptions}
+					onChange={(val) => {
+						editModalRegionId = val !== 'none' ? parseInt(val) : null;
+						editModalSeasonId = null;
+						if (editingTeam) {
+							editingTeam.region = editModalRegionId
+								? (data.regions.find(r => r.id === editModalRegionId) ?? null)
+								: null;
+							editingTeam.season = null;
+							editingTeam.division = null;
+						}
+					}}
+				/>
+
+				<FormSelect
 					label="Season"
 					name="seasonId"
-					value={String(editingTeam.season?.id || 'none')}
-					options={seasonOptions}
+					value={editModalSeasonId ? String(editModalSeasonId) : 'none'}
+					options={modalSeasonOptions}
+					disabled={!editModalRegionId}
+					hint={!editModalRegionId ? 'Select a region first' : undefined}
+					onChange={(val) => {
+						editModalSeasonId = val !== 'none' ? parseInt(val) : null;
+						if (editingTeam) {
+							editingTeam.season = editModalSeasonId
+								? (data.seasons.find(s => s.id === editModalSeasonId) ?? null)
+								: null;
+						}
+					}}
 				/>
 
 				<FormSelect
 					label="Division"
 					name="divisionId"
-					value={String(editingTeam.division?.id || 'none')}
-					options={divisionOptions}
-				/>
-
-				<FormSelect
-					label="Region"
-					name="regionId"
-					value={String(editingTeam.region?.id || 'none')}
-					options={regionOptions}
+					value={editingTeam.division?.id ? String(editingTeam.division.id) : 'none'}
+					options={modalDivisionOptions}
+					disabled={!editModalRegionId}
+					hint={!editModalRegionId ? 'Select a region first' : undefined}
+					onChange={(val) => {
+						if (editingTeam) {
+							editingTeam.division = val !== 'none'
+								? (data.divisions.find(d => d.id === parseInt(val)) ?? null)
+								: null;
+						}
+					}}
 				/>
 
 				{#if editingTeam.formatId === 1}

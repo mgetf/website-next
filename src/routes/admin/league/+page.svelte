@@ -16,8 +16,6 @@ const seasonColumns = $derived(
 	[
 		{ key: 'season', label: 'Season' },
 		{ key: 'status', label: 'Status' },
-		{ key: 'format', label: 'Format' },
-		{ key: 'duration', label: 'Duration' },
 		{ key: 'teams', label: 'Teams' },
 		{ key: 'matches', label: 'Matches' },
 		{ key: 'playoffs', label: 'Playoffs' },
@@ -147,20 +145,29 @@ $effect(() => {
 });
 
 
-let seasonsByRegion = $derived(
+let seasonsByFormat = $derived(
   data.seasons.reduce(
     (acc, season) => {
-      if (!acc[season.region]) {
-        acc[season.region] = [];
+      if (!acc[season.format]) {
+        acc[season.format] = {};
       }
-      acc[season.region].push(season);
+      if (!acc[season.format][season.region]) {
+        acc[season.format][season.region] = [];
+      }
+      acc[season.format][season.region].push(season);
       return acc;
     },
-    {} as Record<string, typeof data.seasons>,
+    {} as Record<string, Record<string, typeof data.seasons>>,
   ),
 );
 
-let regionNames = $derived(Object.keys(seasonsByRegion).sort());
+let formatNames = $derived(Object.keys(seasonsByFormat).sort());
+let selectedFormat = $state('');
+$effect(() => {
+  if (selectedFormat === '' && formatNames.length > 0) {
+    selectedFormat = formatNames[0];
+  }
+});
 
 // Group divisions by region
 let divisionsByRegion = $derived(
@@ -382,21 +389,42 @@ function setTab(tab: typeof activeTab) {
 				</div>
 			{/if}
 			
-			{#if data.seasons.length === 0}
-				<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
-					<p class="text-gray-400 text-lg mb-4">No seasons found</p>
-					<p class="text-gray-500 text-sm">Create your first season to get started</p>
-				</div>
-			{:else}
-				<div class="space-y-6">
-					{#each regionNames as regionName}
+		{#if data.seasons.length === 0}
+			<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
+				<p class="text-gray-400 text-lg mb-4">No seasons found</p>
+				<p class="text-gray-500 text-sm">Create your first season to get started</p>
+			</div>
+		{:else}
+			<!-- Format tabs -->
+			<div class="flex gap-1 border-b border-zinc-800 mb-6">
+				{#each formatNames as formatName}
+					{@const count = Object.values(seasonsByFormat[formatName]).reduce((s, r) => s + r.length, 0)}
+					<button
+						onclick={() => selectedFormat = formatName}
+						class="relative px-5 py-2.5 text-sm font-medium transition-colors {
+							selectedFormat === formatName ? 'text-orange-400' : 'text-gray-400 hover:text-white'
+						}"
+					>
+						{formatName}
+						<span class="ml-1.5 text-xs {selectedFormat === formatName ? 'text-orange-400/70' : 'text-gray-600'}">{count}</span>
+						{#if selectedFormat === formatName}
+							<span class="absolute bottom-0 inset-x-0 h-0.5 bg-orange-400 rounded-full"></span>
+						{/if}
+					</button>
+				{/each}
+			</div>
+
+			{#if selectedFormat && seasonsByFormat[selectedFormat]}
+				{@const regionMap = seasonsByFormat[selectedFormat]}
+				{@const regionNamesForFormat = Object.keys(regionMap).sort()}
+				<div class="space-y-4">
+					{#each regionNamesForFormat as regionName}
 						<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-						<div class="bg-zinc-800/50 px-6 py-4 border-b border-zinc-800">
-							<h3 class="text-xl font-bold text-white">{regionName}</h3>
-							<p class="text-sm text-gray-400 mt-1">{seasonsByRegion[regionName].length} season{seasonsByRegion[regionName].length !== 1 ? 's' : ''}</p>
-						</div>
-							
-							<DataTable data={seasonsByRegion[regionName].sort((a, b) => b.seasonNum - a.seasonNum)} columns={seasonColumns}>
+							<div class="bg-zinc-800/50 px-6 py-3 border-b border-zinc-800 flex items-center gap-3">
+								<h4 class="text-base font-semibold text-white">{regionName}</h4>
+								<span class="text-xs text-gray-500">{regionMap[regionName].length} season{regionMap[regionName].length !== 1 ? 's' : ''}</span>
+							</div>
+							<DataTable data={regionMap[regionName].slice().sort((a, b) => b.seasonNum - a.seasonNum)} columns={seasonColumns}>
 								{#snippet cell(season, col)}
 									{#if col.key === 'season'}
 										<div class="flex items-center gap-3">
@@ -413,10 +441,6 @@ function setTab(tab: typeof activeTab) {
 											<span class="w-2 h-2 rounded-full {getStatusDot(season.status)}"></span>
 											<span class="text-sm text-gray-300">{season.status}</span>
 										</div>
-									{:else if col.key === 'format'}
-										<span class="px-2 py-1 text-xs font-medium bg-zinc-700 text-gray-300 rounded">{season.format}</span>
-									{:else if col.key === 'weeks'}
-										<span class="text-sm text-gray-300">{season.numWeeks} weeks</span>
 									{:else if col.key === 'teams'}
 										<span class="text-sm font-medium text-white">{season.teams}</span>
 										<span class="text-xs text-gray-500 ml-1">teams</span>
@@ -431,32 +455,32 @@ function setTab(tab: typeof activeTab) {
 										{:else}
 											<span class="text-sm text-gray-500">Not set</span>
 										{/if}
-								{:else if col.key === 'actions'}
-							{#if data.isStrictAdmin}
-								<div class="flex items-center justify-end gap-2">
-									<button 
-										onclick={() => {
-											showPlayoffModal = season;
-											playoffFormat = (season as any).playoff?.isTournament !== false ? 'tournament' : 'rounds';
-										}}
-										class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
-									>
-										{season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
-									</button>
-									<button 
-										onclick={() => editingSeason = season}
-										class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-									>
-										Edit
-									</button>
-									<button
-										onclick={() => { deletingSeason = season; deleteConfirmText = ''; }}
-										class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-									>
-										Delete
-									</button>
-								</div>
-							{/if}
+									{:else if col.key === 'actions'}
+										{#if data.isStrictAdmin}
+											<div class="flex items-center justify-end gap-2">
+												<button
+													onclick={() => {
+														showPlayoffModal = season;
+														playoffFormat = (season as any).playoff?.isTournament !== false ? 'tournament' : 'rounds';
+													}}
+													class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
+												>
+													{season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
+												</button>
+												<button
+													onclick={() => editingSeason = season}
+													class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+												>
+													Edit
+												</button>
+												<button
+													onclick={() => { deletingSeason = season; deleteConfirmText = ''; }}
+													class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+												>
+													Delete
+												</button>
+											</div>
+										{/if}
 									{/if}
 								{/snippet}
 							</DataTable>
@@ -464,6 +488,7 @@ function setTab(tab: typeof activeTab) {
 					{/each}
 				</div>
 			{/if}
+		{/if}
 		</div>
 	{:else if activeTab === 'regions'}
 		<!-- REGIONS TAB -->

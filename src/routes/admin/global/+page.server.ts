@@ -19,7 +19,7 @@ import {
 import { getAllActiveSignupSeasons } from '$lib/server/services/signupSeasons';
 import { getRegions } from '$lib/server/services/regions';
 import { getSeasons } from '$lib/server/services/seasons';
-import { prisma } from '$lib/server/db';
+import { getFormatsForFilter } from '$lib/server/services/formats';
 import { fail } from '@sveltejs/kit';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     getGlobalSettings(),
     getRegions(),
     getSeasons(),
-    prisma.format.findMany({ orderBy: { id: 'asc' } }),
+    getFormatsForFilter(),
     getAllActiveSignupSeasons(),
   ]);
 
@@ -323,10 +323,9 @@ export const actions: Actions = {
 
     const formData = await request.formData();
 
-    // Get all regions and formats to process each combination
     const [regions, formats] = await Promise.all([
-      prisma.region.findMany({ orderBy: { id: 'asc' } }),
-      prisma.format.findMany({ orderBy: { id: 'asc' } }),
+      getRegions(),
+      getFormatsForFilter(),
     ]);
 
     try {

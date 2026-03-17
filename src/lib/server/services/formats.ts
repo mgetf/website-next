@@ -89,6 +89,16 @@ export async function deleteFormat(id: number) {
   return await prisma.format.delete({ where: { id } });
 }
 
+/**
+ * Get formats for filter/dropdown UI
+ */
+export async function getFormatsForFilter(): Promise<{ id: number; name: string; code: string }[]> {
+  return prisma.format.findMany({
+    select: { id: true, name: true, code: true },
+    orderBy: { id: 'asc' },
+  });
+}
+
 export async function updateFormat(
   id: number,
   data: { name: string; code: string },

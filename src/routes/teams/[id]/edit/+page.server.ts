@@ -17,7 +17,7 @@ import {
 import { declineInvitation } from '$lib/server/services/teamJoin';
 import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { fail, redirect } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { getTeamFormatCheck } from '$lib/server/services/teams';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
@@ -29,18 +29,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     throw redirect(303, '/');
   }
 
-  // Check if this is a 1v1 team - redirect to player profile if so
-  // 1v1 entries cannot be edited (name/avatar are frozen)
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    select: {
-      formatId: true,
-      players: {
-        // Get any player (active or inactive) - 1v1 teams always have one player
-        select: { playerSteamId: true, active: true },
-      },
-    },
-  });
+  const team = await getTeamFormatCheck(teamId);
 
   if (team?.formatId === FORMAT_1V1) {
     // Find active player first, fall back to any player

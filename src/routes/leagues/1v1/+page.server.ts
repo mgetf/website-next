@@ -2,37 +2,9 @@ import type { PageServerLoad } from './$types';
 import { getSeasons } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { getTeamsByDivision } from '$lib/server/services/teams';
+import { getTeamsByDivision, findRecent1v1SeasonWithEntries } from '$lib/server/services/teams';
 import { getStaffMembers, isUserSignedUpForSeason } from '$lib/server/services/users';
-import { prisma } from '$lib/server/db';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
-
-/**
- * Find the most recent 1v1 season that has entries
- */
-async function findRecent1v1SeasonWithEntries(
-  statuses: string[],
-): Promise<{ seasonId: number; regionId: number } | null> {
-  const result = await prisma.team.findFirst({
-    where: {
-      formatId: FORMAT_1V1,
-      status: { in: statuses as any },
-    },
-    select: {
-      seasonId: true,
-      regionId: true,
-      season: {
-        select: { seasonNum: true },
-      },
-    },
-    orderBy: [{ season: { seasonNum: 'desc' } }],
-  });
-
-  if (result && result.seasonId && result.regionId) {
-    return { seasonId: result.seasonId, regionId: result.regionId };
-  }
-  return null;
-}
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   try {
@@ -52,10 +24,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     // Find the most recent 1v1 season that has entries
     // For 1v1, only READY (active) and DEAD (withdrawn) states are valid
-    const defaultSeasonWithEntries = await findRecent1v1SeasonWithEntries([
-      'READY',
-      'DEAD',
-    ]);
+    const defaultSeasonWithEntries = await findRecent1v1SeasonWithEntries(
+      ['READY', 'DEAD'],
+      FORMAT_1V1,
+    );
 
     // Determine selected season and region
     let selectedSeasonId: number | undefined;

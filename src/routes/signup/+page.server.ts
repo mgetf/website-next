@@ -2,47 +2,31 @@ import type { PageServerLoad } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { getSignupContext } from '$lib/server/services/teamSignup';
 import { get1v1SignupContext } from '$lib/server/services/signup1v1';
-import { prisma } from '$lib/server/db';
-import { getCurrentSignupSeasonIds } from '$lib/server/services/signupSeasons';
+import {
+  getCurrentSignupSeasonIds,
+  hasAnyOpenSignup,
+  getActiveFormatCodes,
+} from '$lib/server/services/signupSeasons';
+import { getPlayerCurrentTeamName } from '$lib/server/services/teams';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAuth(locals.user);
 
-  // Format-agnostic check: are ANY signups open across all formats?
-  const anyOpenSignup = await prisma.activeSignupSeason.findFirst({
-    where: {
-      season: {
-        signupsOpen: true,
-      },
-    },
-  });
-  const allSignupsClosed = !anyOpenSignup;
+  const allSignupsClosed = !(await hasAnyOpenSignup());
 
   // Get format-specific contexts
   const context = await getSignupContext(locals.user.steamId);
   const context1v1 = await get1v1SignupContext(locals.user.steamId);
 
-  // Get user's current team name if they have one (for better error messages)
   let currentTeamName = '';
   if (context.hasActiveTeam) {
     const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
-
-    const membership = await prisma.playerInTeam.findFirst({
-      where: {
-        playerSteamId: locals.user.steamId,
-        active: 1,
-        team: {
-          formatId: FORMAT_2V2,
-          seasonId: {
-            in:
-              currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
-          },
-        },
-      },
-      include: { team: { select: { name: true } } },
-    });
-    currentTeamName = membership?.team?.name || '';
+    currentTeamName = await getPlayerCurrentTeamName(
+      locals.user.steamId,
+      FORMAT_2V2,
+      currentSignupSeasonIds,
+    );
   }
 
   // Determine if user can create a new 2v2 team
@@ -100,19 +84,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       'You are already signed up for the 1v1 league this season';
   }
 
-  // Check which formats have active signup seasons (format-agnostic)
-  const activeFormats = await prisma.activeSignupSeason.findMany({
-    select: {
-      formatId: true,
-      format: {
-        select: {
-          code: true,
-        },
-      },
-    },
-    distinct: ['formatId'],
-  });
-  const activeFormatCodes = activeFormats.map((f) => f.format.code);
+  const activeFormatCodes = await getActiveFormatCodes();
 
   return {
     allSignupsClosed,

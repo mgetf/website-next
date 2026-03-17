@@ -187,6 +187,67 @@ export async function markPlayerAsPaidManually(
 }
 
 /**
+ * Record a completed PayPal capture: creates payment records and updates player/team payment status
+ */
+export async function recordPayPalCapture(options: {
+  steamId: string;
+  teamId: number;
+  captureId: string;
+  amount: number;
+  currency: string;
+}): Promise<void> {
+  const { steamId, teamId, captureId, amount, currency } = options;
+
+  const playerInTeam = await prisma.playerInTeam.findUnique({
+    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+    include: { team: true },
+  });
+
+  if (!playerInTeam?.team.seasonId) {
+    throw error(404, 'Team or season not found');
+  }
+
+  const seasonId = playerInTeam.team.seasonId;
+
+  await prisma.$transaction([
+    prisma.paymentTracker.upsert({
+      where: { playerSteamId_seasonId: { playerSteamId: steamId, seasonId } },
+      create: { playerSteamId: steamId, seasonId, amount },
+      update: { amount: { increment: amount } },
+    }),
+    prisma.payment.create({
+      data: {
+        paymentId: captureId,
+        purchasedFor: steamId,
+        purchasedBy: steamId,
+        amount: amount.toString(),
+        currency,
+        purchaseDate: new Date(),
+        description: `Team signup payment - Team #${teamId}`,
+        teamId,
+      },
+    }),
+    prisma.playerInTeam.update({
+      where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+      data: { paymentStatus: 1 },
+    }),
+  ]);
+
+  const paidPlayersCount = await prisma.playerInTeam.count({
+    where: { teamId, active: 1, paymentStatus: 1 },
+  });
+
+  const requiredPaidPlayers = playerInTeam.team.formatId === FORMAT_1V1 ? 1 : 2;
+
+  if (paidPlayersCount >= requiredPaidPlayers) {
+    await prisma.team.update({
+      where: { id: teamId },
+      data: { paymentStatus: 1 },
+    });
+  }
+}
+
+/**
  * Check if division requires payment and if user has paid
  * Returns payment information for redirect decision
  *

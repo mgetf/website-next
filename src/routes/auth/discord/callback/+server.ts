@@ -4,7 +4,7 @@ import {
   formatDiscordUsername,
   getDiscordAvatarUrl,
 } from '$lib/server/auth/discord';
-import { prisma } from '$lib/server/db';
+import { linkDiscordAccount } from '$lib/server/services/users';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const GET: RequestHandler = async ({ url, request, getClientAddress }) => {
@@ -38,22 +38,7 @@ export const GET: RequestHandler = async ({ url, request, getClientAddress }) =>
   const discordUsername = formatDiscordUsername(discordUser);
   const discordAvatar = getDiscordAvatarUrl(discordUser);
 
-  await prisma.discord.upsert({
-    where: {
-      discordId: discordUser.id,
-    },
-    create: {
-      discordId: discordUser.id,
-      discordUsername,
-      discordAvatar,
-      playerSteamId: steamId,
-    },
-    update: {
-      discordUsername,
-      discordAvatar,
-      playerSteamId: steamId,
-    },
-  });
+  await linkDiscordAccount(discordUser.id, discordUsername, discordAvatar, steamId);
 
   await logAudit({
     actorId: steamId,

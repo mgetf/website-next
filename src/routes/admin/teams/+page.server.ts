@@ -7,7 +7,8 @@ import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getDivisionsForFilter } from '$lib/server/services/divisions';
 import { getTeams, countTeams, updateTeam } from '$lib/server/services/teams';
 import { disbandTeam, hardDeleteTeam } from '$lib/server/services/teamManagement';
-import { prisma } from '$lib/server/db';
+import { getFormatsForFilter } from '$lib/server/services/formats';
+import { getMatchesByTeamIds } from '$lib/server/services/adminMatches';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -105,36 +106,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   // Fetch seasons for filter
   const seasons = await getSeasonsForFilter();
 
-  // Fetch formats for filter
-  const formats = await prisma.format.findMany({
-    select: { id: true, name: true },
-    orderBy: { id: 'asc' },
-  });
+  const formats = await getFormatsForFilter();
 
   const teamIds = teams.map((t) => t.id);
 
-  const matchesByTeam = isStrictAdmin(locals.user) && teamIds.length > 0
-    ? await prisma.match.findMany({
-        where: {
-          OR: [
-            { homeTeamId: { in: teamIds } },
-            { awayTeamId: { in: teamIds } },
-          ],
-        },
-        select: {
-          id: true,
-          homeTeamId: true,
-          awayTeamId: true,
-          weekNo: true,
-          status: true,
-          winnerScore: true,
-          loserScore: true,
-          matchDateTime: true,
-          homeTeam: { select: { name: true } },
-          awayTeam: { select: { name: true } },
-        },
-        orderBy: { weekNo: 'asc' },
-      })
+  const matchesByTeam = isStrictAdmin(locals.user)
+    ? await getMatchesByTeamIds(teamIds)
     : [];
 
   const matchMap = new Map<number, typeof matchesByTeam>();

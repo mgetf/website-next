@@ -242,6 +242,18 @@ export async function getSeasonsForFilter(limit = 50) {
 }
 
 /**
+ * Get seasons for a specific region (or all regions), newest first
+ * Includes region relation; used for admin match filter
+ */
+export async function getSeasonsByRegion(regionId?: number) {
+  return await prisma.season.findMany({
+    where: regionId ? { regionId } : {},
+    include: { region: true },
+    orderBy: { seasonNum: 'desc' },
+  });
+}
+
+/**
  * Transform season data for UI display
  * Calculates status based on teams and matches
  */

@@ -553,6 +553,73 @@ export async function getTop1v1EntriesForHomepage(options: {
 }
 
 /**
+ * Get the team name a player is currently on for a given format and set of season IDs
+ * Returns empty string if not found
+ */
+export async function getPlayerCurrentTeamName(
+  steamId: string,
+  formatId: number,
+  seasonIds: number[],
+): Promise<string> {
+  if (seasonIds.length === 0) return '';
+  const membership = await prisma.playerInTeam.findFirst({
+    where: {
+      playerSteamId: steamId,
+      active: 1,
+      team: {
+        formatId,
+        seasonId: { in: seasonIds },
+      },
+    },
+    include: { team: { select: { name: true } } },
+  });
+  return membership?.team?.name ?? '';
+}
+
+/**
+ * Find the most recent season that has 1v1 entries with the given statuses
+ * Returns { seasonId, regionId } or null if none found
+ */
+export async function findRecent1v1SeasonWithEntries(
+  statuses: string[],
+  formatId: number,
+): Promise<{ seasonId: number; regionId: number } | null> {
+  const result = await prisma.team.findFirst({
+    where: {
+      formatId,
+      status: { in: statuses as any },
+    },
+    select: {
+      seasonId: true,
+      regionId: true,
+      season: { select: { seasonNum: true } },
+    },
+    orderBy: [{ season: { seasonNum: 'desc' } }],
+  });
+
+  if (result?.seasonId && result?.regionId) {
+    return { seasonId: result.seasonId, regionId: result.regionId };
+  }
+  return null;
+}
+
+/**
+ * Get team format and player list for format-based redirect checks
+ * Returns null if team not found
+ */
+export async function getTeamFormatCheck(teamId: number) {
+  return await prisma.team.findUnique({
+    where: { id: teamId },
+    select: {
+      formatId: true,
+      players: {
+        select: { playerSteamId: true, active: true },
+      },
+    },
+  });
+}
+
+/**
  * Helper: Calculate standings stats for a team
  */
 export function calculateStandingsStats(team: {

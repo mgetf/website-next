@@ -359,3 +359,33 @@ export async function createNotificationForAdmins(
     });
   }
 }
+
+/**
+ * Get the ID of the most recent notification for a user
+ * Returns 0 if no notifications exist
+ */
+export async function getLatestNotificationId(userSteamId: string): Promise<number> {
+  const latest = await prisma.notification.findFirst({
+    where: { userSteamId },
+    orderBy: { id: 'desc' },
+    select: { id: true },
+  });
+  return latest?.id ?? 0;
+}
+
+/**
+ * Get all notifications for a user with an ID greater than sinceId
+ * Used for SSE polling to fetch only new notifications
+ */
+export async function getNotificationsSinceId(
+  userSteamId: string,
+  sinceId: number,
+) {
+  return await prisma.notification.findMany({
+    where: {
+      userSteamId,
+      id: { gt: sinceId },
+    },
+    orderBy: { id: 'asc' },
+  });
+}

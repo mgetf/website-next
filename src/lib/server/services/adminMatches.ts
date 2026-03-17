@@ -800,3 +800,118 @@ export async function adminUpdateScores(
     },
   });
 }
+
+/**
+ * Get available week and playoff round options for a season
+ * Returns default weeks 1-8 when no matches exist yet
+ */
+export async function getWeekOptionsForSeason(
+  seasonId: number | null,
+): Promise<{ value: string; label: string }[]> {
+  if (!seasonId) return [];
+
+  const [weekMatches, playoffMatches] = await Promise.all([
+    prisma.match.findMany({
+      where: { seasonId, weekNo: { not: null } },
+      select: { weekNo: true },
+      distinct: ['weekNo'],
+      orderBy: { weekNo: 'asc' },
+    }),
+    prisma.match.findMany({
+      where: { seasonId, playoffRound: { not: null } },
+      select: { playoffRound: true },
+      distinct: ['playoffRound'],
+      orderBy: { playoffRound: 'asc' },
+    }),
+  ]);
+
+  const options: { value: string; label: string }[] = [];
+
+  for (const m of weekMatches) {
+    if (m.weekNo !== null) {
+      options.push({ value: m.weekNo.toString(), label: `Week ${m.weekNo}` });
+    }
+  }
+
+  for (const m of playoffMatches) {
+    if (m.playoffRound !== null) {
+      options.push({
+        value: `p${m.playoffRound}`,
+        label: `Playoffs Match ${m.playoffRound}`,
+      });
+    }
+  }
+
+  if (options.length === 0) {
+    for (let i = 1; i <= 8; i++) {
+      options.push({ value: i.toString(), label: `Week ${i}` });
+    }
+  }
+
+  return options;
+}
+
+/**
+ * Get matches for the admin week/playoff view with full relations
+ */
+export async function getMatchesForAdminWeekView(options: {
+  seasonId: number;
+  weekNo?: number | null;
+  playoffRound?: number | null;
+}) {
+  const { seasonId, weekNo, playoffRound } = options;
+
+  const where: any = { seasonId };
+
+  if (playoffRound !== undefined && playoffRound !== null) {
+    where.playoffRound = playoffRound;
+    where.weekNo = null;
+  } else if (weekNo !== undefined && weekNo !== null) {
+    where.weekNo = weekNo;
+    where.playoffId = null;
+  }
+
+  return await prisma.match.findMany({
+    where,
+    include: {
+      homeTeam: { include: { division: true, region: true } },
+      awayTeam: { include: { division: true, region: true } },
+      season: { include: { region: true } },
+      playoff: true,
+      games: {
+        include: { arena: true },
+        orderBy: { gameNum: 'asc' },
+      },
+    },
+    orderBy: [{ id: 'asc' }],
+  });
+}
+
+/**
+ * Get matches for a set of team IDs, for the admin teams page match history column
+ */
+export async function getMatchesByTeamIds(teamIds: number[]) {
+  if (teamIds.length === 0) return [];
+
+  return await prisma.match.findMany({
+    where: {
+      OR: [
+        { homeTeamId: { in: teamIds } },
+        { awayTeamId: { in: teamIds } },
+      ],
+    },
+    select: {
+      id: true,
+      homeTeamId: true,
+      awayTeamId: true,
+      weekNo: true,
+      status: true,
+      winnerScore: true,
+      loserScore: true,
+      matchDateTime: true,
+      homeTeam: { select: { name: true } },
+      awayTeam: { select: { name: true } },
+    },
+    orderBy: { weekNo: 'asc' },
+  });
+}

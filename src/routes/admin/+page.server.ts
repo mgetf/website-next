@@ -13,7 +13,7 @@ import {
 } from '$lib/server/services/pendingPlayers';
 import type { AuditContext } from '$lib/server/services/pendingPlayers';
 import { getRecentUnplayedMatches } from '$lib/server/services/adminMatches';
-import { prisma } from '$lib/server/db';
+import { getActiveSignupSeasonsWithDeadlines } from '$lib/server/services/signupSeasons';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -23,18 +23,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     await Promise.all([
       getAdminAnalytics(),
       getPendingPlayers(),
-      getRecentUnplayedMatches(10), // Get up to 10 recent unplayed matches
-      // Get active signup seasons with their per-season settings
-      prisma.activeSignupSeason.findMany({
-        include: {
-          season: {
-            select: {
-              matchWeek: true,
-              matchDeadline: true,
-            },
-          },
-        },
-      }),
+      getRecentUnplayedMatches(10),
+      getActiveSignupSeasonsWithDeadlines(),
     ]);
 
   // Find the season with the earliest upcoming deadline (for the dashboard urgency display)

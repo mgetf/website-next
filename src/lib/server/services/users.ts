@@ -933,3 +933,93 @@ export async function getUsersPublic(
     },
   };
 }
+
+/**
+ * Find or create a user from Steam login data, updating username/avatar as needed.
+ * Returns resolved display values and whether this was a new account.
+ */
+export async function findOrCreateSteamUser(steamUserJson: {
+  steamid: string;
+  personaname: string;
+  avatarfull: string;
+}): Promise<{
+  username: string;
+  avatar: string;
+  permissionLevel: string;
+  banStatus: string;
+  isNewUser: boolean;
+}> {
+  const { steamid, personaname, avatarfull } = steamUserJson;
+
+  const existingUser = await prisma.user.findUnique({
+    where: { steamId: steamid },
+    select: {
+      steamId: true,
+      steamUsername: true,
+      steamAvatar: true,
+      permissionLevel: true,
+      banStatus: true,
+      nameOverride: true,
+      avatarOverride: true,
+    },
+  });
+
+  if (!existingUser) {
+    await prisma.user.create({
+      data: {
+        steamId: steamid,
+        steamUsername: personaname,
+        steamAvatar: avatarfull,
+        permissionLevel: 'GUEST',
+      },
+    });
+    return {
+      username: personaname,
+      avatar: avatarfull,
+      permissionLevel: 'GUEST',
+      banStatus: 'NONE',
+      isNewUser: true,
+    };
+  }
+
+  const username = existingUser.nameOverride ? existingUser.steamUsername : personaname;
+  const avatar = existingUser.avatarOverride
+    ? (existingUser.steamAvatar ?? avatarfull)
+    : avatarfull;
+
+  const updateData: Record<string, string> = {};
+  if (!existingUser.nameOverride && existingUser.steamUsername !== username) {
+    updateData.steamUsername = username;
+  }
+  if (!existingUser.avatarOverride && existingUser.steamAvatar !== avatar) {
+    updateData.steamAvatar = avatar;
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await prisma.user.update({ where: { steamId: steamid }, data: updateData });
+  }
+
+  return {
+    username,
+    avatar,
+    permissionLevel: existingUser.permissionLevel as string,
+    banStatus: existingUser.banStatus as string,
+    isNewUser: false,
+  };
+}
+
+/**
+ * Link a Discord account to a Steam user via upsert
+ */
+export async function linkDiscordAccount(
+  discordId: string,
+  discordUsername: string,
+  discordAvatar: string | null,
+  steamId: string,
+): Promise<void> {
+  await prisma.discord.upsert({
+    where: { discordId },
+    create: { discordId, discordUsername, discordAvatar, playerSteamId: steamId },
+    update: { discordUsername, discordAvatar, playerSteamId: steamId },
+  });
+}

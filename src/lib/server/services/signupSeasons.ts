@@ -55,6 +55,50 @@ export async function getAllActiveSignupSeasons() {
 }
 
 /**
+ * Check whether any active signup season has signups currently open
+ */
+export async function hasAnyOpenSignup(): Promise<boolean> {
+  const result = await prisma.activeSignupSeason.findFirst({
+    where: {
+      season: { signupsOpen: true },
+    },
+  });
+  return result !== null;
+}
+
+/**
+ * Get the format codes of all active signup seasons
+ * Used to determine which format tabs to show on the signup page
+ */
+export async function getActiveFormatCodes(): Promise<string[]> {
+  const activeFormats = await prisma.activeSignupSeason.findMany({
+    select: {
+      formatId: true,
+      format: { select: { code: true } },
+    },
+    distinct: ['formatId'],
+  });
+  return activeFormats.map((f) => f.format.code);
+}
+
+/**
+ * Get all active signup seasons including per-season deadline fields
+ * Used for the admin dashboard urgency display
+ */
+export async function getActiveSignupSeasonsWithDeadlines() {
+  return prisma.activeSignupSeason.findMany({
+    include: {
+      season: {
+        select: {
+          matchWeek: true,
+          matchDeadline: true,
+        },
+      },
+    },
+  });
+}
+
+/**
  * Set the active signup season for a region+format combination
  * @param regionId - Region ID
  * @param formatId - Format ID

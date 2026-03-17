@@ -5,6 +5,7 @@ import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
+import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { fail, redirect } from '@sveltejs/kit';
 import {
@@ -141,7 +142,17 @@ export const actions: Actions = {
         action: AuditAction.TEAM_CREATED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { name, acronym: acronym || null, divisionId, regionId },
+        metadata: {
+          name,
+          acronym: acronym || null,
+          divisionId,
+          regionId,
+          seasonId: seasonId ?? null,
+          paymentRequired: paymentInfo.required,
+          alreadyPaid: paymentInfo.alreadyPaid,
+          avatarUploaded: Boolean(avatarUrl),
+          status: (await getTeamAuditSnapshot(teamId))?.status ?? null,
+        },
         ipAddress: getClientAddress(),
       });
 

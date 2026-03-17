@@ -411,6 +411,60 @@ export async function getTeamById(id: number) {
 }
 
 /**
+ * Get a compact team snapshot for audit metadata.
+ */
+export async function getTeamAuditSnapshot(id: number) {
+  const team = await prisma.team.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      acronym: true,
+      status: true,
+      seasonId: true,
+      divisionId: true,
+      regionId: true,
+      paymentStatus: true,
+      formatId: true,
+      avatar: true,
+      division: {
+        select: {
+          name: true,
+        },
+      },
+      region: {
+        select: {
+          name: true,
+        },
+      },
+      season: {
+        select: {
+          seasonNum: true,
+        },
+      },
+    },
+  });
+
+  if (!team) return null;
+
+  return {
+    id: team.id,
+    name: team.name,
+    acronym: team.acronym ?? null,
+    status: team.status,
+    seasonId: team.seasonId ?? null,
+    divisionId: team.divisionId ?? null,
+    regionId: team.regionId ?? null,
+    paymentStatus: team.paymentStatus,
+    formatId: team.formatId,
+    avatar: team.avatar ?? null,
+    divisionName: team.division?.name ?? null,
+    regionName: team.region?.name ?? null,
+    seasonNum: team.season?.seasonNum ?? null,
+  };
+}
+
+/**
  * Update an existing team
  *
  * Business logic validation:

@@ -17,7 +17,7 @@ import {
 import { declineInvitation } from '$lib/server/services/teamJoin';
 import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { fail, redirect } from '@sveltejs/kit';
-import { getTeamFormatCheck } from '$lib/server/services/teams';
+import { getTeamFormatCheck, getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
@@ -77,7 +77,15 @@ export const actions: Actions = {
     const acronym = formData.get('acronym') as string;
 
     try {
+      const before = await getTeamAuditSnapshot(teamId);
       await updateTeamInfo(teamId, { name, acronym });
+      const after = await getTeamAuditSnapshot(teamId);
+      const changedFields = after
+        ? [
+            before?.name !== after.name ? 'name' : null,
+            before?.acronym !== after.acronym ? 'acronym' : null,
+          ].filter((field): field is string => field !== null)
+        : [];
 
       await logAudit({
         actorId: locals.user?.steamId,
@@ -86,7 +94,13 @@ export const actions: Actions = {
         action: AuditAction.TEAM_UPDATED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { name, acronym },
+        metadata: {
+          changedFields: changedFields.join(',') || null,
+          nameBefore: before?.name ?? null,
+          nameAfter: after?.name ?? null,
+          acronymBefore: before?.acronym ?? null,
+          acronymAfter: after?.acronym ?? null,
+        },
         ipAddress: getClientAddress(),
       });
 
@@ -116,7 +130,9 @@ export const actions: Actions = {
     }
 
     try {
+      const before = await getTeamAuditSnapshot(teamId);
       await updateTeamInfo(teamId, { joinPassword });
+      const after = await getTeamAuditSnapshot(teamId);
 
       await logAudit({
         actorId: locals.user?.steamId,
@@ -125,7 +141,12 @@ export const actions: Actions = {
         action: AuditAction.TEAM_UPDATED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { field: 'joinPassword' },
+        metadata: {
+          changedFields: 'joinPassword',
+          passwordUpdated: true,
+          nameBefore: before?.name ?? null,
+          nameAfter: after?.name ?? null,
+        },
         ipAddress: getClientAddress(),
       });
 
@@ -155,6 +176,7 @@ export const actions: Actions = {
     }
 
     try {
+      const before = await getTeamAuditSnapshot(teamId);
       const avatarUrl = await uploadTeamAvatar(teamId, avatar);
 
       if (!avatarUrl) {
@@ -163,6 +185,8 @@ export const actions: Actions = {
         });
       }
 
+      const after = await getTeamAuditSnapshot(teamId);
+
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
@@ -170,7 +194,11 @@ export const actions: Actions = {
         action: AuditAction.TEAM_AVATAR_CHANGED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { avatarUrl },
+        metadata: {
+          changedFields: 'avatar',
+          avatarBefore: before?.avatar ?? null,
+          avatarAfter: after?.avatar ?? avatarUrl,
+        },
         ipAddress: getClientAddress(),
       });
 
@@ -355,7 +383,9 @@ export const actions: Actions = {
       });
     }
 
+    const before = await getTeamAuditSnapshot(teamId);
     await disbandTeam(teamId);
+    const after = await getTeamAuditSnapshot(teamId);
 
     await logAudit({
       actorId: locals.user?.steamId,
@@ -364,6 +394,16 @@ export const actions: Actions = {
       action: AuditAction.TEAM_DISBANDED,
       targetType: 'Team',
       targetId: String(teamId),
+      metadata: {
+        nameBefore: before?.name ?? null,
+        statusBefore: before?.status ?? null,
+        statusAfter: after?.status ?? null,
+        seasonIdBefore: before?.seasonId ?? null,
+        divisionIdBefore: before?.divisionId ?? null,
+        divisionNameBefore: before?.divisionName ?? null,
+        regionIdBefore: before?.regionId ?? null,
+        regionNameBefore: before?.regionName ?? null,
+      },
       ipAddress: getClientAddress(),
     });
 

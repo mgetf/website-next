@@ -8,6 +8,7 @@ import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
+import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { fail, redirect } from '@sveltejs/kit';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -83,6 +84,7 @@ export const actions: Actions = {
     }
 
     try {
+      const before = await getTeamAuditSnapshot(teamId);
       // Get the correct season ID for the selected region
       const seasonId = await getSignupSeasonForRegion(regionId, FORMAT_2V2);
 
@@ -99,6 +101,7 @@ export const actions: Actions = {
         regionId,
         ownerSteamId: locals.user.steamId,
       });
+      const after = await getTeamAuditSnapshot(teamId);
 
       await logAudit({
         actorId: locals.user.steamId,
@@ -107,7 +110,24 @@ export const actions: Actions = {
         action: AuditAction.TEAM_CREATED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { divisionId, regionId, reregistration: true },
+        metadata: {
+          changedFields: 'seasonId,divisionId,regionId,status',
+          reregistration: true,
+          seasonIdBefore: before?.seasonId ?? null,
+          seasonIdAfter: after?.seasonId ?? null,
+          seasonNumBefore: before?.seasonNum ?? null,
+          seasonNumAfter: after?.seasonNum ?? null,
+          divisionIdBefore: before?.divisionId ?? null,
+          divisionIdAfter: after?.divisionId ?? null,
+          divisionNameBefore: before?.divisionName ?? null,
+          divisionNameAfter: after?.divisionName ?? null,
+          regionIdBefore: before?.regionId ?? null,
+          regionIdAfter: after?.regionId ?? null,
+          regionNameBefore: before?.regionName ?? null,
+          regionNameAfter: after?.regionName ?? null,
+          statusBefore: before?.status ?? null,
+          statusAfter: after?.status ?? null,
+        },
         ipAddress: getClientAddress(),
       });
 

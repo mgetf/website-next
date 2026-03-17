@@ -5,7 +5,12 @@ import { fail } from '@sveltejs/kit';
 import { getSeasonsForFilter } from '$lib/server/services/seasons';
 import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getDivisionsForFilter } from '$lib/server/services/divisions';
-import { getTeams, countTeams, updateTeam } from '$lib/server/services/teams';
+import {
+  getTeams,
+  countTeams,
+  updateTeam,
+  getTeamAuditSnapshot,
+} from '$lib/server/services/teams';
 import { disbandTeam, hardDeleteTeam } from '$lib/server/services/teamManagement';
 import { getFormatsForFilter } from '$lib/server/services/formats';
 import { getMatchesByTeamIds } from '$lib/server/services/adminMatches';
@@ -190,6 +195,11 @@ export const actions: Actions = {
       validation.data;
 
     try {
+      const before = await getTeamAuditSnapshot(teamId);
+      if (!before) {
+        return fail(404, { error: 'Team not found' });
+      }
+
       // Parse status enum
       let teamStatus: TeamStatus | undefined;
       if (status) {
@@ -201,30 +211,67 @@ export const actions: Actions = {
         else if (statusInt === 3) teamStatus = TeamStatus.PLACEMENT;
       }
 
+      const nextSeasonId =
+        seasonId === 'none' ? null : seasonId ? parseInt(seasonId) : null;
+      const nextDivisionId =
+        divisionId === 'none' ? null : divisionId ? parseInt(divisionId) : null;
+      const nextRegionId =
+        regionId === 'none' ? null : regionId ? parseInt(regionId) : null;
+
       await updateTeam(teamId, {
         name,
         acronym,
-        seasonId:
-          seasonId === 'none' ? null : seasonId ? parseInt(seasonId) : null,
-        divisionId:
-          divisionId === 'none'
-            ? null
-            : divisionId
-              ? parseInt(divisionId)
-              : null,
-        regionId:
-          regionId === 'none' ? null : regionId ? parseInt(regionId) : null,
+        seasonId: nextSeasonId,
+        divisionId: nextDivisionId,
+        regionId: nextRegionId,
         status: teamStatus,
       });
+
+      const after = await getTeamAuditSnapshot(teamId);
+      const changedFields = after
+        ? [
+            before.name !== after.name ? 'name' : null,
+            before.acronym !== after.acronym ? 'acronym' : null,
+            before.seasonId !== after.seasonId ? 'seasonId' : null,
+            before.divisionId !== after.divisionId ? 'divisionId' : null,
+            before.regionId !== after.regionId ? 'regionId' : null,
+            before.status !== after.status ? 'status' : null,
+          ].filter((field): field is string => field !== null)
+        : [];
+      const statusChanged = after
+        ? before.status !== after.status
+        : teamStatus !== undefined;
 
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
         category: AuditCategory.TEAM,
-        action: teamStatus ? AuditAction.TEAM_STATUS_CHANGED : AuditAction.TEAM_UPDATED,
+        action: statusChanged
+          ? AuditAction.TEAM_STATUS_CHANGED
+          : AuditAction.TEAM_UPDATED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { name, acronym, status: teamStatus ?? null },
+        metadata: {
+          changedFields: changedFields.join(',') || null,
+          nameBefore: before.name,
+          nameAfter: after?.name ?? null,
+          acronymBefore: before.acronym,
+          acronymAfter: after?.acronym ?? null,
+          seasonIdBefore: before.seasonId,
+          seasonIdAfter: after?.seasonId ?? null,
+          seasonNumBefore: before.seasonNum,
+          seasonNumAfter: after?.seasonNum ?? null,
+          divisionIdBefore: before.divisionId,
+          divisionIdAfter: after?.divisionId ?? null,
+          divisionNameBefore: before.divisionName,
+          divisionNameAfter: after?.divisionName ?? null,
+          regionIdBefore: before.regionId,
+          regionIdAfter: after?.regionId ?? null,
+          regionNameBefore: before.regionName,
+          regionNameAfter: after?.regionName ?? null,
+          statusBefore: before.status,
+          statusAfter: after?.status ?? null,
+        },
         ipAddress: getClientAddress(),
       });
 
@@ -251,7 +298,9 @@ export const actions: Actions = {
     const { teamId } = validation.data;
 
     try {
+      const before = await getTeamAuditSnapshot(teamId);
       await disbandTeam(teamId);
+      const after = await getTeamAuditSnapshot(teamId);
 
       await logAudit({
         actorId: locals.user?.steamId,
@@ -260,6 +309,16 @@ export const actions: Actions = {
         action: AuditAction.TEAM_DISBANDED,
         targetType: 'Team',
         targetId: String(teamId),
+        metadata: {
+          nameBefore: before?.name ?? null,
+          statusBefore: before?.status ?? null,
+          statusAfter: after?.status ?? null,
+          seasonIdBefore: before?.seasonId ?? null,
+          divisionIdBefore: before?.divisionId ?? null,
+          divisionNameBefore: before?.divisionName ?? null,
+          regionIdBefore: before?.regionId ?? null,
+          regionNameBefore: before?.regionName ?? null,
+        },
         ipAddress: getClientAddress(),
       });
 
@@ -286,6 +345,7 @@ export const actions: Actions = {
     const { teamId, cascadeMatches } = validation.data;
 
     try {
+      const before = await getTeamAuditSnapshot(teamId);
       const { teamName, deletedMatches } = await hardDeleteTeam(teamId, cascadeMatches);
 
       await logAudit({
@@ -295,7 +355,18 @@ export const actions: Actions = {
         action: AuditAction.TEAM_DELETED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { teamName, deletedMatches, cascadeMatches },
+        metadata: {
+          teamName,
+          deletedMatches,
+          cascadeMatches,
+          statusBefore: before?.status ?? null,
+          seasonIdBefore: before?.seasonId ?? null,
+          seasonNumBefore: before?.seasonNum ?? null,
+          divisionIdBefore: before?.divisionId ?? null,
+          divisionNameBefore: before?.divisionName ?? null,
+          regionIdBefore: before?.regionId ?? null,
+          regionNameBefore: before?.regionName ?? null,
+        },
         ipAddress: getClientAddress(),
       });
 

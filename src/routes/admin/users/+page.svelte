@@ -116,8 +116,8 @@ const banStatusNames: Record<string, string> = {
 };
 
 function getPermissionColor(permission: string) {
-  if (permission === 'ADMIN') return 'bg-red-500/20 text-red-400';
-  if (permission === 'MODERATOR') return 'bg-purple-500/20 text-purple-400';
+  if (permission === 'ADMIN') return 'bg-purple-500/20 text-purple-400';
+  if (permission === 'MODERATOR') return 'bg-blue-500/20 text-blue-400';
   return 'bg-gray-500/20 text-gray-400';
 }
 
@@ -219,7 +219,7 @@ function closeBanModal() {
 							{user.steamUsername}
 						</a>
 						{#if user.permissionLevel === 'MODERATOR' || user.permissionLevel === 'ADMIN'}
-							<p class="text-xs text-purple-400 truncate">
+							<p class="text-xs truncate {user.permissionLevel === 'ADMIN' ? 'text-purple-400' : 'text-blue-400'}">
 								Staff{user.staffDivisionName ? ` • ${user.staffDivisionName}` : ''}
 							</p>
 						{/if}

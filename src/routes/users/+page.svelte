@@ -83,9 +83,9 @@ function clearFilters() {
 
 function getRoleBadge(role: string) {
   if (role === 'ADMIN')
-    return 'bg-red-500/20 text-red-300 border border-red-500/30';
-  if (role === 'MODERATOR')
     return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+  if (role === 'MODERATOR')
+    return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
   return 'bg-zinc-800 text-gray-400 border border-zinc-700';
 }
 

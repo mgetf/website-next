@@ -32,11 +32,21 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
-// Show admin link if user is moderator or admin
 const isAdminUser = $derived(
   user.permissionLevel === UserRole.ADMIN ||
     user.permissionLevel === UserRole.MODERATOR,
 );
+
+const roleBadge = $derived(() => {
+  switch (user.permissionLevel) {
+    case UserRole.ADMIN:
+      return { label: 'Admin', classes: 'text-purple-400' };
+    case UserRole.MODERATOR:
+      return { label: 'Mod', classes: 'text-blue-400' };
+    default:
+      return null;
+  }
+});
 </script>
 
 <svelte:window onclick={handleClickOutside} />
@@ -53,9 +63,12 @@ const isAdminUser = $derived(
 			src={user.steamAvatar} 
 			alt="User Avatar" 
 		/>
-		<span class="hidden md:inline text-sm font-medium text-gray-300">
-			{displayName()}
-		</span>
+		<div class="hidden md:flex flex-col items-start leading-tight">
+			<span class="text-sm font-medium text-gray-300">{displayName()}</span>
+			{#if roleBadge()}
+				<span class="text-[10px] font-medium {roleBadge()!.classes}">{roleBadge()!.label}</span>
+			{/if}
+		</div>
 		<!-- Chevron Icon -->
 		<svg 
 			class="w-4 h-4 text-gray-400 transition-transform {dropdownOpen ? 'rotate-180' : ''}" 
@@ -82,9 +95,9 @@ const isAdminUser = $derived(
 						<p class="text-sm font-semibold text-white truncate">
 							{user.steamUsername}
 						</p>
-						<p class="text-xs text-gray-400 capitalize">
-							{user.permissionLevel.toLowerCase()}
-						</p>
+					<p class="text-xs capitalize {user.permissionLevel === UserRole.ADMIN ? 'text-purple-400' : user.permissionLevel === UserRole.MODERATOR ? 'text-blue-400' : 'text-gray-400'}">
+						{user.permissionLevel.toLowerCase()}
+					</p>
 					</div>
 				</div>
 			</div>

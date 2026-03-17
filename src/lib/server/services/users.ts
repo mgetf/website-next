@@ -16,6 +16,9 @@ export async function getUserBySteamId(steamId: string) {
     where: { steamId },
     include: {
       discord: true,
+      staffDivision: {
+        include: { region: true },
+      },
     },
   });
 }
@@ -490,6 +493,9 @@ export async function getPlayerProfile(steamId: string) {
       punishmentCount,
       nameOverride: user.nameOverride,
       avatarOverride: user.avatarOverride,
+      staffDivision: user.staffDivision
+        ? { name: user.staffDivision.name, region: user.staffDivision.region.name }
+        : null,
     },
     currentTeams: currentTeamsWithMatches,
     teamHistory: teamHistoryWithMatches,

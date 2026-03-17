@@ -12,33 +12,39 @@ import { toast } from '$lib/state/toast.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
-const seasonColumns = [
-	{ key: 'season', label: 'Season' },
-	{ key: 'status', label: 'Status' },
-	{ key: 'format', label: 'Format' },
-	{ key: 'duration', label: 'Duration' },
-	{ key: 'teams', label: 'Teams' },
-	{ key: 'matches', label: 'Matches' },
-	{ key: 'playoffs', label: 'Playoffs' },
-	{ key: 'actions', label: 'Actions', align: 'right' as const }
-];
+const seasonColumns = $derived(
+	[
+		{ key: 'season', label: 'Season' },
+		{ key: 'status', label: 'Status' },
+		{ key: 'format', label: 'Format' },
+		{ key: 'duration', label: 'Duration' },
+		{ key: 'teams', label: 'Teams' },
+		{ key: 'matches', label: 'Matches' },
+		{ key: 'playoffs', label: 'Playoffs' },
+		...(data.isStrictAdmin ? [{ key: 'actions', label: 'Actions', align: 'right' as const }] : []),
+	]
+);
 
-const regionColumns = [
-	{ key: 'region', label: 'Region' },
-	{ key: 'currency', label: 'Currency' },
-	{ key: 'visibility', label: 'Visibility' },
-	{ key: 'seasons', label: 'Seasons' },
-	{ key: 'teams', label: 'Teams' },
-	{ key: 'actions', label: 'Actions', align: 'right' as const }
-];
+const regionColumns = $derived(
+	[
+		{ key: 'region', label: 'Region' },
+		{ key: 'currency', label: 'Currency' },
+		{ key: 'visibility', label: 'Visibility' },
+		{ key: 'seasons', label: 'Seasons' },
+		{ key: 'teams', label: 'Teams' },
+		...(data.isStrictAdmin ? [{ key: 'actions', label: 'Actions', align: 'right' as const }] : []),
+	]
+);
 
-const divisionColumns = [
-	{ key: 'division', label: 'Division' },
-	{ key: 'cost', label: 'Signup Cost' },
-	{ key: 'visibility', label: 'Visibility' },
-	{ key: 'teams', label: 'Teams' },
-	{ key: 'actions', label: 'Actions', align: 'right' as const }
-];
+const divisionColumns = $derived(
+	[
+		{ key: 'division', label: 'Division' },
+		{ key: 'cost', label: 'Signup Cost' },
+		{ key: 'visibility', label: 'Visibility' },
+		{ key: 'teams', label: 'Teams' },
+		...(data.isStrictAdmin ? [{ key: 'actions', label: 'Actions', align: 'right' as const }] : []),
+	]
+);
 
 const arenaColumns = [
 	{ key: 'arena', label: 'Arena' },
@@ -47,15 +53,17 @@ const arenaColumns = [
 	{ key: 'actions', label: 'Actions', align: 'right' as const }
 ];
 
-const formatColumns = [
-	{ key: 'id', label: 'ID' },
-	{ key: 'name', label: 'Name' },
-	{ key: 'code', label: 'Code' },
-	{ key: 'seasons', label: 'Seasons' },
-	{ key: 'teams', label: 'Teams' },
-	{ key: 'signups', label: 'Active Signups' },
-	{ key: 'actions', label: 'Actions', align: 'right' as const }
-];
+const formatColumns = $derived(
+	[
+		{ key: 'id', label: 'ID' },
+		{ key: 'name', label: 'Name' },
+		{ key: 'code', label: 'Code' },
+		{ key: 'seasons', label: 'Seasons' },
+		{ key: 'teams', label: 'Teams' },
+		{ key: 'signups', label: 'Active Signups' },
+		...(data.isStrictAdmin ? [{ key: 'actions', label: 'Actions', align: 'right' as const }] : []),
+	]
+);
 
 // Get initial tab from URL query param, default to 'seasons'
 const validTabs = [
@@ -178,16 +186,6 @@ let divisionsByRegion = $derived(
 
 let divisionRegionNames = $derived(Object.keys(divisionsByRegion).sort());
 
-function getStatusColor(status: string) {
-  if (status === 'Active')
-    return 'bg-green-500/20 text-green-400 border-green-500/30';
-  if (status === 'Completed')
-    return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-  if (status === 'Draft')
-    return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-  return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-}
-
 function getStatusDot(status: string) {
   if (status === 'Active') return 'bg-green-500';
   if (status === 'Completed') return 'bg-gray-500';
@@ -203,14 +201,6 @@ function setTab(tab: typeof activeTab) {
   history.replaceState({}, '', url.toString());
 }
 
-// Get the most important status for a region (priority: Active > Draft > Upcoming > Completed)
-function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
-  const statuses = seasons.map((s) => s.status);
-  if (statuses.includes('Active')) return 'Active';
-  if (statuses.includes('Draft')) return 'Draft';
-  if (statuses.includes('Upcoming')) return 'Upcoming';
-  return 'Completed';
-}
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
@@ -278,17 +268,19 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 	{#if activeTab === 'seasons'}
 		<!-- SEASONS TAB -->
 		<div>
-			<div class="flex items-center justify-between mb-6">
-				<h3 class="text-xl font-bold text-white">Seasons</h3>
+		<div class="flex items-center justify-between mb-6">
+			<h3 class="text-xl font-bold text-white">Seasons</h3>
+			{#if data.isStrictAdmin}
 				<button 
 					onclick={() => showSeasonForm = !showSeasonForm}
 					class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
 				>
 					{showSeasonForm ? '✕ Cancel' : '+ Create Season'}
 				</button>
-			</div>
-			
-			{#if showSeasonForm}
+			{/if}
+		</div>
+		
+		{#if showSeasonForm && data.isStrictAdmin}
 				<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-6">
 					<h4 class="text-lg font-semibold text-white mb-4">Create New Season</h4>
 					
@@ -399,17 +391,10 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 				<div class="space-y-6">
 					{#each regionNames as regionName}
 						<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-							<div class="bg-zinc-800/50 px-6 py-4 border-b border-zinc-800">
-								<div class="flex items-center justify-between">
-									<div>
-										<h3 class="text-xl font-bold text-white">{regionName}</h3>
-										<p class="text-sm text-gray-400 mt-1">{seasonsByRegion[regionName].length} season{seasonsByRegion[regionName].length !== 1 ? 's' : ''}</p>
-									</div>
-									<span class="px-2 py-1 text-xs rounded border {getStatusColor(getRegionPrimaryStatus(seasonsByRegion[regionName]))}">
-									{getRegionPrimaryStatus(seasonsByRegion[regionName])}
-								</span>
-								</div>
-							</div>
+						<div class="bg-zinc-800/50 px-6 py-4 border-b border-zinc-800">
+							<h3 class="text-xl font-bold text-white">{regionName}</h3>
+							<p class="text-sm text-gray-400 mt-1">{seasonsByRegion[regionName].length} season{seasonsByRegion[regionName].length !== 1 ? 's' : ''}</p>
+						</div>
 							
 							<DataTable data={seasonsByRegion[regionName].sort((a, b) => b.seasonNum - a.seasonNum)} columns={seasonColumns}>
 								{#snippet cell(season, col)}
@@ -447,31 +432,31 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 											<span class="text-sm text-gray-500">Not set</span>
 										{/if}
 								{:else if col.key === 'actions'}
-									<div class="flex items-center justify-end gap-2">
-										<button 
-											onclick={() => {
-												showPlayoffModal = season;
-												playoffFormat = (season as any).playoff?.isTournament !== false ? 'tournament' : 'rounds';
-											}}
-											class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
-										>
-											{season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
-										</button>
-										<button 
-											onclick={() => editingSeason = season}
-											class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-										>
-											Edit
-										</button>
-										{#if data.isStrictAdmin}
-											<button
-												onclick={() => { deletingSeason = season; deleteConfirmText = ''; }}
-												class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-											>
-												Delete
-											</button>
-										{/if}
-										</div>
+							{#if data.isStrictAdmin}
+								<div class="flex items-center justify-end gap-2">
+									<button 
+										onclick={() => {
+											showPlayoffModal = season;
+											playoffFormat = (season as any).playoff?.isTournament !== false ? 'tournament' : 'rounds';
+										}}
+										class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
+									>
+										{season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
+									</button>
+									<button 
+										onclick={() => editingSeason = season}
+										class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+									>
+										Edit
+									</button>
+									<button
+										onclick={() => { deletingSeason = season; deleteConfirmText = ''; }}
+										class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+									>
+										Delete
+									</button>
+								</div>
+							{/if}
 									{/if}
 								{/snippet}
 							</DataTable>
@@ -483,17 +468,19 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 	{:else if activeTab === 'regions'}
 		<!-- REGIONS TAB -->
 		<div>
-			<div class="flex items-center justify-between mb-6">
-				<h3 class="text-xl font-bold text-white">Regions</h3>
+		<div class="flex items-center justify-between mb-6">
+			<h3 class="text-xl font-bold text-white">Regions</h3>
+			{#if data.isStrictAdmin}
 				<button 
 					onclick={() => showRegionForm = !showRegionForm}
 					class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
 				>
 					{showRegionForm ? '✕ Cancel' : '+ Add Region'}
 				</button>
-			</div>
-			
-			{#if showRegionForm}
+			{/if}
+		</div>
+		
+		{#if showRegionForm && data.isStrictAdmin}
 				<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-6">
 					<h4 class="text-lg font-semibold text-white mb-4">Create New Region</h4>
 					<form 
@@ -552,32 +539,32 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 					<span class="text-gray-300">{region.seasons}</span>
 				{:else if col.key === 'teams'}
 					<span class="text-gray-300">{region.teams}</span>
-				{:else if col.key === 'actions'}
-					<div class="flex items-center justify-end gap-2">
-						<form method="POST" action="?/toggleRegionVisibility" use:enhance>
-							<input type="hidden" name="regionId" value={region.id} />
-							<button 
-								type="submit"
-								class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-							>
-								{region.hidden === 0 ? 'Hide' : 'Show'}
-							</button>
-						</form>
+			{:else if col.key === 'actions'}
+				{#if data.isStrictAdmin}
+				<div class="flex items-center justify-end gap-2">
+					<form method="POST" action="?/toggleRegionVisibility" use:enhance>
+						<input type="hidden" name="regionId" value={region.id} />
+						<button 
+							type="submit"
+							class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+						>
+							{region.hidden === 0 ? 'Hide' : 'Show'}
+						</button>
+					</form>
 					<button 
 						onclick={() => editingRegion = region}
 						class="px-3 py-1 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
 					>
 						Edit
 					</button>
-					{#if data.isStrictAdmin}
-						<button
-							onclick={() => { deletingRegion = region; deleteConfirmText = ''; }}
-							class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-						>
-							Delete
-						</button>
-					{/if}
+					<button
+						onclick={() => { deletingRegion = region; deleteConfirmText = ''; }}
+						class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+					>
+						Delete
+					</button>
 				</div>
+				{/if}
 			{/if}
 		{/snippet}
 	</DataTable>
@@ -585,17 +572,19 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 {:else if activeTab === 'divisions'}
 		<!-- DIVISIONS TAB -->
 		<div>
-			<div class="flex items-center justify-between mb-6">
-				<h3 class="text-xl font-bold text-white">Divisions</h3>
+		<div class="flex items-center justify-between mb-6">
+			<h3 class="text-xl font-bold text-white">Divisions</h3>
+			{#if data.isStrictAdmin}
 				<button 
 					onclick={() => showDivisionForm = !showDivisionForm}
 					class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
 				>
 					{showDivisionForm ? '✕ Cancel' : '+ Add Division'}
 				</button>
-			</div>
-			
-			{#if showDivisionForm}
+			{/if}
+		</div>
+		
+		{#if showDivisionForm && data.isStrictAdmin}
 				<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-6">
 					<h4 class="text-lg font-semibold text-white mb-4">Create New Division</h4>
 					<form 
@@ -730,32 +719,32 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 									{:else if col.key === 'teams'}
 										<span class="text-sm font-medium text-white">{division.teams}</span>
 										<span class="text-xs text-gray-500 ml-1">teams</span>
-									{:else if col.key === 'actions'}
-										<div class="flex items-center justify-end gap-2">
-											<form method="POST" action="?/toggleDivisionVisibility" use:enhance>
-												<input type="hidden" name="divisionId" value={division.id} />
-												<button 
-													type="submit"
-													class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-												>
-													{division.hidden === 0 ? 'Hide' : 'Show'}
-												</button>
-											</form>
+								{:else if col.key === 'actions'}
+									{#if data.isStrictAdmin}
+									<div class="flex items-center justify-end gap-2">
+										<form method="POST" action="?/toggleDivisionVisibility" use:enhance>
+											<input type="hidden" name="divisionId" value={division.id} />
+											<button 
+												type="submit"
+												class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+											>
+												{division.hidden === 0 ? 'Hide' : 'Show'}
+											</button>
+										</form>
 										<button 
 											onclick={() => editingDivision = division}
 											class="px-3 py-1 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
 										>
 											Edit
 										</button>
-										{#if data.isStrictAdmin}
-											<button
-												onclick={() => { deletingDivision = division; deleteConfirmText = ''; }}
-												class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-											>
-												Delete
-											</button>
-										{/if}
+										<button
+											onclick={() => { deletingDivision = division; deleteConfirmText = ''; }}
+											class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+										>
+											Delete
+										</button>
 									</div>
+									{/if}
 								{/if}
 							{/snippet}
 						</DataTable>
@@ -1031,18 +1020,20 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 										>
 											Add Maps
 										</button>
-										<button 
-											onclick={() => editingPool = pool}
-											class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
-										>
-											Edit
-										</button>
+									<button 
+										onclick={() => editingPool = pool}
+										class="px-3 py-1.5 text-sm bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded transition-colors"
+									>
+										Edit
+									</button>
+									{#if data.isStrictAdmin}
 										<button 
 											onclick={() => deletingPool = pool}
 											class="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
 										>
 											Delete
 										</button>
+									{/if}
 									</div>
 								</div>
 								
@@ -1095,18 +1086,20 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 	{:else if activeTab === 'formats'}
 		<!-- FORMATS TAB -->
 		<div>
-			<div class="flex items-center justify-between mb-6">
-				<h3 class="text-xl font-bold text-white">Formats</h3>
+		<div class="flex items-center justify-between mb-6">
+			<h3 class="text-xl font-bold text-white">Formats</h3>
+			{#if data.isStrictAdmin}
 				<button 
 					onclick={() => showFormatForm = !showFormatForm}
 					class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
 				>
 					{showFormatForm ? 'Cancel' : '+ Add Format'}
 				</button>
-			</div>
-			
-			<!-- Create Format Form -->
-			{#if showFormatForm}
+			{/if}
+		</div>
+		
+		<!-- Create Format Form -->
+		{#if showFormatForm && data.isStrictAdmin}
 				<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mb-6">
 					<h4 class="text-lg font-medium text-white mb-4">Create New Format</h4>
 					<form 
@@ -1182,23 +1175,23 @@ function getRegionPrimaryStatus(seasons: typeof data.seasons): string {
 							<span class="text-gray-300">{format.teams}</span>
 						{:else if col.key === 'activeSignups'}
 							<span class="text-gray-300">{format.activeSignupSeasons}</span>
-					{:else if col.key === 'actions'}
-						<div class="flex items-center justify-end gap-2">
-							<button
-								onclick={() => editingFormat = format}
-								class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
-							>
-								Edit
-							</button>
-							{#if data.isStrictAdmin}
-								<button
-									onclick={() => { deletingFormat = format; deleteConfirmText = ''; }}
-									class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-								>
-									Delete
-								</button>
-							{/if}
-						</div>
+				{:else if col.key === 'actions'}
+					{#if data.isStrictAdmin}
+					<div class="flex items-center justify-end gap-2">
+						<button
+							onclick={() => editingFormat = format}
+							class="px-3 py-1 text-sm bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+						>
+							Edit
+						</button>
+						<button
+							onclick={() => { deletingFormat = format; deleteConfirmText = ''; }}
+							class="px-3 py-1 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+						>
+							Delete
+						</button>
+					</div>
+					{/if}
 					{/if}
 				{/snippet}
 			</DataTable>

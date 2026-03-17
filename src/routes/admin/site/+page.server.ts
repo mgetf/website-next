@@ -4,7 +4,7 @@
  */
 
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin } from '$lib/server/auth/permissions';
 import {
   getSiteSettings,
   updateSiteSettings,
@@ -100,7 +100,7 @@ export const actions: Actions = {
   },
 
   updateHomepageContent: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const subtitle = formData.get('subtitle')?.toString() || '';
@@ -120,7 +120,7 @@ export const actions: Actions = {
   },
 
   updateRulebook: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const content = formData.get('content')?.toString() || '';

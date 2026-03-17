@@ -5,7 +5,7 @@
 
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { MatchStatus } from '$prisma/client.js';
 import {
   createMatchSet,
@@ -105,6 +105,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     }));
 
   return {
+    isStrictAdmin: isStrictAdmin(locals.user),
     matchesByDivision: sortedDivisions,
     seasons,
     divisions,
@@ -138,7 +139,7 @@ export const actions: Actions = {
   },
 
   createMatchSet: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
 
@@ -188,7 +189,7 @@ export const actions: Actions = {
   },
 
   createPlayoffMatch: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
 

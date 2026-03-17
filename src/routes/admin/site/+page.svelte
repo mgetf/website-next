@@ -162,13 +162,7 @@ function handleApiKeyEnhance(actionName: string) {
 							<p class="text-xs text-gray-500 mt-1">Appears in browser tab and site header</p>
 						</div>
 
-						{#if !data.isHeadAdmin}
-							<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm">
-								Only head admins can modify site settings.
-							</div>
-						{/if}
-
-						<div class="pt-4">
+					<div class="pt-4">
 							<button
 								type="submit"
 								disabled={isSubmitting || !data.isHeadAdmin}
@@ -312,13 +306,7 @@ function handleApiKeyEnhance(actionName: string) {
 									</div>
 								</div>
 
-								{#if !data.isHeadAdmin}
-									<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm">
-										Only head admins can update the background image.
-									</div>
-								{/if}
-
-								<div class="pt-2">
+							<div class="pt-2">
 									<button
 										type="submit"
 										disabled={isSubmitting || !data.isHeadAdmin}
@@ -414,14 +402,8 @@ function handleApiKeyEnhance(actionName: string) {
 									<p class="text-xs text-gray-500 mt-1">PNG, JPG, GIF, or WebP. Max 1MB.</p>
 								</div>
 
-								{#if !data.isHeadAdmin}
-									<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm">
-										Only head admins can update the favicon.
-									</div>
-								{/if}
-
-								<button
-									type="submit"
+							<button
+								type="submit"
 									disabled={isSubmitting || !data.isHeadAdmin}
 									class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
 								>
@@ -433,60 +415,62 @@ function handleApiKeyEnhance(actionName: string) {
 				</div>
 			</div>
 
-		{:else if activeTab === 'homepage'}
-			<!-- Homepage Content -->
-			<form method="POST" action="?/updateHomepageContent" use:enhance={handleEnhance('homepage')}>
-				<div class="space-y-6">
-					<div>
-						<label for="subtitle" class="block text-sm font-medium text-gray-300 mb-2">
-							Homepage Subtitle
-						</label>
-						<input
-							type="text"
-							id="subtitle"
-							name="subtitle"
-							bind:value={homepageSubtitle}
-							class="w-full max-w-lg bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-							placeholder="The Premier MGE League"
-						/>
-						<p class="text-xs text-gray-500 mt-1">Displayed below the main title on the homepage</p>
-					</div>
-
-					<div>
-						<label for="about" class="block text-sm font-medium text-gray-300 mb-2">
-							"What is MGE?" Section
-						</label>
-						<textarea
-							id="about"
-							name="about"
-							bind:value={homepageAbout}
-							rows="10"
-							class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-							placeholder="## What is MGE?&#10;&#10;Write your content here using Markdown..."
-						></textarea>
-						<p class="text-xs text-gray-500 mt-1">Supports Markdown formatting</p>
-					</div>
-
-					{#if homepageAbout.trim()}
-						<div>
-							<h4 class="text-sm font-medium text-gray-300 mb-2">Preview</h4>
-							<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4">
-								<MarkdownRenderer content={homepageAbout} />
-							</div>
-						</div>
-					{/if}
-
-					<div class="pt-4">
-						<button
-							type="submit"
-							disabled={isSubmitting}
-							class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-6 py-2 rounded-lg transition"
-						>
-							{isSubmitting ? 'Saving...' : 'Save Homepage Content'}
-						</button>
-					</div>
+	{:else if activeTab === 'homepage'}
+		<!-- Homepage Content -->
+		<form method="POST" action="?/updateHomepageContent" use:enhance={handleEnhance('homepage')}>
+			<div class="space-y-6">
+				<div>
+					<label for="subtitle" class="block text-sm font-medium text-gray-300 mb-2">
+						Homepage Subtitle
+					</label>
+					<input
+						type="text"
+						id="subtitle"
+						name="subtitle"
+						bind:value={homepageSubtitle}
+						disabled={!data.isHeadAdmin}
+						class="w-full max-w-lg bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+						placeholder="The Premier MGE League"
+					/>
+					<p class="text-xs text-gray-500 mt-1">Displayed below the main title on the homepage</p>
 				</div>
-			</form>
+
+				<div>
+					<label for="about" class="block text-sm font-medium text-gray-300 mb-2">
+						"What is MGE?" Section
+					</label>
+					<textarea
+						id="about"
+						name="about"
+						bind:value={homepageAbout}
+						rows="10"
+						disabled={!data.isHeadAdmin}
+						class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+						placeholder="## What is MGE?&#10;&#10;Write your content here using Markdown..."
+					></textarea>
+					<p class="text-xs text-gray-500 mt-1">Supports Markdown formatting</p>
+				</div>
+
+				{#if homepageAbout.trim()}
+					<div>
+						<h4 class="text-sm font-medium text-gray-300 mb-2">Preview</h4>
+						<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4">
+							<MarkdownRenderer content={homepageAbout} />
+						</div>
+					</div>
+				{/if}
+
+				<div class="pt-4">
+					<button
+						type="submit"
+						disabled={isSubmitting || !data.isHeadAdmin}
+						class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
+					>
+						{isSubmitting ? 'Saving...' : 'Save Homepage Content'}
+					</button>
+				</div>
+			</div>
+		</form>
 
 		{:else if activeTab === 'apikeys'}
 		<!-- API Keys -->
@@ -499,13 +483,7 @@ function handleApiKeyEnhance(actionName: string) {
 				</p>
 			</div>
 
-			{#if !data.isHeadAdmin}
-				<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm">
-					Only head admins can manage API keys.
-				</div>
-			{/if}
-
-			<!-- Newly created key banner -->
+		<!-- Newly created key banner -->
 			{#if createdKey}
 				<div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4 space-y-2">
 					<p class="text-green-400 text-sm font-medium">API key created. Copy it now — it will not be shown again in a special way, but remains viewable in the table below.</p>
@@ -643,66 +621,67 @@ function handleApiKeyEnhance(actionName: string) {
 		</div>
 
 	{:else if activeTab === 'rulebook'}
-			<!-- Rulebook Editor -->
-			<form method="POST" action="?/updateRulebook" use:enhance={handleEnhance('rulebook')}>
-				<div class="space-y-4">
-					<div class="flex items-center justify-between">
-						<div>
-							<h3 class="text-lg font-semibold text-white">Rulebook Editor</h3>
-							<p class="text-sm text-gray-400">Edit the official rulebook using Markdown</p>
-						</div>
-						<div class="flex items-center gap-3">
-							<a
-								href="/rulebook"
-								target="_blank"
-								class="text-sm text-blue-400 hover:text-blue-300"
-							>
-								View live →
-							</a>
-							<button
-								type="button"
-								onclick={() => (showPreview = !showPreview)}
-								class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm rounded-lg transition"
-							>
-								{showPreview ? 'Hide Preview' : 'Show Preview'}
-							</button>
-						</div>
+		<!-- Rulebook Editor -->
+		<form method="POST" action="?/updateRulebook" use:enhance={handleEnhance('rulebook')}>
+			<div class="space-y-4">
+				<div class="flex items-center justify-between">
+					<div>
+						<h3 class="text-lg font-semibold text-white">Rulebook Editor</h3>
+						<p class="text-sm text-gray-400">Edit the official rulebook using Markdown</p>
 					</div>
-
-					<div class="grid grid-cols-1 {showPreview ? 'lg:grid-cols-2' : ''} gap-4">
-						<!-- Editor -->
-						<div>
-							<textarea
-								name="content"
-								bind:value={rulebookContent}
-								rows="30"
-								class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-y"
-								placeholder="# Rulebook&#10;&#10;## Section 1&#10;..."
-							></textarea>
-						</div>
-
-						<!-- Preview -->
-						{#if showPreview}
-							<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6 overflow-y-auto max-h-[700px]">
-								<MarkdownRenderer content={rulebookContent} />
-							</div>
-						{/if}
-					</div>
-
-					<div class="pt-4 flex items-center gap-4">
-						<button
-							type="submit"
-							disabled={isSubmitting}
-							class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium px-6 py-2 rounded-lg transition"
+					<div class="flex items-center gap-3">
+						<a
+							href="/rulebook"
+							target="_blank"
+							class="text-sm text-blue-400 hover:text-blue-300"
 						>
-							{isSubmitting ? 'Saving...' : 'Save Rulebook'}
+							View live →
+						</a>
+						<button
+							type="button"
+							onclick={() => (showPreview = !showPreview)}
+							class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm rounded-lg transition"
+						>
+							{showPreview ? 'Hide Preview' : 'Show Preview'}
 						</button>
-						<span class="text-sm text-gray-500">
-							Changes are published immediately
-						</span>
 					</div>
 				</div>
-			</form>
+
+				<div class="grid grid-cols-1 {showPreview ? 'lg:grid-cols-2' : ''} gap-4">
+					<!-- Editor -->
+					<div>
+						<textarea
+							name="content"
+							bind:value={rulebookContent}
+							rows="30"
+							disabled={!data.isHeadAdmin}
+							class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
+							placeholder="# Rulebook&#10;&#10;## Section 1&#10;..."
+						></textarea>
+					</div>
+
+					<!-- Preview -->
+					{#if showPreview}
+						<div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6 overflow-y-auto max-h-[700px]">
+							<MarkdownRenderer content={rulebookContent} />
+						</div>
+					{/if}
+				</div>
+
+				<div class="pt-4 flex items-center gap-4">
+					<button
+						type="submit"
+						disabled={isSubmitting || !data.isHeadAdmin}
+						class="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
+					>
+						{isSubmitting ? 'Saving...' : 'Save Rulebook'}
+					</button>
+					<span class="text-sm text-gray-500">
+						Changes are published immediately
+					</span>
+				</div>
+			</div>
+		</form>
 		{/if}
 	</div>
 </div>

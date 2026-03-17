@@ -1,11 +1,12 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { fail } from '@sveltejs/kit';
 import {
   getUsers,
   countUsers,
   updateUser,
   banUser,
+  getUserBySteamId,
   unlinkDiscord,
   clearPunishment,
   lockUserName,
@@ -48,6 +49,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   ]);
 
   return {
+    isStrictAdmin: isStrictAdmin(locals.user),
     users: users.map((user) => ({
       steamId: user.steamId,
       steamUsername: user.steamUsername,
@@ -98,6 +100,10 @@ export const actions: Actions = {
 
     if (!steamId) {
       return fail(400, { error: 'Invalid user ID' });
+    }
+
+    if (permissionLevel) {
+      requireStrictAdmin(locals.user);
     }
 
     try {
@@ -153,6 +159,14 @@ export const actions: Actions = {
       return fail(400, { error: 'Reason is required' });
     }
 
+    const targetUser = await getUserBySteamId(steamId);
+    if (
+      targetUser &&
+      (targetUser.permissionLevel === 'MODERATOR' || targetUser.permissionLevel === 'ADMIN')
+    ) {
+      requireStrictAdmin(locals.user);
+    }
+
     try {
       await banUser(
         steamId,
@@ -186,7 +200,7 @@ export const actions: Actions = {
   },
 
   clearPunishment: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     if (!locals.user) {
       return fail(401, { error: 'Unauthorized' });

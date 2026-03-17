@@ -5,7 +5,7 @@
 
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireStrictAdmin } from '$lib/server/auth/permissions';
 import {
   getEligibleTeams,
   createMatchSet,
@@ -23,7 +23,7 @@ import {
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  requireAdmin(locals.user);
+  requireStrictAdmin(locals.user);
 
   // Fetch data for dropdowns using services
   const [seasons, regions, divisions, arenas, mapBanPools, playoffs] =
@@ -51,7 +51,7 @@ export const actions: Actions = {
    * Preview eligible teams and match pairings (includes week label calculation)
    */
   previewMatches: async ({ request, locals }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const regionId = parseInt(formData.get('regionId') as string);
@@ -207,7 +207,7 @@ export const actions: Actions = {
    * Create the match set
    */
   createMatchSet: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
 

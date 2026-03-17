@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireStrictAdmin } from '$lib/server/auth/permissions';
 import { getAuditLogs, getAuditLogStats, AuditCategory } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-  requireAdmin(locals.user);
+  requireStrictAdmin(locals.user);
 
   const page = parseInt(url.searchParams.get('page') || '1');
   const pageSize = 50;

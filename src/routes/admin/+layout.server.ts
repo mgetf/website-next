@@ -4,13 +4,13 @@
  */
 
 import type { LayoutServerLoad } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-  // Require admin or moderator access
   requireAdmin(locals.user);
 
   return {
     user: locals.user,
+    isStrictAdmin: isStrictAdmin(locals.user),
   };
 };

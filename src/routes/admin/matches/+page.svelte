@@ -136,12 +136,14 @@ function getWinnerClass(match: any, teamId: number): string {
 			<h2 class="text-3xl font-bold text-white mb-2">Match Management</h2>
 			<p class="text-gray-400">View and manage league matches by week</p>
 		</div>
+	{#if data.isStrictAdmin}
 		<a
 			href="/admin/matches/create"
 			class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold inline-block"
 		>
 			+ Create Matches
 		</a>
+	{/if}
 	</div>
 
 

@@ -173,13 +173,15 @@ function toggleEditForm(announcement: (typeof data.announcements)[0]) {
 										Edit
 									</button>
 									
-									<!-- Delete Button -->
+								<!-- Delete Button -->
+								{#if data.isStrictAdmin}
 									<button
 										onclick={() => deletingAnnouncement = announcement}
 										class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 rounded text-sm font-medium transition-colors"
 									>
 										Delete
 									</button>
+								{/if}
 								</div>
 							</div>
 							
@@ -249,38 +251,41 @@ function toggleEditForm(announcement: (typeof data.announcements)[0]) {
 				<p class="text-sm text-gray-400 mb-4">
 					Default registration fee amount
 				</p>
-				<form 
-					method="POST" 
-					action="?/updateFees"
-					use:enhance={() => {
-						isSubmitting = true;
-						return async ({ update }) => {
-							await update();
-							isSubmitting = false;
-						};
-					}}
-					class="flex gap-2"
-				>
-					<input
-						type="number"
-						name="fees"
-						min="0"
-						step="1"
-						value={data.globalSettings.leagueFees ?? 0}
-						required
-						class="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-					/>
-					<button
-						type="submit"
-						disabled={isSubmitting}
-						class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+				{#if data.isStrictAdmin}
+					<form 
+						method="POST" 
+						action="?/updateFees"
+						use:enhance={() => {
+							isSubmitting = true;
+							return async ({ update }) => {
+								await update();
+								isSubmitting = false;
+							};
+						}}
+						class="flex gap-2"
 					>
-						{isSubmitting ? 'Updating...' : 'Update'}
-					</button>
-				</form>
+						<input
+							type="number"
+							name="fees"
+							min="0"
+							step="1"
+							value={data.globalSettings.leagueFees ?? 0}
+							required
+							class="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+						/>
+						<button
+							type="submit"
+							disabled={isSubmitting}
+							class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+						>
+							{isSubmitting ? 'Updating...' : 'Update'}
+						</button>
+					</form>
+				{/if}
 			</div>
 			
 			<!-- Season Assignments and Per-Season Settings -->
+			{#if data.isStrictAdmin}
 			<div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mt-6">
 				<h4 class="text-xl font-bold text-white mb-4">Signup Season Assignments</h4>
 				<p class="text-sm text-gray-400 mb-4">
@@ -482,6 +487,7 @@ function toggleEditForm(announcement: (typeof data.announcements)[0]) {
 					</p>
 				{/snippet}
 			</ConfirmDialog>
+			{/if}
 		{:else}
 			<div class="text-center py-12 text-gray-500">
 				<p class="text-gray-400">Global settings not initialized</p>

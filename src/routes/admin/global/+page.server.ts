@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import {
   getAnnouncements,
   createAnnouncement,
@@ -97,6 +97,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   );
 
   return {
+    isStrictAdmin: isStrictAdmin(locals.user),
     announcements,
     globalSettings,
     regions,
@@ -191,7 +192,7 @@ export const actions: Actions = {
   },
 
   deleteAnnouncement: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const id = parseInt(formData.get('id')?.toString() || '');
@@ -212,7 +213,7 @@ export const actions: Actions = {
 
   // Per-season toggle actions
   toggleSeasonSignups: async ({ request, locals }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
@@ -231,7 +232,7 @@ export const actions: Actions = {
   },
 
   toggleSeasonRoster: async ({ request, locals }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
@@ -250,7 +251,7 @@ export const actions: Actions = {
   },
 
   toggleSeasonPayment: async ({ request, locals }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
@@ -271,7 +272,7 @@ export const actions: Actions = {
   },
 
   updateSeasonMatchSettings: async ({ request, locals }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
@@ -299,7 +300,7 @@ export const actions: Actions = {
   },
 
   updateFees: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const fees = parseInt(formData.get('fees')?.toString() || '0');
@@ -319,7 +320,7 @@ export const actions: Actions = {
   },
 
   updateSeasonAssignments: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
 

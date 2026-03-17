@@ -152,7 +152,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   createSeason: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const seasonNum = parseInt(formData.get('seasonNum') as string);
@@ -188,7 +188,7 @@ export const actions: Actions = {
   },
 
   updateSeason: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const seasonId = parseInt(formData.get('seasonId') as string);
@@ -229,7 +229,7 @@ export const actions: Actions = {
 
   // REGION ACTIONS
   createRegion: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const name = formData.get('name') as string;
@@ -252,7 +252,7 @@ export const actions: Actions = {
   },
 
   updateRegion: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const regionId = parseInt(formData.get('regionId') as string);
@@ -283,7 +283,7 @@ export const actions: Actions = {
   },
 
   toggleRegionVisibility: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const regionId = parseInt(formData.get('regionId') as string);
@@ -312,7 +312,7 @@ export const actions: Actions = {
 
   // DIVISION ACTIONS
   createDivision: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const name = formData.get('name') as string;
@@ -341,7 +341,7 @@ export const actions: Actions = {
   },
 
   updateDivision: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const divisionId = parseInt(formData.get('divisionId') as string);
@@ -374,7 +374,7 @@ export const actions: Actions = {
   },
 
   toggleDivisionVisibility: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const divisionId = parseInt(formData.get('divisionId') as string);
@@ -659,7 +659,7 @@ export const actions: Actions = {
   },
 
   deleteMapBanPool: async ({ request, locals }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const poolId = parseInt(formData.get('poolId') as string);
@@ -684,7 +684,7 @@ export const actions: Actions = {
 
   // PLAYOFF ACTIONS
   managePlayoff: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const seasonId = parseInt(formData.get('seasonId') as string);
@@ -752,7 +752,7 @@ export const actions: Actions = {
 
   // FORMAT ACTIONS
   createFormat: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const name = formData.get('name') as string;
@@ -779,7 +779,7 @@ export const actions: Actions = {
   },
 
   updateFormat: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
+    requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
     const formatId = parseInt(formData.get('formatId') as string);

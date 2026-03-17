@@ -294,17 +294,29 @@ function closeBanModal() {
 				};
 			}}
 		>
-			<input type="hidden" name="steamId" value={editingUser.steamId} />
-			{#if editingUser.permissionLevel !== 'MODERATOR' && editingUser.permissionLevel !== 'ADMIN'}
-				<input type="hidden" name="staffDivisionId" value="" />
-			{/if}
+		<input type="hidden" name="steamId" value={editingUser.steamId} />
+		{#if editingUser.permissionLevel !== 'MODERATOR' && editingUser.permissionLevel !== 'ADMIN'}
+			<input type="hidden" name="staffDivisionId" value="" />
+		{/if}
 
+		{#if data.isStrictAdmin}
 			<FormSelect
 				label="Permission Level"
 				name="permissionLevel"
 				bind:value={editingUser.permissionLevel}
 				options={permissionOptions}
 			/>
+		{:else}
+			<input type="hidden" name="permissionLevel" value="" />
+			<div class="mb-6">
+				<p class="block text-sm font-medium text-gray-300 mb-1">Permission Level</p>
+			<div class="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg">
+				<span class="px-2 py-0.5 rounded text-xs font-medium {getPermissionColor(editingUser.permissionLevel)}">
+					{permissionNames[editingUser.permissionLevel]}
+				</span>
+			</div>
+			</div>
+		{/if}
 
 		{#if editingUser.permissionLevel === 'MODERATOR' || editingUser.permissionLevel === 'ADMIN'}
 			<div class="mb-6">

@@ -25,23 +25,28 @@ const isActive = (path: string) => {
 };
 
 // Sidebar menu items
-const menuItems = [
-  { name: 'Dashboard', path: '/admin', icon: dashboardIcon },
-  { name: 'League', path: '/admin/league', icon: trophyIcon },
-  { name: 'Teams', path: '/admin/teams', icon: groupIcon },
-  { name: 'Matches', path: '/admin/matches', icon: battleIcon },
+const allMenuItems = [
+  { name: 'Dashboard', path: '/admin', icon: dashboardIcon, adminOnly: false },
+  { name: 'League', path: '/admin/league', icon: trophyIcon, adminOnly: false },
+  { name: 'Teams', path: '/admin/teams', icon: groupIcon, adminOnly: false },
+  { name: 'Matches', path: '/admin/matches', icon: battleIcon, adminOnly: false },
   {
     name: 'Pending Players',
     path: '/admin/pending-players',
     icon: hourglassIcon,
+    adminOnly: false,
   },
-  { name: 'Demos', path: '/admin/demos', icon: videoCameraIcon },
-  { name: 'Disputes', path: '/admin/disputes', icon: maceIcon },
-  { name: 'Users', path: '/admin/users', icon: userIcon },
-  { name: 'Global', path: '/admin/global', icon: webIcon },
-  { name: 'Site', path: '/admin/site', icon: settingIcon },
-  { name: 'Audit Logs', path: '/admin/audit-logs', icon: auditIcon },
+  { name: 'Demos', path: '/admin/demos', icon: videoCameraIcon, adminOnly: false },
+  { name: 'Disputes', path: '/admin/disputes', icon: maceIcon, adminOnly: false },
+  { name: 'Users', path: '/admin/users', icon: userIcon, adminOnly: false },
+  { name: 'Global', path: '/admin/global', icon: webIcon, adminOnly: false },
+  { name: 'Site', path: '/admin/site', icon: settingIcon, adminOnly: false },
+  { name: 'Audit Logs', path: '/admin/audit-logs', icon: auditIcon, adminOnly: true },
 ];
+
+const menuItems = $derived(
+  allMenuItems.filter((item) => !item.adminOnly || data.isStrictAdmin)
+);
 
 // Mobile menu state
 let mobileMenuOpen = $state(false);

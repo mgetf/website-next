@@ -306,48 +306,51 @@ function closeBanModal() {
 				options={permissionOptions}
 			/>
 
-			{#if editingUser.permissionLevel === 'MODERATOR' || editingUser.permissionLevel === 'ADMIN'}
-				<div class="mb-6">
-					<p class="block text-sm font-medium text-gray-300 mb-2">Staff Assignment</p>
-					<div class="grid grid-cols-2 gap-3">
-						<div>
-							<label class="sr-only" for="staffRegion">Region</label>
-							<select
-								id="staffRegion"
-								class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
-								value={selectedStaffRegionId ?? ''}
-								onchange={(e) => {
-									const val = e.currentTarget.value;
-									selectedStaffRegionId = val ? parseInt(val) : null;
-									if (editingUser) editingUser.staffDivisionId = null;
-								}}
-							>
-								<option value="">No region</option>
-								{#each data.regions as region}
-									<option value={region.id}>{region.name}</option>
-								{/each}
-							</select>
-						</div>
-						<div>
-							<label class="sr-only" for="staffDivision">Division</label>
-							<select
-								id="staffDivision"
-								name="staffDivisionId"
-								class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-								disabled={!selectedStaffRegionId}
-								value={editingUser.staffDivisionId ?? ''}
-								onchange={(e) => {
-									const val = e.currentTarget.value;
-									if (editingUser) editingUser.staffDivisionId = val ? parseInt(val) : null;
-								}}
-							>
-								<option value="">No division</option>
-								{#each filteredDivisions as division}
-									<option value={division.id}>{division.name}</option>
-								{/each}
-							</select>
-						</div>
+		{#if editingUser.permissionLevel === 'MODERATOR' || editingUser.permissionLevel === 'ADMIN'}
+			<div class="mb-6">
+				<p class="block text-sm font-medium text-gray-300 mb-2">Staff Assignment</p>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="sr-only" for="staffRegion">Region</label>
+						<select
+							id="staffRegion"
+							class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+							value={selectedStaffRegionId ?? ''}
+							onchange={(e) => {
+								const val = e.currentTarget.value;
+								selectedStaffRegionId = val ? parseInt(val) : null;
+								if (editingUser) editingUser.staffDivisionId = null;
+							}}
+						>
+							<option value="">No region</option>
+							{#each data.regions as region}
+								<option value={region.id}>{region.name}</option>
+							{/each}
+						</select>
 					</div>
+					<div>
+						{#if !selectedStaffRegionId}
+							<input type="hidden" name="staffDivisionId" value="" />
+						{/if}
+						<label class="sr-only" for="staffDivision">Division</label>
+						<select
+							id="staffDivision"
+							name="staffDivisionId"
+							class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+							disabled={!selectedStaffRegionId}
+							value={editingUser.staffDivisionId ?? ''}
+							onchange={(e) => {
+								const val = e.currentTarget.value;
+								if (editingUser) editingUser.staffDivisionId = val ? parseInt(val) : null;
+							}}
+						>
+							<option value="">No division</option>
+							{#each filteredDivisions as division}
+								<option value={division.id}>{division.name}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
 					<p class="mt-2 text-sm text-gray-500">Which region/division this staff member is assigned to (for display on league page).</p>
 				</div>
 			{/if}

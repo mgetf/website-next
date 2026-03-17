@@ -7,7 +7,10 @@ import {
   hasAnyPendingRequest,
 } from '$lib/server/services/teamJoin';
 import { getTeamById } from '$lib/server/services/teams';
-import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
+import {
+  isSeasonCurrentlyActive,
+  getEffectiveRosterLock,
+} from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
@@ -56,7 +59,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   }
 
-  const rosterLocked = team.season?.rosterLocked ?? false;
+  const rosterLocked = team.season?.rosterLocked
+    ? await isSeasonCurrentlyActive(team.season.id)
+    : false;
 
   const activePlayerCount = team.players.filter((p) => p.active === 1).length;
   if (activePlayerCount >= 3) {
@@ -118,9 +123,8 @@ export const actions: Actions = {
       return fail(400, { error: 'Invalid team ID' });
     }
 
-    // Check if rosters are locked for this team's season
-    const seasonSettings = await getSeasonSettingsByTeamId(teamId);
-    if (seasonSettings?.rosterLocked) {
+    const rosterLocked = await getEffectiveRosterLock(teamId);
+    if (rosterLocked) {
       return fail(400, { error: 'Rosters are currently locked' });
     }
 

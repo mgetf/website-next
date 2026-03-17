@@ -4,7 +4,10 @@ import { getTeamById, updateTeamStatus } from '$lib/server/services/teams';
 import { isAdmin, isTeamAdmin } from '$lib/server/auth/permissions';
 import { removePlayer } from '$lib/server/services/teamManagement';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
-import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
+import {
+  isSeasonCurrentlyActive,
+  getEffectiveRosterLock,
+} from '$lib/server/services/settings';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import {
@@ -51,8 +54,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     : false;
   const canManageTeam = isGlobalAdmin || isTeamAdminUser;
 
-  // Get roster lock status from team's season (per-season setting)
-  const rosterLocked = team.season?.rosterLocked ?? false;
+  const rosterLocked = team.season?.rosterLocked
+    ? await isSeasonCurrentlyActive(team.season.id)
+    : false;
 
   // Separate active and inactive players
   const currentRoster = team.players
@@ -237,9 +241,7 @@ export const actions: Actions = {
       return fail(400, { error: 'Player Steam ID is required' });
     }
 
-    // Check roster lock from team's season (admins can bypass)
-    const seasonSettings = await getSeasonSettingsByTeamId(teamId);
-    const rosterLocked = seasonSettings?.rosterLocked ?? false;
+    const rosterLocked = await getEffectiveRosterLock(teamId);
 
     if (rosterLocked && !isGlobalAdmin) {
       return fail(403, { error: 'Rosters are currently locked' });
@@ -326,8 +328,7 @@ export const actions: Actions = {
 
     const teamId = parseInt(params.id);
 
-    const seasonSettings = await getSeasonSettingsByTeamId(teamId);
-    const rosterLocked = seasonSettings?.rosterLocked ?? false;
+    const rosterLocked = await getEffectiveRosterLock(teamId);
 
     if (rosterLocked) {
       return fail(403, { error: 'Rosters are currently locked' });

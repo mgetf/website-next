@@ -202,6 +202,43 @@ export async function getSeasonSettingsByTeamId(
 }
 
 /**
+ * Check whether a season is currently active (referenced in ActiveSignupSeason).
+ * A season that is not active is considered a past/completed season.
+ */
+export async function isSeasonCurrentlyActive(
+  seasonId: number,
+): Promise<boolean> {
+  const entry = await prisma.activeSignupSeason.findFirst({
+    where: { seasonId },
+  });
+  return entry !== null;
+}
+
+/**
+ * Determine if roster lock is effectively in force for a given team.
+ * Returns true only when the team's season has rosterLocked=true AND that
+ * season is still the current active season. Past seasons are never locked.
+ */
+export async function getEffectiveRosterLock(
+  teamId: number,
+): Promise<boolean> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: {
+      season: {
+        select: {
+          id: true,
+          rosterLocked: true,
+        },
+      },
+    },
+  });
+
+  if (!team?.season?.rosterLocked) return false;
+  return isSeasonCurrentlyActive(team.season.id);
+}
+
+/**
  * Check if any active signup season has signups open
  * Useful for navigation to determine if signup button should show
  */

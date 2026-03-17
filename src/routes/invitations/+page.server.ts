@@ -5,7 +5,7 @@ import {
   acceptTeamInvite,
   declineInvitation,
 } from '$lib/server/services/teamJoin';
-import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
+import { getEffectiveRosterLock } from '$lib/server/services/settings';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -14,13 +14,10 @@ export const load: PageServerLoad = async ({ locals }) => {
   const pendingInvites = await getUserPendingInvites(locals.user.steamId);
 
   const invitations = await Promise.all(
-    pendingInvites.map(async (invite) => {
-      const seasonSettings = await getSeasonSettingsByTeamId(invite.teamId);
-      return {
-        ...invite,
-        rosterLocked: seasonSettings?.rosterLocked ?? false,
-      };
-    }),
+    pendingInvites.map(async (invite) => ({
+      ...invite,
+      rosterLocked: await getEffectiveRosterLock(invite.teamId),
+    })),
   );
 
   const anyRosterLocked = invitations.some((inv) => inv.rosterLocked);
@@ -42,8 +39,8 @@ export const actions: Actions = {
       return fail(400, { error: 'Invalid team ID' });
     }
 
-    const seasonSettings = await getSeasonSettingsByTeamId(teamId);
-    if (seasonSettings?.rosterLocked) {
+    const rosterLocked = await getEffectiveRosterLock(teamId);
+    if (rosterLocked) {
       return fail(400, { error: 'Rosters are currently locked' });
     }
 

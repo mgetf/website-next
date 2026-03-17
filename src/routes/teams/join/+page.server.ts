@@ -6,7 +6,10 @@ import {
   declineInvitation,
   hasAnyPendingRequest,
 } from '$lib/server/services/teamJoin';
-import { getSeasonSettingsByTeamId } from '$lib/server/services/settings';
+import {
+  isSeasonCurrentlyActive,
+  getEffectiveRosterLock,
+} from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -21,7 +24,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
   try {
     const teamInfo = await validateTokenAndGetTeam(token, locals.user.steamId);
 
-    const rosterLocked = teamInfo.team?.season?.rosterLocked ?? false;
+    const rosterLocked = teamInfo.team?.season?.rosterLocked
+      ? await isSeasonCurrentlyActive(teamInfo.team.season.id)
+      : false;
 
     const hasPending = teamInfo.canJoin
       ? await hasAnyPendingRequest(locals.user.steamId)
@@ -65,9 +70,8 @@ export const actions: Actions = {
     );
     const { teamId } = decodeToken(token);
 
-    // Check if rosters are locked for this team's season
-    const seasonSettings = await getSeasonSettingsByTeamId(teamId);
-    if (seasonSettings?.rosterLocked) {
+    const rosterLocked = await getEffectiveRosterLock(teamId);
+    if (rosterLocked) {
       return fail(400, { error: 'Rosters are currently locked' });
     }
 

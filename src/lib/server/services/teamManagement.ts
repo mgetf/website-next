@@ -15,6 +15,7 @@ import path from 'path';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { createNotificationForUser } from './notifications';
 import { hashPassword } from '../utils/password';
+import { isSeasonCurrentlyActive } from './settings';
 
 interface TeamEditData {
   team: any;
@@ -92,8 +93,9 @@ export async function getTeamForEdit(
   const isOwner = userInTeam?.permissionLevel === 2;
   const isAdmin = userInTeam?.permissionLevel === 1 || isOwner;
 
-  // Get roster lock status from team's season (per-season setting)
-  const rosterLocked = team.season?.rosterLocked ?? false;
+  const rosterLocked = team.season?.rosterLocked
+    ? await isSeasonCurrentlyActive(team.season.id)
+    : false;
 
   return {
     team,

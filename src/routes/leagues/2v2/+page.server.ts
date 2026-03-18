@@ -2,10 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getSeasons } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import {
-  getTeamsByDivision,
-  findRecentSeasonWithTeams,
-} from '$lib/server/services/teams';
+import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
 import { getStaffMembers, isUserSignedUpForSeason } from '$lib/server/services/users';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 
@@ -59,12 +56,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     // DEAD teams are included so past seasons can show teams that played but later disbanded
     const teamsByDivision = await Promise.all(
       divisions.map(async (division) => {
-        const teams = await getTeamsByDivision(
-          division.id,
-          selectedSeasonId!,
-          selectedRegionId!,
-          ['UNREADY', 'PENDING', 'READY', 'PLACEMENT', 'DEAD'],
-        );
+        const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
+          'UNREADY',
+          'PENDING',
+          'READY',
+          'PLACEMENT',
+          'DEAD',
+        ]);
 
         return {
           division: {
@@ -81,9 +79,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     // Create a set of division IDs that belong to the selected region
     const regionDivisionIds = new Set(
-      divisions
-        .filter((d) => d.regionId === selectedRegionId)
-        .map((d) => d.id),
+      divisions.filter((d) => d.regionId === selectedRegionId).map((d) => d.id),
     );
 
     // Group staff by division (filtered to selected region only)

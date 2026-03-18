@@ -22,14 +22,10 @@ function getSessionSecret(): string {
   if (!secret) {
     if (dev) {
       // Allow development without setting SESSION_SECRET
-      console.warn(
-        'Warning: SESSION_SECRET not set, using insecure fallback for development',
-      );
+      console.warn('Warning: SESSION_SECRET not set, using insecure fallback for development');
       return 'dev-only-insecure-secret-do-not-use-in-production';
     }
-    throw new Error(
-      'SESSION_SECRET environment variable is required in production',
-    );
+    throw new Error('SESSION_SECRET environment variable is required in production');
   }
   return secret;
 }

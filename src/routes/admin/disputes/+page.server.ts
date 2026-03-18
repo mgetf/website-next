@@ -5,10 +5,7 @@
 
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
-import {
-  getDisputedMatches,
-  resolveDispute,
-} from '$lib/server/services/disputes';
+import { getDisputedMatches, resolveDispute } from '$lib/server/services/disputes';
 import { MatchStatus } from '$prisma/client.js';
 import { fail } from '@sveltejs/kit';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';

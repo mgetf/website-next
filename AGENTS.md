@@ -26,6 +26,7 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 ```
 
 **Rules:**
+
 - Route handlers are thin orchestrators — no Prisma imports
 - Services own ALL database queries and business logic
 - Services use named exports only (no default exports)

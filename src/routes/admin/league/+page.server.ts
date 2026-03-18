@@ -22,12 +22,7 @@ import {
   deleteDivision,
   toggleDivisionVisibility,
 } from '$lib/server/services/divisions';
-import {
-  getArenas,
-  createArena,
-  updateArena,
-  deleteArena,
-} from '$lib/server/services/arenas';
+import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/services/arenas';
 import {
   uploadToR2,
   validateUploadedFile,
@@ -48,12 +43,7 @@ import {
   createPlayoff,
   updatePlayoffBySeason,
 } from '$lib/server/services/playoffs';
-import {
-  getFormats,
-  createFormat,
-  updateFormat,
-  deleteFormat,
-} from '$lib/server/services/formats';
+import { getFormats, createFormat, updateFormat, deleteFormat } from '$lib/server/services/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -186,13 +176,20 @@ export const actions: Actions = {
 
     try {
       await createSeason({ seasonNum, regionId, formatId, numWeeks });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.SEASON_CREATED, targetType: 'Season', metadata: { seasonNum, regionId, formatId, numWeeks }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.SEASON_CREATED,
+        targetType: 'Season',
+        metadata: { seasonNum, regionId, formatId, numWeeks },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Season created successfully!' };
     } catch (error) {
       console.error('Error creating season:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to create season',
+        error: error instanceof Error ? error.message : 'Failed to create season',
       });
     }
   },
@@ -226,13 +223,21 @@ export const actions: Actions = {
 
     try {
       await updateSeason(seasonId, { seasonNum, regionId, formatId, numWeeks });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.SEASON_UPDATED, targetType: 'Season', targetId: String(seasonId), metadata: { seasonNum, regionId, formatId, numWeeks }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.SEASON_UPDATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { seasonNum, regionId, formatId, numWeeks },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Season updated successfully!' };
     } catch (error) {
       console.error('Error updating season:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to update season',
+        error: error instanceof Error ? error.message : 'Failed to update season',
       });
     }
   },
@@ -250,13 +255,19 @@ export const actions: Actions = {
 
     try {
       await createRegion(name);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_CREATED, metadata: { name }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.REGION_CREATED,
+        metadata: { name },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Region created successfully!' };
     } catch (error) {
       console.error('Error creating region:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to create region',
+        error: error instanceof Error ? error.message : 'Failed to create region',
       });
     }
   },
@@ -281,13 +292,21 @@ export const actions: Actions = {
         name,
         currencyCode: currencyCode || 'USD',
       });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_CREATED, targetType: 'Region', targetId: String(regionId), metadata: { name, currencyCode }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.REGION_CREATED,
+        targetType: 'Region',
+        targetId: String(regionId),
+        metadata: { name, currencyCode },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Region updated successfully!' };
     } catch (error) {
       console.error('Error updating region:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to update region',
+        error: error instanceof Error ? error.message : 'Failed to update region',
       });
     }
   },
@@ -304,7 +323,16 @@ export const actions: Actions = {
 
     try {
       const region = await toggleRegionVisibility(regionId);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_TOGGLED, targetType: 'Region', targetId: String(regionId), metadata: { hidden: region.hidden }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.REGION_TOGGLED,
+        targetType: 'Region',
+        targetId: String(regionId),
+        metadata: { hidden: region.hidden },
+        ipAddress: getClientAddress(),
+      });
       return {
         success: true,
         message: `Region ${region.hidden === 0 ? 'shown' : 'hidden'} successfully!`,
@@ -312,10 +340,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error toggling region visibility:', error);
       return fail(400, {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to toggle region visibility',
+        error: error instanceof Error ? error.message : 'Failed to toggle region visibility',
       });
     }
   },
@@ -339,13 +364,19 @@ export const actions: Actions = {
 
     try {
       await createDivision({ name, signupCost, regionId });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.DIVISION_CREATED, metadata: { name, signupCost, regionId }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_CREATED,
+        metadata: { name, signupCost, regionId },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Division created successfully!' };
     } catch (error) {
       console.error('Error creating division:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to create division',
+        error: error instanceof Error ? error.message : 'Failed to create division',
       });
     }
   },
@@ -372,13 +403,21 @@ export const actions: Actions = {
 
     try {
       await updateDivision(divisionId, { name, signupCost, regionId });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.DIVISION_UPDATED, targetType: 'Division', targetId: String(divisionId), metadata: { name, signupCost, regionId }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_UPDATED,
+        targetType: 'Division',
+        targetId: String(divisionId),
+        metadata: { name, signupCost, regionId },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Division updated successfully!' };
     } catch (error) {
       console.error('Error updating division:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to update division',
+        error: error instanceof Error ? error.message : 'Failed to update division',
       });
     }
   },
@@ -402,10 +441,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error toggling division visibility:', error);
       return fail(400, {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to toggle division visibility',
+        error: error instanceof Error ? error.message : 'Failed to toggle division visibility',
       });
     }
   },
@@ -433,9 +469,7 @@ export const actions: Actions = {
         const tempPath = await saveTempFile(avatarFile);
 
         try {
-          const fileExtension = avatarFile.name.substring(
-            avatarFile.name.lastIndexOf('.'),
-          );
+          const fileExtension = avatarFile.name.substring(avatarFile.name.lastIndexOf('.'));
           const remotePath = `arena-avatars/${Date.now()}${fileExtension}`;
           const uploadedUrl = await uploadToR2(tempPath, remotePath);
 
@@ -448,13 +482,19 @@ export const actions: Actions = {
       }
 
       await createArena({ name, avatar: finalAvatarUrl, playoffMap });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.ARENA_CREATED, metadata: { name, playoffMap }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.ARENA_CREATED,
+        metadata: { name, playoffMap },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Arena created successfully!' };
     } catch (error) {
       console.error('Error creating arena:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to create arena',
+        error: error instanceof Error ? error.message : 'Failed to create arena',
       });
     }
   },
@@ -485,9 +525,7 @@ export const actions: Actions = {
         const tempPath = await saveTempFile(avatarFile);
 
         try {
-          const fileExtension = avatarFile.name.substring(
-            avatarFile.name.lastIndexOf('.'),
-          );
+          const fileExtension = avatarFile.name.substring(avatarFile.name.lastIndexOf('.'));
           const remotePath = `arena-avatars/${Date.now()}${fileExtension}`;
           const uploadedUrl = await uploadToR2(tempPath, remotePath);
 
@@ -500,13 +538,21 @@ export const actions: Actions = {
       }
 
       await updateArena(arenaId, { name, avatar: finalAvatarUrl, playoffMap });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.ARENA_UPDATED, targetType: 'Arena', targetId: String(arenaId), metadata: { name, playoffMap }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.ARENA_UPDATED,
+        targetType: 'Arena',
+        targetId: String(arenaId),
+        metadata: { name, playoffMap },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Arena updated successfully!' };
     } catch (error) {
       console.error('Error updating arena:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to update arena',
+        error: error instanceof Error ? error.message : 'Failed to update arena',
       });
     }
   },
@@ -523,13 +569,20 @@ export const actions: Actions = {
 
     try {
       await deleteArena(arenaId);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.ARENA_DELETED, targetType: 'Arena', targetId: String(arenaId), ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.ARENA_DELETED,
+        targetType: 'Arena',
+        targetId: String(arenaId),
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Arena deleted successfully!' };
     } catch (error) {
       console.error('Error deleting arena:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to delete arena',
+        error: error instanceof Error ? error.message : 'Failed to delete arena',
       });
     }
   },
@@ -547,15 +600,19 @@ export const actions: Actions = {
 
     try {
       await createMapBanPool(name);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.MAP_BAN, action: AuditAction.MAP_POOL_CREATED, metadata: { name }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MAP_BAN,
+        action: AuditAction.MAP_POOL_CREATED,
+        metadata: { name },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Map ban pool created successfully!' };
     } catch (error) {
       console.error('Error creating map ban pool:', error);
       return fail(400, {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to create map ban pool',
+        error: error instanceof Error ? error.message : 'Failed to create map ban pool',
       });
     }
   },
@@ -580,10 +637,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error updating map ban pool:', error);
       return fail(400, {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to update map ban pool',
+        error: error instanceof Error ? error.message : 'Failed to update map ban pool',
       });
     }
   },
@@ -607,10 +661,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error toggling pool status:', error);
       return fail(400, {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to toggle pool status',
+        error: error instanceof Error ? error.message : 'Failed to toggle pool status',
       });
     }
   },
@@ -620,9 +671,7 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const poolId = parseInt(formData.get('poolId') as string);
-    const arenaIds = formData
-      .getAll('arenaIds')
-      .map((id) => parseInt(id as string));
+    const arenaIds = formData.getAll('arenaIds').map((id) => parseInt(id as string));
 
     if (!poolId || poolId < 1) {
       return fail(400, { error: 'Invalid pool ID' });
@@ -637,8 +686,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error adding maps to pool:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to add maps to pool',
+        error: error instanceof Error ? error.message : 'Failed to add maps to pool',
       });
     }
   },
@@ -660,10 +708,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error removing map from pool:', error);
       return fail(400, {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to remove map from pool',
+        error: error instanceof Error ? error.message : 'Failed to remove map from pool',
       });
     }
   },
@@ -684,10 +729,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error deleting map ban pool:', error);
       return fail(400, {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to delete map ban pool',
+        error: error instanceof Error ? error.message : 'Failed to delete map ban pool',
       });
     }
   },
@@ -714,8 +756,7 @@ export const actions: Actions = {
 
     if (format === 'rounds' && (!numRounds || numRounds < 1)) {
       return fail(400, {
-        error:
-          'Number of rounds is required for rounds format and must be >= 1',
+        error: 'Number of rounds is required for rounds format and must be >= 1',
       });
     }
 
@@ -731,7 +772,16 @@ export const actions: Actions = {
           doubleElim,
           isTournament,
         });
-        await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.PLAYOFF_UPDATED, targetType: 'Season', targetId: String(seasonId), metadata: { isTournament, numRounds, doubleElim }, ipAddress: getClientAddress() });
+        await logAudit({
+          actorId: locals.user?.steamId,
+          actorRole: locals.user?.permissionLevel,
+          category: AuditCategory.LEAGUE_CONFIG,
+          action: AuditAction.PLAYOFF_UPDATED,
+          targetType: 'Season',
+          targetId: String(seasonId),
+          metadata: { isTournament, numRounds, doubleElim },
+          ipAddress: getClientAddress(),
+        });
         return {
           success: true,
           message: 'Playoff configuration updated successfully!',
@@ -743,7 +793,16 @@ export const actions: Actions = {
           doubleElim,
           isTournament,
         });
-        await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.PLAYOFF_UPDATED, targetType: 'Season', targetId: String(seasonId), metadata: { isTournament, numRounds, doubleElim, created: true }, ipAddress: getClientAddress() });
+        await logAudit({
+          actorId: locals.user?.steamId,
+          actorRole: locals.user?.permissionLevel,
+          category: AuditCategory.LEAGUE_CONFIG,
+          action: AuditAction.PLAYOFF_UPDATED,
+          targetType: 'Season',
+          targetId: String(seasonId),
+          metadata: { isTournament, numRounds, doubleElim, created: true },
+          ipAddress: getClientAddress(),
+        });
         return {
           success: true,
           message: 'Playoff configuration created successfully!',
@@ -752,10 +811,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error managing playoff:', error);
       return fail(400, {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to manage playoff configuration',
+        error: error instanceof Error ? error.message : 'Failed to manage playoff configuration',
       });
     }
   },
@@ -777,13 +833,19 @@ export const actions: Actions = {
 
     try {
       await createFormat({ name, code });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.FORMAT_CREATED, metadata: { name, code }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.FORMAT_CREATED,
+        metadata: { name, code },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Format created successfully!' };
     } catch (error) {
       console.error('Error creating format:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to create format',
+        error: error instanceof Error ? error.message : 'Failed to create format',
       });
     }
   },
@@ -808,13 +870,21 @@ export const actions: Actions = {
 
     try {
       await updateFormat(formatId, { name, code });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.FORMAT_UPDATED, targetType: 'Format', targetId: String(formatId), metadata: { name, code }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.FORMAT_UPDATED,
+        targetType: 'Format',
+        targetId: String(formatId),
+        metadata: { name, code },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Format updated successfully!' };
     } catch (error) {
       console.error('Error updating format:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to update format',
+        error: error instanceof Error ? error.message : 'Failed to update format',
       });
     }
   },
@@ -831,13 +901,20 @@ export const actions: Actions = {
 
     try {
       await deleteSeason(seasonId);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.SEASON_DELETED, targetType: 'Season', targetId: String(seasonId), ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.SEASON_DELETED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Season deleted successfully!' };
     } catch (error) {
       console.error('Error deleting season:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to delete season',
+        error: error instanceof Error ? error.message : 'Failed to delete season',
       });
     }
   },
@@ -854,13 +931,20 @@ export const actions: Actions = {
 
     try {
       await deleteRegion(regionId);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.REGION_DELETED, targetType: 'Region', targetId: String(regionId), ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.REGION_DELETED,
+        targetType: 'Region',
+        targetId: String(regionId),
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Region deleted successfully!' };
     } catch (error) {
       console.error('Error deleting region:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to delete region',
+        error: error instanceof Error ? error.message : 'Failed to delete region',
       });
     }
   },
@@ -877,13 +961,20 @@ export const actions: Actions = {
 
     try {
       await deleteDivision(divisionId);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.DIVISION_DELETED, targetType: 'Division', targetId: String(divisionId), ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_DELETED,
+        targetType: 'Division',
+        targetId: String(divisionId),
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Division deleted successfully!' };
     } catch (error) {
       console.error('Error deleting division:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to delete division',
+        error: error instanceof Error ? error.message : 'Failed to delete division',
       });
     }
   },
@@ -900,13 +991,20 @@ export const actions: Actions = {
 
     try {
       await deleteFormat(formatId);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.LEAGUE_CONFIG, action: AuditAction.FORMAT_DELETED, targetType: 'Format', targetId: String(formatId), ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.FORMAT_DELETED,
+        targetType: 'Format',
+        targetId: String(formatId),
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Format deleted successfully!' };
     } catch (error) {
       console.error('Error deleting format:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to delete format',
+        error: error instanceof Error ? error.message : 'Failed to delete format',
       });
     }
   },

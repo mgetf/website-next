@@ -5,12 +5,7 @@ import { fail } from '@sveltejs/kit';
 import { getSeasonsForFilter } from '$lib/server/services/seasons';
 import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getDivisionsForFilter } from '$lib/server/services/divisions';
-import {
-  getTeams,
-  countTeams,
-  updateTeam,
-  getTeamAuditSnapshot,
-} from '$lib/server/services/teams';
+import { getTeams, countTeams, updateTeam, getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { disbandTeam, hardDeleteTeam } from '$lib/server/services/teamManagement';
 import { getFormatsForFilter } from '$lib/server/services/formats';
 import { getMatchesByTeamIds } from '$lib/server/services/adminMatches';
@@ -21,10 +16,7 @@ import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/audit
 // Zod schema for team update form
 const updateTeamSchema = z.object({
   teamId: z.coerce.number().int().positive('Invalid team ID'),
-  name: z
-    .string()
-    .min(1, 'Team name is required')
-    .max(50, 'Team name too long'),
+  name: z.string().min(1, 'Team name is required').max(50, 'Team name too long'),
   acronym: z.string().max(6, 'Acronym too long').optional().default(''),
   seasonId: z.string().optional(),
   divisionId: z.string().optional(),
@@ -61,15 +53,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   // Parse filters
   const divisionId =
-    divisionFilter && divisionFilter !== 'all'
-      ? parseInt(divisionFilter)
-      : undefined;
-  const regionId =
-    regionFilter && regionFilter !== 'all' ? parseInt(regionFilter) : undefined;
-  const seasonId =
-    seasonFilter && seasonFilter !== 'all' ? parseInt(seasonFilter) : undefined;
-  const formatId =
-    formatFilter && formatFilter !== 'all' ? parseInt(formatFilter) : undefined;
+    divisionFilter && divisionFilter !== 'all' ? parseInt(divisionFilter) : undefined;
+  const regionId = regionFilter && regionFilter !== 'all' ? parseInt(regionFilter) : undefined;
+  const seasonId = seasonFilter && seasonFilter !== 'all' ? parseInt(seasonFilter) : undefined;
+  const formatId = formatFilter && formatFilter !== 'all' ? parseInt(formatFilter) : undefined;
 
   let status: TeamStatus | undefined;
   if (statusFilter && statusFilter !== 'all') {
@@ -115,9 +102,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   const teamIds = teams.map((t) => t.id);
 
-  const matchesByTeam = isStrictAdmin(locals.user)
-    ? await getMatchesByTeamIds(teamIds)
-    : [];
+  const matchesByTeam = isStrictAdmin(locals.user) ? await getMatchesByTeamIds(teamIds) : [];
 
   const matchMap = new Map<number, typeof matchesByTeam>();
   for (const match of matchesByTeam) {
@@ -191,8 +176,7 @@ export const actions: Actions = {
       return validationError(validation.errors, 'Invalid form data');
     }
 
-    const { teamId, name, acronym, seasonId, divisionId, regionId, status } =
-      validation.data;
+    const { teamId, name, acronym, seasonId, divisionId, regionId, status } = validation.data;
 
     try {
       const before = await getTeamAuditSnapshot(teamId);
@@ -211,12 +195,10 @@ export const actions: Actions = {
         else if (statusInt === 3) teamStatus = TeamStatus.PLACEMENT;
       }
 
-      const nextSeasonId =
-        seasonId === 'none' ? null : seasonId ? parseInt(seasonId) : null;
+      const nextSeasonId = seasonId === 'none' ? null : seasonId ? parseInt(seasonId) : null;
       const nextDivisionId =
         divisionId === 'none' ? null : divisionId ? parseInt(divisionId) : null;
-      const nextRegionId =
-        regionId === 'none' ? null : regionId ? parseInt(regionId) : null;
+      const nextRegionId = regionId === 'none' ? null : regionId ? parseInt(regionId) : null;
 
       await updateTeam(teamId, {
         name,
@@ -238,17 +220,13 @@ export const actions: Actions = {
             before.status !== after.status ? 'status' : null,
           ].filter((field): field is string => field !== null)
         : [];
-      const statusChanged = after
-        ? before.status !== after.status
-        : teamStatus !== undefined;
+      const statusChanged = after ? before.status !== after.status : teamStatus !== undefined;
 
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
         category: AuditCategory.TEAM,
-        action: statusChanged
-          ? AuditAction.TEAM_STATUS_CHANGED
-          : AuditAction.TEAM_UPDATED,
+        action: statusChanged ? AuditAction.TEAM_STATUS_CHANGED : AuditAction.TEAM_UPDATED,
         targetType: 'Team',
         targetId: String(teamId),
         metadata: {
@@ -326,8 +304,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error disbanding team:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to disband team',
+        error: error instanceof Error ? error.message : 'Failed to disband team',
       });
     }
   },
@@ -370,15 +347,13 @@ export const actions: Actions = {
         ipAddress: getClientAddress(),
       });
 
-      const matchMsg = deletedMatches > 0
-        ? ` and ${deletedMatches} match${deletedMatches !== 1 ? 'es' : ''}`
-        : '';
+      const matchMsg =
+        deletedMatches > 0 ? ` and ${deletedMatches} match${deletedMatches !== 1 ? 'es' : ''}` : '';
       return { success: true, message: `Team "${teamName}"${matchMsg} permanently deleted.` };
     } catch (error) {
       console.error('Error hard-deleting team:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to delete team',
+        error: error instanceof Error ? error.message : 'Failed to delete team',
       });
     }
   },
@@ -415,8 +390,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error restoring 1v1 entry:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to restore player',
+        error: error instanceof Error ? error.message : 'Failed to restore player',
       });
     }
   },

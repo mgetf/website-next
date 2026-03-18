@@ -4,10 +4,7 @@ import { getTeamById, updateTeamStatus } from '$lib/server/services/teams';
 import { isAdmin, isTeamAdmin } from '$lib/server/auth/permissions';
 import { removePlayer } from '$lib/server/services/teamManagement';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
-import {
-  isSeasonCurrentlyActive,
-  getEffectiveRosterLock,
-} from '$lib/server/services/settings';
+import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import {
@@ -49,9 +46,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   // Check if user has admin permissions
   const isGlobalAdmin = locals.user ? isAdmin(locals.user) : false;
-  const isTeamAdminUser = locals.user
-    ? await isTeamAdmin(locals.user, teamId)
-    : false;
+  const isTeamAdminUser = locals.user ? await isTeamAdmin(locals.user, teamId) : false;
   const canManageTeam = isGlobalAdmin || isTeamAdminUser;
 
   const rosterLocked = team.season?.rosterLocked
@@ -109,8 +104,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     }
 
     const isWin = match.winnerId === teamId;
-    const isDraw =
-      match.winnerId === null && match.status.toString() === 'PLAYED';
+    const isDraw = match.winnerId === null && match.status.toString() === 'PLAYED';
 
     // Calculate week label with proper suffix (1a, 1b, etc.) for multiple match sets
     let weekLabel = 'TBD';
@@ -126,9 +120,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
       // Use centralized helper to calculate label (no code duplication)
       const calculatedLabel = calculateWeekLabel(match, teamMatchesForThisWeek);
-      weekLabel = calculatedLabel
-        ? `Week ${calculatedLabel}`
-        : `Week ${match.weekNo}`;
+      weekLabel = calculatedLabel ? `Week ${calculatedLabel}` : `Week ${match.weekNo}`;
     } else if (match.playoffRound) {
       weekLabel = `Round ${match.playoffRound}`;
     }
@@ -137,13 +129,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       week: weekLabel,
       opponent: match.opponent.name,
       opponentId: match.opponent.id,
-      result: isDraw
-        ? 'D'
-        : isWin
-          ? 'W'
-          : match.status.toString() === 'PLAYED'
-            ? 'L'
-            : 'TBD',
+      result: isDraw ? 'D' : isWin ? 'W' : match.status.toString() === 'PLAYED' ? 'L' : 'TBD',
       score: match.winnerId
         ? `${match.winnerScore} - ${match.loserScore}`
         : match.status.toString() === 'PLAYED'
@@ -157,9 +143,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   // Convert map to array and sort by season number (descending)
   const matchesBySeason = Array.from(matchesBySeasonMap.entries())
     .map(([seasonId, matches]) => {
-      const seasonData = allMatches.find(
-        (m) => m.season.id === seasonId,
-      )?.season;
+      const seasonData = allMatches.find((m) => m.season.id === seasonId)?.season;
       return {
         seasonId,
         season: `Season ${seasonData?.seasonNum || seasonId}`,
@@ -281,8 +265,7 @@ export const actions: Actions = {
       return { success: true, message: 'Team status updated successfully' };
     } catch (err) {
       return fail(500, {
-        error:
-          err instanceof Error ? err.message : 'Failed to update team status',
+        error: err instanceof Error ? err.message : 'Failed to update team status',
       });
     }
   },

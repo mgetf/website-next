@@ -45,9 +45,9 @@ function getRedirectUri(request: Request): string {
 export function getDiscordAuthUrl(request: Request, steamId: string): string {
   const redirectUri = getRedirectUri(request);
 
-  const state = Buffer.from(
-    JSON.stringify({ steamId, timestamp: Date.now() }),
-  ).toString('base64url');
+  const state = Buffer.from(JSON.stringify({ steamId, timestamp: Date.now() })).toString(
+    'base64url',
+  );
 
   const params = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID || '',

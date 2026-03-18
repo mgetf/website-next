@@ -41,10 +41,7 @@ export function resetIdentity(): void {
 /**
  * Track custom event
  */
-export function trackEvent(
-  event: string,
-  properties?: Record<string, unknown>,
-): void {
+export function trackEvent(event: string, properties?: Record<string, unknown>): void {
   if (typeof window === 'undefined' || !window.posthog) return;
 
   window.posthog.capture(event, properties);

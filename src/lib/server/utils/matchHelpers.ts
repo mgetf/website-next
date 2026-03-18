@@ -11,10 +11,7 @@ import type { Match } from '$prisma/client.js';
  * @param siblingsInWeek - All matches in the same week (MUST be filtered by division/region already)
  * @returns Week label with suffix if multiple matches, null if no week
  */
-export function calculateWeekLabel(
-  match: Match,
-  siblingsInWeek: { id: number }[],
-): string | null {
+export function calculateWeekLabel(match: Match, siblingsInWeek: { id: number }[]): string | null {
   if (match.weekNo === null || match.weekNo === undefined) {
     return null;
   }
@@ -64,10 +61,7 @@ export function formatMatchDateTime(date: Date | string | null): string {
  * @param hoursAllowed - Number of hours allowed
  * @returns Time remaining as "HH:MM:SS" or "00:00:00" if expired
  */
-export function calculateTimeRemaining(
-  startTimestamp: number,
-  hoursAllowed: number,
-): string {
+export function calculateTimeRemaining(startTimestamp: number, hoursAllowed: number): string {
   const now = Math.floor(Date.now() / 1000);
   const deadline = startTimestamp + hoursAllowed * 60 * 60;
   const secondsRemaining = deadline - now;

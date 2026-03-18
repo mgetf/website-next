@@ -133,44 +133,26 @@ export async function getAdminAnalytics(): Promise<AnalyticsData> {
     }),
   ]);
 
-  const playersPerDivision: PlayerPerDivision[] = playersInActiveSeasonsRaw.map(
-    (row) => ({
-      divisionName: row.divisionName,
-      playerCount: Number(row.playerCount),
-    }),
-  );
+  const playersPerDivision: PlayerPerDivision[] = playersInActiveSeasonsRaw.map((row) => ({
+    divisionName: row.divisionName,
+    playerCount: Number(row.playerCount),
+  }));
 
-  const teamsPerRegion: TeamPerRegion[] = teamsInActiveSeasonsRaw.map(
-    (row) => ({
-      regionName: row.regionName,
-      teamCount: Number(row.teamCount),
-    }),
-  );
+  const teamsPerRegion: TeamPerRegion[] = teamsInActiveSeasonsRaw.map((row) => ({
+    regionName: row.regionName,
+    teamCount: Number(row.teamCount),
+  }));
 
-  const paidCount = Number(
-    paymentBreakdownRaw.find((p) => p.category === 'paid')?.count || 0,
-  );
-  const unpaidCount = Number(
-    paymentBreakdownRaw.find((p) => p.category === 'unpaid')?.count || 0,
-  );
-  const freeTierCount = Number(
-    paymentBreakdownRaw.find((p) => p.category === 'free')?.count || 0,
-  );
+  const paidCount = Number(paymentBreakdownRaw.find((p) => p.category === 'paid')?.count || 0);
+  const unpaidCount = Number(paymentBreakdownRaw.find((p) => p.category === 'unpaid')?.count || 0);
+  const freeTierCount = Number(paymentBreakdownRaw.find((p) => p.category === 'free')?.count || 0);
 
   const totalInPaidDivisions = paidCount + unpaidCount;
   const paymentRate =
-    totalInPaidDivisions > 0
-      ? Math.round((paidCount / totalInPaidDivisions) * 100)
-      : 0;
+    totalInPaidDivisions > 0 ? Math.round((paidCount / totalInPaidDivisions) * 100) : 0;
 
-  const totalPlayers = playersPerDivision.reduce(
-    (sum, div) => sum + div.playerCount,
-    0,
-  );
-  const totalTeams = teamsPerRegion.reduce(
-    (sum, reg) => sum + reg.teamCount,
-    0,
-  );
+  const totalPlayers = playersPerDivision.reduce((sum, div) => sum + div.playerCount, 0);
+  const totalTeams = teamsPerRegion.reduce((sum, reg) => sum + reg.teamCount, 0);
 
   return {
     playersPerDivision,

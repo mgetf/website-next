@@ -20,7 +20,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     : undefined;
 
   const [{ logs, pagination }, stats] = await Promise.all([
-    getAuditLogs({ category, action, actorId, targetType, targetId, dateFrom, dateTo, page, pageSize }),
+    getAuditLogs({
+      category,
+      action,
+      actorId,
+      targetType,
+      targetId,
+      dateFrom,
+      dateTo,
+      page,
+      pageSize,
+    }),
     getAuditLogStats(),
   ]);
 

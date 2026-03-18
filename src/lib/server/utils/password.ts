@@ -32,12 +32,7 @@ export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(SALT_LENGTH);
 
   // Hash the password with the salt
-  const hash = (await scryptAsync(
-    password,
-    salt,
-    KEY_LENGTH,
-    SCRYPT_PARAMS,
-  )) as Buffer;
+  const hash = (await scryptAsync(password, salt, KEY_LENGTH, SCRYPT_PARAMS)) as Buffer;
 
   // Return salt and hash as base64 strings, separated by colon
   return `${salt.toString('base64')}:${hash.toString('base64')}`;
@@ -47,10 +42,7 @@ export async function hashPassword(password: string): Promise<string> {
  * Verify a password against a stored hash
  * Uses timing-safe comparison to prevent timing attacks
  */
-export async function verifyPassword(
-  password: string,
-  storedHash: string,
-): Promise<boolean> {
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   try {
     // Split stored hash into salt and hash components
     const [saltBase64, hashBase64] = storedHash.split(':');
@@ -66,12 +58,7 @@ export async function verifyPassword(
     const storedHashBuffer = Buffer.from(hashBase64, 'base64');
 
     // Hash the provided password with the same salt
-    const hash = (await scryptAsync(
-      password,
-      salt,
-      KEY_LENGTH,
-      SCRYPT_PARAMS,
-    )) as Buffer;
+    const hash = (await scryptAsync(password, salt, KEY_LENGTH, SCRYPT_PARAMS)) as Buffer;
 
     // Use timing-safe comparison to prevent timing attacks
     return crypto.timingSafeEqual(hash, storedHashBuffer);
@@ -98,8 +85,7 @@ export function isPasswordHashed(storedPassword: string): boolean {
  * Generate a random password (for resetting or initial setup)
  */
 export function generateRandomPassword(length: number = 16): string {
-  const charset =
-    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   const randomBytes = crypto.randomBytes(length);
   let password = '';
 

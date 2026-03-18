@@ -61,11 +61,7 @@ export async function getNotificationsForDropdown(userSteamId: string) {
  * Get all notifications for a user (with optional limit and pagination)
  * Used for the full notifications page
  */
-export async function getAllNotifications(
-  userSteamId: string,
-  limit = 50,
-  offset = 0,
-) {
+export async function getAllNotifications(userSteamId: string, limit = 50, offset = 0) {
   return await prisma.notification.findMany({
     where: {
       userSteamId,
@@ -142,10 +138,7 @@ export async function markAllAsRead(userSteamId: string) {
  * Delete a notification
  * Security: Verifies the notification belongs to the user
  */
-export async function deleteNotification(
-  notificationId: number,
-  userSteamId: string,
-) {
+export async function deleteNotification(notificationId: number, userSteamId: string) {
   const notification = await prisma.notification.findUnique({
     where: { id: notificationId },
     select: { userSteamId: true },
@@ -377,10 +370,7 @@ export async function getLatestNotificationId(userSteamId: string): Promise<numb
  * Get all notifications for a user with an ID greater than sinceId
  * Used for SSE polling to fetch only new notifications
  */
-export async function getNotificationsSinceId(
-  userSteamId: string,
-  sinceId: number,
-) {
+export async function getNotificationsSinceId(userSteamId: string, sinceId: number) {
   return await prisma.notification.findMany({
     where: {
       userSteamId,

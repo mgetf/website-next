@@ -58,10 +58,7 @@ export async function updateAnnouncement(id: number, content: string) {
 /**
  * Toggle announcement visibility
  */
-export async function toggleAnnouncementVisibility(
-  id: number,
-  visible: boolean,
-) {
+export async function toggleAnnouncementVisibility(id: number, visible: boolean) {
   return await prisma.announcement.update({
     where: { id },
     data: { visible: visible ? 1 : 0 },

@@ -39,9 +39,7 @@ export type FormResult<T = unknown> = FormSuccess<T> | ActionFailure<FormError>;
 export function validateForm<T>(
   formData: FormData,
   schema: z.ZodSchema<T>,
-):
-  | { success: true; data: T }
-  | { success: false; errors: Record<string, string> } {
+): { success: true; data: T } | { success: false; errors: Record<string, string> } {
   try {
     // Convert FormData to plain object
     const data = Object.fromEntries(formData);
@@ -64,10 +62,7 @@ export function validateForm<T>(
 /**
  * Create a success response for form actions
  */
-export function formSuccess<T = unknown>(
-  data?: T,
-  message?: string,
-): FormSuccess<T> {
+export function formSuccess<T = unknown>(data?: T, message?: string): FormSuccess<T> {
   return {
     success: true,
     ...(data && { data }),
@@ -109,11 +104,7 @@ export function validationError(
 /**
  * Extract string from FormData with default value
  */
-export function getFormString(
-  formData: FormData,
-  key: string,
-  defaultValue: string = '',
-): string {
+export function getFormString(formData: FormData, key: string, defaultValue: string = ''): string {
   const value = formData.get(key);
   return typeof value === 'string' ? value.trim() : defaultValue;
 }
@@ -121,11 +112,7 @@ export function getFormString(
 /**
  * Extract number from FormData with default value
  */
-export function getFormNumber(
-  formData: FormData,
-  key: string,
-  defaultValue: number = 0,
-): number {
+export function getFormNumber(formData: FormData, key: string, defaultValue: number = 0): number {
   const value = formData.get(key);
   if (typeof value === 'string') {
     const parsed = Number(value);
@@ -137,11 +124,7 @@ export function getFormNumber(
 /**
  * Extract integer from FormData with default value
  */
-export function getFormInt(
-  formData: FormData,
-  key: string,
-  defaultValue: number = 0,
-): number {
+export function getFormInt(formData: FormData, key: string, defaultValue: number = 0): number {
   return Math.floor(getFormNumber(formData, key, defaultValue));
 }
 
@@ -204,11 +187,7 @@ export async function handleFormAction<TInput, TOutput>(
   try {
     // Log the action if specified
     if (options?.logAction) {
-      await logger.formAction(
-        options.logAction,
-        options.userId,
-        Object.fromEntries(formData),
-      );
+      await logger.formAction(options.logAction, options.userId, Object.fromEntries(formData));
     }
 
     // Validate form data
@@ -229,8 +208,7 @@ export async function handleFormAction<TInput, TOutput>(
 
     // Return error response
     const message =
-      options?.errorMessage ||
-      (err instanceof Error ? err.message : 'An error occurred');
+      options?.errorMessage || (err instanceof Error ? err.message : 'An error occurred');
 
     return formError(message, 500);
   }
@@ -239,17 +217,13 @@ export async function handleFormAction<TInput, TOutput>(
 /**
  * Check if result is a success
  */
-export function isFormSuccess<T>(
-  result: FormResult<T>,
-): result is FormSuccess<T> {
+export function isFormSuccess<T>(result: FormResult<T>): result is FormSuccess<T> {
   return 'success' in result && result.success === true;
 }
 
 /**
  * Check if result is an error
  */
-export function isFormError(
-  result: FormResult<unknown>,
-): result is ActionFailure<FormError> {
+export function isFormError(result: FormResult<unknown>): result is ActionFailure<FormError> {
   return 'success' in result && !result.success;
 }

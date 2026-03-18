@@ -28,34 +28,21 @@ import {
   getRescheduleTimeRemaining,
   getMatchCommById,
 } from '$lib/server/services/matchComms';
-import {
-  getMapBanStatus,
-  processBanPickAction,
-} from '$lib/server/services/mapBans';
+import { getMapBanStatus, processBanPickAction } from '$lib/server/services/mapBans';
 import { canDisputeMatch } from '$lib/server/utils/matchHelpers';
 import { createNotificationForMatch } from '$lib/server/services/notifications';
-import {
-  uploadDemo,
-  reportDemo,
-  getUserDemoReports,
-} from '$lib/server/services/demos';
+import { uploadDemo, reportDemo, getUserDemoReports } from '$lib/server/services/demos';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
 // Zod schemas for form validation
 const disputeSchema = z.object({
-  reason: z
-    .string()
-    .min(1, 'Dispute reason is required')
-    .max(1000, 'Reason too long'),
+  reason: z.string().min(1, 'Dispute reason is required').max(1000, 'Reason too long'),
 });
 
 const postMessageSchema = z.object({
-  content: z
-    .string()
-    .min(1, 'Message content is required')
-    .max(2000, 'Message too long'),
+  content: z.string().min(1, 'Message content is required').max(2000, 'Message too long'),
 });
 
 const requestRescheduleSchema = z.object({
@@ -342,11 +329,7 @@ export const actions: Actions = {
     try {
       await disputeMatch(matchId, reason, locals.user.steamId);
 
-      await createNotificationForMatch(
-        matchId,
-        'Match has been disputed',
-        locals.user.steamId,
-      );
+      await createNotificationForMatch(matchId, 'Match has been disputed', locals.user.steamId);
 
       await logAudit({
         actorId: locals.user.steamId,
@@ -497,11 +480,7 @@ export const actions: Actions = {
       await updateRescheduleStatus(commId, response, locals.user.steamId);
 
       const responseText = response === 'deny' ? 'denied' : `${response}ed`;
-      await createNotificationForMatch(
-        matchId,
-        `Reschedule ${responseText}`,
-        locals.user.steamId,
-      );
+      await createNotificationForMatch(matchId, `Reschedule ${responseText}`, locals.user.steamId);
 
       return {
         success: true,
@@ -551,8 +530,7 @@ export const actions: Actions = {
     }
 
     const currentTurn = mapBanStatus.matchMapBan.currentTurn;
-    const expectedTeamId =
-      currentTurn === 0 ? match.homeTeamId : match.awayTeamId;
+    const expectedTeamId = currentTurn === 0 ? match.homeTeamId : match.awayTeamId;
     const userTeamId = isHomeTeam ? match.homeTeamId : match.awayTeamId;
 
     if (userTeamId !== expectedTeamId) {
@@ -569,11 +547,7 @@ export const actions: Actions = {
       );
 
       const actionLabel = actionType === 'ban' ? 'banned' : 'picked';
-      await createNotificationForMatch(
-        matchId,
-        `Map ${actionLabel}`,
-        locals.user.steamId,
-      );
+      await createNotificationForMatch(matchId, `Map ${actionLabel}`, locals.user.steamId);
 
       await logAudit({
         actorId: locals.user.steamId,

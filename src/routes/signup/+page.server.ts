@@ -80,8 +80,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     signup1v1DisabledReason = '1v1 signups are currently closed';
   } else if (context1v1.hasActive1v1Entry) {
     can1v1Signup = false;
-    signup1v1DisabledReason =
-      'You are already signed up for the 1v1 league this season';
+    signup1v1DisabledReason = 'You are already signed up for the 1v1 league this season';
   }
 
   const activeFormatCodes = await getActiveFormatCodes();

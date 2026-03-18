@@ -116,8 +116,7 @@ export function canRespondToReschedule(
   if (!user) return false;
 
   const isAdmin =
-    user.permissionLevel === UserRole.ADMIN ||
-    user.permissionLevel === UserRole.MODERATOR;
+    user.permissionLevel === UserRole.ADMIN || user.permissionLevel === UserRole.MODERATOR;
 
   if (isAdmin) return true;
 

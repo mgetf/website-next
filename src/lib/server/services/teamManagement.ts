@@ -5,12 +5,7 @@
 
 import { prisma } from '$lib/server/db';
 import { error } from '@sveltejs/kit';
-import {
-  uploadToR2,
-  saveTempFile,
-  deleteTempFile,
-  validateUploadedFile,
-} from '../utils/r2Upload';
+import { uploadToR2, saveTempFile, deleteTempFile, validateUploadedFile } from '../utils/r2Upload';
 import path from 'path';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { createNotificationForUser } from './notifications';
@@ -32,10 +27,7 @@ interface TeamEditData {
  * Get team data for editing
  * Now uses per-season roster lock instead of global
  */
-export async function getTeamForEdit(
-  teamId: number,
-  steamId: string,
-): Promise<TeamEditData> {
+export async function getTeamForEdit(teamId: number, steamId: string): Promise<TeamEditData> {
   // Load team with all relations, including season settings
   const team = await prisma.team.findUnique({
     where: { id: teamId },
@@ -160,9 +152,7 @@ export async function updateTeamInfo(
   }
 
   // Hash the new password if provided
-  const hashedPassword = data.joinPassword
-    ? await hashPassword(data.joinPassword)
-    : undefined;
+  const hashedPassword = data.joinPassword ? await hashPassword(data.joinPassword) : undefined;
 
   // Update team
   await prisma.team.update({
@@ -178,10 +168,7 @@ export async function updateTeamInfo(
 /**
  * Upload team avatar
  */
-export async function uploadTeamAvatar(
-  teamId: number,
-  file: File,
-): Promise<string | null> {
+export async function uploadTeamAvatar(teamId: number, file: File): Promise<string | null> {
   // Validate file
   validateUploadedFile(file);
 
@@ -218,10 +205,7 @@ export async function uploadTeamAvatar(
 /**
  * Remove player from team
  */
-export async function removePlayer(
-  teamId: number,
-  playerSteamId: string,
-): Promise<void> {
+export async function removePlayer(teamId: number, playerSteamId: string): Promise<void> {
   // Check player is not owner
   const player = await prisma.playerInTeam.findUnique({
     where: {
@@ -259,10 +243,7 @@ export async function removePlayer(
 /**
  * Promote player (increase permission level)
  */
-export async function promotePlayer(
-  teamId: number,
-  playerSteamId: string,
-): Promise<void> {
+export async function promotePlayer(teamId: number, playerSteamId: string): Promise<void> {
   const player = await prisma.playerInTeam.findUnique({
     where: {
       playerSteamId_teamId: {
@@ -297,10 +278,7 @@ export async function promotePlayer(
 /**
  * Demote player (decrease permission level)
  */
-export async function demotePlayer(
-  teamId: number,
-  playerSteamId: string,
-): Promise<void> {
+export async function demotePlayer(teamId: number, playerSteamId: string): Promise<void> {
   const player = await prisma.playerInTeam.findUnique({
     where: {
       playerSteamId_teamId: {

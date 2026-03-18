@@ -30,12 +30,7 @@ import {
 import { fail } from '@sveltejs/kit';
 import { UserRole } from '$lib/types/user';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import {
-  createApiKey,
-  getApiKeys,
-  toggleApiKey,
-  deleteApiKey,
-} from '$lib/server/services/apiKeys';
+import { createApiKey, getApiKeys, toggleApiKey, deleteApiKey } from '$lib/server/services/apiKeys';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -65,8 +60,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   return {
     settings,
     content: contentMap,
-    rulebookContent:
-      rulebookContent || getDefaultContent(CONTENT_KEYS.RULEBOOK),
+    rulebookContent: rulebookContent || getDefaultContent(CONTENT_KEYS.RULEBOOK),
     isHeadAdmin: locals.user.permissionLevel === UserRole.ADMIN,
     isR2Available: isR2Available(),
     apiKeys,
@@ -91,7 +85,14 @@ export const actions: Actions = {
 
     try {
       await updateSiteSettings({ siteTitle: siteTitle.trim() });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.SITE_SETTINGS_UPDATED, metadata: { siteTitle: siteTitle.trim() }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.SITE_SETTINGS_UPDATED,
+        metadata: { siteTitle: siteTitle.trim() },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Site settings updated' };
     } catch (error) {
       console.error('Error updating site settings:', error);
@@ -111,7 +112,14 @@ export const actions: Actions = {
         upsertContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE, subtitle, locals.user.steamId),
         upsertContent(CONTENT_KEYS.HOMEPAGE_ABOUT, about, locals.user.steamId),
       ]);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.CONTENT_UPDATED, metadata: { keys: ['homepage_subtitle', 'homepage_about'] }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.CONTENT_UPDATED,
+        metadata: { keys: ['homepage_subtitle', 'homepage_about'] },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Homepage content updated' };
     } catch (error) {
       console.error('Error updating homepage content:', error);
@@ -131,7 +139,14 @@ export const actions: Actions = {
 
     try {
       await upsertContent(CONTENT_KEYS.RULEBOOK, content, locals.user.steamId);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.CONTENT_UPDATED, metadata: { key: 'rulebook' }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.CONTENT_UPDATED,
+        metadata: { key: 'rulebook' },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Rulebook updated' };
     } catch (error) {
       console.error('Error updating rulebook:', error);

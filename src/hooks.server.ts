@@ -83,10 +83,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // HSTS - force HTTPS in production (browsers will refuse HTTP after seeing this)
   if (!dev) {
-    response.headers.set(
-      'Strict-Transport-Security',
-      'max-age=31536000; includeSubDomains',
-    );
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
   return response;

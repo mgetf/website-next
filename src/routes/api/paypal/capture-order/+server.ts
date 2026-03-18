@@ -1,9 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-  capturePayPalOrder,
-  isPayPalTestMode,
-} from '$lib/server/services/paypal';
+import { capturePayPalOrder, isPayPalTestMode } from '$lib/server/services/paypal';
 import { recordPayPalCapture } from '$lib/server/services/payments';
 import { logError } from '$lib/server/utils/logger';
 import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
@@ -14,13 +11,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
     requireAuth(locals.user);
 
     const body = await request.json();
-    const {
-      orderID,
-      steamId,
-      teamId,
-      amount: requestAmount,
-      currency: requestCurrency,
-    } = body;
+    const { orderID, steamId, teamId, amount: requestAmount, currency: requestCurrency } = body;
 
     if (!orderID || !steamId || !teamId) {
       return json({ error: 'Missing required fields' }, { status: 400 });
@@ -97,9 +88,6 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       error: err instanceof Error ? err.message : 'Unknown error',
     });
 
-    return json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 },
-    );
+    return json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 };

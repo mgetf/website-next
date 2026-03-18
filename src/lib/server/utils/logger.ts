@@ -49,11 +49,7 @@ async function writeLog(entry: LogEntry, filename?: string): Promise<void> {
 /**
  * Create a log entry
  */
-function createLogEntry(
-  level: LogLevel,
-  message: string,
-  data?: unknown,
-): LogEntry {
+function createLogEntry(level: LogLevel, message: string, data?: unknown): LogEntry {
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
@@ -86,10 +82,7 @@ export async function logWarn(message: string, data?: unknown): Promise<void> {
 /**
  * Log error message
  */
-export async function logError(
-  message: string,
-  error?: unknown,
-): Promise<void> {
+export async function logError(message: string, error?: unknown): Promise<void> {
   const entry = createLogEntry('error', message, error);
   console.error(`[ERROR] ${message}`, error ? error : '');
   await writeLog(entry);
@@ -111,10 +104,7 @@ export async function logDebug(message: string, data?: unknown): Promise<void> {
 /**
  * Log request details to file (useful for debugging)
  */
-export async function logRequest(
-  event: RequestEvent,
-  filename?: string,
-): Promise<void> {
+export async function logRequest(event: RequestEvent, filename?: string): Promise<void> {
   const reqData = {
     method: event.request.method,
     url: event.url.toString(),
@@ -154,14 +144,10 @@ export async function logFormAction(
  */
 export function createLogger(prefix: string) {
   return {
-    info: (message: string, data?: unknown) =>
-      logInfo(`[${prefix}] ${message}`, data),
-    warn: (message: string, data?: unknown) =>
-      logWarn(`[${prefix}] ${message}`, data),
-    error: (message: string, error?: unknown) =>
-      logError(`[${prefix}] ${message}`, error),
-    debug: (message: string, data?: unknown) =>
-      logDebug(`[${prefix}] ${message}`, data),
+    info: (message: string, data?: unknown) => logInfo(`[${prefix}] ${message}`, data),
+    warn: (message: string, data?: unknown) => logWarn(`[${prefix}] ${message}`, data),
+    error: (message: string, error?: unknown) => logError(`[${prefix}] ${message}`, error),
+    debug: (message: string, data?: unknown) => logDebug(`[${prefix}] ${message}`, data),
   };
 }
 

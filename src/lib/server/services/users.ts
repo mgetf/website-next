@@ -257,16 +257,10 @@ export function transformTeamHistory(playerTeams: any[]) {
 /**
  * Transform tournaments into placement results
  */
-export function transformTournamentPlacements(
-  tournaments: any[],
-  steamId: string,
-) {
+export function transformTournamentPlacements(tournaments: any[], steamId: string) {
   return tournaments.map((tournament) => {
     let placement = 'Participant';
-    if (
-      tournament.winner1SteamId === steamId ||
-      tournament.winner2SteamId === steamId
-    ) {
+    if (tournament.winner1SteamId === steamId || tournament.winner2SteamId === steamId) {
       placement = '1st Place';
     } else if (
       tournament.secondPlace1SteamId === steamId ||
@@ -296,13 +290,11 @@ export function transformFightNightMatchups(matchups: any[], steamId: string) {
   return matchups.map((matchup) => {
     const isPlayer1 = matchup.player1SteamId === steamId;
     const opponent = isPlayer1 ? matchup.player2 : matchup.player1;
-    const result =
-      matchup.winnerId === steamId ? 'W' : matchup.winnerId ? 'L' : 'TBD';
+    const result = matchup.winnerId === steamId ? 'W' : matchup.winnerId ? 'L' : 'TBD';
 
     return {
       id: matchup.id,
-      fightNightName:
-        matchup.fightNight?.card || `Fight Night #${matchup.fightNightId}`,
+      fightNightName: matchup.fightNight?.card || `Fight Night #${matchup.fightNightId}`,
       opponent: opponent?.steamUsername || 'Unknown',
       result,
       score:
@@ -341,9 +333,7 @@ export interface ProfileMatch {
  * Fetch all league matches for a set of team IDs in one query.
  * Returns a map of teamId → ordered match list (chronological within each season).
  */
-async function getMatchesByTeamIds(
-  teamIds: number[],
-): Promise<Map<number, ProfileMatch[]>> {
+async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, ProfileMatch[]>> {
   if (teamIds.length === 0) return new Map();
 
   const matches = await prisma.match.findMany({
@@ -368,11 +358,7 @@ async function getMatchesByTeamIds(
 
       const opponent = isHome ? match.awayTeam : match.homeTeam;
       const won = match.winnerId === teamId;
-      const matchResult: 'W' | 'L' | 'TBD' = match.winnerId
-        ? won
-          ? 'W'
-          : 'L'
-        : 'TBD';
+      const matchResult: 'W' | 'L' | 'TBD' = match.winnerId ? (won ? 'W' : 'L') : 'TBD';
 
       let score = 'TBD';
       if (match.winnerScore !== null && match.loserScore !== null) {
@@ -442,9 +428,7 @@ export async function getPlayerProfile(steamId: string) {
   // Transform 1v1 entries
   // For 1v1, only 2 states are valid: READY (active) or DEAD (withdrawn)
   // The player IS the team - if the team is READY, the entry is active
-  const current1v1Entry = player1v1Entries.find(
-    (e) => e.team.status === 'READY',
-  );
+  const current1v1Entry = player1v1Entries.find((e) => e.team.status === 'READY');
   const entries1v1Base = player1v1Entries.map((entry) => ({
     id: entry.team.id,
     active: entry.team.status === 'READY',
@@ -528,13 +512,7 @@ export async function getUsers(options: {
   page?: number;
   pageSize?: number;
 }) {
-  const {
-    search,
-    permissionLevel,
-    banStatus,
-    page = 1,
-    pageSize = 20,
-  } = options;
+  const { search, permissionLevel, banStatus, page = 1, pageSize = 20 } = options;
 
   const where: any = {};
 
@@ -673,10 +651,7 @@ export async function getStaffMembers() {
         },
       },
     },
-    orderBy: [
-      { staffDivisionId: { sort: 'desc', nulls: 'last' } },
-      { steamUsername: 'asc' },
-    ],
+    orderBy: [{ staffDivisionId: { sort: 'desc', nulls: 'last' } }, { steamUsername: 'asc' }],
   });
 }
 
@@ -877,11 +852,7 @@ export async function unlinkDiscord(steamId: string) {
  * Get all users for public listing with pagination
  * Used by /users page
  */
-export async function getUsersPublic(
-  page: number = 1,
-  search?: string,
-  role?: string,
-) {
+export async function getUsersPublic(page: number = 1, search?: string, role?: string) {
   const USERS_PER_PAGE = 50;
   const skip = (page - 1) * USERS_PER_PAGE;
 

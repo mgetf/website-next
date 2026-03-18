@@ -23,10 +23,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const context = await getSignupContext(locals.user.steamId);
 
   // Load divisions and regions
-  const [divisions, regions] = await Promise.all([
-    getVisibleDivisions(),
-    getVisibleRegions(),
-  ]);
+  const [divisions, regions] = await Promise.all([getVisibleDivisions(), getVisibleRegions()]);
 
   // Determine if user can create a team and why not
   let canCreate = true;

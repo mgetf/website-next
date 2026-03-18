@@ -36,9 +36,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     if (seasonParam && regionParam) {
       // User specified both via URL - verify it's a 1v1 season
       const requestedSeasonId = parseInt(seasonParam);
-      const requestedSeason = seasons1v1.find(
-        (s) => s.id === requestedSeasonId,
-      );
+      const requestedSeason = seasons1v1.find((s) => s.id === requestedSeasonId);
       if (requestedSeason) {
         selectedSeasonId = requestedSeasonId;
         selectedRegionId = parseInt(regionParam);
@@ -69,21 +67,16 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     // DEAD entries that affected placements (played matches) are shown with "WITHDRAWN" label
     const entriesByDivision = await Promise.all(
       divisions.map(async (division) => {
-        const teams = await getTeamsByDivision(
-          division.id,
-          selectedSeasonId!,
-          selectedRegionId!,
-          ['READY', 'DEAD'],
-        );
+        const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
+          'READY',
+          'DEAD',
+        ]);
 
         // Transform to show player info instead of team info
         // The "team" name is actually the player's frozen Steam name for 1v1
         const entries = teams
           // Filter out DEAD entries that never played (didn't affect placements)
-          .filter(
-            (team: any) =>
-              team.status !== 'DEAD' || team.wins + team.losses > 0,
-          )
+          .filter((team: any) => team.status !== 'DEAD' || team.wins + team.losses > 0)
           .map((team: any) => {
             // Get the single player from this 1v1 entry
             const player = team.players?.[0]?.player;
@@ -119,9 +112,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     // Create a set of division IDs that belong to the selected region
     const regionDivisionIds = new Set(
-      divisions
-        .filter((d) => d.regionId === selectedRegionId)
-        .map((d) => d.id),
+      divisions.filter((d) => d.regionId === selectedRegionId).map((d) => d.id),
     );
 
     // Group staff by division (filtered to selected region only)

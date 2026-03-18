@@ -23,10 +23,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const context = await get1v1SignupContext(locals.user.steamId);
 
   // Load divisions and regions
-  const [divisions, regions] = await Promise.all([
-    getVisibleDivisions(),
-    getVisibleRegions(),
-  ]);
+  const [divisions, regions] = await Promise.all([getVisibleDivisions(), getVisibleRegions()]);
 
   // Determine if user can sign up and why not
   let canSignup = true;
@@ -59,8 +56,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   if (canSignup && availableRegions.length === 0) {
     canSignup = false;
-    disabledReason =
-      'No 1v1 seasons are currently open for signups in any region';
+    disabledReason = 'No 1v1 seasons are currently open for signups in any region';
   }
 
   return {

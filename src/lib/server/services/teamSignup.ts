@@ -7,10 +7,7 @@ import { prisma } from '$lib/server/db';
 import { TeamStatus } from '$prisma/client.js';
 import jwt from 'jsonwebtoken';
 import { error } from '@sveltejs/kit';
-import {
-  getCurrentSignupSeasonIds,
-  getSignupSeasonForRegion,
-} from './signupSeasons';
+import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { getJwtSecret } from '$lib/server/utils/env';
 import { hashPassword } from '$lib/server/utils/password';
@@ -48,9 +45,7 @@ interface TeamReregistrationData {
  * Get signup context for a user
  * Now uses per-season settings instead of global
  */
-export async function getSignupContext(
-  steamId: string | null,
-): Promise<SignupContext> {
+export async function getSignupContext(steamId: string | null): Promise<SignupContext> {
   // Get current signup season IDs for 2v2 format
   const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
 
@@ -70,13 +65,10 @@ export async function getSignupContext(
   });
 
   // Check if ANY active signup season has signups open
-  const anySignupsOpen = activeSignupSeasons.some(
-    (as) => as.season.signupsOpen,
-  );
+  const anySignupsOpen = activeSignupSeasons.some((as) => as.season.signupsOpen);
   // Check if ALL active signup seasons have rosters locked (conservative approach)
   const allRostersLocked =
-    activeSignupSeasons.length > 0 &&
-    activeSignupSeasons.every((as) => as.season.rosterLocked);
+    activeSignupSeasons.length > 0 && activeSignupSeasons.every((as) => as.season.rosterLocked);
 
   let ownedTeams: any[] = [];
   let hasActiveTeam = false;
@@ -111,8 +103,7 @@ export async function getSignupContext(
         team: {
           formatId: FORMAT_2V2,
           seasonId: {
-            in:
-              currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1], // Use -1 as fallback to match nothing
+            in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1], // Use -1 as fallback to match nothing
           },
         },
       },
@@ -157,9 +148,7 @@ export async function getSignupContext(
 /**
  * Validate team creation data
  */
-export async function validateTeamCreation(
-  data: TeamCreationData,
-): Promise<void> {
+export async function validateTeamCreation(data: TeamCreationData): Promise<void> {
   // Get current signup season IDs for 2v2 format
   const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
 
@@ -234,9 +223,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   // Determine initial status based on division
   // Premier (4) and Intermediate (3) start as PLACEMENT, others as UNREADY
   const initialStatus =
-    data.divisionId === 3 || data.divisionId === 4
-      ? TeamStatus.PLACEMENT
-      : TeamStatus.UNREADY;
+    data.divisionId === 3 || data.divisionId === 4 ? TeamStatus.PLACEMENT : TeamStatus.UNREADY;
 
   // Hash the join password for secure storage
   const hashedPassword = await hashPassword(data.joinPassword);
@@ -307,9 +294,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
 /**
  * Re-register an existing team for a new season
  */
-export async function reregisterTeam(
-  data: TeamReregistrationData,
-): Promise<void> {
+export async function reregisterTeam(data: TeamReregistrationData): Promise<void> {
   const ownership = await prisma.playerInTeam.findUnique({
     where: {
       playerSteamId_teamId: {
@@ -349,9 +334,7 @@ export async function reregisterTeam(
 
   const initialPaymentStatus = division.signupCost === 0 ? 1 : 0;
   const initialStatus =
-    data.divisionId === 3 || data.divisionId === 4
-      ? TeamStatus.PLACEMENT
-      : TeamStatus.UNREADY;
+    data.divisionId === 3 || data.divisionId === 4 ? TeamStatus.PLACEMENT : TeamStatus.UNREADY;
 
   // Deactivate any stale memberships on other 2v2 teams from previous seasons
   await prisma.playerInTeam.updateMany({

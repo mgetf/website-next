@@ -150,9 +150,7 @@ export async function deleteArena(id: number) {
 
   // Check if arena has games
   if (arena._count.games > 0) {
-    throw new Error(
-      `Cannot delete arena with ${arena._count.games} games played on it.`,
-    );
+    throw new Error(`Cannot delete arena with ${arena._count.games} games played on it.`);
   }
 
   return await prisma.arena.delete({

@@ -27,10 +27,7 @@ export function getPayPalConfig() {
   const clientId = process.env.PAYPAL_CLIENT_ID || '';
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET || '';
 
-  const apiBase =
-    mode === 'live'
-      ? 'https://api-m.paypal.com'
-      : 'https://api-m.sandbox.paypal.com';
+  const apiBase = mode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 
   return {
     mode,
@@ -83,9 +80,7 @@ export async function getPayPalAccessToken(): Promise<{
   }
 
   try {
-    const auth = Buffer.from(
-      `${config.clientId}:${config.clientSecret}`,
-    ).toString('base64');
+    const auth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
 
     const response = await fetch(`${config.apiBase}/v1/oauth2/token`, {
       method: 'POST',
@@ -101,8 +96,7 @@ export async function getPayPalAccessToken(): Promise<{
     if (!response.ok) {
       return {
         token: null,
-        error:
-          data.error_description || data.error || 'Failed to get access token',
+        error: data.error_description || data.error || 'Failed to get access token',
       };
     }
 
@@ -215,8 +209,7 @@ export async function createPayPalOrder(params: {
       // Never expose internal PayPal API details or sensitive information
       const paypalError = order.message || order.error_description || '';
       const sanitizedError =
-        paypalError.includes('authentication') ||
-        paypalError.includes('credential')
+        paypalError.includes('authentication') || paypalError.includes('credential')
           ? 'Authentication failed'
           : paypalError.includes('invalid')
             ? 'Invalid request'
@@ -292,16 +285,13 @@ export async function capturePayPalOrder(
   }
 
   try {
-    const response = await fetch(
-      `${config.apiBase}/v2/checkout/orders/${orderID}/capture`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${tokenResult.token}`,
-        },
+    const response = await fetch(`${config.apiBase}/v2/checkout/orders/${orderID}/capture`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenResult.token}`,
       },
-    );
+    });
 
     const captureData = await response.json();
 
@@ -313,11 +303,9 @@ export async function capturePayPalOrder(
 
       // Sanitize error message - only return safe, generic messages
       // Never expose internal PayPal API details or sensitive information
-      const paypalError =
-        captureData.message || captureData.error_description || '';
+      const paypalError = captureData.message || captureData.error_description || '';
       const sanitizedError =
-        paypalError.includes('authentication') ||
-        paypalError.includes('credential')
+        paypalError.includes('authentication') || paypalError.includes('credential')
           ? 'Authentication failed'
           : paypalError.includes('invalid')
             ? 'Invalid request'

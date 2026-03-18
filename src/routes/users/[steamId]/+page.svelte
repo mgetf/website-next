@@ -6,7 +6,7 @@
   import { toast } from '$lib/state/toast.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
-  import type { ProfileMatch } from '$lib/server/services/users';
+  import type { ProfileMatch } from '$lib/types/match';
 
   interface TeamWithMatches {
     teamId: number;

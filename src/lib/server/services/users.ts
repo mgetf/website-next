@@ -320,14 +320,7 @@ export function buildAchievements(tournamentResults: any[]) {
     }));
 }
 
-export interface ProfileMatch {
-  matchId: number;
-  week: string;
-  opponentName: string;
-  opponentId: number;
-  result: 'W' | 'L' | 'TBD';
-  score: string;
-}
+export type { ProfileMatch } from '$lib/types/match';
 
 /**
  * Fetch all league matches for a set of team IDs in one query.

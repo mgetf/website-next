@@ -2,6 +2,8 @@
 
 This file is for AI assistants (Claude, Cursor, Copilot) and human contributors. It describes the architectural decisions and conventions for the mge.tf competitive league platform.
 
+> **Note:** This document describes the _target architecture_. Some patterns are not yet universally applied across the codebase. See [`docs/architectural-gaps.md`](docs/architectural-gaps.md) for a detailed inventory of where reality currently diverges and the plan to close those gaps.
+
 ## Tech Stack
 
 - **Framework**: SvelteKit 2 with Svelte 5 (runes only, no legacy stores)
@@ -36,7 +38,7 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 ### Client/Server Boundary
 
 - `$lib/server/` is server-only — client code must never import from it (not even `import type`)
-- Shared types live in `$lib/types/` (e.g., `SessionUser`, `UserRole`)
+- Shared types live in `$lib/types/` (e.g., `SessionUser`, `UserRole`, `ProfileMatch`)
 - Prisma types stay server-side; mirror needed types in `$lib/types/`
 - Client state uses `.svelte.ts` files with `$state` class singletons (see `$lib/state/`)
 
@@ -51,13 +53,13 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 ### Mutations
 
 - User-facing mutations use SvelteKit form actions (not API routes)
-- All form input validated with Zod schemas via `validateForm()` from `$lib/server/utils/forms`
-- Error responses use `validationError()` / `formError()` helpers for consistent shapes
+- Form input should be validated with Zod schemas via `validateForm()` from `$lib/server/utils/forms`
+- Error responses should use `validationError()` / `formError()` helpers for consistent shapes
 - API routes are for SSE, webhooks, and external integrations only
 
 ### Error Handling
 
-- Services throw via `notFound()`, `forbidden()`, `badRequest()` from `$lib/server/utils/errors`
+- Services should throw via `notFound()`, `forbidden()`, `badRequest()` from `$lib/server/utils/errors`
 - Route actions return `fail()` via the form helper utilities
 - Custom `AppError` subclasses available for structured errors
 
@@ -69,18 +71,30 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 
 ### Constants
 
-- Format IDs: `FORMAT_1V1`, `FORMAT_2V2` from `$lib/server/constants/formats` — never hardcode `1` or `2`
+- Format IDs: `FORMAT_1V1`, `FORMAT_2V2` from `$lib/constants/formats` (client-safe) or `$lib/server/constants/formats` (server-only) — never hardcode `1` or `2`
 
 ## Commands
 
 ```bash
-bun run dev          # Development server
-bun run build        # Production build (runs prisma generate first)
-bun run check        # Type checking (svelte-check)
-bun run generate     # Regenerate Prisma client
-bun run migrate      # Run migrations (dev)
-bun run migrate:prod # Run migrations (production)
+bun run dev           # Development server
+bun run build         # Production build (runs prisma generate first)
+bun run check         # Type checking (svelte-check)
+bun run format        # Format all files with Prettier
+bun run format:check  # Check formatting without writing (used in CI)
+bun run generate      # Regenerate Prisma client
+bun run migrate       # Run migrations (dev)
+bun run migrate:prod  # Run migrations (production)
 ```
+
+## Branching Model
+
+```
+feature/* → staging → main
+```
+
+- **`staging`** deploys to `dev.mge.tf` (test environment) — all PRs target this branch
+- **`main`** deploys to `mge.tf` (production) — only promoted from `staging`
+- Never commit directly to `staging` or `main`; always use a feature branch and PR
 
 ## File Organization
 
@@ -88,9 +102,10 @@ bun run migrate:prod # Run migrations (production)
 src/
 ├── lib/
 │   ├── components/     # Svelte components (charts/, icons/, layout/, markdown/, ui/)
+│   ├── constants/      # Client-safe constants (format IDs, etc.)
 │   ├── server/
 │   │   ├── auth/       # Auth helpers (steam, discord, permissions, apiKey)
-│   │   ├── constants/  # Shared constants (format IDs)
+│   │   ├── constants/  # Server-side constants (re-exports from $lib/constants/)
 │   │   ├── services/   # Business logic (one file per domain)
 │   │   ├── utils/      # Error handling, validation, forms, sanitization, logging
 │   │   ├── db.ts       # Prisma singleton

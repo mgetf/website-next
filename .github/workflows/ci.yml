@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Type Check & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: bun run generate
+
+      - name: Prepare SvelteKit types
+        run: bun run prepare
+
+      - name: Type check
+        run: bun run check
+
+      - name: Format check
+        run: bun run format:check
+
+  boundary-check:
+    name: Architecture Boundary Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No direct Prisma in routes
+        run: |
+          # Fail if any +page.server.ts or +server.ts imports from $lib/server/db
+          if grep -r "from '\$lib/server/db'" --include="+page.server.ts" --include="+server.ts" src/routes/; then
+            echo "::error::Direct Prisma imports found in route files. Use service functions instead."
+            exit 1
+          fi
+
+      - name: No client imports from $lib/server
+        run: |
+          # Fail if any .svelte file imports from $lib/server (even import type)
+          if grep -r "from '\$lib/server/" --include="*.svelte" src/; then
+            echo "::error::Client .svelte files must not import from \$lib/server/. Move types to \$lib/types/."
+            exit 1
+          fi
+
+      - name: No raw @prisma/client imports
+        run: |
+          # All Prisma imports should use $prisma alias, not @prisma/client
+          if grep -r "from '@prisma/client'" --include="*.ts" --include="*.svelte" src/; then
+            echo "::error::Use \$prisma/client.js alias instead of @prisma/client"
+            exit 1
+          fi
+
+      - name: No magic format IDs
+        run: |
+          # Check for hardcoded formatId: 1 or formatId: 2 (should use FORMAT_1V1/FORMAT_2V2)
+          if grep -rP "formatId\s*[:=]\s*[12]\b" --include="*.ts" src/lib/server/services/ src/routes/; then
+            echo "::warning::Possible magic format ID found. Use FORMAT_1V1/FORMAT_2V2 constants."
+          fi

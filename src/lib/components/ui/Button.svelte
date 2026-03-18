@@ -58,11 +58,15 @@
 </script>
 
 {#if href}
-  <a {href} class={classes} {...(rest as Omit<AnchorProps, 'href' | 'variant' | 'size' | 'children' | 'class'>)}>
+  <a
+    {href}
+    class={classes}
+    {...rest as Omit<AnchorProps, 'href' | 'variant' | 'size' | 'children' | 'class'>}
+  >
     {@render children()}
   </a>
 {:else}
-  <button class={classes} {...(rest as Omit<ButtonProps, 'variant' | 'size' | 'children' | 'class'>)}>
+  <button class={classes} {...rest as Omit<ButtonProps, 'variant' | 'size' | 'children' | 'class'>}>
     {@render children()}
   </button>
 {/if}

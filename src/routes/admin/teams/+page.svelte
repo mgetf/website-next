@@ -12,6 +12,7 @@
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import { toast } from '$lib/state/toast.svelte';
+  import { FORMAT_1V1 } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -337,7 +338,7 @@
       {:else if col.key === 'format'}
         {@const format = data.formats?.find((f) => f.id === team.formatId)}
         <span
-          class="px-2 py-1 rounded text-xs font-medium {team.formatId === 1
+          class="px-2 py-1 rounded text-xs font-medium {team.formatId === FORMAT_1V1
             ? 'bg-purple-500/20 text-purple-400'
             : 'bg-blue-500/20 text-blue-400'}"
         >
@@ -385,14 +386,14 @@
             <button
               type="button"
               class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
-              title={team.formatId === 1
+              title={team.formatId === FORMAT_1V1
                 ? 'Withdraw player from 1v1 league'
                 : 'Disband team (mark as dead and remove all players)'}
               onclick={() => (disbandingTeam = team)}
             >
-              {team.formatId === 1 ? 'Withdraw' : 'Disband'}
+              {team.formatId === FORMAT_1V1 ? 'Withdraw' : 'Disband'}
             </button>
-          {:else if team.formatId === 1}
+          {:else if team.formatId === FORMAT_1V1}
             <button
               type="button"
               class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-sm transition-colors"
@@ -423,7 +424,7 @@
 
 <!-- Edit Modal -->
 {#if editingTeam}
-  {@const editTitle = `Quick Edit: ${editingTeam.name}${editingTeam.formatId === 1 ? ' (1v1)' : ''}`}
+  {@const editTitle = `Quick Edit: ${editingTeam.name}${editingTeam.formatId === FORMAT_1V1 ? ' (1v1)' : ''}`}
   <Dialog open={true} title={editTitle} maxWidth="2xl" onClose={closeEditModal}>
     <FormError error={form?.error} />
 
@@ -467,7 +468,7 @@
       <input type="hidden" name="teamId" value={editingTeam.id} />
 
       <FormInput
-        label={editingTeam.formatId === 1 ? 'Player Name' : 'Team Name'}
+        label={editingTeam.formatId === FORMAT_1V1 ? 'Player Name' : 'Team Name'}
         name="name"
         bind:value={editingTeam.name}
         required
@@ -530,7 +531,7 @@
           }}
         />
 
-        {#if editingTeam.formatId === 1}
+        {#if editingTeam.formatId === FORMAT_1V1}
           <div class="mb-6">
             <span class="block text-sm font-medium text-gray-300 mb-2">Status</span>
             <div class="flex items-center gap-3">
@@ -590,9 +591,10 @@
 
 <!-- Disband/Withdraw Team Confirmation Modal -->
 {#if disbandingTeam}
-  {@const disbandTitle = disbandingTeam.formatId === 1 ? 'Withdraw Player' : 'Disband Team'}
+  {@const disbandTitle =
+    disbandingTeam.formatId === FORMAT_1V1 ? 'Withdraw Player' : 'Disband Team'}
   {@const disbandDesc =
-    disbandingTeam.formatId === 1
+    disbandingTeam.formatId === FORMAT_1V1
       ? 'Are you sure you want to withdraw this player from the 1v1 league?'
       : 'Are you sure you want to disband this team? This will mark the team as DEAD and deactivate all players.'}
   <Dialog open={true} title={disbandTitle} onClose={() => (disbandingTeam = null)}>
@@ -647,9 +649,9 @@
           class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {#if isDisbanding}
-            {disbandingTeam!.formatId === 1 ? 'Withdrawing...' : 'Disbanding...'}
+            {disbandingTeam!.formatId === FORMAT_1V1 ? 'Withdrawing...' : 'Disbanding...'}
           {:else}
-            {disbandingTeam!.formatId === 1 ? 'Withdraw' : 'Disband Team'}
+            {disbandingTeam!.formatId === FORMAT_1V1 ? 'Withdraw' : 'Disband Team'}
           {/if}
         </button>
       </form>

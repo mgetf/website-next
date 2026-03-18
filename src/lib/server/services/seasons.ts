@@ -272,12 +272,7 @@ export function transformSeasonForUI(
   }>,
   isLatest: boolean,
 ) {
-  let status = 'Completed';
-  if (isLatest && season._count.teams > 0) {
-    status = 'Active';
-  } else if (season._count.teams === 0) {
-    status = 'Draft';
-  }
+  const status = isLatest ? 'Active' : 'Completed';
 
   return {
     id: season.id,

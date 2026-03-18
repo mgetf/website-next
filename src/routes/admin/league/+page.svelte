@@ -195,9 +195,7 @@ let divisionRegionNames = $derived(Object.keys(divisionsByRegion).sort());
 
 function getStatusDot(status: string) {
   if (status === 'Active') return 'bg-green-500';
-  if (status === 'Completed') return 'bg-gray-500';
-  if (status === 'Draft') return 'bg-yellow-500';
-  return 'bg-blue-500';
+  return 'bg-gray-500';
 }
 
 // Change tab and update URL

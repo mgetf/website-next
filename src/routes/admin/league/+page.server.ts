@@ -77,10 +77,20 @@ export const load: PageServerLoad = async ({ locals }) => {
   // Fetch all formats
   const allFormats = await getFormats();
 
+  // Build a set of the latest season id per format+region combination
+  const latestByFormatRegion = new Map<string, number>();
+  for (const season of seasons) {
+    const key = `${season.formatId}:${season.regionId}`;
+    if (!latestByFormatRegion.has(key)) {
+      latestByFormatRegion.set(key, season.id);
+    }
+  }
+
   // Transform the data for the UI and add playoff information
   const seasonsData = await Promise.all(
     seasons.map(async (season) => {
-      const isLatest = seasons[0]?.id === season.id;
+      const key = `${season.formatId}:${season.regionId}`;
+      const isLatest = latestByFormatRegion.get(key) === season.id;
       const seasonUI = transformSeasonForUI(season, isLatest);
 
       // Get playoff data for this season

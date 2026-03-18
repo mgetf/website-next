@@ -1,0 +1,39 @@
+---
+description: When and how to add audit logging for admin and sensitive actions
+alwaysApply: true
+---
+
+# Audit Logging Policy
+
+Use `logAudit()` from `$lib/server/services/auditLog` for actions that modify data in sensitive or admin contexts.
+
+## Actions That MUST Be Audit Logged
+
+- All admin panel mutations (team status changes, player bans, manual payment marks, match overrides)
+- Payment-related actions (manual payment marks, refunds)
+- Permission/role changes
+- Season/division configuration changes
+- Any action performed on behalf of another user
+
+## Actions That Do NOT Need Audit Logging
+
+- Normal user actions on their own resources (editing own team, leaving team)
+- Read-only operations
+- Signup/registration flows (these have their own paper trail via DB records)
+
+## Usage
+
+```typescript
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+await logAudit({
+  actorId: locals.user.steamId,
+  actorRole: locals.user.permissionLevel,
+  category: AuditCategory.TEAM,
+  action: AuditAction.TEAM_STATUS_CHANGED,
+  targetType: 'Team',
+  targetId: String(teamId),
+  metadata: { oldStatus, newStatus },
+  ipAddress: getClientAddress(),
+});
+```

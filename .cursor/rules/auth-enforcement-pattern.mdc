@@ -1,0 +1,49 @@
+---
+description: Every protected route must enforce auth at the top of load/actions
+alwaysApply: true
+---
+
+# Auth Enforcement in Routes
+
+Every `+page.server.ts` that requires authentication MUST call the appropriate auth guard as the FIRST line of the `load` function and each form `action`.
+
+## Auth Guard Hierarchy
+
+| Guard | When to use |
+|---|---|
+| `requireAuth(locals.user)` | Any route that requires a logged-in user |
+| `requireNotBanned(locals.user)` | Routes where banned users must be blocked (signup, team actions) |
+| `requireAdmin(locals.user)` | Admin-only routes (already enforced in `/admin/+layout.server.ts`) |
+| `requireStrictAdmin(locals.user)` | Owner/super-admin only routes |
+| `requireTeamAdmin(locals.user, teamId)` | Team management actions |
+
+## Rules
+
+1. **Auth checks go first** — before any data fetching or business logic.
+2. **Admin routes**: The `/admin/+layout.server.ts` handles `requireAdmin()` for all admin pages. Individual admin pages do NOT need to repeat it unless they need `requireStrictAdmin()`.
+3. **Form actions**: Each action must independently check auth. Do not rely on the `load` function's check.
+4. **Public routes**: Routes that are publicly accessible (leagues, team profiles, user profiles) do NOT need auth guards in `load`, but their actions still do.
+
+```typescript
+// ✅ CORRECT
+export const load: PageServerLoad = async ({ locals }) => {
+  requireAuth(locals.user);
+  requireNotBanned(locals.user);
+  // ... rest of load
+};
+
+export const actions: Actions = {
+  submit: async ({ locals, request }) => {
+    requireAuth(locals.user);  // Check again in action
+    // ...
+  },
+};
+
+// ❌ WRONG — no auth check
+export const load: PageServerLoad = async ({ locals }) => {
+  const data = await getProtectedData(locals.user?.steamId);
+  return { data };
+};
+```
+
+All auth functions are imported from `$lib/server/auth/permissions`.

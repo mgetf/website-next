@@ -1,0 +1,58 @@
+---
+description: Consistent form action validation and error handling patterns
+alwaysApply: true
+---
+
+# Form Action Patterns
+
+> **Migration note:** This rule describes the target state. Most existing actions use raw `formData.get()` with `fail()`. When writing NEW actions, follow this pattern. When touching existing actions, migrate toward it.
+
+All SvelteKit form actions should follow these conventions for validation and error handling.
+
+## Validation
+
+Use Zod schemas with `validateForm()` for ALL form input. Never do raw `formData.get()` with manual type assertions.
+
+```typescript
+// ✅ CORRECT — Zod validation
+import { z } from 'zod';
+import { validateForm, validationError, formError } from '$lib/server/utils/forms';
+
+const mySchema = z.object({
+  playerSteamId: z.string().min(1),
+  teamId: z.coerce.number().int().positive(),
+});
+
+export const actions: Actions = {
+  submit: async ({ request, locals }) => {
+    requireAuth(locals.user);
+    const formData = await request.formData();
+    const validation = validateForm(formData, mySchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await doThing(validation.data);
+      return { success: true, message: 'Done' };
+    } catch (err) {
+      return formError(err instanceof Error ? err.message : 'Failed', 500);
+    }
+  },
+};
+
+// ❌ WRONG — manual extraction with type assertions
+const playerSteamId = formData.get('playerSteamId') as string;
+```
+
+## Error Responses
+
+Use the helpers from `$lib/server/utils/forms`:
+
+- `validationError(errors)` — for Zod validation failures (400)
+- `formError(message, statusCode)` — for business logic errors
+- `formSuccess(data, message)` — for success responses (optional)
+
+Do NOT use raw `fail()` with ad-hoc object shapes. The response shape must always include `{ success: boolean, message: string }`.
+
+## Shared Schemas
+
+Reusable schemas belong in `$lib/server/utils/validation.ts`. One-off schemas can be defined inline in the route file.

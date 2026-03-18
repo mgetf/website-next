@@ -13,6 +13,8 @@
     "generate": "prisma generate",
     "migrate": "prisma migrate deploy",
     "migrate:prod": "dotenv -e .env.production -- prisma migrate deploy",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "db:studio": "prisma studio",
     "db:studio:prod": "dotenv -e .env.production -- prisma studio"
   },
@@ -24,6 +26,8 @@
     "brackets-model": "^1.6.2",
     "dotenv": "^17.3.1",
     "dotenv-cli": "^11.0.0",
+    "prettier": "^3.8.1",
+    "prettier-plugin-svelte": "^3.5.1",
     "prisma": "^7.5.0",
     "svelte": "^5.53.12",
     "svelte-check": "^4.4.5",

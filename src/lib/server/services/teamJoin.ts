@@ -53,8 +53,7 @@ export async function validateTokenAndGetTeam(
       team,
       activePlayers: team.players,
       canJoin: false,
-      error:
-        '1v1 entries cannot be joined - they are individual player entries',
+      error: '1v1 entries cannot be joined - they are individual player entries',
     };
   }
 
@@ -96,10 +95,7 @@ export async function validateTokenAndGetTeam(
  * Validate join password
  * Supports both hashed passwords (new) and plaintext (legacy, for migration)
  */
-export async function validateJoinPassword(
-  teamId: number,
-  password: string,
-): Promise<boolean> {
+export async function validateJoinPassword(teamId: number, password: string): Promise<boolean> {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { joinPassword: true },
@@ -184,10 +180,7 @@ export async function joinByPassword(
  * Accept invite by token — creates a PendingPlayer record with status=1
  * (awaiting admin approval). Returns teamId for redirect.
  */
-export async function acceptInviteByToken(
-  token: string,
-  steamId: string,
-): Promise<number> {
+export async function acceptInviteByToken(token: string, steamId: string): Promise<number> {
   const { teamId } = validateJoinToken(token);
 
   const team = await prisma.team.findUnique({
@@ -245,10 +238,7 @@ export async function acceptInviteByToken(
  * Accept a Steam ID invite — upgrades the player's PendingPlayer record
  * from status=0 (team invite) to status=1 (awaiting admin approval).
  */
-export async function acceptTeamInvite(
-  steamId: string,
-  teamId: number,
-): Promise<void> {
+export async function acceptTeamInvite(steamId: string, teamId: number): Promise<void> {
   const pending = await prisma.pendingPlayer.findUnique({
     where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
   });
@@ -287,10 +277,7 @@ export async function getUserPendingInvites(steamId: string) {
 /**
  * Check if a player is in a specific team
  */
-export async function isPlayerInTeam(
-  steamId: string,
-  teamId: number,
-): Promise<boolean> {
+export async function isPlayerInTeam(steamId: string, teamId: number): Promise<boolean> {
   const playerInTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
@@ -309,9 +296,7 @@ export async function isPlayerInTeam(
  * Check if a player is in any active 2v2 team for the current signup season
  * (allows being in old season teams)
  */
-export async function isPlayerInAnyActiveTeam(
-  steamId: string,
-): Promise<boolean> {
+export async function isPlayerInAnyActiveTeam(steamId: string): Promise<boolean> {
   const currentSeasonIds = await getCurrentSignupSeasonIds();
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
@@ -361,10 +346,7 @@ export async function hasAnyPendingRequest(steamId: string): Promise<boolean> {
 /**
  * Decline/delete pending invitation
  */
-export async function declineInvitation(
-  steamId: string,
-  teamId: number,
-): Promise<void> {
+export async function declineInvitation(steamId: string, teamId: number): Promise<void> {
   await prisma.pendingPlayer.deleteMany({
     where: {
       playerSteamId: steamId,

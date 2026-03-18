@@ -100,8 +100,7 @@ export function handleError(err: unknown, context?: string): never {
   }
 
   // Generic error
-  const message =
-    err instanceof Error ? err.message : 'An unexpected error occurred';
+  const message = err instanceof Error ? err.message : 'An unexpected error occurred';
   throw error(500, message);
 }
 
@@ -115,9 +114,7 @@ export function notFound(message: string = 'Resource not found'): never {
 /**
  * Throw a 401 Unauthorized error
  */
-export function unauthorized(
-  message: string = 'Authentication required',
-): never {
+export function unauthorized(message: string = 'Authentication required'): never {
   throw error(401, message);
 }
 
@@ -145,9 +142,7 @@ export function conflict(message: string = 'Resource conflict'): never {
 /**
  * Throw a 500 Internal Server Error
  */
-export function internalError(
-  message: string = 'Internal server error',
-): never {
+export function internalError(message: string = 'Internal server error'): never {
   throw error(500, message);
 }
 
@@ -155,10 +150,7 @@ export function internalError(
  * Try-catch wrapper for async functions
  * Automatically handles errors and logs them
  */
-export async function tryCatch<T>(
-  fn: () => Promise<T>,
-  context?: string,
-): Promise<T> {
+export async function tryCatch<T>(fn: () => Promise<T>, context?: string): Promise<T> {
   try {
     return await fn();
   } catch (err) {

@@ -45,11 +45,7 @@ export async function getAllContent() {
 /**
  * Update or create content
  */
-export async function upsertContent(
-  key: ContentKey,
-  content: string,
-  updatedBy?: string,
-) {
+export async function upsertContent(key: ContentKey, content: string, updatedBy?: string) {
   return await prisma.siteContent.upsert({
     where: { key },
     update: {

@@ -5,6 +5,7 @@ This document explains how to migrate from the old SQLite-based MGE.tf website t
 ## Overview
 
 The migration involves:
+
 1. Setting up a fresh PostgreSQL database
 2. Running Prisma migrations to create the schema
 3. Importing data from the old SQLite database using the migrator tool
@@ -13,6 +14,7 @@ The migration involves:
 ## Prerequisites
 
 ### Tools Required
+
 - PostgreSQL server (local or remote)
 - Node.js / Bun runtime
 - Access to the old production `users.db` SQLite file
@@ -23,11 +25,13 @@ The migration involves:
 ### Environment Setup
 
 **website-next/.env**
+
 ```env
 DATABASE_URL="postgresql://user:password@host:5432/mgetf"
 ```
 
 **migr/.env**
+
 ```env
 DATABASE_URL="postgresql://user:password@host:5432/mgetf"
 ```
@@ -48,6 +52,7 @@ psql -U postgres -c "CREATE DATABASE mgetf;"
 ```
 
 Or if using a remote server:
+
 ```bash
 psql -h your-host -U your-user -c "DROP DATABASE IF EXISTS mgetf;"
 psql -h your-host -U your-user -c "CREATE DATABASE mgetf;"
@@ -63,6 +68,7 @@ bunx prisma migrate deploy
 ```
 
 You should see output like:
+
 ```
 5 migrations found in prisma/migrations
 Applying migration 20251228050615_initial_schema
@@ -82,6 +88,7 @@ pnpm migrate full ./users.db
 ```
 
 This will:
+
 1. Export all data from SQLite to `migration-data.json`
 2. Import all data to PostgreSQL
 3. **Automatically create region-specific divisions** (see below)
@@ -105,6 +112,7 @@ Should output: `Database schema is up to date!`
 The old database had "shared" divisions (like "Open", "Newcomer") that applied to ALL regions. Teams from NA and EU could be in the same division.
 
 The new schema requires **each division to belong to a specific region**. This allows:
+
 - Different pricing per region (€ for EU, $ for NA)
 - Better organization in admin UI
 - Region-specific division management
@@ -120,6 +128,7 @@ When importing, the migrator automatically:
 3. **Maps teams to the correct region-specific division**
 
 Example output during import:
+
 ```
 Importing divisions (creating region-specific divisions)...
   Created division "OPEN" for region 1 (old ID: 2 -> new ID: 3)
@@ -136,8 +145,8 @@ After migration, run this SQL to verify no mismatches:
 SELECT COUNT(*) as mismatches
 FROM teams t
 JOIN divisions d ON t.division_id = d.id
-WHERE t.region_id IS NOT NULL 
-  AND d.region_id IS NOT NULL 
+WHERE t.region_id IS NOT NULL
+  AND d.region_id IS NOT NULL
   AND t.region_id != d.region_id;
 ```
 
@@ -150,6 +159,7 @@ Should return `0`.
 ### "Table already exists" during migrate deploy
 
 The database isn't empty. Drop and recreate it:
+
 ```bash
 psql -U postgres -c "DROP DATABASE mgetf; CREATE DATABASE mgetf;"
 ```
@@ -157,6 +167,7 @@ psql -U postgres -c "DROP DATABASE mgetf; CREATE DATABASE mgetf;"
 ### "Unique constraint violation" during import
 
 Sequences weren't reset. The migrator should handle this automatically, but if needed:
+
 ```bash
 cd C:\Users\Maxi\Documents\Programming\migr
 psql -d mgetf -f reset-sequences.sql
@@ -165,6 +176,7 @@ psql -d mgetf -f reset-sequences.sql
 ### "Cannot insert NULL into region_id"
 
 You're running the migrator with an outdated schema. Make sure:
+
 1. Migrations are applied first (`prisma migrate deploy`)
 2. Migrator's Prisma client is generated (`cd migr && pnpm generate`)
 
@@ -189,13 +201,13 @@ If import fails partway through, drop and recreate the database, then start over
 
 ## File Locations
 
-| Component | Path |
-|-----------|------|
-| Website-next | `C:\Users\Maxi\Documents\GitHub\website-next` |
-| Migrator | `C:\Users\Maxi\Documents\Programming\migr` |
-| Prisma Schema | `website-next/prisma/schema.prisma` |
-| Migrations | `website-next/prisma/migrations/` |
-| Old DB | `users.db` (get from production) |
+| Component     | Path                                          |
+| ------------- | --------------------------------------------- |
+| Website-next  | `C:\Users\Maxi\Documents\GitHub\website-next` |
+| Migrator      | `C:\Users\Maxi\Documents\Programming\migr`    |
+| Prisma Schema | `website-next/prisma/schema.prisma`           |
+| Migrations    | `website-next/prisma/migrations/`             |
+| Old DB        | `users.db` (get from production)              |
 
 ---
 
@@ -231,15 +243,16 @@ Key differences from old SQLite schema:
 
 The following fields were stored as integers (Unix timestamps) or strings in SQLite but are now proper `DateTime` in PostgreSQL:
 
-| Table | Field | Old Type | New Type |
-|-------|-------|----------|----------|
-| `players_in_teams` | `left_at` | `String` ("0" or timestamp) | `DateTime?` |
-| `matches` | `submitted_at` | `Int` (Unix seconds) | `DateTime?` |
-| `match_comms` | `created_at` | `Int` (Unix seconds) | `DateTime?` |
-| `punishment` | `start_date_time` | `Int` (Unix seconds) | `DateTime?` |
-| `payments` | `purchase_date` | `String` (ISO format) | `DateTime` |
+| Table              | Field             | Old Type                    | New Type    |
+| ------------------ | ----------------- | --------------------------- | ----------- |
+| `players_in_teams` | `left_at`         | `String` ("0" or timestamp) | `DateTime?` |
+| `matches`          | `submitted_at`    | `Int` (Unix seconds)        | `DateTime?` |
+| `match_comms`      | `created_at`      | `Int` (Unix seconds)        | `DateTime?` |
+| `punishment`       | `start_date_time` | `Int` (Unix seconds)        | `DateTime?` |
+| `payments`         | `purchase_date`   | `String` (ISO format)       | `DateTime`  |
 
 **The migrator handles conversion automatically:**
+
 - Valid Unix timestamps (≥ year 2000) → converted to DateTime
 - Invalid timestamps (< year 2000, like `2025`) → set to NULL
 - String "0" or empty → set to NULL
@@ -272,6 +285,7 @@ bunx prisma migrate deploy
 **Location:** `C:\Users\Maxi\Documents\Programming\migr`
 
 The migrator is a **one-time ETL script** for moving data from the old SQLite database to the new PostgreSQL database. It handles:
+
 - Exporting SQLite data to JSON
 - Transforming data (timestamps, division-per-region, etc.)
 - Importing into PostgreSQL
@@ -305,6 +319,7 @@ The migrator is a **one-time ETL script** for moving data from the old SQLite da
 The `migr` tool has its own copy of `schema.prisma` (`migr/prisma/schema.prisma`) because it needs to generate a Prisma client to INSERT data.
 
 **Important:** If you're re-running the full migration from scratch and `website-next`'s schema has changed, you must:
+
 1. Copy the updated schema to `migr/prisma/schema.prisma`
 2. Run `pnpm generate` in the migr folder
 
@@ -315,7 +330,3 @@ For normal development, you don't need to touch the migr tool at all.
 ## Contact
 
 If something goes wrong and this doc doesn't help, check git history for context or the conversation where this was implemented (December 2024).
-
-
-
-

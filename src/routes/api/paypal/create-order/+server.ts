@@ -1,9 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-  createPayPalOrder,
-  getPayPalConfig,
-} from '$lib/server/services/paypal';
+import { createPayPalOrder, getPayPalConfig } from '$lib/server/services/paypal';
 import { logError } from '$lib/server/utils/logger';
 import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
 
@@ -51,10 +48,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       });
 
       // Return generic error to client (never expose sensitive details)
-      return json(
-        { error: 'Failed to create payment order. Please try again.' },
-        { status: 500 },
-      );
+      return json({ error: 'Failed to create payment order. Please try again.' }, { status: 500 });
     }
 
     return json(result.order);

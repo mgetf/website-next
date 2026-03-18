@@ -18,10 +18,7 @@
 import { prisma } from '$lib/server/db';
 import { TeamStatus } from '$prisma/client.js';
 import { error } from '@sveltejs/kit';
-import {
-  getCurrentSignupSeasonIds,
-  getSignupSeasonForRegion,
-} from './signupSeasons';
+import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { disbandTeam } from './teamManagement';
 
@@ -99,9 +96,7 @@ interface Signup1v1Data {
  * Get 1v1 signup context for a user
  * Now uses per-season settings instead of global
  */
-export async function get1v1SignupContext(
-  steamId: string | null,
-): Promise<Signup1v1Context> {
+export async function get1v1SignupContext(steamId: string | null): Promise<Signup1v1Context> {
   // Get current signup season IDs for 1v1 format
   const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_1V1);
 
@@ -120,9 +115,7 @@ export async function get1v1SignupContext(
   });
 
   // Check if ANY active 1v1 signup season has signups open
-  const anySignupsOpen = activeSignupSeasons.some(
-    (as) => as.season.signupsOpen,
-  );
+  const anySignupsOpen = activeSignupSeasons.some((as) => as.season.signupsOpen);
 
   let hasActive1v1Entry = false;
   let user = null;
@@ -194,10 +187,7 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
   });
 
   if (existing1v1Entry) {
-    throw error(
-      400,
-      'You are already signed up for the 1v1 league this season',
-    );
+    throw error(400, 'You are already signed up for the 1v1 league this season');
   }
 
   // Validate division exists
@@ -301,8 +291,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
       },
     });
     const amountPaid = existingPayment?.amount || 0;
-    const isPaid =
-      division.signupCost === 0 || amountPaid >= division.signupCost;
+    const isPaid = division.signupCost === 0 || amountPaid >= division.signupCost;
 
     // Update team status back to READY
     await prisma.team.update({

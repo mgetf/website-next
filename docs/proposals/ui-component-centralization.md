@@ -22,6 +22,7 @@ This proposal defines a phased plan to introduce a semantic color system (includ
 There is no `@theme` block, no CSS custom properties, and no Tailwind config defining semantic colors. The only contents of `app.css` beyond `@import "tailwindcss"` are scrollbar styles and a toast animation. Every color decision is made ad-hoc at the point of use.
 
 **Impact:**
+
 - Changing the primary brand color requires finding and updating 60+ files
 - No single source of truth for "what is our primary color?" or "what shade is a card background?"
 
@@ -29,13 +30,14 @@ There is no `@theme` block, no CSS custom properties, and no Tailwind config def
 
 Orange, blue, and indigo are all used for primary action buttons depending on the page, with no documented rule for which to use when:
 
-| Context | Color | Files |
-|---------|-------|-------|
-| User-facing actions (signup, team edit, join) | Orange (`bg-orange-600`) | Navigation, signup, teams/edit, 2v2/create |
-| Admin actions (invite, copy, dashboard) | Blue (`bg-blue-600`) | admin/+page, teams/[id] (invite), users, matches/[id] |
-| Tournaments | Indigo (`bg-indigo-600`) | tournaments/+page |
+| Context                                       | Color                    | Files                                                 |
+| --------------------------------------------- | ------------------------ | ----------------------------------------------------- |
+| User-facing actions (signup, team edit, join) | Orange (`bg-orange-600`) | Navigation, signup, teams/edit, 2v2/create            |
+| Admin actions (invite, copy, dashboard)       | Blue (`bg-blue-600`)     | admin/+page, teams/[id] (invite), users, matches/[id] |
+| Tournaments                                   | Indigo (`bg-indigo-600`) | tournaments/+page                                     |
 
 The implicit intent (discovered through codebase audit) is actually a format-based color system that was never formalized:
+
 - **Orange** = mge.tf brand / format-neutral actions
 - **Blue** = 2v2 format identity (homepage 2v2 card, 2v2 league pages)
 - **Purple** = 1v1 format identity (homepage 1v1 card, 1v1 league pages, user profile 1v1 sections)
@@ -46,23 +48,23 @@ But because this was never documented, blue leaked into admin pages as a generic
 
 ### 3. Inconsistent Focus Ring Colors
 
-| Color | Approx. Count | Where |
-|-------|---------------|-------|
-| `focus:ring-orange-500` | ~35 | Most forms and inputs |
-| `focus:ring-blue-500` | ~15 | Admin matches, admin site, pending-players, RulebookTOC |
-| `focus:ring-indigo-500` | ~15 | Tournaments page |
-| `focus:ring-red-500` | ~5 | Danger inputs |
+| Color                   | Approx. Count | Where                                                   |
+| ----------------------- | ------------- | ------------------------------------------------------- |
+| `focus:ring-orange-500` | ~35           | Most forms and inputs                                   |
+| `focus:ring-blue-500`   | ~15           | Admin matches, admin site, pending-players, RulebookTOC |
+| `focus:ring-indigo-500` | ~15           | Tournaments page                                        |
+| `focus:ring-red-500`    | ~5            | Danger inputs                                           |
 
 ### 4. Status Color Family Conflict
 
 Toasts use `emerald` for success and `amber` for warning. The rest of the app uses `green` for success and `yellow` for warning.
 
-| Status | Toasts | Everywhere else |
-|--------|--------|-----------------|
-| Success | `emerald-400` | `green-400` / `green-500` |
-| Warning | `amber-400` | `yellow-400` / `yellow-500` |
-| Error | `red-400` | `red-400` / `red-500` |
-| Info | `blue-400` | `blue-400` / `blue-500` |
+| Status  | Toasts        | Everywhere else             |
+| ------- | ------------- | --------------------------- |
+| Success | `emerald-400` | `green-400` / `green-500`   |
+| Warning | `amber-400`   | `yellow-400` / `yellow-500` |
+| Error   | `red-400`     | `red-400` / `red-500`       |
+| Info    | `blue-400`    | `blue-400` / `blue-500`     |
 
 ### 5. gray vs zinc for Text
 
@@ -104,27 +106,27 @@ Status badge pattern `bg-{color}-500/20 text-{color}-400 border border-{color}-5
 
 ### Components that work well (keep as-is)
 
-| Component | Imported in | Notes |
-|-----------|-------------|-------|
-| DataTable | 14 route files | Well-adopted, good API |
-| Dialog | 6 route files | Base modal, used correctly |
-| Paginator | (via DataTable) | Works, no direct issues |
-| SearchInput | 4 route files | Reasonable adoption |
-| SelectFilter | 5 route files | Reasonable adoption |
-| Toast/ToastContainer | (layout) | Works fine |
+| Component            | Imported in     | Notes                      |
+| -------------------- | --------------- | -------------------------- |
+| DataTable            | 14 route files  | Well-adopted, good API     |
+| Dialog               | 6 route files   | Base modal, used correctly |
+| Paginator            | (via DataTable) | Works, no direct issues    |
+| SearchInput          | 4 route files   | Reasonable adoption        |
+| SelectFilter         | 5 route files   | Reasonable adoption        |
+| Toast/ToastContainer | (layout)        | Works fine                 |
 
 ### Components with low adoption
 
-| Component | Imported in | Raw equivalent in |
-|-----------|-------------|-------------------|
-| FormInput | 5 files | ~18 files use raw `<input>` |
-| FormSelect | 7 files | ~18 files use raw `<select>` |
-| ConfirmDialog | 1 file | Several pages likely need confirm flows |
+| Component     | Imported in | Raw equivalent in                       |
+| ------------- | ----------- | --------------------------------------- |
+| FormInput     | 5 files     | ~18 files use raw `<input>`             |
+| FormSelect    | 7 files     | ~18 files use raw `<select>`            |
+| ConfirmDialog | 1 file      | Several pages likely need confirm flows |
 
 ### Dead code
 
-| Component | Imported in | Action |
-|-----------|-------------|--------|
+| Component  | Imported in   | Action |
+| ---------- | ------------- | ------ |
 | FormDialog | 0 route files | Delete |
 
 ---
@@ -312,14 +314,13 @@ Optionally, add a CI script that fails if raw color patterns appear in new route
 
 ## Priority Order
 
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 1 | Define `@theme` tokens in `app.css` | ~30 min | Foundation for everything else |
-| 2 | Build `Button.svelte` | ~1 hr | Eliminates most duplication |
-| 3 | Build `Badge.svelte` | ~30 min | Highest instance count (~100) |
-| 4 | Build `Card.svelte` | ~30 min | Simplifies layout patterns |
-| 5 | Migrate high-traffic pages | ~2-3 hrs | Immediate consistency improvement |
-| 6 | Migrate remaining pages | ~3-4 hrs | Full consistency |
-| 7 | Fix Toast/hex/text-zinc inconsistencies | ~1 hr | Polish |
-| 8 | Delete FormDialog, add Cursor rule | ~15 min | Prevent regression |
-
+| #   | Task                                    | Effort   | Impact                            |
+| --- | --------------------------------------- | -------- | --------------------------------- |
+| 1   | Define `@theme` tokens in `app.css`     | ~30 min  | Foundation for everything else    |
+| 2   | Build `Button.svelte`                   | ~1 hr    | Eliminates most duplication       |
+| 3   | Build `Badge.svelte`                    | ~30 min  | Highest instance count (~100)     |
+| 4   | Build `Card.svelte`                     | ~30 min  | Simplifies layout patterns        |
+| 5   | Migrate high-traffic pages              | ~2-3 hrs | Immediate consistency improvement |
+| 6   | Migrate remaining pages                 | ~3-4 hrs | Full consistency                  |
+| 7   | Fix Toast/hex/text-zinc inconsistencies | ~1 hr    | Polish                            |
+| 8   | Delete FormDialog, add Cursor rule      | ~15 min  | Prevent regression                |

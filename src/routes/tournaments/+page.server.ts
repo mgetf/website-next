@@ -92,18 +92,10 @@ export const actions: Actions = {
     const tournamentId = parseInt(formData.get('tournamentId') as string);
     const winner1SteamId = (formData.get('winner1SteamId') as string)?.trim();
     const winner2SteamId = (formData.get('winner2SteamId') as string)?.trim();
-    const secondPlace1SteamId = (
-      formData.get('secondPlace1SteamId') as string
-    )?.trim();
-    const secondPlace2SteamId = (
-      formData.get('secondPlace2SteamId') as string
-    )?.trim();
-    const thirdPlace1SteamId = (
-      formData.get('thirdPlace1SteamId') as string
-    )?.trim();
-    const thirdPlace2SteamId = (
-      formData.get('thirdPlace2SteamId') as string
-    )?.trim();
+    const secondPlace1SteamId = (formData.get('secondPlace1SteamId') as string)?.trim();
+    const secondPlace2SteamId = (formData.get('secondPlace2SteamId') as string)?.trim();
+    const thirdPlace1SteamId = (formData.get('thirdPlace1SteamId') as string)?.trim();
+    const thirdPlace2SteamId = (formData.get('thirdPlace2SteamId') as string)?.trim();
 
     if (!tournamentId || isNaN(tournamentId)) {
       return fail(400, { error: 'Invalid tournament ID' });

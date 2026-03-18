@@ -69,6 +69,7 @@ PENDING  →  COMPLETED   (trade accepted, payment confirmed)
 Instead of a single global key value, each division can optionally configure an **item payment option**. This is a generic system — not hardcoded to TF2 keys.
 
 Admin configures per division:
+
 - **Item name** — Display name (e.g., "Mann Co. Supply Crate Key", "Refined Metal")
 - **Item app ID** — Steam app ID for validation (e.g., `440` for TF2)
 - **Item market hash name** — Steam market identifier for exact item matching
@@ -165,17 +166,17 @@ model Global {
 
 ### Tech Stack
 
-| Technology | Purpose |
-|---|---|
-| Bun (Node fallback) | Runtime & package manager |
-| TypeScript | Type safety |
-| steam-user | Steam client login, session, presence |
-| steam-tradeoffer-manager | Trade offer lifecycle |
-| steamcommunity | Session management, trade confirmations |
-| steam-totp | Steam Guard 2FA code generation |
-| Pino | Logging |
-| Zod | Env var and request validation |
-| Biome | Linter & formatter |
+| Technology               | Purpose                                 |
+| ------------------------ | --------------------------------------- |
+| Bun (Node fallback)      | Runtime & package manager               |
+| TypeScript               | Type safety                             |
+| steam-user               | Steam client login, session, presence   |
+| steam-tradeoffer-manager | Trade offer lifecycle                   |
+| steamcommunity           | Session management, trade confirmations |
+| steam-totp               | Steam Guard 2FA code generation         |
+| Pino                     | Logging                                 |
+| Zod                      | Env var and request validation          |
+| Biome                    | Linter & formatter                      |
 
 No HTTP server needed on the bot. Communication is one-directional: the bot calls the website's API. Railway health checks can use the process's TCP listener from `steam-user` or a minimal HTTP endpoint if required.
 
@@ -247,6 +248,7 @@ Saves login keys and sentry files to disk so restarts don't trigger fresh logins
 All bot-facing endpoints live under `/api/v1/` and are authenticated with the existing API key system via `requireApiKey(request)` — same as the Discord bot endpoints.
 
 #### `POST /api/v1/item-payments/confirm`
+
 Called by bot after accepting a valid trade.
 
 ```typescript
@@ -265,6 +267,7 @@ Called by bot after accepting a valid trade.
 Internally: validates the order exists and is PENDING, then runs the same payment recording logic as PayPal capture (PaymentTracker upsert, Payment create, paymentStatus update, team payment status check).
 
 #### `GET /api/v1/item-payments/pending/:steamId`
+
 Called by bot to check if a Steam user has a pending item payment order.
 
 ```typescript
@@ -288,13 +291,13 @@ No bot-info endpoint needed — the bot's trade URL, profile URL, and display na
 
 All item payment operations are logged through the existing `logAudit()` system under the `PAYMENT` category. New actions to add to `AuditAction`:
 
-| Action | Trigger | Metadata |
-|---|---|---|
-| `ITEM_ORDER_CREATED` | User creates an item payment order on checkout | `{ orderNumber, teamId, itemName, itemsRequired }` |
-| `ITEM_ORDER_CANCELLED` | User cancels their pending order | `{ orderNumber, teamId }` |
-| `ITEM_ORDER_EXPIRED` | Order expired without trade | `{ orderNumber, teamId }` |
-| `ITEM_PAYMENT_CONFIRMED` | Bot confirms successful trade via API | `{ orderNumber, tradeOfferId, itemName, itemsReceived, steamId }` |
-| `ITEM_PAYMENT_DECLINED` | Bot declined an invalid trade (logged by bot via API, optional) | `{ tradeOfferId, senderSteamId, reason }` |
+| Action                   | Trigger                                                         | Metadata                                                          |
+| ------------------------ | --------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `ITEM_ORDER_CREATED`     | User creates an item payment order on checkout                  | `{ orderNumber, teamId, itemName, itemsRequired }`                |
+| `ITEM_ORDER_CANCELLED`   | User cancels their pending order                                | `{ orderNumber, teamId }`                                         |
+| `ITEM_ORDER_EXPIRED`     | Order expired without trade                                     | `{ orderNumber, teamId }`                                         |
+| `ITEM_PAYMENT_CONFIRMED` | Bot confirms successful trade via API                           | `{ orderNumber, tradeOfferId, itemName, itemsReceived, steamId }` |
+| `ITEM_PAYMENT_DECLINED`  | Bot declined an invalid trade (logged by bot via API, optional) | `{ tradeOfferId, senderSteamId, reason }`                         |
 
 The `ITEM_PAYMENT_CONFIRMED` action is the item-payment equivalent of the existing `PAYMENT_CAPTURED` used for PayPal. The actor for bot-originated events is `null` (system/service action) since the bot authenticates via API key, not a user session.
 
@@ -317,6 +320,7 @@ The checkout page (`/checkout/[steamId]`) gets a payment method selector:
 New route: `/users/[steamId]/payments` (or tab on existing user profile page)
 
 Shows all payments for the authenticated user:
+
 - PayPal payments (from `Payment` table where `purchasedBy = steamId`)
 - Item payments (from `ItemPaymentOrder` where `playerSteamId = steamId`)
 - Sortable by date, filterable by type
@@ -330,38 +334,40 @@ Shows all payments for the authenticated user:
 
 ## Security
 
-| Concern | Mitigation |
-|---|---|
+| Concern            | Mitigation                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------- |
 | Bot → Website auth | Existing mge.tf API key system (`Authorization: Bearer mge_...`) via `requireApiKey()` |
-| Item spoofing | Bot validates items by `appid` and `market_hash_name` matching the pending order |
-| Wrong item count | Bot only accepts exact match to pending order's `itemsRequired` |
-| Wrong item type | Bot checks each item against the order's `itemAppId` + `itemMarketHashName` |
-| No pending order | Bot declines any offer from a Steam ID without a PENDING order |
-| Replay attacks | Orders are single-use; once COMPLETED, same order can't be confirmed twice |
-| Order expiration | Orders expire after a configurable timeout (e.g. 30 minutes) |
-| Bot impersonation | Checkout page displays the bot's verified Steam profile URL so users can confirm |
+| Item spoofing      | Bot validates items by `appid` and `market_hash_name` matching the pending order       |
+| Wrong item count   | Bot only accepts exact match to pending order's `itemsRequired`                        |
+| Wrong item type    | Bot checks each item against the order's `itemAppId` + `itemMarketHashName`            |
+| No pending order   | Bot declines any offer from a Steam ID without a PENDING order                         |
+| Replay attacks     | Orders are single-use; once COMPLETED, same order can't be confirmed twice             |
+| Order expiration   | Orders expire after a configurable timeout (e.g. 30 minutes)                           |
+| Bot impersonation  | Checkout page displays the bot's verified Steam profile URL so users can confirm       |
 
 ## Error Handling
 
-| Scenario | Handling |
-|---|---|
-| User sends wrong number of items | Bot declines trade, order stays PENDING, user can retry |
-| User sends wrong item type | Bot declines trade |
-| User doesn't send trade in time | Cron/scheduled check marks order as EXPIRED |
-| Bot is offline | Website hides item payment option or shows "temporarily unavailable", PayPal still works |
-| Bot restarts mid-trade | On startup, re-poll all active trade offers to catch any accepted during downtime |
-| Steam is down | Bot queues confirmation, retries when reconnected |
-| Website API is unreachable | Bot retries confirmation with exponential backoff |
+| Scenario                         | Handling                                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------- |
+| User sends wrong number of items | Bot declines trade, order stays PENDING, user can retry                                  |
+| User sends wrong item type       | Bot declines trade                                                                       |
+| User doesn't send trade in time  | Cron/scheduled check marks order as EXPIRED                                              |
+| Bot is offline                   | Website hides item payment option or shows "temporarily unavailable", PayPal still works |
+| Bot restarts mid-trade           | On startup, re-poll all active trade offers to catch any accepted during downtime        |
+| Steam is down                    | Bot queues confirmation, retries when reconnected                                        |
+| Website API is unreachable       | Bot retries confirmation with exponential backoff                                        |
 
 ## Development Phases
 
 ### Phase 1 — Bot Foundation
+
 - New project setup (Bun, TypeScript, Biome, Zod env)
 - Steam login with session persistence (`steam-data/`)
 - Graceful shutdown (`client.logOff()` on SIGINT/SIGTERM)
 - Dockerfile + Railway config
 
 ### Phase 2 — Trade Logic
+
 - Listen for incoming trade offers via `steam-tradeoffer-manager`
 - Validate incoming offers against pending orders (call website API)
 - Accept valid trades, decline invalid ones
@@ -369,6 +375,7 @@ Shows all payments for the authenticated user:
 - Confirm payment to website API after acceptance
 
 ### Phase 3 — Website Integration
+
 - `DivisionItemPayment` + `ItemPaymentOrder` models + migration
 - Bot settings in Global + admin UI for per-division item payment config
 - New API endpoints (`/api/item-payments/*`)
@@ -377,6 +384,7 @@ Shows all payments for the authenticated user:
 - Payment recording (reuse existing PaymentTracker/Payment logic)
 
 ### Phase 4 — Payment History & Polish
+
 - Payment history page for users
 - Order expiration (scheduled cleanup or on-access check)
 - Error recovery and retry logic

@@ -1,0 +1,34 @@
+---
+description: API route naming, auth patterns, and when to use API routes vs form actions
+alwaysApply: true
+---
+
+# API Route Conventions
+
+## When to Use What
+
+| Pattern | Use for |
+|---|---|
+| **Form actions** (`+page.server.ts` actions) | All user-facing mutations (create team, submit score, edit profile) |
+| **API routes** (`/api/*`) | SSE streams, webhook receivers, client-side fetch calls (mark notification read) |
+| **External API** (`/api/v1/*`) | Third-party integrations, bot access, external tooling |
+
+Do NOT create API routes for things that should be form actions.
+
+## Auth Patterns by Route Type
+
+- `/api/v1/*` — API key auth via `requireApiKey(request)` from `$lib/server/auth/apiKey`
+- `/api/*` (non-v1) — Session auth via `locals.user`
+- Form actions — Session auth via `locals.user` with `requireAuth()`/`requireAdmin()`
+
+## API Response Format
+
+```typescript
+// Success
+return json({ success: true, data: { ... } });
+
+// Error
+return json({ error: 'Description' }, { status: 400 });
+```
+
+API routes still delegate to services — no direct Prisma access.

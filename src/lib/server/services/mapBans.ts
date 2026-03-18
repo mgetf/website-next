@@ -38,10 +38,7 @@ export async function initializeMapBanPhase(matchId: number, poolId: number) {
  * @param boSeries - Best of series (3, 5, or 7)
  * @returns 'ban', 'pick', or '' if complete
  */
-export function determineNextAction(
-  actionCount: number,
-  boSeries: number,
-): 'ban' | 'pick' | '' {
+export function determineNextAction(actionCount: number, boSeries: number): 'ban' | 'pick' | '' {
   if (boSeries === 3) {
     // BO3 pattern: Away ban, Home ban, Home pick, Away pick, Away ban, Home pick
     switch (actionCount) {
@@ -119,10 +116,7 @@ export function determineNextAction(
  * @param boSeries - Best of series (3, 5, or 7)
  * @returns true if turn should switch to other team
  */
-export function shouldSwitchTurn(
-  actionCount: number,
-  boSeries: number,
-): boolean {
+export function shouldSwitchTurn(actionCount: number, boSeries: number): boolean {
   if (boSeries === 3) {
     // BO3 pattern: Away→Home→Home→Away→Away→Home
     switch (actionCount) {
@@ -229,8 +223,7 @@ export async function processBanPickAction(
   }
 
   // Verify correct team's turn
-  const expectedTeamId =
-    matchMapBan.currentTurn === 0 ? match.homeTeamId : match.awayTeamId;
+  const expectedTeamId = matchMapBan.currentTurn === 0 ? match.homeTeamId : match.awayTeamId;
   if (expectedTeamId !== teamId) {
     throw error(400, 'Not your turn');
   }
@@ -248,8 +241,7 @@ export async function processBanPickAction(
       teamId,
       playerSteamId,
       arenaId,
-      actionType:
-        actionType === 'ban' ? MapBanActionType.BAN : MapBanActionType.PICK,
+      actionType: actionType === 'ban' ? MapBanActionType.BAN : MapBanActionType.PICK,
       actionOrder: actionCount,
     },
   });
@@ -257,32 +249,21 @@ export async function processBanPickAction(
   // If it's a pick, assign map to games
   if (actionType === 'pick') {
     const pickCount =
-      matchMapBan.actions.filter((a) => a.actionType === MapBanActionType.PICK)
-        .length + 1; // +1 for current action
+      matchMapBan.actions.filter((a) => a.actionType === MapBanActionType.PICK).length + 1; // +1 for current action
     await assignMapToGames(match.id, arenaId, pickCount, match.boGames || null);
   }
 
   // Update match map ban
   // Bo3: 6 actions, Bo5: 8 actions, Bo7: 10 actions
   const totalActionsNeeded =
-    match.boSeries === 3
-      ? 6
-      : match.boSeries === 5
-        ? 8
-        : match.boSeries === 7
-          ? 10
-          : 6;
+    match.boSeries === 3 ? 6 : match.boSeries === 5 ? 8 : match.boSeries === 7 ? 10 : 6;
   const isComplete = actionCount + 1 >= totalActionsNeeded;
   const shouldSwitch = shouldSwitchTurn(actionCount, match.boSeries || 3);
 
   await prisma.matchMapBan.update({
     where: { id: matchMapBanId },
     data: {
-      currentTurn: shouldSwitch
-        ? matchMapBan.currentTurn === 0
-          ? 1
-          : 0
-        : matchMapBan.currentTurn,
+      currentTurn: shouldSwitch ? (matchMapBan.currentTurn === 0 ? 1 : 0) : matchMapBan.currentTurn,
       banPhaseComplete: isComplete,
       completedAt: isComplete ? new Date() : null,
     },
@@ -378,11 +359,10 @@ export async function getMapBanStatus(matchId: number) {
     .filter((a) => a.actionType === MapBanActionType.PICK)
     .map((a) => a.arenaId);
 
-  const availableArenas = matchMapBan.pool?.mapsInPool.filter(
-    (m) =>
-      !bannedArenaIds.includes(m.arenaId) &&
-      !pickedArenaIds.includes(m.arenaId),
-  ) ?? [];
+  const availableArenas =
+    matchMapBan.pool?.mapsInPool.filter(
+      (m) => !bannedArenaIds.includes(m.arenaId) && !pickedArenaIds.includes(m.arenaId),
+    ) ?? [];
 
   const nextAction = determineNextAction(
     matchMapBan.actions.length,

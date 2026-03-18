@@ -216,7 +216,10 @@ export const actions: Actions = {
       if (locals.user.steamId === steamId) {
         const session = getSession(cookies);
         if (session) {
-          setSession(cookies, { ...session, steamAvatar: updated.steamAvatar ?? session.steamAvatar });
+          setSession(cookies, {
+            ...session,
+            steamAvatar: updated.steamAvatar ?? session.steamAvatar,
+          });
         }
       }
 
@@ -313,7 +316,13 @@ export const actions: Actions = {
         return fail(400, { error: 'Reason is required' });
       }
 
-      await banUser(steamId, locals.user.steamId, severity as 'WARNING' | 'SUSPENDED' | 'BANNED', reason, duration);
+      await banUser(
+        steamId,
+        locals.user.steamId,
+        severity as 'WARNING' | 'SUSPENDED' | 'BANNED',
+        reason,
+        duration,
+      );
 
       await logAudit({
         actorId: locals.user.steamId,

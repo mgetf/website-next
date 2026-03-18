@@ -78,9 +78,10 @@ export async function deleteFormat(id: number) {
   if (format._count.teams > 0)
     blockers.push(`${format._count.teams} team${format._count.teams !== 1 ? 's' : ''}`);
   if (format._count.teamHistory > 0)
-    blockers.push(`${format._count.teamHistory} team history record${format._count.teamHistory !== 1 ? 's' : ''}`);
-  if (format._count.activeSignupSeasons > 0)
-    blockers.push('active signup configuration');
+    blockers.push(
+      `${format._count.teamHistory} team history record${format._count.teamHistory !== 1 ? 's' : ''}`,
+    );
+  if (format._count.activeSignupSeasons > 0) blockers.push('active signup configuration');
 
   if (blockers.length > 0) {
     throw new Error(`Cannot delete format: it has ${blockers.join(', ')}.`);
@@ -99,10 +100,7 @@ export async function getFormatsForFilter(): Promise<{ id: number; name: string;
   });
 }
 
-export async function updateFormat(
-  id: number,
-  data: { name: string; code: string },
-) {
+export async function updateFormat(id: number, data: { name: string; code: string }) {
   // Check if we're changing the code to one that already exists
   const existing = await prisma.format.findFirst({
     where: {

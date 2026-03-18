@@ -111,7 +111,8 @@ export const actions: Actions = {
         permissionLevel: permissionLevel || undefined,
         banStatus: banStatus || undefined,
         nameOverride: nameOverride ? parseInt(nameOverride) : undefined,
-        staffDivisionId: staffDivisionId === '' ? null : staffDivisionId ? parseInt(staffDivisionId) : undefined,
+        staffDivisionId:
+          staffDivisionId === '' ? null : staffDivisionId ? parseInt(staffDivisionId) : undefined,
       });
 
       if (permissionLevel) {
@@ -394,8 +395,7 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error unlinking Discord:', error);
       return fail(400, {
-        error:
-          error instanceof Error ? error.message : 'Failed to unlink Discord',
+        error: error instanceof Error ? error.message : 'Failed to unlink Discord',
       });
     }
   },

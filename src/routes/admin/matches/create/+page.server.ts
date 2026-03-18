@@ -16,25 +16,21 @@ import { getRegions } from '$lib/server/services/regions';
 import { getDivisions } from '$lib/server/services/divisions';
 import { getArenas } from '$lib/server/services/arenas';
 import { getMapBanPools } from '$lib/server/services/mapBanPools';
-import {
-  getAllPlayoffs,
-  getPlayoffBySeason,
-} from '$lib/server/services/playoffs';
+import { getAllPlayoffs, getPlayoffBySeason } from '$lib/server/services/playoffs';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireStrictAdmin(locals.user);
 
   // Fetch data for dropdowns using services
-  const [seasons, regions, divisions, arenas, mapBanPools, playoffs] =
-    await Promise.all([
-      getSeasons(),
-      getRegions(),
-      getDivisions(),
-      getArenas(),
-      getMapBanPools(),
-      getAllPlayoffs(),
-    ]);
+  const [seasons, regions, divisions, arenas, mapBanPools, playoffs] = await Promise.all([
+    getSeasons(),
+    getRegions(),
+    getDivisions(),
+    getArenas(),
+    getMapBanPools(),
+    getAllPlayoffs(),
+  ]);
 
   return {
     seasons,
@@ -62,9 +58,7 @@ export const actions: Actions = {
     const isPlayoff = formData.get('isPlayoff') === 'on';
     const playoffRoundRaw = formData.get('playoffRound') as string;
     const playoffRound =
-      playoffRoundRaw && playoffRoundRaw !== ''
-        ? parseInt(playoffRoundRaw)
-        : null;
+      playoffRoundRaw && playoffRoundRaw !== '' ? parseInt(playoffRoundRaw) : null;
 
     try {
       const teams = await getEligibleTeams(regionId, divisionId, seasonId);
@@ -98,10 +92,7 @@ export const actions: Actions = {
         }
 
         // Calculate number of matches for this round
-        const numMatches = Math.pow(
-          2,
-          playoff.numRounds - Math.abs(playoffRound),
-        );
+        const numMatches = Math.pow(2, playoff.numRounds - Math.abs(playoffRound));
 
         // For playoff preview, return empty matchups that will be manually filled
         const emptyMatchups = Array.from({ length: numMatches }, (_, i) => ({
@@ -125,9 +116,7 @@ export const actions: Actions = {
       } else {
         // Regular season logic
         // Generate matchups using the pairing algorithm
-        const { pairTeamsForMatches } = await import(
-          '$lib/server/services/adminMatches'
-        );
+        const { pairTeamsForMatches } = await import('$lib/server/services/adminMatches');
         const pairedTeams = await pairTeamsForMatches(teams, seasonId);
 
         // Convert paired teams array into matchup objects
@@ -137,12 +126,8 @@ export const actions: Actions = {
           const awayTeam = pairedTeams[i + 1];
 
           // Find seeds for these teams
-          const homeTeamWithSeed = teamsWithSeeds.find(
-            (t) => t.id === homeTeam.id,
-          );
-          const awayTeamWithSeed = teamsWithSeeds.find(
-            (t) => t.id === awayTeam.id,
-          );
+          const homeTeamWithSeed = teamsWithSeeds.find((t) => t.id === homeTeam.id);
+          const awayTeamWithSeed = teamsWithSeeds.find((t) => t.id === awayTeam.id);
 
           matchups.push({
             home: homeTeamWithSeed,
@@ -153,9 +138,7 @@ export const actions: Actions = {
         // Check if there's a bye (odd number of teams)
         const byeTeam =
           pairedTeams.length < teams.length
-            ? teamsWithSeeds.find(
-                (t) => !pairedTeams.some((pt) => pt.id === t.id),
-              )
+            ? teamsWithSeeds.find((t) => !pairedTeams.some((pt) => pt.id === t.id))
             : null;
 
         // Calculate week label if not playoff and week number provided
@@ -218,23 +201,17 @@ export const actions: Actions = {
     const weekNo = weekNoRaw && weekNoRaw !== '' ? parseInt(weekNoRaw) : null;
     const boSeries = parseInt(formData.get('boSeries') as string);
     const arenaIdRaw = formData.get('arenaId') as string;
-    const arenaId =
-      arenaIdRaw && arenaIdRaw !== '' ? parseInt(arenaIdRaw) : undefined;
+    const arenaId = arenaIdRaw && arenaIdRaw !== '' ? parseInt(arenaIdRaw) : undefined;
     const matchDateTime = (formData.get('matchDateTime') as string) || '';
     const mapBanPoolIdRaw = formData.get('mapBanPoolId') as string;
     const mapBanPoolId =
-      mapBanPoolIdRaw && mapBanPoolIdRaw !== ''
-        ? parseInt(mapBanPoolIdRaw)
-        : undefined;
+      mapBanPoolIdRaw && mapBanPoolIdRaw !== '' ? parseInt(mapBanPoolIdRaw) : undefined;
     const isPlayoff = formData.get('isPlayoff') === 'on';
     const playoffRoundRaw = formData.get('playoffRound') as string;
     const playoffRound =
-      playoffRoundRaw && playoffRoundRaw !== ''
-        ? parseInt(playoffRoundRaw)
-        : null;
+      playoffRoundRaw && playoffRoundRaw !== '' ? parseInt(playoffRoundRaw) : null;
     const boGamesRaw = formData.get('boGames') as string;
-    const boGames =
-      boGamesRaw && boGamesRaw !== '' ? parseInt(boGamesRaw) : null;
+    const boGames = boGamesRaw && boGamesRaw !== '' ? parseInt(boGamesRaw) : null;
 
     console.log('Create match set params:', {
       regionId,
@@ -251,12 +228,7 @@ export const actions: Actions = {
     });
 
     // Validate required fields
-    if (
-      isNaN(regionId) ||
-      isNaN(divisionId) ||
-      isNaN(seasonId) ||
-      isNaN(boSeries)
-    ) {
+    if (isNaN(regionId) || isNaN(divisionId) || isNaN(seasonId) || isNaN(boSeries)) {
       console.error('Invalid form data:', {
         regionId,
         divisionId,
@@ -319,12 +291,8 @@ export const actions: Actions = {
         });
 
         // Get team selections from form
-        const homeTeamIds = formData
-          .getAll('homeTeamIds')
-          .map((id) => parseInt(id as string));
-        const awayTeamIds = formData
-          .getAll('awayTeamIds')
-          .map((id) => parseInt(id as string));
+        const homeTeamIds = formData.getAll('homeTeamIds').map((id) => parseInt(id as string));
+        const awayTeamIds = formData.getAll('awayTeamIds').map((id) => parseInt(id as string));
 
         if (homeTeamIds.length === 0 || awayTeamIds.length === 0) {
           return fail(400, {
@@ -339,17 +307,12 @@ export const actions: Actions = {
         }
 
         // Validate all team IDs are valid numbers
-        if (
-          homeTeamIds.some((id) => isNaN(id)) ||
-          awayTeamIds.some((id) => isNaN(id))
-        ) {
+        if (homeTeamIds.some((id) => isNaN(id)) || awayTeamIds.some((id) => isNaN(id))) {
           return fail(400, { error: 'Invalid team selection' });
         }
 
         // Create playoff matches using the existing createPlayoffMatch function
-        const { createPlayoffMatch } = await import(
-          '$lib/server/services/adminMatches'
-        );
+        const { createPlayoffMatch } = await import('$lib/server/services/adminMatches');
         const createdMatches = [];
 
         for (let i = 0; i < homeTeamIds.length; i++) {
@@ -397,10 +360,7 @@ export const actions: Actions = {
           mapBanPoolId,
         });
 
-        console.log(
-          'Successfully created regular season matches:',
-          matches.length,
-        );
+        console.log('Successfully created regular season matches:', matches.length);
       }
 
       await logAudit({

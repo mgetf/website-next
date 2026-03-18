@@ -26,21 +26,15 @@ import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/audit
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
 
-  const [
-    announcements,
-    globalSettings,
-    regions,
-    seasons,
-    formats,
-    activeSignupSeasons,
-  ] = await Promise.all([
-    getAnnouncements(),
-    getGlobalSettings(),
-    getRegions(),
-    getSeasons(),
-    getFormatsForFilter(),
-    getAllActiveSignupSeasons(),
-  ]);
+  const [announcements, globalSettings, regions, seasons, formats, activeSignupSeasons] =
+    await Promise.all([
+      getAnnouncements(),
+      getGlobalSettings(),
+      getRegions(),
+      getSeasons(),
+      getFormatsForFilter(),
+      getAllActiveSignupSeasons(),
+    ]);
 
   // Group seasons by region for easier selection, include per-season settings
   const seasonsByRegion = seasons.reduce(
@@ -128,7 +122,14 @@ export const actions: Actions = {
 
     try {
       await createAnnouncement(content);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.ANNOUNCEMENT_CREATED, metadata: { content }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.ANNOUNCEMENT_CREATED,
+        metadata: { content },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Announcement created successfully' };
     } catch (error) {
       console.error('Error creating announcement:', error);
@@ -159,7 +160,16 @@ export const actions: Actions = {
 
     try {
       await updateAnnouncement(id, content);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.ANNOUNCEMENT_UPDATED, targetType: 'Announcement', targetId: String(id), metadata: { content }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.ANNOUNCEMENT_UPDATED,
+        targetType: 'Announcement',
+        targetId: String(id),
+        metadata: { content },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Announcement updated successfully' };
     } catch (error) {
       console.error('Error updating announcement:', error);
@@ -180,7 +190,16 @@ export const actions: Actions = {
 
     try {
       await toggleAnnouncementVisibility(id, visible);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.ANNOUNCEMENT_TOGGLED, targetType: 'Announcement', targetId: String(id), metadata: { visible }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.ANNOUNCEMENT_TOGGLED,
+        targetType: 'Announcement',
+        targetId: String(id),
+        metadata: { visible },
+        ipAddress: getClientAddress(),
+      });
       return {
         success: true,
         message: `Announcement ${visible ? 'shown' : 'hidden'} successfully`,
@@ -203,7 +222,15 @@ export const actions: Actions = {
 
     try {
       await deleteAnnouncement(id);
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.ANNOUNCEMENT_DELETED, targetType: 'Announcement', targetId: String(id), ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.ANNOUNCEMENT_DELETED,
+        targetType: 'Announcement',
+        targetId: String(id),
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Announcement deleted successfully' };
     } catch (error) {
       console.error('Error deleting announcement:', error);
@@ -311,7 +338,14 @@ export const actions: Actions = {
 
     try {
       await updateGlobalSettings({ leagueFees: fees });
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SITE, action: AuditAction.GLOBAL_SETTINGS_UPDATED, metadata: { leagueFees: fees }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.GLOBAL_SETTINGS_UPDATED,
+        metadata: { leagueFees: fees },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'League fees updated' };
     } catch (error) {
       console.error('Error updating league fees:', error);
@@ -324,10 +358,7 @@ export const actions: Actions = {
 
     const formData = await request.formData();
 
-    const [regions, formats] = await Promise.all([
-      getRegions(),
-      getFormatsForFilter(),
-    ]);
+    const [regions, formats] = await Promise.all([getRegions(), getFormatsForFilter()]);
 
     try {
       // Process each region+format combination
@@ -347,7 +378,14 @@ export const actions: Actions = {
         }
       }
 
-      await logAudit({ actorId: locals.user?.steamId, actorRole: locals.user?.permissionLevel, category: AuditCategory.SIGNUP, action: AuditAction.SIGNUP_SEASON_CHANGED, metadata: { updated: true }, ipAddress: getClientAddress() });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SIGNUP,
+        action: AuditAction.SIGNUP_SEASON_CHANGED,
+        metadata: { updated: true },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Season assignments updated' };
     } catch (error) {
       console.error('Error updating season assignments:', error);

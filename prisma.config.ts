@@ -9,7 +9,6 @@ export default defineConfig({
   datasource: {
     // Use process.env directly - works at both build time (with dotenv) and runtime
     url:
-      process.env.DATABASE_URL ||
-      'postgresql://placeholder:placeholder@localhost:5432/placeholder',
+      process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
   },
 });

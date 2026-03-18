@@ -6,10 +6,7 @@ import {
   declineInvitation,
   hasAnyPendingRequest,
 } from '$lib/server/services/teamJoin';
-import {
-  isSeasonCurrentlyActive,
-  getEffectiveRosterLock,
-} from '$lib/server/services/settings';
+import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -28,9 +25,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       ? await isSeasonCurrentlyActive(teamInfo.team.season.id)
       : false;
 
-    const hasPending = teamInfo.canJoin
-      ? await hasAnyPendingRequest(locals.user.steamId)
-      : false;
+    const hasPending = teamInfo.canJoin ? await hasAnyPendingRequest(locals.user.steamId) : false;
 
     return {
       ...teamInfo,
@@ -65,9 +60,7 @@ export const actions: Actions = {
     }
 
     // Get team ID from token to check season settings
-    const { validateJoinToken: decodeToken } = await import(
-      '$lib/server/services/teamSignup'
-    );
+    const { validateJoinToken: decodeToken } = await import('$lib/server/services/teamSignup');
     const { teamId } = decodeToken(token);
 
     const rosterLocked = await getEffectiveRosterLock(teamId);
@@ -100,9 +93,7 @@ export const actions: Actions = {
 
     try {
       // Just decode to get team ID, then delete pending
-      const { validateJoinToken } = await import(
-        '$lib/server/services/teamSignup'
-      );
+      const { validateJoinToken } = await import('$lib/server/services/teamSignup');
       const { teamId } = validateJoinToken(token);
 
       await declineInvitation(locals.user.steamId, teamId);

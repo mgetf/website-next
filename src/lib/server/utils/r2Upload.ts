@@ -3,11 +3,7 @@
  * Handles file uploads to R2 storage
  */
 
-import {
-  S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
-} from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
@@ -49,10 +45,7 @@ if (isR2Configured) {
  * @param remotePath - Path in R2 bucket (e.g., "team-avatars/1234567890.png")
  * @returns Public URL of uploaded file, or null if R2 not configured
  */
-export async function uploadToR2(
-  localPath: string,
-  remotePath: string,
-): Promise<string | null> {
+export async function uploadToR2(localPath: string, remotePath: string): Promise<string | null> {
   // Skip if R2 not configured
   if (!isR2Configured || !r2Client) {
     console.warn('R2 not configured, skipping upload');
@@ -92,9 +85,7 @@ export async function uploadToR2(
     await r2Client.send(command);
 
     // Return public URL
-    const baseUrl = R2_PUBLIC_URL.endsWith('/')
-      ? R2_PUBLIC_URL
-      : `${R2_PUBLIC_URL}/`;
+    const baseUrl = R2_PUBLIC_URL.endsWith('/') ? R2_PUBLIC_URL : `${R2_PUBLIC_URL}/`;
     const publicUrl = `${baseUrl}images/${remotePath}`;
     return publicUrl;
   } catch (err) {
@@ -138,10 +129,7 @@ export function isR2Available(): boolean {
  * @param file - File object from form data
  * @param type - 'image' or 'demo'
  */
-export function validateUploadedFile(
-  file: File,
-  type: 'image' | 'demo' = 'image',
-): void {
+export function validateUploadedFile(file: File, type: 'image' | 'demo' = 'image'): void {
   if (type === 'image') {
     // Check file size (5MB max for images)
     const maxSize = 5 * 1024 * 1024; // 5MB

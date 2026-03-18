@@ -66,11 +66,7 @@ export async function getPendingPlayers() {
  * Validates roster size, duplicate season membership, computes payment status,
  * cleans up stale memberships, and logs the action.
  */
-export async function approvePlayer(
-  playerSteamId: string,
-  teamId: number,
-  audit: AuditContext,
-) {
+export async function approvePlayer(playerSteamId: string, teamId: number, audit: AuditContext) {
   const activePlayersCount = await prisma.playerInTeam.count({
     where: { teamId, active: 1 },
   });

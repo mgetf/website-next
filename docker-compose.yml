@@ -7,43 +7,43 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
-      
+
       # Application Environment (production | staging | development)
       # - production: Live site (mge.tf) - Full public access
       # - staging: Dev site (dev.mge.tf) - Admin-only access
       # - development: Local development (default if not set)
       # Set via Railway dashboard per service, not here
       # APP_ENVIRONMENT: production
-      
+
       # Database
       DATABASE_URL: # TODO: Add PostgreSQL connection string (postgresql://user:password@host:port/database)
-      
+
       # Steam Authentication
       STEAM_API_KEY: # TODO: Add Steam API Key
-      
+
       # Discord OAuth
       DISCORD_CLIENT_ID: # TODO: Add Discord Client ID
       DISCORD_CLIENT_SECRET: # TODO: Add Discord Client Secret
       DISCORD_REDIRECT_URI: https://yourdomain.com/auth/discord/callback
-      
+
       # PayPal Configuration
       PAYPAL_CLIENT_ID: # TODO: Add PayPal Client ID
       PAYPAL_CLIENT_SECRET: # TODO: Add PayPal Client Secret
       PAYPAL_MODE: live # or 'sandbox' for testing
-      
+
       # AWS S3 Configuration
       AWS_ACCESS_KEY_ID: # TODO: Add AWS Access Key ID
       AWS_SECRET_ACCESS_KEY: # TODO: Add AWS Secret Access Key
       AWS_REGION: us-east-1
       AWS_BUCKET_NAME: # TODO: Add S3 Bucket Name
-      
+
       # PostHog Analytics
       POSTHOG_API_KEY: # TODO: Add PostHog API Key (optional)
       POSTHOG_HOST: https://us.i.posthog.com
-      
+
       # Session Secret
       SESSION_SECRET: # TODO: Add random secure string (minimum 32 characters)
-      
+
     ports:
       - '3000:3000'
     restart: unless-stopped

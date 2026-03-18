@@ -22,8 +22,7 @@ interface UploadDemoData {
 }
 
 export async function uploadDemo(data: UploadDemoData) {
-  const { file, playerSteamId, submittedBy, matchId, description, title } =
-    data;
+  const { file, playerSteamId, submittedBy, matchId, description, title } = data;
 
   const fileExtension = file.originalFilename.split('.').pop()?.toLowerCase();
   if (fileExtension !== 'dem') {
@@ -115,15 +114,9 @@ export async function getDemoById(id: number) {
   return demo;
 }
 
-export async function reportDemo(
-  demoId: number,
-  reportedBy: string,
-  description: string,
-) {
+export async function reportDemo(demoId: number, reportedBy: string, description: string) {
   if (!description || description.length > 1000 || /<|>/.test(description)) {
-    throw new Error(
-      'Invalid description. Must be 1-1000 characters without HTML tags.',
-    );
+    throw new Error('Invalid description. Must be 1-1000 characters without HTML tags.');
   }
 
   const existingReport = await prisma.demoReport.findFirst({
@@ -135,9 +128,7 @@ export async function reportDemo(
   });
 
   if (existingReport) {
-    throw new Error(
-      'You have already submitted a pending report for this demo.',
-    );
+    throw new Error('You have already submitted a pending report for this demo.');
   }
 
   const report = await prisma.demoReport.create({

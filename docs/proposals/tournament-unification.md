@@ -82,25 +82,25 @@ No `name` field (the `card` image path renders as the event title in the UI). Ma
 
 ### Structural Fragmentation
 
-| Concern | What Happens Today |
-|---------|--------------------|
-| Display a unified event timeline | Query 3 tables, manually merge and sort results |
-| Show a player's tournament history | Query `tournaments` placements + `championship_match` + `fight_night_matchups` separately |
-| Add a new feature (VODs, map veto, scheduling) | Implement it in 3 separate table structures |
-| Build a bracket renderer | Write adapters for 3 different match schemas, or pick one and ignore the others |
+| Concern                                        | What Happens Today                                                                        |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Display a unified event timeline               | Query 3 tables, manually merge and sort results                                           |
+| Show a player's tournament history             | Query `tournaments` placements + `championship_match` + `fight_night_matchups` separately |
+| Add a new feature (VODs, map veto, scheduling) | Implement it in 3 separate table structures                                               |
+| Build a bracket renderer                       | Write adapters for 3 different match schemas, or pick one and ignore the others           |
 
 ### Inconsistent Data Model
 
-| Feature | Cups | Championships | Fight Nights |
-|---------|------|--------------|--------------|
-| Has name | Yes | Yes | **No** |
-| Has avatar/image | `avatar` | `avatar` | `card` (different field, different semantics) |
-| Has status lifecycle | No | Yes (enum) | No |
-| Has prizepool | No | No | Yes (always 0) |
-| Tracks matches | No | Yes (`championship_match`) | Yes (`fight_night_matchups`) |
-| Tracks games | No | Yes (`championship_game`) | Yes (shared `games` table) |
-| Supports 2v2 | Dual steam ID columns | No | No |
-| Winner tracking | 6 hardcoded placement columns | Single winner FK | Per-matchup winner FK |
+| Feature              | Cups                          | Championships              | Fight Nights                                  |
+| -------------------- | ----------------------------- | -------------------------- | --------------------------------------------- |
+| Has name             | Yes                           | Yes                        | **No**                                        |
+| Has avatar/image     | `avatar`                      | `avatar`                   | `card` (different field, different semantics) |
+| Has status lifecycle | No                            | Yes (enum)                 | No                                            |
+| Has prizepool        | No                            | No                         | Yes (always 0)                                |
+| Tracks matches       | No                            | Yes (`championship_match`) | Yes (`fight_night_matchups`)                  |
+| Tracks games         | No                            | Yes (`championship_game`)  | Yes (shared `games` table)                    |
+| Supports 2v2         | Dual steam ID columns         | No                         | No                                            |
+| Winner tracking      | 6 hardcoded placement columns | Single winner FK           | Per-matchup winner FK                         |
 
 ### 2v2 Format Is Broken
 
@@ -223,11 +223,11 @@ This is the key table that eliminates the 1v1-only limitation. Instead of hardco
 Example — Fight Night II, "Ryan/Fancy vs Ex/ITY3":
 
 | match_id | steam_id | side |
-|----------|----------|------|
-| 42 | ryan_id | 1 |
-| 42 | fancy_id | 1 |
-| 42 | ex_id | 2 |
-| 42 | ity3_id | 2 |
+| -------- | -------- | ---- |
+| 42       | ryan_id  | 1    |
+| 42       | fancy_id | 1    |
+| 42       | ex_id    | 2    |
+| 42       | ity3_id  | 2    |
 
 ### Games
 
@@ -308,18 +308,18 @@ For fight nights (flat matchup cards), placements may not apply — each matchup
 
 ## Table Reduction
 
-| Before | After |
-|--------|-------|
-| `tournaments` | `events` (unified) |
-| `championship` | |
-| `fight_night` | |
-| `championship_match` | `event_matches` (unified) |
-| `fight_night_matchups` | |
-| `championship_game` | `event_games` (unified) |
-| fight night rows in `games` | |
-| `championship_participant` | `event_participants` (unified) |
-| 6 hardcoded placement columns | `event_placements` (unified) |
-| **7 tables + shared `games` column** | **5 tables** |
+| Before                               | After                          |
+| ------------------------------------ | ------------------------------ |
+| `tournaments`                        | `events` (unified)             |
+| `championship`                       |                                |
+| `fight_night`                        |                                |
+| `championship_match`                 | `event_matches` (unified)      |
+| `fight_night_matchups`               |                                |
+| `championship_game`                  | `event_games` (unified)        |
+| fight night rows in `games`          |                                |
+| `championship_participant`           | `event_participants` (unified) |
+| 6 hardcoded placement columns        | `event_placements` (unified)   |
+| **7 tables + shared `games` column** | **5 tables**                   |
 
 ---
 
@@ -327,14 +327,14 @@ For fight nights (flat matchup cards), placements may not apply — each matchup
 
 The dataset is small and manageable:
 
-| Source | Records |
-|--------|---------|
-| Cups (`tournaments`) | 13 events |
-| Championships (`championship`) | 1 event |
-| Fight Nights (`fight_night`) | 2 events |
-| Championship matches | ~0 active (registration phase) |
-| Fight night matchups | 4 matchups (Fight Night I only) |
-| Fight night games | 11 games |
+| Source                         | Records                         |
+| ------------------------------ | ------------------------------- |
+| Cups (`tournaments`)           | 13 events                       |
+| Championships (`championship`) | 1 event                         |
+| Fight Nights (`fight_night`)   | 2 events                        |
+| Championship matches           | ~0 active (registration phase)  |
+| Fight night matchups           | 4 matchups (Fight Night I only) |
+| Fight night games              | 11 games                        |
 
 ### Step 1: Create New Tables
 

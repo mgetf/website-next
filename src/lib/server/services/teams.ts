@@ -526,10 +526,7 @@ export async function updateTeamStatus(id: number, status: TeamStatus) {
  * Find the most recent season that has teams with specific statuses
  * Used to find default season for league pages
  */
-export async function findRecentSeasonWithTeams(
-  statuses: string[],
-  formatId?: number,
-) {
+export async function findRecentSeasonWithTeams(statuses: string[], formatId?: number) {
   return await prisma.team.findFirst({
     where: {
       status: { in: statuses as any },
@@ -589,9 +586,7 @@ export async function getTop1v1EntriesForHomepage(options: {
   return teams.map((team, index) => {
     const totalGames = team.gamesWon + team.gamesLost;
     const pointsPerGame =
-      totalGames > 0
-        ? parseFloat((team.pointsScored / totalGames).toFixed(1))
-        : 0;
+      totalGames > 0 ? parseFloat((team.pointsScored / totalGames).toFixed(1)) : 0;
     return {
       rank: index + 1,
       id: team.id,
@@ -685,8 +680,7 @@ export function calculateStandingsStats(team: {
   pointsScoredAgainst: number;
 }) {
   const totalGames = team.gamesWon + team.gamesLost;
-  const ppg =
-    totalGames > 0 ? (team.pointsScored / totalGames).toFixed(1) : '0.0';
+  const ppg = totalGames > 0 ? (team.pointsScored / totalGames).toFixed(1) : '0.0';
   const winRate =
     team.wins + team.losses > 0
       ? ((team.wins / (team.wins + team.losses)) * 100).toFixed(1)

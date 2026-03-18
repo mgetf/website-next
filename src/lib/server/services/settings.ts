@@ -5,10 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import {
-  setActiveSignupSeason,
-  getAllActiveSignupSeasons,
-} from './signupSeasons';
+import { setActiveSignupSeason, getAllActiveSignupSeasons } from './signupSeasons';
 
 /**
  * Get global settings
@@ -89,9 +86,7 @@ export interface SeasonSettings {
 /**
  * Get settings for a specific season
  */
-export async function getSeasonSettings(
-  seasonId: number,
-): Promise<SeasonSettings | null> {
+export async function getSeasonSettings(seasonId: number): Promise<SeasonSettings | null> {
   const season = await prisma.season.findUnique({
     where: { id: seasonId },
     select: {
@@ -109,10 +104,7 @@ export async function getSeasonSettings(
 /**
  * Update settings for a specific season
  */
-export async function updateSeasonSettings(
-  seasonId: number,
-  data: Partial<SeasonSettings>,
-) {
+export async function updateSeasonSettings(seasonId: number, data: Partial<SeasonSettings>) {
   return await prisma.season.update({
     where: { id: seasonId },
     data,
@@ -180,9 +172,7 @@ export async function toggleSeasonPaymentRequired(seasonId: number) {
  * Get season settings by team ID
  * Useful for checking roster lock when editing a team
  */
-export async function getSeasonSettingsByTeamId(
-  teamId: number,
-): Promise<SeasonSettings | null> {
+export async function getSeasonSettingsByTeamId(teamId: number): Promise<SeasonSettings | null> {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: {
@@ -205,9 +195,7 @@ export async function getSeasonSettingsByTeamId(
  * Check whether a season is currently active (referenced in ActiveSignupSeason).
  * A season that is not active is considered a past/completed season.
  */
-export async function isSeasonCurrentlyActive(
-  seasonId: number,
-): Promise<boolean> {
+export async function isSeasonCurrentlyActive(seasonId: number): Promise<boolean> {
   const entry = await prisma.activeSignupSeason.findFirst({
     where: { seasonId },
   });
@@ -219,9 +207,7 @@ export async function isSeasonCurrentlyActive(
  * Returns true only when the team's season has rosterLocked=true AND that
  * season is still the current active season. Past seasons are never locked.
  */
-export async function getEffectiveRosterLock(
-  teamId: number,
-): Promise<boolean> {
+export async function getEffectiveRosterLock(teamId: number): Promise<boolean> {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: {

@@ -1,9 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import {
-  requireAuth,
-  requireTeamAdmin,
-  isAdmin,
-} from '$lib/server/auth/permissions';
+import { requireAuth, requireTeamAdmin, isAdmin } from '$lib/server/auth/permissions';
 import {
   getTeamForEdit,
   updateTeamInfo,

@@ -7,10 +7,7 @@ import { prisma } from '$lib/server/db';
 import type { Team } from '$prisma/client.js';
 import { MatchStatus, TeamStatus } from '$prisma/client.js';
 import { error } from '@sveltejs/kit';
-import {
-  calculateWinLossRatio,
-  calculatePointsPerGame,
-} from '$lib/server/utils/matchHelpers';
+import { calculateWinLossRatio, calculatePointsPerGame } from '$lib/server/utils/matchHelpers';
 import { createNotificationForTeamOwners } from './notifications';
 
 /**
@@ -32,16 +29,8 @@ export function sortTeamsByStandings(teams: Team[]): Team[] {
     }
 
     // Tertiary: points per game
-    const ppgA = calculatePointsPerGame(
-      a.pointsScored,
-      a.gamesWon,
-      a.gamesLost,
-    );
-    const ppgB = calculatePointsPerGame(
-      b.pointsScored,
-      b.gamesWon,
-      b.gamesLost,
-    );
+    const ppgA = calculatePointsPerGame(a.pointsScored, a.gamesWon, a.gamesLost);
+    const ppgB = calculatePointsPerGame(b.pointsScored, b.gamesWon, b.gamesLost);
     return ppgB - ppgA;
   });
 }
@@ -50,10 +39,7 @@ export function sortTeamsByStandings(teams: Team[]): Team[] {
  * Pair teams for matches, avoiding repeat matchups
  * Returns array of teams paired in order [team1, team2, team3, team4, ...]
  */
-export async function pairTeamsForMatches(
-  teams: Team[],
-  seasonId: number,
-): Promise<Team[]> {
+export async function pairTeamsForMatches(teams: Team[], seasonId: number): Promise<Team[]> {
   const sortedTeams = sortTeamsByStandings(teams);
   const finalTeams: Team[] = [];
 
@@ -76,9 +62,7 @@ export async function pairTeamsForMatches(
         playedAll++;
 
         if (playedAll > 100) {
-          console.log(
-            `Team ${currentTeam.name} has played everyone multiple times`,
-          );
+          console.log(`Team ${currentTeam.name} has played everyone multiple times`);
           break;
         }
         continue;
@@ -222,7 +206,7 @@ export async function createMatchSet(
       throw error(
         400,
         `Format mismatch: teams must match the season's format. ` +
-        `Season formatId=${seasonFormatId}, home formatId=${homeTeam.formatId}, away formatId=${awayTeam.formatId}`,
+          `Season formatId=${seasonFormatId}, home formatId=${homeTeam.formatId}, away formatId=${awayTeam.formatId}`,
       );
     }
 
@@ -431,7 +415,8 @@ Good luck to both teams!`,
   }
 
   // Send notifications to team owners
-  const roundLabel = playoffRound > 0 ? `Round ${playoffRound}` : `Lower Round ${Math.abs(playoffRound)}`;
+  const roundLabel =
+    playoffRound > 0 ? `Round ${playoffRound}` : `Lower Round ${Math.abs(playoffRound)}`;
   await createNotificationForTeamOwners(
     [homeTeamId, awayTeamId],
     'MATCH_CREATED',
@@ -446,11 +431,7 @@ Good luck to both teams!`,
  * Get teams eligible for match creation
  * Filters by region, division, season, and READY status.
  */
-export async function getEligibleTeams(
-  regionId: number,
-  divisionId: number,
-  seasonId: number,
-) {
+export async function getEligibleTeams(regionId: number, divisionId: number, seasonId: number) {
   // Get season settings for payment requirement and format (per-season setting)
   const season = await prisma.season.findUnique({
     where: { id: seasonId },
@@ -670,10 +651,7 @@ export async function getRecentUnplayedMatches(limit: number = 10) {
 /**
  * Admin override scores (reverses old stats and applies new ones)
  */
-export async function adminUpdateScores(
-  matchId: number,
-  gameResults: GameResult[],
-) {
+export async function adminUpdateScores(matchId: number, gameResults: GameResult[]) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
@@ -690,21 +668,13 @@ export async function adminUpdateScores(
   // If match was already played, reverse old stats
   if (match.winnerId) {
     const previousHomeWins = match.games.filter(
-      (g) =>
-        g.homeTeamScore && g.awayTeamScore && g.homeTeamScore > g.awayTeamScore,
+      (g) => g.homeTeamScore && g.awayTeamScore && g.homeTeamScore > g.awayTeamScore,
     ).length;
     const previousAwayWins = match.games.filter(
-      (g) =>
-        g.homeTeamScore && g.awayTeamScore && g.awayTeamScore > g.homeTeamScore,
+      (g) => g.homeTeamScore && g.awayTeamScore && g.awayTeamScore > g.homeTeamScore,
     ).length;
-    const previousHomePoints = match.games.reduce(
-      (sum, g) => sum + (g.homeTeamScore || 0),
-      0,
-    );
-    const previousAwayPoints = match.games.reduce(
-      (sum, g) => sum + (g.awayTeamScore || 0),
-      0,
-    );
+    const previousHomePoints = match.games.reduce((sum, g) => sum + (g.homeTeamScore || 0), 0);
+    const previousAwayPoints = match.games.reduce((sum, g) => sum + (g.awayTeamScore || 0), 0);
 
     // Reverse home team stats
     await prisma.team.update({
@@ -895,10 +865,7 @@ export async function getMatchesByTeamIds(teamIds: number[]) {
 
   return await prisma.match.findMany({
     where: {
-      OR: [
-        { homeTeamId: { in: teamIds } },
-        { awayTeamId: { in: teamIds } },
-      ],
+      OR: [{ homeTeamId: { in: teamIds } }, { awayTeamId: { in: teamIds } }],
     },
     select: {
       id: true,

@@ -7,6 +7,9 @@
 import { prisma } from '$lib/server/db';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
+import type { ProfileMatch } from '$lib/types/match';
+
+export type { ProfileMatch } from '$lib/types/match';
 
 /**
  * Get user by Steam ID with basic info
@@ -319,8 +322,6 @@ export function buildAchievements(tournamentResults: any[]) {
       date: t.date,
     }));
 }
-
-export type { ProfileMatch } from '$lib/types/match';
 
 /**
  * Fetch all league matches for a set of team IDs in one query.

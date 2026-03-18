@@ -10,6 +10,7 @@ const config = {
   kit: {
     adapter: adapter({
       out: 'build',
+      bodySize: 6 * 1024 * 1024,
     }),
     alias: {
       $prisma: './prisma/generated',

@@ -547,11 +547,10 @@
                       class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
                     >
                       {#each data.divisions as division}
-                        <option
-                          value={division.id}
-                          selected={division.id === team.divisionId}
-                        >
-                          {division.name}{division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}
+                        <option value={division.id} selected={division.id === team.divisionId}>
+                          {division.name}{division.signupCost > 0
+                            ? ` ($${division.signupCost})`
+                            : ' (free)'}
                         </option>
                       {/each}
                     </select>
@@ -564,7 +563,9 @@
                   </button>
                 </form>
               {:else}
-                <p class="text-text-muted text-sm">No divisions available for this team's region.</p>
+                <p class="text-text-muted text-sm">
+                  No divisions available for this team's region.
+                </p>
               {/if}
             </div>
           {/if}

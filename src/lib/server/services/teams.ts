@@ -601,11 +601,19 @@ export async function changeTeamDivision(
   const refundMessage = `Your division was changed from ${oldDivName} to ${newDivision.name}. Since you already paid for ${oldDivName}, you may be entitled to a refund. Please contact an admin to discuss your options (PayPal refund, TF2 keys, or site credit for future signups).`;
 
   for (const steamId of notifiedPlayerSteamIds) {
-    await createNotificationForUser(steamId, NotificationType.ADMIN_ACTION, teamUrl, refundMessage, adminSteamId);
+    await createNotificationForUser(
+      steamId,
+      NotificationType.ADMIN_ACTION,
+      teamUrl,
+      refundMessage,
+      adminSteamId,
+    );
   }
 
   return {
-    oldDivision: oldDiv ? { id: oldDiv.id, name: oldDiv.name, signupCost: oldDiv.signupCost } : null,
+    oldDivision: oldDiv
+      ? { id: oldDiv.id, name: oldDiv.name, signupCost: oldDiv.signupCost }
+      : null,
     newDivision: { id: newDivision.id, name: newDivision.name, signupCost: newDivision.signupCost },
     paymentStatusReset,
     notifiedPlayerSteamIds,

@@ -821,7 +821,6 @@
                       {:else}
                         <div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
                       {/if}
-
                     </div>
                   {/if}
                 </div>
@@ -1187,7 +1186,8 @@
         <input type="hidden" name="divisionId" value={changeDivisionSelected} />
         <button
           type="submit"
-          disabled={isChangingDivision || changeDivisionSelected === (changeDivisionEntry.divisionId ?? 0)}
+          disabled={isChangingDivision ||
+            changeDivisionSelected === (changeDivisionEntry.divisionId ?? 0)}
           class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isChangingDivision ? 'Updating...' : 'Update Division'}

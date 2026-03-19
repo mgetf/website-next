@@ -172,9 +172,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   // Load divisions for admin division-change control (only needed for global admins)
   const allDivisions = isGlobalAdmin ? await getVisibleDivisions() : [];
-  const divisions = isGlobalAdmin && team.regionId
-    ? allDivisions.filter((d) => d.regionId === team.regionId)
-    : allDivisions;
+  const divisions =
+    isGlobalAdmin && team.regionId
+      ? allDivisions.filter((d) => d.regionId === team.regionId)
+      : allDivisions;
 
   return {
     team: {

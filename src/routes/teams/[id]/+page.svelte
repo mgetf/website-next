@@ -527,6 +527,46 @@
                 </button>
               </form>
             </div>
+
+            <div class="pt-4 border-t border-zinc-800">
+              <h3 class="text-lg font-bold text-white mb-4">Change Division</h3>
+              {#if data.divisions.length > 0}
+                <form
+                  method="POST"
+                  action="?/changeDivision"
+                  use:enhance
+                  class="flex gap-3 items-end"
+                >
+                  <div class="flex-1">
+                    <label for="divisionId" class="block text-sm font-medium text-text-label mb-2">
+                      Division
+                    </label>
+                    <select
+                      id="divisionId"
+                      name="divisionId"
+                      class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    >
+                      {#each data.divisions as division}
+                        <option
+                          value={division.id}
+                          selected={division.id === team.divisionId}
+                        >
+                          {division.name}{division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}
+                        </option>
+                      {/each}
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    class="px-6 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
+                  >
+                    Update Division
+                  </button>
+                </form>
+              {:else}
+                <p class="text-text-muted text-sm">No divisions available for this team's region.</p>
+              {/if}
+            </div>
           {/if}
         </div>
       </div>

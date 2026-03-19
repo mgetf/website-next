@@ -69,6 +69,7 @@ enum NotificationType {
   PENDING_PLAYER // 1
   MATCH_CREATED // 2
   PLAYER_INVITE // 3
+  ADMIN_ACTION // 4
 }
 
 enum MapBanActionType {

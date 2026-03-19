@@ -25,11 +25,7 @@ export const GET: RequestHandler = async ({ url, request, getClientAddress }) =>
   let steamId: string;
 
   try {
-    ({ user: discordUser, steamId } = await handleDiscordCallback(
-      code,
-      state,
-      request,
-    ));
+    ({ user: discordUser, steamId } = await handleDiscordCallback(code, state, request));
   } catch (err) {
     console.error('[Discord OAuth] Callback failed:', err);
     redirect(302, '/?error=discord_link_failed');

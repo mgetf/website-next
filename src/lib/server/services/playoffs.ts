@@ -51,10 +51,7 @@ export async function getAllPlayoffs() {
           },
         },
       },
-      orderBy: [
-        { season: { regionId: 'asc' } },
-        { season: { seasonNum: 'desc' } },
-      ],
+      orderBy: [{ season: { regionId: 'asc' } }, { season: { seasonNum: 'desc' } }],
     });
 
     return playoffs;
@@ -119,10 +116,7 @@ export async function createPlayoff(params: CreatePlayoffParams) {
 /**
  * Update an existing playoff configuration
  */
-export async function updatePlayoff(
-  playoffId: number,
-  params: UpdatePlayoffParams,
-) {
+export async function updatePlayoff(playoffId: number, params: UpdatePlayoffParams) {
   const { numRounds, doubleElim, isTournament } = params;
 
   try {
@@ -139,14 +133,9 @@ export async function updatePlayoff(
     const playoff = await prisma.playoff.update({
       where: { id: playoffId },
       data: {
-        numRounds:
-          numRounds !== undefined ? numRounds : existingPlayoff.numRounds,
-        doubleElim:
-          doubleElim !== undefined ? doubleElim : existingPlayoff.doubleElim,
-        isTournament:
-          isTournament !== undefined
-            ? isTournament
-            : existingPlayoff.isTournament,
+        numRounds: numRounds !== undefined ? numRounds : existingPlayoff.numRounds,
+        doubleElim: doubleElim !== undefined ? doubleElim : existingPlayoff.doubleElim,
+        isTournament: isTournament !== undefined ? isTournament : existingPlayoff.isTournament,
       },
       include: {
         season: {
@@ -170,10 +159,7 @@ export async function updatePlayoff(
 /**
  * Update playoff by season ID
  */
-export async function updatePlayoffBySeason(
-  seasonId: number,
-  params: UpdatePlayoffParams,
-) {
+export async function updatePlayoffBySeason(seasonId: number, params: UpdatePlayoffParams) {
   try {
     const existingPlayoff = await prisma.playoff.findFirst({
       where: { seasonId },
@@ -213,10 +199,7 @@ export async function deletePlayoff(playoffId: number) {
     });
 
     if (matchesCount > 0) {
-      throw error(
-        400,
-        'Cannot delete playoff configuration with existing matches',
-      );
+      throw error(400, 'Cannot delete playoff configuration with existing matches');
     }
 
     // Delete playoff
@@ -264,10 +247,7 @@ export function getPlayoffRounds(numRounds: number, doubleElim: boolean) {
 /**
  * Calculate number of matches for a playoff round
  */
-export function calculateMatchesForRound(
-  numRounds: number,
-  currentRound: number,
-): number {
+export function calculateMatchesForRound(numRounds: number, currentRound: number): number {
   // For upper bracket rounds (positive numbers)
   if (currentRound > 0) {
     return Math.pow(2, numRounds - currentRound);

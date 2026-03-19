@@ -25,7 +25,7 @@ export function createSteamAuth(request: Request): SteamAuth {
   return new SteamAuth({
     realm: domain,
     returnUrl: `${domain}/auth/verify`,
-    apiKey: env.STEAM_API_KEY,
+    apiKey: env.STEAM_API_KEY ?? '',
   });
 }
 

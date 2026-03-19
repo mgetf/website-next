@@ -5,9 +5,11 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { TeamStatus } from '$prisma/client.js';
+import { TeamStatus, NotificationType } from '$prisma/client.js';
 import type { Prisma } from '$prisma/client.js';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { notFound, badRequest } from '$lib/server/utils/errors';
+import { createNotificationForUser } from '$lib/server/services/notifications';
 
 /**
  * Get teams with filtering, search, and pagination
@@ -522,14 +524,107 @@ export async function updateTeamStatus(id: number, status: TeamStatus) {
   });
 }
 
+export interface ChangeTeamDivisionResult {
+  oldDivision: { id: number; name: string; signupCost: number } | null;
+  newDivision: { id: number; name: string; signupCost: number };
+  paymentStatusReset: boolean;
+  notifiedPlayerSteamIds: string[];
+}
+
+/**
+ * Change a team's division with payment status side-effects.
+ *
+ * Free → Paid:  resets paymentStatus to 0 for all active players and the team.
+ * Paid → Free:  sends a refund-eligibility notification to any already-paid players.
+ * Same tier:    no payment changes.
+ */
+export async function changeTeamDivision(
+  teamId: number,
+  newDivisionId: number,
+  adminSteamId: string,
+): Promise<ChangeTeamDivisionResult> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      division: true,
+      players: {
+        where: { active: 1 },
+        select: { playerSteamId: true, paymentStatus: true },
+      },
+    },
+  });
+
+  if (!team) notFound('Team not found');
+
+  const newDivision = await prisma.division.findUnique({ where: { id: newDivisionId } });
+
+  if (!newDivision) notFound('Division not found');
+
+  if (team.divisionId === newDivisionId) {
+    badRequest('Team is already in that division');
+  }
+
+  if (team.regionId && newDivision.regionId !== team.regionId) {
+    badRequest('Division must be in the same region as the team');
+  }
+
+  const oldDiv = team.division;
+  const oldIsFree = !oldDiv || oldDiv.signupCost === 0;
+  const newIsFree = newDivision.signupCost === 0;
+
+  const notifiedPlayerSteamIds: string[] = [];
+  let paymentStatusReset = false;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.team.update({ where: { id: teamId }, data: { divisionId: newDivisionId } });
+
+    if (oldIsFree && !newIsFree) {
+      // Free → Paid: mark all active players and the team as unpaid
+      await tx.playerInTeam.updateMany({
+        where: { teamId, active: 1 },
+        data: { paymentStatus: 0 },
+      });
+      await tx.team.update({ where: { id: teamId }, data: { paymentStatus: 0 } });
+      paymentStatusReset = true;
+    } else if (!oldIsFree && newIsFree) {
+      // Paid → Free: notify any players who already paid
+      const paidPlayers = team.players.filter((p) => p.paymentStatus === 1);
+      for (const p of paidPlayers) {
+        notifiedPlayerSteamIds.push(p.playerSteamId);
+      }
+    }
+  });
+
+  // Send notifications outside the transaction (non-critical)
+  const teamUrl = `/teams/${teamId}`;
+  const oldDivName = oldDiv?.name ?? 'Unknown';
+  const refundMessage = `Your division was changed from ${oldDivName} to ${newDivision.name}. Since you already paid for ${oldDivName}, you may be entitled to a refund. Please contact an admin to discuss your options (PayPal refund, TF2 keys, or site credit for future signups).`;
+
+  for (const steamId of notifiedPlayerSteamIds) {
+    await createNotificationForUser(
+      steamId,
+      NotificationType.ADMIN_ACTION,
+      teamUrl,
+      refundMessage,
+      adminSteamId,
+    );
+  }
+
+  return {
+    oldDivision: oldDiv
+      ? { id: oldDiv.id, name: oldDiv.name, signupCost: oldDiv.signupCost }
+      : null,
+    newDivision: { id: newDivision.id, name: newDivision.name, signupCost: newDivision.signupCost },
+    paymentStatusReset,
+    notifiedPlayerSteamIds,
+  };
+}
+
 /**
  * Find the most recent season that has teams with specific statuses
  * Used to find default season for league pages
  */
-export async function findRecentSeasonWithTeams(
-  statuses: string[],
-  formatId?: number,
-) {
+export async function findRecentSeasonWithTeams(statuses: string[], formatId?: number) {
   return await prisma.team.findFirst({
     where: {
       status: { in: statuses as any },
@@ -589,9 +684,7 @@ export async function getTop1v1EntriesForHomepage(options: {
   return teams.map((team, index) => {
     const totalGames = team.gamesWon + team.gamesLost;
     const pointsPerGame =
-      totalGames > 0
-        ? parseFloat((team.pointsScored / totalGames).toFixed(1))
-        : 0;
+      totalGames > 0 ? parseFloat((team.pointsScored / totalGames).toFixed(1)) : 0;
     return {
       rank: index + 1,
       id: team.id,
@@ -685,8 +778,7 @@ export function calculateStandingsStats(team: {
   pointsScoredAgainst: number;
 }) {
   const totalGames = team.gamesWon + team.gamesLost;
-  const ppg =
-    totalGames > 0 ? (team.pointsScored / totalGames).toFixed(1) : '0.0';
+  const ppg = totalGames > 0 ? (team.pointsScored / totalGames).toFixed(1) : '0.0';
   const winRate =
     team.wins + team.losses > 0
       ? ((team.wins / (team.wins + team.losses)) * 100).toFixed(1)

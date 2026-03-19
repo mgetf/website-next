@@ -122,15 +122,15 @@ A system user Steam ID (`76561199005229176`) is hardcoded in `src/lib/server/ser
 
 ### 2.5 Environment Variable Handling
 
-| Category | Variables | Handling |
-|----------|-----------|----------|
-| Database | `DATABASE_URL` | `process.env` in `db.ts` |
-| Auth | `STEAM_API_KEY`, `SESSION_SECRET`, `JWT_SECRET` | Mix of `process.env` and `$env/dynamic/private` |
-| Discord | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI` | `$env/dynamic/private` |
-| Payments | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MODE` | `process.env` |
-| Storage | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`, etc. | `process.env` |
-| Analytics | `POSTHOG_API_KEY`, `POSTHOG_HOST` | Not verified |
-| App | `APP_ENVIRONMENT`, `PUBLIC_URL`, `PORT`, `HOST` | `process.env` |
+| Category  | Variables                                                                 | Handling                                        |
+| --------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
+| Database  | `DATABASE_URL`                                                            | `process.env` in `db.ts`                        |
+| Auth      | `STEAM_API_KEY`, `SESSION_SECRET`, `JWT_SECRET`                           | Mix of `process.env` and `$env/dynamic/private` |
+| Discord   | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`      | `$env/dynamic/private`                          |
+| Payments  | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MODE`                 | `process.env`                                   |
+| Storage   | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`, etc. | `process.env`                                   |
+| Analytics | `POSTHOG_API_KEY`, `POSTHOG_HOST`                                         | Not verified                                    |
+| App       | `APP_ENVIRONMENT`, `PUBLIC_URL`, `PORT`, `HOST`                           | `process.env`                                   |
 
 **Issue:** There is inconsistency between `env.ts` (which validates `R2_*` variable names) and `r2Upload.ts` (which uses `S3_*` variable names). Should be unified before open-sourcing.
 
@@ -187,19 +187,20 @@ This is the single biggest code quality concern for an open-source project.
 
 ### 3.7 TODOs and Technical Debt
 
-| File | TODO |
-|------|------|
-| `password.ts` | Remove plaintext password fallback after migration |
-| `seasons.ts` | Temporary workaround for region info in filters |
-| `tournaments.ts` | Prize pool hardcoded as `$250` instead of from database |
+| File             | TODO                                                          |
+| ---------------- | ------------------------------------------------------------- |
+| `password.ts`    | Remove plaintext password fallback after migration            |
+| `seasons.ts`     | Temporary workaround for region info in filters               |
+| `tournaments.ts` | Prize pool hardcoded as `$250` instead of from database       |
 | `tournaments.ts` | Fix schema for single source of truth across tournament types |
-| `mapBans.ts` | Notify opposing team of ban/pick action |
-| `matchComms.ts` | Create notifications for team owners/admins |
-| `matchComms.ts` | Notify relevant parties of reschedule response |
+| `mapBans.ts`     | Notify opposing team of ban/pick action                       |
+| `matchComms.ts`  | Create notifications for team owners/admins                   |
+| `matchComms.ts`  | Notify relevant parties of reschedule response                |
 
 ### 3.8 Dependencies — Modern and Reasonable
 
 The dependency list is lean and uses current versions:
+
 - SvelteKit 2.53, Svelte 5.53, Vite 7.3
 - Prisma 7.4 (latest)
 - Tailwind CSS 4.2
@@ -216,6 +217,7 @@ The dependency list is lean and uses current versions:
 No `LICENSE` file exists. **This is the single most important missing piece.** Without a license, the code is technically "all rights reserved" — no one can legally fork, modify, or contribute to it.
 
 **Recommendation:** Choose a license that aligns with mge.tf's goals:
+
 - **MIT** or **Apache 2.0**: Maximum community adoption, anyone can use the code (even commercially). Best for growing an ecosystem around mge.tf
 - **AGPL-3.0**: Forces anyone who hosts a modified version to share their changes. Protects against someone forking mge.tf and running a competing service without contributing back
 - **BSL (Business Source License)**: Source-available but not truly open-source. Prevents commercial competition while allowing community contributions. Used by MariaDB, Sentry, etc.
@@ -229,6 +231,7 @@ No `.env.example` file exists (though the `.gitignore` explicitly allows one). T
 ### 4.3 Missing: `CONTRIBUTING.md`
 
 No contributing guide exists. For an open-source project, this should cover:
+
 - How to set up the development environment
 - Code style expectations
 - Pull request process
@@ -242,6 +245,7 @@ No `.github/` directory with issue templates or pull request templates.
 ### 4.5 Missing: CI/CD Pipeline
 
 No GitHub Actions workflows exist. A minimal pipeline should:
+
 - Run `bun run check` (svelte-check) on PRs
 - Run tests (once they exist)
 - Optionally run linting
@@ -269,6 +273,7 @@ RGL (RGL.gg) is the largest competitive TF2 league in North America. Their websi
 ### 5.2 Community Trust
 
 The TF2 competitive community is tight-knit and technically literate. Many players are developers. Open-sourcing the platform:
+
 - Builds trust that the platform handles data fairly
 - Enables community members to verify security claims
 - Creates ownership ("our platform" vs "their platform")
@@ -276,6 +281,7 @@ The TF2 competitive community is tight-knit and technically literate. Many playe
 ### 5.3 Sustainability Risk
 
 As a growing tournament org, mge.tf may eventually handle:
+
 - Player payment information (via PayPal — already implemented)
 - Anti-cheat integrations
 - Prize pool management
@@ -290,6 +296,7 @@ The code itself is not the competitive advantage — the community, the tourname
 ### 5.5 Contribution Potential
 
 With 128 commits from 1 primary developer, the bus factor is 1. Open-sourcing can:
+
 - Attract contributors for bug fixes and features
 - Distribute maintenance burden
 - Accelerate development of features (map bans, notifications, etc.) that currently have TODOs
@@ -300,32 +307,32 @@ However, open-source contributions don't happen automatically. Active community 
 
 ## 6. Pros of Open-Sourcing
 
-| # | Pro | Impact |
-|---|-----|--------|
-| 1 | **Community trust and transparency** — Players can see exactly how their data is handled, how matches are managed, and how admin decisions are processed | High |
-| 2 | **Community contributions** — The TF2 community is technically skilled; contributors can fix bugs, add features, and improve the platform faster than a solo developer | High |
-| 3 | **Reduced bus factor** — Currently at 1. Open-sourcing enables others to understand and maintain the codebase if the primary developer becomes unavailable | High |
-| 4 | **Security through transparency** — Forces good security practices. Community members can audit the code and report vulnerabilities responsibly | Medium |
-| 5 | **Recruitment** — Contributors become invested in the platform and may take on leadership roles in mge.tf's operations | Medium |
-| 6 | **Differentiation from RGL** — Being open-source is a unique selling point in the TF2 competitive scene. No major TF2 league is open-source | Medium |
-| 7 | **Portfolio value** — A well-maintained open-source tournament platform is valuable for all contributors' portfolios | Low |
-| 8 | **Ecosystem growth** — Other communities (not just TF2) could fork and adapt the platform for their own tournaments, growing the ecosystem | Low |
-| 9 | **Free infrastructure** — GitHub Actions, community issue triage, documentation contributions are effectively free labor | Low |
+| #   | Pro                                                                                                                                                                    | Impact |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Community trust and transparency** — Players can see exactly how their data is handled, how matches are managed, and how admin decisions are processed               | High   |
+| 2   | **Community contributions** — The TF2 community is technically skilled; contributors can fix bugs, add features, and improve the platform faster than a solo developer | High   |
+| 3   | **Reduced bus factor** — Currently at 1. Open-sourcing enables others to understand and maintain the codebase if the primary developer becomes unavailable             | High   |
+| 4   | **Security through transparency** — Forces good security practices. Community members can audit the code and report vulnerabilities responsibly                        | Medium |
+| 5   | **Recruitment** — Contributors become invested in the platform and may take on leadership roles in mge.tf's operations                                                 | Medium |
+| 6   | **Differentiation from RGL** — Being open-source is a unique selling point in the TF2 competitive scene. No major TF2 league is open-source                            | Medium |
+| 7   | **Portfolio value** — A well-maintained open-source tournament platform is valuable for all contributors' portfolios                                                   | Low    |
+| 8   | **Ecosystem growth** — Other communities (not just TF2) could fork and adapt the platform for their own tournaments, growing the ecosystem                             | Low    |
+| 9   | **Free infrastructure** — GitHub Actions, community issue triage, documentation contributions are effectively free labor                                               | Low    |
 
 ---
 
 ## 7. Cons of Open-Sourcing
 
-| # | Con | Impact | Mitigation |
-|---|-----|--------|------------|
-| 1 | **Security vulnerabilities exposed** — The open redirect, missing rate limiting, and plaintext password fallback become immediately exploitable | Critical | Fix all critical issues before open-sourcing |
-| 2 | **Maintenance burden** — Issues, PRs, and community management require ongoing effort from maintainers | Medium | Start with a small scope; use "good first issue" labels; set expectations in CONTRIBUTING.md |
-| 3 | **No tests** — Contributors can introduce regressions without any safety net; the lack of tests also signals low code maturity to potential contributors | Medium | Add at least basic integration tests for critical paths (auth, payments, match reporting) before launch |
-| 4 | **Code quality perception** — Widespread `any` usage, inconsistent patterns, and unused utilities may deter experienced contributors | Medium | Clean up the most visible issues; document the architectural vision |
-| 5 | **Operational details visible** — Admin logic, payment flows, ban systems, and dispute resolution mechanisms are fully transparent. Malicious users could study these to game the system | Medium | Accept this as a trade-off; design systems to be secure even when logic is known |
-| 6 | **Forking risk** — Someone could fork mge.tf and run a competing tournament platform | Low | Use AGPL-3.0 to require forks to share changes; the real value is the community, not the code |
-| 7 | **Internal documentation exposed** — Migration docs contain local paths; proposal docs reveal internal planning | Low | Clean up internal docs; move truly private planning to a separate location |
-| 8 | **Hardcoded system Steam ID exposed** — The system user account becomes known | Low | Move to environment variable |
+| #   | Con                                                                                                                                                                                      | Impact   | Mitigation                                                                                              |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------- |
+| 1   | **Security vulnerabilities exposed** — The open redirect, missing rate limiting, and plaintext password fallback become immediately exploitable                                          | Critical | Fix all critical issues before open-sourcing                                                            |
+| 2   | **Maintenance burden** — Issues, PRs, and community management require ongoing effort from maintainers                                                                                   | Medium   | Start with a small scope; use "good first issue" labels; set expectations in CONTRIBUTING.md            |
+| 3   | **No tests** — Contributors can introduce regressions without any safety net; the lack of tests also signals low code maturity to potential contributors                                 | Medium   | Add at least basic integration tests for critical paths (auth, payments, match reporting) before launch |
+| 4   | **Code quality perception** — Widespread `any` usage, inconsistent patterns, and unused utilities may deter experienced contributors                                                     | Medium   | Clean up the most visible issues; document the architectural vision                                     |
+| 5   | **Operational details visible** — Admin logic, payment flows, ban systems, and dispute resolution mechanisms are fully transparent. Malicious users could study these to game the system | Medium   | Accept this as a trade-off; design systems to be secure even when logic is known                        |
+| 6   | **Forking risk** — Someone could fork mge.tf and run a competing tournament platform                                                                                                     | Low      | Use AGPL-3.0 to require forks to share changes; the real value is the community, not the code           |
+| 7   | **Internal documentation exposed** — Migration docs contain local paths; proposal docs reveal internal planning                                                                          | Low      | Clean up internal docs; move truly private planning to a separate location                              |
+| 8   | **Hardcoded system Steam ID exposed** — The system user account becomes known                                                                                                            | Low      | Move to environment variable                                                                            |
 
 ---
 
@@ -379,4 +386,4 @@ The lack of tests is a concern but not a blocker — many successful open-source
 
 ---
 
-*This analysis was conducted by reviewing all 128 commits, the full directory structure, all service files, auth implementation, session management, database schema, Docker configuration, and documentation. No secrets or credentials were found in the current codebase or git history.*
+_This analysis was conducted by reviewing all 128 commits, the full directory structure, all service files, auth implementation, session management, database schema, Docker configuration, and documentation. No secrets or credentials were found in the current codebase or git history._

@@ -91,9 +91,7 @@ export async function createSeason(data: {
   });
 
   if (existingSeason) {
-    throw new Error(
-      `Season ${data.seasonNum} already exists for this region and format`,
-    );
+    throw new Error(`Season ${data.seasonNum} already exists for this region and format`);
   }
 
   return await prisma.season.create({
@@ -142,9 +140,7 @@ export async function updateSeason(
   });
 
   if (conflictingSeason) {
-    throw new Error(
-      `Season ${data.seasonNum} already exists for this region and format`,
-    );
+    throw new Error(`Season ${data.seasonNum} already exists for this region and format`);
   }
 
   return await prisma.season.update({
@@ -192,13 +188,15 @@ export async function deleteSeason(id: number) {
   if (season._count.matches > 0)
     blockers.push(`${season._count.matches} match${season._count.matches !== 1 ? 'es' : ''}`);
   if (season._count.teamsHistory > 0)
-    blockers.push(`${season._count.teamsHistory} team history record${season._count.teamsHistory !== 1 ? 's' : ''}`);
-  if (season._count.playoffs > 0)
-    blockers.push('a playoff bracket');
+    blockers.push(
+      `${season._count.teamsHistory} team history record${season._count.teamsHistory !== 1 ? 's' : ''}`,
+    );
+  if (season._count.playoffs > 0) blockers.push('a playoff bracket');
   if (season._count.paymentTrackers > 0)
-    blockers.push(`${season._count.paymentTrackers} payment record${season._count.paymentTrackers !== 1 ? 's' : ''}`);
-  if (season._count.activeSignupSeasons > 0)
-    blockers.push('active signup configuration');
+    blockers.push(
+      `${season._count.paymentTrackers} payment record${season._count.paymentTrackers !== 1 ? 's' : ''}`,
+    );
+  if (season._count.activeSignupSeasons > 0) blockers.push('active signup configuration');
 
   if (blockers.length > 0) {
     throw new Error(`Cannot delete season: it has ${blockers.join(', ')}.`);
@@ -250,6 +248,27 @@ export async function getSeasonsByRegion(regionId?: number) {
     where: regionId ? { regionId } : {},
     include: { region: true },
     orderBy: { seasonNum: 'desc' },
+  });
+}
+
+/**
+ * Get the info markdown text for a specific season
+ */
+export async function getSeasonInfo(seasonId: number): Promise<string | null> {
+  const season = await prisma.season.findUnique({
+    where: { id: seasonId },
+    select: { info: true },
+  });
+  return season?.info ?? null;
+}
+
+/**
+ * Update the info markdown text for a specific season
+ */
+export async function updateSeasonInfo(seasonId: number, info: string | null): Promise<void> {
+  await prisma.season.update({
+    where: { id: seasonId },
+    data: { info: info || null },
   });
 }
 

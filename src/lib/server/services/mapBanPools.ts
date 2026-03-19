@@ -193,9 +193,7 @@ export async function deleteMapBanPool(id: number) {
 
   // Check if pool is used by any matches
   if (pool._count.matchMapBans > 0) {
-    throw new Error(
-      `Cannot delete pool with ${pool._count.matchMapBans} matches using it.`,
-    );
+    throw new Error(`Cannot delete pool with ${pool._count.matchMapBans} matches using it.`);
   }
 
   // Delete associated maps first

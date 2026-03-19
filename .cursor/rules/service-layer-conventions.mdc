@@ -1,0 +1,72 @@
+---
+description: Service file conventions — exports, errors, cross-service calls
+alwaysApply: true
+---
+
+# Service Layer Conventions
+
+> **Migration note:** The error handling section describes the target state. 11 existing services use `error()` from `@sveltejs/kit` directly. When writing NEW services, use the error utilities. When touching existing services, migrate toward them.
+
+All backend business logic lives in `src/lib/server/services/<domain>.ts`.
+
+## File Structure
+
+- One file per domain: `teams.ts`, `matches.ts`, `payments.ts`, etc.
+- Use **named exports only** — no `export default`.
+- Import Prisma from `$lib/server/db` (never instantiate a new client).
+- Import Prisma types from `$prisma/client.js`.
+
+## Error Handling in Services
+
+Services should throw errors using the utilities from `$lib/server/utils/errors`:
+
+```typescript
+import { notFound, forbidden, badRequest } from '$lib/server/utils/errors';
+
+// ✅ CORRECT — use error utilities
+export async function getTeam(id: number) {
+  const team = await prisma.team.findUnique({ where: { id } });
+  if (!team) notFound('Team not found');
+  return team;
+}
+
+// ❌ AVOID — importing error() from @sveltejs/kit in services
+import { error } from '@sveltejs/kit';
+throw error(404, 'Team not found');
+```
+
+The error utilities (`notFound`, `forbidden`, `badRequest`, `conflict`, `unauthorized`) wrap SvelteKit's `error()` but keep the service layer's vocabulary clean.
+
+## Cross-Service Calls
+
+Services MAY import and call other services. This is expected for domain coordination (e.g., match service calling notification service). Avoid circular dependencies.
+
+## Constants
+
+Magic numbers for database IDs belong in `$lib/server/constants/`:
+
+```typescript
+// ✅ CORRECT
+import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
+
+// ❌ WRONG — magic numbers
+where: { formatId: 1 }
+```
+
+## Load Function Data Mapping
+
+Route `load` functions must NOT return raw Prisma objects. Map them to plain serializable shapes:
+
+```typescript
+// ✅ CORRECT — explicit shape
+return {
+  team: {
+    id: team.id,
+    name: team.name,
+    division: team.division?.name,
+  },
+};
+
+// ❌ WRONG — leaks Prisma internals and relations
+return { team };
+```

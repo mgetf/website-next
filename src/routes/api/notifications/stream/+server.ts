@@ -54,10 +54,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         if (!isActive) return;
 
         try {
-          const newNotifications = await getNotificationsSinceId(
-            userSteamId,
-            lastNotificationId,
-          );
+          const newNotifications = await getNotificationsSinceId(userSteamId, lastNotificationId);
 
           for (const notification of newNotifications) {
             if (!safeEnqueue(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`)) {

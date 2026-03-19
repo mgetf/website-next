@@ -52,6 +52,7 @@ export const AuditAction = {
   TEAM_DISBANDED: 'TEAM_DISBANDED',
   TEAM_DELETED: 'TEAM_DELETED',
   TEAM_STATUS_CHANGED: 'TEAM_STATUS_CHANGED',
+  TEAM_DIVISION_CHANGED: 'TEAM_DIVISION_CHANGED',
 
   // ROSTER
   PLAYER_JOINED: 'PLAYER_JOINED',
@@ -172,7 +173,8 @@ export async function logAudit(params: AuditLogParams): Promise<void> {
         action: params.action,
         targetType: params.targetType ?? null,
         targetId: params.targetId ?? null,
-        metadata: (params.metadata as Record<string, string | number | boolean | null>) ?? undefined,
+        metadata:
+          (params.metadata as Record<string, string | number | boolean | null>) ?? undefined,
         ipAddress: params.ipAddress ?? null,
       },
     });
@@ -237,14 +239,13 @@ export async function getAuditLogs(filters: AuditLogFilters = {}) {
   ]);
 
   const targetUserIds = [
-    ...new Set(
-      logs
-        .filter((l) => l.targetType === 'User' && l.targetId)
-        .map((l) => l.targetId!)
-    ),
+    ...new Set(logs.filter((l) => l.targetType === 'User' && l.targetId).map((l) => l.targetId!)),
   ];
 
-  const targetUsersMap = new Map<string, { steamUsername: string | null; steamAvatar: string | null }>();
+  const targetUsersMap = new Map<
+    string,
+    { steamUsername: string | null; steamAvatar: string | null }
+  >();
 
   if (targetUserIds.length > 0) {
     const targetUsers = await prisma.user.findMany({
@@ -258,9 +259,8 @@ export async function getAuditLogs(filters: AuditLogFilters = {}) {
 
   const logsWithTargetUsers = logs.map((log) => ({
     ...log,
-    targetUser: log.targetType === 'User' && log.targetId
-      ? targetUsersMap.get(log.targetId) ?? null
-      : null,
+    targetUser:
+      log.targetType === 'User' && log.targetId ? (targetUsersMap.get(log.targetId) ?? null) : null,
   }));
 
   return {

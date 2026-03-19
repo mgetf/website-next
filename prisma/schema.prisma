@@ -69,6 +69,7 @@ enum NotificationType {
   PENDING_PLAYER // 1
   MATCH_CREATED // 2
   PLAYER_INVITE // 3
+  ADMIN_ACTION // 4
 }
 
 enum MapBanActionType {
@@ -374,6 +375,7 @@ model Season {
   paymentRequired Boolean   @default(false) @map("payment_required")
   matchWeek       Int?      @map("match_week")
   matchDeadline   DateTime? @map("match_deadline")
+  info            String?   @map("info")
 
   region              Region               @relation(fields: [regionId], references: [id])
   format              Format               @relation(fields: [formatId], references: [id])
@@ -504,23 +506,6 @@ model Global {
   leagueFees Int @default(0) @map("league_fees")
 
   @@map("global")
-}
-
-model LeagueInfo {
-  id                 Int      @id @default(autoincrement())
-  intro              String
-  description        String
-  signupsDates       String   @map("signups_dates")
-  regularSeasonDates String   @map("regular_season_dates")
-  playoffsDates      String   @map("playoffs_dates")
-  rostersLockDate    String   @map("rosters_lock_date")
-  format             String
-  matchTimes         String   @map("match_times")
-  schedule           String
-  playoffsFormat     String   @map("playoffs_format")
-  lastUpdated        DateTime @default(now()) @map("last_updated")
-
-  @@map("league_info")
 }
 
 model Announcement {

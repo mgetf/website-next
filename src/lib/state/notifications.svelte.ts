@@ -53,9 +53,7 @@ class NotificationState {
         return a.isRead ? 1 : -1;
       }
       // Then by date (newest first)
-      return (
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }
 
@@ -122,9 +120,7 @@ class NotificationState {
    */
   async markAsRead(id: number) {
     // Optimistic update
-    this.notifications = this.notifications.map((n) =>
-      n.id === id ? { ...n, isRead: true } : n,
-    );
+    this.notifications = this.notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n));
 
     try {
       const response = await fetch(`/api/notifications/${id}/read`, {

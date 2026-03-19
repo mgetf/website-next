@@ -24,10 +24,7 @@ export const teamNameSchema = z
   .string()
   .min(3, 'Team name must be at least 3 characters')
   .max(50, 'Team name must be at most 50 characters')
-  .regex(
-    /^[a-zA-Z0-9\s\-_.]+$/,
-    'Team name can only contain letters, numbers, spaces, and -_.',
-  );
+  .regex(/^[a-zA-Z0-9\s\-_.]+$/, 'Team name can only contain letters, numbers, spaces, and -_.');
 
 /**
  * Team acronym validation
@@ -42,11 +39,7 @@ export const teamAcronymSchema = z
 /**
  * URL validation (optional field)
  */
-export const urlSchema = z
-  .string()
-  .url('Must be a valid URL')
-  .optional()
-  .or(z.literal(''));
+export const urlSchema = z.string().url('Must be a valid URL').optional().or(z.literal(''));
 
 /**
  * Discord username validation
@@ -59,18 +52,12 @@ export const discordUsernameSchema = z
 /**
  * Positive integer ID validation
  */
-export const idSchema = z
-  .number()
-  .int('Must be an integer')
-  .positive('Must be positive');
+export const idSchema = z.number().int('Must be an integer').positive('Must be positive');
 
 /**
  * Non-empty string validation
  */
-export const nonEmptyStringSchema = z
-  .string()
-  .min(1, 'This field is required')
-  .trim();
+export const nonEmptyStringSchema = z.string().min(1, 'This field is required').trim();
 
 // ===== Form Schemas =====
 
@@ -176,9 +163,7 @@ export function safeValidateFormData<T>(
  * Extract validation errors into a flat object
  * { fieldName: errorMessage }
  */
-export function formatValidationErrors(
-  errors: z.ZodError,
-): Record<string, string> {
+export function formatValidationErrors(errors: z.ZodError): Record<string, string> {
   const formatted: Record<string, string> = {};
 
   errors.issues.forEach((issue) => {

@@ -114,14 +114,14 @@ src/
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `bun dev` | Start development server |
-| `bun run build` | Build for production |
+| Command           | Description              |
+| ----------------- | ------------------------ |
+| `bun dev`         | Start development server |
+| `bun run build`   | Build for production     |
 | `bun run preview` | Preview production build |
-| `bun run check` | Run svelte-check |
-| `bun generate` | Generate Prisma client |
-| `bun migrate` | Run database migrations |
+| `bun run check`   | Run svelte-check         |
+| `bun generate`    | Generate Prisma client   |
+| `bun migrate`     | Run database migrations  |
 
 ## Database
 

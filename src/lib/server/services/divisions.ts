@@ -101,11 +101,7 @@ export async function findDivisionByName(name: string, onlyVisible = true) {
  * - Division name must be unique within its region (case-insensitive)
  * - regionId is required
  */
-export async function createDivision(data: {
-  name: string;
-  signupCost: number;
-  regionId: number;
-}) {
+export async function createDivision(data: { name: string; signupCost: number; regionId: number }) {
   const trimmedName = data.name.trim();
 
   if (!trimmedName) {
@@ -221,7 +217,9 @@ export async function deleteDivision(id: number) {
   if (division._count.teams > 0)
     blockers.push(`${division._count.teams} team${division._count.teams !== 1 ? 's' : ''}`);
   if (division._count.staffMembers > 0)
-    blockers.push(`${division._count.staffMembers} staff member${division._count.staffMembers !== 1 ? 's' : ''} assigned to it`);
+    blockers.push(
+      `${division._count.staffMembers} staff member${division._count.staffMembers !== 1 ? 's' : ''} assigned to it`,
+    );
 
   if (blockers.length > 0) {
     throw new Error(`Cannot delete division: it has ${blockers.join(', ')}.`);

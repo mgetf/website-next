@@ -7,10 +7,7 @@ import {
   hasAnyPendingRequest,
 } from '$lib/server/services/teamJoin';
 import { getTeamById } from '$lib/server/services/teams';
-import {
-  isSeasonCurrentlyActive,
-  getEffectiveRosterLock,
-} from '$lib/server/services/settings';
+import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
@@ -100,7 +97,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   if (hasPending) {
     return {
       team,
-      error: 'You already have a pending join request. Please wait for it to be resolved before requesting to join another team.',
+      error:
+        'You already have a pending join request. Please wait for it to be resolved before requesting to join another team.',
       canJoin: false,
       rosterLocked,
     };

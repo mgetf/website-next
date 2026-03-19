@@ -1,10 +1,12 @@
-import type { PageServerLoad } from './$types';
-import { getSeasons } from '$lib/server/services/seasons';
+import type { PageServerLoad, Actions } from './$types';
+import { getSeasons, getSeasonInfo, updateSeasonInfo } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision, findRecent1v1SeasonWithEntries } from '$lib/server/services/teams';
 import { getStaffMembers, isUserSignedUpForSeason } from '$lib/server/services/users';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
+import { formError, formSuccess } from '$lib/server/utils/forms';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   try {
@@ -36,9 +38,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     if (seasonParam && regionParam) {
       // User specified both via URL - verify it's a 1v1 season
       const requestedSeasonId = parseInt(seasonParam);
-      const requestedSeason = seasons1v1.find(
-        (s) => s.id === requestedSeasonId,
-      );
+      const requestedSeason = seasons1v1.find((s) => s.id === requestedSeasonId);
       if (requestedSeason) {
         selectedSeasonId = requestedSeasonId;
         selectedRegionId = parseInt(regionParam);
@@ -69,21 +69,16 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     // DEAD entries that affected placements (played matches) are shown with "WITHDRAWN" label
     const entriesByDivision = await Promise.all(
       divisions.map(async (division) => {
-        const teams = await getTeamsByDivision(
-          division.id,
-          selectedSeasonId!,
-          selectedRegionId!,
-          ['READY', 'DEAD'],
-        );
+        const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
+          'READY',
+          'DEAD',
+        ]);
 
         // Transform to show player info instead of team info
         // The "team" name is actually the player's frozen Steam name for 1v1
         const entries = teams
           // Filter out DEAD entries that never played (didn't affect placements)
-          .filter(
-            (team: any) =>
-              team.status !== 'DEAD' || team.wins + team.losses > 0,
-          )
+          .filter((team: any) => team.status !== 'DEAD' || team.wins + team.losses > 0)
           .map((team: any) => {
             // Get the single player from this 1v1 entry
             const player = team.players?.[0]?.player;
@@ -119,9 +114,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     // Create a set of division IDs that belong to the selected region
     const regionDivisionIds = new Set(
-      divisions
-        .filter((d) => d.regionId === selectedRegionId)
-        .map((d) => d.id),
+      divisions.filter((d) => d.regionId === selectedRegionId).map((d) => d.id),
     );
 
     // Group staff by division (filtered to selected region only)
@@ -185,6 +178,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       );
     }
 
+    const seasonInfo = selectedSeasonId ? await getSeasonInfo(selectedSeasonId) : null;
+
     return {
       seasons: seasons1v1.map((s) => ({
         id: s.id,
@@ -203,12 +198,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       entriesByDivision: entriesByDivision.filter((d) => d.entries.length > 0),
       staffByDivision,
       deadlines: {
-        // Use per-season settings instead of global
         signupClosed: !selectedSeason?.signupsOpen,
         rosterLocked: selectedSeason?.rosterLocked ?? false,
         paymentRequired: selectedSeason?.paymentRequired ?? false,
       },
       userAlreadySignedUp,
+      seasonInfo,
+      isAdmin: isAdmin(locals.user),
     };
   } catch (error) {
     console.error('Error loading 1v1 league page:', error);
@@ -229,6 +225,25 @@ export const load: PageServerLoad = async ({ url, locals }) => {
         paymentRequired: false,
       },
       userAlreadySignedUp: false,
+      seasonInfo: null,
+      isAdmin: false,
     };
   }
+};
+
+export const actions: Actions = {
+  updateSeasonInfo: async ({ request, locals }) => {
+    requireAdmin(locals.user);
+
+    const formData = await request.formData();
+    const seasonId = parseInt(formData.get('seasonId') as string);
+    const info = (formData.get('info') as string) || null;
+
+    if (isNaN(seasonId)) {
+      return formError('Invalid season ID', 400);
+    }
+
+    await updateSeasonInfo(seasonId, info);
+    return formSuccess({ seasonInfo: info }, 'Season info updated');
+  },
 };

@@ -51,10 +51,7 @@ export function isAuthenticated(user: SessionUser | null): boolean {
 /**
  * Check if user is an admin/owner of a specific team
  */
-export async function isTeamAdmin(
-  user: SessionUser | null,
-  teamId: number,
-): Promise<boolean> {
+export async function isTeamAdmin(user: SessionUser | null, teamId: number): Promise<boolean> {
   if (!user) return false;
 
   // Check if user is a global admin/moderator
@@ -97,9 +94,7 @@ export async function getPermissionLevel(steamId: string): Promise<UserRole> {
  * Require user to be authenticated
  * Throws 401 if not authenticated
  */
-export function requireAuth(
-  user: SessionUser | null,
-): asserts user is SessionUser {
+export function requireAuth(user: SessionUser | null): asserts user is SessionUser {
   if (!user) {
     unauthorized('You must be logged in to access this resource');
   }
@@ -109,9 +104,7 @@ export function requireAuth(
  * Require user to be an admin (moderator or higher)
  * Throws 401 if not authenticated, 403 if not admin
  */
-export function requireAdmin(
-  user: SessionUser | null,
-): asserts user is SessionUser {
+export function requireAdmin(user: SessionUser | null): asserts user is SessionUser {
   requireAuth(user);
   if (!isAdmin(user)) {
     forbidden('You must be an admin to access this resource');
@@ -122,9 +115,7 @@ export function requireAdmin(
  * Require user to be a strict admin (level 3+)
  * Throws 401 if not authenticated, 403 if not strict admin
  */
-export function requireStrictAdmin(
-  user: SessionUser | null,
-): asserts user is SessionUser {
+export function requireStrictAdmin(user: SessionUser | null): asserts user is SessionUser {
   requireAuth(user);
   if (!isStrictAdmin(user)) {
     forbidden('You must be a full administrator to access this resource');
@@ -142,9 +133,7 @@ export function requireRole(
 ): asserts user is SessionUser {
   requireAuth(user);
   if (!hasRole(user, minRole)) {
-    forbidden(
-      message || `You must have ${minRole} role to access this resource`,
-    );
+    forbidden(message || `You must have ${minRole} role to access this resource`);
   }
 }
 
@@ -152,16 +141,11 @@ export function requireRole(
  * Require user to be team admin or global admin
  * Throws 401 if not authenticated, 403 if not team admin
  */
-export async function requireTeamAdmin(
-  user: SessionUser | null,
-  teamId: number,
-): Promise<void> {
+export async function requireTeamAdmin(user: SessionUser | null, teamId: number): Promise<void> {
   requireAuth(user);
   const isTeamAdminUser = await isTeamAdmin(user, teamId);
   if (!isTeamAdminUser) {
-    forbidden(
-      'You must be a team admin or global admin to perform this action',
-    );
+    forbidden('You must be a team admin or global admin to perform this action');
   }
 }
 
@@ -172,23 +156,16 @@ export async function requireTeamAdmin(
  */
 export function isBanned(user: SessionUser | null): boolean {
   if (!user) return false;
-  return (
-    user.banStatus === BanStatus.SUSPENDED ||
-    user.banStatus === BanStatus.BANNED
-  );
+  return user.banStatus === BanStatus.SUSPENDED || user.banStatus === BanStatus.BANNED;
 }
 
 /**
  * Require user to not be suspended or banned
  * Throws 401 if not authenticated, 403 if banned/suspended
  */
-export function requireNotBanned(
-  user: SessionUser | null,
-): asserts user is SessionUser {
+export function requireNotBanned(user: SessionUser | null): asserts user is SessionUser {
   requireAuth(user);
   if (isBanned(user)) {
-    forbidden(
-      'Your account is suspended or banned. You cannot participate in league activities.',
-    );
+    forbidden('Your account is suspended or banned. You cannot participate in league activities.');
   }
 }

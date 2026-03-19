@@ -1,13 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
-import { getTeamById, updateTeamStatus } from '$lib/server/services/teams';
+import { getTeamById, updateTeamStatus, changeTeamDivision } from '$lib/server/services/teams';
 import { isAdmin, isTeamAdmin } from '$lib/server/auth/permissions';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { removePlayer } from '$lib/server/services/teamManagement';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
-import {
-  isSeasonCurrentlyActive,
-  getEffectiveRosterLock,
-} from '$lib/server/services/settings';
+import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import {
@@ -49,9 +47,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   // Check if user has admin permissions
   const isGlobalAdmin = locals.user ? isAdmin(locals.user) : false;
-  const isTeamAdminUser = locals.user
-    ? await isTeamAdmin(locals.user, teamId)
-    : false;
+  const isTeamAdminUser = locals.user ? await isTeamAdmin(locals.user, teamId) : false;
   const canManageTeam = isGlobalAdmin || isTeamAdminUser;
 
   const rosterLocked = team.season?.rosterLocked
@@ -109,8 +105,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     }
 
     const isWin = match.winnerId === teamId;
-    const isDraw =
-      match.winnerId === null && match.status.toString() === 'PLAYED';
+    const isDraw = match.winnerId === null && match.status.toString() === 'PLAYED';
 
     // Calculate week label with proper suffix (1a, 1b, etc.) for multiple match sets
     let weekLabel = 'TBD';
@@ -126,9 +121,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
       // Use centralized helper to calculate label (no code duplication)
       const calculatedLabel = calculateWeekLabel(match, teamMatchesForThisWeek);
-      weekLabel = calculatedLabel
-        ? `Week ${calculatedLabel}`
-        : `Week ${match.weekNo}`;
+      weekLabel = calculatedLabel ? `Week ${calculatedLabel}` : `Week ${match.weekNo}`;
     } else if (match.playoffRound) {
       weekLabel = `Round ${match.playoffRound}`;
     }
@@ -137,13 +130,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       week: weekLabel,
       opponent: match.opponent.name,
       opponentId: match.opponent.id,
-      result: isDraw
-        ? 'D'
-        : isWin
-          ? 'W'
-          : match.status.toString() === 'PLAYED'
-            ? 'L'
-            : 'TBD',
+      result: isDraw ? 'D' : isWin ? 'W' : match.status.toString() === 'PLAYED' ? 'L' : 'TBD',
       score: match.winnerId
         ? `${match.winnerScore} - ${match.loserScore}`
         : match.status.toString() === 'PLAYED'
@@ -157,9 +144,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   // Convert map to array and sort by season number (descending)
   const matchesBySeason = Array.from(matchesBySeasonMap.entries())
     .map(([seasonId, matches]) => {
-      const seasonData = allMatches.find(
-        (m) => m.season.id === seasonId,
-      )?.season;
+      const seasonData = allMatches.find((m) => m.season.id === seasonId)?.season;
       return {
         seasonId,
         season: `Season ${seasonData?.seasonNum || seasonId}`,
@@ -185,6 +170,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       ? await hasAnyPendingRequest(currentUserSteamId)
       : false;
 
+  // Load divisions for admin division-change control (only needed for global admins)
+  const allDivisions = isGlobalAdmin ? await getVisibleDivisions() : [];
+  const divisions =
+    isGlobalAdmin && team.regionId
+      ? allDivisions.filter((d) => d.regionId === team.regionId)
+      : allDivisions;
+
   return {
     team: {
       id: team.id,
@@ -198,6 +190,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       pointsScored: team.pointsScored,
       pointsScoredAgainst: team.pointsScoredAgainst,
       division: team.division?.name,
+      divisionId: team.division?.id ?? null,
+      regionId: team.regionId ?? null,
       region: team.region?.name,
       status: team.status,
       createdAt: team.createdAt,
@@ -206,6 +200,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     currentRoster,
     pastRoster,
     matchesBySeason,
+    divisions,
     canManageTeam,
     isGlobalAdmin,
     isAuthenticated: !!locals.user,
@@ -281,8 +276,7 @@ export const actions: Actions = {
       return { success: true, message: 'Team status updated successfully' };
     } catch (err) {
       return fail(500, {
-        error:
-          err instanceof Error ? err.message : 'Failed to update team status',
+        error: err instanceof Error ? err.message : 'Failed to update team status',
       });
     }
   },
@@ -379,6 +373,53 @@ export const actions: Actions = {
     } catch (err) {
       return fail(err instanceof Error && 'status' in (err as any) ? (err as any).status : 500, {
         error: err instanceof Error ? err.message : 'Failed to mark player as paid',
+      });
+    }
+  },
+
+  changeDivision: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user) {
+      return fail(401, { error: 'You must be logged in' });
+    }
+
+    if (!isAdmin(locals.user)) {
+      return fail(403, { error: 'Only global admins can change team division' });
+    }
+
+    const teamId = parseInt(params.id);
+    const formData = await request.formData();
+    const divisionIdRaw = formData.get('divisionId');
+    const divisionId = divisionIdRaw ? parseInt(divisionIdRaw as string) : NaN;
+
+    if (isNaN(divisionId) || divisionId <= 0) {
+      return fail(400, { error: 'A valid division is required' });
+    }
+
+    try {
+      const result = await changeTeamDivision(teamId, divisionId, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_DIVISION_CHANGED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: {
+          divisionIdBefore: result.oldDivision?.id ?? null,
+          divisionNameBefore: result.oldDivision?.name ?? null,
+          divisionIdAfter: result.newDivision.id,
+          divisionNameAfter: result.newDivision.name,
+          paymentStatusReset: result.paymentStatusReset,
+          notifiedPlayers: result.notifiedPlayerSteamIds,
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: `Division changed to ${result.newDivision.name}` };
+    } catch (err) {
+      return fail(err instanceof Error && 'status' in (err as any) ? (err as any).status : 500, {
+        error: err instanceof Error ? err.message : 'Failed to change division',
       });
     }
   },

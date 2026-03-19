@@ -5,10 +5,7 @@
 
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
-import {
-  getAllDemoReports,
-  updateDemoReport,
-} from '$lib/server/services/demoReports';
+import { getAllDemoReports, updateDemoReport } from '$lib/server/services/demoReports';
 import { fail } from '@sveltejs/kit';
 import type { DemoStatus } from '$prisma/client.js';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -41,12 +38,7 @@ export const actions: Actions = {
     }
 
     try {
-      await updateDemoReport(
-        reportId,
-        status,
-        adminComments,
-        locals.user.steamId,
-      );
+      await updateDemoReport(reportId, status, adminComments, locals.user.steamId);
 
       await logAudit({
         actorId: locals.user?.steamId,

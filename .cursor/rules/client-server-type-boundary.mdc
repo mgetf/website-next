@@ -1,0 +1,42 @@
+---
+description: Client code must never import from $lib/server — types go in $lib/types
+alwaysApply: true
+---
+
+# Client/Server Type Boundary
+
+## Rules
+
+1. **Client code** (`.svelte` files, `$lib/state/`, `$lib/utils/`, `$lib/components/`) must NEVER import from `$lib/server/`, not even with `import type`.
+
+2. **Shared types** that both client and server need belong in `$lib/types/`. Examples: `SessionUser`, `UserRole`, `BanStatus`.
+
+3. **Prisma types** (`$prisma/client.js`) are server-only. If a client component needs a shape from Prisma, define an interface in `$lib/types/` instead.
+
+4. **Load function return types** are automatically available to pages via `$types` — this is the correct way for pages to get typed data.
+
+```typescript
+// ✅ CORRECT — shared type in $lib/types/
+// src/lib/types/match.ts
+export interface ProfileMatch {
+  id: number;
+  opponent: string;
+  result: 'W' | 'L' | 'D';
+}
+
+// ✅ CORRECT — server imports from $lib/types
+// src/lib/server/services/users.ts
+import type { ProfileMatch } from '$lib/types/match';
+
+// ✅ CORRECT — client imports from $lib/types
+// src/routes/users/[steamId]/+page.svelte
+import type { ProfileMatch } from '$lib/types/match';
+
+// ❌ WRONG — client importing from server
+// src/routes/users/[steamId]/+page.svelte
+import type { ProfileMatch } from '$lib/server/services/users';
+```
+
+## The `$prisma` Alias
+
+Always import Prisma types from `$prisma/client.js` (alias for `./prisma/generated`), never from `@prisma/client` or relative paths. This alias is defined in `svelte.config.js`.

@@ -1,0 +1,35 @@
+---
+description: Centralized environment variable access patterns
+alwaysApply: true
+---
+
+# Environment Variable Access
+
+> **Migration note:** This rule describes the target state. Several existing files use raw `process.env`. When writing NEW code, follow this pattern. When touching existing files, migrate toward it.
+
+Do NOT use raw `process.env` scattered throughout the codebase.
+
+## Rules
+
+1. **Security secrets** (`JWT_SECRET`, `SESSION_SECRET`): Use `getRequiredEnv()` or the named helpers (`getJwtSecret()`, `getSessionSecret()`) from `$lib/server/utils/env.ts`.
+
+2. **Service credentials** (PayPal, R2, Steam API, Discord, etc.): Access via `$env/dynamic/private` from SvelteKit, OR add a named getter to `$lib/server/utils/env.ts`.
+
+3. **Database URL**: The only acceptable `process.env.DATABASE_URL` usage is in `$lib/server/db.ts`. Nowhere else.
+
+4. **New environment variables**: When adding a new env var:
+   - Add it to `REQUIRED_SECRETS` or `RECOMMENDED_VARS` in `env.ts` if it's a secret/credential
+   - Create a getter function if it'll be accessed from multiple places
+   - Document it in the `env.ts` file header comment
+
+```typescript
+// ✅ CORRECT
+import { getRequiredEnv, getOptionalEnv } from '$lib/server/utils/env';
+import { env } from '$env/dynamic/private';
+
+const secret = getRequiredEnv('JWT_SECRET');
+const clientId = env.DISCORD_CLIENT_ID;
+
+// ❌ WRONG — raw process.env in a service file
+const apiKey = process.env.STEAM_API_KEY;
+```

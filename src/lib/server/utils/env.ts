@@ -1,14 +1,14 @@
 /**
  * Environment Variable Validation
  * Centralized validation for required secrets and configuration
- * 
+ *
  * Key Environment Variables:
- * 
+ *
  * APP_ENVIRONMENT: Controls application behavior and access
  *   - 'production': Live site (mge.tf) - Full public access
  *   - 'staging': Dev site (dev.mge.tf) - Admin-only access (shows gate for non-admins)
  *   - 'development': Local development (default if not set)
- * 
+ *
  * For Railway deployment:
  *   - Production service: APP_ENVIRONMENT=production
  *   - Staging service: APP_ENVIRONMENT=staging

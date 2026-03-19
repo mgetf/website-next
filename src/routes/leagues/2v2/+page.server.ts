@@ -1,13 +1,12 @@
-import type { PageServerLoad } from './$types';
-import { getSeasons } from '$lib/server/services/seasons';
+import type { PageServerLoad, Actions } from './$types';
+import { getSeasons, getSeasonInfo, updateSeasonInfo } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import {
-  getTeamsByDivision,
-  findRecentSeasonWithTeams,
-} from '$lib/server/services/teams';
+import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
 import { getStaffMembers, isUserSignedUpForSeason } from '$lib/server/services/users';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
+import { formError, formSuccess } from '$lib/server/utils/forms';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   try {
@@ -59,12 +58,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     // DEAD teams are included so past seasons can show teams that played but later disbanded
     const teamsByDivision = await Promise.all(
       divisions.map(async (division) => {
-        const teams = await getTeamsByDivision(
-          division.id,
-          selectedSeasonId!,
-          selectedRegionId!,
-          ['UNREADY', 'PENDING', 'READY', 'PLACEMENT', 'DEAD'],
-        );
+        const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
+          'UNREADY',
+          'PENDING',
+          'READY',
+          'PLACEMENT',
+          'DEAD',
+        ]);
 
         return {
           division: {
@@ -81,9 +81,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     // Create a set of division IDs that belong to the selected region
     const regionDivisionIds = new Set(
-      divisions
-        .filter((d) => d.regionId === selectedRegionId)
-        .map((d) => d.id),
+      divisions.filter((d) => d.regionId === selectedRegionId).map((d) => d.id),
     );
 
     // Group staff by division (filtered to selected region only)
@@ -153,6 +151,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       );
     }
 
+    const seasonInfo = selectedSeasonId ? await getSeasonInfo(selectedSeasonId) : null;
+
     return {
       seasons: allSeasons.map((s) => ({
         id: s.id,
@@ -168,15 +168,16 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       selectedRegionId,
       selectedRegionName: selectedRegion?.name || 'Unknown',
       selectedSeasonNum: selectedSeason?.seasonNum || 0,
-      teamsByDivision: teamsByDivision.filter((d) => d.teams.length > 0), // Only show divisions with teams
-      staffByDivision: staffByDivision, // Show all staff (even if empty - will be handled in UI)
+      teamsByDivision: teamsByDivision.filter((d) => d.teams.length > 0),
+      staffByDivision,
       deadlines: {
-        // Use per-season settings instead of global
         signupClosed: !selectedSeason?.signupsOpen,
         rosterLocked: selectedSeason?.rosterLocked ?? false,
         paymentRequired: selectedSeason?.paymentRequired ?? false,
       },
       userAlreadySignedUp,
+      seasonInfo,
+      isAdmin: isAdmin(locals.user),
     };
   } catch (error) {
     console.error('Error loading 2v2 league page:', error);
@@ -197,6 +198,25 @@ export const load: PageServerLoad = async ({ url, locals }) => {
         paymentRequired: false,
       },
       userAlreadySignedUp: false,
+      seasonInfo: null,
+      isAdmin: false,
     };
   }
+};
+
+export const actions: Actions = {
+  updateSeasonInfo: async ({ request, locals }) => {
+    requireAdmin(locals.user);
+
+    const formData = await request.formData();
+    const seasonId = parseInt(formData.get('seasonId') as string);
+    const info = (formData.get('info') as string) || null;
+
+    if (isNaN(seasonId)) {
+      return formError('Invalid season ID', 400);
+    }
+
+    await updateSeasonInfo(seasonId, info);
+    return formSuccess({ seasonInfo: info }, 'Season info updated');
+  },
 };

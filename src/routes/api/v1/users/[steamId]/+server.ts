@@ -10,24 +10,24 @@
  *   404  User not found
  */
 
-import type { RequestHandler } from './$types'
-import { json } from '@sveltejs/kit'
-import { requireApiKey } from '$lib/server/auth/apiKey'
-import { getUserBySteamId } from '$lib/server/services/users'
+import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
+import { requireApiKey } from '$lib/server/auth/apiKey';
+import { getUserBySteamId } from '$lib/server/services/users';
 
 export const GET: RequestHandler = async ({ params, request }) => {
-  await requireApiKey(request)
+  await requireApiKey(request);
 
-  const { steamId } = params
+  const { steamId } = params;
 
   if (!steamId) {
-    return json({ error: 'Missing steamId' }, { status: 400 })
+    return json({ error: 'Missing steamId' }, { status: 400 });
   }
 
-  const user = await getUserBySteamId(steamId)
+  const user = await getUserBySteamId(steamId);
 
   if (!user) {
-    return json({ error: 'User not found' }, { status: 404 })
+    return json({ error: 'User not found' }, { status: 404 });
   }
 
   return json({
@@ -35,5 +35,5 @@ export const GET: RequestHandler = async ({ params, request }) => {
     steamUsername: user.steamUsername,
     discordId: user.discord?.discordId ?? null,
     discordUsername: user.discord?.discordUsername ?? null,
-  })
-}
+  });
+};

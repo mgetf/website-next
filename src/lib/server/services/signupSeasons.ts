@@ -5,9 +5,7 @@ import { prisma } from '$lib/server/db';
  * @param formatId - Optional format ID to filter by (1 = 1v1, 2 = 2v2)
  * @returns Array of season IDs that are currently open for signups
  */
-export async function getCurrentSignupSeasonIds(
-  formatId?: number,
-): Promise<number[]> {
+export async function getCurrentSignupSeasonIds(formatId?: number): Promise<number[]> {
   const activeSignups = await prisma.activeSignupSeason.findMany({
     where: formatId ? { formatId } : undefined,
   });

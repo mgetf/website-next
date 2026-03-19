@@ -1,9 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
-import {
-  getSignupContext,
-  reregisterTeam,
-} from '$lib/server/services/teamSignup';
+import { getSignupContext, reregisterTeam } from '$lib/server/services/teamSignup';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
@@ -19,10 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const context = await getSignupContext(locals.user.steamId);
 
   // Load divisions and regions
-  const [divisions, regions] = await Promise.all([
-    getVisibleDivisions(),
-    getVisibleRegions(),
-  ]);
+  const [divisions, regions] = await Promise.all([getVisibleDivisions(), getVisibleRegions()]);
 
   // Determine if user can re-register and why not
   let canReregister = true;

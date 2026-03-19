@@ -19,13 +19,12 @@ import { fail } from '@sveltejs/kit';
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
 
-  const [analytics, pendingPlayers, recentMatches, activeSignupSeasons] =
-    await Promise.all([
-      getAdminAnalytics(),
-      getPendingPlayers(),
-      getRecentUnplayedMatches(10),
-      getActiveSignupSeasonsWithDeadlines(),
-    ]);
+  const [analytics, pendingPlayers, recentMatches, activeSignupSeasons] = await Promise.all([
+    getAdminAnalytics(),
+    getPendingPlayers(),
+    getRecentUnplayedMatches(10),
+    getActiveSignupSeasonsWithDeadlines(),
+  ]);
 
   // Find the season with the earliest upcoming deadline (for the dashboard urgency display)
   // If multiple seasons have deadlines, show the most urgent one

@@ -14,10 +14,7 @@ import { FORMAT_1V1 } from '$lib/server/constants/formats';
  * When teamId is provided, looks up that specific team.
  * Otherwise finds the first unpaid team in a current signup season.
  */
-export async function getUserActiveTeamForCheckout(
-  steamId: string,
-  teamId?: number,
-) {
+export async function getUserActiveTeamForCheckout(steamId: string, teamId?: number) {
   const include = {
     team: {
       include: {
@@ -86,10 +83,7 @@ export async function getExistingPayment(steamId: string, seasonId: number) {
 /**
  * Update player's payment status in team roster
  */
-export async function updatePlayerPaymentStatus(
-  steamId: string,
-  teamId: number,
-) {
+export async function updatePlayerPaymentStatus(steamId: string, teamId: number) {
   return await prisma.playerInTeam.update({
     where: {
       playerSteamId_teamId: {
@@ -311,9 +305,7 @@ export async function checkPaymentRequired(options: {
 
   // First-time payers pay signupCost + leagueFees
   // Returning payers only pay remaining signupCost (league fees already paid)
-  const totalCost = isFirstPayment
-    ? division.signupCost + leagueFees
-    : division.signupCost;
+  const totalCost = isFirstPayment ? division.signupCost + leagueFees : division.signupCost;
 
   const alreadyPaid = amountPaid >= totalCost;
 

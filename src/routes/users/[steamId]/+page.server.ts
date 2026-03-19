@@ -11,6 +11,8 @@ import {
 } from '$lib/server/services/users';
 import { withdraw1v1Entry } from '$lib/server/services/signup1v1';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
+import { changeTeamDivision } from '$lib/server/services/teams';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { isAdmin } from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
@@ -30,11 +32,19 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const isUserAdmin = isAdmin(locals.user);
     const signupSuccess = url.searchParams.get('signup');
 
+    // Load divisions for the admin division-change control on the active 1v1 entry
+    let divisions1v1: { id: number; name: string; signupCost: number; regionId: number }[] = [];
+    if (isUserAdmin && profile.current1v1Entry?.regionId) {
+      const allDivisions = await getVisibleDivisions();
+      divisions1v1 = allDivisions.filter((d) => d.regionId === profile.current1v1Entry!.regionId);
+    }
+
     return {
       ...profile,
       isOwnProfile,
       isAdmin: isUserAdmin,
       signupSuccess,
+      divisions1v1,
     };
   } catch (err) {
     console.error('Error loading user profile:', err);
@@ -216,7 +226,10 @@ export const actions: Actions = {
       if (locals.user.steamId === steamId) {
         const session = getSession(cookies);
         if (session) {
-          setSession(cookies, { ...session, steamAvatar: updated.steamAvatar ?? session.steamAvatar });
+          setSession(cookies, {
+            ...session,
+            steamAvatar: updated.steamAvatar ?? session.steamAvatar,
+          });
         }
       }
 
@@ -313,7 +326,13 @@ export const actions: Actions = {
         return fail(400, { error: 'Reason is required' });
       }
 
-      await banUser(steamId, locals.user.steamId, severity as 'WARNING' | 'SUSPENDED' | 'BANNED', reason, duration);
+      await banUser(
+        steamId,
+        locals.user.steamId,
+        severity as 'WARNING' | 'SUSPENDED' | 'BANNED',
+        reason,
+        duration,
+      );
 
       await logAudit({
         actorId: locals.user.steamId,
@@ -365,6 +384,54 @@ export const actions: Actions = {
       console.error('Error marking 1v1 player as paid:', err);
       return fail(err.status || 500, {
         error: err.body?.message || err.message || 'Failed to mark player as paid',
+      });
+    }
+  },
+
+  change1v1Division: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user || !isAdmin(locals.user)) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const teamId = parseInt(formData.get('teamId')?.toString() || '');
+    const divisionId = parseInt(formData.get('divisionId')?.toString() || '');
+
+    if (!teamId || isNaN(teamId)) {
+      return fail(400, { error: 'Invalid team ID' });
+    }
+
+    if (!divisionId || isNaN(divisionId) || divisionId <= 0) {
+      return fail(400, { error: 'A valid division is required' });
+    }
+
+    try {
+      const result = await changeTeamDivision(teamId, divisionId, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_DIVISION_CHANGED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: {
+          targetSteamId: params.steamId,
+          divisionIdBefore: result.oldDivision?.id ?? null,
+          divisionNameBefore: result.oldDivision?.name ?? null,
+          divisionIdAfter: result.newDivision.id,
+          divisionNameAfter: result.newDivision.name,
+          paymentStatusReset: result.paymentStatusReset,
+          notifiedPlayers: result.notifiedPlayerSteamIds,
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: `Division changed to ${result.newDivision.name}` };
+    } catch (err: any) {
+      console.error('Error changing 1v1 division:', err);
+      return fail(err.status || 500, {
+        error: err.body?.message || err.message || 'Failed to change division',
       });
     }
   },

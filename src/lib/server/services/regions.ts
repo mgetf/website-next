@@ -115,10 +115,7 @@ function currencySymbolFromCode(code: string): string {
  * - Region must exist
  * - New name must not conflict with another region (case-insensitive)
  */
-export async function updateRegion(
-  id: number,
-  data: { name: string; currencyCode?: string },
-) {
+export async function updateRegion(id: number, data: { name: string; currencyCode?: string }) {
   const trimmedName = data.name.trim();
 
   if (!trimmedName) {
@@ -189,8 +186,7 @@ export async function deleteRegion(id: number) {
     blockers.push(`${region._count.teams} team${region._count.teams !== 1 ? 's' : ''}`);
   if (region._count.divisions > 0)
     blockers.push(`${region._count.divisions} division${region._count.divisions !== 1 ? 's' : ''}`);
-  if (region._count.activeSignupSeasons > 0)
-    blockers.push('active signup configuration');
+  if (region._count.activeSignupSeasons > 0) blockers.push('active signup configuration');
 
   if (blockers.length > 0) {
     throw new Error(`Cannot delete region: it has ${blockers.join(', ')}.`);

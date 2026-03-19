@@ -46,26 +46,27 @@ These are referenced across ~17 files and assume the auto-increment IDs will alw
 
 Each format has its own dedicated routes with entirely separate page implementations:
 
-| Route | Purpose |
-|-------|---------|
-| `/signup/1v1` | 1v1 individual signup |
-| `/signup/create` | 2v2 team creation |
+| Route              | Purpose                  |
+| ------------------ | ------------------------ |
+| `/signup/1v1`      | 1v1 individual signup    |
+| `/signup/create`   | 2v2 team creation        |
 | `/signup/existing` | 2v2 team re-registration |
-| `/leagues/1v1` | 1v1 standings page |
-| `/leagues/2v2` | 2v2 standings page |
+| `/leagues/1v1`     | 1v1 standings page       |
+| `/leagues/2v2`     | 2v2 standings page       |
 
 Navigation links to these routes are hardcoded in the layout component.
 
 #### Separate Service Implementations
 
-| Service | Format | Key Differences |
-|---------|--------|-----------------|
-| `signup1v1.ts` | 1v1 | Creates 1-person "teams" with frozen name/avatar. No join password. Immediate `READY` status. |
-| `teamSignup.ts` | 2v2 | Multi-player teams with name/acronym/avatar/password. Status progression: `UNREADY` → `PENDING` → `READY`. |
+| Service         | Format | Key Differences                                                                                            |
+| --------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
+| `signup1v1.ts`  | 1v1    | Creates 1-person "teams" with frozen name/avatar. No join password. Immediate `READY` status.              |
+| `teamSignup.ts` | 2v2    | Multi-player teams with name/acronym/avatar/password. Status progression: `UNREADY` → `PENDING` → `READY`. |
 
 #### Hardcoded Roster Size
 
 Maximum roster size of 3 (for 2v2 teams) is hardcoded in:
+
 - `teamJoin.ts` — join validation
 - `teamManagement.ts` — roster management
 - Multiple UI templates (`teams/[id]/edit`, `teams/join`, `invitations`)
@@ -81,6 +82,7 @@ Maximum roster size of 3 (for 2v2 teams) is hardcoded in:
 ### What Happens If You Create "3v3" in Admin
 
 The admin panel lets you create a new format record. That record will:
+
 - Exist in the database
 - Have no signup flow (no routes)
 - Have no league/standings page
@@ -102,6 +104,7 @@ The CRUD capability is effectively a trapdoor.
 ### Admin CRUD Is Misleading
 
 The admin panel allows creating/editing/deleting formats, which implies the system supports arbitrary formats. Consider either:
+
 - Removing format CRUD from the admin panel (formats become seed data)
 - Adding a note in the admin UI that formats require code changes to be functional
 
@@ -142,6 +145,7 @@ The signup flow would branch based on `format.isIndividual` to render either the
 ### Unified Services
 
 A single `signup.ts` service that reads format configuration to determine:
+
 - Whether to create a solo entry or a team
 - Roster size limits
 - Which fields are required (password, acronym, etc.)
@@ -150,6 +154,7 @@ A single `signup.ts` service that reads format configuration to determine:
 ### Scope of Work
 
 This would touch:
+
 - Prisma schema (migration)
 - All signup routes and services
 - All league/standings routes
@@ -165,7 +170,7 @@ This is a significant refactor. Only justified if we have concrete plans for a t
 
 ## Decision Log
 
-| Date | Decision |
-|------|----------|
-| Jan 2026 | Format table created during schema normalization to replace `is1v1` magic integers. CRUD added to admin panel. |
+| Date     | Decision                                                                                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Jan 2026 | Format table created during schema normalization to replace `is1v1` magic integers. CRUD added to admin panel.                                          |
 | Feb 2026 | Documented that format behavior is hardcoded despite CRUDable table. Decided this is acceptable under YAGNI. Will revisit if a third format is planned. |

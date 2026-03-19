@@ -13,6 +13,8 @@
     "generate": "prisma generate",
     "migrate": "prisma migrate deploy",
     "migrate:prod": "dotenv -e .env.production -- prisma migrate deploy",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "db:studio": "prisma studio",
     "db:studio:prod": "dotenv -e .env.production -- prisma studio"
   },
@@ -24,8 +26,10 @@
     "brackets-model": "^1.6.2",
     "dotenv": "^17.3.1",
     "dotenv-cli": "^11.0.0",
+    "prettier": "^3.8.1",
+    "prettier-plugin-svelte": "^3.5.1",
     "prisma": "^7.5.0",
-    "svelte": "^5.53.12",
+    "svelte": "^5.54.0",
     "svelte-check": "^4.4.5",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
@@ -38,10 +42,10 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1009.0",
+    "@aws-sdk/client-s3": "^3.1013.0",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "@types/jsonwebtoken": "^9.0.10",
     "chart.js": "^4.5.1",
     "fuse.js": "^7.1.0",
@@ -49,7 +53,7 @@
     "marked": "^17.0.4",
     "node-steam-openid": "^2.0.0",
     "svelte-exmarkdown": "^5.0.2",
-    "tailwindcss": "^4.2.1",
+    "tailwindcss": "^4.2.2",
     "zod": "^4.3.6"
   }
 }

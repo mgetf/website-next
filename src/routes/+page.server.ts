@@ -6,11 +6,7 @@ import {
 } from '$lib/server/services/teams';
 import { TeamStatus } from '$prisma/client.js';
 import { findDivisionByName } from '$lib/server/services/divisions';
-import {
-  getContent,
-  CONTENT_KEYS,
-  getDefaultContent,
-} from '$lib/server/services/siteContent';
+import { getContent, CONTENT_KEYS, getDefaultContent } from '$lib/server/services/siteContent';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 
 export const load = async () => {
@@ -94,8 +90,7 @@ export const load = async () => {
         topEntries: topEntries1v1,
       },
       siteContent: {
-        subtitle:
-          homepageSubtitle || getDefaultContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
+        subtitle: homepageSubtitle || getDefaultContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
         about: homepageAbout || getDefaultContent(CONTENT_KEYS.HOMEPAGE_ABOUT),
       },
     };

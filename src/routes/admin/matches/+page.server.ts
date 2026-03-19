@@ -36,15 +36,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     getMapBanPools(),
   ]);
 
-  const selectedRegionId = regionIdParam
-    ? parseInt(regionIdParam)
-    : (regions[0]?.id ?? null);
+  const selectedRegionId = regionIdParam ? parseInt(regionIdParam) : (regions[0]?.id ?? null);
 
   const seasons = await getSeasonsByRegion(selectedRegionId ?? undefined);
 
-  const selectedSeasonId = seasonIdParam
-    ? parseInt(seasonIdParam)
-    : (seasons[0]?.id ?? null);
+  const selectedSeasonId = seasonIdParam ? parseInt(seasonIdParam) : (seasons[0]?.id ?? null);
 
   let weekNo: number | null = null;
   let playoffRound: number | null = null;

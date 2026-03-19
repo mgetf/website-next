@@ -10,10 +10,7 @@ import { UserRole, type SessionUser } from '$lib/types/user';
 import { error } from '@sveltejs/kit';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
-import {
-  createNotificationForTeamOwners,
-  createNotificationForAdmins,
-} from './notifications';
+import { createNotificationForTeamOwners, createNotificationForAdmins } from './notifications';
 
 /**
  * Get complete match details with all relations
@@ -155,9 +152,7 @@ export async function getMatchWeekLabel(match: Match): Promise<string | null> {
  * Calculate week labels for multiple matches
  * More efficient than calling getMatchWeekLabel multiple times
  */
-export async function getMatchWeekLabels(
-  matches: Match[],
-): Promise<Map<number, string | null>> {
+export async function getMatchWeekLabels(matches: Match[]): Promise<Map<number, string | null>> {
   const labels = new Map<number, string | null>();
 
   for (const match of matches) {
@@ -206,8 +201,7 @@ export function canUserManageMatch(
   }
 
   const isAdmin =
-    user.permissionLevel === UserRole.ADMIN ||
-    user.permissionLevel === UserRole.MODERATOR;
+    user.permissionLevel === UserRole.ADMIN || user.permissionLevel === UserRole.MODERATOR;
 
   const homeOwners = match.homeTeam.players
     .filter((p) => p.permissionLevel === 2 && p.active === 1)
@@ -395,13 +389,8 @@ export async function submitMatchScores(
     throw error(404, 'Match not found');
   }
 
-  const {
-    winnerId,
-    winnerScore,
-    loserScore,
-    homePointsScored,
-    awayPointsScored,
-  } = calculateMatchWinner(match.homeTeamId, match.awayTeamId, gameResults);
+  const { winnerId, winnerScore, loserScore, homePointsScored, awayPointsScored } =
+    calculateMatchWinner(match.homeTeamId, match.awayTeamId, gameResults);
 
   // Update games with scores
   for (const result of gameResults) {
@@ -473,9 +462,7 @@ export async function submitMatchScores(
 
   if (submitterTeam) {
     const opposingTeamId =
-      submitterTeam.teamId === match.homeTeamId
-        ? match.awayTeamId
-        : match.homeTeamId;
+      submitterTeam.teamId === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
 
     // Notify opposing team about score submission
     await createNotificationForTeamOwners(
@@ -494,11 +481,7 @@ export async function submitMatchScores(
  * File a match dispute
  * Must be within 24 hours of submission
  */
-export async function disputeMatch(
-  matchId: number,
-  reason: string,
-  disputedBy: string,
-) {
+export async function disputeMatch(matchId: number, reason: string, disputedBy: string) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
   });
@@ -560,9 +543,7 @@ export async function disputeMatch(
 
   if (disputerTeam) {
     const opposingTeamId =
-      disputerTeam.teamId === match.homeTeamId
-        ? match.awayTeamId
-        : match.homeTeamId;
+      disputerTeam.teamId === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
 
     // Notify opposing team about the dispute
     await createNotificationForTeamOwners(

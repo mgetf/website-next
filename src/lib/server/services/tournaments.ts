@@ -149,51 +149,45 @@ export async function getTournamentById(id: number) {
   }
 
   // Get winner users if they exist
-  const [
-    winner1,
-    winner2,
-    secondPlace1,
-    secondPlace2,
-    thirdPlace1,
-    thirdPlace2,
-  ] = await Promise.all([
-    tournament.winner1SteamId
-      ? prisma.user.findUnique({
-          where: { steamId: tournament.winner1SteamId },
-          select: { steamId: true, steamUsername: true, steamAvatar: true },
-        })
-      : null,
-    tournament.winner2SteamId
-      ? prisma.user.findUnique({
-          where: { steamId: tournament.winner2SteamId },
-          select: { steamId: true, steamUsername: true, steamAvatar: true },
-        })
-      : null,
-    tournament.secondPlace1SteamId
-      ? prisma.user.findUnique({
-          where: { steamId: tournament.secondPlace1SteamId },
-          select: { steamId: true, steamUsername: true, steamAvatar: true },
-        })
-      : null,
-    tournament.secondPlace2SteamId
-      ? prisma.user.findUnique({
-          where: { steamId: tournament.secondPlace2SteamId },
-          select: { steamId: true, steamUsername: true, steamAvatar: true },
-        })
-      : null,
-    tournament.thirdPlace1SteamId
-      ? prisma.user.findUnique({
-          where: { steamId: tournament.thirdPlace1SteamId },
-          select: { steamId: true, steamUsername: true, steamAvatar: true },
-        })
-      : null,
-    tournament.thirdPlace2SteamId
-      ? prisma.user.findUnique({
-          where: { steamId: tournament.thirdPlace2SteamId },
-          select: { steamId: true, steamUsername: true, steamAvatar: true },
-        })
-      : null,
-  ]);
+  const [winner1, winner2, secondPlace1, secondPlace2, thirdPlace1, thirdPlace2] =
+    await Promise.all([
+      tournament.winner1SteamId
+        ? prisma.user.findUnique({
+            where: { steamId: tournament.winner1SteamId },
+            select: { steamId: true, steamUsername: true, steamAvatar: true },
+          })
+        : null,
+      tournament.winner2SteamId
+        ? prisma.user.findUnique({
+            where: { steamId: tournament.winner2SteamId },
+            select: { steamId: true, steamUsername: true, steamAvatar: true },
+          })
+        : null,
+      tournament.secondPlace1SteamId
+        ? prisma.user.findUnique({
+            where: { steamId: tournament.secondPlace1SteamId },
+            select: { steamId: true, steamUsername: true, steamAvatar: true },
+          })
+        : null,
+      tournament.secondPlace2SteamId
+        ? prisma.user.findUnique({
+            where: { steamId: tournament.secondPlace2SteamId },
+            select: { steamId: true, steamUsername: true, steamAvatar: true },
+          })
+        : null,
+      tournament.thirdPlace1SteamId
+        ? prisma.user.findUnique({
+            where: { steamId: tournament.thirdPlace1SteamId },
+            select: { steamId: true, steamUsername: true, steamAvatar: true },
+          })
+        : null,
+      tournament.thirdPlace2SteamId
+        ? prisma.user.findUnique({
+            where: { steamId: tournament.thirdPlace2SteamId },
+            select: { steamId: true, steamUsername: true, steamAvatar: true },
+          })
+        : null,
+    ]);
 
   return {
     ...tournament,
@@ -464,9 +458,7 @@ export async function getRecentTournamentActivity() {
 
   const [cupCount, championshipCount, fightNightCount] = await Promise.all([
     prisma.tournament.count(),
-    prisma.$queryRaw<
-      [{ count: bigint }]
-    >`SELECT COUNT(*) as count FROM championship`,
+    prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM championship`,
     prisma.fightNight.count(),
   ]);
 

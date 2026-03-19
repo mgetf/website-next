@@ -252,6 +252,27 @@ export async function getSeasonsByRegion(regionId?: number) {
 }
 
 /**
+ * Get the info markdown text for a specific season
+ */
+export async function getSeasonInfo(seasonId: number): Promise<string | null> {
+  const season = await prisma.season.findUnique({
+    where: { id: seasonId },
+    select: { info: true },
+  });
+  return season?.info ?? null;
+}
+
+/**
+ * Update the info markdown text for a specific season
+ */
+export async function updateSeasonInfo(seasonId: number, info: string | null): Promise<void> {
+  await prisma.season.update({
+    where: { id: seasonId },
+    data: { info: info || null },
+  });
+}
+
+/**
  * Transform season data for UI display
  * Calculates status based on teams and matches
  */

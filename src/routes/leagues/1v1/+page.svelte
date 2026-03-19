@@ -1,13 +1,21 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { enhance } from '$app/forms';
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
 
   const standingsColumns = [
     { key: 'player', label: 'Player' },
     { key: 'record', label: 'Record' },
     { key: 'points', label: 'Avg Points' },
   ];
+
+  let activeTab = $state<'standings' | 'info'>('standings');
+  let isEditing = $state(false);
+  let showPreview = $state(false);
+  let editContent = $state('');
 
   interface PageData {
     user: any;
@@ -51,6 +59,8 @@
       paymentRequired: boolean;
     };
     userAlreadySignedUp: boolean;
+    seasonInfo: string | null;
+    isAdmin: boolean;
   }
 
   let { data } = $props<{ data: PageData }>();
@@ -107,8 +117,8 @@
 
 <div class="min-h-screen pb-16">
   <!-- Hero Header -->
-  <PageHero maxWidth="max-w-7xl" class="py-16 text-center">
-    <h1 class="text-6xl font-black mb-12 text-white drop-shadow-2xl">1v1 MGE League</h1>
+  <PageHero maxWidth="max-w-7xl" class="pt-12 pb-6 text-center">
+    <h1 class="text-6xl font-black mb-8 text-white drop-shadow-2xl">1v1 MGE League</h1>
 
     {#if data.seasons.length === 0}
       <p class="text-gray-400 text-lg">No 1v1 seasons have been created yet.</p>
@@ -145,188 +155,337 @@
           </select>
         </div>
       </div>
+
+      <!-- Tabs -->
+      <div class="inline-flex items-center gap-1 mt-8 bg-zinc-900/60 rounded-lg p-1">
+        <button
+          onclick={() => (activeTab = 'standings')}
+          class="px-5 py-2 rounded-md text-sm font-semibold transition-all {activeTab ===
+          'standings'
+            ? 'bg-zinc-700 text-white shadow-sm'
+            : 'text-gray-400 hover:text-white hover:bg-zinc-800/50'}"
+        >
+          Standings
+        </button>
+        <button
+          onclick={() => (activeTab = 'info')}
+          class="px-5 py-2 rounded-md text-sm font-semibold transition-all {activeTab === 'info'
+            ? 'bg-zinc-700 text-white shadow-sm'
+            : 'text-gray-400 hover:text-white hover:bg-zinc-800/50'}"
+        >
+          Season Info
+        </button>
+      </div>
     {/if}
   </PageHero>
 
-  <!-- Main Content with Sidebars -->
-  <div class="max-w-[1600px] mx-auto px-6 py-8">
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- Left Sidebar - Deadlines -->
-      <aside class="lg:col-span-3 space-y-4">
-        <!-- Player Registration Deadline -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
-          <h3 class="text-sm font-medium text-gray-400 mb-3">Player Registration</h3>
+  {#if activeTab === 'info'}
+    <div class="max-w-4xl mx-auto px-6 py-4">
+      {#if isEditing}
+        <form
+          method="POST"
+          action="?/updateSeasonInfo"
+          use:enhance={() => {
+            return async ({ update }) => {
+              await update({ reset: false });
+              isEditing = false;
+              showPreview = false;
+            };
+          }}
+        >
+          <input type="hidden" name="seasonId" value={data.selectedSeasonId} />
           <div
-            class="text-4xl font-black {data.deadlines.signupClosed
-              ? 'text-red-500'
-              : 'text-green-500'} mb-4"
+            class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden"
           >
-            {data.deadlines.signupClosed ? 'CLOSED' : 'OPEN'}
-          </div>
-          {#if !data.deadlines.signupClosed && !data.userAlreadySignedUp}
-            <a
-              href={signupHref}
-              class="inline-block px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Sign Up Now
-            </a>
-          {/if}
-        </div>
-
-        <!-- Payments Due -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
-          <h3 class="text-sm font-medium text-gray-400 mb-4">Payment Status</h3>
-          <div
-            class="text-3xl font-black {data.deadlines.paymentRequired
-              ? 'text-yellow-500'
-              : 'text-gray-500'} mb-2"
-          >
-            {data.deadlines.paymentRequired ? 'REQUIRED' : 'NOT REQUIRED'}
-          </div>
-          {#if data.deadlines.paymentRequired}
-            <p class="text-xs text-gray-400">Players must pay registration fees</p>
-          {/if}
-        </div>
-
-        <!-- Roster Lock Status -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
-          <h3 class="text-sm font-medium text-gray-400 mb-3">Registration Status</h3>
-          <div
-            class="text-3xl font-black {data.deadlines.rosterLocked
-              ? 'text-red-500'
-              : 'text-green-500'} mb-2"
-          >
-            {data.deadlines.rosterLocked ? 'LOCKED' : 'OPEN'}
-          </div>
-          <p class="text-xs text-gray-400">
-            {data.deadlines.rosterLocked
-              ? 'Registrations are frozen'
-              : 'Players can still register'}
-          </p>
-        </div>
-      </aside>
-
-      <!-- Center - Standings -->
-      <main class="lg:col-span-6 space-y-8">
-        {#if data.entriesByDivision.length === 0}
-          <div
-            class="bg-zinc-900/50 backdrop-blur rounded-lg border border-zinc-800 p-12 text-center"
-          >
-            <p class="text-gray-400 text-lg">No players found for this season and region.</p>
-            <p class="text-gray-500 text-sm mt-2">Check back later or select a different season.</p>
-          </div>
-        {:else}
-          {#each data.entriesByDivision as divisionData}
             <div
-              class="bg-zinc-900/50 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden"
+              class="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950/50"
             >
-              <!-- Division Header -->
-              <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
-                <h2 class="text-2xl font-bold text-white uppercase tracking-wide">
-                  {divisionData.division.name}
-                  <span class="text-gray-500">({getRegionAbbr(selectedRegion)})</span>
-                </h2>
+              <div class="flex items-center gap-1 bg-zinc-800/60 rounded-md p-1">
+                <button
+                  type="button"
+                  onclick={() => (showPreview = false)}
+                  class="px-3 py-1 rounded text-xs font-semibold transition-all {!showPreview
+                    ? 'bg-zinc-600 text-white'
+                    : 'text-gray-400 hover:text-white'}">Edit</button
+                >
+                <button
+                  type="button"
+                  onclick={() => (showPreview = true)}
+                  class="px-3 py-1 rounded text-xs font-semibold transition-all {showPreview
+                    ? 'bg-zinc-600 text-white'
+                    : 'text-gray-400 hover:text-white'}">Preview</button
+                >
               </div>
-
-              <!-- Standings Table -->
-              <DataTable
-                data={divisionData.entries}
-                columns={standingsColumns}
-                emptyMessage="No players in this division"
-              >
-                {#snippet cell(entry: PageData['entriesByDivision'][0]['entries'][0], col)}
-                  {#if col.key === 'player'}
-                    <a
-                      href={entry.steamId ? `/users/${entry.steamId}` : `/teams/${entry.teamId}`}
-                      class="flex items-center gap-2 text-sm font-medium hover:text-purple-400 transition-colors {entry.isWithdrawn
-                        ? 'text-gray-400'
-                        : 'text-white'}"
-                    >
-                      <img
-                        src={entry.avatar ||
-                          `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
-                        alt={entry.name}
-                        class="w-8 h-8 rounded object-cover {entry.isWithdrawn ? 'grayscale' : ''}"
-                      />
-                      <span>{entry.name}</span>
-                      {#if entry.isWithdrawn}
-                        <span
-                          class="px-1.5 py-0.5 text-xs font-medium bg-zinc-700 text-gray-400 rounded"
-                          >WITHDRAWN</span
-                        >
-                      {/if}
-                    </a>
-                  {:else if col.key === 'record'}
-                    <span class="text-gray-300 text-sm">{entry.wins}-{entry.losses}</span>
-                  {:else if col.key === 'points'}
-                    <span
-                      class="{entry.isWithdrawn
-                        ? 'text-gray-400'
-                        : 'text-white'} text-sm font-medium">{entry.points.toFixed(1)}</span
-                    >
-                  {/if}
-                {/snippet}
-              </DataTable>
+              <div class="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onclick={() => {
+                    isEditing = false;
+                    showPreview = false;
+                  }}>Cancel</Button
+                >
+                <Button type="submit" variant="primary" size="sm">Save</Button>
+              </div>
             </div>
-          {/each}
-        {/if}
-      </main>
-
-      <!-- Right Sidebar - Staff List -->
-      <aside class="lg:col-span-3">
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 sticky top-4">
-          <!-- Staff Header -->
-          <div class="px-4 py-3 border-b border-zinc-800">
-            <h3 class="text-lg font-bold text-white">Staff List</h3>
-          </div>
-
-          <!-- Staff List Content -->
-          <div class="max-h-[calc(100vh-200px)] overflow-y-auto">
-            {#if data.staffByDivision.length === 0}
-              <div class="px-4 py-8 text-center">
-                <p class="text-gray-500 text-sm">No staff members found.</p>
+            {#if showPreview}
+              <div class="p-8 min-h-64">
+                {#if editContent.trim()}
+                  <MarkdownRenderer content={editContent} />
+                {:else}
+                  <p class="text-gray-500 text-sm italic">Nothing to preview.</p>
+                {/if}
               </div>
             {:else}
-              {#each data.staffByDivision as divisionStaff}
-                <div class="border-b border-zinc-800/50 last:border-0">
-                  <!-- Division Header -->
-                  <div class="px-4 py-2 bg-zinc-950/50">
-                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      {divisionStaff.division.name} ({getRegionAbbr(selectedRegion)})
-                    </h4>
-                  </div>
-
-                  <!-- Staff Members -->
-                  <div class="px-4 py-2 space-y-2">
-                    {#each divisionStaff.staff as member}
-                      <a
-                        href="/users/{member.steamId}"
-                        class="flex items-center justify-between py-2 hover:bg-zinc-800/30 rounded px-2 -mx-2 transition-colors group"
-                      >
-                        <div class="flex items-center gap-2">
-                          <img
-                            src={member.avatar || `https://picsum.photos/seed/${member.name}/32`}
-                            alt={member.name}
-                            class="w-7 h-7 rounded"
-                          />
-                          <span
-                            class="text-sm text-white group-hover:text-blue-400 transition-colors"
-                          >
-                            {member.name}
-                          </span>
-                        </div>
-                        <span class="text-xs text-yellow-500/80">
-                          {member.role}
-                        </span>
-                      </a>
-                    {/each}
-                  </div>
-                </div>
-              {/each}
+              <textarea
+                name="info"
+                bind:value={editContent}
+                rows="24"
+                placeholder="Write season info using Markdown...&#10;&#10;## Key Dates&#10;| Event | Date |&#10;|---|---|&#10;&#10;### Weekly Arena Schedule&#10;..."
+                class="w-full bg-transparent text-gray-200 text-sm font-mono p-6 resize-none outline-none placeholder-zinc-600 leading-relaxed"
+              ></textarea>
+            {/if}
+          </div>
+        </form>
+      {:else}
+        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
+          {#if data.isAdmin}
+            <div
+              class="flex items-center justify-between px-6 py-3 border-b border-zinc-800 bg-zinc-950/50"
+            >
+              <span class="text-xs text-gray-500">Markdown supported</span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={() => {
+                  editContent = data.seasonInfo ?? '';
+                  isEditing = true;
+                  showPreview = false;
+                }}>Edit</Button
+              >
+            </div>
+          {/if}
+          <div class="p-8">
+            {#if data.seasonInfo}
+              <MarkdownRenderer content={data.seasonInfo} />
+            {:else if data.isAdmin}
+              <div class="text-center py-10">
+                <p class="text-gray-400 font-medium">No season info yet.</p>
+                <p class="text-gray-500 text-sm mt-1">
+                  Click Edit to add information for this season.
+                </p>
+              </div>
+            {:else}
+              <div class="text-center py-12">
+                <svg
+                  class="w-12 h-12 text-gray-600 mx-auto mb-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.5"
+                    d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"
+                  />
+                </svg>
+                <p class="text-gray-400 text-lg font-medium">No season information available</p>
+                <p class="text-gray-500 text-sm mt-1">
+                  Admins haven't published info for this season yet.
+                </p>
+              </div>
             {/if}
           </div>
         </div>
-      </aside>
+      {/if}
     </div>
-  </div>
+  {:else}
+    <!-- Main Content with Sidebars -->
+    <div class="max-w-[1600px] mx-auto px-6 py-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Sidebar - Deadlines -->
+        <aside class="lg:col-span-3 space-y-4">
+          <!-- Player Registration Deadline -->
+          <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
+            <h3 class="text-sm font-medium text-gray-400 mb-3">Player Registration</h3>
+            <div
+              class="text-4xl font-black {data.deadlines.signupClosed
+                ? 'text-red-500'
+                : 'text-green-500'} mb-4"
+            >
+              {data.deadlines.signupClosed ? 'CLOSED' : 'OPEN'}
+            </div>
+            {#if !data.deadlines.signupClosed && !data.userAlreadySignedUp}
+              <a
+                href={signupHref}
+                class="inline-block px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Sign Up Now
+              </a>
+            {/if}
+          </div>
+
+          <!-- Payments Due -->
+          <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
+            <h3 class="text-sm font-medium text-gray-400 mb-4">Payment Status</h3>
+            <div
+              class="text-3xl font-black {data.deadlines.paymentRequired
+                ? 'text-yellow-500'
+                : 'text-gray-500'} mb-2"
+            >
+              {data.deadlines.paymentRequired ? 'REQUIRED' : 'NOT REQUIRED'}
+            </div>
+            {#if data.deadlines.paymentRequired}
+              <p class="text-xs text-gray-400">Players must pay registration fees</p>
+            {/if}
+          </div>
+
+          <!-- Roster Lock Status -->
+          <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
+            <h3 class="text-sm font-medium text-gray-400 mb-3">Registration Status</h3>
+            <div
+              class="text-3xl font-black {data.deadlines.rosterLocked
+                ? 'text-red-500'
+                : 'text-green-500'} mb-2"
+            >
+              {data.deadlines.rosterLocked ? 'LOCKED' : 'OPEN'}
+            </div>
+            <p class="text-xs text-gray-400">
+              {data.deadlines.rosterLocked
+                ? 'Registrations are frozen'
+                : 'Players can still register'}
+            </p>
+          </div>
+        </aside>
+
+        <!-- Center - Standings -->
+        <main class="lg:col-span-6 space-y-8">
+          {#if data.entriesByDivision.length === 0}
+            <div
+              class="bg-zinc-900/50 backdrop-blur rounded-lg border border-zinc-800 p-12 text-center"
+            >
+              <p class="text-gray-400 text-lg">No players found for this season and region.</p>
+              <p class="text-gray-500 text-sm mt-2">
+                Check back later or select a different season.
+              </p>
+            </div>
+          {:else}
+            {#each data.entriesByDivision as divisionData}
+              <div
+                class="bg-zinc-900/50 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden"
+              >
+                <!-- Division Header -->
+                <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+                  <h2 class="text-2xl font-bold text-white uppercase tracking-wide">
+                    {divisionData.division.name}
+                    <span class="text-gray-500">({getRegionAbbr(selectedRegion)})</span>
+                  </h2>
+                </div>
+
+                <!-- Standings Table -->
+                <DataTable
+                  data={divisionData.entries}
+                  columns={standingsColumns}
+                  emptyMessage="No players in this division"
+                >
+                  {#snippet cell(entry: PageData['entriesByDivision'][0]['entries'][0], col)}
+                    {#if col.key === 'player'}
+                      <a
+                        href={entry.steamId ? `/users/${entry.steamId}` : `/teams/${entry.teamId}`}
+                        class="flex items-center gap-2 text-sm font-medium hover:text-purple-400 transition-colors {entry.isWithdrawn
+                          ? 'text-gray-400'
+                          : 'text-white'}"
+                      >
+                        <img
+                          src={entry.avatar ||
+                            `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
+                          alt={entry.name}
+                          class="w-8 h-8 rounded object-cover {entry.isWithdrawn
+                            ? 'grayscale'
+                            : ''}"
+                        />
+                        <span>{entry.name}</span>
+                        {#if entry.isWithdrawn}
+                          <span
+                            class="px-1.5 py-0.5 text-xs font-medium bg-zinc-700 text-gray-400 rounded"
+                            >WITHDRAWN</span
+                          >
+                        {/if}
+                      </a>
+                    {:else if col.key === 'record'}
+                      <span class="text-gray-300 text-sm">{entry.wins}-{entry.losses}</span>
+                    {:else if col.key === 'points'}
+                      <span
+                        class="{entry.isWithdrawn
+                          ? 'text-gray-400'
+                          : 'text-white'} text-sm font-medium">{entry.points.toFixed(1)}</span
+                      >
+                    {/if}
+                  {/snippet}
+                </DataTable>
+              </div>
+            {/each}
+          {/if}
+        </main>
+
+        <!-- Right Sidebar - Staff List -->
+        <aside class="lg:col-span-3">
+          <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 sticky top-4">
+            <!-- Staff Header -->
+            <div class="px-4 py-3 border-b border-zinc-800">
+              <h3 class="text-lg font-bold text-white">Staff List</h3>
+            </div>
+
+            <!-- Staff List Content -->
+            <div class="max-h-[calc(100vh-200px)] overflow-y-auto">
+              {#if data.staffByDivision.length === 0}
+                <div class="px-4 py-8 text-center">
+                  <p class="text-gray-500 text-sm">No staff members found.</p>
+                </div>
+              {:else}
+                {#each data.staffByDivision as divisionStaff}
+                  <div class="border-b border-zinc-800/50 last:border-0">
+                    <!-- Division Header -->
+                    <div class="px-4 py-2 bg-zinc-950/50">
+                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        {divisionStaff.division.name} ({getRegionAbbr(selectedRegion)})
+                      </h4>
+                    </div>
+
+                    <!-- Staff Members -->
+                    <div class="px-4 py-2 space-y-2">
+                      {#each divisionStaff.staff as member}
+                        <a
+                          href="/users/{member.steamId}"
+                          class="flex items-center justify-between py-2 hover:bg-zinc-800/30 rounded px-2 -mx-2 transition-colors group"
+                        >
+                          <div class="flex items-center gap-2">
+                            <img
+                              src={member.avatar || `https://picsum.photos/seed/${member.name}/32`}
+                              alt={member.name}
+                              class="w-7 h-7 rounded"
+                            />
+                            <span
+                              class="text-sm text-white group-hover:text-blue-400 transition-colors"
+                            >
+                              {member.name}
+                            </span>
+                          </div>
+                          <span class="text-xs text-yellow-500/80">
+                            {member.role}
+                          </span>
+                        </a>
+                      {/each}
+                    </div>
+                  </div>
+                {/each}
+              {/if}
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  {/if}
 </div>

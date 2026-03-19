@@ -27,6 +27,8 @@
     id: number;
     active: boolean;
     division: string;
+    divisionId: number | null;
+    regionId: number | null;
     region: string;
     seasonNum: number;
     wins: number;
@@ -78,12 +80,15 @@
     current1v1Entry: {
       id: number;
       division: string;
+      divisionId: number | null;
       region: string;
+      regionId: number | null;
       seasonNum: number;
       wins: number;
       losses: number;
     } | null;
     entries1v1: Entry1v1WithMatches[];
+    divisions1v1: Array<{ id: number; name: string; signupCost: number; regionId: number }>;
   }
 
   let { data }: { data: PlayerData } = $props();
@@ -128,6 +133,11 @@
   // State for 1v1 withdrawal confirmation modal
   let withdrawingEntry: (typeof data.entries1v1)[0] | null = $state(null);
   let isWithdrawing = $state(false);
+
+  // State for admin 1v1 division change dialog
+  let changeDivisionEntry: (typeof data.entries1v1)[0] | null = $state(null);
+  let changeDivisionSelected = $state(0);
+  let isChangingDivision = $state(false);
 
   // State for Discord unlink (admin only)
   let isUnlinkingDiscord = $state(false);
@@ -730,6 +740,18 @@
                             </button>
                           </form>
                         {/if}
+                        {#if isAdmin && data.divisions1v1.length > 0}
+                          <button
+                            type="button"
+                            class="text-xs px-2 py-1 bg-primary-600/20 hover:bg-primary-600/30 text-primary-400 rounded border border-primary-600/30 transition-colors whitespace-nowrap"
+                            onclick={() => {
+                              changeDivisionEntry = entry;
+                              changeDivisionSelected = entry.divisionId ?? 0;
+                            }}
+                          >
+                            Change Division
+                          </button>
+                        {/if}
                         {#if isOwnProfile}
                           <button
                             type="button"
@@ -1097,6 +1119,78 @@
           class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+        </button>
+      </form>
+    {/if}
+  {/snippet}
+</Dialog>
+
+<!-- Admin: Change 1v1 Division Dialog -->
+<Dialog
+  open={!!changeDivisionEntry}
+  title="Change Division"
+  onClose={() => (changeDivisionEntry = null)}
+>
+  {#if changeDivisionEntry}
+    <p class="text-text-body mb-4">
+      Moving <span class="text-white font-medium">{player.name}</span> from
+      <span class="text-white font-medium">{changeDivisionEntry.division}</span> to a new division.
+    </p>
+
+    <div class="mb-4">
+      <label for="dialog-divisionId" class="block text-sm font-medium text-text-label mb-2">
+        New Division
+      </label>
+      <select
+        id="dialog-divisionId"
+        bind:value={changeDivisionSelected}
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+      >
+        {#each data.divisions1v1 as division}
+          <option value={division.id}>
+            {division.name}{division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}
+          </option>
+        {/each}
+      </select>
+    </div>
+  {/if}
+
+  {#snippet footer()}
+    <button
+      type="button"
+      onclick={() => (changeDivisionEntry = null)}
+      class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+    >
+      Cancel
+    </button>
+    {#if changeDivisionEntry}
+      <form
+        method="POST"
+        action="?/change1v1Division"
+        use:enhance={() => {
+          isChangingDivision = true;
+          return async ({ result, update }) => {
+            await update({ reset: false });
+            isChangingDivision = false;
+            changeDivisionEntry = null;
+            if (result.type === 'success') {
+              toast.success((result.data as any)?.message || 'Division updated');
+            } else if (result.type === 'failure') {
+              toast.error((result.data as any)?.error || 'Failed to change division');
+            }
+          };
+        }}
+        class="flex-1"
+      >
+        <input type="hidden" name="teamId" value={changeDivisionEntry.id} />
+        <input type="hidden" name="divisionId" value={changeDivisionSelected} />
+        <button
+          type="submit"
+          disabled={isChangingDivision ||
+            changeDivisionSelected === (changeDivisionEntry.divisionId ?? 0)}
+          class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isChangingDivision ? 'Updating...' : 'Update Division'}
         </button>
       </form>
     {/if}

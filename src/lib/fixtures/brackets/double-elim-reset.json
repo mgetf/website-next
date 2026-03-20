@@ -1,0 +1,136 @@
+{
+	"format": "double_elim",
+	"status": "completed",
+	"title": "MGE Championship 2025 — Grand Final Reset",
+	"rounds": [
+		{
+			"number": 1,
+			"label": "Winners Round 1",
+			"matches": [
+				{
+					"id": "w-r1-m1", "round": 1, "position": 1, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "stabby",   "seed": 1, "score": 2, "isWinner": true,  "players": [{ "name": "stabby" }] },
+					"side2": { "label": "slin",     "seed": 8, "score": 0, "isWinner": false, "players": [{ "name": "slin" }] }
+				},
+				{
+					"id": "w-r1-m2", "round": 1, "position": 2, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "b4nny",    "seed": 4, "score": 2, "isWinner": true,  "players": [{ "name": "b4nny" }] },
+					"side2": { "label": "numlocked","seed": 5, "score": 1, "isWinner": false, "players": [{ "name": "numlocked" }] }
+				},
+				{
+					"id": "w-r1-m3", "round": 1, "position": 3, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "sigafoo",  "seed": 2, "score": 2, "isWinner": true,  "players": [{ "name": "sigafoo" }] },
+					"side2": { "label": "marvel",   "seed": 7, "score": 0, "isWinner": false, "players": [{ "name": "marvel" }] }
+				},
+				{
+					"id": "w-r1-m4", "round": 1, "position": 4, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "froyo",    "seed": 3, "score": 2, "isWinner": true,  "players": [{ "name": "froyo" }] },
+					"side2": { "label": "extine",   "seed": 6, "score": 1, "isWinner": false, "players": [{ "name": "extine" }] }
+				}
+			]
+		},
+		{
+			"number": 2,
+			"label": "Winners Semifinals",
+			"matches": [
+				{
+					"id": "w-r2-m1", "round": 2, "position": 1, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "stabby",  "seed": 1, "score": 2, "isWinner": true,  "players": [{ "name": "stabby" }] },
+					"side2": { "label": "b4nny",   "seed": 4, "score": 0, "isWinner": false, "players": [{ "name": "b4nny" }] }
+				},
+				{
+					"id": "w-r2-m2", "round": 2, "position": 2, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "sigafoo", "seed": 2, "score": 2, "isWinner": true,  "players": [{ "name": "sigafoo" }] },
+					"side2": { "label": "froyo",   "seed": 3, "score": 1, "isWinner": false, "players": [{ "name": "froyo" }] }
+				}
+			]
+		},
+		{
+			"number": 3,
+			"label": "Winners Final",
+			"matches": [
+				{
+					"id": "w-r3-m1", "round": 3, "position": 1, "isBye": false, "status": "completed", "bestOf": 5,
+					"label": "Winners Final",
+					"side1": { "label": "stabby",  "seed": 1, "score": 3, "isWinner": true,  "players": [{ "name": "stabby" }] },
+					"side2": { "label": "sigafoo", "seed": 2, "score": 2, "isWinner": false, "players": [{ "name": "sigafoo" }] }
+				}
+			]
+		}
+	],
+	"loserRounds": [
+		{
+			"number": 1,
+			"label": "Losers Round 1",
+			"matches": [
+				{
+					"id": "l-r1-m1", "round": 1, "position": 1, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "slin",      "score": 0, "isWinner": false, "players": [{ "name": "slin" }] },
+					"side2": { "label": "numlocked", "score": 2, "isWinner": true,  "players": [{ "name": "numlocked" }] }
+				},
+				{
+					"id": "l-r1-m2", "round": 1, "position": 2, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "marvel",  "score": 2, "isWinner": true,  "players": [{ "name": "marvel" }] },
+					"side2": { "label": "extine",  "score": 0, "isWinner": false, "players": [{ "name": "extine" }] }
+				}
+			]
+		},
+		{
+			"number": 2,
+			"label": "Losers Round 2",
+			"matches": [
+				{
+					"id": "l-r2-m1", "round": 2, "position": 1, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "numlocked", "score": 1, "isWinner": false, "players": [{ "name": "numlocked" }] },
+					"side2": { "label": "b4nny",     "score": 2, "isWinner": true,  "players": [{ "name": "b4nny" }] }
+				},
+				{
+					"id": "l-r2-m2", "round": 2, "position": 2, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "marvel", "score": 2, "isWinner": true,  "players": [{ "name": "marvel" }] },
+					"side2": { "label": "froyo",  "score": 1, "isWinner": false, "players": [{ "name": "froyo" }] }
+				}
+			]
+		},
+		{
+			"number": 3,
+			"label": "Losers Semifinals",
+			"matches": [
+				{
+					"id": "l-r3-m1", "round": 3, "position": 1, "isBye": false, "status": "completed", "bestOf": 3,
+					"side1": { "label": "b4nny",  "score": 1, "isWinner": false, "players": [{ "name": "b4nny" }] },
+					"side2": { "label": "marvel", "score": 2, "isWinner": true,  "players": [{ "name": "marvel" }] }
+				}
+			]
+		},
+		{
+			"number": 4,
+			"label": "Losers Final",
+			"matches": [
+				{
+					"id": "l-r4-m1", "round": 4, "position": 1, "isBye": false, "status": "completed", "bestOf": 5,
+					"label": "Losers Final",
+					"side1": { "label": "sigafoo", "score": 3, "isWinner": true,  "players": [{ "name": "sigafoo" }] },
+					"side2": { "label": "marvel",  "score": 1, "isWinner": false, "players": [{ "name": "marvel" }] }
+				}
+			]
+		}
+	],
+	"grandFinal": {
+		"number": 1,
+		"label": "Grand Final",
+		"matches": [
+			{
+				"id": "gf-m1", "round": 1, "position": 1, "isBye": false, "status": "completed", "bestOf": 5,
+				"label": "Grand Final",
+				"side1": { "label": "stabby",  "seed": 1, "score": 1, "isWinner": false, "players": [{ "name": "stabby" }] },
+				"side2": { "label": "sigafoo", "seed": 2, "score": 3, "isWinner": true,  "players": [{ "name": "sigafoo" }] }
+			},
+			{
+				"id": "gf-m2", "round": 1, "position": 2, "isBye": false, "status": "completed", "bestOf": 5,
+				"label": "Grand Final Reset",
+				"side1": { "label": "stabby",  "seed": 1, "score": 3, "isWinner": true,  "players": [{ "name": "stabby" }] },
+				"side2": { "label": "sigafoo", "seed": 2, "score": 2, "isWinner": false, "players": [{ "name": "sigafoo" }] }
+			}
+		]
+	}
+}

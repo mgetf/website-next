@@ -73,6 +73,8 @@
         return '⚔️';
       case 'PLAYER_INVITE':
         return '📩';
+      case 'ADMIN_ACTION':
+        return '🛡️';
       default:
         return '🔔';
     }
@@ -88,6 +90,8 @@
         return 'New match scheduled';
       case 'PLAYER_INVITE':
         return 'Team invitation';
+      case 'ADMIN_ACTION':
+        return 'Admin action';
       default:
         return 'New notification';
     }

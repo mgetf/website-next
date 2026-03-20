@@ -427,6 +427,8 @@ export async function getPlayerProfile(steamId: string) {
     id: entry.team.id,
     active: entry.team.status === 'READY',
     division: entry.team.division?.name || 'Unknown',
+    divisionId: entry.team.division?.id ?? null,
+    regionId: entry.team.regionId ?? null,
     region: entry.team.region?.name || 'Unknown',
     seasonNum: entry.team.season?.seasonNum || 0,
     wins: entry.team.wins,
@@ -485,7 +487,9 @@ export async function getPlayerProfile(steamId: string) {
       ? {
           id: current1v1Entry.team.id,
           division: current1v1Entry.team.division?.name || 'Unknown',
+          divisionId: current1v1Entry.team.division?.id ?? null,
           region: current1v1Entry.team.region?.name || 'Unknown',
+          regionId: current1v1Entry.team.regionId ?? null,
           seasonNum: current1v1Entry.team.season?.seasonNum || 0,
           wins: current1v1Entry.team.wins,
           losses: current1v1Entry.team.losses,

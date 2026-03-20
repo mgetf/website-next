@@ -84,6 +84,30 @@ enum ChampionshipStatus {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Unified Event System enums
+// ═══════════════════════════════════════════════════════════════════
+
+enum EventType {
+  CUP
+  CHAMPIONSHIP
+  FIGHT_NIGHT
+}
+
+enum EventStatus {
+  UPCOMING
+  REGISTRATION
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum BracketFormat {
+  SINGLE_ELIM
+  DOUBLE_ELIM
+  ROUND_ROBIN
+  CARD
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Format table (replaces is1v1 magic integer)
 // ═══════════════════════════════════════════════════════════════════
 model Format {
@@ -176,6 +200,125 @@ model FightNightMatchup {
   @@map("fight_night_matchups")
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Unified Event System
+// ═══════════════════════════════════════════════════════════════════
+
+model Event {
+  id          Int         @id @default(autoincrement())
+  name        String
+  type        EventType
+  status      EventStatus @default(UPCOMING)
+  isTeamEvent Boolean     @default(false) @map("is_team_event")
+  description String?
+  avatar      String?
+  startedAt   DateTime?   @map("started_at")
+  endedAt     DateTime?   @map("ended_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  prizepool   Decimal     @default(0) @db.Decimal(10, 2)
+  bracketLink String?     @map("bracket_link")
+  card        String?
+
+  stages       EventStage[]
+  participants EventParticipant[]
+  placements   EventPlacement[]
+  demos        Demo[]
+
+  @@map("events")
+}
+
+model EventStage {
+  id            Int           @id @default(autoincrement())
+  eventId       Int           @map("event_id")
+  name          String
+  bracketFormat BracketFormat @map("bracket_format")
+  orderNum      Int           @map("order_num")
+
+  event   Event        @relation(fields: [eventId], references: [id])
+  matches EventMatch[]
+
+  @@index([eventId, orderNum])
+  @@map("event_stages")
+}
+
+model EventMatch {
+  id         Int         @id @default(autoincrement())
+  stageId    Int         @map("stage_id")
+  round      Int?
+  orderNum   Int         @map("order_num")
+  label      String?
+  winnerSide Int?        @map("winner_side")
+  side1Score Int?        @map("side1_score")
+  side2Score Int?        @map("side2_score")
+  boSeries   Int         @default(3) @map("bo_series")
+  status     MatchStatus @default(UNPLAYED)
+
+  stage   EventStage         @relation(fields: [stageId], references: [id])
+  players EventMatchPlayer[]
+  games   EventGame[]
+
+  @@index([stageId, round, orderNum])
+  @@map("event_matches")
+}
+
+model EventMatchPlayer {
+  id          Int     @id @default(autoincrement())
+  matchId     Int     @map("match_id")
+  steamId     String? @map("steam_id")
+  displayName String  @map("display_name")
+  side        Int
+
+  match EventMatch @relation(fields: [matchId], references: [id])
+  user  User?      @relation(fields: [steamId], references: [steamId])
+
+  @@unique([matchId, displayName])
+  @@map("event_match_players")
+}
+
+model EventGame {
+  id         Int       @id @default(autoincrement())
+  matchId    Int       @map("match_id")
+  gameNumber Int       @map("game_number")
+  side1Score Int?      @map("side1_score")
+  side2Score Int?      @map("side2_score")
+  arenaId    Int?      @map("arena_id")
+  playedAt   DateTime? @map("played_at")
+
+  match EventMatch @relation(fields: [matchId], references: [id])
+  arena Arena?     @relation(fields: [arenaId], references: [id])
+
+  @@map("event_games")
+}
+
+model EventParticipant {
+  id         Int      @id @default(autoincrement())
+  eventId    Int      @map("event_id")
+  steamId    String   @map("steam_id")
+  seed       Int?
+  eliminated Boolean  @default(false)
+  hidden     Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [steamId], references: [steamId])
+
+  @@unique([eventId, steamId])
+  @@map("event_participants")
+}
+
+model EventPlacement {
+  id        Int    @id @default(autoincrement())
+  eventId   Int    @map("event_id")
+  steamId   String @map("steam_id")
+  placement Int
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [steamId], references: [steamId])
+
+  @@unique([eventId, steamId])
+  @@map("event_placements")
+}
+
 model Demo {
   id            Int      @id @default(autoincrement())
   file          String
@@ -185,6 +328,7 @@ model Demo {
   matchId       Int?     @map("match_id")
   tournamentId  Int?     @map("tournament_id")
   fightNightId  Int?     @map("fight_night_id")
+  eventId       Int?     @map("event_id")
   title         String?
   description   String?
 
@@ -193,6 +337,7 @@ model Demo {
   match             Match?             @relation(fields: [matchId], references: [id])
   tournament        Tournament?        @relation(fields: [tournamentId], references: [id])
   fightNightMatchup FightNightMatchup? @relation(fields: [fightNightId], references: [id])
+  event             Event?             @relation(fields: [eventId], references: [id])
   reports           DemoReport[]
 
   @@map("demos")
@@ -274,6 +419,9 @@ model User {
   tournamentsThirdPlace2   Tournament[]              @relation("TournamentThirdPlace2")
   auditLogs                AuditLog[]
   apiKeys                  ApiKey[]
+  eventMatchPlayers        EventMatchPlayer[]
+  eventParticipants        EventParticipant[]
+  eventPlacements          EventPlacement[]
 
   @@map("users")
 }
@@ -358,6 +506,7 @@ model Arena {
   mapsInPool        MapInPool[]
   mapBanActions     MapBanAction[]
   championshipGames ChampionshipGame[]
+  eventGames        EventGame[]
 
   @@map("arenas")
 }

@@ -7,9 +7,15 @@
 		isFirstRound: boolean;
 		isLastRound: boolean;
 		straightOutgoing?: boolean;
+		suppressOutgoing?: boolean;
+		suppressIncoming?: boolean;
 	}
 
-	let { round, isFirstRound, isLastRound, straightOutgoing = false }: Props = $props();
+	let { round, isFirstRound, isLastRound, straightOutgoing = false, suppressOutgoing = false, suppressIncoming = false }: Props = $props();
+
+	const hasOutgoing = $derived(!isLastRound && !suppressOutgoing);
+	const hasIncoming = $derived(!isFirstRound && !suppressIncoming);
+	const isOddCount = $derived(round.matches.length % 2 === 1);
 </script>
 
 <div class="flex flex-col flex-1">
@@ -20,14 +26,15 @@
 	</div>
 
 	<div class="match-column">
-		{#each round.matches as match (match.id)}
+		{#each round.matches as match, idx (match.id)}
+			{@const isUnpairedLast = isOddCount && idx === round.matches.length - 1}
 			<div
 				class="match-slot"
-				class:has-incoming={!isFirstRound}
-				class:has-outgoing={!isLastRound}
-				class:is-straight={!isLastRound && straightOutgoing}
-				class:is-odd={!isLastRound && !straightOutgoing && match.position % 2 === 1}
-				class:is-even={!isLastRound && !straightOutgoing && match.position % 2 === 0}
+				class:has-incoming={hasIncoming}
+				class:has-outgoing={hasOutgoing}
+				class:is-straight={hasOutgoing && (straightOutgoing || isUnpairedLast)}
+				class:is-odd={hasOutgoing && !straightOutgoing && !isUnpairedLast && match.position % 2 === 1}
+				class:is-even={hasOutgoing && !straightOutgoing && !isUnpairedLast && match.position % 2 === 0}
 			>
 				<div style:width="var(--bracket-match-width)">
 					<MatchCard {match} />
@@ -49,7 +56,7 @@
 		flex: 1;
 		display: flex;
 		align-items: center;
-		padding: 0.25rem 0;
+		padding: var(--bracket-slot-pad, 0.1875rem) 0;
 	}
 
 	/* Incoming connector: horizontal line from gap midpoint to match */

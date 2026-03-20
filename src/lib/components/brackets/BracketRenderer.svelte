@@ -2,12 +2,15 @@
 	import type { BracketData } from '$lib/types/bracket';
 	import EliminationBracket from './EliminationBracket.svelte';
 	import FightCard from './FightCard.svelte';
+	import { initBracketHover } from './bracket-hover.svelte';
 
 	interface Props {
 		data: BracketData;
 	}
 
 	let { data }: Props = $props();
+
+	initBracketHover();
 </script>
 
 {#if data.format === 'single_elim' || data.format === 'double_elim'}

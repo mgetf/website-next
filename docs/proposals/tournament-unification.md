@@ -2,7 +2,7 @@
 
 **Author:** Development Team  
 **Date:** February 15, 2026  
-**Updated:** March 19, 2026 (database audit, sequencing revision, external import strategy)  
+**Updated:** March 20, 2026 (EventStage model for multi-stage events, schema implemented)  
 **Status:** Pending  
 **Priority:** High (prerequisite for in-house bracket system)  
 **Depends on:** [`docs/proposals/bracket-rendering.md`](bracket-rendering.md) (bracket UI components and services)
@@ -215,7 +215,6 @@ model Event {
   name          String
   type          EventType
   status        EventStatus    @default(UPCOMING)
-  bracketFormat BracketFormat?
   isTeamEvent   Boolean        @default(false) @map("is_team_event")
   description   String?
   avatar        String?
@@ -228,7 +227,7 @@ model Event {
   bracketLink   String?        // legacy external bracket URL (cups)
   card          String?        // fight card image URL (fight nights)
 
-  matches       EventMatch[]
+  stages        EventStage[]
   participants  EventParticipant[]
   placements    EventPlacement[]
   demos         Demo[]
@@ -239,29 +238,67 @@ model Event {
 
 Every event has a name, type, status, and optional prizepool. `isTeamEvent` maps from the old `isTeamTournament` column and allows efficient queries like "all 2v2 events" without joining through match players. `createdAt` provides an audit trail. `prizepool` uses `Decimal` to avoid floating-point precision issues with currency. Type-specific fields like `bracketLink` and `card` are nullable columns — only a few of them, far less waste than maintaining 3 entire table hierarchies.
 
+Note that `bracketFormat` is **not** on the `Event` model — it lives on `EventStage`, because a single event can have multiple stages with different formats (see below).
+
+### Stages (Multi-Stage Support)
+
+```prisma
+model EventStage {
+  id            Int           @id @default(autoincrement())
+  eventId       Int           @map("event_id")
+  name          String
+  bracketFormat BracketFormat @map("bracket_format")
+  orderNum      Int           @map("order_num")
+
+  event   Event        @relation(fields: [eventId], references: [id])
+  matches EventMatch[]
+
+  @@index([eventId, orderNum])
+  @@map("event_stages")
+}
+```
+
+The `EventStage` model sits between `Event` and `EventMatch` to support multi-stage events. Each stage has its own `bracketFormat`, which maps 1:1 to a `BracketData` object for the bracket renderer.
+
+**Why this is necessary:** The 2025 World Championship has 4 distinct stages — Group A (round-robin), Group B (round-robin), Day 2 Play-in (single elim), and Top 8 Bracket (double elim). A single `bracketFormat` on `Event` can't represent this. The stage model cleanly separates them while keeping all stages under one event for listing and navigation purposes.
+
+**Simple events get 1 stage.** Cups have a single stage (e.g., "Main Bracket" with `SINGLE_ELIM`). Fight nights have a single stage ("Card" with `CARD`). No extra complexity for simple events — just one mandatory stage per event.
+
+**World Championship stages:**
+| Stage | Name | Format | Order |
+| --- | --- | --- | --- |
+| 1 | Group A | ROUND_ROBIN | 1 |
+| 2 | Group B | ROUND_ROBIN | 2 |
+| 3 | Day 2 Play-in | SINGLE_ELIM | 3 |
+| 4 | Top 8 Bracket | DOUBLE_ELIM | 4 |
+
+Each stage is rendered independently by the bracket system. The event detail page shows all stages in `orderNum` order.
+
 ### Matches
 
 ```prisma
 model EventMatch {
   id          Int          @id @default(autoincrement())
-  eventId     Int
+  stageId     Int          @map("stage_id")
   round       Int?         // bracket round (null for flat/card formats)
-  orderNum    Int          // display order within round
+  orderNum    Int          @map("order_num")
   label       String?      // "Main Event", "Quarterfinal 1", etc.
-  winnerSide  Int?         // 1 or 2 (null if unplayed)
-  side1Score  Int?
-  side2Score  Int?
-  boSeries    Int          @default(3)
+  winnerSide  Int?         @map("winner_side") // 1 or 2 (null if unplayed)
+  side1Score  Int?         @map("side1_score")
+  side2Score  Int?         @map("side2_score")
+  boSeries    Int          @default(3) @map("bo_series")
   status      MatchStatus  @default(UNPLAYED)
 
-  event       Event              @relation(fields: [eventId], references: [id])
+  stage       EventStage         @relation(fields: [stageId], references: [id])
   players     EventMatchPlayer[]
   games       EventGame[]
 
-  @@index([eventId, round, orderNum])
+  @@index([stageId, round, orderNum])
   @@map("event_matches")
 }
 ```
+
+Matches belong to a **stage**, not directly to an event. To get all matches for an event, join through `EventStage`. Prisma makes this trivial: `event.stages.flatMap(s => s.matches)`.
 
 Winner is stored as `winnerSide` (1 or 2) rather than a steam ID. This avoids ambiguity in 2v2 where there are two winners.
 
@@ -381,6 +418,7 @@ For fight nights (flat matchup cards), placements may not apply — each matchup
 | `tournaments`                                     | `events` (unified)             |
 | `championship`                                    |                                |
 | `fight_night`                                     |                                |
+| _(no stage concept)_                              | `event_stages` (new)           |
 | `championship_match`                              | `event_matches` (unified)      |
 | `fight_night_matchups`                            |                                |
 | `championship_game`                               | `event_games` (unified)        |
@@ -388,7 +426,9 @@ For fight nights (flat matchup cards), placements may not apply — each matchup
 | `championship_participant`                        | `event_participants` (unified) |
 | 6 hardcoded placement columns                     | `event_placements` (unified)   |
 | `demos.tournament_id` + `demos.fight_night_id` FK | `demos.event_id` FK            |
-| **7 tables + shared `games`/`demos` columns**     | **5 tables + clean demo FK**   |
+| **7 tables + shared `games`/`demos` columns**     | **6 tables + clean demo FK**   |
+
+The `event_stages` table is net-new — there was no stage concept before. It adds one table but enables multi-stage events (like the World Championship with 4 distinct bracket formats) without any schema hacks.
 
 ---
 
@@ -440,9 +480,11 @@ After import, every event will have full match data in the unified schema. The `
 
 The fight night and cup data is trivial. The championship data is the bulk of the migration.
 
-### Step 1: Create New Tables
+### Step 1: Create New Tables ✅
 
-Run a Prisma migration to create the 5 new `event_*` tables alongside the existing tables. Add the `EventType`, `EventStatus`, and `BracketFormat` enums.
+Run a Prisma migration to create the 6 new `event_*` tables alongside the existing tables. Add the `EventType`, `EventStatus`, and `BracketFormat` enums.
+
+**Completed:** Migration `20260320000000_add_unified_event_schema` creates `events`, `event_stages`, `event_matches`, `event_match_players`, `event_games`, `event_participants`, `event_placements`, and adds `event_id` FK to `demos`.
 
 ### Step 2: Migrate Data
 
@@ -456,21 +498,35 @@ Write a migration script that handles these operations in order:
    - Map `isTeamTournament` → `isTeamEvent`
    - Normalize `prizepool` values (cups have no prizepool field — default to 0)
 
-2. **Migrate participants.** Copy 71 `championship_participant` rows into `event_participants`, pointing at the merged championship Event ID.
+2. **Create stages for each event.** Every event needs at least 1 `EventStage` row:
+   - Each cup → 1 stage (name: "Main Bracket", format based on external bracket data — typically `SINGLE_ELIM`)
+   - Fight Night I → 1 stage (name: "Card", format: `CARD`)
+   - Fight Night II → 1 stage (name: "Card", format: `CARD`)
+   - World Championship → 4 stages:
+     - "Group A" (`ROUND_ROBIN`, orderNum: 1)
+     - "Group B" (`ROUND_ROBIN`, orderNum: 2)
+     - "Day 2 Play-in" (`SINGLE_ELIM`, orderNum: 3)
+     - "Top 8 Bracket" (`DOUBLE_ELIM`, orderNum: 4)
+   - Stage data for the World Championship comes from the cross-reference file: `data/championship-cross-reference.json`
 
-3. **Migrate championship matches → event_matches + event_match_players.**
+3. **Migrate participants.** Copy 71 `championship_participant` rows into `event_participants`, pointing at the merged championship Event ID.
+
+4. **Migrate championship matches → event_matches + event_match_players.**
+   - Each match belongs to a `stageId` (determined by cross-referencing Discord channel names with the round/group data in the cross-reference file)
    - Map `winner_score` → `side1Score`, `loser_score` → `side2Score` (see [Data Quality Issues](#data-quality-issues) — these are player1/player2 scores despite the column names)
    - Derive `winnerSide`: if `winnerId = player1Id` then `winnerSide = 1`, else `winnerSide = 2`. For unplayed matches, `winnerSide = NULL`.
    - Create 2 `event_match_players` rows per match (one per side)
    - Handle bye entries (steam IDs `'3'`, `'4'`): preserve as-is in `event_match_players` — the bracket renderer can detect byes by username
+   - Add `round` numbers from the Discord channel names (the cross-reference file has this mapping)
 
-4. **Migrate fight night matchups → event_matches + event_match_players.**
+5. **Migrate fight night matchups → event_matches + event_match_players.**
+   - Each matchup belongs to the fight night's single stage
    - `winner_score`/`loser_score` here ARE the winner's and loser's actual scores. Map to `side1Score`/`side2Score` using the `winnerId` to determine which side won.
    - Create 2 `event_match_players` rows per matchup
 
-5. **Migrate games.** Copy `championship_game` rows and fight night `games` rows (where `fight_night_matchups_id IS NOT NULL`) into `event_games`. Map `home_player_score`/`away_player_score` → `side1Score`/`side2Score`.
+6. **Migrate games.** Copy `championship_game` rows and fight night `games` rows (where `fight_night_matchups_id IS NOT NULL`) into `event_games`. Map `home_player_score`/`away_player_score` → `side1Score`/`side2Score`.
 
-6. **Convert placement columns.** For each cup in `tournaments`:
+7. **Convert placement columns.** For each cup in `tournaments`:
    - `winner1SteamId` → `EventPlacement(placement: 1)`
    - `winner2SteamId` → `EventPlacement(placement: 1)` (2v2 partner)
    - `secondPlace1SteamId` / `secondPlace2SteamId` → `EventPlacement(placement: 2)`
@@ -478,7 +534,7 @@ Write a migration script that handles these operations in order:
    - Skip empty strings AND NULLs — neither should produce a row
    - For the merged World Championship event, derive placements from the tournament row's winner columns
 
-7. **Migrate demo FKs.** Update the `demos` table: replace `tournament_id` and `fight_night_id` columns with an `event_id` FK pointing to the unified `events` table. Currently 0 demos use these columns, so the migration is structurally clean — just drop the old FKs and add the new one.
+8. **Migrate demo FKs.** Update the `demos` table: set `event_id` based on existing `tournament_id` and `fight_night_id` mappings. Currently 0 demos use these columns, so the migration is structurally clean — populate the new FK, then the old FKs can be dropped in Step 6.
 
 ### Step 3: Import External Bracket Data
 
@@ -533,12 +589,15 @@ This schema is the **data contract** that the bracket rendering system consumes.
 
 The bracket renderer needs:
 
-1. **Fetch all matches for an event** → `SELECT * FROM event_matches WHERE eventId = ? ORDER BY round, orderNum`
-2. **Fetch players for each match** → join `event_match_players` (handles 1v1 and 2v2 identically)
-3. **Fetch games within a match** → join `event_games`
-4. **Determine bracket structure** → `round` + `orderNum` define the bracket tree; `bracketFormat` on the event tells the renderer whether it's single elim, double elim, round robin, or a flat card
+1. **Fetch all stages for an event** → `SELECT * FROM event_stages WHERE event_id = ? ORDER BY order_num`
+2. **Fetch all matches per stage** → `SELECT * FROM event_matches WHERE stage_id = ? ORDER BY round, order_num`
+3. **Fetch players for each match** → join `event_match_players` (handles 1v1 and 2v2 identically)
+4. **Fetch games within a match** → join `event_games`
+5. **Determine bracket structure** → `bracket_format` on the **stage** tells the renderer whether it's single elim, double elim, round robin, or a flat card; `round` + `order_num` define the bracket tree within
 
-One query path. One component. Works for all event types. A fight night with `bracketFormat = CARD` renders as a flat matchup list. A cup with `bracketFormat = SINGLE_ELIM` renders as a bracket tree. Same data, different presentation.
+Each stage maps to one `BracketData` object (the presentation-layer type from `$lib/types/bracket.ts`). The event detail page renders one bracket section per stage. A cup with a single `SINGLE_ELIM` stage renders as one bracket tree. The World Championship renders 4 sections — two group standings tables, a play-in bracket, and a double-elim bracket.
+
+Same component, same query pattern, works for all event types and complexities.
 
 ### Execution Sequencing
 
@@ -563,19 +622,24 @@ The work proceeds incrementally:
 
 ### Prerequisites (before this proposal can execute)
 
-1. [ ] **Create `bracket-rendering.md` proposal** — design document covering bracket UI components, services, rendering strategies, and supported formats
-2. [ ] **Plan and build bracket rendering system** using Cursor Plan mode against `bracket-rendering.md`
-3. [ ] **Test and iterate bracket rendering** until it looks good and handles all format types
+1. [x] **Create `bracket-rendering.md` proposal** — design document covering bracket UI components, services, rendering strategies, and supported formats
+2. [x] **Plan and build bracket rendering system** using Cursor Plan mode against `bracket-rendering.md` — Phases 1-5 complete, components tested at `/dev/brackets`
+3. [ ] **Test and iterate bracket rendering** until it looks good and handles all format types (Phase 8 polish)
+
+### Data Reconstruction
+
+4. [x] **World Championship data reconstruction** — scraped 95 Discord channels, cross-referenced with BracketHQ/Liquipedia, all gaps resolved. See `data/championship-findings.md`
+5. [x] **Consolidated cross-reference file** — `data/championship-cross-reference.json` maps every WC match (92 total across 4 stages) to stage/round/players/scores with source attribution
 
 ### Schema & Migration
 
-4. [ ] Finalize schema (review field names, indexes, constraints against bracket renderer needs)
-5. [ ] Decide on bye entry handling (preserve phantom users or strip)
-6. [ ] Create Prisma migration for new tables + enums
-7. [ ] Write data migration script (see Step 2 — handle score semantics, empty strings, duplicate merge)
-8. [ ] Import external bracket data from BracketHQ and Challonge (one-time historical import)
-9. [ ] Backfill Fight Night I and II missing data (names, prizepool, 2v2 matchups, Bo3 anomaly)
-10. [ ] Resolve placeholder user `76561198040409232` in Fight Night I
+6. [x] Finalize schema (review field names, indexes, constraints against bracket renderer needs) — added `EventStage` model for multi-stage events
+7. [x] Decide on bye entry handling: preserve phantom users in `event_match_players`, bracket renderer detects byes by username
+8. [x] Create Prisma migration for new tables + enums — `20260320000000_add_unified_event_schema`
+9. [ ] Write data migration script (see Step 2 — handle score semantics, empty strings, duplicate merge, stage assignment)
+10. [ ] Import external bracket data from BracketHQ and Challonge (one-time historical import)
+11. [ ] Backfill Fight Night I and II missing data (names, prizepool, 2v2 matchups, Bo3 anomaly)
+12. [ ] Resolve placeholder user `76561198040409232` in Fight Night I
 
 ### Application Code
 

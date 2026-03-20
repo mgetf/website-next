@@ -6,7 +6,6 @@
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import BracketRenderer from '$lib/components/brackets/BracketRenderer.svelte';
 
-
   let { data }: { data: PageData } = $props();
 
   const event = $derived(data.event);
@@ -52,10 +51,7 @@
 
 <svelte:head>
   <title>{event.name} - Tournaments - MGE.tf</title>
-  <meta
-    name="description"
-    content="{event.name} — {typeBadge.label} on MGE.tf"
-  />
+  <meta name="description" content="{event.name} — {typeBadge.label} on MGE.tf" />
 </svelte:head>
 
 <div>
@@ -114,10 +110,7 @@
             <div class="flex items-center gap-3">
               <span class="text-2xl">{placementMedals[i] ?? `#${placement.placement}`}</span>
               {#if placement.user}
-                <a
-                  href="/users/{placement.user.steamId}"
-                  class="flex items-center gap-2 group"
-                >
+                <a href="/users/{placement.user.steamId}" class="flex items-center gap-2 group">
                   <img
                     src={placement.user.steamAvatar || '/default-avatar.png'}
                     alt={placement.user.steamUsername}
@@ -173,7 +166,12 @@
       <Card>
         <div class="text-center py-8">
           <p class="text-text-body mb-4">Bracket data is not available for this event.</p>
-          <Button variant="primary" href={event.bracketLink} target="_blank" rel="noopener noreferrer">
+          <Button
+            variant="primary"
+            href={event.bracketLink}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             View External Bracket →
           </Button>
         </div>

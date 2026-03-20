@@ -20,10 +20,10 @@ export type MatchStatus = 'upcoming' | 'live' | 'completed';
  * per-player data, only a side label.
  */
 export interface BracketPlayer {
-	name: string;
-	steamId?: string;
-	avatarUrl?: string;
-	href?: string;
+  name: string;
+  steamId?: string;
+  avatarUrl?: string;
+  href?: string;
 }
 
 /**
@@ -35,22 +35,22 @@ export interface BracketPlayer {
  * - 2 entries: 2v2, show both player names and avatars within the side
  */
 export interface BracketSide {
-	label: string;
-	players?: BracketPlayer[];
-	score?: number;
-	isWinner?: boolean;
-	seed?: number;
-	href?: string;
+  label: string;
+  players?: BracketPlayer[];
+  score?: number;
+  isWinner?: boolean;
+  seed?: number;
+  href?: string;
 }
 
 /**
  * A single game within a BoX series.
  */
 export interface BracketGame {
-	gameNumber: number;
-	side1Score: number;
-	side2Score: number;
-	arena?: string;
+  gameNumber: number;
+  side1Score: number;
+  side2Score: number;
+  arena?: string;
 }
 
 /**
@@ -61,17 +61,17 @@ export interface BracketGame {
  * odd + even positions connect to the same parent in the next round.
  */
 export interface BracketMatch {
-	id: number | string;
-	round: number;
-	position: number;
-	side1: BracketSide;
-	side2: BracketSide;
-	bestOf?: number;
-	status: MatchStatus;
-	isBye: boolean;
-	label?: string;
-	games?: BracketGame[];
-	href?: string;
+  id: number | string;
+  round: number;
+  position: number;
+  side1: BracketSide;
+  side2: BracketSide;
+  bestOf?: number;
+  status: MatchStatus;
+  isBye: boolean;
+  label?: string;
+  games?: BracketGame[];
+  href?: string;
 }
 
 /**
@@ -80,9 +80,9 @@ export interface BracketMatch {
  * see BracketData.loserRounds.
  */
 export interface BracketRound {
-	number: number;
-	label: string;
-	matches: BracketMatch[];
+  number: number;
+  label: string;
+  matches: BracketMatch[];
 }
 
 /**
@@ -96,10 +96,10 @@ export interface BracketRound {
  * For all other formats, only rounds is used.
  */
 export interface BracketData {
-	format: BracketFormat;
-	status: BracketStatus;
-	rounds: BracketRound[];
-	title?: string;
-	loserRounds?: BracketRound[];
-	grandFinal?: BracketRound;
+  format: BracketFormat;
+  status: BracketStatus;
+  rounds: BracketRound[];
+  title?: string;
+  loserRounds?: BracketRound[];
+  grandFinal?: BracketRound;
 }

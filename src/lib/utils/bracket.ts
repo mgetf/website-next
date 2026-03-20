@@ -6,10 +6,10 @@
  * @param totalRounds total number of rounds in the bracket
  */
 export function getRoundLabel(roundIndex: number, totalRounds: number): string {
-	const fromEnd = totalRounds - 1 - roundIndex;
+  const fromEnd = totalRounds - 1 - roundIndex;
 
-	if (fromEnd === 0) return 'Final';
-	if (fromEnd === 1) return 'Semifinals';
-	if (fromEnd === 2 && totalRounds >= 4) return 'Quarterfinals';
-	return `Round ${roundIndex + 1}`;
+  if (fromEnd === 0) return 'Final';
+  if (fromEnd === 1) return 'Semifinals';
+  if (fromEnd === 2 && totalRounds >= 4) return 'Quarterfinals';
+  return `Round ${roundIndex + 1}`;
 }

@@ -314,11 +314,7 @@
               class="flex items-center space-x-3 whitespace-nowrap group"
             >
               {#if event.avatar}
-                <img
-                  src={event.avatar}
-                  alt={event.name}
-                  class="w-12 h-12 rounded object-cover"
-                />
+                <img src={event.avatar} alt={event.name} class="w-12 h-12 rounded object-cover" />
               {:else}
                 <div
                   class="w-12 h-12 rounded bg-surface-input flex items-center justify-center text-2xl"
@@ -412,11 +408,7 @@
               class="flex items-center space-x-3 whitespace-nowrap group"
             >
               {#if event.avatar}
-                <img
-                  src={event.avatar}
-                  alt={event.name}
-                  class="w-12 h-12 rounded object-cover"
-                />
+                <img src={event.avatar} alt={event.name} class="w-12 h-12 rounded object-cover" />
               {:else}
                 <div
                   class="w-12 h-12 rounded bg-gradient-to-br from-purple-900/30 to-surface-card flex items-center justify-center text-2xl"

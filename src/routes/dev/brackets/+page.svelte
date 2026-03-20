@@ -120,8 +120,8 @@
 	];
 </script>
 
-<div class="min-h-screen bg-surface-page p-8">
-	<div class="max-w-7xl mx-auto space-y-12">
+<div class="min-h-screen bg-surface-page p-8 w-screen">
+	<div class="space-y-12">
 		<div>
 			<h1 class="text-2xl font-bold text-text-heading">Bracket Component Dev Harness</h1>
 			<p class="text-text-muted text-sm mt-1">

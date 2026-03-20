@@ -28,12 +28,12 @@ An evaluation of existing bracket rendering libraries concluded that none are su
 
 ### Libraries Evaluated
 
-| Library | Format Support | Why Not |
-| --- | --- | --- |
-| **BracketUI** (`sagarmusabbir/bracketui`) | None | Not a bracket library at all — generic React UI kit. The name "Bracket" refers to the company, not tournaments. |
+| Library                                                | Format Support                        | Why Not                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BracketUI** (`sagarmusabbir/bracketui`)              | None                                  | Not a bracket library at all — generic React UI kit. The name "Bracket" refers to the company, not tournaments.                                                                                                                                                                                                            |
 | **brackets-viewer.js** (`Drarig29/brackets-viewer.js`) | Single elim, double elim, round-robin | Renders via imperative `document.createElement()` — conflicts with Svelte's reactive model. SCSS light-theme defaults conflict with our dark Tailwind design tokens. Data model has hardcoded `opponent1`/`opponent2` (no 2v2 support). Stale toolchain (Node 14, TypeScript 4.6, Webpack). No tests (`"test": "exit 0"`). |
-| **Bracketry** (`sbachinin/bracketry`) | Single elim only | Supports 2v2 via `Contestant.players[]` array (designed for tennis doubles). Elegant API with 50+ customization options. But single elimination only — "double elimination is possible but won't look nice". No Svelte integration. |
-| **Gracket** (`Zettersten/jquery.gracket.js`) | Single elim only | Best Svelte integration — dedicated Svelte 5 runes adapter with `$state`/`$effect`. Modern toolchain (Vite, Vitest, TS 5.6). Dark ESPN-style theme. 8.5KB gzipped. But single elimination only — no double elim, round-robin, or flat card. |
+| **Bracketry** (`sbachinin/bracketry`)                  | Single elim only                      | Supports 2v2 via `Contestant.players[]` array (designed for tennis doubles). Elegant API with 50+ customization options. But single elimination only — "double elimination is possible but won't look nice". No Svelte integration.                                                                                        |
+| **Gracket** (`Zettersten/jquery.gracket.js`)           | Single elim only                      | Best Svelte integration — dedicated Svelte 5 runes adapter with `$state`/`$effect`. Modern toolchain (Vite, Vitest, TS 5.6). Dark ESPN-style theme. 8.5KB gzipped. But single elimination only — no double elim, round-robin, or flat card.                                                                                |
 
 ### Why Custom Wins
 
@@ -56,17 +56,20 @@ The bracket components are **presentation-layer only** — they accept a generic
 The components consume these types (defined in `$lib/types/bracket.ts`):
 
 **`BracketData`** — the top-level structure passed to a bracket renderer:
+
 - `format`: `'single_elim' | 'double_elim' | 'round_robin' | 'card'`
 - `rounds`: array of `BracketRound` (ordered by round number)
 - `title?`: display name of the bracket/stage
 - `status`: `'upcoming' | 'in_progress' | 'completed'`
 
 **`BracketRound`** — a round within a bracket:
+
 - `number`: round index (1-based for display)
 - `label`: display name ("Round 1", "Quarterfinals", "Upper Round 2", "Grand Final")
 - `matches`: array of `BracketMatch` (ordered by `position`)
 
 **`BracketMatch`** — a single match:
+
 - `id`: unique identifier (for keying, linking, click handlers)
 - `round`: round number
 - `position`: order within round (used for connector line math)
@@ -80,6 +83,7 @@ The components consume these types (defined in `$lib/types/bracket.ts`):
 - `href?`: link to match detail page
 
 **`BracketSide`** — one side of a match:
+
 - `label`: primary display name ("Team Fortress", "Ryan / Fancy", "BYE")
 - `players?`: array of `{ name, steamId, avatarUrl?, href? }` (for per-player rendering in 2v2)
 - `score?`: match score
@@ -88,6 +92,7 @@ The components consume these types (defined in `$lib/types/bracket.ts`):
 - `href?`: link to team/player profile
 
 **`BracketGame`** — a single game within a BoX series:
+
 - `gameNumber`: 1-based
 - `side1Score`: score for side 1
 - `side2Score`: score for side 2
@@ -220,11 +225,13 @@ Connector lines between rounds are drawn using CSS `::before` and `::after` pseu
 Each match card in rounds 2+ has a `::before` pseudo-element that extends leftward into the gap, drawing a horizontal line from the left edge of the card into the space between rounds.
 
 Each match card in rounds before the last has a `::after` pseudo-element that extends rightward, splitting into two paths to connect to the two child matches in the next round:
+
 - A horizontal segment extending rightward from the match card
 - A vertical segment that spans from the top child to the bottom child
 - The vertical segment is positioned at the midpoint of the gap
 
 The vertical span is achieved by setting:
+
 - Odd-numbered matches: `border-top` + `border-right` on `::after` (connecting downward to the parent)
 - Even-numbered matches: `border-bottom` + `border-right` on `::after` (connecting upward to the parent)
 
@@ -318,6 +325,7 @@ A planned tournament orchestration engine will automate tournament progression: 
 **Progressive round revelation**: When all matches in a round complete, the next round's matches appear (initially as TBD/upcoming). The bracket grows rightward as the tournament progresses. This is handled naturally — the `rounds` array in `BracketData` grows, and the `EliminationBracket` component renders whatever rounds exist.
 
 **Status transitions**: A match transitions through `upcoming → live → completed`. Each status has distinct visual treatment:
+
 - `upcoming`: Muted card, "TBD" or seeded names, no score
 - `live`: Highlighted border, pulsing indicator, in-progress scores
 - `completed`: Normal card, final scores, winner highlight
@@ -338,28 +346,28 @@ The orchestration engine pushes match updates to an SSE or WebSocket endpoint. T
 
 ### Where Brackets Appear in League Context
 
-| Page | What's Rendered |
-| --- | --- |
-| Season overview page | Playoff bracket for the season (after regular season concludes) |
-| Division/group page | Standings table (round-robin style) for the group stage |
-| Match detail page | Single `MatchCard` with game details (already exists, but could be enhanced) |
-| Admin match management | Bracket visualization for playoff match creation and result tracking |
+| Page                   | What's Rendered                                                              |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| Season overview page   | Playoff bracket for the season (after regular season concludes)              |
+| Division/group page    | Standings table (round-robin style) for the group stage                      |
+| Match detail page      | Single `MatchCard` with game details (already exists, but could be enhanced) |
+| Admin match management | Bracket visualization for playoff match creation and result tracking         |
 
 ### Mapping League Data to the Presentation Interface
 
 The existing league `Match` model has different field names and semantics than the unified event schema:
 
-| League field | Maps to | Notes |
-| --- | --- | --- |
-| `homeTeamId` / `awayTeamId` | `side1` / `side2` | Team-based, not player-based |
-| `winnerId` | `isWinner` on the matching side | Compared against `homeTeamId`/`awayTeamId` |
-| `winnerScore` / `loserScore` | `side1.score` / `side2.score` | Requires determining which side won first |
-| `playoffRound` (positive) | Upper bracket round number | `round` in `BracketRound` |
-| `playoffRound` (negative) | Lower bracket round number | Absolute value used for `round` |
+| League field                       | Maps to                                | Notes                                          |
+| ---------------------------------- | -------------------------------------- | ---------------------------------------------- |
+| `homeTeamId` / `awayTeamId`        | `side1` / `side2`                      | Team-based, not player-based                   |
+| `winnerId`                         | `isWinner` on the matching side        | Compared against `homeTeamId`/`awayTeamId`     |
+| `winnerScore` / `loserScore`       | `side1.score` / `side2.score`          | Requires determining which side won first      |
+| `playoffRound` (positive)          | Upper bracket round number             | `round` in `BracketRound`                      |
+| `playoffRound` (negative)          | Lower bracket round number             | Absolute value used for `round`                |
 | `status` (UNPLAYED/PLAYED/DISPUTE) | `upcoming` / `completed` / `completed` | DISPUTE still renders as completed with scores |
-| `boSeries` | `bestOf` on `BracketMatch` | Direct mapping |
-| Team name | `BracketSide.label` | Team name as primary label |
-| Team roster (for 2v2) | `BracketSide.players[]` | Join team roster to populate player details |
+| `boSeries`                         | `bestOf` on `BracketMatch`             | Direct mapping                                 |
+| Team name                          | `BracketSide.label`                    | Team name as primary label                     |
+| Team roster (for 2v2)              | `BracketSide.players[]`                | Join team roster to populate player details    |
 
 ### League vs Event: What's Different
 
@@ -380,18 +388,18 @@ The bracket renderer is tested entirely with fixture data in the `BracketData` f
 
 Fixture files provide known bracket states for each format and edge case:
 
-| Fixture | Format | Purpose |
-| --- | --- | --- |
-| `single-elim-8.json` | Single elim, 8 participants | Standard small bracket, all completed |
-| `single-elim-32.json` | Single elim, 32 participants | Large bracket, tests horizontal scroll and spacing |
-| `single-elim-byes.json` | Single elim with byes | Tests bye rendering and auto-advance display |
-| `single-elim-in-progress.json` | Single elim, partially completed | Tests mixed status (completed + live + upcoming matches) |
-| `double-elim-16.json` | Double elim, 16 participants | Winners + losers bracket + grand final |
-| `double-elim-grand-final-reset.json` | Double elim with reset | Tests the grand final reset scenario |
-| `round-robin-4.json` | Round-robin, 4 participants | Group stage with standings table |
-| `fight-card-4.json` | Flat card, 4 matchups | Fight night layout |
-| `2v2-single-elim-8.json` | Single elim, 2v2, 8 teams | Tests 2v2 player display in match cards |
-| `live-tournament.json` | Single elim, partially live | Tests live indicators and progressive round revelation |
+| Fixture                              | Format                           | Purpose                                                  |
+| ------------------------------------ | -------------------------------- | -------------------------------------------------------- |
+| `single-elim-8.json`                 | Single elim, 8 participants      | Standard small bracket, all completed                    |
+| `single-elim-32.json`                | Single elim, 32 participants     | Large bracket, tests horizontal scroll and spacing       |
+| `single-elim-byes.json`              | Single elim with byes            | Tests bye rendering and auto-advance display             |
+| `single-elim-in-progress.json`       | Single elim, partially completed | Tests mixed status (completed + live + upcoming matches) |
+| `double-elim-16.json`                | Double elim, 16 participants     | Winners + losers bracket + grand final                   |
+| `double-elim-grand-final-reset.json` | Double elim with reset           | Tests the grand final reset scenario                     |
+| `round-robin-4.json`                 | Round-robin, 4 participants      | Group stage with standings table                         |
+| `fight-card-4.json`                  | Flat card, 4 matchups            | Fight night layout                                       |
+| `2v2-single-elim-8.json`             | Single elim, 2v2, 8 teams        | Tests 2v2 player display in match cards                  |
+| `live-tournament.json`               | Single elim, partially live      | Tests live indicators and progressive round revelation   |
 
 ### What to Validate
 
@@ -420,6 +428,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Goal:** Define the data contract and create test data. No components, no rendering — just the types that everything else builds against, and fixture files to develop against.
 
 **What gets built:**
+
 - `$lib/types/bracket.ts` — all presentation-layer types (`BracketData`, `BracketRound`, `BracketMatch`, `BracketSide`, `BracketGame`)
 - Fixture JSON files for development and testing:
   - `single-elim-8.json` — 8-participant single elimination, all matches completed
@@ -428,11 +437,13 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
   - `2v2-single-elim-8.json` — 8-team 2v2 single elimination
 
 **What gets validated:**
+
 - Types compile with no errors
 - Fixture files conform to the types (write a simple validation script or just import them in a TypeScript file)
 - The type interface feels right — can it represent every bracket state we need? Walk through each fixture mentally and confirm nothing is missing.
 
 **Open questions to resolve:**
+
 - Are these types complete, or does building fixtures expose missing fields?
 - Is `BracketSide.players` the right shape for 2v2, or does it need more/less?
 
@@ -445,11 +456,13 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Goal:** Build the core shared component that every format uses. Get it looking good in isolation before putting it into any bracket layout.
 
 **What gets built:**
+
 - `MatchCard.svelte` — renders two `MatchSide` rows in a card container
 - `MatchSide.svelte` — one row: seed badge, name/label, player avatars (2v2), score, winner/loser styling
 - A temporary dev harness page (e.g., `/dev/brackets`) that renders `MatchCard` instances from fixture data in a simple vertical list — no bracket layout yet, just cards
 
 **What gets validated:**
+
 - 1v1 match card looks correct (player name, score, winner highlight)
 - 2v2 match card looks correct (team name, both player names/avatars, score)
 - BYE match card renders with muted styling
@@ -460,6 +473,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 - Match card with BoX indicator (e.g., "Bo3") displays the series info
 
 **Open questions to resolve:**
+
 - What exact Tailwind classes for the card container? Use `bg-surface-card`, `border-border-default`, etc. from the design token system.
 - How should 2v2 player names/avatars be laid out within the constrained width of a bracket card?
 - How does the BoX indicator display — inline text? Badge? Separate row?
@@ -473,6 +487,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Goal:** Build the bracket layout for single elimination — the most complex rendering challenge. This is where connector lines, round columns, and vertical alignment all come together.
 
 **What gets built:**
+
 - `BracketRound.svelte` — vertical column of `MatchCard` components with a round header label
 - `BracketStage.svelte` — horizontal row of `BracketRound` components with flexbox layout
 - `EliminationBracket.svelte` — wraps a single `BracketStage` for single elim (double elim comes later)
@@ -482,6 +497,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 - Update the dev harness page to render the `single-elim-8` and `single-elim-byes` fixtures as actual brackets
 
 **What gets validated:**
+
 - 8-participant bracket renders with correct connector lines between all rounds
 - Matches vertically align between their feeder matches from the previous round
 - BYE matches render in the bracket without breaking connector alignment
@@ -490,6 +506,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 - Small brackets (4 participants, 2 rounds) don't waste excessive space
 
 **Open questions to resolve:**
+
 - Does the CSS connector technique work with Tailwind CSS 4, or does it need a scoped `<style>` block?
 - What are the right CSS variable values for `--bracket-match-width` and `--bracket-round-gap`?
 - How does the bracket look at different viewport widths?
@@ -505,11 +522,13 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Goal:** Add the trivial flat card format and build the top-level router that dispatches by format type.
 
 **What gets built:**
+
 - `FightCard.svelte` — ordered vertical list of `MatchCard` components, with optional "Main Event" emphasis on the last matchup
 - `BracketRenderer.svelte` — receives `BracketData`, reads `format`, and renders the appropriate component (`EliminationBracket` for `single_elim`, `FightCard` for `card`)
 - Update the dev harness page to use `BracketRenderer` and render both single-elim and fight-card fixtures
 
 **What gets validated:**
+
 - `BracketRenderer` correctly dispatches to `EliminationBracket` for single elim data
 - `BracketRenderer` correctly dispatches to `FightCard` for card data
 - `FightCard` renders matchups in display order with correct styling
@@ -524,6 +543,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Goal:** Extend `EliminationBracket` to handle double elimination — winners bracket, losers bracket, and grand final.
 
 **What gets built:**
+
 - Extend `EliminationBracket.svelte` to accept double-elim data and render multiple `BracketStage` components (winners, losers, grand final)
 - Losers bracket connector pattern (alternating straight/square connections)
 - Grand final rendering (single match or reset scenario)
@@ -531,6 +551,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 - Update the dev harness to render the double-elim fixture
 
 **What gets validated:**
+
 - Winners bracket renders correctly as a standard single-elim bracket
 - Losers bracket renders below the winners bracket with correct alternating connector pattern
 - Grand final connects to both the winners bracket final and losers bracket final
@@ -538,6 +559,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 - The overall layout doesn't waste excessive vertical space
 
 **Open questions to resolve:**
+
 - How does the losers bracket align horizontally relative to the winners bracket? Does losers round 1 align with winners round 1, or is it offset?
 - What is the exact alternating connector pattern for losers bracket rounds? Validate against real World Championship bracket data.
 - What vocabulary for losers bracket round labels? ("Losers Round 1" vs "Lower Bracket Round 1")
@@ -551,6 +573,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Goal:** Build the round-robin display — standings table and optional match grid. This is the format used for league group stages.
 
 **What gets built:**
+
 - `StandingsTable.svelte` — participant ranking table (rank, name, W, L, D, points, game diff)
 - `RoundRobinGroup.svelte` — wraps `StandingsTable` + optional match grid
 - Add `round_robin` branch to `BracketRenderer`
@@ -558,6 +581,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 - Update dev harness to render round-robin fixture
 
 **What gets validated:**
+
 - Standings table sorts correctly by points
 - Participant names link to their profiles
 - Match grid (if built) shows pairwise results correctly
@@ -572,6 +596,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Goal:** Connect the components to real data. Build the service-layer functions that transform database models into `BracketData`.
 
 **What gets built:**
+
 - Event data mapper in the event service layer: `EventMatch` + `EventMatchPlayer` + `EventGame` → `BracketData`
 - League playoff data mapper in the league service layer: league `Match` + `Team` → `BracketData`
 - Integration with actual route `load` functions — replace the dev harness with real pages that render brackets from database data
@@ -579,6 +604,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Prerequisites:** This phase cannot fully execute until the tournament unification migration (from `tournament-unification.md`) has created the `event_matches` tables and imported data. However, the league playoff mapper can be built and tested against existing league data immediately.
 
 **What gets validated:**
+
 - League playoff bracket renders correctly from real league match data
 - Event brackets render correctly from migrated event data (after tournament unification)
 - Both mappers handle edge cases: BYEs, unplayed matches, 2v2 team data, missing scores
@@ -592,6 +618,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 **Goal:** Iterate on visual design, fix edge cases discovered during real-data testing, and add interaction enhancements.
 
 **What gets built (as needed):**
+
 - Participant path highlighting on hover (hover over a name → highlight all their matches)
 - BoX game detail expansion (popover or accordion showing per-game scores)
 - Visual polish — spacing, typography, responsive behavior adjustments
@@ -599,6 +626,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 - Fix any edge cases with non-power-of-2 brackets, incomplete brackets, or unusual data shapes
 
 **What gets validated:**
+
 - Every historical event bracket renders correctly
 - Every league playoff bracket renders correctly
 - Brackets look good at all reasonable viewport widths
@@ -610,16 +638,16 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 
 ### Phase Summary
 
-| Phase | Builds | Depends On | Complexity |
-| --- | --- | --- | --- |
-| **1. Types + Fixtures** | Type definitions, fixture JSON files | Nothing | Low |
-| **2. MatchCard** | `MatchCard`, `MatchSide`, dev harness | Phase 1 | Low-Medium |
-| **3. Single Elim** | `BracketRound`, `BracketStage`, `EliminationBracket`, connector CSS | Phase 2 | **High** |
-| **4. FightCard + Router** | `FightCard`, `BracketRenderer` | Phase 2 | Low |
-| **5. Double Elim** | Double-elim extension of `EliminationBracket` | Phase 3 | Medium-High |
-| **6. Round-Robin** | `StandingsTable`, `RoundRobinGroup` | Phase 2 | Low-Medium |
-| **7. Data Mappers** | Service-layer mapper functions, route integration | Phase 4+ (all formats needed) | Medium |
-| **8. Polish** | Interaction enhancements, visual fixes | Phase 7 | Low-Medium |
+| Phase                     | Builds                                                              | Depends On                    | Complexity  |
+| ------------------------- | ------------------------------------------------------------------- | ----------------------------- | ----------- |
+| **1. Types + Fixtures**   | Type definitions, fixture JSON files                                | Nothing                       | Low         |
+| **2. MatchCard**          | `MatchCard`, `MatchSide`, dev harness                               | Phase 1                       | Low-Medium  |
+| **3. Single Elim**        | `BracketRound`, `BracketStage`, `EliminationBracket`, connector CSS | Phase 2                       | **High**    |
+| **4. FightCard + Router** | `FightCard`, `BracketRenderer`                                      | Phase 2                       | Low         |
+| **5. Double Elim**        | Double-elim extension of `EliminationBracket`                       | Phase 3                       | Medium-High |
+| **6. Round-Robin**        | `StandingsTable`, `RoundRobinGroup`                                 | Phase 2                       | Low-Medium  |
+| **7. Data Mappers**       | Service-layer mapper functions, route integration                   | Phase 4+ (all formats needed) | Medium      |
+| **8. Polish**             | Interaction enhancements, visual fixes                              | Phase 7                       | Low-Medium  |
 
 Phases 4, 5, and 6 can be done in any order after their prerequisites are met. Phase 3 is the critical path — it's the hardest work and everything else is easier once it's done.
 

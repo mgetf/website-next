@@ -128,9 +128,10 @@ Meanwhile, championships have their own separate `championship_game` table. Thre
 
 ### Cross-Table Duplication
 
-Tournament #14 ("1v1 World Championship 2025", started July 27 2025, has winners) and Championship #1 ("2025", started June 5 2025, 71 participants, 166 matches) represent **the same real-world event** stored in two different tables. The championship side tracks registration and bracket progression; the tournament side stores the final placements and external bracket link. The codebase already works around this — `getRecentTournamentActivity()` in `tournaments.ts` has an explicit comment: *"TEMPORARY WORKAROUND: Exclude championships to avoid duplicates with tournaments table"*.
+Tournament #14 ("1v1 World Championship 2025", started July 27 2025, has winners) and Championship #1 ("2025", started June 5 2025, 71 participants, 166 matches) represent **the same real-world event** stored in two different tables. The championship side tracks registration and bracket progression; the tournament side stores the final placements and external bracket link. The codebase already works around this — `getRecentTournamentActivity()` in `tournaments.ts` has an explicit comment: _"TEMPORARY WORKAROUND: Exclude championships to avoid duplicates with tournaments table"_.
 
 The migration must merge these two records into a single `Event` row, combining:
+
 - Participant/match/game data from `championship`
 - Placement data (winners) from `tournaments`
 - The external bracket link from `tournaments`
@@ -155,21 +156,21 @@ A database audit (March 2026) revealed several issues the migration script must 
 
 **Phantom/bye users in championship data.** Championship matches reference steam IDs `'1'`, `'2'`, `'3'`, `'4'`:
 
-| steam_id | username             | Purpose                                     |
-| -------- | -------------------- | ------------------------------------------- |
-| `1`      | hallu                | Real player entered with non-standard ID    |
-| `2`      | Higher               | Real player entered with non-standard ID    |
-| `3`      | BYE                  | Bye placeholder — opponent gets free win     |
-| `4`      | TBD / BYE (low seed) | Bye placeholder for low-seed bracket slots  |
+| steam_id | username             | Purpose                                    |
+| -------- | -------------------- | ------------------------------------------ |
+| `1`      | hallu                | Real player entered with non-standard ID   |
+| `2`      | Higher               | Real player entered with non-standard ID   |
+| `3`      | BYE                  | Bye placeholder — opponent gets free win   |
+| `4`      | TBD / BYE (low seed) | Bye placeholder for low-seed bracket slots |
 
 Decision needed: strip bye entries during migration (they'll show as empty slots in the bracket), or preserve them as-is in `event_match_players`.
 
 **Score column naming is misleading.** In `championship_match`, the columns `winner_score` and `loser_score` do NOT store the winner's and loser's scores. There are 43 rows where `winner_score < loser_score`. The columns actually store **player1's score and player2's score** respectively. Example:
 
-| match | player1 | player2 | winner  | winner_score | loser_score |
-| ----- | ------- | ------- | ------- | ------------ | ----------- |
-| 16    | P1      | P2      | P2      | 0            | 2           |
-| 18    | P1      | '1'     | '1'     | 1            | 2           |
+| match | player1 | player2 | winner | winner_score | loser_score |
+| ----- | ------- | ------- | ------ | ------------ | ----------- |
+| 16    | P1      | P2      | P2     | 0            | 2           |
+| 18    | P1      | '1'     | '1'    | 1            | 2           |
 
 Reading: P1 scored 0, P2 scored 2, P2 won. The migration must map `winner_score → side1Score` and `loser_score → side2Score` (NOT to winner's/loser's scores).
 
@@ -439,6 +440,7 @@ The most valuable data for this migration does not live in our database — it l
 ### Why This Matters
 
 Without importing external bracket data, the unified schema will have:
+
 - **Cups**: event metadata + placements, but zero match records. Brackets cannot render.
 - **Championship**: internally-tracked matches, but no `round` numbers. Bracket structure is unknown.
 - **Fight Nights**: 4 matchups from FN I only. FN II has nothing.
@@ -451,12 +453,12 @@ This will be a **one-time historical import**. Once data lives inside mge.tf, re
 
 ### What Each External Source Provides
 
-| Source | Events | Data available |
-| --- | --- | --- |
-| BracketHQ | 8 cups (IDs 1–5, 11, 13, 14) | Bracket tree, match results, round structure, seeding |
-| Challonge | 5 cups (IDs 6–10) | Bracket tree, match results, round structure, seeding |
-| Internal DB | Championship #1 | Matches + games (but no round numbers) |
-| Discord records | Fight Night II | 2v2 matchup data (3 matches, manual entry) |
+| Source          | Events                       | Data available                                        |
+| --------------- | ---------------------------- | ----------------------------------------------------- |
+| BracketHQ       | 8 cups (IDs 1–5, 11, 13, 14) | Bracket tree, match results, round structure, seeding |
+| Challonge       | 5 cups (IDs 6–10)            | Bracket tree, match results, round structure, seeding |
+| Internal DB     | Championship #1              | Matches + games (but no round numbers)                |
+| Discord records | Fight Night II               | 2v2 matchup data (3 matches, manual entry)            |
 
 After import, every event will have full match data in the unified schema. The `bracketLink` column is preserved on the `Event` model for reference but is no longer the primary data source.
 
@@ -466,17 +468,17 @@ After import, every event will have full match data in the unified schema. The `
 
 ### Record Inventory (as of March 2026)
 
-| Source                         | Records                                          |
-| ------------------------------ | ------------------------------------------------ |
-| Cups (`tournaments`)           | 14 events (IDs 1–11, 13–15)                     |
-| Championships (`championship`) | 1 event                                          |
-| Fight Nights (`fight_night`)   | 2 events                                         |
-| Championship participants      | 71 rows                                          |
-| Championship matches           | 166 (146 played, 20 unplayed)                    |
-| Championship games             | 498                                              |
-| Fight night matchups           | 4 matchups (Fight Night I only)                  |
-| Fight night games              | 11 games                                         |
-| **Total unified events**       | **16** (14 + 1 + 2, minus 1 for the duplicate)  |
+| Source                         | Records                                        |
+| ------------------------------ | ---------------------------------------------- |
+| Cups (`tournaments`)           | 14 events (IDs 1–11, 13–15)                    |
+| Championships (`championship`) | 1 event                                        |
+| Fight Nights (`fight_night`)   | 2 events                                       |
+| Championship participants      | 71 rows                                        |
+| Championship matches           | 166 (146 played, 20 unplayed)                  |
+| Championship games             | 498                                            |
+| Fight night matchups           | 4 matchups (Fight Night I only)                |
+| Fight night games              | 11 games                                       |
+| **Total unified events**       | **16** (14 + 1 + 2, minus 1 for the duplicate) |
 
 The fight night and cup data is trivial. The championship data is the bulk of the migration.
 
@@ -559,23 +561,23 @@ After this step, every historical event has the data needed for the bracket rend
 
 Services to rewrite or merge:
 
-| File | Change |
-| --- | --- |
-| `src/lib/server/services/tournaments.ts` | Primary rewrite — merge all event queries into unified service |
-| `src/lib/server/services/championships.ts` | Delete — functionality absorbed into unified service |
-| `src/lib/server/services/demos.ts` | Update demo FK references from `tournamentId`/`fightNightId` to `eventId` |
-| `src/lib/server/services/demoReports.ts` | Update any tournament/fight night references |
-| `src/lib/server/services/users.ts` | Update player tournament history queries |
+| File                                       | Change                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| `src/lib/server/services/tournaments.ts`   | Primary rewrite — merge all event queries into unified service            |
+| `src/lib/server/services/championships.ts` | Delete — functionality absorbed into unified service                      |
+| `src/lib/server/services/demos.ts`         | Update demo FK references from `tournamentId`/`fightNightId` to `eventId` |
+| `src/lib/server/services/demoReports.ts`   | Update any tournament/fight night references                              |
+| `src/lib/server/services/users.ts`         | Update player tournament history queries                                  |
 
 Routes and pages to update:
 
-| File | Change |
-| --- | --- |
-| `src/routes/tournaments/+page.server.ts` | Rewrite to query unified `events` table |
-| `src/routes/tournaments/+page.svelte` | Update UI to use unified data structure |
-| `src/routes/admin/league/+page.server.ts` | Update admin tournament management actions |
-| `src/routes/users/[steamId]/+page.svelte` | Update player profile fight night/tournament display |
-| Homepage load function | Replace `getLatestTournament()`, `getLatestChampionship()`, `getRecentTournamentActivity()` with unified queries |
+| File                                      | Change                                                                                                           |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `src/routes/tournaments/+page.server.ts`  | Rewrite to query unified `events` table                                                                          |
+| `src/routes/tournaments/+page.svelte`     | Update UI to use unified data structure                                                                          |
+| `src/routes/admin/league/+page.server.ts` | Update admin tournament management actions                                                                       |
+| `src/routes/users/[steamId]/+page.svelte` | Update player profile fight night/tournament display                                                             |
+| Homepage load function                    | Replace `getLatestTournament()`, `getLatestChampionship()`, `getRecentTournamentActivity()` with unified queries |
 
 ### Step 6: Drop Old Tables
 

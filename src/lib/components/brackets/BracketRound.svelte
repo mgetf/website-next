@@ -6,9 +6,10 @@
 		round: BracketRound;
 		isFirstRound: boolean;
 		isLastRound: boolean;
+		straightOutgoing?: boolean;
 	}
 
-	let { round, isFirstRound, isLastRound }: Props = $props();
+	let { round, isFirstRound, isLastRound, straightOutgoing = false }: Props = $props();
 </script>
 
 <div class="flex flex-col flex-1">
@@ -24,8 +25,9 @@
 				class="match-slot"
 				class:has-incoming={!isFirstRound}
 				class:has-outgoing={!isLastRound}
-				class:is-odd={match.position % 2 === 1}
-				class:is-even={match.position % 2 === 0}
+				class:is-straight={!isLastRound && straightOutgoing}
+				class:is-odd={!isLastRound && !straightOutgoing && match.position % 2 === 1}
+				class:is-even={!isLastRound && !straightOutgoing && match.position % 2 === 0}
 			>
 				<div style:width="var(--bracket-match-width)">
 					<MatchCard {match} />
@@ -55,6 +57,17 @@
 		content: '';
 		position: absolute;
 		left: calc(-1 * var(--bracket-round-gap) / 2);
+		width: calc(var(--bracket-round-gap) / 2);
+		top: 50%;
+		border-top: var(--bracket-connector-width) solid var(--bracket-connector-color);
+	}
+
+	/* Outgoing connector for straight rounds (same match count next round):
+	   horizontal line only, no vertical branching */
+	.match-slot.has-outgoing.is-straight::after {
+		content: '';
+		position: absolute;
+		right: calc(-1 * var(--bracket-round-gap) / 2);
 		width: calc(var(--bracket-round-gap) / 2);
 		top: 50%;
 		border-top: var(--bracket-connector-width) solid var(--bracket-connector-color);

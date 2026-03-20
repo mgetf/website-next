@@ -28,6 +28,7 @@
 					{round}
 					isFirstRound={i === 0}
 					isLastRound={i === rounds.length - 1}
+					straightOutgoing={i < rounds.length - 1 && rounds[i + 1].matches.length === round.matches.length}
 				/>
 			</div>
 		{/each}

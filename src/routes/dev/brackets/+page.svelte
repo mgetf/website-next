@@ -1,17 +1,19 @@
 <script lang="ts">
 	import type { BracketData, BracketMatch } from '$lib/types/bracket';
 	import MatchCard from '$lib/components/brackets/MatchCard.svelte';
-	import EliminationBracket from '$lib/components/brackets/EliminationBracket.svelte';
+	import BracketRenderer from '$lib/components/brackets/BracketRenderer.svelte';
 
 	import singleElim8Raw from '$lib/fixtures/brackets/single-elim-8.json';
 	import singleElimByesRaw from '$lib/fixtures/brackets/single-elim-byes.json';
 	import fightCard4Raw from '$lib/fixtures/brackets/fight-card-4.json';
 	import twoV2Raw from '$lib/fixtures/brackets/2v2-single-elim-8.json';
+	import doubleElim16Raw from '$lib/fixtures/brackets/double-elim-16.json';
 
 	const singleElim8 = singleElim8Raw as BracketData;
 	const singleElimByes = singleElimByesRaw as BracketData;
 	const fightCard4 = fightCard4Raw as BracketData;
 	const twoV2 = twoV2Raw as BracketData;
+	const doubleElim16 = doubleElim16Raw as BracketData;
 
 	const allMatchesFrom = (data: BracketData): BracketMatch[] =>
 		data.rounds.flatMap((r) => r.matches);
@@ -132,14 +134,35 @@
 			<h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
 				Single Elim — 8 Players
 			</h2>
-			<EliminationBracket data={singleElim8} />
+			<BracketRenderer data={singleElim8} />
 		</section>
 
 		<section>
 			<h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
 				Single Elim — BYEs
 			</h2>
-			<EliminationBracket data={singleElimByes} />
+			<BracketRenderer data={singleElimByes} />
+		</section>
+
+		<section>
+			<h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
+				Fight Card
+			</h2>
+			<BracketRenderer data={fightCard4} />
+		</section>
+
+		<section>
+			<h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
+				2v2 Single Elim — 8 Teams
+			</h2>
+			<BracketRenderer data={twoV2} />
+		</section>
+
+		<section>
+			<h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
+				Double Elim — 16 Players
+			</h2>
+			<BracketRenderer data={doubleElim16} />
 		</section>
 
 		<hr class="border-border-default" />

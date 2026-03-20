@@ -24,7 +24,7 @@
 					<MatchCard {match} />
 				</div>
 			{:else}
-				<div style:width="14rem">
+				<div style:width="var(--bracket-match-width, 12rem)">
 					<MatchCard {match} />
 				</div>
 			{/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { BracketSide, MatchStatus } from '$lib/types/bracket';
 	import Badge from '$lib/components/ui/Badge.svelte';
+	import { useBracketHover } from './bracket-hover.svelte';
 
 	interface Props {
 		side: BracketSide;
@@ -10,6 +11,8 @@
 
 	let { side, matchStatus, isByeSide }: Props = $props();
 
+	const hover = useBracketHover();
+
 	const players = $derived(side.players ?? []);
 	const hasPlayers = $derived(players.length > 0);
 	const is2v2 = $derived(players.length === 2);
@@ -17,6 +20,10 @@
 	const isCompleted = $derived(matchStatus === 'completed');
 	const isWinner = $derived(isCompleted && side.isWinner === true);
 	const isLoser = $derived(isCompleted && side.isWinner === false);
+
+	const isHighlighted = $derived(
+		!isByeSide && hover.label !== null && hover.label === side.label,
+	);
 
 	const nameClasses = $derived(
 		isByeSide
@@ -37,9 +44,23 @@
 	);
 
 	const showScore = $derived(!isByeSide && isCompleted && side.score !== undefined);
+
+	function onEnter() {
+		if (!isByeSide) hover.label = side.label;
+	}
+
+	function onLeave() {
+		if (hover.label === side.label) hover.label = null;
+	}
 </script>
 
-<div class="flex items-center gap-2 px-3 py-2 min-w-0">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="bracket-side flex items-center gap-2 min-w-0"
+	class:bracket-side-highlighted={isHighlighted}
+	onmouseenter={onEnter}
+	onmouseleave={onLeave}
+>
 	{#if side.seed !== undefined}
 		<Badge color="zinc" size="sm">{side.seed}</Badge>
 	{/if}
@@ -123,3 +144,17 @@
 		<span class="text-text-muted text-sm tabular-nums">—</span>
 	{/if}
 </div>
+
+<style>
+	:global(.bracket-side) {
+		padding: var(--bracket-match-pad-y, 0.375rem) var(--bracket-match-pad-x, 0.5rem);
+		font-size: var(--bracket-font-size, 0.8125rem);
+		transition: background-color 0.15s, border-color 0.15s;
+		border-left: 2px solid transparent;
+	}
+
+	:global(.bracket-side-highlighted) {
+		background-color: color-mix(in srgb, var(--color-primary-500) 12%, transparent);
+		border-left-color: var(--color-primary-500);
+	}
+</style>

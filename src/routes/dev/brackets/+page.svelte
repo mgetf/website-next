@@ -9,6 +9,7 @@
 	import twoV2Raw from '$lib/fixtures/brackets/2v2-single-elim-8.json';
 	import doubleElim16Raw from '$lib/fixtures/brackets/double-elim-16.json';
 	import doubleElimResetRaw from '$lib/fixtures/brackets/double-elim-reset.json';
+	import singleElimGamesRaw from '$lib/fixtures/brackets/single-elim-8-games.json';
 
 	const singleElim8 = singleElim8Raw as BracketData;
 	const singleElimByes = singleElimByesRaw as BracketData;
@@ -16,6 +17,7 @@
 	const twoV2 = twoV2Raw as BracketData;
 	const doubleElim16 = doubleElim16Raw as BracketData;
 	const doubleElimReset = doubleElimResetRaw as BracketData;
+	const singleElimGames = singleElimGamesRaw as BracketData;
 
 	const allMatchesFrom = (data: BracketData): BracketMatch[] =>
 		data.rounds.flatMap((r) => r.matches);
@@ -172,6 +174,13 @@
 				Double Elim — 8 Players (Grand Final Reset)
 			</h2>
 			<BracketRenderer data={doubleElimReset} />
+		</section>
+
+		<section>
+			<h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
+				Single Elim — 8 Players (with Game Data — hover cards for popover)
+			</h2>
+			<BracketRenderer data={singleElimGames} />
 		</section>
 
 		<hr class="border-border-default" />

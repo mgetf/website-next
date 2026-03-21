@@ -13,11 +13,11 @@ import {
   createItemPaymentOrder,
   cancelItemPaymentOrder,
   expireOverdueOrders,
+  getPendingOrderForCheckout,
 } from '$lib/server/services/item-payments';
 import { fetchSteamProfile } from '$lib/server/services/users';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { redirect, fail } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   requireAuth(locals.user);
@@ -99,23 +99,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   if (itemPaymentConfig) {
     await expireOverdueOrders();
-
-    const existing = await prisma.itemPaymentOrder.findFirst({
-      where: {
-        playerSteamId: steamId,
-        teamId: team.id,
-        status: 'PENDING',
-        expiresAt: { gt: new Date() },
-      },
-    });
-    if (existing) {
-      pendingItemOrder = {
-        orderNumber: existing.orderNumber,
-        itemName: existing.itemName,
-        itemsRequired: existing.itemsRequired,
-        expiresAt: existing.expiresAt.toISOString(),
-      };
-    }
+    pendingItemOrder = await getPendingOrderForCheckout(steamId, team.id);
   }
 
   return {

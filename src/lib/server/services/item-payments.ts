@@ -105,6 +105,26 @@ export async function createItemPaymentOrder(steamId: string, teamId: number) {
   return order;
 }
 
+export async function getPendingOrderForCheckout(steamId: string, teamId: number) {
+  const order = await prisma.itemPaymentOrder.findFirst({
+    where: {
+      playerSteamId: steamId,
+      teamId,
+      status: 'PENDING',
+      expiresAt: { gt: new Date() },
+    },
+  });
+
+  if (!order) return null;
+
+  return {
+    orderNumber: order.orderNumber,
+    itemName: order.itemName,
+    itemsRequired: order.itemsRequired,
+    expiresAt: order.expiresAt.toISOString(),
+  };
+}
+
 export async function cancelItemPaymentOrder(orderNumber: string, steamId: string) {
   const order = await prisma.itemPaymentOrder.findFirst({
     where: {

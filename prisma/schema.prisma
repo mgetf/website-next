@@ -107,6 +107,71 @@ enum BracketFormat {
   CARD
 }
 
+enum ItemPaymentStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Steam Item Catalog
+// ═══════════════════════════════════════════════════════════════════
+model SteamItem {
+  id             Int     @id @default(autoincrement())
+  name           String
+  appId          Int     @map("app_id")
+  marketHashName String  @unique @map("market_hash_name")
+  iconUrl        String? @map("icon_url")
+
+  divisionItemPayments DivisionItemPayment[]
+
+  @@map("steam_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Division Item Payment Configuration
+// ═══════════════════════════════════════════════════════════════════
+model DivisionItemPayment {
+  id           Int @id @default(autoincrement())
+  divisionId   Int @unique @map("division_id")
+  steamItemId  Int @map("steam_item_id")
+  itemQuantity Int @map("item_quantity")
+
+  division  Division  @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  steamItem SteamItem @relation(fields: [steamItemId], references: [id])
+
+  @@map("division_item_payments")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Item Payment Orders
+// ═══════════════════════════════════════════════════════════════════
+model ItemPaymentOrder {
+  id                 Int               @id @default(autoincrement())
+  orderNumber        String            @unique @map("order_number")
+  playerSteamId      String            @map("player_steam_id")
+  teamId             Int               @map("team_id")
+  seasonId           Int               @map("season_id")
+  itemName           String            @map("item_name")
+  itemAppId          Int               @map("item_app_id")
+  itemMarketHashName String            @map("item_market_hash_name")
+  itemsRequired      Int               @map("items_required")
+  itemsReceived      Int               @default(0) @map("items_received")
+  status             ItemPaymentStatus @default(PENDING)
+  tradeOfferId       String?           @map("trade_offer_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  completedAt        DateTime?         @map("completed_at")
+  expiresAt          DateTime          @map("expires_at")
+
+  player User   @relation(fields: [playerSteamId], references: [steamId])
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+
+  @@index([playerSteamId, status])
+  @@map("item_payment_orders")
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Format table (replaces is1v1 magic integer)
 // ═══════════════════════════════════════════════════════════════════
@@ -422,6 +487,7 @@ model User {
   eventMatchPlayers        EventMatchPlayer[]
   eventParticipants        EventParticipant[]
   eventPlacements          EventPlacement[]
+  itemPaymentOrders        ItemPaymentOrder[]
 
   @@map("users")
 }
@@ -534,6 +600,7 @@ model Season {
   teamsHistory        TeamHistory[]
   paymentTrackers     PaymentTracker[]
   activeSignupSeasons ActiveSignupSeason[]
+  itemPaymentOrders   ItemPaymentOrder[]
 
   @@map("seasons")
 }
@@ -583,8 +650,9 @@ model Team {
   players        PlayerInTeam[]
   pendingPlayers PendingPlayer[]
   deniedPlayers  DeniedPlayer[]
-  payments       Payment[]
-  mapBanActions  MapBanAction[]
+  payments           Payment[]
+  mapBanActions      MapBanAction[]
+  itemPaymentOrders  ItemPaymentOrder[]
 
   @@map("teams")
 }
@@ -651,8 +719,10 @@ model Match {
 }
 
 model Global {
-  id         Int @id @default(autoincrement())
-  leagueFees Int @default(0) @map("league_fees")
+  id               Int     @id @default(autoincrement())
+  leagueFees       Int     @default(0) @map("league_fees")
+  botTradeOfferUrl String? @map("bot_trade_offer_url")
+  botSteamId       String? @map("bot_steam_id")
 
   @@map("global")
 }
@@ -672,9 +742,10 @@ model Division {
   hidden     Int    @default(0)
   regionId   Int    @map("region_id")
 
-  region       Region @relation(fields: [regionId], references: [id])
+  region       Region               @relation(fields: [regionId], references: [id])
   teams        Team[]
   staffMembers User[]
+  itemPayment  DivisionItemPayment?
 
   @@unique([name, regionId])
   @@map("divisions")

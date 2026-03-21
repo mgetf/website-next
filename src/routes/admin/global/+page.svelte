@@ -492,6 +492,173 @@
       </div>
     {/if}
   </section>
+
+  <!-- Section 3: Steam Bot Settings -->
+  {#if data.isStrictAdmin}
+    <section class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
+      <div class="border-b border-zinc-800 pb-4">
+        <h3 class="text-2xl font-bold text-white mb-2">Steam Bot Settings</h3>
+        <p class="text-gray-400">Configure the Steam trading bot for item payments</p>
+      </div>
+
+      <form
+        method="POST"
+        action="?/updateBotSettings"
+        use:enhance={() => {
+          isSubmitting = true;
+          return async ({ update }) => {
+            await update();
+            isSubmitting = false;
+          };
+        }}
+        class="space-y-4 max-w-lg"
+      >
+        <div>
+          <label for="botTradeOfferUrl" class="block text-sm font-medium text-gray-300 mb-2">
+            Bot Trade Offer URL
+          </label>
+          <input
+            id="botTradeOfferUrl"
+            name="botTradeOfferUrl"
+            type="text"
+            value={data.globalSettings?.botTradeOfferUrl ?? ''}
+            placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&token=..."
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+        </div>
+        <div>
+          <label for="botSteamId" class="block text-sm font-medium text-gray-300 mb-2">
+            Bot Steam ID (SteamID64)
+          </label>
+          <input
+            id="botSteamId"
+            name="botSteamId"
+            type="text"
+            value={data.globalSettings?.botSteamId ?? ''}
+            placeholder="76561198012345678"
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+          <p class="text-xs text-gray-500 mt-1">
+            Used to display the bot's name and avatar on the checkout page
+          </p>
+        </div>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+        >
+          {isSubmitting ? 'Updating...' : 'Update Bot Settings'}
+        </button>
+      </form>
+    </section>
+
+    <!-- Section 4: Steam Items Catalog -->
+    <section class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
+      <div class="border-b border-zinc-800 pb-4">
+        <h3 class="text-2xl font-bold text-white mb-2">Steam Items Catalog</h3>
+        <p class="text-gray-400">Manage accepted Steam items for division payments</p>
+      </div>
+
+      <!-- Add Item Form -->
+      <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
+        <h4 class="text-sm font-semibold text-gray-300 mb-3">Add New Item</h4>
+        <form
+          method="POST"
+          action="?/createSteamItem"
+          use:enhance={() => {
+            isSubmitting = true;
+            return async ({ update }) => {
+              await update();
+              isSubmitting = false;
+            };
+          }}
+          class="grid grid-cols-1 md:grid-cols-4 gap-3"
+        >
+          <input
+            name="name"
+            type="text"
+            required
+            placeholder="Item Name"
+            class="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <input
+            name="appId"
+            type="number"
+            required
+            min="1"
+            placeholder="App ID (e.g. 440)"
+            class="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <input
+            name="marketHashName"
+            type="text"
+            required
+            placeholder="Market Hash Name"
+            class="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
+          >
+            Add
+          </button>
+        </form>
+      </div>
+
+      <!-- Items List -->
+      {#if data.steamItems.length === 0}
+        <div class="text-center py-8 text-gray-500">
+          <p>No Steam items configured</p>
+          <p class="text-sm mt-1">Add items above to enable item payments for divisions</p>
+        </div>
+      {:else}
+        <div class="space-y-2">
+          {#each data.steamItems as item}
+            <div
+              class="flex items-center justify-between bg-zinc-800/50 border border-zinc-700 rounded-lg p-3"
+            >
+              <div class="flex items-center gap-3">
+                {#if item.iconUrl}
+                  <img src={item.iconUrl} alt={item.name} class="w-8 h-8 rounded" />
+                {:else}
+                  <div
+                    class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-xs text-gray-400"
+                  >
+                    {item.appId}
+                  </div>
+                {/if}
+                <div>
+                  <p class="text-white text-sm font-medium">{item.name}</p>
+                  <p class="text-gray-500 text-xs">{item.marketHashName} (App {item.appId})</p>
+                </div>
+              </div>
+              <form
+                method="POST"
+                action="?/deleteSteamItem"
+                use:enhance={() => {
+                  isSubmitting = true;
+                  return async ({ update }) => {
+                    await update();
+                    isSubmitting = false;
+                  };
+                }}
+              >
+                <input type="hidden" name="id" value={item.id} />
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 rounded text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Delete
+                </button>
+              </form>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+  {/if}
 </div>
 
 <!-- Delete Confirmation Modal -->

@@ -241,6 +241,92 @@ export async function recordPayPalCapture(options: {
   }
 }
 
+export interface PaymentHistoryEntry {
+  id: string;
+  date: Date;
+  method: 'paypal' | 'items' | 'manual';
+  description: string;
+  amount: string;
+  currency: string;
+  teamId: number | null;
+  teamName: string | null;
+  status: 'completed' | 'pending' | 'expired' | 'cancelled';
+}
+
+export async function getUserPaymentHistory(
+  steamId: string,
+  page: number = 1,
+  limit: number = 20,
+): Promise<{ entries: PaymentHistoryEntry[]; total: number }> {
+  const [payments, itemOrders] = await Promise.all([
+    prisma.payment.findMany({
+      where: { purchasedBy: steamId },
+      include: { team: { select: { id: true, name: true } } },
+      orderBy: { purchaseDate: 'desc' },
+    }),
+    prisma.itemPaymentOrder.findMany({
+      where: { playerSteamId: steamId },
+      include: { team: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
+  const completedItemOrderNumbers = new Set(
+    itemOrders.filter((o) => o.status === 'COMPLETED').map((o) => o.tradeOfferId),
+  );
+
+  const entries: PaymentHistoryEntry[] = [];
+
+  for (const p of payments) {
+    if (completedItemOrderNumbers.has(p.paymentId)) continue;
+
+    let method: PaymentHistoryEntry['method'] = 'paypal';
+    if (p.currency === 'ITEMS') method = 'items';
+    else if (p.currency === 'MANUAL') method = 'manual';
+
+    entries.push({
+      id: p.paymentId,
+      date: p.purchaseDate,
+      method,
+      description: p.description ?? '',
+      amount: p.amount,
+      currency: p.currency ?? 'USD',
+      teamId: p.team?.id ?? null,
+      teamName: p.team?.name ?? null,
+      status: 'completed',
+    });
+  }
+
+  for (const o of itemOrders) {
+    const statusMap: Record<string, PaymentHistoryEntry['status']> = {
+      COMPLETED: 'completed',
+      PENDING: 'pending',
+      EXPIRED: 'expired',
+      CANCELLED: 'cancelled',
+    };
+
+    entries.push({
+      id: o.orderNumber,
+      date: o.status === 'COMPLETED' && o.completedAt ? o.completedAt : o.createdAt,
+      method: 'items',
+      description: `${o.itemsRequired}x ${o.itemName}`,
+      amount: `${o.itemsRequired}`,
+      currency: 'ITEMS',
+      teamId: o.team?.id ?? null,
+      teamName: o.team?.name ?? null,
+      status: statusMap[o.status] ?? 'pending',
+    });
+  }
+
+  entries.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const total = entries.length;
+  const start = (page - 1) * limit;
+  const paginated = entries.slice(start, start + limit);
+
+  return { entries: paginated, total };
+}
+
 /**
  * Check if division requires payment and if user has paid
  * Returns payment information for redirect decision

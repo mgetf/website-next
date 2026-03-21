@@ -45,6 +45,11 @@ import {
 } from '$lib/server/services/playoffs';
 import { getFormats, createFormat, updateFormat, deleteFormat } from '$lib/server/services/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { getSteamItems } from '$lib/server/services/steam-items';
+import {
+  upsertDivisionItemPayment,
+  deleteDivisionItemPayment,
+} from '$lib/server/services/division-item-payments';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -66,6 +71,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // Fetch all formats
   const allFormats = await getFormats();
+
+  // Fetch steam items for division item payment config
+  const steamItems = await getSteamItems();
 
   // Build a set of the latest season id per format+region combination
   const latestByFormatRegion = new Map<string, number>();
@@ -119,7 +127,15 @@ export const load: PageServerLoad = async ({ locals }) => {
       hidden: d.hidden,
       regionId: d.regionId,
       teams: d._count.teams,
+      itemPayment: d.itemPayment
+        ? {
+            steamItemId: d.itemPayment.steamItemId,
+            itemQuantity: d.itemPayment.itemQuantity,
+            steamItemName: d.itemPayment.steamItem.name,
+          }
+        : null,
     })),
+    steamItems,
     arenas: allArenas.map((a) => ({
       id: a.id,
       name: a.name,
@@ -362,8 +378,18 @@ export const actions: Actions = {
       return fail(400, { error: 'Region is required' });
     }
 
+    const steamItemIdStr = formData.get('steamItemId') as string;
+    const itemQuantityStr = formData.get('itemQuantity') as string;
+    const steamItemId = steamItemIdStr ? parseInt(steamItemIdStr) : null;
+    const itemQuantity = itemQuantityStr ? parseInt(itemQuantityStr) : null;
+
     try {
-      await createDivision({ name, signupCost, regionId });
+      const division = await createDivision({ name, signupCost, regionId });
+
+      if (steamItemId && itemQuantity && itemQuantity > 0) {
+        await upsertDivisionItemPayment(division.id, { steamItemId, itemQuantity });
+      }
+
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
@@ -401,8 +427,20 @@ export const actions: Actions = {
       return fail(400, { error: 'Region is required' });
     }
 
+    const steamItemIdStr = formData.get('steamItemId') as string;
+    const itemQuantityStr = formData.get('itemQuantity') as string;
+    const steamItemId = steamItemIdStr ? parseInt(steamItemIdStr) : null;
+    const itemQuantity = itemQuantityStr ? parseInt(itemQuantityStr) : null;
+
     try {
       await updateDivision(divisionId, { name, signupCost, regionId });
+
+      if (steamItemId && itemQuantity && itemQuantity > 0) {
+        await upsertDivisionItemPayment(divisionId, { steamItemId, itemQuantity });
+      } else {
+        await deleteDivisionItemPayment(divisionId);
+      }
+
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,

@@ -35,21 +35,24 @@ export async function getGlobalSettingsWithSignupSeasons() {
  * Update global settings
  * Creates if doesn't exist
  */
-export async function updateGlobalSettings(data: { leagueFees?: number }) {
-  // Get existing settings
+export async function updateGlobalSettings(data: {
+  leagueFees?: number;
+  botTradeOfferUrl?: string | null;
+  botSteamId?: string | null;
+}) {
   const existingSettings = await prisma.global.findFirst();
 
   if (existingSettings) {
-    // Update existing
     return await prisma.global.update({
       where: { id: existingSettings.id },
       data,
     });
   } else {
-    // Create new
     return await prisma.global.create({
       data: {
         leagueFees: data.leagueFees ?? 0,
+        botTradeOfferUrl: data.botTradeOfferUrl ?? null,
+        botSteamId: data.botSteamId ?? null,
       },
     });
   }

@@ -706,6 +706,44 @@
                 </div>
               </div>
             </div>
+            {#if data.steamItems && data.steamItems.length > 0}
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label
+                    for="create-steamItemId"
+                    class="block text-sm font-medium text-gray-300 mb-2"
+                  >
+                    Item Payment (optional)
+                  </label>
+                  <select
+                    id="create-steamItemId"
+                    name="steamItemId"
+                    class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="">None</option>
+                    {#each data.steamItems as item}
+                      <option value={item.id}>{item.name} (App {item.appId})</option>
+                    {/each}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    for="create-itemQuantity"
+                    class="block text-sm font-medium text-gray-300 mb-2"
+                  >
+                    Item Quantity
+                  </label>
+                  <input
+                    id="create-itemQuantity"
+                    name="itemQuantity"
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 3"
+                    class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
+            {/if}
             <p class="text-xs text-gray-500 mt-2">
               Each division belongs to a specific region. You can create divisions with the same
               name in different regions (e.g., "Open" for NA and "Open" for EU).
@@ -771,15 +809,24 @@
                       </div>
                     </div>
                   {:else if col.key === 'cost'}
-                    {#if division.signupCost > 0}
-                      <span class="text-sm font-medium text-green-400"
-                        >{regionData.region?.currencySymbol || '€'}{division.signupCost.toFixed(
-                          2,
-                        )}</span
-                      >
-                    {:else}
-                      <span class="text-sm text-gray-500">Free</span>
-                    {/if}
+                    <div class="flex items-center gap-2">
+                      {#if division.signupCost > 0}
+                        <span class="text-sm font-medium text-green-400"
+                          >{regionData.region?.currencySymbol || '€'}{division.signupCost.toFixed(
+                            2,
+                          )}</span
+                        >
+                      {:else}
+                        <span class="text-sm text-gray-500">Free</span>
+                      {/if}
+                      {#if division.itemPayment}
+                        <span
+                          class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                        >
+                          {division.itemPayment.itemQuantity}x {division.itemPayment.steamItemName}
+                        </span>
+                      {/if}
+                    </div>
                   {:else if col.key === 'visibility'}
                     <span
                       class="px-2 py-1 rounded text-xs font-medium {division.hidden === 0
@@ -1554,6 +1601,43 @@
           />
         </div>
       </div>
+
+      {#if data.steamItems && data.steamItems.length > 0}
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label for="edit-steamItemId" class="block text-sm font-medium text-gray-300 mb-2">
+              Item Payment
+            </label>
+            <select
+              id="edit-steamItemId"
+              name="steamItemId"
+              value={editingDivision.itemPayment?.steamItemId
+                ? String(editingDivision.itemPayment.steamItemId)
+                : ''}
+              class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="">None</option>
+              {#each data.steamItems as item}
+                <option value={item.id}>{item.name} (App {item.appId})</option>
+              {/each}
+            </select>
+          </div>
+          <div>
+            <label for="edit-itemQuantity" class="block text-sm font-medium text-gray-300 mb-2">
+              Item Quantity
+            </label>
+            <input
+              id="edit-itemQuantity"
+              name="itemQuantity"
+              type="number"
+              min="1"
+              value={editingDivision.itemPayment?.itemQuantity ?? ''}
+              placeholder="e.g. 3"
+              class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+        </div>
+      {/if}
 
       <div class="flex gap-3 justify-end">
         <button

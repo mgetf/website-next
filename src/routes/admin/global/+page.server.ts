@@ -22,19 +22,33 @@ import { getSeasons } from '$lib/server/services/seasons';
 import { getFormatsForFilter } from '$lib/server/services/formats';
 import { fail } from '@sveltejs/kit';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import {
+  getSteamItems,
+  createSteamItem as createSteamItemService,
+  updateSteamItem as updateSteamItemService,
+  deleteSteamItem as deleteSteamItemService,
+} from '$lib/server/services/steam-items';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
 
-  const [announcements, globalSettings, regions, seasons, formats, activeSignupSeasons] =
-    await Promise.all([
-      getAnnouncements(),
-      getGlobalSettings(),
-      getRegions(),
-      getSeasons(),
-      getFormatsForFilter(),
-      getAllActiveSignupSeasons(),
-    ]);
+  const [
+    announcements,
+    globalSettings,
+    regions,
+    seasons,
+    formats,
+    activeSignupSeasons,
+    steamItems,
+  ] = await Promise.all([
+    getAnnouncements(),
+    getGlobalSettings(),
+    getRegions(),
+    getSeasons(),
+    getFormatsForFilter(),
+    getAllActiveSignupSeasons(),
+    getSteamItems(),
+  ]);
 
   // Group seasons by region for easier selection, include per-season settings
   const seasonsByRegion = seasons.reduce(
@@ -100,6 +114,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     activeSignupSeasons,
     activeSeasonMap,
     seasonSettingsMap,
+    steamItems,
   };
 };
 
@@ -390,6 +405,94 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error updating season assignments:', error);
       return fail(500, { error: 'Failed to update season assignments' });
+    }
+  },
+
+  updateBotSettings: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const botTradeOfferUrl = formData.get('botTradeOfferUrl')?.toString().trim() || null;
+    const botSteamId = formData.get('botSteamId')?.toString().trim() || null;
+
+    try {
+      await updateGlobalSettings({ botTradeOfferUrl, botSteamId });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.GLOBAL_SETTINGS_UPDATED,
+        metadata: { botTradeOfferUrl, botSteamId },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Bot settings updated' };
+    } catch (error) {
+      console.error('Error updating bot settings:', error);
+      return fail(500, { error: 'Failed to update bot settings' });
+    }
+  },
+
+  createSteamItem: async ({ request, locals }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const name = formData.get('name')?.toString().trim() || '';
+    const appId = parseInt(formData.get('appId')?.toString() || '');
+    const marketHashName = formData.get('marketHashName')?.toString().trim() || '';
+    const iconUrl = formData.get('iconUrl')?.toString().trim() || null;
+
+    if (!name) return fail(400, { error: 'Item name is required' });
+    if (isNaN(appId) || appId < 1) return fail(400, { error: 'Valid App ID is required' });
+    if (!marketHashName) return fail(400, { error: 'Market hash name is required' });
+
+    try {
+      await createSteamItemService({ name, appId, marketHashName, iconUrl });
+      return { success: true, message: 'Steam item added' };
+    } catch (err) {
+      console.error('Error creating steam item:', err);
+      return fail(400, {
+        error: err instanceof Error ? err.message : 'Failed to create steam item',
+      });
+    }
+  },
+
+  updateSteamItem: async ({ request, locals }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const id = parseInt(formData.get('id')?.toString() || '');
+    const name = formData.get('name')?.toString().trim();
+    const iconUrl = formData.get('iconUrl')?.toString().trim() || null;
+
+    if (isNaN(id)) return fail(400, { error: 'Invalid item ID' });
+
+    try {
+      await updateSteamItemService(id, { name, iconUrl });
+      return { success: true, message: 'Steam item updated' };
+    } catch (err) {
+      console.error('Error updating steam item:', err);
+      return fail(400, {
+        error: err instanceof Error ? err.message : 'Failed to update steam item',
+      });
+    }
+  },
+
+  deleteSteamItem: async ({ request, locals }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const id = parseInt(formData.get('id')?.toString() || '');
+
+    if (isNaN(id)) return fail(400, { error: 'Invalid item ID' });
+
+    try {
+      await deleteSteamItemService(id);
+      return { success: true, message: 'Steam item deleted' };
+    } catch (err) {
+      console.error('Error deleting steam item:', err);
+      return fail(400, {
+        error: err instanceof Error ? err.message : 'Failed to delete steam item',
+      });
     }
   },
 };

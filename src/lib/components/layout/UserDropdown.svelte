@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { SessionUser } from '$lib/types/user';
   import { UserRole } from '$lib/types/user';
+  import transactionHistoryIcon from '$lib/assets/icons/transaction-history.png';
 
   type Props = {
     user: SessionUser;
@@ -144,6 +145,15 @@
             <span>My Team: {userTeam.name}</span>
           </a>
         {/if}
+
+        <a
+          href="/users/{user.steamId}/payments"
+          class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white transition-all"
+          onclick={() => (dropdownOpen = false)}
+        >
+          <img src={transactionHistoryIcon} alt="" class="w-5 h-5 brightness-0 invert opacity-70" />
+          <span>Payment History</span>
+        </a>
 
         {#if isAdminUser}
           <a

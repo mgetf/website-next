@@ -749,7 +749,7 @@ export async function unlockUserName(steamId: string) {
 /**
  * Fetch a user's current Steam profile via the Steam Web API
  */
-async function fetchSteamProfile(
+export async function fetchSteamProfile(
   steamId: string,
 ): Promise<{ personaname: string; avatarfull: string } | null> {
   const apiKey = process.env.STEAM_API_KEY;

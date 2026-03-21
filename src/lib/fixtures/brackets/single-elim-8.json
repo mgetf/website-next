@@ -1,0 +1,180 @@
+{
+  "format": "single_elim",
+  "status": "completed",
+  "title": "Summer Invitational 2025",
+  "rounds": [
+    {
+      "number": 1,
+      "label": "Round 1",
+      "matches": [
+        {
+          "id": "r1m1",
+          "round": 1,
+          "position": 1,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "stabby",
+            "seed": 1,
+            "score": 2,
+            "isWinner": true,
+            "players": [{ "name": "stabby", "steamId": "76561198012345678" }]
+          },
+          "side2": {
+            "label": "clockwork",
+            "seed": 8,
+            "score": 1,
+            "isWinner": false,
+            "players": [{ "name": "clockwork", "steamId": "76561198087654321" }]
+          }
+        },
+        {
+          "id": "r1m2",
+          "round": 1,
+          "position": 2,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "b4nny",
+            "seed": 4,
+            "score": 2,
+            "isWinner": true,
+            "players": [{ "name": "b4nny", "steamId": "76561198011223344" }]
+          },
+          "side2": {
+            "label": "uncle dane",
+            "seed": 5,
+            "score": 0,
+            "isWinner": false,
+            "players": [{ "name": "uncle dane", "steamId": "76561198055443322" }]
+          }
+        },
+        {
+          "id": "r1m3",
+          "round": 1,
+          "position": 3,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "sigafoo",
+            "seed": 2,
+            "score": 2,
+            "isWinner": true,
+            "players": [{ "name": "sigafoo", "steamId": "76561198022334455" }]
+          },
+          "side2": {
+            "label": "slin",
+            "seed": 7,
+            "score": 1,
+            "isWinner": false,
+            "players": [{ "name": "slin", "steamId": "76561198099887766" }]
+          }
+        },
+        {
+          "id": "r1m4",
+          "round": 1,
+          "position": 4,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "froyo",
+            "seed": 3,
+            "score": 2,
+            "isWinner": true,
+            "players": [{ "name": "froyo", "steamId": "76561198033445566" }]
+          },
+          "side2": {
+            "label": "numlocked",
+            "seed": 6,
+            "score": 2,
+            "isWinner": false,
+            "players": [{ "name": "numlocked", "steamId": "76561198066778899" }]
+          }
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "label": "Semifinals",
+      "matches": [
+        {
+          "id": "r2m1",
+          "round": 2,
+          "position": 1,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "stabby",
+            "seed": 1,
+            "score": 2,
+            "isWinner": true,
+            "players": [{ "name": "stabby", "steamId": "76561198012345678" }]
+          },
+          "side2": {
+            "label": "b4nny",
+            "seed": 4,
+            "score": 1,
+            "isWinner": false,
+            "players": [{ "name": "b4nny", "steamId": "76561198011223344" }]
+          }
+        },
+        {
+          "id": "r2m2",
+          "round": 2,
+          "position": 2,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "sigafoo",
+            "seed": 2,
+            "score": 0,
+            "isWinner": false,
+            "players": [{ "name": "sigafoo", "steamId": "76561198022334455" }]
+          },
+          "side2": {
+            "label": "froyo",
+            "seed": 3,
+            "score": 2,
+            "isWinner": true,
+            "players": [{ "name": "froyo", "steamId": "76561198033445566" }]
+          }
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "label": "Final",
+      "matches": [
+        {
+          "id": "r3m1",
+          "round": 3,
+          "position": 1,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 5,
+          "label": "Grand Final",
+          "side1": {
+            "label": "stabby",
+            "seed": 1,
+            "score": 3,
+            "isWinner": true,
+            "players": [{ "name": "stabby", "steamId": "76561198012345678" }]
+          },
+          "side2": {
+            "label": "froyo",
+            "seed": 3,
+            "score": 2,
+            "isWinner": false,
+            "players": [{ "name": "froyo", "steamId": "76561198033445566" }]
+          }
+        }
+      ]
+    }
+  ]
+}

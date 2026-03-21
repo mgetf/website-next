@@ -19,6 +19,9 @@ export async function getDivisions() {
           name: true,
         },
       },
+      itemPayment: {
+        include: { steamItem: true },
+      },
       _count: {
         select: {
           teams: true,

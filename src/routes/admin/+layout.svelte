@@ -40,6 +40,7 @@
     { name: 'Disputes', path: '/admin/disputes', icon: maceIcon, adminOnly: false },
     { name: 'Users', path: '/admin/users', icon: userIcon, adminOnly: false },
     { name: 'Global', path: '/admin/global', icon: webIcon, adminOnly: false },
+    { name: 'Item Orders', path: '/admin/item-payments', icon: hourglassIcon, adminOnly: false },
     { name: 'Site', path: '/admin/site', icon: settingIcon, adminOnly: false },
     { name: 'Audit Logs', path: '/admin/audit-logs', icon: auditIcon, adminOnly: true },
   ];

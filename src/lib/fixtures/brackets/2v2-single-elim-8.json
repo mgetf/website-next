@@ -1,0 +1,222 @@
+{
+  "format": "single_elim",
+  "status": "completed",
+  "title": "2v2 Championship Series — Season 3",
+  "rounds": [
+    {
+      "number": 1,
+      "label": "Round 1",
+      "matches": [
+        {
+          "id": "r1m1",
+          "round": 1,
+          "position": 1,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "Froyotech",
+            "seed": 1,
+            "score": 2,
+            "isWinner": true,
+            "players": [
+              { "name": "b4nny", "steamId": "76561198011223344" },
+              { "name": "habib", "steamId": "76561198044556677" }
+            ]
+          },
+          "side2": {
+            "label": "SVIFT",
+            "seed": 8,
+            "score": 0,
+            "isWinner": false,
+            "players": [
+              { "name": "numlocked", "steamId": "76561198066778899" },
+              { "name": "TLR", "steamId": "76561198077889900" }
+            ]
+          }
+        },
+        {
+          "id": "r1m2",
+          "round": 1,
+          "position": 2,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "The Bus Crew",
+            "seed": 4,
+            "score": 2,
+            "isWinner": true,
+            "players": [
+              { "name": "stabby", "steamId": "76561198012345678" },
+              { "name": "clockwork", "steamId": "76561198087654321" }
+            ]
+          },
+          "side2": {
+            "label": "Ascent.EU",
+            "seed": 5,
+            "score": 1,
+            "isWinner": false,
+            "players": [
+              { "name": "slin", "steamId": "76561198099887766" },
+              { "name": "sigma", "steamId": "76561198088990011" }
+            ]
+          }
+        },
+        {
+          "id": "r1m3",
+          "round": 1,
+          "position": 3,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "KND",
+            "seed": 2,
+            "score": 2,
+            "isWinner": true,
+            "players": [
+              { "name": "sigafoo", "steamId": "76561198022334455" },
+              { "name": "marvel", "steamId": "76561198033445566" }
+            ]
+          },
+          "side2": {
+            "label": "Platinum",
+            "seed": 7,
+            "score": 0,
+            "isWinner": false,
+            "players": [
+              { "name": "froyo", "steamId": "76561198033445566" },
+              { "name": "duwatna", "steamId": "76561198055112233" }
+            ]
+          }
+        },
+        {
+          "id": "r1m4",
+          "round": 1,
+          "position": 4,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "Witness Gaming",
+            "seed": 3,
+            "score": 2,
+            "isWinner": true,
+            "players": [
+              { "name": "arekk", "steamId": "76561198044556677" },
+              { "name": "aoshi", "steamId": "76561198022113344" }
+            ]
+          },
+          "side2": {
+            "label": "Koality",
+            "seed": 6,
+            "score": 1,
+            "isWinner": false,
+            "players": [
+              { "name": "uncle dane", "steamId": "76561198055443322" },
+              { "name": "flare", "steamId": "76561198011334455" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "label": "Semifinals",
+      "matches": [
+        {
+          "id": "r2m1",
+          "round": 2,
+          "position": 1,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "Froyotech",
+            "seed": 1,
+            "score": 2,
+            "isWinner": true,
+            "players": [
+              { "name": "b4nny", "steamId": "76561198011223344" },
+              { "name": "habib", "steamId": "76561198044556677" }
+            ]
+          },
+          "side2": {
+            "label": "The Bus Crew",
+            "seed": 4,
+            "score": 1,
+            "isWinner": false,
+            "players": [
+              { "name": "stabby", "steamId": "76561198012345678" },
+              { "name": "clockwork", "steamId": "76561198087654321" }
+            ]
+          }
+        },
+        {
+          "id": "r2m2",
+          "round": 2,
+          "position": 2,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 3,
+          "side1": {
+            "label": "KND",
+            "seed": 2,
+            "score": 1,
+            "isWinner": false,
+            "players": [
+              { "name": "sigafoo", "steamId": "76561198022334455" },
+              { "name": "marvel", "steamId": "76561198033445566" }
+            ]
+          },
+          "side2": {
+            "label": "Witness Gaming",
+            "seed": 3,
+            "score": 2,
+            "isWinner": true,
+            "players": [
+              { "name": "arekk", "steamId": "76561198044556677" },
+              { "name": "aoshi", "steamId": "76561198022113344" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "label": "Final",
+      "matches": [
+        {
+          "id": "r3m1",
+          "round": 3,
+          "position": 1,
+          "isBye": false,
+          "status": "completed",
+          "bestOf": 5,
+          "label": "Grand Final",
+          "side1": {
+            "label": "Froyotech",
+            "seed": 1,
+            "score": 3,
+            "isWinner": true,
+            "players": [
+              { "name": "b4nny", "steamId": "76561198011223344" },
+              { "name": "habib", "steamId": "76561198044556677" }
+            ]
+          },
+          "side2": {
+            "label": "Witness Gaming",
+            "seed": 3,
+            "score": 2,
+            "isWinner": false,
+            "players": [
+              { "name": "arekk", "steamId": "76561198044556677" },
+              { "name": "aoshi", "steamId": "76561198022113344" }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

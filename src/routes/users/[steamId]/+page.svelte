@@ -712,6 +712,22 @@
                     </button>
                     {#if (isOwnProfile || isAdmin) && entry.active}
                       <div class="pr-4 flex items-center gap-2">
+                        {#if !entry.isPaid && entry.signupCost > 0}
+                          {#if isOwnProfile}
+                            <a
+                              href="/checkout/{player.steamId}?teamId={entry.id}"
+                              class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Payment Required
+                            </a>
+                          {:else}
+                            <span
+                              class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400"
+                            >
+                              Payment Required
+                            </span>
+                          {/if}
+                        {/if}
                         {#if isAdmin && !entry.isPaid && entry.signupCost > 0}
                           <form
                             method="POST"

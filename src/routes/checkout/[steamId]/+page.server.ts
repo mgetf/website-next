@@ -1,11 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth, isBanned } from '$lib/server/auth/permissions';
-import {
-  getUserActiveTeamForCheckout,
-  getExistingPayment,
-  updatePlayerPaymentStatus,
-  getLeagueFees,
-} from '$lib/server/services/payments';
+import { getUserActiveTeamForCheckout, getTeamUnpaidPlayers } from '$lib/server/services/payments';
 import { isPayPalTestMode } from '$lib/server/services/paypal';
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { getItemPaymentByDivisionId } from '$lib/server/services/division-item-payments';
@@ -48,30 +43,51 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     throw redirect(303, `/teams/${team.id}`);
   }
 
-  if (playerInTeam.paymentStatus === 1) {
+  if (!team.seasonId) {
     throw redirect(303, `/teams/${team.id}`);
   }
 
-  const [existingPayment, leagueFees, globalSettings, itemPaymentConfig] = await Promise.all([
-    team.seasonId ? getExistingPayment(steamId, team.seasonId) : null,
-    getLeagueFees(),
+  const unpaidPlayers = await getTeamUnpaidPlayers(team.id, team.seasonId);
+
+  if (unpaidPlayers.length === 0) {
+    return {
+      allPaid: true as const,
+      team: { id: team.id, name: team.name, avatar: team.avatar },
+      unpaidPlayers: [],
+      division: { id: division.id, name: division.name },
+      currency: team.region?.currencyCode ?? 'USD',
+      currencySymbol: team.region?.currencySymbol ?? '$',
+      currentUserIsPaid: true,
+      steamId,
+      paypalClientId: '',
+      isTestMode: false,
+      itemPaymentConfig: null as {
+        itemName: string;
+        itemQuantity: number;
+        itemAppId: number;
+      } | null,
+      botTradeOfferUrl: null as string | null,
+      botProfile: null as {
+        steamId: string;
+        name: string;
+        avatar: string;
+        profileUrl: string;
+      } | null,
+      pendingItemOrder: null as {
+        orderNumber: string;
+        itemName: string;
+        itemsRequired: number;
+        expiresAt: string;
+      } | null,
+    };
+  }
+
+  const currentUserIsPaid = !unpaidPlayers.some((p) => p.steamId === steamId);
+
+  const [globalSettings, itemPaymentConfig] = await Promise.all([
     getGlobalSettings(),
     getItemPaymentByDivisionId(division.id),
   ]);
-
-  const amountPaid = existingPayment?.amount || 0;
-  const isFirstPayment = amountPaid === 0;
-
-  const effectiveLeagueFees = isFirstPayment ? leagueFees : 0;
-  const totalAmount = division.signupCost + effectiveLeagueFees;
-
-  if (amountPaid >= totalAmount) {
-    await updatePlayerPaymentStatus(steamId, team.id);
-    throw redirect(303, `/teams/${team.id}`);
-  }
-
-  const currency = team.region?.currencyCode ?? 'USD';
-  const currencySymbol = team.region?.currencySymbol ?? '$';
 
   const paypalClientId = process.env.PAYPAL_CLIENT_ID || '';
   const isTestMode = isPayPalTestMode();
@@ -103,15 +119,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   }
 
   return {
-    team,
-    division,
-    signupCost: division.signupCost,
-    leagueFees: effectiveLeagueFees,
-    totalAmount,
-    amountPaid,
-    isFirstPayment,
-    currency,
-    currencySymbol,
+    allPaid: false as const,
+    team: { id: team.id, name: team.name, avatar: team.avatar },
+    unpaidPlayers,
+    division: { id: division.id, name: division.name },
+    currency: team.region?.currencyCode ?? 'USD',
+    currencySymbol: team.region?.currencySymbol ?? '$',
+    currentUserIsPaid,
     steamId,
     paypalClientId,
     isTestMode,
@@ -134,13 +148,18 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const teamId = parseInt(formData.get('teamId') as string);
+    const paidForRaw = formData.get('paidForSteamIds') as string;
 
     if (!teamId || isNaN(teamId)) {
       return fail(400, { error: 'Invalid team ID' });
     }
 
+    const paidForSteamIds = paidForRaw
+      ? (JSON.parse(paidForRaw) as string[])
+      : [locals.user!.steamId];
+
     try {
-      const order = await createItemPaymentOrder(locals.user!.steamId, teamId);
+      const order = await createItemPaymentOrder(locals.user!.steamId, teamId, paidForSteamIds);
 
       await logAudit({
         actorId: locals.user!.steamId,
@@ -154,6 +173,7 @@ export const actions: Actions = {
           teamId,
           itemName: order.itemName,
           itemsRequired: order.itemsRequired,
+          paidForSteamIds,
         },
         ipAddress: getClientAddress(),
       });

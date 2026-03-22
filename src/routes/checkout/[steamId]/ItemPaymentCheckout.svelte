@@ -8,6 +8,7 @@
     botTradeOfferUrl,
     botProfile,
     pendingItemOrder,
+    paidForSteamIds,
   }: {
     teamId: number;
     itemPaymentConfig: { itemName: string; itemQuantity: number; itemAppId: number };
@@ -19,6 +20,7 @@
       itemsRequired: number;
       expiresAt: string;
     } | null;
+    paidForSteamIds: string[];
   } = $props();
 
   const initialOrder = pendingItemOrder;
@@ -145,10 +147,11 @@
       }}
     >
       <input type="hidden" name="teamId" value={teamId} />
+      <input type="hidden" name="paidForSteamIds" value={JSON.stringify(paidForSteamIds)} />
       <button
         type="submit"
         disabled={isSubmitting}
-        class="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg transition-colors text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-full py-4 bg-primary-600 hover:bg-primary-500 text-white font-bold rounded-lg transition-colors text-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting
           ? 'Creating Order...'

@@ -8,6 +8,7 @@
     steamId,
     teamId,
     isTestMode,
+    paidForSteamIds,
   }: {
     paypalClientId: string;
     currency: string;
@@ -15,6 +16,7 @@
     steamId: string;
     teamId: number;
     isTestMode: boolean;
+    paidForSteamIds: string[];
   } = $props();
 
   let paypalLoaded = $state(false);
@@ -74,7 +76,7 @@
       const createResponse = await fetch('/api/paypal/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: totalAmount, currency, steamId, teamId }),
+        body: JSON.stringify({ amount: totalAmount, currency, steamId, teamId, paidForSteamIds }),
       });
 
       const order = await createResponse.json();
@@ -91,6 +93,7 @@
           teamId,
           amount: totalAmount,
           currency,
+          paidForSteamIds,
         }),
       });
 
@@ -134,7 +137,13 @@
               const response = await fetch('/api/paypal/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: totalAmount, currency, steamId, teamId }),
+                body: JSON.stringify({
+                  amount: totalAmount,
+                  currency,
+                  steamId,
+                  teamId,
+                  paidForSteamIds,
+                }),
               });
               const order = await response.json();
               if (!response.ok || order.error) {
@@ -159,6 +168,7 @@
                   teamId,
                   amount: totalAmount,
                   currency,
+                  paidForSteamIds,
                 }),
               });
               const result = await response.json();

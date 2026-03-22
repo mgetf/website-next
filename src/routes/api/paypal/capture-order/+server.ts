@@ -11,7 +11,14 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
     requireAuth(locals.user);
 
     const body = await request.json();
-    const { orderID, steamId, teamId, amount: requestAmount, currency: requestCurrency } = body;
+    const {
+      orderID,
+      steamId,
+      teamId,
+      amount: requestAmount,
+      currency: requestCurrency,
+      paidForSteamIds,
+    } = body;
 
     if (!orderID || !steamId || !teamId) {
       return json({ error: 'Missing required fields' }, { status: 400 });
@@ -23,6 +30,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
         { status: 403 },
       );
     }
+
+    const targets: string[] =
+      Array.isArray(paidForSteamIds) && paidForSteamIds.length > 0 ? paidForSteamIds : [steamId];
 
     const testData = isPayPalTestMode()
       ? { steamId, teamId, amount: requestAmount, currency: requestCurrency }
@@ -64,7 +74,8 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
     const currency = capture.amount.currency_code;
 
     await recordPayPalCapture({
-      steamId,
+      payerSteamId: steamId,
+      paidForSteamIds: targets,
       teamId,
       captureId: capture.id,
       amount,
@@ -78,7 +89,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       action: AuditAction.PAYMENT_CAPTURED,
       targetType: 'Team',
       targetId: String(teamId),
-      metadata: { paymentId: capture.id, amount, currency, steamId },
+      metadata: { paymentId: capture.id, amount, currency, steamId, paidForSteamIds: targets },
       ipAddress: getClientAddress(),
     });
 

@@ -158,6 +158,7 @@ model ItemPaymentOrder {
   itemMarketHashName String            @map("item_market_hash_name")
   itemsRequired      Int               @map("items_required")
   itemsReceived      Int               @default(0) @map("items_received")
+  paidForSteamIds    String[]          @default([]) @map("paid_for_steam_ids")
   status             ItemPaymentStatus @default(PENDING)
   tradeOfferId       String?           @map("trade_offer_id")
   createdAt          DateTime          @default(now()) @map("created_at")

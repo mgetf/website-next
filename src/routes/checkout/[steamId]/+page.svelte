@@ -9,167 +9,324 @@
   const hasItemPayment = $derived(!!pageData.itemPaymentConfig && !!pageData.botTradeOfferUrl);
   const hasBothMethods = $derived(hasPaypal && hasItemPayment);
 
-  let selectedMethod = $state<'paypal' | 'items'>(
-    pageData.pendingItemOrder
+  let selectedMethod = $state<'paypal' | 'items'>('paypal');
+  let selectedSteamIds = $state<Set<string>>(new Set());
+
+  $effect(() => {
+    selectedMethod = pageData.pendingItemOrder
       ? 'items'
       : pageData.itemPaymentConfig &&
           pageData.botTradeOfferUrl &&
           !pageData.paypalClientId &&
           !pageData.isTestMode
         ? 'items'
-        : 'paypal',
+        : 'paypal';
+  });
+
+  $effect(() => {
+    if (!pageData.allPaid) {
+      selectedSteamIds = new Set(
+        pageData.unpaidPlayers
+          .filter((p: { steamId: string }) => p.steamId === pageData.steamId)
+          .map((p: { steamId: string }) => p.steamId),
+      );
+    }
+  });
+
+  interface CheckoutPlayer {
+    steamId: string;
+    name: string;
+    avatar: string | null;
+    signupCost: number;
+    leagueFees: number;
+    totalCost: number;
+  }
+
+  const selectedPlayers = $derived(
+    ((pageData.unpaidPlayers ?? []) as CheckoutPlayer[]).filter((p) =>
+      selectedSteamIds.has(p.steamId),
+    ),
   );
+
+  const totalPaypal = $derived(
+    selectedPlayers.reduce((sum: number, p: CheckoutPlayer) => sum + p.totalCost, 0),
+  );
+
+  const totalItemQuantity = $derived(
+    pageData.itemPaymentConfig
+      ? pageData.itemPaymentConfig.itemQuantity * selectedPlayers.length
+      : 0,
+  );
+
+  const paidForSteamIds = $derived([...selectedSteamIds]);
+
+  function togglePlayer(steamId: string) {
+    const next = new Set(selectedSteamIds);
+    if (next.has(steamId)) {
+      next.delete(steamId);
+    } else {
+      next.add(steamId);
+    }
+    selectedSteamIds = next;
+  }
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] px-4 py-12">
   <div class="max-w-2xl mx-auto">
     <div class="mb-8 text-center">
       <h1 class="text-4xl font-bold text-white mb-2">Complete Payment</h1>
-      <p class="text-gray-400">Pay your team signup fee to activate your registration</p>
+      <p class="text-text-muted">Pay your team signup fee to activate your registration</p>
     </div>
 
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-      <!-- Team Info -->
-      <div class="bg-gradient-to-r from-orange-600/20 to-orange-600/5 p-6 border-b border-zinc-800">
-        <div class="flex items-center gap-4">
-          {#if pageData.team.avatar}
-            <img
-              src={pageData.team.avatar}
-              alt={pageData.team.name}
-              class="w-16 h-16 rounded-lg object-cover"
+    {#if pageData.allPaid}
+      <!-- All Paid State -->
+      <div class="bg-surface-card border border-border-default rounded-lg overflow-hidden">
+        <div class="p-12 text-center">
+          <div
+            class="w-16 h-16 rounded-full bg-success-600/20 flex items-center justify-center mx-auto mb-6"
+          >
+            <svg
+              class="w-8 h-8 text-success-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-white mb-2">All Payments Complete</h2>
+          <p class="text-text-muted mb-8">
+            All team members have paid their signup fees. Nothing pending.
+          </p>
+          <a
+            href="/teams/{pageData.team.id}"
+            class="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-lg transition-colors"
+          >
+            Back to Team Page
+          </a>
+        </div>
+      </div>
+    {:else}
+      <div class="bg-surface-card border border-border-default rounded-lg overflow-hidden">
+        <!-- Team Info -->
+        <div
+          class="bg-gradient-to-r from-primary-600/20 to-primary-600/5 p-6 border-b border-border-default"
+        >
+          <div class="flex items-center gap-4">
+            {#if pageData.team.avatar}
+              <img
+                src={pageData.team.avatar}
+                alt={pageData.team.name}
+                class="w-16 h-16 rounded-lg object-cover"
+              />
+            {:else}
+              <div
+                class="w-16 h-16 rounded-lg bg-surface-input border border-border-input flex items-center justify-center"
+              >
+                <span class="text-2xl text-text-muted">{pageData.team.name.charAt(0)}</span>
+              </div>
+            {/if}
+            <div>
+              <h2 class="text-xl font-bold text-white">{pageData.team.name}</h2>
+              <p class="text-sm text-text-muted">
+                {pageData.division.name}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Player Selection -->
+        {#if pageData.unpaidPlayers.length > 1}
+          <div class="p-6 border-b border-border-default">
+            <h3 class="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">
+              Select Players to Pay For
+            </h3>
+            <div class="space-y-2">
+              {#each pageData.unpaidPlayers as player (player.steamId)}
+                <label
+                  for="player-{player.steamId}"
+                  class="flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer {selectedSteamIds.has(
+                    player.steamId,
+                  )
+                    ? 'border-primary-500 bg-primary-500/10'
+                    : 'border-border-default bg-surface-card hover:border-border-input'}"
+                >
+                  <input
+                    type="checkbox"
+                    id="player-{player.steamId}"
+                    checked={selectedSteamIds.has(player.steamId)}
+                    onchange={() => togglePlayer(player.steamId)}
+                    class="w-4 h-4 rounded border-border-input accent-primary-600"
+                  />
+                  {#if player.avatar}
+                    <img
+                      src={player.avatar}
+                      alt={player.name}
+                      class="w-8 h-8 rounded-full object-cover"
+                    />
+                  {:else}
+                    <div
+                      class="w-8 h-8 rounded-full bg-surface-input flex items-center justify-center"
+                    >
+                      <span class="text-xs text-text-muted">{player.name.charAt(0)}</span>
+                    </div>
+                  {/if}
+                  <div class="flex-1 min-w-0">
+                    <p class="text-white font-medium text-sm truncate">
+                      {player.name}
+                      {#if player.steamId === pageData.steamId}
+                        <span class="text-text-muted text-xs">(you)</span>
+                      {/if}
+                    </p>
+                  </div>
+                  <span class="text-white font-semibold text-sm whitespace-nowrap">
+                    {pageData.currencySymbol}{player.totalCost.toFixed(2)}
+                  </span>
+                </label>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Payment Method Selector -->
+        {#if hasBothMethods && selectedPlayers.length > 0}
+          <div class="p-6 border-b border-border-default">
+            <h3 class="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">
+              Payment Method
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                onclick={() => (selectedMethod = 'paypal')}
+                class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left {selectedMethod ===
+                'paypal'
+                  ? 'border-primary-500 bg-primary-500/10'
+                  : 'border-border-input bg-surface-input hover:border-border-default'}"
+              >
+                <img src="/paypal.svg" alt="PayPal" class="h-8 w-8 shrink-0" />
+                <div>
+                  <p class="text-white font-semibold">PayPal</p>
+                  <p class="text-text-muted text-xs mt-0.5">Pay with PayPal or card</p>
+                </div>
+              </button>
+              <button
+                onclick={() => (selectedMethod = 'items')}
+                class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left {selectedMethod ===
+                'items'
+                  ? 'border-primary-500 bg-primary-500/10'
+                  : 'border-border-input bg-surface-input hover:border-border-default'}"
+              >
+                <img
+                  src="/steam_logo.png"
+                  alt="Steam"
+                  class="h-8 w-8 shrink-0 brightness-0 invert"
+                />
+                <div>
+                  <p class="text-white font-semibold">Steam Items</p>
+                  <p class="text-text-muted text-xs mt-0.5">
+                    Pay with {pageData.itemPaymentConfig?.itemName}
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        {/if}
+
+        <div class="p-8">
+          {#if selectedPlayers.length === 0}
+            <div class="text-center py-8">
+              <p class="text-text-muted">Select at least one player to continue with payment.</p>
+            </div>
+          {:else if selectedMethod === 'items' && hasItemPayment && pageData.itemPaymentConfig}
+            <h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>
+            <div class="bg-surface-input rounded-lg p-6 mb-6">
+              {#each selectedPlayers as player (player.steamId)}
+                <div
+                  class="flex justify-between items-center {selectedPlayers.length > 1
+                    ? 'mb-3'
+                    : ''}"
+                >
+                  <span class="text-text-body">
+                    {player.name}
+                    {#if player.steamId === pageData.steamId}
+                      <span class="text-text-muted text-xs">(you)</span>
+                    {/if}
+                  </span>
+                  <span class="text-white font-semibold">
+                    {pageData.itemPaymentConfig.itemQuantity}x {pageData.itemPaymentConfig.itemName}
+                  </span>
+                </div>
+              {/each}
+              <div class="border-t border-border-input mt-4 pt-4 flex justify-between items-center">
+                <span class="text-white font-bold">Total Due</span>
+                <span class="text-2xl font-bold text-white">
+                  {totalItemQuantity}x {pageData.itemPaymentConfig.itemName}
+                </span>
+              </div>
+            </div>
+
+            <ItemPaymentCheckout
+              teamId={pageData.team.id}
+              itemPaymentConfig={{ ...pageData.itemPaymentConfig, itemQuantity: totalItemQuantity }}
+              botTradeOfferUrl={pageData.botTradeOfferUrl}
+              botProfile={pageData.botProfile}
+              pendingItemOrder={pageData.pendingItemOrder}
+              {paidForSteamIds}
             />
           {:else}
-            <div
-              class="w-16 h-16 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center"
-            >
-              <span class="text-2xl text-gray-400">{pageData.team.name.charAt(0)}</span>
+            <h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>
+            <div class="bg-surface-input rounded-lg p-6 mb-6">
+              {#each selectedPlayers as player (player.steamId)}
+                <div class="flex justify-between items-center mb-3">
+                  <span class="text-text-body">
+                    {player.name}
+                    {#if player.steamId === pageData.steamId}
+                      <span class="text-text-muted text-xs">(you)</span>
+                    {/if}
+                  </span>
+                  <span class="text-white font-semibold">
+                    {pageData.currencySymbol}{player.totalCost.toFixed(2)}
+                    {#if player.leagueFees > 0}
+                      <span class="text-text-muted text-xs ml-1">(incl. league fees)</span>
+                    {/if}
+                  </span>
+                </div>
+              {/each}
+              <div class="border-t border-border-input pt-4 flex justify-between items-center">
+                <span class="text-white font-bold">Total Due</span>
+                <span class="text-2xl font-bold text-white">
+                  {pageData.currencySymbol}{totalPaypal.toFixed(2)}
+                </span>
+              </div>
             </div>
+
+            {#if hasPaypal}
+              <PaypalCheckout
+                paypalClientId={pageData.paypalClientId}
+                currency={pageData.currency}
+                totalAmount={totalPaypal}
+                steamId={pageData.steamId}
+                teamId={pageData.team.id}
+                isTestMode={pageData.isTestMode}
+                {paidForSteamIds}
+              />
+            {/if}
           {/if}
-          <div>
-            <h2 class="text-xl font-bold text-white">{pageData.team.name}</h2>
-            <p class="text-sm text-gray-400">
-              {pageData.division.name} &bull; {pageData.team.region?.name || 'N/A'}
-            </p>
-          </div>
         </div>
       </div>
 
-      <!-- Payment Method Selector -->
-      {#if hasBothMethods}
-        <div class="p-6 border-b border-zinc-800">
-          <h3 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">
-            Payment Method
-          </h3>
-          <div class="grid grid-cols-2 gap-3">
-            <button
-              onclick={() => (selectedMethod = 'paypal')}
-              class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left {selectedMethod ===
-              'paypal'
-                ? 'border-orange-500 bg-orange-500/10'
-                : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'}"
-            >
-              <img src="/paypal.svg" alt="PayPal" class="h-8 w-8 shrink-0" />
-              <div>
-                <p class="text-white font-semibold">PayPal</p>
-                <p class="text-gray-400 text-xs mt-0.5">Pay with PayPal or card</p>
-              </div>
-            </button>
-            <button
-              onclick={() => (selectedMethod = 'items')}
-              class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left {selectedMethod ===
-              'items'
-                ? 'border-orange-500 bg-orange-500/10'
-                : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'}"
-            >
-              <img src="/steam_logo.png" alt="Steam" class="h-8 w-8 shrink-0 brightness-0 invert" />
-              <div>
-                <p class="text-white font-semibold">Steam Items</p>
-                <p class="text-gray-400 text-xs mt-0.5">
-                  Pay with {pageData.itemPaymentConfig?.itemName}
-                </p>
-              </div>
-            </button>
-          </div>
-        </div>
-      {/if}
-
-      <div class="p-8">
-        <!-- Payment Summary (adapts to selected method) -->
-        {#if selectedMethod === 'items' && hasItemPayment && pageData.itemPaymentConfig}
-          <h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>
-          <div class="bg-zinc-800 rounded-lg p-6 mb-6">
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Division Signup Fee</span>
-              <span class="text-white font-semibold">
-                {pageData.itemPaymentConfig.itemQuantity}x {pageData.itemPaymentConfig.itemName}
-              </span>
-            </div>
-            <div class="border-t border-zinc-700 mt-4 pt-4 flex justify-between items-center">
-              <span class="text-white font-bold">Total Due</span>
-              <span class="text-2xl font-bold text-white">
-                {pageData.itemPaymentConfig.itemQuantity}x {pageData.itemPaymentConfig.itemName}
-              </span>
-            </div>
-          </div>
-
-          <ItemPaymentCheckout
-            teamId={pageData.team.id}
-            itemPaymentConfig={pageData.itemPaymentConfig}
-            botTradeOfferUrl={pageData.botTradeOfferUrl}
-            botProfile={pageData.botProfile}
-            pendingItemOrder={pageData.pendingItemOrder}
-          />
-        {:else}
-          <h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>
-          <div class="bg-zinc-800 rounded-lg p-6 mb-6">
-            <div class="flex justify-between items-center mb-3">
-              <span class="text-gray-400">Division Signup Fee</span>
-              <span class="text-white font-semibold">
-                {pageData.currencySymbol}{pageData.signupCost.toFixed(2)}
-              </span>
-            </div>
-            {#if pageData.leagueFees > 0}
-              <div class="flex justify-between items-center mb-3">
-                <span class="text-gray-400">League Fees</span>
-                <span class="text-white font-semibold">
-                  {pageData.currencySymbol}{pageData.leagueFees.toFixed(2)}
-                </span>
-              </div>
-            {/if}
-            {#if pageData.amountPaid > 0}
-              <div class="flex justify-between items-center mb-3">
-                <span class="text-gray-400">Already Paid</span>
-                <span class="text-green-400 font-semibold">
-                  -{pageData.currencySymbol}{pageData.amountPaid.toFixed(2)}
-                </span>
-              </div>
-            {/if}
-            <div class="border-t border-zinc-700 pt-4 flex justify-between items-center">
-              <span class="text-white font-bold">Total Due</span>
-              <span class="text-2xl font-bold text-white">
-                {pageData.currencySymbol}{pageData.totalAmount.toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          {#if hasPaypal}
-            <PaypalCheckout
-              paypalClientId={pageData.paypalClientId}
-              currency={pageData.currency}
-              totalAmount={pageData.totalAmount}
-              steamId={pageData.steamId}
-              teamId={pageData.team.id}
-              isTestMode={pageData.isTestMode}
-            />
-          {/if}
-        {/if}
+      <div class="text-center mt-6">
+        <a
+          href="/teams/{pageData.team.id}"
+          class="text-text-muted hover:text-white transition-colors"
+        >
+          &larr; Back to Team Page
+        </a>
       </div>
-    </div>
-
-    <div class="text-center mt-6">
-      <a href="/teams/{pageData.team.id}" class="text-gray-400 hover:text-white transition-colors">
-        &larr; Back to Team Page
-      </a>
-    </div>
+    {/if}
   </div>
 </div>

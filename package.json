@@ -29,7 +29,7 @@
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
     "prisma": "^7.5.0",
-    "svelte": "^5.54.0",
+    "svelte": "^5.54.1",
     "svelte-check": "^4.4.5",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
@@ -42,7 +42,7 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1013.0",
+    "@aws-sdk/client-s3": "^3.1014.0",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "@tailwindcss/vite": "^4.2.2",

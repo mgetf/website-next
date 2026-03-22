@@ -303,9 +303,9 @@
 
                   <div class="flex items-center gap-2">
                     {#if !player.isPaid}
-                      {#if player.steamId === data.currentUserSteamId}
+                      {#if data.currentUserSteamId && data.isOnTeam}
                         <a
-                          href="/checkout/{player.steamId}?teamId={data.team.id}"
+                          href="/checkout/{data.currentUserSteamId}?teamId={data.team.id}"
                           class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
                         >
                           Payment Required

@@ -10,19 +10,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     requireAuth(locals.user);
 
     const body = await request.json();
-    const { amount, currency, steamId, teamId } = body;
+    const { amount, currency, steamId, teamId, paidForSteamIds } = body;
 
-    // Validate inputs
     if (!amount || !currency || !steamId || !teamId) {
       return json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify user is paying for themselves or is an admin
     if (locals.user.steamId !== steamId && !isAdmin(locals.user)) {
       return json(
         { error: 'Unauthorized: Cannot create payment for another user' },
         { status: 403 },
       );
+    }
+
+    if (paidForSteamIds && !Array.isArray(paidForSteamIds)) {
+      return json({ error: 'paidForSteamIds must be an array' }, { status: 400 });
     }
 
     const config = getPayPalConfig();

@@ -30,7 +30,14 @@
   let mobileMenuOpen = $state(false);
 
   const loginUrl = $derived(`/auth/login?redirect=${encodeURIComponent(page.url.pathname)}`);
-  const signupHref = $derived(user ? '/signup' : '/auth/login?redirect=%2Fsignup');
+
+  const canSignUp = $derived(
+    user &&
+      !signupClosed &&
+      !isInTeam &&
+      user.banStatus !== 'SUSPENDED' &&
+      user.banStatus !== 'BANNED',
+  );
 
   function toggleMobileMenu() {
     mobileMenuOpen = !mobileMenuOpen;
@@ -133,10 +140,10 @@
             <DiscordIcon />
           </a>
         </div>
-        {#if user && !signupClosed && !isInTeam}
+        {#if canSignUp}
           <a
             href="/signup"
-            class="hidden md:block px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg transition-colors"
+            class="hidden md:block px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors"
           >
             Sign Up
           </a>
@@ -227,10 +234,10 @@
           Rules
         </a>
 
-        {#if user && !signupClosed && !isInTeam}
+        {#if canSignUp}
           <a
             href="/signup"
-            class="block px-4 py-2 text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-center"
+            class="block px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-center"
           >
             Sign Up
           </a>

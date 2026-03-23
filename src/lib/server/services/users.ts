@@ -92,6 +92,30 @@ export async function isUserSignedUpForSeason(
 }
 
 /**
+ * Check if a user is signed up for ANY active season of a given format,
+ * regardless of region.
+ */
+export async function isUserSignedUpForFormat(steamId: string, formatId: number): Promise<boolean> {
+  const entry = await prisma.playerInTeam.findFirst({
+    where: {
+      playerSteamId: steamId,
+      active: 1,
+      team: {
+        formatId,
+        status: {
+          notIn: ['DEAD'],
+        },
+        season: {
+          signupsOpen: true,
+        },
+      },
+    },
+  });
+
+  return !!entry;
+}
+
+/**
  * Get player's active 2v2 team (for navigation display)
  * Prioritizes teams in current signup seasons, falls back to any active team
  * Returns null if player is not in an active 2v2 team

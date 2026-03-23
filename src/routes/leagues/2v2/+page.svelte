@@ -64,6 +64,14 @@
 
   const signupHref = $derived(data.user ? '/signup' : '/auth/login?redirect=%2Fsignup');
 
+  const canSignUp = $derived(
+    !data.deadlines.signupClosed &&
+      !data.userAlreadySignedUp &&
+      data.user &&
+      data.user.banStatus !== 'SUSPENDED' &&
+      data.user.banStatus !== 'BANNED',
+  );
+
   let selectedSeason = $state(0);
   let selectedRegion = $state(0);
   let isInitialized = $state(false);
@@ -316,8 +324,8 @@
             >
               {data.deadlines.signupClosed ? 'CLOSED' : 'OPEN'}
             </div>
-            {#if !data.deadlines.signupClosed && !data.userAlreadySignedUp}
-              <Button href={signupHref} variant="primary" size="sm">Sign Up Now</Button>
+            {#if canSignUp}
+              <Button href={signupHref} variant="format-2v2" size="md">Sign Up Now</Button>
             {/if}
           </div>
 

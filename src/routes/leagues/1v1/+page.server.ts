@@ -3,7 +3,7 @@ import { getSeasons, getSeasonInfo, updateSeasonInfo } from '$lib/server/service
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision, findRecent1v1SeasonWithEntries } from '$lib/server/services/teams';
-import { getStaffMembers, isUserSignedUpForSeason } from '$lib/server/services/users';
+import { getStaffMembers, isUserSignedUpForFormat } from '$lib/server/services/users';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
 import { formError, formSuccess } from '$lib/server/utils/forms';
@@ -168,14 +168,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       (a, b) => b.division.id - a.division.id,
     );
 
-    // Check if the current user is already signed up for this season
     let userAlreadySignedUp = false;
-    if (locals.user && selectedSeasonId) {
-      userAlreadySignedUp = await isUserSignedUpForSeason(
-        locals.user.steamId,
-        selectedSeasonId,
-        FORMAT_1V1,
-      );
+    if (locals.user) {
+      userAlreadySignedUp = await isUserSignedUpForFormat(locals.user.steamId, FORMAT_1V1);
     }
 
     const seasonInfo = selectedSeasonId ? await getSeasonInfo(selectedSeasonId) : null;

@@ -2,7 +2,15 @@
   import type { Snippet } from 'svelte';
   import type { HTMLButtonAttributes, HTMLAnchorAttributes } from 'svelte/elements';
 
-  type Variant = 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'ghost';
+  type Variant =
+    | 'primary'
+    | 'secondary'
+    | 'danger'
+    | 'success'
+    | 'warning'
+    | 'ghost'
+    | 'format-2v2'
+    | 'format-1v1';
   type Size = 'sm' | 'md' | 'lg';
 
   interface BaseProps {
@@ -45,6 +53,10 @@
       'bg-warning-600 hover:bg-warning-500 text-white disabled:bg-warning-600/50 disabled:cursor-not-allowed',
     ghost:
       'bg-transparent hover:bg-surface-input text-text-body disabled:opacity-50 disabled:cursor-not-allowed',
+    'format-2v2':
+      'bg-format-2v2-600 hover:bg-format-2v2-500 text-white disabled:bg-format-2v2-600/50 disabled:cursor-not-allowed',
+    'format-1v1':
+      'bg-format-1v1-600 hover:bg-format-1v1-500 text-white disabled:bg-format-1v1-600/50 disabled:cursor-not-allowed',
   };
 
   const sizeClasses: Record<Size, string> = {

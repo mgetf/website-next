@@ -8,6 +8,8 @@
  * This allows testing the full payment flow without valid PayPal credentials.
  */
 
+import { getOptionalEnv } from '$lib/server/utils/env';
+
 // Cached access token
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
@@ -16,16 +18,16 @@ let tokenExpiry: number = 0;
  * Check if we're in test/mock mode
  */
 export function isPayPalTestMode(): boolean {
-  return process.env.PAYPAL_MODE === 'test';
+  return getOptionalEnv('PAYPAL_MODE') === 'test';
 }
 
 /**
  * Get PayPal API configuration
  */
 export function getPayPalConfig() {
-  const mode = process.env.PAYPAL_MODE || 'sandbox';
-  const clientId = process.env.PAYPAL_CLIENT_ID || '';
-  const clientSecret = process.env.PAYPAL_CLIENT_SECRET || '';
+  const mode = getOptionalEnv('PAYPAL_MODE', 'sandbox');
+  const clientId = getOptionalEnv('PAYPAL_CLIENT_ID');
+  const clientSecret = getOptionalEnv('PAYPAL_CLIENT_SECRET');
 
   const apiBase = mode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 

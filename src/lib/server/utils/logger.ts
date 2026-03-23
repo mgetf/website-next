@@ -6,6 +6,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { RequestEvent } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+import { getOptionalEnv } from '$lib/server/utils/env';
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
@@ -21,7 +23,7 @@ interface LogEntry {
  */
 function getLogFilePath(prefix: string = 'app'): string {
   const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const logDir = process.env.LOG_DIR || 'logs';
+  const logDir = getOptionalEnv('LOG_DIR', 'logs');
   return path.join(logDir, `${prefix}-${date}.log`);
 }
 
@@ -92,7 +94,7 @@ export async function logError(message: string, error?: unknown): Promise<void> 
  * Log debug message (only in development)
  */
 export async function logDebug(message: string, data?: unknown): Promise<void> {
-  if (process.env.NODE_ENV !== 'development') {
+  if (!dev) {
     return;
   }
 

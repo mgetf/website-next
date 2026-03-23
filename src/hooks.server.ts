@@ -9,6 +9,9 @@ import { getSession } from '$lib/server/session';
 import { dev } from '$app/environment';
 import { isStaging, isUngatedRoute, getAppEnvironment } from '$lib/server/utils/environment';
 import { isAdmin } from '$lib/server/auth/permissions';
+import { validateEnvironment } from '$lib/server/utils/env';
+
+validateEnvironment();
 
 export const handle: Handle = async ({ event, resolve }) => {
   // Get user session from cookies

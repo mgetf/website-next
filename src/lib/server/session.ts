@@ -6,29 +6,13 @@
 import type { Cookies } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import crypto from 'crypto';
+import { getSessionSecret } from '$lib/server/utils/env';
 // Import shared types that work on both client and server
 export type { SessionUser } from '$lib/types/user';
 import type { SessionUser } from '$lib/types/user';
 
 const SESSION_COOKIE_NAME = 'mge_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-
-/**
- * Get the session secret from environment
- * Uses a fallback only in development mode
- */
-function getSessionSecret(): string {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    if (dev) {
-      // Allow development without setting SESSION_SECRET
-      console.warn('Warning: SESSION_SECRET not set, using insecure fallback for development');
-      return 'dev-only-insecure-secret-do-not-use-in-production';
-    }
-    throw new Error('SESSION_SECRET environment variable is required in production');
-  }
-  return secret;
-}
 
 /**
  * Sign session data with HMAC to prevent tampering

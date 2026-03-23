@@ -7,12 +7,13 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
+import { getOptionalEnv } from '$lib/server/utils/env';
 
-const R2_ENDPOINT = process.env.S3_EU_ENDPOINT || process.env.S3_ENDPOINT || '';
-const R2_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID || '';
-const R2_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY || '';
-const R2_BUCKET_NAME = process.env.CLOUDFLARE_BUCKET_NAME || '';
-const R2_PUBLIC_URL = process.env.CLOUDFLARE_PUBLIC_URL || '';
+const R2_ENDPOINT = getOptionalEnv('S3_EU_ENDPOINT') || getOptionalEnv('S3_ENDPOINT');
+const R2_ACCESS_KEY_ID = getOptionalEnv('S3_ACCESS_KEY_ID');
+const R2_SECRET_ACCESS_KEY = getOptionalEnv('S3_SECRET_ACCESS_KEY');
+const R2_BUCKET_NAME = getOptionalEnv('CLOUDFLARE_BUCKET_NAME');
+const R2_PUBLIC_URL = getOptionalEnv('CLOUDFLARE_PUBLIC_URL');
 
 // Check if R2 is configured
 const isR2Configured = !!(

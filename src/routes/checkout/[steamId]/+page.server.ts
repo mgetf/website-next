@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth, isBanned } from '$lib/server/auth/permissions';
 import { getUserActiveTeamForCheckout, getTeamUnpaidPlayers } from '$lib/server/services/payments';
-import { isPayPalTestMode } from '$lib/server/services/paypal';
+import { isPayPalTestMode, getPayPalConfig } from '$lib/server/services/paypal';
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { getItemPaymentByDivisionId } from '$lib/server/services/division-item-payments';
 import {
@@ -89,7 +89,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     getItemPaymentByDivisionId(division.id),
   ]);
 
-  const paypalClientId = process.env.PAYPAL_CLIENT_ID || '';
+  const paypalClientId = getPayPalConfig().clientId;
   const isTestMode = isPayPalTestMode();
 
   let botProfile: { steamId: string; name: string; avatar: string; profileUrl: string } | null =

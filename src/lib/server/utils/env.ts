@@ -23,10 +23,18 @@ const REQUIRED_SECRETS = ['JWT_SECRET', 'SESSION_SECRET'] as const;
  * Optional but recommended environment variables
  */
 const RECOMMENDED_VARS = [
+  'STEAM_API_KEY',
+  'PAYPAL_MODE',
   'PAYPAL_CLIENT_ID',
   'PAYPAL_CLIENT_SECRET',
-  'R2_ACCESS_KEY_ID',
-  'R2_SECRET_ACCESS_KEY',
+  'S3_ENDPOINT',
+  'S3_EU_ENDPOINT',
+  'S3_ACCESS_KEY_ID',
+  'S3_SECRET_ACCESS_KEY',
+  'CLOUDFLARE_BUCKET_NAME',
+  'CLOUDFLARE_PUBLIC_URL',
+  'PUBLIC_URL',
+  'LOG_DIR',
 ] as const;
 
 type RequiredSecret = (typeof REQUIRED_SECRETS)[number];

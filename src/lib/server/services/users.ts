@@ -8,6 +8,7 @@ import { prisma } from '$lib/server/db';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
+import { getOptionalEnv } from '$lib/server/utils/env';
 
 export type { ProfileMatch } from '$lib/types/match';
 
@@ -737,7 +738,7 @@ export async function unlockUserName(steamId: string) {
 export async function fetchSteamProfile(
   steamId: string,
 ): Promise<{ personaname: string; avatarfull: string } | null> {
-  const apiKey = process.env.STEAM_API_KEY;
+  const apiKey = getOptionalEnv('STEAM_API_KEY');
   if (!apiKey) return null;
 
   try {

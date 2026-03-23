@@ -1,8 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createPayPalOrder, getPayPalConfig } from '$lib/server/services/paypal';
+import { createPayPalOrder } from '$lib/server/services/paypal';
 import { logError } from '$lib/server/utils/logger';
 import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
+import { env } from '$env/dynamic/private';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
@@ -27,8 +28,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       return json({ error: 'paidForSteamIds must be an array' }, { status: 400 });
     }
 
-    const config = getPayPalConfig();
-    const baseUrl = process.env.PUBLIC_URL || 'http://localhost:5173';
+    const baseUrl = env.PUBLIC_URL || 'http://localhost:5173';
 
     const result = await createPayPalOrder({
       amount,

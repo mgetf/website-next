@@ -2,10 +2,10 @@
 
 **Author:** Development Team  
 **Date:** February 15, 2026  
-**Updated:** March 20, 2026 (EventStage model for multi-stage events, schema implemented)  
-**Status:** Pending  
-**Priority:** High (prerequisite for in-house bracket system)  
-**Depends on:** [`docs/proposals/bracket-rendering.md`](bracket-rendering.md) (bracket UI components and services)
+**Updated:** March 23, 2026  
+**Status:** ✅ Completed  
+**Completed:** March 2026 (Phase 4b). 16 events, 446 matches, 898 match players, 458 games migrated. Legacy tables dropped.  
+**Depends on:** [`docs/proposals/bracket-rendering.md`](bracket-rendering.md) ✅
 
 ---
 

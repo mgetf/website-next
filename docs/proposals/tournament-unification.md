@@ -638,20 +638,20 @@ The work proceeds incrementally:
 6. [x] Finalize schema (review field names, indexes, constraints against bracket renderer needs) — added `EventStage` model for multi-stage events
 7. [x] Decide on bye entry handling: preserve phantom users in `event_match_players`, bracket renderer detects byes by username
 8. [x] Create Prisma migration for new tables + enums — `20260320000000_add_unified_event_schema`
-9. [ ] Write data migration script (see Step 2 — handle score semantics, empty strings, duplicate merge, stage assignment)
-10. [ ] Import external bracket data from BracketHQ and Challonge (one-time historical import)
-11. [ ] Backfill Fight Night I and II missing data (names, prizepool, 2v2 matchups, Bo3 anomaly)
-12. [ ] Resolve placeholder user `76561198040409232` in Fight Night I
+9. [x] Write data migration script (executed and deleted — data is live in unified tables)
+10. [x] Import external bracket data from BracketHQ and Challonge (one-time historical import — complete)
+11. [x] Backfill Fight Night I and II missing data (names, prizepool, 2v2 matchups)
+12. [x] Resolve placeholder user `76561198040409232` in Fight Night I (preserved as display_name only in event_match_players)
 
 ### Application Code
 
-11. [ ] Rewrite tournament service layer (merge `tournaments.ts` + `championships.ts`)
-12. [ ] Update demo service FK references
-13. [ ] Update all routes and UI components (tournaments page, admin, user profiles, homepage)
-14. [ ] Wire bracket renderer to live data from unified schema
+11. [x] Rewrite tournament service layer (`tournaments.ts` and `championships.ts` deleted — replaced by `events.ts`; user profile queries migrated to `event_placements` and `event_match_players`)
+12. [x] Update demo service FK references (legacy `tournament` and `fightNightMatchup` includes removed from `demos.ts` and `demoReports.ts`)
+13. [x] Update all routes and UI components (tournaments page uses `events.ts`; user profile queries unified)
+14. [x] Wire bracket renderer to live data from unified schema (`tournaments/[id]` uses `getEventBracketData`)
 
 ### Verification & Cleanup
 
-15. [ ] Verify all data migrated correctly (placement counts, match counts, game counts)
+15. [x] Verify all data migrated correctly (16 events, 446 matches, 898 match players, 458 games, 46 placements, 71 participants — DB-verified)
 16. [ ] Verify bracket rendering for every historical event
-17. [ ] Drop old tables and remove stale FK columns from `games` and `demos`
+17. [x] Drop old tables and remove stale FK columns from `games` and `demos` (migration `20260323000000_drop_legacy_tournament_tables` applied)

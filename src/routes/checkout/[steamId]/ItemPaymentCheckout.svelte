@@ -23,9 +23,11 @@
     paidForSteamIds: string[];
   } = $props();
 
-  const initialOrder = pendingItemOrder;
   let isSubmitting = $state(false);
-  let order: typeof pendingItemOrder = $state(initialOrder);
+  let order: typeof pendingItemOrder = $state(null);
+  $effect(() => {
+    order = pendingItemOrder;
+  });
   let timeLeft = $state('');
   let isExpired = $state(false);
   let pollInterval: ReturnType<typeof setInterval> | undefined;

@@ -77,12 +77,6 @@ enum MapBanActionType {
   PICK
 }
 
-enum ChampionshipStatus {
-  REGISTRATION // 0
-  IN_PROGRESS // 1
-  COMPLETED // 2
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // Unified Event System enums
 // ═══════════════════════════════════════════════════════════════════
@@ -207,64 +201,6 @@ model ActiveSignupSeason {
 }
 
 // Models
-model Tournament {
-  id                  Int       @id @default(autoincrement())
-  name                String
-  description         String?
-  bracketLink         String?   @map("bracket_link")
-  avatar              String?
-  startedAt           DateTime? @map("started_at")
-  winner1SteamId      String?   @map("winner1_steam_id")
-  winner2SteamId      String?   @map("winner2_steam_id")
-  secondPlace1SteamId String?   @map("second_place1_steam_id")
-  secondPlace2SteamId String?   @map("second_place2_steam_id")
-  thirdPlace1SteamId  String?   @map("third_place1_steam_id")
-  thirdPlace2SteamId  String?   @map("third_place2_steam_id")
-  isTeamTournament    Boolean   @default(false) @map("is_team_tournament")
-
-  demos        Demo[]
-  winner1      User?  @relation("TournamentWinner1", fields: [winner1SteamId], references: [steamId], onDelete: SetNull)
-  winner2      User?  @relation("TournamentWinner2", fields: [winner2SteamId], references: [steamId], onDelete: SetNull)
-  secondPlace1 User?  @relation("TournamentSecondPlace1", fields: [secondPlace1SteamId], references: [steamId], onDelete: SetNull)
-  secondPlace2 User?  @relation("TournamentSecondPlace2", fields: [secondPlace2SteamId], references: [steamId], onDelete: SetNull)
-  thirdPlace1  User?  @relation("TournamentThirdPlace1", fields: [thirdPlace1SteamId], references: [steamId], onDelete: SetNull)
-  thirdPlace2  User?  @relation("TournamentThirdPlace2", fields: [thirdPlace2SteamId], references: [steamId], onDelete: SetNull)
-
-  @@map("tournaments")
-}
-
-model FightNight {
-  id          Int       @id @default(autoincrement())
-  card        String?
-  description String?
-  prizepool   Float     @default(0)
-  startedAt   DateTime? @map("started_at")
-
-  matchups FightNightMatchup[]
-
-  @@map("fight_night")
-}
-
-model FightNightMatchup {
-  id             Int     @id @default(autoincrement())
-  fightNightId   Int?    @map("fight_night_id")
-  player1SteamId String? @map("player1_steam_id")
-  player2SteamId String? @map("player2_steam_id")
-  orderNum       Int     @map("order_num")
-  winnerId       String? @map("winner_id")
-  winnerScore    Int?    @map("winner_score")
-  loserScore     Int?    @map("loser_score")
-  boSeries       Int     @default(3) @map("bo_series")
-
-  fightNight FightNight? @relation(fields: [fightNightId], references: [id])
-  player1    User?       @relation("FightNightPlayer1", fields: [player1SteamId], references: [steamId])
-  player2    User?       @relation("FightNightPlayer2", fields: [player2SteamId], references: [steamId])
-  winner     User?       @relation("FightNightWinner", fields: [winnerId], references: [steamId])
-  demos      Demo[]
-  games      Game[]
-
-  @@map("fight_night_matchups")
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // Unified Event System
@@ -392,18 +328,14 @@ model Demo {
   submittedBy   String?  @map("submitted_by")
   submittedAt   DateTime @default(now()) @map("submitted_at")
   matchId       Int?     @map("match_id")
-  tournamentId  Int?     @map("tournament_id")
-  fightNightId  Int?     @map("fight_night_id")
   eventId       Int?     @map("event_id")
   title         String?
   description   String?
 
   player            User?              @relation("DemoPlayer", fields: [playerSteamId], references: [steamId])
   submitter         User?              @relation("DemoSubmitter", fields: [submittedBy], references: [steamId])
-  match             Match?             @relation(fields: [matchId], references: [id])
-  tournament        Tournament?        @relation(fields: [tournamentId], references: [id])
-  fightNightMatchup FightNightMatchup? @relation(fields: [fightNightId], references: [id])
-  event             Event?             @relation(fields: [eventId], references: [id])
+  match Match? @relation(fields: [matchId], references: [id])
+  event Event? @relation(fields: [eventId], references: [id])
   reports           DemoReport[]
 
   @@map("demos")
@@ -468,22 +400,7 @@ model User {
   mapBanActions            MapBanAction[]
   notificationsReceived    Notification[]            @relation("NotificationRecipient")
   notificationsTriggered   Notification[]            @relation("NotificationActor")
-  fightNightPlayer1        FightNightMatchup[]       @relation("FightNightPlayer1")
-  fightNightPlayer2        FightNightMatchup[]       @relation("FightNightPlayer2")
-  fightNightWinner         FightNightMatchup[]       @relation("FightNightWinner")
-  championshipsWon         Championship[]
-  championshipParticipants ChampionshipParticipant[]
-  championshipMatchPlayer1 ChampionshipMatch[]       @relation("ChampionshipPlayer1")
-  championshipMatchPlayer2 ChampionshipMatch[]       @relation("ChampionshipPlayer2")
-  championshipMatchWinner  ChampionshipMatch[]       @relation("ChampionshipWinner")
-  championshipMatchLoser   ChampionshipMatch[]       @relation("ChampionshipLoser")
-  tournamentsWonFirst      Tournament[]              @relation("TournamentWinner1")
-  tournamentsWonSecond     Tournament[]              @relation("TournamentWinner2")
-  tournamentsSecondPlace1  Tournament[]              @relation("TournamentSecondPlace1")
-  tournamentsSecondPlace2  Tournament[]              @relation("TournamentSecondPlace2")
-  tournamentsThirdPlace1   Tournament[]              @relation("TournamentThirdPlace1")
-  tournamentsThirdPlace2   Tournament[]              @relation("TournamentThirdPlace2")
-  auditLogs                AuditLog[]
+  auditLogs AuditLog[]
   apiKeys                  ApiKey[]
   eventMatchPlayers        EventMatchPlayer[]
   eventParticipants        EventParticipant[]
@@ -569,11 +486,10 @@ model Arena {
   avatar     String?
   playoffMap Int     @default(0) @map("playoff_map")
 
-  games             Game[]
-  mapsInPool        MapInPool[]
-  mapBanActions     MapBanAction[]
-  championshipGames ChampionshipGame[]
-  eventGames        EventGame[]
+  games         Game[]
+  mapsInPool    MapInPool[]
+  mapBanActions MapBanAction[]
+  eventGames    EventGame[]
 
   @@map("arenas")
 }
@@ -784,16 +700,14 @@ model MatchComm {
 
 model Game {
   id                   Int  @id @default(autoincrement())
-  matchId              Int? @map("match_id")
-  fightNightMatchupsId Int? @map("fight_night_matchups_id")
-  gameNum              Int  @map("game_num")
+  matchId Int? @map("match_id")
+  gameNum Int  @map("game_num")
   homeTeamScore        Int? @map("home_team_score")
   awayTeamScore        Int? @map("away_team_score")
   arenaId              Int? @map("arena_id")
 
-  match             Match?             @relation(fields: [matchId], references: [id])
-  fightNightMatchup FightNightMatchup? @relation(fields: [fightNightMatchupsId], references: [id])
-  arena             Arena?             @relation(fields: [arenaId], references: [id])
+  match Match? @relation(fields: [matchId], references: [id])
+  arena Arena? @relation(fields: [arenaId], references: [id])
 
   @@map("games")
 }
@@ -962,75 +876,6 @@ model Notification {
   actor User? @relation("NotificationActor", fields: [actorSteamId], references: [steamId])
 
   @@map("notifications")
-}
-
-model Championship {
-  id        Int                @id @default(autoincrement())
-  name      String
-  startedAt DateTime           @default(now()) @map("started_at")
-  endedAt   DateTime?          @map("ended_at")
-  winner    String?
-  status    ChampionshipStatus @default(REGISTRATION)
-  avatar    String?
-
-  winnerUser   User?                     @relation(fields: [winner], references: [steamId])
-  participants ChampionshipParticipant[]
-  matches      ChampionshipMatch[]
-
-  @@map("championship")
-}
-
-model ChampionshipParticipant {
-  id             Int      @id @default(autoincrement())
-  championshipId Int?     @map("championship_id")
-  steamId        String?  @map("steam_id")
-  seed           Int?
-  eliminated     Boolean  @default(false)
-  hidden         Boolean  @default(false)
-  createdAt      DateTime @default(now()) @map("created_at")
-
-  championship Championship? @relation(fields: [championshipId], references: [id])
-  player       User?         @relation(fields: [steamId], references: [steamId])
-
-  @@map("championship_participant")
-}
-
-model ChampionshipMatch {
-  id             Int         @id @default(autoincrement())
-  championshipId Int?        @map("championship_id")
-  player1Id      String?     @map("player1_id")
-  player2Id      String?     @map("player2_id")
-  winnerId       String?     @map("winner_id")
-  loserId        String?     @map("loser_id")
-  winnerScore    Int?        @map("winner_score")
-  loserScore     Int?        @map("loser_score")
-  boSeries       Int         @map("bo_series")
-  status         MatchStatus @default(UNPLAYED)
-  createdAt      DateTime    @default(now()) @map("created_at")
-
-  championship Championship?      @relation(fields: [championshipId], references: [id])
-  player1      User?              @relation("ChampionshipPlayer1", fields: [player1Id], references: [steamId])
-  player2      User?              @relation("ChampionshipPlayer2", fields: [player2Id], references: [steamId])
-  winner       User?              @relation("ChampionshipWinner", fields: [winnerId], references: [steamId])
-  loser        User?              @relation("ChampionshipLoser", fields: [loserId], references: [steamId])
-  games        ChampionshipGame[]
-
-  @@map("championship_match")
-}
-
-model ChampionshipGame {
-  id                  Int       @id @default(autoincrement())
-  championshipMatchId Int       @map("championship_match_id")
-  homePlayerScore     Int?      @map("home_player_score")
-  awayPlayerScore     Int?      @map("away_player_score")
-  gameNumber          Int       @map("game_number")
-  arenaId             Int?      @map("arena_id")
-  playedAt            DateTime? @map("played_at")
-
-  match ChampionshipMatch @relation(fields: [championshipMatchId], references: [id])
-  arena Arena?            @relation(fields: [arenaId], references: [id])
-
-  @@map("championship_game")
 }
 
 // Audit Logging

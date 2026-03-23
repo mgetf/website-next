@@ -97,8 +97,6 @@ export async function getDemoById(id: number) {
           },
         },
       },
-      tournament: true,
-      fightNightMatchup: true,
       reports: {
         include: {
           reporter: true,

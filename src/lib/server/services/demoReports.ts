@@ -30,9 +30,6 @@ export async function getAllDemoReports() {
               awayTeam: { select: { id: true, name: true } },
             },
           },
-          tournament: {
-            select: { id: true, name: true },
-          },
         },
       },
       reporter: {

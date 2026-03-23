@@ -178,42 +178,36 @@ export async function getPlayer1v1Entries(steamId: string) {
 }
 
 /**
- * Get player's tournament placements (1st, 2nd, 3rd place finishes)
+ * Get player's event placements (1st, 2nd, 3rd place finishes) from unified event tables
  */
 export async function getPlayerTournamentPlacements(steamId: string) {
-  return await prisma.tournament.findMany({
-    where: {
-      OR: [
-        { winner1SteamId: steamId },
-        { winner2SteamId: steamId },
-        { secondPlace1SteamId: steamId },
-        { secondPlace2SteamId: steamId },
-        { thirdPlace1SteamId: steamId },
-        { thirdPlace2SteamId: steamId },
-      ],
+  return await prisma.eventPlacement.findMany({
+    where: { steamId },
+    include: {
+      event: { select: { id: true, name: true, startedAt: true } },
     },
-    orderBy: {
-      startedAt: 'desc',
-    },
+    orderBy: { event: { startedAt: 'desc' } },
   });
 }
 
 /**
- * Get player's Fight Night matchups
+ * Get player's Fight Night match entries from unified event tables
  */
 export async function getPlayerFightNightMatchups(steamId: string) {
-  return await prisma.fightNightMatchup.findMany({
+  return await prisma.eventMatchPlayer.findMany({
     where: {
-      OR: [{ player1SteamId: steamId }, { player2SteamId: steamId }],
+      steamId,
+      match: { stage: { event: { type: 'FIGHT_NIGHT' } } },
     },
     include: {
-      fightNight: true,
-      player1: true,
-      player2: true,
+      match: {
+        include: {
+          players: { include: { user: true } },
+          stage: { include: { event: true } },
+        },
+      },
     },
-    orderBy: {
-      id: 'desc',
-    },
+    orderBy: { match: { id: 'desc' } },
   });
 }
 
@@ -258,53 +252,44 @@ export function transformTeamHistory(playerTeams: any[]) {
 }
 
 /**
- * Transform tournaments into placement results
+ * Transform event placements into profile tournament results
  */
-export function transformTournamentPlacements(tournaments: any[], steamId: string) {
-  return tournaments.map((tournament) => {
-    let placement = 'Participant';
-    if (tournament.winner1SteamId === steamId || tournament.winner2SteamId === steamId) {
-      placement = '1st Place';
-    } else if (
-      tournament.secondPlace1SteamId === steamId ||
-      tournament.secondPlace2SteamId === steamId
-    ) {
-      placement = '2nd Place';
-    } else if (
-      tournament.thirdPlace1SteamId === steamId ||
-      tournament.thirdPlace2SteamId === steamId
-    ) {
-      placement = '3rd Place';
-    }
-
-    return {
-      id: tournament.id,
-      name: tournament.name,
-      date: tournament.startedAt,
-      placement,
-    };
-  });
+export function transformTournamentPlacements(placements: any[]) {
+  const labels: Record<number, string> = { 1: '1st Place', 2: '2nd Place', 3: '3rd Place' };
+  return placements.map((p) => ({
+    id: p.event.id,
+    name: p.event.name,
+    date: p.event.startedAt,
+    placement: labels[p.placement] || 'Participant',
+  }));
 }
 
 /**
- * Transform Fight Night matchups for player profile
+ * Transform event match player entries into Fight Night profile rows
  */
-export function transformFightNightMatchups(matchups: any[], steamId: string) {
-  return matchups.map((matchup) => {
-    const isPlayer1 = matchup.player1SteamId === steamId;
-    const opponent = isPlayer1 ? matchup.player2 : matchup.player1;
-    const result = matchup.winnerId === steamId ? 'W' : matchup.winnerId ? 'L' : 'TBD';
+export function transformFightNightMatchups(entries: any[], steamId: string) {
+  return entries.map((entry) => {
+    const { match } = entry;
+    const playerSide: number = entry.side;
+    const opponents = match.players
+      .filter((p: any) => p.side !== playerSide)
+      .map((p: any) => p.user?.steamUsername || p.displayName || 'Unknown');
+    const result = match.winnerSide === null ? 'TBD' : match.winnerSide === playerSide ? 'W' : 'L';
+
+    let score = 'TBD';
+    if (match.side1Score !== null && match.side2Score !== null) {
+      const myScore = playerSide === 1 ? match.side1Score : match.side2Score;
+      const theirScore = playerSide === 1 ? match.side2Score : match.side1Score;
+      score = `${myScore} - ${theirScore}`;
+    }
 
     return {
-      id: matchup.id,
-      fightNightName: matchup.fightNight?.card || `Fight Night #${matchup.fightNightId}`,
-      opponent: opponent?.steamUsername || 'Unknown',
+      id: match.id,
+      fightNightName: match.stage.event.name,
+      opponent: opponents.join(' & ') || 'Unknown',
       result,
-      score:
-        matchup.winnerScore && matchup.loserScore
-          ? `${matchup.winnerScore} - ${matchup.loserScore}`
-          : 'TBD',
-      date: matchup.fightNight?.startedAt || null,
+      score,
+      date: match.stage.event.startedAt || null,
     };
   });
 }
@@ -415,7 +400,7 @@ export async function getPlayerProfile(steamId: string) {
   // Transform data
   const currentTeams = transformCurrentTeams(playerTeams);
   const teamHistory = transformTeamHistory(playerTeams);
-  const tournamentResults = transformTournamentPlacements(tournaments, steamId);
+  const tournamentResults = transformTournamentPlacements(tournaments);
   const fightNights = transformFightNightMatchups(fightNightMatchups, steamId);
   const achievements = buildAchievements(tournamentResults);
 

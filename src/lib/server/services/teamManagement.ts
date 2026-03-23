@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 import { uploadToR2, saveTempFile, deleteTempFile, validateUploadedFile } from '../utils/r2Upload';
 import path from 'path';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
@@ -77,7 +77,7 @@ export async function getTeamForEdit(teamId: number, steamId: string): Promise<T
   });
 
   if (!team) {
-    throw error(404, 'Team not found');
+    notFound('Team not found');
   }
 
   // Check user's permission in the team
@@ -111,10 +111,10 @@ export async function updateTeamInfo(
   // Validate name if provided
   if (data.name) {
     if (data.name.length > 25) {
-      throw error(400, 'Team name must be 25 characters or less');
+      badRequest('Team name must be 25 characters or less');
     }
     if (/<|>/.test(data.name)) {
-      throw error(400, 'Team name cannot contain < or > characters');
+      badRequest('Team name cannot contain < or > characters');
     }
 
     // Check for duplicate
@@ -126,7 +126,7 @@ export async function updateTeamInfo(
     });
 
     if (duplicate) {
-      throw error(400, 'A team with this name already exists');
+      badRequest('A team with this name already exists');
     }
 
     // Get old team name for history
@@ -148,7 +148,7 @@ export async function updateTeamInfo(
 
   // Validate acronym if provided
   if (data.acronym && data.acronym.length > 4) {
-    throw error(400, 'Team acronym must be 4 characters or less');
+    badRequest('Team acronym must be 4 characters or less');
   }
 
   // Hash the new password if provided
@@ -217,11 +217,11 @@ export async function removePlayer(teamId: number, playerSteamId: string): Promi
   });
 
   if (!player) {
-    throw error(404, 'Player not found in team');
+    notFound('Player not found in team');
   }
 
   if (player.permissionLevel === 2) {
-    throw error(400, 'Cannot remove team owner');
+    badRequest('Cannot remove team owner');
   }
 
   // Set player as inactive
@@ -254,12 +254,12 @@ export async function promotePlayer(teamId: number, playerSteamId: string): Prom
   });
 
   if (!player || player.active !== 1) {
-    throw error(404, 'Player not found in team');
+    notFound('Player not found in team');
   }
 
   // Can only promote from 0 to 1 (Member to Admin)
   if (player.permissionLevel >= 1) {
-    throw error(400, 'Player already has maximum promotion level');
+    badRequest('Player already has maximum promotion level');
   }
 
   await prisma.playerInTeam.update({
@@ -289,16 +289,16 @@ export async function demotePlayer(teamId: number, playerSteamId: string): Promi
   });
 
   if (!player || player.active !== 1) {
-    throw error(404, 'Player not found in team');
+    notFound('Player not found in team');
   }
 
   // Can only demote from 1 to 0 (Admin to Member)
   if (player.permissionLevel <= 0) {
-    throw error(400, 'Player already has minimum permission level');
+    badRequest('Player already has minimum permission level');
   }
 
   if (player.permissionLevel === 2) {
-    throw error(400, 'Cannot demote team owner');
+    badRequest('Cannot demote team owner');
   }
 
   await prisma.playerInTeam.update({
@@ -328,7 +328,7 @@ export async function invitePlayerBySteamId(
   });
 
   if (!user) {
-    throw error(404, 'User with this Steam ID not found');
+    notFound('User with this Steam ID not found');
   }
 
   // Get team name for notification
@@ -348,7 +348,7 @@ export async function invitePlayerBySteamId(
   });
 
   if (existingMember && existingMember.active === 1) {
-    throw error(400, 'Player is already in this team');
+    badRequest('Player is already in this team');
   }
 
   // Check if already has pending invite
@@ -362,7 +362,7 @@ export async function invitePlayerBySteamId(
   });
 
   if (existingPending) {
-    throw error(400, 'Player already has a pending invitation');
+    badRequest('Player already has a pending invitation');
   }
 
   // Create pending player record
@@ -438,14 +438,13 @@ export async function hardDeleteTeam(
   });
 
   if (!team) {
-    throw error(404, 'Team not found');
+    notFound('Team not found');
   }
 
   const matchCount = team._count.homeMatches + team._count.awayMatches;
 
   if (matchCount > 0 && !cascadeMatches) {
-    throw error(
-      400,
+    badRequest(
       `Cannot delete team with ${matchCount} match${matchCount !== 1 ? 'es' : ''}. Remove matches first.`,
     );
   }

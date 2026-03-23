@@ -1,5 +1,5 @@
 import { prisma } from '$lib/server/db';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
@@ -57,16 +57,16 @@ export async function createItemPaymentOrder(
   });
 
   if (!playerInTeam?.team) {
-    throw error(404, 'Team not found');
+    notFound('Team not found');
   }
 
   const division = playerInTeam.team.division;
   if (!division?.itemPayment) {
-    throw error(400, 'This division does not accept item payments');
+    badRequest('This division does not accept item payments');
   }
 
   if (!playerInTeam.team.seasonId) {
-    throw error(400, 'Team has no associated season');
+    badRequest('Team has no associated season');
   }
 
   const existingOrder = await prisma.itemPaymentOrder.findFirst({
@@ -79,7 +79,7 @@ export async function createItemPaymentOrder(
   });
 
   if (existingOrder) {
-    throw error(400, 'You already have a pending item payment order for this team');
+    badRequest('You already have a pending item payment order for this team');
   }
 
   const targets = paidForSteamIds.length > 0 ? paidForSteamIds : [steamId];
@@ -144,7 +144,7 @@ export async function cancelItemPaymentOrder(orderNumber: string, steamId: strin
   });
 
   if (!order) {
-    throw error(404, 'Pending order not found');
+    notFound('Pending order not found');
   }
 
   return await prisma.itemPaymentOrder.update({
@@ -185,19 +185,19 @@ export async function confirmItemPayment(data: {
   });
 
   if (!order) {
-    throw error(404, 'Order not found');
+    notFound('Order not found');
   }
 
   if (order.status !== 'PENDING') {
-    throw error(400, `Order is not pending (status: ${order.status})`);
+    badRequest(`Order is not pending (status: ${order.status})`);
   }
 
   if (order.expiresAt < new Date()) {
-    throw error(400, 'Order has expired');
+    badRequest('Order has expired');
   }
 
   if (order.playerSteamId !== data.senderSteamId) {
-    throw error(400, 'Sender Steam ID does not match order');
+    badRequest('Sender Steam ID does not match order');
   }
 
   const team = await prisma.team.findUnique({
@@ -206,7 +206,7 @@ export async function confirmItemPayment(data: {
   });
 
   if (!team) {
-    throw error(404, 'Team not found');
+    notFound('Team not found');
   }
 
   const signupCost = team.division?.signupCost ?? 0;
@@ -313,7 +313,7 @@ export async function adminCancelItemPaymentOrder(orderNumber: string) {
   });
 
   if (!order) {
-    throw error(404, 'Pending order not found');
+    notFound('Pending order not found');
   }
 
   return await prisma.itemPaymentOrder.update({

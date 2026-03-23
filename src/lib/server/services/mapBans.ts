@@ -6,7 +6,7 @@
 import { prisma } from '$lib/server/db';
 import type { Match, MatchMapBan } from '$prisma/client.js';
 import { MapBanActionType } from '$prisma/client.js';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 
 /**
  * Initialize map ban phase for a match
@@ -17,7 +17,7 @@ export async function initializeMapBanPhase(matchId: number, poolId: number) {
   });
 
   if (existingBan) {
-    throw error(400, 'Map ban phase already initialized for this match');
+    badRequest('Map ban phase already initialized for this match');
   }
 
   const mapBan = await prisma.matchMapBan.create({
@@ -203,35 +203,35 @@ export async function processBanPickAction(
   });
 
   if (!matchMapBan) {
-    throw error(404, 'Map ban phase not found');
+    notFound('Map ban phase not found');
   }
 
   if (matchMapBan.banPhaseComplete) {
-    throw error(400, 'Map ban phase already complete');
+    badRequest('Map ban phase already complete');
   }
 
   const match = matchMapBan.match;
   if (!match) {
-    throw error(400, 'Match not found for map ban');
+    badRequest('Match not found for map ban');
   }
   const actionCount = matchMapBan.actions.length;
 
   // Verify correct action type
   const expectedAction = determineNextAction(actionCount, match.boSeries || 3);
   if (expectedAction !== actionType) {
-    throw error(400, `Expected ${expectedAction} action, got ${actionType}`);
+    badRequest(`Expected ${expectedAction} action, got ${actionType}`);
   }
 
   // Verify correct team's turn
   const expectedTeamId = matchMapBan.currentTurn === 0 ? match.homeTeamId : match.awayTeamId;
   if (expectedTeamId !== teamId) {
-    throw error(400, 'Not your turn');
+    badRequest('Not your turn');
   }
 
   // Check if arena already banned or picked
   const existingAction = matchMapBan.actions.find((a) => a.arenaId === arenaId);
   if (existingAction) {
-    throw error(400, 'Arena already banned or picked');
+    badRequest('Arena already banned or picked');
   }
 
   // Create action

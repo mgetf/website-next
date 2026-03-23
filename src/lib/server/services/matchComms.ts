@@ -6,7 +6,7 @@
 import { prisma } from '$lib/server/db';
 import type { User, Match, MatchComm } from '$prisma/client.js';
 import { MatchStatus, UserRole } from '$prisma/client.js';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 
 /**
  * Create a match communication (message or reschedule request)
@@ -24,7 +24,7 @@ export async function createMatchComm(
   });
 
   if (!match) {
-    throw error(404, 'Match not found');
+    notFound('Match not found');
   }
 
   const commData: any = {
@@ -161,11 +161,11 @@ export async function updateRescheduleStatus(
   });
 
   if (!comm) {
-    throw error(404, 'Reschedule request not found');
+    notFound('Reschedule request not found');
   }
 
   if (comm.rescheduleStatus !== 0) {
-    throw error(400, 'Reschedule request already processed');
+    badRequest('Reschedule request already processed');
   }
 
   let newStatus: number;
@@ -278,7 +278,7 @@ export async function getMatchCommById(commId: number) {
   });
 
   if (!comm) {
-    throw error(404, 'Match communication not found');
+    notFound('Match communication not found');
   }
 
   return comm;

@@ -15,6 +15,7 @@
     "migrate:prod": "dotenv -e .env.production -- prisma migrate deploy",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "boundary-check": "bun run scripts/boundary-check.ts",
     "db:studio": "prisma studio",
     "db:studio:prod": "dotenv -e .env.production -- prisma studio"
   },

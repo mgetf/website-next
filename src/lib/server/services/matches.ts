@@ -7,7 +7,7 @@ import { prisma } from '$lib/server/db';
 import type { Match, Game, Team } from '$prisma/client.js';
 import { MatchStatus } from '$prisma/client.js';
 import { UserRole, type SessionUser } from '$lib/types/user';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { createNotificationForTeamOwners, createNotificationForAdmins } from './notifications';
@@ -95,7 +95,7 @@ export async function getMatchDetails(matchId: number) {
   });
 
   if (!match) {
-    throw error(404, 'Match not found');
+    notFound('Match not found');
   }
 
   // Check if this is a 1v1 match and add player info
@@ -386,7 +386,7 @@ export async function submitMatchScores(
   });
 
   if (!match) {
-    throw error(404, 'Match not found');
+    notFound('Match not found');
   }
 
   const { winnerId, winnerScore, loserScore, homePointsScored, awayPointsScored } =
@@ -487,15 +487,15 @@ export async function disputeMatch(matchId: number, reason: string, disputedBy: 
   });
 
   if (!match) {
-    throw error(404, 'Match not found');
+    notFound('Match not found');
   }
 
   if (match.status !== MatchStatus.PLAYED) {
-    throw error(400, 'Can only dispute played matches');
+    badRequest('Can only dispute played matches');
   }
 
   if (!match.submittedAt) {
-    throw error(400, 'No submission timestamp found');
+    badRequest('No submission timestamp found');
   }
 
   const now = Date.now();
@@ -503,7 +503,7 @@ export async function disputeMatch(matchId: number, reason: string, disputedBy: 
   const hoursSinceSubmission = (now - submittedTime) / (1000 * 3600);
 
   if (hoursSinceSubmission > 24) {
-    throw error(400, 'Dispute period has passed (24 hours)');
+    badRequest('Dispute period has passed (24 hours)');
   }
 
   // Update match status to DISPUTE

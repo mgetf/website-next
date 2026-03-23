@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { error } from '@sveltejs/kit';
+import { badRequest } from '$lib/server/utils/errors';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { logAudit, AuditCategory, AuditAction } from './auditLog';
@@ -71,7 +71,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
     where: { teamId, active: 1 },
   });
   if (activePlayersCount >= 3) {
-    throw error(400, 'Team is full (maximum 3 players)');
+    badRequest('Team is full (maximum 3 players)');
   }
 
   const currentSeasonIds = await getCurrentSignupSeasonIds();
@@ -88,7 +88,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
     },
   });
   if (playerInOtherTeam) {
-    throw error(400, 'Player is already in another 2v2 team for this season');
+    badRequest('Player is already in another 2v2 team for this season');
   }
 
   const team = await prisma.team.findUnique({
@@ -96,7 +96,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
     include: { division: { select: { signupCost: true } } },
   });
   if (!team?.seasonId || !team?.divisionId) {
-    throw error(400, 'Team missing season or division');
+    badRequest('Team missing season or division');
   }
 
   const payment = await prisma.paymentTracker.findUnique({

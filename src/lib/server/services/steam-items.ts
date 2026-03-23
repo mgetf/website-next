@@ -1,5 +1,5 @@
 import { prisma } from '$lib/server/db';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 
 export async function getSteamItems() {
   return await prisma.steamItem.findMany({
@@ -21,15 +21,15 @@ export async function createSteamItem(data: {
   const trimmedHash = data.marketHashName.trim();
 
   if (!trimmedName) {
-    throw error(400, 'Item name is required');
+    badRequest('Item name is required');
   }
 
   if (!trimmedHash) {
-    throw error(400, 'Market hash name is required');
+    badRequest('Market hash name is required');
   }
 
   if (data.appId < 1) {
-    throw error(400, 'App ID must be a positive integer');
+    badRequest('App ID must be a positive integer');
   }
 
   const existing = await prisma.steamItem.findUnique({
@@ -37,7 +37,7 @@ export async function createSteamItem(data: {
   });
 
   if (existing) {
-    throw error(400, `An item with market hash name "${trimmedHash}" already exists`);
+    badRequest(`An item with market hash name "${trimmedHash}" already exists`);
   }
 
   return await prisma.steamItem.create({
@@ -57,7 +57,7 @@ export async function updateSteamItem(
   const item = await prisma.steamItem.findUnique({ where: { id } });
 
   if (!item) {
-    throw error(404, 'Steam item not found');
+    notFound('Steam item not found');
   }
 
   const updateData: { name?: string; iconUrl?: string | null } = {};
@@ -65,7 +65,7 @@ export async function updateSteamItem(
   if (data.name !== undefined) {
     const trimmed = data.name.trim();
     if (!trimmed) {
-      throw error(400, 'Item name is required');
+      badRequest('Item name is required');
     }
     updateData.name = trimmed;
   }
@@ -87,12 +87,11 @@ export async function deleteSteamItem(id: number) {
   });
 
   if (!item) {
-    throw error(404, 'Steam item not found');
+    notFound('Steam item not found');
   }
 
   if (item._count.divisionItemPayments > 0) {
-    throw error(
-      400,
+    badRequest(
       `Cannot delete: this item is used by ${item._count.divisionItemPayments} division(s)`,
     );
   }

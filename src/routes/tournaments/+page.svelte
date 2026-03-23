@@ -101,12 +101,12 @@
   </PageHero>
 
   <div class="container mx-auto px-4 py-8 max-w-7xl">
-    {#if form?.success === false && form?.message}
+    {#if form?.error}
       <div class="mb-6 p-4 bg-danger-600/20 border border-danger-600/30 rounded-lg text-danger-400">
-        {form.message}
+        {form.error}
       </div>
     {/if}
-    {#if form?.success === true && form?.message}
+    {#if form?.success && form?.message}
       <div
         class="mb-6 p-4 bg-success-600/20 border border-success-600/30 rounded-lg text-success-400"
       >

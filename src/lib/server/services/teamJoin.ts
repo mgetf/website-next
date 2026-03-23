@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 import { validateJoinToken } from './teamSignup';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
@@ -44,7 +44,7 @@ export async function validateTokenAndGetTeam(
   });
 
   if (!team) {
-    throw error(404, 'Team not found');
+    notFound('Team not found');
   }
 
   // Block joining 1v1 "teams" - they're individual entries, not actual teams
@@ -102,7 +102,7 @@ export async function validateJoinPassword(teamId: number, password: string): Pr
   });
 
   if (!team) {
-    throw error(404, 'Team not found');
+    notFound('Team not found');
   }
 
   if (!team.joinPassword) {
@@ -124,7 +124,7 @@ export async function joinByPassword(
 ): Promise<void> {
   const isValid = await validateJoinPassword(teamId, password);
   if (!isValid) {
-    throw error(400, 'Incorrect team password');
+    badRequest('Incorrect team password');
   }
 
   const team = await prisma.team.findUnique({
@@ -135,22 +135,22 @@ export async function joinByPassword(
   });
 
   if (!team) {
-    throw error(404, 'Team not found');
+    notFound('Team not found');
   }
 
   if (team.formatId === FORMAT_1V1) {
-    throw error(400, 'Cannot join 1v1 teams');
+    badRequest('Cannot join 1v1 teams');
   }
 
   if (team.players.length >= 3) {
-    throw error(400, 'Team is full (maximum 3 players)');
+    badRequest('Team is full (maximum 3 players)');
   }
 
   const isTeamMember = team.players.some(
     (p) => p.playerSteamId === steamId && p.permissionLevel >= 0,
   );
   if (isTeamMember) {
-    throw error(400, 'You are already on this team');
+    badRequest('You are already on this team');
   }
 
   const currentSeasonIds = await getCurrentSignupSeasonIds();
@@ -166,7 +166,7 @@ export async function joinByPassword(
   });
 
   if (playerInOtherTeam) {
-    throw error(400, 'You are already in another 2v2 team for this season');
+    badRequest('You are already in another 2v2 team for this season');
   }
 
   await prisma.pendingPlayer.upsert({
@@ -191,22 +191,22 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
   });
 
   if (!team) {
-    throw error(404, 'Team not found');
+    notFound('Team not found');
   }
 
   if (team.formatId === FORMAT_1V1) {
-    throw error(400, 'Cannot join 1v1 teams');
+    badRequest('Cannot join 1v1 teams');
   }
 
   const isTeamMember = team.players.some(
     (p) => p.playerSteamId === steamId && p.permissionLevel >= 0,
   );
   if (isTeamMember) {
-    throw error(400, 'You cannot invite yourself to your own team');
+    badRequest('You cannot invite yourself to your own team');
   }
 
   if (team.players.length >= 3) {
-    throw error(400, 'Team is full (maximum 3 players)');
+    badRequest('Team is full (maximum 3 players)');
   }
 
   const currentSeasonIds = await getCurrentSignupSeasonIds();
@@ -222,7 +222,7 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
   });
 
   if (playerInOtherTeam) {
-    throw error(400, 'You are already in another 2v2 team for this season');
+    badRequest('You are already in another 2v2 team for this season');
   }
 
   await prisma.pendingPlayer.upsert({
@@ -244,7 +244,7 @@ export async function acceptTeamInvite(steamId: string, teamId: number): Promise
   });
 
   if (!pending || pending.status !== 0) {
-    throw error(400, 'No pending invitation found for this team');
+    badRequest('No pending invitation found for this team');
   }
 
   await prisma.pendingPlayer.update({

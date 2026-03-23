@@ -4,7 +4,7 @@
  */
 
 import { fail, type ActionFailure } from '@sveltejs/kit';
-import { z, type ZodError } from 'zod';
+import { z } from 'zod';
 import { formatValidationErrors } from './validation';
 import { logger } from './logger';
 
@@ -20,17 +20,15 @@ export interface FormSuccess<T = unknown> {
 /**
  * Error result from form action
  */
-export interface FormError {
-  success: false;
-  message: string;
+export interface FormActionError {
+  error: string;
   errors?: Record<string, string>;
-  field?: string;
 }
 
 /**
  * Form action result type
  */
-export type FormResult<T = unknown> = FormSuccess<T> | ActionFailure<FormError>;
+export type FormResult<T = unknown> = FormSuccess<T> | ActionFailure<FormActionError>;
 
 /**
  * Parse FormData with Zod schema
@@ -77,13 +75,10 @@ export function formError(
   message: string,
   statusCode: number = 400,
   errors?: Record<string, string>,
-  field?: string,
-): ActionFailure<FormError> {
+): ActionFailure<FormActionError> {
   return fail(statusCode, {
-    success: false,
-    message,
+    error: message,
     ...(errors && { errors }),
-    ...(field && { field }),
   });
 }
 
@@ -93,10 +88,9 @@ export function formError(
 export function validationError(
   errors: Record<string, string>,
   message: string = 'Validation failed',
-): ActionFailure<FormError> {
+): ActionFailure<FormActionError> {
   return fail(400, {
-    success: false,
-    message,
+    error: message,
     errors,
   });
 }
@@ -224,6 +218,6 @@ export function isFormSuccess<T>(result: FormResult<T>): result is FormSuccess<T
 /**
  * Check if result is an error
  */
-export function isFormError(result: FormResult<unknown>): result is ActionFailure<FormError> {
-  return 'success' in result && !result.success;
+export function isFormError(result: FormResult<unknown>): result is ActionFailure<FormActionError> {
+  return 'data' in result && 'error' in (result as ActionFailure<FormActionError>).data;
 }

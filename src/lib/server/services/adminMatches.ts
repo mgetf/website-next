@@ -6,7 +6,7 @@
 import { prisma } from '$lib/server/db';
 import type { Team } from '$prisma/client.js';
 import { MatchStatus, TeamStatus } from '$prisma/client.js';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 import { calculateWinLossRatio, calculatePointsPerGame } from '$lib/server/utils/matchHelpers';
 import { createNotificationForTeamOwners } from './notifications';
 
@@ -146,16 +146,13 @@ export async function createMatchSet(
   // For playoff matches, use the dedicated playoff match creation function
   if (isPlayoff) {
     if (!playoffId || !playoffRound) {
-      throw error(400, 'Playoff ID and round are required for playoff matches');
+      badRequest('Playoff ID and round are required for playoff matches');
     }
 
     // Note: This is a simplified implementation
     // In a real playoff system, you'd need to provide team pairings
     // For now, we'll throw an error directing to use the dedicated playoff function
-    throw error(
-      400,
-      'Playoff matches require manual team selection. Use createPlayoffMatch instead.',
-    );
+    badRequest('Playoff matches require manual team selection. Use createPlayoffMatch instead.');
   }
 
   // Get season settings for payment requirement and format (per-season setting)
@@ -184,14 +181,14 @@ export async function createMatchSet(
   });
 
   if (teams.length < 2) {
-    throw error(400, 'Not enough eligible teams for match creation');
+    badRequest('Not enough eligible teams for match creation');
   }
 
   // Pair teams
   const pairedTeams = await pairTeamsForMatches(teams, seasonId);
 
   if (pairedTeams.length === 0) {
-    throw error(400, 'No valid team pairings found');
+    badRequest('No valid team pairings found');
   }
 
   const seasonFormatId = season?.formatId;
@@ -203,8 +200,7 @@ export async function createMatchSet(
     const awayTeam = pairedTeams[i + 1];
 
     if (homeTeam.formatId !== seasonFormatId || awayTeam.formatId !== seasonFormatId) {
-      throw error(
-        400,
+      badRequest(
         `Format mismatch: teams must match the season's format. ` +
           `Season formatId=${seasonFormatId}, home formatId=${homeTeam.formatId}, away formatId=${awayTeam.formatId}`,
       );
@@ -321,7 +317,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
   });
 
   if (!playoff) {
-    throw error(404, 'Playoff not found');
+    notFound('Playoff not found');
   }
 
   // Validate that both teams match the season's format
@@ -331,19 +327,17 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
     prisma.team.findUnique({ where: { id: awayTeamId }, select: { formatId: true, name: true } }),
   ]);
 
-  if (!homeTeam) throw error(404, `Home team ${homeTeamId} not found`);
-  if (!awayTeam) throw error(404, `Away team ${awayTeamId} not found`);
+  if (!homeTeam) notFound(`Home team ${homeTeamId} not found`);
+  if (!awayTeam) notFound(`Away team ${awayTeamId} not found`);
 
   const seasonFormatId = seasonData?.formatId;
   if (homeTeam.formatId !== seasonFormatId) {
-    throw error(
-      400,
+    badRequest(
       `Format mismatch: home team "${homeTeam.name}" (formatId=${homeTeam.formatId}) does not match season format (formatId=${seasonFormatId})`,
     );
   }
   if (awayTeam.formatId !== seasonFormatId) {
-    throw error(
-      400,
+    badRequest(
       `Format mismatch: away team "${awayTeam.name}" (formatId=${awayTeam.formatId}) does not match season format (formatId=${seasonFormatId})`,
     );
   }
@@ -662,7 +656,7 @@ export async function adminUpdateScores(matchId: number, gameResults: GameResult
   });
 
   if (!match) {
-    throw error(404, 'Match not found');
+    notFound('Match not found');
   }
 
   // If match was already played, reverse old stats

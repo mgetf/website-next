@@ -1,5 +1,5 @@
 import { prisma } from '$lib/server/db';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest, internalError } from '$lib/server/utils/errors';
 import type { Prisma } from '$prisma/client.js';
 
 export interface CreatePlayoffParams {
@@ -34,7 +34,7 @@ export async function getPlayoffBySeason(seasonId: number) {
     return playoff;
   } catch (err) {
     console.error('Error fetching playoff by season:', err);
-    throw error(500, 'Failed to fetch playoff configuration');
+    internalError('Failed to fetch playoff configuration');
   }
 }
 
@@ -57,7 +57,7 @@ export async function getAllPlayoffs() {
     return playoffs;
   } catch (err) {
     console.error('Error fetching all playoffs:', err);
-    throw error(500, 'Failed to fetch playoffs');
+    internalError('Failed to fetch playoffs');
   }
 }
 
@@ -74,7 +74,7 @@ export async function createPlayoff(params: CreatePlayoffParams) {
     });
 
     if (!season) {
-      throw error(404, 'Season not found');
+      notFound('Season not found');
     }
 
     // Check if playoff already exists for this season
@@ -83,7 +83,7 @@ export async function createPlayoff(params: CreatePlayoffParams) {
     });
 
     if (existingPlayoff) {
-      throw error(400, 'Playoff configuration already exists for this season');
+      badRequest('Playoff configuration already exists for this season');
     }
 
     // Create playoff
@@ -109,7 +109,7 @@ export async function createPlayoff(params: CreatePlayoffParams) {
       throw err;
     }
     console.error('Error creating playoff:', err);
-    throw error(500, 'Failed to create playoff configuration');
+    internalError('Failed to create playoff configuration');
   }
 }
 
@@ -126,7 +126,7 @@ export async function updatePlayoff(playoffId: number, params: UpdatePlayoffPara
     });
 
     if (!existingPlayoff) {
-      throw error(404, 'Playoff configuration not found');
+      notFound('Playoff configuration not found');
     }
 
     // Update playoff
@@ -152,7 +152,7 @@ export async function updatePlayoff(playoffId: number, params: UpdatePlayoffPara
       throw err;
     }
     console.error('Error updating playoff:', err);
-    throw error(500, 'Failed to update playoff configuration');
+    internalError('Failed to update playoff configuration');
   }
 }
 
@@ -166,7 +166,7 @@ export async function updatePlayoffBySeason(seasonId: number, params: UpdatePlay
     });
 
     if (!existingPlayoff) {
-      throw error(404, 'Playoff configuration not found for this season');
+      notFound('Playoff configuration not found for this season');
     }
 
     return await updatePlayoff(existingPlayoff.id, params);
@@ -175,7 +175,7 @@ export async function updatePlayoffBySeason(seasonId: number, params: UpdatePlay
       throw err;
     }
     console.error('Error updating playoff by season:', err);
-    throw error(500, 'Failed to update playoff configuration');
+    internalError('Failed to update playoff configuration');
   }
 }
 
@@ -190,7 +190,7 @@ export async function deletePlayoff(playoffId: number) {
     });
 
     if (!existingPlayoff) {
-      throw error(404, 'Playoff configuration not found');
+      notFound('Playoff configuration not found');
     }
 
     // Check if there are any matches associated with this playoff
@@ -199,7 +199,7 @@ export async function deletePlayoff(playoffId: number) {
     });
 
     if (matchesCount > 0) {
-      throw error(400, 'Cannot delete playoff configuration with existing matches');
+      badRequest('Cannot delete playoff configuration with existing matches');
     }
 
     // Delete playoff
@@ -213,7 +213,7 @@ export async function deletePlayoff(playoffId: number) {
       throw err;
     }
     console.error('Error deleting playoff:', err);
-    throw error(500, 'Failed to delete playoff configuration');
+    internalError('Failed to delete playoff configuration');
   }
 }
 

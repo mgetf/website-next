@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { error } from '@sveltejs/kit';
+import { notFound, badRequest } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
@@ -176,15 +176,15 @@ export async function markPlayerAsPaidManually(
   });
 
   if (!playerInTeam) {
-    throw error(404, 'Player is not on this team');
+    notFound('Player is not on this team');
   }
 
   if (playerInTeam.paymentStatus === 1) {
-    throw error(400, 'Player is already marked as paid');
+    badRequest('Player is already marked as paid');
   }
 
   if (!playerInTeam.team.seasonId) {
-    throw error(400, 'Team has no associated season');
+    badRequest('Team has no associated season');
   }
 
   const seasonId = playerInTeam.team.seasonId;
@@ -253,7 +253,7 @@ export async function recordPayPalCapture(options: {
   });
 
   if (!team?.seasonId) {
-    throw error(404, 'Team or season not found');
+    notFound('Team or season not found');
   }
 
   const seasonId = team.seasonId;
@@ -423,7 +423,7 @@ export async function checkPaymentRequired(options: {
   ]);
 
   if (!division) {
-    throw error(404, 'Division not found');
+    notFound('Division not found');
   }
 
   // Free division - no payment required

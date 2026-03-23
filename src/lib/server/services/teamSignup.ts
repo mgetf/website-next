@@ -6,7 +6,7 @@
 import { prisma } from '$lib/server/db';
 import { TeamStatus } from '$prisma/client.js';
 import jwt from 'jsonwebtoken';
-import { error } from '@sveltejs/kit';
+import { badRequest, forbidden } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { getJwtSecret } from '$lib/server/utils/env';
@@ -168,16 +168,16 @@ export async function validateTeamCreation(data: TeamCreationData): Promise<void
   });
 
   if (existingTeam) {
-    throw error(400, 'You are already in an active 2v2 team for this season');
+    badRequest('You are already in an active 2v2 team for this season');
   }
 
   // Validate team name
   if (!data.name || data.name.length > 25) {
-    throw error(400, 'Team name must be between 1 and 25 characters');
+    badRequest('Team name must be between 1 and 25 characters');
   }
 
   if (/<|>/.test(data.name)) {
-    throw error(400, 'Team name cannot contain < or > characters');
+    badRequest('Team name cannot contain < or > characters');
   }
 
   // Check for duplicate team name
@@ -188,12 +188,12 @@ export async function validateTeamCreation(data: TeamCreationData): Promise<void
   });
 
   if (duplicateTeam) {
-    throw error(400, 'A team with this name already exists');
+    badRequest('A team with this name already exists');
   }
 
   // Validate acronym if provided
   if (data.acronym && data.acronym.length > 4) {
-    throw error(400, 'Team acronym must be 4 characters or less');
+    badRequest('Team acronym must be 4 characters or less');
   }
 }
 
@@ -210,14 +210,14 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   });
 
   if (!division) {
-    throw error(400, 'Invalid division selected');
+    badRequest('Invalid division selected');
   }
 
   // Get the signup season for the region (2v2 format)
   const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
 
   if (!seasonId) {
-    throw error(400, 'No active signup season for this region');
+    badRequest('No active signup season for this region');
   }
 
   // Determine initial status based on division
@@ -310,17 +310,17 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
   });
 
   if (!ownership || ownership.permissionLevel !== 2) {
-    throw error(403, 'You must be the team owner to re-register');
+    forbidden('You must be the team owner to re-register');
   }
 
   if (ownership.team.formatId !== FORMAT_2V2) {
-    throw error(400, 'Only 2v2 teams can be re-registered on this page');
+    badRequest('Only 2v2 teams can be re-registered on this page');
   }
 
   const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
 
   if (!seasonId) {
-    throw error(400, 'No active signup season for this region');
+    badRequest('No active signup season for this region');
   }
 
   // Get division info
@@ -329,7 +329,7 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
   });
 
   if (!division) {
-    throw error(400, 'Invalid division selected');
+    badRequest('Invalid division selected');
   }
 
   const initialPaymentStatus = division.signupCost === 0 ? 1 : 0;
@@ -409,7 +409,7 @@ export function validateJoinToken(token: string): {
     const decoded = jwt.verify(token, getJwtSecret()) as any;
 
     if (decoded.type !== 'team-invite') {
-      throw error(400, 'Invalid token type');
+      badRequest('Invalid token type');
     }
 
     return {
@@ -418,8 +418,8 @@ export function validateJoinToken(token: string): {
     };
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      throw error(400, 'Invitation link has expired');
+      badRequest('Invitation link has expired');
     }
-    throw error(400, 'Invalid invitation link');
+    badRequest('Invalid invitation link');
   }
 }

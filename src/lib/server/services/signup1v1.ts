@@ -17,7 +17,7 @@
 
 import { prisma } from '$lib/server/db';
 import { TeamStatus } from '$prisma/client.js';
-import { error } from '@sveltejs/kit';
+import { badRequest, forbidden, notFound } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { disbandTeam } from './teamManagement';
@@ -187,7 +187,7 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
   });
 
   if (existing1v1Entry) {
-    throw error(400, 'You are already signed up for the 1v1 league this season');
+    badRequest('You are already signed up for the 1v1 league this season');
   }
 
   // Validate division exists
@@ -196,7 +196,7 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
   });
 
   if (!division) {
-    throw error(400, 'Invalid division selected');
+    badRequest('Invalid division selected');
   }
 
   // Validate region exists
@@ -205,14 +205,14 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
   });
 
   if (!region) {
-    throw error(400, 'Invalid region selected');
+    badRequest('Invalid region selected');
   }
 
   // Check if there's an active signup season for this region + 1v1 format
   const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_1V1);
 
   if (!seasonId) {
-    throw error(400, 'No active 1v1 signup season for this region');
+    badRequest('No active 1v1 signup season for this region');
   }
 }
 
@@ -236,7 +236,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
   });
 
   if (!user) {
-    throw error(400, 'User not found');
+    badRequest('User not found');
   }
 
   // Get division to determine status and cost
@@ -245,14 +245,14 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
   });
 
   if (!division) {
-    throw error(400, 'Invalid division selected');
+    badRequest('Invalid division selected');
   }
 
   // Get the signup season for this region + 1v1 format
   const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_1V1);
 
   if (!seasonId) {
-    throw error(400, 'No active 1v1 signup season for this region');
+    badRequest('No active 1v1 signup season for this region');
   }
 
   // Check if user has a previously withdrawn (DEAD) entry for this exact season+division
@@ -489,15 +489,15 @@ export async function withdraw1v1Entry(
   });
 
   if (!team) {
-    throw error(404, '1v1 entry not found');
+    notFound('1v1 entry not found');
   }
 
   if (team.formatId !== FORMAT_1V1) {
-    throw error(400, 'This is not a 1v1 entry');
+    badRequest('This is not a 1v1 entry');
   }
 
   if (team.status === 'DEAD') {
-    throw error(400, 'This 1v1 entry has already been withdrawn');
+    badRequest('This 1v1 entry has already been withdrawn');
   }
 
   // If not admin, verify the requesting user is the owner
@@ -507,7 +507,7 @@ export async function withdraw1v1Entry(
     );
 
     if (!isOwner) {
-      throw error(403, 'You can only withdraw from your own 1v1 entry');
+      forbidden('You can only withdraw from your own 1v1 entry');
     }
   }
 
@@ -533,15 +533,15 @@ export async function restore1v1Entry(teamId: number): Promise<void> {
   });
 
   if (!team) {
-    throw error(404, '1v1 entry not found');
+    notFound('1v1 entry not found');
   }
 
   if (team.formatId !== FORMAT_1V1) {
-    throw error(400, 'This is not a 1v1 entry');
+    badRequest('This is not a 1v1 entry');
   }
 
   if (team.status !== 'DEAD') {
-    throw error(400, 'This 1v1 entry is not withdrawn');
+    badRequest('This 1v1 entry is not withdrawn');
   }
 
   // Update team status to READY (the only active state for 1v1)

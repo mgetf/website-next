@@ -55,7 +55,7 @@
   <!-- User Button -->
   <button
     onclick={toggleDropdown}
-    class="flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/50 rounded-lg transition-all"
+    class="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-input/50 rounded-lg transition-all"
     aria-label="User menu"
   >
     <img
@@ -64,14 +64,14 @@
       alt="User Avatar"
     />
     <div class="hidden md:flex flex-col items-start leading-tight">
-      <span class="text-sm font-medium text-gray-300">{displayName()}</span>
+      <span class="text-sm font-medium text-text-label">{displayName()}</span>
       {#if roleBadge()}
         <span class="text-[10px] font-medium {roleBadge()!.classes}">{roleBadge()!.label}</span>
       {/if}
     </div>
     <!-- Chevron Icon -->
     <svg
-      class="w-4 h-4 text-gray-400 transition-transform {dropdownOpen ? 'rotate-180' : ''}"
+      class="w-4 h-4 text-text-body transition-transform {dropdownOpen ? 'rotate-180' : ''}"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -83,10 +83,10 @@
   <!-- Dropdown Menu -->
   {#if dropdownOpen}
     <div
-      class="absolute right-0 mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50"
+      class="absolute right-0 mt-2 w-64 bg-surface-card border border-border-default rounded-lg shadow-xl overflow-hidden z-50"
     >
       <!-- User Info Header -->
-      <div class="px-4 py-3 border-b border-zinc-800 bg-zinc-800/50">
+      <div class="px-4 py-3 border-b border-border-default bg-surface-input/50">
         <div class="flex items-center gap-3">
           <img
             class="h-12 w-12 rounded-full ring-2 ring-zinc-700"
@@ -102,7 +102,7 @@
                 ? 'text-purple-400'
                 : user.permissionLevel === UserRole.MODERATOR
                   ? 'text-blue-400'
-                  : 'text-gray-400'}"
+                  : 'text-text-body'}"
             >
               {user.permissionLevel.toLowerCase()}
             </p>
@@ -114,7 +114,7 @@
       <div class="py-2">
         <a
           href="/users/{user.steamId}"
-          class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white transition-all"
+          class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
           onclick={() => (dropdownOpen = false)}
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,7 +131,7 @@
         {#if userTeam}
           <a
             href="/teams/{userTeam.id}"
-            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white transition-all"
+            class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
             onclick={() => (dropdownOpen = false)}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +148,7 @@
 
         <a
           href="/users/{user.steamId}/payments"
-          class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white transition-all"
+          class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
           onclick={() => (dropdownOpen = false)}
         >
           <img src={transactionHistoryIcon} alt="" class="w-5 h-5 brightness-0 invert opacity-70" />
@@ -158,7 +158,7 @@
         {#if isAdminUser}
           <a
             href="/admin"
-            class="flex items-center gap-3 px-4 py-2.5 text-sm text-purple-400 hover:bg-zinc-800/50 hover:text-purple-300 transition-all"
+            class="flex items-center gap-3 px-4 py-2.5 text-sm text-purple-400 hover:bg-surface-input/50 hover:text-purple-300 transition-all"
             onclick={() => (dropdownOpen = false)}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,13 +179,13 @@
           </a>
         {/if}
 
-        <div class="my-2 border-t border-zinc-800"></div>
+        <div class="my-2 border-t border-border-default"></div>
 
         <!-- Logout Form -->
         <form method="POST" action="/auth/logout">
           <button
             type="submit"
-            class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-zinc-800/50 hover:text-red-300 transition-all text-left"
+            class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-danger-400 hover:bg-surface-input/50 hover:text-danger-300 transition-all text-left"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

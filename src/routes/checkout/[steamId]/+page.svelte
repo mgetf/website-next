@@ -2,6 +2,8 @@
   import type { PageData } from './$types';
   import PaypalCheckout from './PaypalCheckout.svelte';
   import ItemPaymentCheckout from './ItemPaymentCheckout.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data: pageData }: { data: PageData } = $props();
 
@@ -80,7 +82,7 @@
 
     {#if pageData.allPaid}
       <!-- All Paid State -->
-      <div class="bg-surface-card border border-border-default rounded-lg overflow-hidden">
+      <Card padding="none" class="overflow-hidden">
         <div class="p-12 text-center">
           <div
             class="w-16 h-16 rounded-full bg-success-600/20 flex items-center justify-center mx-auto mb-6"
@@ -103,16 +105,13 @@
           <p class="text-text-muted mb-8">
             All team members have paid their signup fees. Nothing pending.
           </p>
-          <a
-            href="/teams/{pageData.team.id}"
-            class="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-lg transition-colors"
-          >
+          <Button href="/teams/{pageData.team.id}" variant="primary" size="lg">
             Back to Team Page
-          </a>
+          </Button>
         </div>
-      </div>
+      </Card>
     {:else}
-      <div class="bg-surface-card border border-border-default rounded-lg overflow-hidden">
+      <Card padding="none" class="overflow-hidden">
         <!-- Team Info -->
         <div
           class="bg-gradient-to-r from-primary-600/20 to-primary-600/5 p-6 border-b border-border-default"
@@ -317,7 +316,7 @@
             {/if}
           {/if}
         </div>
-      </div>
+      </Card>
 
       <div class="text-center mt-6">
         <a

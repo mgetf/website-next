@@ -2,7 +2,7 @@
   import type { Snippet } from 'svelte';
   import type { HTMLButtonAttributes, HTMLAnchorAttributes } from 'svelte/elements';
 
-  type Variant = 'primary' | 'secondary' | 'danger' | 'success' | 'ghost';
+  type Variant = 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'ghost';
   type Size = 'sm' | 'md' | 'lg';
 
   interface BaseProps {
@@ -41,6 +41,8 @@
       'bg-danger-600 hover:bg-danger-500 text-white disabled:bg-danger-600/50 disabled:cursor-not-allowed',
     success:
       'bg-success-600 hover:bg-success-500 text-white disabled:bg-success-600/50 disabled:cursor-not-allowed',
+    warning:
+      'bg-warning-600 hover:bg-warning-500 text-white disabled:bg-warning-600/50 disabled:cursor-not-allowed',
     ghost:
       'bg-transparent hover:bg-surface-input text-text-body disabled:opacity-50 disabled:cursor-not-allowed',
   };

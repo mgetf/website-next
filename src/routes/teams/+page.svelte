@@ -5,6 +5,9 @@
   import SearchInput from '$lib/components/ui/SearchInput.svelte';
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -118,12 +121,12 @@
     goto('/teams');
   }
 
-  function getStatusBadge(status: string) {
-    if (status === 'ACTIVE') return 'bg-green-500/20 text-green-300 border border-green-500/30';
-    if (status === 'READY') return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
-    if (status === 'UNREADY') return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-    if (status === 'DISBANDED') return 'bg-red-500/20 text-red-300 border border-red-500/30';
-    return 'bg-zinc-800 text-gray-400 border border-zinc-700';
+  function getStatusBadgeColor(status: string): 'green' | 'blue' | 'yellow' | 'red' | 'zinc' {
+    if (status === 'ACTIVE') return 'green';
+    if (status === 'READY') return 'blue';
+    if (status === 'UNREADY') return 'yellow';
+    if (status === 'DISBANDED') return 'red';
+    return 'zinc';
   }
 
   function getStatusLabel(status: string) {
@@ -148,19 +151,18 @@
     border
   />
   <div class="container mx-auto px-4 py-8 max-w-7xl">
-    <!-- Filters -->
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-6">
+    <Card padding="lg" class="mb-6">
       <form onsubmit={handleSearch} class="flex flex-col gap-4">
         <div class="flex flex-col md:flex-row gap-4">
           <div class="flex-1">
-            <label for="search" class="block text-sm font-medium text-gray-400 mb-2">
+            <label for="search" class="block text-sm font-medium text-text-body mb-2">
               Search
             </label>
             <SearchInput bind:value={searchInput} placeholder="Search by team name or acronym..." />
           </div>
 
           <div class="md:w-48">
-            <label for="region" class="block text-sm font-medium text-gray-400 mb-2">
+            <label for="region" class="block text-sm font-medium text-text-body mb-2">
               Region
             </label>
             <SelectFilter
@@ -172,7 +174,7 @@
           </div>
 
           <div class="md:w-48">
-            <label for="season" class="block text-sm font-medium text-gray-400 mb-2">
+            <label for="season" class="block text-sm font-medium text-text-body mb-2">
               Season
             </label>
             <SelectFilter
@@ -185,27 +187,15 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <button
-            type="submit"
-            class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors"
-          >
-            Search
-          </button>
+          <Button type="submit">Search</Button>
 
           {#if data.filters.search || data.filters.region || data.filters.season}
-            <button
-              type="button"
-              onclick={clearFilters}
-              class="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white font-medium rounded-lg transition-colors"
-            >
-              Clear
-            </button>
+            <Button type="button" variant="secondary" onclick={clearFilters}>Clear</Button>
           {/if}
         </div>
       </form>
-    </div>
+    </Card>
 
-    <!-- Teams Table -->
     <DataTable
       data={data.teams}
       {columns}
@@ -224,8 +214,8 @@
             {#if team.avatar}
               <img src={team.avatar} alt={team.name} class="w-10 h-10 rounded" />
             {:else}
-              <div class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center">
-                <span class="text-lg font-bold text-gray-400">
+              <div class="w-10 h-10 rounded bg-surface-hover flex items-center justify-center">
+                <span class="text-lg font-bold text-text-body">
                   {team.acronym
                     ? team.acronym.charAt(0).toUpperCase()
                     : team.name.charAt(0).toUpperCase()}
@@ -234,44 +224,40 @@
             {/if}
             <div>
               <div
-                class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors"
+                class="text-sm font-medium text-white group-hover:text-primary-400 transition-colors"
               >
                 {team.name}
               </div>
               {#if team.acronym}
-                <div class="text-xs text-gray-500">{team.acronym}</div>
+                <div class="text-xs text-text-muted">{team.acronym}</div>
               {/if}
             </div>
           </a>
         {:else if col.key === 'division'}
           {#if team.division}
-            <span class="text-sm text-gray-300 whitespace-nowrap">{team.division.name}</span>
+            <span class="text-sm text-text-label whitespace-nowrap">{team.division.name}</span>
           {:else}
-            <span class="text-sm text-gray-500">—</span>
+            <span class="text-sm text-text-muted">—</span>
           {/if}
         {:else if col.key === 'region'}
           {#if team.region}
-            <div class="text-sm text-gray-300 whitespace-nowrap">{team.region.name}</div>
+            <div class="text-sm text-text-label whitespace-nowrap">{team.region.name}</div>
             {#if team.season}
-              <div class="text-xs text-gray-500">Season {team.season.seasonNum}</div>
+              <div class="text-xs text-text-muted">Season {team.season.seasonNum}</div>
             {/if}
           {:else}
-            <span class="text-sm text-gray-500">—</span>
+            <span class="text-sm text-text-muted">—</span>
           {/if}
         {:else if col.key === 'record'}
           <div class="text-sm font-medium text-white whitespace-nowrap">
             {team.wins}W - {team.losses}L
           </div>
         {:else if col.key === 'players'}
-          <span class="text-sm text-gray-300">{team._count.players}</span>
+          <span class="text-sm text-text-label">{team._count.players}</span>
         {:else if col.key === 'status'}
-          <span
-            class="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap {getStatusBadge(
-              team.status,
-            )}"
-          >
+          <Badge color={getStatusBadgeColor(team.status)} class="whitespace-nowrap">
             {getStatusLabel(team.status)}
-          </span>
+          </Badge>
         {/if}
       {/snippet}
     </DataTable>

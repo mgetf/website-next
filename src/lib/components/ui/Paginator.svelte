@@ -67,7 +67,7 @@
 {#if totalPages > 1}
   <div class="flex items-center justify-between">
     {#if showInfo && infoText}
-      <div class="text-sm text-gray-400">
+      <div class="text-sm text-text-body">
         {infoText}
       </div>
     {:else}
@@ -78,7 +78,7 @@
       <button
         onclick={handlePrevious}
         disabled={currentPage === 1}
-        class="px-3 py-1.5 bg-zinc-800 border border-zinc-700 text-gray-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-sm"
+        class="px-3 py-1.5 bg-surface-input border border-border-input text-text-label hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-sm"
       >
         Previous
       </button>
@@ -86,13 +86,13 @@
       <div class="flex items-center gap-1">
         {#each pageNumbers as pageNum}
           {#if pageNum === '...'}
-            <span class="px-2 text-gray-500">...</span>
+            <span class="px-2 text-text-muted">...</span>
           {:else}
             <button
               onclick={() => handlePageClick(pageNum)}
               class="px-3 py-1.5 rounded-lg transition-colors text-sm {pageNum === currentPage
-                ? 'bg-orange-600 text-white font-medium'
-                : 'bg-zinc-800 border border-zinc-700 text-gray-300 hover:bg-zinc-700'}"
+                ? 'bg-primary-600 text-white font-medium'
+                : 'bg-surface-input border border-border-input text-text-label hover:bg-surface-hover'}"
             >
               {pageNum}
             </button>
@@ -103,7 +103,7 @@
       <button
         onclick={handleNext}
         disabled={currentPage === totalPages}
-        class="px-3 py-1.5 bg-zinc-800 border border-zinc-700 text-gray-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-sm"
+        class="px-3 py-1.5 bg-surface-input border border-border-input text-text-label hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-sm"
       >
         Next
       </button>

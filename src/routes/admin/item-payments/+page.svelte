@@ -2,6 +2,8 @@
   import { enhance } from '$app/forms';
   import { toast } from '$lib/state/toast.svelte';
   import type { PageData } from './$types';
+  import Badge from '$lib/components/ui/Badge.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
   let cancellingOrder = $state<string | null>(null);
@@ -17,20 +19,18 @@
     });
   }
 
-  function getStatusBadge(status: string): { label: string; classes: string } {
-    if (status === 'COMPLETED')
-      return { label: 'Completed', classes: 'bg-green-500/20 text-green-400 border-green-500/30' };
-    if (status === 'PENDING')
-      return {
-        label: 'Pending',
-        classes: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      };
-    if (status === 'EXPIRED')
-      return { label: 'Expired', classes: 'bg-red-500/20 text-red-400 border-red-500/30' };
-    return {
-      label: 'Cancelled',
-      classes: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-    };
+  function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'red' | 'zinc' {
+    if (status === 'COMPLETED') return 'green';
+    if (status === 'PENDING') return 'yellow';
+    if (status === 'EXPIRED') return 'red';
+    return 'zinc';
+  }
+
+  function getStatusLabel(status: string): string {
+    if (status === 'COMPLETED') return 'Completed';
+    if (status === 'PENDING') return 'Pending';
+    if (status === 'EXPIRED') return 'Expired';
+    return 'Cancelled';
   }
 </script>
 
@@ -38,7 +38,7 @@
   <div class="flex items-center justify-between mb-6">
     <div>
       <h1 class="text-2xl font-bold text-white">Item Payment Orders</h1>
-      <p class="text-gray-400 text-sm mt-1">{data.total} total orders</p>
+      <p class="text-text-body text-sm mt-1">{data.total} total orders</p>
     </div>
   </div>
 
@@ -49,8 +49,8 @@
         href="?status={status}&page=1"
         class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {data.statusFilter ===
         status
-          ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-          : 'bg-zinc-800 text-gray-400 hover:text-white hover:bg-zinc-700 border border-zinc-700'}"
+          ? 'bg-orange-500/20 text-primary-400 border border-orange-500/30'
+          : 'bg-surface-input text-text-body hover:text-white hover:bg-surface-hover border border-border-input'}"
       >
         {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
       </a>
@@ -58,11 +58,11 @@
   </div>
 
   {#if data.orders.length > 0}
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+    <Card padding="none" class="overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="bg-zinc-950/80 text-xs text-gray-500 uppercase tracking-wider">
+            <tr class="bg-surface-page/80 text-xs text-text-muted uppercase tracking-wider">
               <th class="text-left px-4 py-3 font-medium">Order</th>
               <th class="text-left px-4 py-3 font-medium">Player</th>
               <th class="text-left px-4 py-3 font-medium">Team</th>
@@ -74,17 +74,16 @@
               <th class="text-right px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-zinc-800/50">
+          <tbody class="divide-y divide-border-default/50">
             {#each data.orders as order (order.id)}
-              {@const badge = getStatusBadge(order.status)}
-              <tr class="hover:bg-zinc-800/30 transition-colors">
+              <tr class="hover:bg-surface-input/30 transition-colors">
                 <td class="px-4 py-3">
                   <span class="text-white font-mono text-xs">{order.orderNumber}</span>
                 </td>
                 <td class="px-4 py-3">
                   <a
                     href="/users/{order.playerSteamId}"
-                    class="text-orange-400 hover:text-orange-300 transition-colors text-xs"
+                    class="text-primary-400 hover:text-primary-300 transition-colors text-xs"
                   >
                     {order.playerName}
                   </a>
@@ -92,33 +91,31 @@
                 <td class="px-4 py-3">
                   <a
                     href="/teams/{order.teamId}"
-                    class="text-orange-400 hover:text-orange-300 transition-colors text-xs"
+                    class="text-primary-400 hover:text-primary-300 transition-colors text-xs"
                   >
                     {order.teamName}
                   </a>
                 </td>
-                <td class="px-4 py-3 text-gray-300 text-xs whitespace-nowrap">
+                <td class="px-4 py-3 text-text-label text-xs whitespace-nowrap">
                   {order.itemsReceived}/{order.itemsRequired}
                   {order.itemName}
                 </td>
                 <td class="px-4 py-3">
-                  <span
-                    class="inline-flex px-2 py-0.5 rounded text-xs font-medium border {badge.classes}"
-                  >
-                    {badge.label}
-                  </span>
+                  <Badge color={getStatusBadgeColor(order.status)}>
+                    {getStatusLabel(order.status)}
+                  </Badge>
                 </td>
                 <td class="px-4 py-3">
                   {#if order.tradeOfferId}
-                    <span class="text-gray-400 font-mono text-xs">{order.tradeOfferId}</span>
+                    <span class="text-text-body font-mono text-xs">{order.tradeOfferId}</span>
                   {:else}
-                    <span class="text-gray-600 text-xs">-</span>
+                    <span class="text-text-muted text-xs">-</span>
                   {/if}
                 </td>
-                <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                <td class="px-4 py-3 text-text-body text-xs whitespace-nowrap">
                   {formatDate(order.createdAt)}
                 </td>
-                <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                <td class="px-4 py-3 text-text-body text-xs whitespace-nowrap">
                   {formatDate(order.expiresAt)}
                 </td>
                 <td class="px-4 py-3 text-right">
@@ -146,7 +143,7 @@
                       <button
                         type="submit"
                         disabled={cancellingOrder === order.orderNumber}
-                        class="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors disabled:opacity-50"
+                        class="text-xs px-2 py-1 bg-danger-500/20 hover:bg-danger-500/30 text-danger-400 rounded border border-danger-500/30 transition-colors disabled:opacity-50"
                       >
                         {cancellingOrder === order.orderNumber ? 'Cancelling...' : 'Cancel'}
                       </button>
@@ -158,19 +155,19 @@
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
 
     <!-- Pagination -->
     {#if data.totalPages > 1}
       <div class="flex items-center justify-between mt-6">
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-text-muted">
           Page {data.currentPage} of {data.totalPages}
         </p>
         <div class="flex gap-2">
           {#if data.currentPage > 1}
             <a
               href="?status={data.statusFilter}&page={data.currentPage - 1}"
-              class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg text-sm transition-colors"
+              class="px-3 py-1.5 bg-surface-input hover:bg-surface-hover text-text-label rounded-lg text-sm transition-colors"
             >
               Previous
             </a>
@@ -178,7 +175,7 @@
           {#if data.currentPage < data.totalPages}
             <a
               href="?status={data.statusFilter}&page={data.currentPage + 1}"
-              class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg text-sm transition-colors"
+              class="px-3 py-1.5 bg-surface-input hover:bg-surface-hover text-text-label rounded-lg text-sm transition-colors"
             >
               Next
             </a>
@@ -187,8 +184,8 @@
       </div>
     {/if}
   {:else}
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
-      <p class="text-gray-500">No item payment orders found</p>
-    </div>
+    <Card padding="none" class="p-12 text-center">
+      <p class="text-text-muted">No item payment orders found</p>
+    </Card>
   {/if}
 </div>

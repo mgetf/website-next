@@ -26,7 +26,7 @@ import Button from '$lib/components/ui/Button.svelte';
 </button>
 ```
 
-**Variants:** `primary` (orange), `secondary` (zinc), `danger` (red), `success` (green), `ghost` (transparent)
+**Variants:** `primary` (orange), `secondary` (zinc), `danger` (red), `success` (green), `warning` (yellow), `ghost` (transparent)
 **Sizes:** `sm`, `md` (default), `lg`
 **With href:** renders as `<a>` tag — use for navigation
 
@@ -98,3 +98,66 @@ Use semantic token class names instead of raw Tailwind color classes. These are 
 **Only use `format-2v2-*` or `format-1v1-*` tokens when the context is explicitly about that format** (league cards, format-specific sections, format badges). For generic actions that are not format-specific, always use `primary-*` (orange).
 
 Admin pages use `primary-*` (orange), not blue. Blue is reserved for 2v2 format contexts only.
+
+---
+
+## Form Components
+
+NEVER write raw `<input>` or `<select>` with inline Tailwind styling for visible labeled form fields.
+
+```svelte
+<!-- ✅ CORRECT -->
+import FormInput from '$lib/components/ui/form/FormInput.svelte';
+import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+
+<FormInput label="Team Name" name="name" bind:value={name} required />
+<FormSelect label="Division" name="division" bind:value={division} options={[{ value: '1', label: 'Premier' }]} />
+
+<!-- ❌ WRONG — raw inputs with inline styles -->
+<label for="name">Team Name</label>
+<input id="name" name="name" class="bg-zinc-800 border border-zinc-700 rounded-lg..." />
+```
+
+**Keep as-is (no shared component):** `<input type="hidden">`, `<input type="file">`, `<input type="checkbox">`, `<input type="radio">`, `<input type="range">`, `<textarea>`
+
+## ConfirmDialog
+
+NEVER use `window.confirm()` or `confirm()` for destructive action confirmations.
+
+```svelte
+<!-- ✅ CORRECT -->
+import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+
+let showConfirm = $state(false);
+
+<Button variant="danger" onclick={() => showConfirm = true}>Delete</Button>
+
+<ConfirmDialog
+  open={showConfirm}
+  title="Delete Item"
+  description="Are you sure?"
+  variant="danger"
+  onConfirm={() => { doDelete(); showConfirm = false; }}
+  onCancel={() => showConfirm = false}
+/>
+
+<!-- ❌ WRONG -->
+<button onclick={() => { if (confirm('Delete?')) doDelete(); }}>Delete</button>
+```
+
+---
+
+## Banned Color Patterns
+
+These raw Tailwind classes must NEVER appear in route `.svelte` files:
+
+| Banned | Use instead |
+|--------|-------------|
+| `bg-blue-600 hover:bg-blue-*` on buttons | `Button variant="primary"` |
+| `bg-orange-600 hover:bg-orange-*` on buttons | `Button variant="primary"` |
+| `bg-indigo-600` on buttons | `Button variant="primary"` |
+| `bg-zinc-900 border border-zinc-800 rounded` containers | `Card` component |
+| `emerald-*` | `green-*` or `success-*` tokens |
+| `amber-*` | `yellow-*` or `warning-*` tokens |
+| `text-zinc-300` / `text-zinc-400` / `text-zinc-500` | `text-text-label` / `text-text-body` / `text-text-muted` |
+| `focus:ring-blue-500` / `focus:ring-indigo-500` | `focus:ring-primary-500` |

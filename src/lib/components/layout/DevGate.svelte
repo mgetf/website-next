@@ -15,19 +15,21 @@
   let { user }: Props = $props();
 </script>
 
-<div class="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-gray-200 p-6">
+<div
+  class="min-h-screen flex flex-col items-center justify-center bg-surface-page text-text-label p-6"
+>
   <div class="max-w-md w-full text-center space-y-8">
     <!-- Environment Badge -->
     <div
-      class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 border border-amber-500/50 rounded-full"
+      class="inline-flex items-center gap-2 px-4 py-2 bg-warning-500/20 border border-warning-500/50 rounded-full"
     >
       <span class="relative flex h-3 w-3">
         <span
-          class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"
+          class="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning-400 opacity-75"
         ></span>
-        <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-warning-500"></span>
       </span>
-      <span class="text-amber-400 font-medium text-sm uppercase tracking-wide"
+      <span class="text-warning-400 font-medium text-sm uppercase tracking-wide"
         >Development Environment</span
       >
     </div>
@@ -35,27 +37,27 @@
     <!-- Logo / Title -->
     <div class="space-y-4">
       <h1 class="text-4xl font-bold text-white">MGE.tf Dev</h1>
-      <p class="text-zinc-400 text-lg">This is the development/staging version of MGE.tf</p>
+      <p class="text-text-body text-lg">This is the development/staging version of MGE.tf</p>
     </div>
 
     <!-- Access Message -->
-    <div class="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-4">
+    <div class="bg-surface-card/50 border border-border-default rounded-xl p-6 space-y-4">
       {#if user}
         <!-- User is logged in but not admin -->
         <div class="flex items-center justify-center gap-3">
           <img
             src={user.steamAvatar}
             alt={user.steamUsername}
-            class="w-12 h-12 rounded-full border-2 border-zinc-700"
+            class="w-12 h-12 rounded-full border-2 border-border-input"
           />
           <div class="text-left">
             <p class="text-white font-medium">{user.steamUsername}</p>
-            <p class="text-zinc-500 text-sm">Logged in via Steam</p>
+            <p class="text-text-muted text-sm">Logged in via Steam</p>
           </div>
         </div>
 
-        <div class="border-t border-zinc-800 pt-4">
-          <div class="flex items-center justify-center gap-2 text-red-400">
+        <div class="border-t border-border-default pt-4">
+          <div class="flex items-center justify-center gap-2 text-danger-400">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="h-5 w-5"
@@ -70,7 +72,7 @@
             </svg>
             <span class="font-medium">Access Denied</span>
           </div>
-          <p class="text-zinc-400 text-sm mt-2">
+          <p class="text-text-body text-sm mt-2">
             Only administrators can access the development site. If you believe you should have
             access, please contact an admin.
           </p>
@@ -78,13 +80,13 @@
 
         <a
           href="/auth/logout"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors text-sm"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-surface-input hover:bg-surface-hover text-text-label rounded-lg transition-colors text-sm"
         >
           Sign out
         </a>
       {:else}
         <!-- User is not logged in -->
-        <div class="flex items-center justify-center gap-2 text-zinc-400 mb-4">
+        <div class="flex items-center justify-center gap-2 text-text-body mb-4">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="h-5 w-5"
@@ -100,7 +102,7 @@
           <span class="font-medium">Admin Access Required</span>
         </div>
 
-        <p class="text-zinc-400 text-sm mb-6">
+        <p class="text-text-body text-sm mb-6">
           This site is restricted to administrators only. Please sign in with Steam to verify your
           access.
         </p>
@@ -116,10 +118,10 @@
     </div>
 
     <!-- Footer Info -->
-    <p class="text-zinc-600 text-xs">
+    <p class="text-text-muted text-xs">
       Looking for the live site? Visit <a
         href="https://mge.tf"
-        class="text-blue-500 hover:underline">mge.tf</a
+        class="text-info-500 hover:underline">mge.tf</a
       >
     </p>
   </div>

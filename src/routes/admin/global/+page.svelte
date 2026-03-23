@@ -3,6 +3,9 @@
   import { enhance } from '$app/forms';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
+  import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import { toast } from '$lib/state/toast.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -24,7 +27,6 @@
   let isSubmitting = $state(false);
   let showSeasonAssignmentWarning = $state(false);
   let seasonAssignmentForm: HTMLFormElement | null = $state(null);
-  // Filter regions that have at least one season for the given format
   function getRegionsWithSeasonsForFormat(formatId: number) {
     return data.regions.filter((region: { name: string }) => {
       const regionSeasons = data.seasonsByRegion[region.name] || [];
@@ -32,7 +34,6 @@
     });
   }
 
-  // Find the first format that has regions with seasons
   function getFirstAvailableFormatId(): number {
     const formatWithSeasons = data.formats.find(
       (format: { id: number }) => getRegionsWithSeasonsForFormat(format.id).length > 0,
@@ -42,13 +43,11 @@
 
   let selectedFormatId = $state(getFirstAvailableFormatId());
 
-  // Get seasons for a region filtered by format
   function getSeasonsForRegionAndFormat(regionName: string, formatId: number) {
     const regionSeasons = data.seasonsByRegion[regionName] || [];
     return regionSeasons.filter((s: { formatId: number }) => s.formatId === formatId);
   }
 
-  // Check if any format has regions with seasons
   function hasAnyRegionsWithSeasons() {
     return data.formats.some(
       (format: { id: number }) => getRegionsWithSeasonsForFormat(format.id).length > 0,
@@ -68,18 +67,18 @@
   <!-- Page Header -->
   <div>
     <h2 class="text-3xl font-bold text-white mb-2">Global Configuration</h2>
-    <p class="text-gray-400">Manage site-wide settings and announcements</p>
+    <p class="text-text-body">Manage site-wide settings and announcements</p>
   </div>
 
   <!-- Section 1: Global Announcements -->
-  <section class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
-    <div class="border-b border-zinc-800 pb-4">
+  <Card padding="none" class="p-6 space-y-6">
+    <div class="border-b border-border-default pb-4">
       <h3 class="text-2xl font-bold text-white mb-2">Global Announcements</h3>
-      <p class="text-gray-400">Manage homepage announcement banners</p>
+      <p class="text-text-body">Manage homepage announcement banners</p>
     </div>
 
     <!-- Create Announcement Form -->
-    <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
+    <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
       <form
         method="POST"
         action="?/createAnnouncement"
@@ -93,7 +92,7 @@
         class="space-y-4"
       >
         <div>
-          <label for="content" class="block text-sm font-medium text-gray-300 mb-2">
+          <label for="content" class="block text-sm font-medium text-text-label mb-2">
             New Announcement
           </label>
           <textarea
@@ -102,34 +101,30 @@
             rows="3"
             maxlength="500"
             required
-            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             placeholder="Enter announcement text (max 500 characters)..."
           ></textarea>
         </div>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? 'Creating...' : 'Create Announcement'}
-        </button>
+        </Button>
       </form>
     </div>
 
     <!-- Announcements List -->
     <div class="space-y-3">
       {#if data.announcements.length === 0}
-        <div class="text-center py-12 text-gray-500">
+        <div class="text-center py-12 text-text-muted">
           <p class="text-lg mb-2">No announcements yet</p>
           <p class="text-sm">Create your first announcement above</p>
         </div>
       {:else}
         {#each data.announcements as announcement}
-          <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
+          <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
             <div class="flex flex-col space-y-3">
               <!-- Announcement Content -->
               <div class="flex items-start justify-between gap-4">
-                <p class="text-gray-200 flex-1">{announcement.content}</p>
+                <p class="text-white flex-1">{announcement.content}</p>
                 <div class="flex items-center gap-2 flex-shrink-0">
                   <!-- Toggle Visibility -->
                   <form
@@ -155,8 +150,8 @@
                       disabled={isSubmitting}
                       class="px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50 {announcement.visible ===
                       1
-                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
-                        : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30'}"
+                        ? 'bg-success-500/20 text-success-400 hover:bg-success-500/30 border border-success-500/30'
+                        : 'bg-zinc-500/20 text-text-body hover:bg-zinc-500/30 border border-zinc-500/30'}"
                     >
                       {announcement.visible === 1 ? 'Hide' : 'Show'}
                     </button>
@@ -165,7 +160,7 @@
                   <!-- Edit Button -->
                   <button
                     onclick={() => toggleEditForm(announcement)}
-                    class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30 rounded text-sm font-medium transition-colors"
+                    class="px-3 py-1 bg-info-500/20 text-info-400 hover:bg-info-500/30 border border-info-500/30 rounded text-sm font-medium transition-colors"
                   >
                     Edit
                   </button>
@@ -174,7 +169,7 @@
                   {#if data.isStrictAdmin}
                     <button
                       onclick={() => (deletingAnnouncement = announcement)}
-                      class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 rounded text-sm font-medium transition-colors"
+                      class="px-3 py-1 bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 border border-danger-500/30 rounded text-sm font-medium transition-colors"
                     >
                       Delete
                     </button>
@@ -195,7 +190,7 @@
                       editingAnnouncement = null;
                     };
                   }}
-                  class="space-y-3 pt-3 border-t border-zinc-700"
+                  class="space-y-3 pt-3 border-t border-border-input"
                 >
                   <input type="hidden" name="id" value={announcement.id} />
                   <textarea
@@ -203,21 +198,17 @@
                     rows="3"
                     maxlength="500"
                     required
-                    class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                     value={announcement.content}
                   ></textarea>
                   <div class="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      class="px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded text-sm font-medium transition-colors disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
                       {isSubmitting ? 'Saving...' : 'Save'}
-                    </button>
+                    </Button>
                     <button
                       type="button"
                       onclick={() => (editingAnnouncement = null)}
-                      class="px-3 py-1 bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 rounded text-sm font-medium transition-colors"
+                      class="px-3 py-1 bg-zinc-500/20 text-text-body hover:bg-zinc-500/30 rounded text-sm font-medium transition-colors"
                     >
                       Cancel
                     </button>
@@ -229,23 +220,23 @@
         {/each}
       {/if}
     </div>
-  </section>
+  </Card>
 
   <!-- Section 2: Global Settings -->
-  <section class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
-    <div class="border-b border-zinc-800 pb-4">
+  <Card padding="none" class="p-6 space-y-6">
+    <div class="border-b border-border-default pb-4">
       <h3 class="text-2xl font-bold text-white mb-2">Global Settings</h3>
-      <p class="text-gray-400">Settings that apply across all seasons</p>
+      <p class="text-text-body">Settings that apply across all seasons</p>
     </div>
 
     {#if data.globalSettings}
       <!-- League Fees -->
-      <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4 max-w-md">
+      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4 max-w-md">
         <h4 class="text-lg font-bold text-white mb-3">
           League Fees:
-          <span class="text-gray-200">${data.globalSettings.leagueFees ?? 0}</span>
+          <span class="text-white">${data.globalSettings.leagueFees ?? 0}</span>
         </h4>
-        <p class="text-sm text-gray-400 mb-4">Default registration fee amount</p>
+        <p class="text-sm text-text-body mb-4">Default registration fee amount</p>
         {#if data.isStrictAdmin}
           <form
             method="POST"
@@ -266,41 +257,37 @@
               step="1"
               value={data.globalSettings.leagueFees ?? 0}
               required
-              class="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              class="flex-1 px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-            >
+            <Button type="submit" variant="primary" disabled={isSubmitting}>
               {isSubmitting ? 'Updating...' : 'Update'}
-            </button>
+            </Button>
           </form>
         {/if}
       </div>
 
       <!-- Season Assignments and Per-Season Settings -->
       {#if data.isStrictAdmin}
-        <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-6 mt-6">
+        <div class="bg-surface-input/50 border border-border-input rounded-lg p-6 mt-6">
           <h4 class="text-xl font-bold text-white mb-4">Signup Season Assignments</h4>
-          <p class="text-sm text-gray-400 mb-4">
+          <p class="text-sm text-text-body mb-4">
             Assign which season new teams will be registered to for each region
           </p>
-          <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6">
-            <p class="text-amber-400 text-sm">
+          <div class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-3 mb-6">
+            <p class="text-warning-400 text-sm">
               <strong>⚠️ Warning:</strong> Changing season assignments affects which season new signups
               go to. This effectively "ends" signups for the previous season in that region/format.
             </p>
           </div>
 
           {#if !hasAnyRegionsWithSeasons()}
-            <div class="text-center py-8 text-gray-400">
+            <div class="text-center py-8 text-text-body">
               <p>No regions have seasons created yet.</p>
               <p class="text-sm mt-1">Create seasons in the League admin panel first.</p>
             </div>
           {:else}
             <!-- Format Tabs - only show formats that have regions with seasons -->
-            <div class="flex border-b border-zinc-700 mb-6">
+            <div class="flex border-b border-border-input mb-6">
               {#each data.formats as format}
                 {@const regionsForFormat = getRegionsWithSeasonsForFormat(format.id)}
                 {#if regionsForFormat.length > 0}
@@ -309,11 +296,11 @@
                     onclick={() => (selectedFormatId = format.id)}
                     class="px-6 py-3 font-medium transition-colors relative {selectedFormatId ===
                     format.id
-                      ? 'text-orange-400 border-b-2 border-orange-400 -mb-px'
-                      : 'text-gray-400 hover:text-gray-200'}"
+                      ? 'text-primary-400 border-b-2 border-orange-400 -mb-px'
+                      : 'text-text-body hover:text-white'}"
                   >
                     {format.code}
-                    <span class="ml-1 text-xs text-gray-500">({regionsForFormat.length})</span>
+                    <span class="ml-1 text-xs text-text-muted">({regionsForFormat.length})</span>
                   </button>
                 {/if}
               {/each}
@@ -346,7 +333,7 @@
 
               <!-- Regions list for selected format -->
               {#if getRegionsWithSeasonsForFormat(selectedFormatId).length === 0}
-                <div class="text-center py-8 text-gray-400">
+                <div class="text-center py-8 text-text-body">
                   <p>No seasons created for this format yet.</p>
                 </div>
               {:else}
@@ -363,15 +350,15 @@
                       ? data.seasonSettingsMap[currentSeasonId]
                       : null}
 
-                    <div class="bg-zinc-900/50 rounded-lg p-4 space-y-3">
+                    <div class="bg-surface-card/50 rounded-lg p-4 space-y-3">
                       <!-- Region Header with Season Select -->
                       <div class="flex items-center gap-4">
-                        <div class="w-24 text-gray-200 font-medium">{region.name}</div>
+                        <div class="w-24 text-white font-medium">{region.name}</div>
                         <div class="flex-1">
                           <select
                             id={fieldName}
                             name={fieldName}
-                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                           >
                             <option value="">No Season Selected</option>
                             {#each regionSeasons as season}
@@ -383,16 +370,16 @@
                           </select>
                         </div>
                         {#if currentSeasonId}
-                          <div class="text-green-400 text-sm">Active</div>
+                          <div class="text-success-400 text-sm">Active</div>
                         {:else}
-                          <div class="text-gray-500 text-sm">Inactive</div>
+                          <div class="text-text-muted text-sm">Inactive</div>
                         {/if}
                       </div>
 
                       <!-- Per-Season Settings (only show if a season is selected) -->
                       {#if currentSeasonId && seasonSettings}
                         <div
-                          class="flex flex-wrap items-center gap-3 pt-3 border-t border-zinc-800"
+                          class="flex flex-wrap items-center gap-3 pt-3 border-t border-border-default"
                         >
                           <!-- Signups Toggle -->
                           <button
@@ -403,8 +390,8 @@
                             value={currentSeasonId}
                             disabled={isSubmitting}
                             class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {seasonSettings.signupsOpen
-                              ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
-                              : 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'}"
+                              ? 'bg-success-500/20 text-success-400 hover:bg-success-500/30 border border-success-500/30'
+                              : 'bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 border border-danger-500/30'}"
                           >
                             Signups: {seasonSettings.signupsOpen ? 'OPEN' : 'CLOSED'}
                           </button>
@@ -418,8 +405,8 @@
                             value={currentSeasonId}
                             disabled={isSubmitting}
                             class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {seasonSettings.rosterLocked
-                              ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
-                              : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'}"
+                              ? 'bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 border border-danger-500/30'
+                              : 'bg-success-500/20 text-success-400 hover:bg-success-500/30 border border-success-500/30'}"
                           >
                             Rosters: {seasonSettings.rosterLocked ? 'LOCKED' : 'OPEN'}
                           </button>
@@ -433,15 +420,15 @@
                             value={currentSeasonId}
                             disabled={isSubmitting}
                             class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {seasonSettings.paymentRequired
-                              ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30'
-                              : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30'}"
+                              ? 'bg-warning-500/20 text-warning-400 hover:bg-warning-500/30 border border-warning-500/30'
+                              : 'bg-zinc-500/20 text-text-body hover:bg-zinc-500/30 border border-zinc-500/30'}"
                           >
                             Payment: {seasonSettings.paymentRequired ? 'REQUIRED' : 'NOT REQ'}
                           </button>
 
                           <!-- Match Week Info -->
                           {#if seasonSettings.matchWeek}
-                            <span class="text-xs text-gray-500"
+                            <span class="text-xs text-text-muted"
                               >Week {seasonSettings.matchWeek}</span
                             >
                           {/if}
@@ -452,16 +439,15 @@
                 </div>
               {/if}
 
-              <div class="pt-4 border-t border-zinc-700">
-                <!-- This button shows the confirmation modal instead of submitting directly -->
-                <button
+              <div class="pt-4 border-t border-border-input">
+                <Button
                   type="button"
+                  variant="primary"
                   onclick={() => (showSeasonAssignmentWarning = true)}
                   disabled={isSubmitting}
-                  class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
                 >
                   {isSubmitting ? 'Updating...' : 'Update Season Assignments'}
-                </button>
+                </Button>
               </div>
             </form>
           {/if}
@@ -478,7 +464,7 @@
           onCancel={() => (showSeasonAssignmentWarning = false)}
         >
           {#snippet preview()}
-            <p class="text-amber-400 text-sm">
+            <p class="text-warning-400 text-sm">
               This action will change which season new team signups are registered to. Teams that
               haven't completed signup for the previous season will need to re-register for the new
               season.
@@ -487,18 +473,18 @@
         </ConfirmDialog>
       {/if}
     {:else}
-      <div class="text-center py-12 text-gray-500">
-        <p class="text-gray-400">Global settings not initialized</p>
+      <div class="text-center py-12 text-text-muted">
+        <p class="text-text-body">Global settings not initialized</p>
       </div>
     {/if}
-  </section>
+  </Card>
 
   <!-- Section 3: Steam Bot Settings -->
   {#if data.isStrictAdmin}
-    <section class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
-      <div class="border-b border-zinc-800 pb-4">
+    <Card padding="none" class="p-6 space-y-6">
+      <div class="border-b border-border-default pb-4">
         <h3 class="text-2xl font-bold text-white mb-2">Steam Bot Settings</h3>
-        <p class="text-gray-400">Configure the Steam trading bot for item payments</p>
+        <p class="text-text-body">Configure the Steam trading bot for item payments</p>
       </div>
 
       <form
@@ -513,55 +499,37 @@
         }}
         class="space-y-4 max-w-lg"
       >
-        <div>
-          <label for="botTradeOfferUrl" class="block text-sm font-medium text-gray-300 mb-2">
-            Bot Trade Offer URL
-          </label>
-          <input
-            id="botTradeOfferUrl"
-            name="botTradeOfferUrl"
-            type="text"
-            value={data.globalSettings?.botTradeOfferUrl ?? ''}
-            placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&token=..."
-            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          />
-        </div>
-        <div>
-          <label for="botSteamId" class="block text-sm font-medium text-gray-300 mb-2">
-            Bot Steam ID (SteamID64)
-          </label>
-          <input
-            id="botSteamId"
-            name="botSteamId"
-            type="text"
-            value={data.globalSettings?.botSteamId ?? ''}
-            placeholder="76561198012345678"
-            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          />
-          <p class="text-xs text-gray-500 mt-1">
-            Used to display the bot's name and avatar on the checkout page
-          </p>
-        </div>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-        >
+        <FormInput
+          label="Bot Trade Offer URL"
+          name="botTradeOfferUrl"
+          type="text"
+          value={data.globalSettings?.botTradeOfferUrl ?? ''}
+          placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&token=..."
+        />
+        <FormInput
+          label="Bot Steam ID (SteamID64)"
+          name="botSteamId"
+          type="text"
+          value={data.globalSettings?.botSteamId ?? ''}
+          placeholder="76561198012345678"
+          hint="Used to display the bot's name and avatar on the checkout page"
+        />
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? 'Updating...' : 'Update Bot Settings'}
-        </button>
+        </Button>
       </form>
-    </section>
+    </Card>
 
     <!-- Section 4: Steam Items Catalog -->
-    <section class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
-      <div class="border-b border-zinc-800 pb-4">
+    <Card padding="none" class="p-6 space-y-6">
+      <div class="border-b border-border-default pb-4">
         <h3 class="text-2xl font-bold text-white mb-2">Steam Items Catalog</h3>
-        <p class="text-gray-400">Manage accepted Steam items for division payments</p>
+        <p class="text-text-body">Manage accepted Steam items for division payments</p>
       </div>
 
       <!-- Add Item Form -->
-      <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-        <h4 class="text-sm font-semibold text-gray-300 mb-3">Add New Item</h4>
+      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
+        <h4 class="text-sm font-semibold text-text-label mb-3">Add New Item</h4>
         <form
           method="POST"
           action="?/createSteamItem"
@@ -579,7 +547,7 @@
             type="text"
             required
             placeholder="Item Name"
-            class="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            class="px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <input
             name="appId"
@@ -587,28 +555,22 @@
             required
             min="1"
             placeholder="App ID (e.g. 440)"
-            class="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            class="px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <input
             name="marketHashName"
             type="text"
             required
             placeholder="Market Hash Name"
-            class="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            class="px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-          >
-            Add
-          </button>
+          <Button type="submit" variant="primary" disabled={isSubmitting}>Add</Button>
         </form>
       </div>
 
       <!-- Items List -->
       {#if data.steamItems.length === 0}
-        <div class="text-center py-8 text-gray-500">
+        <div class="text-center py-8 text-text-muted">
           <p>No Steam items configured</p>
           <p class="text-sm mt-1">Add items above to enable item payments for divisions</p>
         </div>
@@ -616,21 +578,21 @@
         <div class="space-y-2">
           {#each data.steamItems as item}
             <div
-              class="flex items-center justify-between bg-zinc-800/50 border border-zinc-700 rounded-lg p-3"
+              class="flex items-center justify-between bg-surface-input/50 border border-border-input rounded-lg p-3"
             >
               <div class="flex items-center gap-3">
                 {#if item.iconUrl}
                   <img src={item.iconUrl} alt={item.name} class="w-8 h-8 rounded" />
                 {:else}
                   <div
-                    class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-xs text-gray-400"
+                    class="w-8 h-8 rounded bg-surface-hover flex items-center justify-center text-xs text-text-body"
                   >
                     {item.appId}
                   </div>
                 {/if}
                 <div>
                   <p class="text-white text-sm font-medium">{item.name}</p>
-                  <p class="text-gray-500 text-xs">{item.marketHashName} (App {item.appId})</p>
+                  <p class="text-text-muted text-xs">{item.marketHashName} (App {item.appId})</p>
                 </div>
               </div>
               <form
@@ -648,7 +610,7 @@
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 rounded text-sm font-medium transition-colors disabled:opacity-50"
+                  class="px-3 py-1 bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 border border-danger-500/30 rounded text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   Delete
                 </button>
@@ -657,7 +619,7 @@
           {/each}
         </div>
       {/if}
-    </section>
+    </Card>
   {/if}
 </div>
 
@@ -667,13 +629,13 @@
   title="Delete Announcement"
   onClose={() => (deletingAnnouncement = null)}
 >
-  <p class="text-gray-400 mb-4">
+  <p class="text-text-body mb-4">
     Are you sure you want to delete this announcement? This action cannot be undone.
   </p>
 
   {#if deletingAnnouncement}
-    <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
-      <p class="text-gray-300 text-sm">{deletingAnnouncement.content}</p>
+    <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
+      <p class="text-text-label text-sm">{deletingAnnouncement.content}</p>
     </div>
   {/if}
 
@@ -681,7 +643,7 @@
     <button
       type="button"
       onclick={() => (deletingAnnouncement = null)}
-      class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+      class="flex-1 px-4 py-2 bg-surface-input hover:bg-surface-hover text-text-label rounded-lg font-medium transition-colors"
     >
       Cancel
     </button>
@@ -700,13 +662,9 @@
         class="flex-1"
       >
         <input type="hidden" name="id" value={deletingAnnouncement.id} />
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <Button type="submit" variant="danger" disabled={isSubmitting} class="w-full">
           {isSubmitting ? 'Deleting...' : 'Delete'}
-        </button>
+        </Button>
       </form>
     {/if}
   {/snippet}

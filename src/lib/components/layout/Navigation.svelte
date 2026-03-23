@@ -38,7 +38,7 @@
 </script>
 
 <!-- Modern Navigation Bar with great contrast -->
-<nav class="bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800 shadow-lg relative z-30">
+<nav class="bg-zinc-950/90 backdrop-blur-md border-b border-border-default shadow-lg relative z-30">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <!-- Left: Logo + Main Navigation -->
@@ -54,7 +54,7 @@
           <!-- Leagues Dropdown -->
           <div class="relative group">
             <button
-              class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all flex items-center gap-1"
+              class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all flex items-center gap-1"
             >
               Leagues
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,17 +67,17 @@
               </svg>
             </button>
             <div
-              class="absolute left-0 mt-1 w-40 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
+              class="absolute left-0 mt-1 w-40 bg-surface-card border border-border-default rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
             >
               <a
                 href="/leagues/2v2"
-                class="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-zinc-800 rounded-t-lg"
+                class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input rounded-t-lg"
               >
                 2v2 League
               </a>
               <a
                 href="/leagues/1v1"
-                class="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-zinc-800 rounded-b-lg"
+                class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input rounded-b-lg"
               >
                 1v1 League
               </a>
@@ -85,25 +85,25 @@
           </div>
           <a
             href="/tournaments"
-            class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all"
+            class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
             Tournaments
           </a>
           <a
             href="/users"
-            class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all"
+            class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
             Users
           </a>
           <a
             href="/teams"
-            class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all"
+            class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
             Teams
           </a>
           <a
             href="/rulebook"
-            class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all"
+            class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
             Rules
           </a>
@@ -119,7 +119,7 @@
             target="_blank"
             rel="noopener noreferrer"
             aria-label="MGE on YouTube"
-            class="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-md hover:bg-zinc-800/50"
+            class="p-1.5 text-text-body hover:text-danger-500 transition-colors rounded-md hover:bg-surface-input/50"
           >
             <YoutubeIcon />
           </a>
@@ -128,7 +128,7 @@
             target="_blank"
             rel="noopener noreferrer"
             aria-label="MGE Discord"
-            class="p-1.5 text-gray-400 hover:text-indigo-400 transition-colors rounded-md hover:bg-zinc-800/50"
+            class="p-1.5 text-text-body hover:text-indigo-400 transition-colors rounded-md hover:bg-surface-input/50"
           >
             <DiscordIcon />
           </a>
@@ -161,7 +161,7 @@
         <!-- Mobile Menu Button -->
         <button
           onclick={toggleMobileMenu}
-          class="md:hidden p-2 text-gray-400 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all"
+          class="md:hidden p-2 text-text-body hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           aria-label="Toggle menu"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,41 +188,41 @@
 
   <!-- Mobile Menu -->
   {#if mobileMenuOpen}
-    <div class="md:hidden border-t border-zinc-800 bg-zinc-900">
+    <div class="md:hidden border-t border-border-default bg-surface-card">
       <div class="px-4 py-3 space-y-1">
         <a
           href="/leagues/2v2"
-          class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg"
+          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           2v2 League
         </a>
         <a
           href="/leagues/1v1"
-          class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg"
+          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           1v1 League
         </a>
         <a
           href="/tournaments"
-          class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg"
+          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Tournaments
         </a>
         <a
           href="/users"
-          class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg"
+          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Users
         </a>
         <a
           href="/teams"
-          class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg"
+          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Teams
         </a>
         <a
           href="/rulebook"
-          class="block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-zinc-800 rounded-lg"
+          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Rules
         </a>
@@ -236,12 +236,12 @@
           </a>
         {/if}
 
-        <div class="pt-3 border-t border-zinc-800">
+        <div class="pt-3 border-t border-border-default">
           {#if user}
             <form method="POST" action="/auth/logout">
               <button
                 type="submit"
-                class="w-full text-left px-4 py-2 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-zinc-800 rounded-lg"
+                class="w-full text-left px-4 py-2 text-sm font-medium text-danger-400 hover:text-danger-300 hover:bg-surface-input rounded-lg"
               >
                 Sign Out
               </button>

@@ -55,16 +55,16 @@
   <title>Admin Panel - MGE.tf</title>
 </svelte:head>
 
-<div class="min-h-screen bg-zinc-950 text-gray-200 flex">
+<div class="min-h-screen bg-surface-page text-text-label flex">
   <!-- Sidebar -->
   <aside
-    class="hidden lg:block w-64 bg-zinc-900 border-r border-zinc-800 min-h-screen sticky top-0"
+    class="hidden lg:block w-64 bg-surface-card border-r border-border-default min-h-screen sticky top-0"
   >
     <nav class="p-4 space-y-1">
       <!-- Back to Site Button -->
       <a
         href="/"
-        class="flex items-center gap-3 px-4 py-3 mb-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-all text-gray-300 hover:text-white"
+        class="flex items-center gap-3 px-4 py-3 mb-4 bg-surface-input hover:bg-surface-hover rounded-lg transition-all text-text-label hover:text-white"
       >
         <span class="text-xl">←</span>
         <span>Back to Site</span>
@@ -74,8 +74,8 @@
         <a
           href={item.path}
           class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(item.path)
-            ? 'bg-orange-500/20 text-orange-400 font-medium'
-            : 'text-gray-300 hover:bg-zinc-800 hover:text-white'}"
+            ? 'bg-orange-500/20 text-primary-400 font-medium'
+            : 'text-text-label hover:bg-surface-input hover:text-white'}"
         >
           <img src={item.icon} alt={item.name} class="w-6 h-6 brightness-0 invert opacity-70" />
           <span>{item.name}</span>
@@ -87,7 +87,7 @@
   <!-- Mobile Menu Toggle (Floating Button) -->
   <button
     onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-    class="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-orange-600 hover:bg-orange-500 rounded-full shadow-lg transition-colors"
+    class="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-primary-600 hover:bg-primary-500 rounded-full shadow-lg transition-colors"
     aria-label="Toggle menu"
   >
     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +108,7 @@
       aria-label="Close menu"
     >
       <div
-        class="w-64 bg-zinc-900 h-full"
+        class="w-64 bg-surface-card h-full"
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}
         role="dialog"
@@ -119,7 +119,7 @@
           <a
             href="/"
             onclick={() => (mobileMenuOpen = false)}
-            class="flex items-center gap-3 px-4 py-3 mb-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-all text-gray-300 hover:text-white"
+            class="flex items-center gap-3 px-4 py-3 mb-4 bg-surface-input hover:bg-surface-hover rounded-lg transition-all text-text-label hover:text-white"
           >
             <span class="text-xl">←</span>
             <span>Back to Site</span>
@@ -131,8 +131,8 @@
               class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(
                 item.path,
               )
-                ? 'bg-orange-500/20 text-orange-400 font-medium'
-                : 'text-gray-300 hover:bg-zinc-800 hover:text-white'}"
+                ? 'bg-orange-500/20 text-primary-400 font-medium'
+                : 'text-text-label hover:bg-surface-input hover:text-white'}"
             >
               <img src={item.icon} alt={item.name} class="w-5 h-5 brightness-0 invert opacity-70" />
               <span>{item.name}</span>

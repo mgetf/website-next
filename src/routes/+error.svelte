@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import Button from '$lib/components/ui/Button.svelte';
 
   const errorConfig: Record<number, { title: string; description: string }> = {
     400: {
@@ -34,26 +35,16 @@
 </script>
 
 <div class="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center">
-  <p class="text-8xl font-black text-orange-500 mb-2 tabular-nums">{page.status}</p>
+  <p class="text-8xl font-black text-primary-500 mb-2 tabular-nums">{page.status}</p>
 
   <h1 class="text-3xl font-bold text-white mb-3">{config.title}</h1>
 
-  <p class="text-lg text-gray-400 max-w-md mb-8">
+  <p class="text-lg text-text-body max-w-md mb-8">
     {config.description}
   </p>
 
   <div class="flex gap-4">
-    <a
-      href="/"
-      class="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg transition-colors"
-    >
-      Go Home
-    </a>
-    <button
-      onclick={() => history.back()}
-      class="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-gray-300 font-semibold rounded-lg transition-colors border border-zinc-700"
-    >
-      Go Back
-    </button>
+    <Button href="/" variant="primary" size="lg">Go Home</Button>
+    <Button variant="secondary" size="lg" onclick={() => history.back()}>Go Back</Button>
   </div>
 </div>

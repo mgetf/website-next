@@ -3,6 +3,8 @@
   import { enhance } from '$app/forms';
   import { goto, invalidateAll } from '$app/navigation';
   import { notificationState } from '$lib/state/notifications.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -74,7 +76,6 @@
     return async ({ result }: { result: any }) => {
       isMarkingAllRead = false;
       if (result.type === 'success') {
-        // Also update the global state
         notificationState.notifications = notificationState.notifications.map((n) => ({
           ...n,
           isRead: true,
@@ -90,11 +91,10 @@
 </svelte:head>
 
 <div class="max-w-3xl mx-auto px-4 py-8">
-  <!-- Header -->
   <div class="flex items-center justify-between mb-6">
     <div>
       <h1 class="text-2xl font-bold text-white">Notifications</h1>
-      <p class="text-sm text-gray-400 mt-1">
+      <p class="text-sm text-text-body mt-1">
         {#if data.unreadCount > 0}
           {data.unreadCount} unread of {data.totalCount} total
         {:else}
@@ -108,7 +108,7 @@
         <button
           type="submit"
           disabled={isMarkingAllRead}
-          class="px-4 py-2 text-sm font-medium text-blue-400 hover:text-blue-300 hover:bg-zinc-800 rounded-lg transition-all disabled:opacity-50"
+          class="px-4 py-2 text-sm font-medium text-primary-400 hover:text-primary-300 hover:bg-surface-hover rounded-lg transition-all disabled:opacity-50"
         >
           {isMarkingAllRead ? 'Marking...' : 'Mark all as read'}
         </button>
@@ -116,9 +116,8 @@
     {/if}
   </div>
 
-  <!-- Notifications List -->
   {#if data.notifications.length > 0}
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+    <Card padding="none" class="overflow-hidden">
       {#each data.notifications as notification (notification.id)}
         <a
           href={notification.url}
@@ -127,13 +126,12 @@
               handleMarkAsRead(notification.id);
             }
           }}
-          class="block px-4 py-4 border-b border-zinc-800 last:border-b-0 transition-all
+          class="block px-4 py-4 border-b border-border-default last:border-b-0 transition-all
             {notification.isRead
-            ? 'bg-transparent hover:bg-zinc-800/30'
-            : 'bg-zinc-800/20 hover:bg-zinc-800/40'}"
+            ? 'bg-transparent hover:bg-surface-hover/30'
+            : 'bg-surface-input/20 hover:bg-surface-input/40'}"
         >
           <div class="flex items-start gap-4">
-            <!-- Avatar or Icon -->
             <div class="flex-shrink-0">
               {#if notification.actor?.steamAvatar}
                 <img
@@ -143,71 +141,62 @@
                 />
               {:else}
                 <div
-                  class="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-xl"
+                  class="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center text-xl"
                 >
                   {getNotificationIcon(notification.type)}
                 </div>
               {/if}
             </div>
 
-            <!-- Content -->
             <div class="flex-grow min-w-0">
               <p
                 class="text-sm leading-snug {notification.isRead
-                  ? 'text-gray-400'
+                  ? 'text-text-body'
                   : 'text-white font-medium'}"
               >
                 {#if notification.actor?.steamUsername}
-                  <span class="text-blue-400">{notification.actor.steamUsername}</span>:
+                  <span class="text-primary-400">{notification.actor.steamUsername}</span>:
                 {/if}
                 {notification.message || getFallbackText(notification.type)}
               </p>
-              <p class="text-xs {notification.isRead ? 'text-gray-600' : 'text-gray-500'} mt-1">
+              <p class="text-xs {notification.isRead ? 'text-text-muted' : 'text-text-muted'} mt-1">
                 {formatRelativeTime(notification.createdAt)}
               </p>
             </div>
 
-            <!-- Mark as read indicator -->
             {#if !notification.isRead}
               <div class="flex-shrink-0">
-                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div class="w-2 h-2 bg-primary-500 rounded-full"></div>
               </div>
             {/if}
           </div>
         </a>
       {/each}
-    </div>
+    </Card>
 
-    <!-- Pagination -->
     {#if data.totalPages > 1}
       <div class="flex items-center justify-between mt-6">
-        <div class="text-sm text-gray-500">
+        <div class="text-sm text-text-muted">
           Page {data.currentPage} of {data.totalPages}
         </div>
         <div class="flex items-center gap-2">
           {#if data.hasPrevPage}
-            <a
-              href="?page={data.currentPage - 1}"
-              class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-all"
-            >
+            <Button href="?page={data.currentPage - 1}" variant="secondary" size="sm">
               Previous
-            </a>
+            </Button>
           {/if}
           {#if data.hasNextPage}
-            <a
-              href="?page={data.currentPage + 1}"
-              class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-all"
-            >
-              Next
-            </a>
+            <Button href="?page={data.currentPage + 1}" variant="secondary" size="sm">Next</Button>
           {/if}
         </div>
       </div>
     {/if}
   {:else}
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg px-8 py-16 text-center">
-      <div class="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <Card padding="lg" class="text-center py-8">
+      <div
+        class="w-16 h-16 bg-surface-input rounded-full flex items-center justify-center mx-auto mb-4"
+      >
+        <svg class="w-8 h-8 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -217,7 +206,7 @@
         </svg>
       </div>
       <h2 class="text-lg font-medium text-white mb-2">No notifications yet</h2>
-      <p class="text-gray-400 text-sm">When you receive notifications, they'll appear here.</p>
-    </div>
+      <p class="text-text-body text-sm">When you receive notifications, they'll appear here.</p>
+    </Card>
   {/if}
 </div>

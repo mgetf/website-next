@@ -37,8 +37,8 @@
           {
             label: title,
             data,
-            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-            borderColor: 'rgba(59, 130, 246, 1)',
+            backgroundColor: 'rgba(59, 130, 246, 0.8)', // info-500
+            borderColor: 'rgba(59, 130, 246, 1)', // info-500
             borderWidth: 1,
           },
         ],
@@ -51,10 +51,10 @@
             display: false,
           },
           tooltip: {
-            backgroundColor: 'rgba(24, 24, 27, 0.95)',
+            backgroundColor: 'rgba(9, 9, 11, 0.95)', // surface-page
             titleColor: '#fff',
             bodyColor: '#fff',
-            borderColor: 'rgba(63, 63, 70, 0.8)',
+            borderColor: 'rgba(39, 39, 42, 0.8)', // border-default
             borderWidth: 1,
           },
         },
@@ -62,19 +62,19 @@
           y: {
             beginAtZero: true,
             ticks: {
-              color: '#a1a1aa',
+              color: '#a1a1aa', // zinc-400 (text-body approximate)
               precision: 0,
             },
             grid: {
-              color: 'rgba(63, 63, 70, 0.3)',
+              color: 'rgba(39, 39, 42, 0.3)', // border-default
             },
           },
           x: {
             ticks: {
-              color: '#a1a1aa',
+              color: '#a1a1aa', // zinc-400 (text-body approximate)
             },
             grid: {
-              color: 'rgba(63, 63, 70, 0.3)',
+              color: 'rgba(39, 39, 42, 0.3)', // border-default
             },
           },
         },

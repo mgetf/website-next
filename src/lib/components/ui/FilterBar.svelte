@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import Button from './Button.svelte';
 
   let {
     onSubmit,
@@ -27,7 +28,7 @@
   }
 </script>
 
-<div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-6 {className}">
+<div class="bg-surface-card border border-border-default rounded-lg p-6 mb-6 {className}">
   <form onsubmit={handleSubmit} class="flex flex-col gap-4">
     <div class="flex flex-col md:flex-row flex-wrap items-end gap-4">
       {@render filters()}
@@ -35,21 +36,10 @@
     {#if showButtons}
       <div class="flex items-center gap-2">
         {#if onSubmit !== undefined}
-          <button
-            type="submit"
-            class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors"
-          >
-            {submitLabel}
-          </button>
+          <Button type="submit" variant="primary">{submitLabel}</Button>
         {/if}
         {#if onClear !== undefined && hasActiveFilters}
-          <button
-            type="button"
-            onclick={onClear}
-            class="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white font-medium rounded-lg transition-colors"
-          >
-            Clear
-          </button>
+          <Button type="button" variant="secondary" onclick={onClear}>Clear</Button>
         {/if}
       </div>
     {/if}

@@ -1,5 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import Badge from '$lib/components/ui/Badge.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -13,31 +16,30 @@
     });
   }
 
-  function getMethodBadge(method: string): { label: string; classes: string } {
-    if (method === 'paypal')
-      return { label: 'PayPal', classes: 'bg-blue-500/20 text-blue-400 border-blue-500/30' };
-    if (method === 'items')
-      return {
-        label: 'Steam Items',
-        classes: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      };
-    return { label: 'Manual', classes: 'bg-gray-500/20 text-gray-400 border-gray-500/30' };
+  function getMethodBadgeColor(method: string): 'blue' | 'orange' | 'zinc' {
+    if (method === 'paypal') return 'blue';
+    if (method === 'items') return 'orange';
+    return 'zinc';
   }
 
-  function getStatusBadge(status: string): { label: string; classes: string } {
-    if (status === 'completed')
-      return { label: 'Completed', classes: 'bg-green-500/20 text-green-400 border-green-500/30' };
-    if (status === 'pending')
-      return {
-        label: 'Pending',
-        classes: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      };
-    if (status === 'expired')
-      return { label: 'Expired', classes: 'bg-red-500/20 text-red-400 border-red-500/30' };
-    return {
-      label: 'Cancelled',
-      classes: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-    };
+  function getMethodLabel(method: string): string {
+    if (method === 'paypal') return 'PayPal';
+    if (method === 'items') return 'Steam Items';
+    return 'Manual';
+  }
+
+  function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'red' | 'zinc' {
+    if (status === 'completed') return 'green';
+    if (status === 'pending') return 'yellow';
+    if (status === 'expired') return 'red';
+    return 'zinc';
+  }
+
+  function getStatusLabel(status: string): string {
+    if (status === 'completed') return 'Completed';
+    if (status === 'pending') return 'Pending';
+    if (status === 'expired') return 'Expired';
+    return 'Cancelled';
   }
 
   function formatAmount(entry: (typeof data.entries)[0]): string {
@@ -57,21 +59,20 @@
     <div class="mb-8">
       <a
         href="/users/{data.steamId}"
-        class="text-gray-400 hover:text-white transition-colors text-sm"
+        class="text-text-body hover:text-white transition-colors text-sm"
       >
         &larr; Back to Profile
       </a>
       <h1 class="text-3xl font-bold text-white mt-3">Payment History</h1>
-      <p class="text-gray-400 mt-1">All your payments across PayPal and Steam item trades</p>
+      <p class="text-text-body mt-1">All your payments across PayPal and Steam item trades</p>
     </div>
 
     {#if data.entries.length > 0}
-      <div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <!-- Desktop table -->
+      <Card padding="none" class="overflow-hidden">
         <div class="hidden md:block overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="bg-zinc-950/80 text-xs text-gray-500 uppercase tracking-wider">
+              <tr class="bg-surface-page/80 text-xs text-text-muted uppercase tracking-wider">
                 <th class="text-left px-5 py-3 font-medium">ID</th>
                 <th class="text-left px-5 py-3 font-medium">Date</th>
                 <th class="text-left px-5 py-3 font-medium">Method</th>
@@ -80,23 +81,19 @@
                 <th class="text-left px-5 py-3 font-medium">Status</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-800/50">
+            <tbody class="divide-y divide-border-default/50">
               {#each data.entries as entry (entry.id)}
-                {@const method = getMethodBadge(entry.method)}
-                {@const status = getStatusBadge(entry.status)}
-                <tr class="hover:bg-zinc-800/30 transition-colors">
+                <tr class="hover:bg-surface-hover/30 transition-colors">
                   <td class="px-5 py-3.5">
-                    <span class="text-gray-300 font-mono text-xs">{entry.id}</span>
+                    <span class="text-text-label font-mono text-xs">{entry.id}</span>
                   </td>
-                  <td class="px-5 py-3.5 text-gray-400 whitespace-nowrap">
+                  <td class="px-5 py-3.5 text-text-body whitespace-nowrap">
                     {formatDate(entry.date)}
                   </td>
                   <td class="px-5 py-3.5">
-                    <span
-                      class="inline-flex px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap {method.classes}"
-                    >
-                      {method.label}
-                    </span>
+                    <Badge color={getMethodBadgeColor(entry.method)} class="whitespace-nowrap">
+                      {getMethodLabel(entry.method)}
+                    </Badge>
                   </td>
                   <td class="px-5 py-3.5 text-white font-medium whitespace-nowrap">
                     {formatAmount(entry)}
@@ -105,20 +102,18 @@
                     {#if entry.teamId}
                       <a
                         href="/teams/{entry.teamId}"
-                        class="text-orange-400 hover:text-orange-300 transition-colors"
+                        class="text-primary-400 hover:text-primary-300 transition-colors"
                       >
                         {entry.teamName}
                       </a>
                     {:else}
-                      <span class="text-gray-600">-</span>
+                      <span class="text-text-muted">-</span>
                     {/if}
                   </td>
                   <td class="px-5 py-3.5">
-                    <span
-                      class="inline-flex px-2 py-0.5 rounded text-xs font-medium border {status.classes}"
-                    >
-                      {status.label}
-                    </span>
+                    <Badge color={getStatusBadgeColor(entry.status)} class="whitespace-nowrap">
+                      {getStatusLabel(entry.status)}
+                    </Badge>
                   </td>
                 </tr>
               {/each}
@@ -126,34 +121,27 @@
           </table>
         </div>
 
-        <!-- Mobile cards -->
-        <div class="md:hidden divide-y divide-zinc-800/50">
+        <div class="md:hidden divide-y divide-border-default/50">
           {#each data.entries as entry (entry.id)}
-            {@const method = getMethodBadge(entry.method)}
-            {@const status = getStatusBadge(entry.status)}
             <div class="p-4 space-y-2">
               <div class="flex items-center justify-between">
-                <span class="text-gray-300 font-mono text-xs">{entry.id}</span>
-                <span
-                  class="inline-flex px-2 py-0.5 rounded text-xs font-medium border {status.classes}"
-                >
-                  {status.label}
-                </span>
+                <span class="text-text-label font-mono text-xs">{entry.id}</span>
+                <Badge color={getStatusBadgeColor(entry.status)}>
+                  {getStatusLabel(entry.status)}
+                </Badge>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-white font-medium">{formatAmount(entry)}</span>
-                <span
-                  class="inline-flex px-2 py-0.5 rounded text-xs font-medium border {method.classes}"
-                >
-                  {method.label}
-                </span>
+                <Badge color={getMethodBadgeColor(entry.method)}>
+                  {getMethodLabel(entry.method)}
+                </Badge>
               </div>
-              <div class="flex items-center justify-between text-xs text-gray-500">
+              <div class="flex items-center justify-between text-xs text-text-muted">
                 <span>{formatDate(entry.date)}</span>
                 {#if entry.teamId}
                   <a
                     href="/teams/{entry.teamId}"
-                    class="text-orange-400 hover:text-orange-300 transition-colors"
+                    class="text-primary-400 hover:text-primary-300 transition-colors"
                   >
                     {entry.teamName}
                   </a>
@@ -162,38 +150,31 @@
             </div>
           {/each}
         </div>
-      </div>
+      </Card>
 
-      <!-- Pagination -->
       {#if data.totalPages > 1}
         <div class="flex items-center justify-between mt-6">
-          <p class="text-sm text-gray-500">
+          <p class="text-sm text-text-muted">
             Page {data.currentPage} of {data.totalPages} ({data.total} total)
           </p>
           <div class="flex gap-2">
             {#if data.currentPage > 1}
-              <a
-                href="?page={data.currentPage - 1}"
-                class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg text-sm transition-colors"
-              >
+              <Button href="?page={data.currentPage - 1}" variant="secondary" size="sm">
                 Previous
-              </a>
+              </Button>
             {/if}
             {#if data.currentPage < data.totalPages}
-              <a
-                href="?page={data.currentPage + 1}"
-                class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg text-sm transition-colors"
-              >
+              <Button href="?page={data.currentPage + 1}" variant="secondary" size="sm">
                 Next
-              </a>
+              </Button>
             {/if}
           </div>
         </div>
       {/if}
     {:else}
-      <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
-        <p class="text-gray-500">No payment history found</p>
-      </div>
+      <Card padding="lg" class="text-center">
+        <p class="text-text-muted">No payment history found</p>
+      </Card>
     {/if}
   </div>
 </div>

@@ -3,6 +3,8 @@
   import { enhance } from '$app/forms';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
   import { onMount } from 'svelte';
   import { toast } from '$lib/state/toast.svelte';
 
@@ -72,18 +74,17 @@
   }
 
   function getResultColor(result: string): string {
-    if (result === 'W') return 'text-green-400';
-    if (result === 'L') return 'text-red-400';
-    if (result === 'D') return 'text-yellow-400';
-    return 'text-gray-400';
+    if (result === 'W') return 'text-success-400';
+    if (result === 'L') return 'text-danger-400';
+    if (result === 'D') return 'text-warning-400';
+    return 'text-text-body';
   }
 
-  function getStatusColor(status: string): string {
+  function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'zinc' {
     const statusStr = status.toString();
-    if (statusStr === 'READY') return 'bg-green-500/20 text-green-400 border-green-500/30';
-    if (statusStr === 'PENDING') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-    if (statusStr === 'UNREADY') return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    if (statusStr === 'READY') return 'green';
+    if (statusStr === 'PENDING') return 'yellow';
+    return 'zinc';
   }
 
   const totalGames = $derived(team.wins + team.losses);
@@ -114,13 +115,13 @@
           <img
             src={team.avatar}
             alt={team.name}
-            class="w-32 h-32 rounded-lg border-4 border-zinc-700 shadow-2xl object-cover"
+            class="w-32 h-32 rounded-lg border-4 border-border-input shadow-2xl object-cover"
           />
         {:else}
           <div
-            class="w-32 h-32 rounded-lg border-4 border-zinc-700 shadow-2xl bg-zinc-800 flex items-center justify-center"
+            class="w-32 h-32 rounded-lg border-4 border-border-input shadow-2xl bg-surface-input flex items-center justify-center"
           >
-            <span class="text-4xl font-black text-zinc-600">
+            <span class="text-4xl font-black text-text-muted">
               {team.name.charAt(0)}
             </span>
           </div>
@@ -133,47 +134,33 @@
           {team.name}
         </h1>
         {#if team.acronym}
-          <p class="text-2xl text-gray-400 mb-4">{team.acronym}</p>
+          <p class="text-2xl text-text-body mb-4">{team.acronym}</p>
         {/if}
 
         <div class="flex flex-wrap gap-3 justify-center md:justify-start mb-4">
           {#if team.division && team.region}
-            <span
-              class="px-4 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium border border-blue-500/30"
-            >
-              {team.division} ({team.region})
-            </span>
+            <Badge color="blue" size="md">{team.division} ({team.region})</Badge>
           {/if}
           {#if team.seasonNum}
-            <span
-              class="px-4 py-1.5 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium border border-purple-500/30"
-            >
-              Season {team.seasonNum}
-            </span>
+            <Badge color="purple" size="md">Season {team.seasonNum}</Badge>
           {/if}
-          <span
-            class="px-4 py-1.5 rounded-full text-sm font-medium border {getStatusColor(
-              team.status,
-            )}"
-          >
-            {team.status}
-          </span>
+          <Badge color={getStatusBadgeColor(team.status)} size="md">{team.status}</Badge>
         </div>
 
         <div class="flex flex-wrap gap-6 justify-center md:justify-start text-sm">
           <div>
-            <span class="text-gray-400">Record:</span>
+            <span class="text-text-body">Record:</span>
             <span class="text-white font-medium ml-2">{team.wins} - {team.losses}</span>
-            <span class="text-gray-500 ml-1">({winRate}%)</span>
+            <span class="text-text-muted ml-1">({winRate}%)</span>
           </div>
           <div>
-            <span class="text-gray-400">Points:</span>
+            <span class="text-text-body">Points:</span>
             <span class="text-white font-medium ml-2"
               >{team.pointsScored} - {team.pointsScoredAgainst}</span
             >
           </div>
           <div>
-            <span class="text-gray-400">Created:</span>
+            <span class="text-text-body">Created:</span>
             <span class="text-white font-medium ml-2">{formatDate(team.createdAt)}</span>
           </div>
         </div>
@@ -181,45 +168,45 @@
         {#if data.isAuthenticated && !data.isOnTeam && !data.canManageTeam && team.status !== 'DEAD'}
           <div class="mt-4">
             {#if data.pendingStatus === 0}
-              <!-- Steam ID invite: player needs to accept/decline -->
-              <p class="text-sm text-emerald-400 mb-2">You have been invited to join this team</p>
+              <p class="text-sm text-success-400 mb-2">You have been invited to join this team</p>
               <div class="flex flex-wrap gap-3 justify-center md:justify-start">
                 <form
                   method="POST"
                   action="?/acceptInvitation"
                   use:enhance={makeEnhance('acceptInvitation')}
                 >
-                  <button
+                  <Button
                     type="submit"
+                    variant="success"
+                    size="lg"
                     disabled={submittingAction !== null}
-                    class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
                   >
                     {submittingAction === 'acceptInvitation'
                       ? 'Submitting...'
                       : 'Accept Invitation'}
-                  </button>
+                  </Button>
                 </form>
                 <form
                   method="POST"
                   action="?/declineInvitation"
                   use:enhance={makeEnhance('declineInvitation')}
                 >
-                  <button
+                  <Button
                     type="submit"
+                    variant="secondary"
+                    size="lg"
                     disabled={submittingAction !== null}
-                    class="px-6 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-700/50 disabled:cursor-not-allowed text-gray-300 font-medium rounded-lg transition-colors"
                   >
                     {submittingAction === 'declineInvitation' ? 'Declining...' : 'Decline'}
-                  </button>
+                  </Button>
                 </form>
               </div>
             {:else if data.pendingStatus === 1}
-              <!-- Awaiting admin approval -->
               <div class="flex items-center gap-2">
                 <span
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-lg text-amber-400 text-sm font-medium"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warning-500/15 border border-warning-500/30 rounded-lg text-warning-400 text-sm font-medium"
                 >
-                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-warning-400 animate-pulse"></span>
                   Pending admin approval
                 </span>
                 <form
@@ -227,28 +214,22 @@
                   action="?/declineInvitation"
                   use:enhance={makeEnhance('declineInvitation')}
                 >
-                  <button
+                  <Button
                     type="submit"
+                    variant="secondary"
+                    size="sm"
                     disabled={submittingAction !== null}
-                    class="px-3 py-1.5 text-sm bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 rounded-lg transition-colors"
                   >
                     {submittingAction === 'declineInvitation' ? 'Withdrawing...' : 'Withdraw'}
-                  </button>
+                  </Button>
                 </form>
               </div>
             {:else if data.hasPendingRequestElsewhere}
-              <!-- Has a pending request for a different team -->
-              <p class="text-sm text-amber-400">
+              <p class="text-sm text-warning-400">
                 You have a pending join request for another team. Resolve it before joining here.
               </p>
             {:else if !data.rosterLocked}
-              <!-- Normal join flow -->
-              <a
-                href="/teams/{team.id}/join"
-                class="inline-block px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-medium rounded-lg transition-colors"
-              >
-                Join Team
-              </a>
+              <Button href="/teams/{team.id}/join" variant="primary" size="lg">Join Team</Button>
             {/if}
           </div>
         {/if}
@@ -262,10 +243,12 @@
       <!-- Left Column - Roster -->
       <div class="space-y-6">
         <!-- Current Roster -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-          <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+        <div
+          class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+        >
+          <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
             <h2 class="text-xl font-bold text-white">
-              Current Roster <span class="text-gray-500">({currentRoster.length} / 3)</span>
+              Current Roster <span class="text-text-muted">({currentRoster.length} / 3)</span>
             </h2>
           </div>
 
@@ -273,7 +256,7 @@
             <div class="space-y-4">
               {#each currentRoster as player}
                 <div
-                  class="flex items-center justify-between p-4 bg-zinc-950/50 rounded-lg transition-colors group"
+                  class="flex items-center justify-between p-4 bg-surface-page/50 rounded-lg transition-colors group"
                 >
                   <a
                     href="/users/{player.steamId}"
@@ -283,19 +266,15 @@
                     <div>
                       <div class="flex items-center gap-2">
                         <span
-                          class="text-white font-medium group-hover:text-blue-400 transition-colors"
+                          class="text-white font-medium group-hover:text-primary-400 transition-colors"
                         >
                           {player.name}
                         </span>
                         {#if player.isLeader}
-                          <span
-                            class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded border border-yellow-500/30"
-                          >
-                            Leader
-                          </span>
+                          <Badge color="yellow">Leader</Badge>
                         {/if}
                       </div>
-                      <div class="text-sm text-gray-400">
+                      <div class="text-sm text-text-body">
                         Joined: {formatDate(player.joinedAt)}
                       </div>
                     </div>
@@ -306,13 +285,13 @@
                       {#if data.currentUserSteamId && data.isOnTeam}
                         <a
                           href="/checkout/{data.currentUserSteamId}?teamId={data.team.id}"
-                          class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                          class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400 hover:bg-danger-500/20 transition-colors"
                         >
                           Payment Required
                         </a>
                       {:else}
                         <span
-                          class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400"
+                          class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400"
                         >
                           Payment Required
                         </span>
@@ -324,7 +303,7 @@
                             markPaidTarget = { steamId: player.steamId, name: player.name };
                             showMarkPaidDialog = true;
                           }}
-                          class="px-3 py-1 text-xs font-medium rounded border bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors"
+                          class="px-3 py-1 text-xs font-medium rounded border bg-success-500/10 border-success-500/30 text-success-400 hover:bg-success-500/20 transition-colors"
                         >
                           Mark as Paid
                         </button>
@@ -338,7 +317,7 @@
                           removeTarget = { steamId: player.steamId, name: player.name };
                           showRemoveDialog = true;
                         }}
-                        class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                        class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400 hover:bg-danger-500/20 transition-colors"
                       >
                         Remove
                       </button>
@@ -348,7 +327,7 @@
                       <button
                         type="button"
                         onclick={() => (showLeaveDialog = true)}
-                        class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                        class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400 hover:bg-danger-500/20 transition-colors"
                       >
                         Leave Team
                       </button>
@@ -361,8 +340,10 @@
         </div>
 
         <!-- Past Roster -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-          <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+        <div
+          class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+        >
+          <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
             <h2 class="text-xl font-bold text-white">Past Roster</h2>
           </div>
 
@@ -372,7 +353,7 @@
                 {#each pastRoster as player}
                   <a
                     href="/users/{player.steamId}"
-                    class="flex items-center justify-between p-4 bg-zinc-950/50 rounded-lg hover:bg-zinc-800/50 transition-colors group"
+                    class="flex items-center justify-between p-4 bg-surface-page/50 rounded-lg hover:bg-surface-input/30 transition-colors group"
                   >
                     <div class="flex items-center gap-4">
                       <img
@@ -382,11 +363,11 @@
                       />
                       <div>
                         <span
-                          class="text-white font-medium group-hover:text-blue-400 transition-colors"
+                          class="text-white font-medium group-hover:text-primary-400 transition-colors"
                         >
                           {player.name}
                         </span>
-                        <div class="text-sm text-gray-400">
+                        <div class="text-sm text-text-body">
                           {formatDate(player.joinedAt)} - {formatDate(player.leftAt)}
                         </div>
                       </div>
@@ -395,7 +376,7 @@
                 {/each}
               </div>
             {:else}
-              <p class="text-center text-gray-500 py-4">No past players in this team</p>
+              <p class="text-center text-text-muted py-4">No past players in this team</p>
             {/if}
           </div>
         </div>
@@ -406,9 +387,9 @@
         {#if matchesBySeason.length > 0}
           {#each matchesBySeason as seasonData}
             <div
-              class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden"
+              class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
             >
-              <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+              <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
                 <h2 class="text-xl font-bold text-white">{seasonData.season}</h2>
               </div>
 
@@ -417,23 +398,23 @@
                   {#each seasonData.matches as match}
                     <a
                       href="/matches/{match.matchId}"
-                      class="flex items-center justify-between p-3 bg-zinc-950/50 rounded hover:bg-zinc-800/30 transition-colors group"
+                      class="flex items-center justify-between p-3 bg-surface-page/50 rounded hover:bg-surface-input/30 transition-colors group"
                     >
                       <div class="flex items-center gap-4 flex-1">
-                        <div class="text-sm font-medium text-gray-400 w-20">
+                        <div class="text-sm font-medium text-text-body w-20">
                           {match.week}
                         </div>
                         <div class="flex-1">
                           {#if match.opponent && match.opponentId}
-                            <span class="text-white group-hover:text-blue-400 transition-colors">
+                            <span class="text-white group-hover:text-primary-400 transition-colors">
                               vs {match.opponent}
                             </span>
                           {:else if match.opponent}
-                            <span class="text-white group-hover:text-blue-400 transition-colors">
+                            <span class="text-white group-hover:text-primary-400 transition-colors">
                               vs {match.opponent}
                             </span>
                           {:else}
-                            <span class="text-gray-500 italic">{match.score}</span>
+                            <span class="text-text-muted italic">{match.score}</span>
                           {/if}
                         </div>
                       </div>
@@ -446,7 +427,7 @@
                             {match.score}
                           </span>
                         {:else if match.result === 'TBD'}
-                          <span class="text-sm text-gray-500 w-20 text-right">
+                          <span class="text-sm text-text-muted w-20 text-right">
                             {formatDate(match.date)}
                           </span>
                         {/if}
@@ -459,17 +440,17 @@
           {/each}
         {:else}
           <div
-            class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden"
+            class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
           >
-            <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+            <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
               <h2 class="text-xl font-bold text-white">Match History</h2>
             </div>
 
             <div class="p-6">
               <div class="text-center py-8">
                 <div class="text-6xl mb-4 opacity-50">🏆</div>
-                <p class="text-gray-500 text-lg">No match history yet</p>
-                <p class="text-gray-600 text-sm mt-2">
+                <p class="text-text-muted text-lg">No match history yet</p>
+                <p class="text-text-muted text-sm mt-2">
                   This team hasn't participated in any seasons
                 </p>
               </div>
@@ -482,35 +463,28 @@
     <!-- Admin Controls -->
     {#if data.canManageTeam}
       <div
-        class="mt-8 bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden"
+        class="mt-8 bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
       >
-        <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+        <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
           <h2 class="text-xl font-bold text-white">Team Management</h2>
         </div>
 
         <div class="p-6 space-y-6">
-          <!-- Edit Team Link -->
-          <a
-            href="/teams/{team.id}/edit"
-            class="inline-block px-4 py-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
-          >
-            ✏️ Edit Team Settings
-          </a>
+          <Button href="/teams/{team.id}/edit" variant="secondary">✏️ Edit Team Settings</Button>
 
-          <!-- Admin: Change Status -->
           {#if data.isGlobalAdmin}
-            <div class="pt-4 border-t border-zinc-800">
+            <div class="pt-4 border-t border-border-default">
               <h3 class="text-lg font-bold text-white mb-4">Change Team Status</h3>
               <form method="POST" action="?/updateStatus" use:enhance class="flex gap-3 items-end">
                 <div class="flex-1">
-                  <label for="status" class="block text-sm font-medium text-gray-300 mb-2">
+                  <label for="status" class="block text-sm font-medium text-text-label mb-2">
                     Team Status
                   </label>
                   <select
                     id="status"
                     name="status"
                     value={team.status}
-                    class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
                   >
                     <option value="UNREADY">Unready</option>
                     <option value="PENDING">Pending</option>
@@ -519,16 +493,11 @@
                     <option value="PLACEMENT">Placement</option>
                   </select>
                 </div>
-                <button
-                  type="submit"
-                  class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors"
-                >
-                  Update Status
-                </button>
+                <Button type="submit">Update Status</Button>
               </form>
             </div>
 
-            <div class="pt-4 border-t border-zinc-800">
+            <div class="pt-4 border-t border-border-default">
               <h3 class="text-lg font-bold text-white mb-4">Change Division</h3>
               {#if data.divisions.length > 0}
                 <form
@@ -555,12 +524,7 @@
                       {/each}
                     </select>
                   </div>
-                  <button
-                    type="submit"
-                    class="px-6 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
-                  >
-                    Update Division
-                  </button>
+                  <Button type="submit" size="lg">Update Division</Button>
                 </form>
               {:else}
                 <p class="text-text-muted text-sm">

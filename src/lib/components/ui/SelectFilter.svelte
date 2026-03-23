@@ -33,7 +33,7 @@
   {value}
   {disabled}
   onchange={handleChange}
-  class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed {className}"
+  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed {className}"
 >
   {#if showAllOption}
     <option value="">{allLabel}</option>

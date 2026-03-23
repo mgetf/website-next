@@ -2,6 +2,9 @@
   import { enhance } from '$app/forms';
   import type { PageData } from './$types';
   import FilterBar from '$lib/components/ui/FilterBar.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
+  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -9,12 +12,11 @@
   let showRejected = $state(true);
   let isSubmitting = $state(false);
 
-  // Filter reports based on checkboxes
   let filteredReports = $derived(
     data.demoReports.filter((report) => {
-      if (report.status === 'REVIEW') return true; // Always show pending
-      if (report.status === 'ACTION' && showReviewed) return true; // Reviewed (ACTION = reviewed/acted on)
-      if (report.status === 'CLEAR' && showRejected) return true; // Rejected (CLEAR = cleared/rejected)
+      if (report.status === 'REVIEW') return true;
+      if (report.status === 'ACTION' && showReviewed) return true;
+      if (report.status === 'CLEAR' && showRejected) return true;
       return false;
     }),
   );
@@ -35,11 +37,11 @@
   function getStatusColor(status: string): string {
     switch (status) {
       case 'REVIEW':
-        return 'bg-yellow-500 text-black';
+        return 'bg-warning-500 text-black';
       case 'ACTION':
-        return 'bg-green-500 text-white';
+        return 'bg-success-500 text-white';
       case 'CLEAR':
-        return 'bg-red-500 text-white';
+        return 'bg-danger-500 text-white';
       default:
         return 'bg-gray-500 text-white';
     }
@@ -50,25 +52,25 @@
   <!-- Page Header -->
   <div>
     <h2 class="text-3xl font-bold text-white mb-2">Demo Reports</h2>
-    <p class="text-gray-400">Review and manage reported game demos</p>
+    <p class="text-text-body">Review and manage reported game demos</p>
   </div>
 
   <!-- Filters -->
   <FilterBar>
     {#snippet filters()}
-      <label class="flex items-center gap-2 text-gray-300 cursor-pointer">
+      <label class="flex items-center gap-2 text-text-label cursor-pointer">
         <input
           type="checkbox"
           bind:checked={showReviewed}
-          class="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-orange-500 focus:ring-orange-500"
+          class="w-4 h-4 rounded border-border-input bg-surface-input text-primary-500 focus:ring-primary-500"
         />
         <span class="text-sm font-medium">Show Reviewed</span>
       </label>
-      <label class="flex items-center gap-2 text-gray-300 cursor-pointer">
+      <label class="flex items-center gap-2 text-text-label cursor-pointer">
         <input
           type="checkbox"
           bind:checked={showRejected}
-          class="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-orange-500 focus:ring-orange-500"
+          class="w-4 h-4 rounded border-border-input bg-surface-input text-primary-500 focus:ring-primary-500"
         />
         <span class="text-sm font-medium">Show Rejected</span>
       </label>
@@ -78,30 +80,30 @@
   <!-- Reports List -->
   <div class="space-y-4">
     {#if filteredReports.length === 0}
-      <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
+      <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">📹</div>
         <h3 class="text-xl font-bold text-white mb-2">No Demo Reports</h3>
-        <p class="text-gray-400">
+        <p class="text-text-body">
           {data.demoReports.length === 0
             ? 'No demo reports have been submitted yet.'
             : 'No reports match your current filters.'}
         </p>
-      </div>
+      </Card>
     {:else}
       {#each filteredReports as report}
-        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+        <Card padding="lg">
           <div class="flex items-start justify-between mb-4">
             <div class="space-y-2">
               <h3 class="text-lg font-bold text-white">
                 Reported by:
                 <a
                   href="/users/{report.reporter?.steamId}"
-                  class="text-blue-400 hover:text-blue-300 transition-colors"
+                  class="text-info-400 hover:text-blue-300 transition-colors"
                 >
                   {report.reporter?.steamUsername || 'Unknown User'}
                 </a>
               </h3>
-              <p class="text-sm text-gray-400">
+              <p class="text-sm text-text-body">
                 Reported at: {new Date(report.reportedAt).toLocaleString()}
               </p>
             </div>
@@ -114,41 +116,42 @@
           <!-- Report Details -->
           <div class="space-y-3 mb-4">
             <div>
-              <h4 class="text-sm font-medium text-gray-400 mb-1">Player Reported:</h4>
+              <h4 class="text-sm font-medium text-text-body mb-1">Player Reported:</h4>
               <a
                 href="/users/{report.demo.player?.steamId}"
-                class="text-blue-400 hover:text-blue-300 transition-colors"
+                class="text-info-400 hover:text-blue-300 transition-colors"
               >
                 {report.demo.player?.steamUsername || 'Unknown Player'}
               </a>
             </div>
 
             <div>
-              <h4 class="text-sm font-medium text-gray-400 mb-1">Description:</h4>
-              <p class="text-gray-200">{report.description || 'No description provided'}</p>
+              <h4 class="text-sm font-medium text-text-body mb-1">Description:</h4>
+              <p class="text-white">{report.description || 'No description provided'}</p>
             </div>
 
             {#if report.adminComments}
               <div>
-                <h4 class="text-sm font-medium text-gray-400 mb-1">Admin Comments:</h4>
-                <p class="text-gray-200">{report.adminComments}</p>
+                <h4 class="text-sm font-medium text-text-body mb-1">Admin Comments:</h4>
+                <p class="text-white">{report.adminComments}</p>
               </div>
             {/if}
 
             {#if report.admin}
               <div>
-                <h4 class="text-sm font-medium text-gray-400 mb-1">Reviewed by:</h4>
-                <span class="text-gray-200">{report.admin.steamUsername}</span>
+                <h4 class="text-sm font-medium text-text-body mb-1">Reviewed by:</h4>
+                <span class="text-white">{report.admin.steamUsername}</span>
               </div>
             {/if}
           </div>
 
           <!-- Demo Link -->
           <div class="mb-4 flex items-center gap-3">
-            <a
+            <Button
+              variant="primary"
               href={report.demo.file}
               target="_blank"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-medium transition-colors"
+              class="inline-flex items-center gap-2"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -159,15 +162,10 @@
                 />
               </svg>
               Download Demo
-            </a>
+            </Button>
 
             {#if report.demo.match}
-              <a
-                href="/matches/{report.demo.match.id}"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-md font-medium transition-colors"
-              >
-                View Match
-              </a>
+              <Button variant="secondary" href="/matches/{report.demo.match.id}">View Match</Button>
             {/if}
           </div>
 
@@ -182,34 +180,29 @@
                 isSubmitting = false;
               };
             }}
-            class="border-t border-zinc-800 pt-4 space-y-3"
+            class="border-t border-border-default pt-4 space-y-3"
           >
             <input type="hidden" name="reportId" value={report.id} />
 
             <div class="flex gap-4">
               <div class="flex-1">
-                <label
-                  for="status-{report.id}"
-                  class="block text-sm font-medium text-gray-300 mb-2"
-                >
-                  Status:
-                </label>
-                <select
-                  id="status-{report.id}"
+                <FormSelect
+                  label="Status"
                   name="status"
                   value={report.status}
-                  class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="REVIEW">Pending</option>
-                  <option value="ACTION">Reviewed</option>
-                  <option value="CLEAR">Rejected</option>
-                </select>
+                  required
+                  options={[
+                    { value: 'REVIEW', label: 'Pending' },
+                    { value: 'ACTION', label: 'Reviewed' },
+                    { value: 'CLEAR', label: 'Rejected' },
+                  ]}
+                />
               </div>
 
               <div class="flex-1">
                 <label
                   for="comments-{report.id}"
-                  class="block text-sm font-medium text-gray-300 mb-2"
+                  class="block text-sm font-medium text-text-label mb-2"
                 >
                   Admin Comments:
                 </label>
@@ -219,20 +212,16 @@
                   value={report.adminComments || ''}
                   rows="1"
                   placeholder="Leave a comment..."
-                  class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 ></textarea>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-            >
+            <Button variant="primary" type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Updating...' : 'Update Status'}
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
       {/each}
     {/if}
   </div>

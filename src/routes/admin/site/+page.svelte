@@ -1,6 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import type { PageData } from './$types';
   import { toast } from '$lib/state/toast.svelte';
 
@@ -89,6 +93,12 @@
   let createdKey = $state<string | null>(null);
   let copiedKeyId = $state<number | null>(null);
 
+  // Confirm dialog state
+  let showRemoveBgConfirm = $state(false);
+  let removeBgFormEl: HTMLFormElement | null = $state(null);
+  let deletingApiKey: { id: number; name: string } | null = $state(null);
+  let deleteApiKeyFormEl: HTMLFormElement | null = $state(null);
+
   function copyKey(key: string, id: number) {
     navigator.clipboard.writeText(key);
     copiedKeyId = id;
@@ -119,18 +129,18 @@
   <!-- Header -->
   <div>
     <h1 class="text-3xl font-bold text-white mb-2">Site Management</h1>
-    <p class="text-gray-400">Manage site content and settings</p>
+    <p class="text-text-body">Manage site content and settings</p>
   </div>
 
   <!-- Tabs -->
-  <div class="border-b border-zinc-800">
+  <div class="border-b border-border-default">
     <nav class="flex gap-4">
       {#each tabs as tab}
         <button
           onclick={() => (activeTab = tab.id)}
           class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab === tab.id
-            ? 'border-blue-500 text-blue-400'
-            : 'border-transparent text-gray-400 hover:text-white'}"
+            ? 'border-primary-500 text-primary-400'
+            : 'border-transparent text-text-body hover:text-white'}"
         >
           {tab.label}
         </button>
@@ -139,7 +149,7 @@
   </div>
 
   <!-- Tab Content -->
-  <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+  <Card padding="none" class="p-6">
     {#if activeTab === 'settings'}
       <!-- Site Settings -->
       <div class="space-y-8">
@@ -147,7 +157,7 @@
         <form method="POST" action="?/updateSettings" use:enhance={handleEnhance('settings')}>
           <div class="space-y-6">
             <div>
-              <label for="siteTitle" class="block text-sm font-medium text-gray-300 mb-2">
+              <label for="siteTitle" class="block text-sm font-medium text-text-label mb-2">
                 Site Title
               </label>
               <input
@@ -155,35 +165,31 @@
                 id="siteTitle"
                 name="siteTitle"
                 bind:value={siteTitle}
-                class="w-full max-w-md bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full max-w-md bg-surface-input border border-border-input rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
                 placeholder="MGE.tf"
               />
-              <p class="text-xs text-gray-500 mt-1">Appears in browser tab and site header</p>
+              <p class="text-xs text-text-muted mt-1">Appears in browser tab and site header</p>
             </div>
 
             <div class="pt-4">
-              <button
-                type="submit"
-                disabled={isSubmitting || !data.isHeadAdmin}
-                class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
-              >
+              <Button type="submit" variant="primary" disabled={isSubmitting || !data.isHeadAdmin}>
                 {isSubmitting ? 'Saving...' : 'Save Settings'}
-              </button>
+              </Button>
             </div>
           </div>
         </form>
 
         <!-- Background Image -->
-        <div class="border-t border-zinc-800 pt-8">
+        <div class="border-t border-border-default pt-8">
           <h3 class="text-lg font-semibold text-white mb-1">Background Image</h3>
-          <p class="text-sm text-gray-400 mb-6">
+          <p class="text-sm text-text-body mb-6">
             Upload a site-wide background image and tune its appearance. Changes take effect
             immediately for all visitors.
           </p>
 
           {#if !data.isR2Available}
             <div
-              class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm"
+              class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-4 text-warning-400 text-sm"
             >
               File storage (R2) is not configured. Background image upload is disabled.
             </div>
@@ -191,8 +197,10 @@
             <!-- Live Preview -->
             {#if bgPreviewUrl || data.settings.backgroundImagePath}
               <div class="mb-6">
-                <p class="text-sm font-medium text-gray-300 mb-2">Preview</p>
-                <div class="relative w-full h-56 rounded-lg overflow-hidden border border-zinc-700">
+                <p class="text-sm font-medium text-text-label mb-2">Preview</p>
+                <div
+                  class="relative w-full h-56 rounded-lg overflow-hidden border border-border-input"
+                >
                   <img
                     src={bgPreviewUrl ?? data.settings.backgroundImagePath ?? ''}
                     alt="Background preview"
@@ -228,7 +236,10 @@
               <div class="space-y-6">
                 <!-- File upload -->
                 <div>
-                  <label for="backgroundImage" class="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    for="backgroundImage"
+                    class="block text-sm font-medium text-text-label mb-2"
+                  >
                     {data.settings.backgroundImagePath ? 'Replace Image' : 'Upload Image'}
                   </label>
                   <input
@@ -237,15 +248,15 @@
                     name="backgroundImage"
                     accept="image/png,image/jpeg,image/gif,image/webp"
                     onchange={onBgFileSelected}
-                    class="block w-full max-w-md text-sm text-gray-400
-											file:mr-4 file:py-2 file:px-4
-											file:rounded-lg file:border-0
-											file:text-sm file:font-medium
-											file:bg-zinc-800 file:text-white
-											hover:file:bg-zinc-700
-											file:cursor-pointer cursor-pointer"
+                    class="block w-full max-w-md text-sm text-text-body
+										file:mr-4 file:py-2 file:px-4
+										file:rounded-lg file:border-0
+										file:text-sm file:font-medium
+										file:bg-surface-input file:text-white
+										hover:file:bg-surface-hover
+										file:cursor-pointer cursor-pointer"
                   />
-                  <p class="text-xs text-gray-500 mt-1">
+                  <p class="text-xs text-text-muted mt-1">
                     PNG, JPG, GIF, or WebP. Max 5MB. Leave empty to only update filters.
                   </p>
                 </div>
@@ -255,10 +266,10 @@
                   <!-- Blur -->
                   <div>
                     <div class="flex justify-between items-center mb-1">
-                      <label for="blurSlider" class="text-sm font-medium text-gray-300"
+                      <label for="blurSlider" class="text-sm font-medium text-text-label"
                         >Gaussian Blur</label
                       >
-                      <span class="text-sm text-gray-400 tabular-nums">{bgBlur.toFixed(0)}px</span>
+                      <span class="text-sm text-text-body tabular-nums">{bgBlur.toFixed(0)}px</span>
                     </div>
                     <input
                       type="range"
@@ -267,9 +278,9 @@
                       max="30"
                       step="1"
                       bind:value={bgBlur}
-                      class="w-full accent-blue-500"
+                      class="w-full accent-primary-500"
                     />
-                    <div class="flex justify-between text-xs text-gray-600 mt-0.5">
+                    <div class="flex justify-between text-xs text-text-muted mt-0.5">
                       <span>None</span>
                       <span>Max (30px)</span>
                     </div>
@@ -278,10 +289,10 @@
                   <!-- Brightness -->
                   <div>
                     <div class="flex justify-between items-center mb-1">
-                      <label for="brightnessSlider" class="text-sm font-medium text-gray-300"
+                      <label for="brightnessSlider" class="text-sm font-medium text-text-label"
                         >Brightness</label
                       >
-                      <span class="text-sm text-gray-400 tabular-nums"
+                      <span class="text-sm text-text-body tabular-nums"
                         >{bgBrightness.toFixed(2)}</span
                       >
                     </div>
@@ -292,9 +303,9 @@
                       max="1.5"
                       step="0.05"
                       bind:value={bgBrightness}
-                      class="w-full accent-blue-500"
+                      class="w-full accent-primary-500"
                     />
-                    <div class="flex justify-between text-xs text-gray-600 mt-0.5">
+                    <div class="flex justify-between text-xs text-text-muted mt-0.5">
                       <span>Dark (0.1)</span>
                       <span>Bright (1.5)</span>
                     </div>
@@ -303,10 +314,10 @@
                   <!-- Overlay -->
                   <div>
                     <div class="flex justify-between items-center mb-1">
-                      <label for="overlaySlider" class="text-sm font-medium text-gray-300"
+                      <label for="overlaySlider" class="text-sm font-medium text-text-label"
                         >Dark Overlay</label
                       >
-                      <span class="text-sm text-gray-400 tabular-nums"
+                      <span class="text-sm text-text-body tabular-nums"
                         >{Math.round(bgOverlay * 100)}%</span
                       >
                     </div>
@@ -317,9 +328,9 @@
                       max="1"
                       step="0.05"
                       bind:value={bgOverlay}
-                      class="w-full accent-blue-500"
+                      class="w-full accent-primary-500"
                     />
-                    <div class="flex justify-between text-xs text-gray-600 mt-0.5">
+                    <div class="flex justify-between text-xs text-text-muted mt-0.5">
                       <span>None</span>
                       <span>Full black</span>
                     </div>
@@ -327,13 +338,13 @@
                 </div>
 
                 <div class="pt-2">
-                  <button
+                  <Button
                     type="submit"
+                    variant="primary"
                     disabled={isSubmitting || !data.isHeadAdmin}
-                    class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
                   >
                     {isSubmitting ? 'Saving...' : 'Save Background'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </form>
@@ -357,26 +368,23 @@
                     await update();
                   };
                 }}
+                bind:this={removeBgFormEl}
               >
-                <button
-                  type="submit"
+                <Button
+                  type="button"
+                  variant="secondary"
                   disabled={isSubmitting || !data.isHeadAdmin}
-                  onclick={(e) => {
-                    if (!confirm('Remove the background image and restore the default gradient?')) {
-                      e.preventDefault();
-                    }
-                  }}
-                  class="bg-zinc-700 hover:bg-red-900/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 hover:text-white font-medium px-4 py-2 rounded-lg transition text-sm"
+                  onclick={() => (showRemoveBgConfirm = true)}
                 >
                   Remove Background
-                </button>
+                </Button>
               </form>
             {/if}
           {/if}
         </div>
 
         <!-- Favicon Upload -->
-        <div class="border-t border-zinc-800 pt-8">
+        <div class="border-t border-border-default pt-8">
           <h3 class="text-lg font-semibold text-white mb-4">Favicon</h3>
 
           {#if data.settings.faviconPath}
@@ -384,15 +392,15 @@
               <img
                 src={data.settings.faviconPath}
                 alt="Current favicon"
-                class="w-12 h-12 rounded border border-zinc-700"
+                class="w-12 h-12 rounded border border-border-input"
               />
-              <p class="text-sm text-gray-400">Current favicon</p>
+              <p class="text-sm text-text-body">Current favicon</p>
             </div>
           {/if}
 
           {#if !data.isR2Available}
             <div
-              class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-yellow-400 text-sm"
+              class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-4 text-warning-400 text-sm"
             >
               File storage (R2) is not configured. Favicon upload is disabled.
             </div>
@@ -405,7 +413,7 @@
             >
               <div class="space-y-4">
                 <div>
-                  <label for="favicon" class="block text-sm font-medium text-gray-300 mb-2">
+                  <label for="favicon" class="block text-sm font-medium text-text-label mb-2">
                     Upload New Favicon
                   </label>
                   <input
@@ -413,24 +421,24 @@
                     id="favicon"
                     name="favicon"
                     accept="image/png,image/jpeg,image/gif,image/webp,image/x-icon"
-                    class="block w-full max-w-md text-sm text-gray-400
-											file:mr-4 file:py-2 file:px-4
-											file:rounded-lg file:border-0
-											file:text-sm file:font-medium
-											file:bg-zinc-800 file:text-white
-											hover:file:bg-zinc-700
-											file:cursor-pointer cursor-pointer"
+                    class="block w-full max-w-md text-sm text-text-body
+										file:mr-4 file:py-2 file:px-4
+										file:rounded-lg file:border-0
+										file:text-sm file:font-medium
+										file:bg-surface-input file:text-white
+										hover:file:bg-surface-hover
+										file:cursor-pointer cursor-pointer"
                   />
-                  <p class="text-xs text-gray-500 mt-1">PNG, JPG, GIF, or WebP. Max 1MB.</p>
+                  <p class="text-xs text-text-muted mt-1">PNG, JPG, GIF, or WebP. Max 1MB.</p>
                 </div>
 
-                <button
+                <Button
                   type="submit"
+                  variant="primary"
                   disabled={isSubmitting || !data.isHeadAdmin}
-                  class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
                 >
                   {isSubmitting ? 'Uploading...' : 'Upload Favicon'}
-                </button>
+                </Button>
               </div>
             </form>
           {/if}
@@ -441,7 +449,7 @@
       <form method="POST" action="?/updateHomepageContent" use:enhance={handleEnhance('homepage')}>
         <div class="space-y-6">
           <div>
-            <label for="subtitle" class="block text-sm font-medium text-gray-300 mb-2">
+            <label for="subtitle" class="block text-sm font-medium text-text-label mb-2">
               Homepage Subtitle
             </label>
             <input
@@ -450,14 +458,16 @@
               name="subtitle"
               bind:value={homepageSubtitle}
               disabled={!data.isHeadAdmin}
-              class="w-full max-w-lg bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full max-w-lg bg-surface-input border border-border-input rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="The Premier MGE League"
             />
-            <p class="text-xs text-gray-500 mt-1">Displayed below the main title on the homepage</p>
+            <p class="text-xs text-text-muted mt-1">
+              Displayed below the main title on the homepage
+            </p>
           </div>
 
           <div>
-            <label for="about" class="block text-sm font-medium text-gray-300 mb-2">
+            <label for="about" class="block text-sm font-medium text-text-label mb-2">
               "What is MGE?" Section
             </label>
             <textarea
@@ -466,29 +476,25 @@
               bind:value={homepageAbout}
               rows="10"
               disabled={!data.isHeadAdmin}
-              class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="## What is MGE?&#10;&#10;Write your content here using Markdown..."
             ></textarea>
-            <p class="text-xs text-gray-500 mt-1">Supports Markdown formatting</p>
+            <p class="text-xs text-text-muted mt-1">Supports Markdown formatting</p>
           </div>
 
           {#if homepageAbout.trim()}
             <div>
-              <h4 class="text-sm font-medium text-gray-300 mb-2">Preview</h4>
-              <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4">
+              <h4 class="text-sm font-medium text-text-label mb-2">Preview</h4>
+              <div class="bg-surface-input border border-border-input rounded-lg p-4">
                 <MarkdownRenderer content={homepageAbout} />
               </div>
             </div>
           {/if}
 
           <div class="pt-4">
-            <button
-              type="submit"
-              disabled={isSubmitting || !data.isHeadAdmin}
-              class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
-            >
+            <Button type="submit" variant="primary" disabled={isSubmitting || !data.isHeadAdmin}>
               {isSubmitting ? 'Saving...' : 'Save Homepage Content'}
-            </button>
+            </Button>
           </div>
         </div>
       </form>
@@ -497,7 +503,7 @@
       <div class="space-y-8">
         <div>
           <h3 class="text-lg font-semibold text-white mb-1">API Keys</h3>
-          <p class="text-sm text-gray-400">
+          <p class="text-sm text-text-body">
             Service-to-service keys used by external integrations (e.g. the Discord verification
             bot). Keys are stored in plaintext — treat them like passwords.
           </p>
@@ -505,14 +511,14 @@
 
         <!-- Newly created key banner -->
         {#if createdKey}
-          <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4 space-y-2">
-            <p class="text-green-400 text-sm font-medium">
+          <div class="bg-success-500/10 border border-success-500/30 rounded-lg p-4 space-y-2">
+            <p class="text-success-400 text-sm font-medium">
               API key created. Copy it now — it will not be shown again in a special way, but
               remains viewable in the table below.
             </p>
             <div class="flex items-center gap-3">
               <code
-                class="flex-1 bg-zinc-800 text-green-300 text-sm px-3 py-2 rounded-lg font-mono break-all"
+                class="flex-1 bg-surface-input text-success-300 text-sm px-3 py-2 rounded-lg font-mono break-all"
                 >{createdKey}</code
               >
               <button
@@ -520,14 +526,14 @@
                 onclick={() => {
                   navigator.clipboard.writeText(createdKey!);
                 }}
-                class="shrink-0 bg-zinc-700 hover:bg-zinc-600 text-white text-sm px-3 py-2 rounded-lg transition"
+                class="shrink-0 bg-surface-hover hover:bg-surface-input text-white text-sm px-3 py-2 rounded-lg transition"
               >
                 Copy
               </button>
               <button
                 type="button"
                 onclick={() => (createdKey = null)}
-                class="shrink-0 text-gray-500 hover:text-gray-300 text-sm transition"
+                class="shrink-0 text-text-muted hover:text-text-label text-sm transition"
               >
                 Dismiss
               </button>
@@ -539,7 +545,7 @@
         <form method="POST" action="?/createApiKey" use:enhance={handleApiKeyEnhance('create')}>
           <div class="flex items-end gap-3">
             <div class="flex-1 max-w-sm">
-              <label for="apiKeyName" class="block text-sm font-medium text-gray-300 mb-2"
+              <label for="apiKeyName" class="block text-sm font-medium text-text-label mb-2"
                 >New API Key Name</label
               >
               <input
@@ -548,27 +554,27 @@
                 name="name"
                 bind:value={newKeyName}
                 placeholder="e.g. Discord Verification Bot"
-                class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
               />
             </div>
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={isSubmitting || !data.isHeadAdmin || !newKeyName.trim()}
-              class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition"
             >
               {isSubmitting ? 'Creating...' : 'Create Key'}
-            </button>
+            </Button>
           </div>
         </form>
 
         <!-- Keys table -->
         {#if data.apiKeys.length === 0}
-          <div class="text-center py-12 text-gray-500 text-sm">No API keys yet.</div>
+          <div class="text-center py-12 text-text-muted text-sm">No API keys yet.</div>
         {:else}
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
-                <tr class="text-left text-gray-400 border-b border-zinc-800">
+                <tr class="text-left text-text-body border-b border-border-default">
                   <th class="pb-3 pr-4 font-medium">Name</th>
                   <th class="pb-3 pr-4 font-medium">Key</th>
                   <th class="pb-3 pr-4 font-medium">Status</th>
@@ -578,19 +584,19 @@
                   <th class="pb-3 font-medium">Actions</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-zinc-800">
+              <tbody class="divide-y divide-border-default">
                 {#each data.apiKeys as apiKey (apiKey.id)}
-                  <tr class="text-gray-300">
+                  <tr class="text-text-label">
                     <td class="py-3 pr-4 font-medium text-white">{apiKey.name}</td>
                     <td class="py-3 pr-4">
                       <div class="flex items-center gap-2">
-                        <code class="font-mono text-xs text-gray-400 max-w-48 truncate"
+                        <code class="font-mono text-xs text-text-body max-w-48 truncate"
                           >{apiKey.key}</code
                         >
                         <button
                           type="button"
                           onclick={() => copyKey(apiKey.key, apiKey.id)}
-                          class="shrink-0 text-xs text-gray-500 hover:text-gray-200 transition"
+                          class="shrink-0 text-xs text-text-muted hover:text-text-label transition"
                           title="Copy key"
                         >
                           {copiedKeyId === apiKey.id ? '✓' : 'Copy'}
@@ -599,24 +605,18 @@
                     </td>
                     <td class="py-3 pr-4">
                       {#if apiKey.active}
-                        <span
-                          class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-400"
-                          >Active</span
-                        >
+                        <Badge color="green">Active</Badge>
                       {:else}
-                        <span
-                          class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-700 text-gray-400"
-                          >Inactive</span
-                        >
+                        <Badge color="zinc">Inactive</Badge>
                       {/if}
                     </td>
-                    <td class="py-3 pr-4 text-gray-400">{apiKey.creator.steamUsername}</td>
-                    <td class="py-3 pr-4 text-gray-400">
+                    <td class="py-3 pr-4 text-text-body">{apiKey.creator.steamUsername}</td>
+                    <td class="py-3 pr-4 text-text-body">
                       {apiKey.lastUsedAt
                         ? new Date(apiKey.lastUsedAt).toLocaleDateString()
                         : 'Never'}
                     </td>
-                    <td class="py-3 pr-4 text-gray-400"
+                    <td class="py-3 pr-4 text-text-body"
                       >{new Date(apiKey.createdAt).toLocaleDateString()}</td
                     >
                     <td class="py-3">
@@ -633,35 +633,22 @@
                             type="submit"
                             disabled={isSubmitting || !data.isHeadAdmin}
                             class="text-xs px-3 py-1 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed
-														{apiKey.active
-                              ? 'bg-zinc-700 hover:bg-zinc-600 text-gray-300'
-                              : 'bg-green-600/20 hover:bg-green-600/30 text-green-400'}"
+													{apiKey.active
+                              ? 'bg-surface-hover hover:bg-surface-input text-text-label'
+                              : 'bg-success-600/20 hover:bg-success-600/30 text-success-400'}"
                           >
                             {apiKey.active ? 'Disable' : 'Enable'}
                           </button>
                         </form>
                         <!-- Delete -->
-                        <form
-                          method="POST"
-                          action="?/deleteApiKey"
-                          use:enhance={handleApiKeyEnhance('delete')}
+                        <button
+                          type="button"
+                          disabled={isSubmitting || !data.isHeadAdmin}
+                          onclick={() => (deletingApiKey = { id: apiKey.id, name: apiKey.name })}
+                          class="text-xs px-3 py-1 rounded-lg bg-danger-500/10 hover:bg-danger-500/20 text-danger-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <input type="hidden" name="id" value={apiKey.id} />
-                          <button
-                            type="submit"
-                            disabled={isSubmitting || !data.isHeadAdmin}
-                            onclick={(e) => {
-                              if (
-                                !confirm(`Delete API key "${apiKey.name}"? This cannot be undone.`)
-                              ) {
-                                e.preventDefault();
-                              }
-                            }}
-                            class="text-xs px-3 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Delete
-                          </button>
-                        </form>
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -678,16 +665,20 @@
           <div class="flex items-center justify-between">
             <div>
               <h3 class="text-lg font-semibold text-white">Rulebook Editor</h3>
-              <p class="text-sm text-gray-400">Edit the official rulebook using Markdown</p>
+              <p class="text-sm text-text-body">Edit the official rulebook using Markdown</p>
             </div>
             <div class="flex items-center gap-3">
-              <a href="/rulebook" target="_blank" class="text-sm text-blue-400 hover:text-blue-300">
+              <a
+                href="/rulebook"
+                target="_blank"
+                class="text-sm text-primary-400 hover:text-primary-300"
+              >
                 View live →
               </a>
               <button
                 type="button"
                 onclick={() => (showPreview = !showPreview)}
-                class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm rounded-lg transition"
+                class="px-4 py-2 bg-surface-input hover:bg-surface-hover text-white text-sm rounded-lg transition"
               >
                 {showPreview ? 'Hide Preview' : 'Show Preview'}
               </button>
@@ -702,7 +693,7 @@
                 bind:value={rulebookContent}
                 rows="30"
                 disabled={!data.isHeadAdmin}
-                class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="# Rulebook&#10;&#10;## Section 1&#10;..."
               ></textarea>
             </div>
@@ -710,7 +701,7 @@
             <!-- Preview -->
             {#if showPreview}
               <div
-                class="bg-zinc-800 border border-zinc-700 rounded-lg p-6 overflow-y-auto max-h-[700px]"
+                class="bg-surface-input border border-border-input rounded-lg p-6 overflow-y-auto max-h-[700px]"
               >
                 <MarkdownRenderer content={rulebookContent} />
               </div>
@@ -718,17 +709,49 @@
           </div>
 
           <div class="pt-4 flex items-center gap-4">
-            <button
-              type="submit"
-              disabled={isSubmitting || !data.isHeadAdmin}
-              class="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2 rounded-lg transition"
-            >
+            <Button type="submit" variant="success" disabled={isSubmitting || !data.isHeadAdmin}>
               {isSubmitting ? 'Saving...' : 'Save Rulebook'}
-            </button>
-            <span class="text-sm text-gray-500"> Changes are published immediately </span>
+            </Button>
+            <span class="text-sm text-text-muted"> Changes are published immediately </span>
           </div>
         </div>
       </form>
     {/if}
-  </div>
+  </Card>
 </div>
+
+<ConfirmDialog
+  open={showRemoveBgConfirm}
+  title="Remove Background Image"
+  description="Remove the background image and restore the default gradient? This cannot be undone."
+  confirmLabel="Remove"
+  variant="danger"
+  onConfirm={() => {
+    showRemoveBgConfirm = false;
+    removeBgFormEl?.requestSubmit();
+  }}
+  onCancel={() => (showRemoveBgConfirm = false)}
+/>
+
+<form
+  method="POST"
+  action="?/deleteApiKey"
+  use:enhance={handleApiKeyEnhance('delete')}
+  bind:this={deleteApiKeyFormEl}
+  class="hidden"
+>
+  <input type="hidden" name="id" value={deletingApiKey?.id ?? ''} />
+</form>
+
+<ConfirmDialog
+  open={deletingApiKey !== null}
+  title="Delete API Key"
+  description={`Delete API key "${deletingApiKey?.name ?? ''}"? This cannot be undone.`}
+  confirmLabel="Delete"
+  variant="danger"
+  onConfirm={() => {
+    deleteApiKeyFormEl?.requestSubmit();
+    deletingApiKey = null;
+  }}
+  onCancel={() => (deletingApiKey = null)}
+/>

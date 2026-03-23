@@ -40,7 +40,7 @@
           legend: {
             position: 'bottom',
             labels: {
-              color: '#d4d4d8',
+              color: '#d4d4d8', // zinc-300 (text-label approximate)
               padding: 15,
               font: {
                 size: 12,
@@ -48,10 +48,10 @@
             },
           },
           tooltip: {
-            backgroundColor: 'rgba(24, 24, 27, 0.95)',
+            backgroundColor: 'rgba(9, 9, 11, 0.95)', // surface-page
             titleColor: '#fff',
             bodyColor: '#fff',
-            borderColor: 'rgba(63, 63, 70, 0.8)',
+            borderColor: 'rgba(39, 39, 42, 0.8)', // border-default
             borderWidth: 1,
           },
         },

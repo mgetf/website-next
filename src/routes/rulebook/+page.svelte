@@ -118,7 +118,7 @@
       <!-- Main Content -->
       <main class="lg:col-span-9">
         <div
-          class="rulebook-content bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-lg p-6 lg:p-10"
+          class="rulebook-content bg-surface-card/80 backdrop-blur border border-border-default rounded-lg p-6 lg:p-10"
         >
           <MarkdownRenderer content={data.content} />
         </div>

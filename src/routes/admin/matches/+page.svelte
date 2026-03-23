@@ -6,6 +6,8 @@
   import FilterBar from '$lib/components/ui/FilterBar.svelte';
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
   import { toast } from '$lib/state/toast.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -28,7 +30,6 @@
     }
   });
 
-  // Current filter values
   let selectedRegion = $state('');
   let selectedSeason = $state('');
   let selectedWeek = $state('1');
@@ -107,14 +108,12 @@
       return `${playoffName} - Round ${match.playoffRound}`;
     }
 
-    // Format: "Week 1A - Invite" or "Week 1 - Invite"
     const weekLabel = match.weekLabel || match.weekNo;
     return `Week ${weekLabel} - ${divisionName}`;
   }
 
   function getScoreDisplay(match: any): string {
     if (match.winnerId) {
-      // Determine which team won and format score correctly
       const homeWon = match.winnerId === match.homeTeamId;
       const homeScore = homeWon ? match.winnerScore : match.loserScore;
       const awayScore = homeWon ? match.loserScore : match.winnerScore;
@@ -134,23 +133,18 @@
   <div class="flex items-center justify-between">
     <div>
       <h2 class="text-3xl font-bold text-white mb-2">Match Management</h2>
-      <p class="text-gray-400">View and manage league matches by week</p>
+      <p class="text-text-body">View and manage league matches by week</p>
     </div>
     {#if data.isStrictAdmin}
-      <a
-        href="/admin/matches/create"
-        class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold inline-block"
-      >
-        + Create Matches
-      </a>
+      <Button variant="primary" href="/admin/matches/create" size="lg">+ Create Matches</Button>
     {/if}
   </div>
 
-  <!-- Filters - Region, Season, Week Selection -->
+  <!-- Filters -->
   <FilterBar>
     {#snippet filters()}
       <div class="md:w-48">
-        <label for="region" class="block text-sm font-medium text-gray-400 mb-2">Region</label>
+        <label for="region" class="block text-sm font-medium text-text-body mb-2">Region</label>
         <SelectFilter
           value={selectedRegion}
           options={regionOptions}
@@ -160,7 +154,7 @@
       </div>
 
       <div class="md:w-48">
-        <label for="season" class="block text-sm font-medium text-gray-400 mb-2">Season</label>
+        <label for="season" class="block text-sm font-medium text-text-body mb-2">Season</label>
         <SelectFilter
           value={selectedSeason}
           options={seasonOptions}
@@ -170,7 +164,7 @@
       </div>
 
       <div class="md:w-48">
-        <label for="round" class="block text-sm font-medium text-gray-400 mb-2">Round</label>
+        <label for="round" class="block text-sm font-medium text-text-body mb-2">Round</label>
         <SelectFilter
           value={selectedWeek}
           options={weekOptions}
@@ -183,15 +177,15 @@
 
   <!-- Matches by Division -->
   {#if data.matchesByDivision.length === 0}
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
-      <p class="text-gray-400 text-lg">No matches found for the selected filters</p>
-      <p class="text-gray-500 mt-2">Try selecting a different week or season</p>
-    </div>
+    <Card padding="none" class="p-12 text-center">
+      <p class="text-text-body text-lg">No matches found for the selected filters</p>
+      <p class="text-text-muted mt-2">Try selecting a different week or season</p>
+    </Card>
   {:else}
     {#each data.matchesByDivision as division}
-      <div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+      <Card padding="none" class="overflow-hidden">
         <!-- Division Header -->
-        <div class="bg-zinc-800 px-6 py-4 border-b border-zinc-700">
+        <div class="bg-surface-input px-6 py-4 border-b border-border-input">
           <h3 class="text-xl font-bold text-white text-center">{division.name}</h3>
         </div>
 
@@ -201,7 +195,7 @@
             {#if col.key === 'match'}
               <a
                 href="/matches/{match.id}"
-                class="text-blue-400 hover:text-blue-300 hover:underline"
+                class="text-info-400 hover:text-blue-300 hover:underline"
               >
                 {getMatchTitle(match)}
               </a>
@@ -219,7 +213,7 @@
                         />
                       {:else}
                         <div
-                          class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-xs text-gray-400"
+                          class="w-8 h-8 rounded bg-surface-hover flex items-center justify-center text-xs text-text-body"
                           title={game.arena.name}
                         >
                           {game.arena.name.slice(0, 2).toUpperCase()}
@@ -228,22 +222,22 @@
                     </div>
                   {:else}
                     <div
-                      class="w-8 h-8 rounded bg-zinc-700/50 flex items-center justify-center text-xs text-gray-500"
+                      class="w-8 h-8 rounded bg-surface-hover/50 flex items-center justify-center text-xs text-text-muted"
                     >
                       ?
                     </div>
                   {/if}
                 {/each}
                 {#if match.games.length === 0}
-                  <span class="text-gray-500 text-sm">-</span>
+                  <span class="text-text-muted text-sm">-</span>
                 {/if}
               </div>
             {:else if col.key === 'date'}
-              <span class="text-sm text-gray-300">{formatMatchDate(match.matchDateTime)}</span>
+              <span class="text-sm text-text-label">{formatMatchDate(match.matchDateTime)}</span>
             {:else if col.key === 'home'}
               <a
                 href="/teams/{match.homeTeam.id}"
-                class="text-orange-400 hover:text-orange-300 hover:underline {getWinnerClass(
+                class="text-primary-400 hover:text-primary-300 hover:underline {getWinnerClass(
                   match,
                   match.homeTeamId,
                 )}"
@@ -255,7 +249,7 @@
             {:else if col.key === 'away'}
               <a
                 href="/teams/{match.awayTeam.id}"
-                class="text-orange-400 hover:text-orange-300 hover:underline {getWinnerClass(
+                class="text-primary-400 hover:text-primary-300 hover:underline {getWinnerClass(
                   match,
                   match.awayTeamId,
                 )}"
@@ -267,12 +261,12 @@
         </DataTable>
 
         <!-- Division Footer -->
-        <div class="px-6 py-3 bg-zinc-800/30 border-t border-zinc-700 text-center">
-          <span class="text-sm text-gray-400">
+        <div class="px-6 py-3 bg-surface-input/30 border-t border-border-input text-center">
+          <span class="text-sm text-text-body">
             {division.matches.length} match{division.matches.length === 1 ? '' : 'es'}
           </span>
         </div>
-      </div>
+      </Card>
     {/each}
   {/if}
 </div>

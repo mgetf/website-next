@@ -47,7 +47,7 @@
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
-      class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 w-full {maxWidthClasses[
+      class="bg-surface-card border border-border-default rounded-lg p-6 w-full {maxWidthClasses[
         maxWidth
       ]} max-h-[90vh] overflow-y-auto"
       onclick={handleDialogClick}
@@ -60,7 +60,7 @@
         <button
           type="button"
           onclick={onClose}
-          class="text-gray-400 hover:text-white transition-colors"
+          class="text-text-body hover:text-white transition-colors"
           aria-label="Close dialog"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

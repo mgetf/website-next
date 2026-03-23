@@ -5,6 +5,7 @@
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import type { ProfileMatch } from '$lib/types/match';
 
@@ -230,35 +231,38 @@
 
   // Get placement color
   function getPlacementColor(placement: string): string {
-    if (placement.includes('1st')) return 'text-yellow-400';
-    if (placement.includes('2nd')) return 'text-gray-300';
-    if (placement.includes('3rd')) return 'text-orange-400';
-    return 'text-gray-400';
+    if (placement.includes('1st')) return 'text-warning-400';
+    if (placement.includes('2nd')) return 'text-text-label';
+    if (placement.includes('3rd')) return 'text-primary-400';
+    return 'text-text-body';
   }
 
   // Get result color
   function getResultColor(result: string): string {
-    if (result === 'W') return 'text-green-400';
-    if (result === 'L') return 'text-red-400';
-    return 'text-gray-400';
+    if (result === 'W') return 'text-success-400';
+    if (result === 'L') return 'text-danger-400';
+    return 'text-text-body';
   }
 
   function getResultBg(result: string): string {
-    if (result === 'W') return 'bg-green-500/20 text-green-400 border-green-500/30';
-    if (result === 'L') return 'bg-red-500/20 text-red-400 border-red-500/30';
-    return 'bg-zinc-800 text-gray-500 border-zinc-700';
+    if (result === 'W') return 'bg-success-500/20 text-success-400 border-success-500/30';
+    if (result === 'L') return 'bg-danger-500/20 text-danger-400 border-danger-500/30';
+    return 'bg-surface-input text-text-muted border-border-input';
   }
 
   function getBanBadge(status: string): { label: string; classes: string } | null {
     if (status === 'WARNING')
-      return { label: 'Warning', classes: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
+      return {
+        label: 'Warning',
+        classes: 'bg-warning-500/20 text-warning-400 border-warning-500/30',
+      };
     if (status === 'SUSPENDED')
       return {
         label: 'Suspended',
-        classes: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+        classes: 'bg-primary-500/20 text-primary-400 border-primary-500/30',
       };
     if (status === 'BANNED')
-      return { label: 'Banned', classes: 'bg-red-500/20 text-red-400 border-red-500/30' };
+      return { label: 'Banned', classes: 'bg-danger-500/20 text-danger-400 border-danger-500/30' };
     return null;
   }
 
@@ -288,13 +292,13 @@
         <img
           src={player.avatar}
           alt={player.name}
-          class="w-32 h-32 rounded-lg border-4 border-zinc-700 shadow-2xl"
+          class="w-32 h-32 rounded-lg border-4 border-border-input shadow-2xl"
         />
         {#if isAdmin}
           <button
             type="button"
             onclick={openEditAvatar}
-            class="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 text-gray-400 hover:bg-blue-500/50 hover:border-blue-500/50 hover:text-white opacity-0 group-hover/avatar:opacity-100 transition-all"
+            class="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-surface-input border border-border-input text-text-body hover:bg-blue-500/50 hover:border-info-500/50 hover:text-white opacity-0 group-hover/avatar:opacity-100 transition-all"
             title="Edit Avatar (Admin)"
           >
             <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,7 +322,7 @@
           <button
             type="button"
             onclick={openEditName}
-            class="absolute -top-1 -right-4 w-4 h-4 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 text-gray-400 hover:bg-blue-500/50 hover:border-blue-500/50 hover:text-white opacity-0 group-hover/name:opacity-100 transition-all"
+            class="absolute -top-1 -right-4 w-4 h-4 flex items-center justify-center rounded-full bg-surface-input border border-border-input text-text-body hover:bg-blue-500/50 hover:border-info-500/50 hover:text-white opacity-0 group-hover/name:opacity-100 transition-all"
             title="Edit Name (Admin)"
           >
             <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,7 +357,7 @@
             </span>
           {:else if player.permissionLevel === 'MODERATOR'}
             <span
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.15)]"
+              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-info-500/20 text-blue-300 border border-info-500/40 shadow-[0_0_10px_rgba(59,130,246,0.15)]"
             >
               <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                 <path
@@ -377,11 +381,11 @@
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            class="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-2 group"
+            class="px-3 py-2 bg-surface-input hover:bg-surface-hover rounded-lg transition-colors flex items-center gap-2 group"
             title={link.name}
           >
             <img src={link.logo} alt={link.name} class="w-5 h-5 {link.rounded ? 'rounded' : ''}" />
-            <span class="text-xs text-gray-400 group-hover:text-white hidden sm:inline">
+            <span class="text-xs text-text-body group-hover:text-white hidden sm:inline">
               {link.name}
             </span>
           </a>
@@ -391,7 +395,7 @@
       <!-- Discord Status -->
       {#if player.discordLinked}
         <div
-          class="relative inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-lg text-blue-400 text-sm group/discord"
+          class="relative inline-flex items-center gap-2 px-4 py-2 bg-info-500/20 rounded-lg text-info-400 text-sm group/discord"
         >
           <DiscordIcon size={16} />
           <span>{player.discordUsername || 'Discord linked'}</span>
@@ -400,7 +404,7 @@
               type="button"
               onclick={() => (showUnlinkDiscordConfirm = true)}
               disabled={isUnlinkingDiscord}
-              class="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 text-gray-400 hover:bg-red-500/50 hover:border-red-500/50 hover:text-white opacity-0 group-hover/discord:opacity-100 transition-all disabled:opacity-50"
+              class="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-surface-input border border-border-input text-text-body hover:bg-danger-500/50 hover:border-danger-500/50 hover:text-white opacity-0 group-hover/discord:opacity-100 transition-all disabled:opacity-50"
               title="Unlink Discord (Admin)"
             >
               <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -415,16 +419,13 @@
           {/if}
         </div>
       {:else if isOwnProfile}
-        <a
-          href="/auth/discord/login"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white text-sm font-medium transition-colors cursor-pointer"
-        >
+        <Button href="/auth/discord/login" class="inline-flex items-center gap-2">
           <DiscordIcon size={16} />
           <span>Link Discord Account</span>
-        </a>
+        </Button>
       {:else}
         <div
-          class="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-lg text-gray-400 text-sm"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-surface-input/50 rounded-lg text-text-body text-sm"
         >
           <DiscordIcon size={16} />
           <span>Discord not linked</span>
@@ -434,19 +435,19 @@
 
     <!-- Admin Zone -->
     {#if isAdmin}
-      <div class="max-w-xs mx-auto mt-4 pt-3 border-t border-zinc-800">
+      <div class="max-w-xs mx-auto mt-4 pt-3 border-t border-border-default">
         <div class="flex items-center justify-center gap-2">
           <button
             type="button"
             onclick={openEditName}
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/namebtn"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-input/60 hover:bg-surface-hover/60 border border-border-input/40 text-[11px] transition-colors cursor-pointer group/namebtn"
           >
-            <span class="text-gray-500">Name:</span>
-            <span class={player.nameOverride === 1 ? 'text-orange-400' : 'text-gray-400'}
+            <span class="text-text-muted">Name:</span>
+            <span class={player.nameOverride === 1 ? 'text-primary-400' : 'text-text-body'}
               >{player.nameOverride === 1 ? 'Locked' : 'Auto'}</span
             >
             <svg
-              class="w-2.5 h-2.5 text-gray-600 group-hover/namebtn:text-gray-400 transition-colors"
+              class="w-2.5 h-2.5 text-text-muted group-hover/namebtn:text-text-body transition-colors"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -462,14 +463,14 @@
           <button
             type="button"
             onclick={openEditAvatar}
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/avatarbtn"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-input/60 hover:bg-surface-hover/60 border border-border-input/40 text-[11px] transition-colors cursor-pointer group/avatarbtn"
           >
-            <span class="text-gray-500">Avatar:</span>
-            <span class={player.avatarOverride === 1 ? 'text-orange-400' : 'text-gray-400'}
+            <span class="text-text-muted">Avatar:</span>
+            <span class={player.avatarOverride === 1 ? 'text-primary-400' : 'text-text-body'}
               >{player.avatarOverride === 1 ? 'Locked' : 'Auto'}</span
             >
             <svg
-              class="w-2.5 h-2.5 text-gray-600 group-hover/avatarbtn:text-gray-400 transition-colors"
+              class="w-2.5 h-2.5 text-text-muted group-hover/avatarbtn:text-text-body transition-colors"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -485,9 +486,9 @@
           <button
             type="button"
             onclick={() => (showPunish = true)}
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/40 text-[11px] transition-colors cursor-pointer group/statusbtn"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-input/60 hover:bg-surface-hover/60 border border-border-input/40 text-[11px] transition-colors cursor-pointer group/statusbtn"
           >
-            <span class="text-gray-500">Status:</span>
+            <span class="text-text-muted">Status:</span>
             {#if getBanBadge(player.banStatus)}
               {@const badge = getBanBadge(player.banStatus)!}
               <span
@@ -500,12 +501,12 @@
                   : ''}</span
               >
             {:else}
-              <span class="whitespace-nowrap text-green-400"
+              <span class="whitespace-nowrap text-success-400"
                 >Clean{player.punishmentCount > 0 ? ` (${player.punishmentCount})` : ''}</span
               >
             {/if}
             <svg
-              class="w-2.5 h-2.5 text-gray-600 group-hover/statusbtn:text-gray-400 transition-colors"
+              class="w-2.5 h-2.5 text-text-muted group-hover/statusbtn:text-text-body transition-colors"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -529,25 +530,27 @@
       <!-- Left Sidebar -->
       <aside class="lg:col-span-3 space-y-6">
         <!-- Achievements -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-          <div class="bg-zinc-950/80 px-4 py-3 border-b border-zinc-800">
+        <div
+          class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+        >
+          <div class="bg-surface-page/80 px-4 py-3 border-b border-border-default">
             <h3 class="text-lg font-bold text-white">Achievements</h3>
           </div>
           {#if achievements.length > 0}
-            <div class="divide-y divide-zinc-800/50">
+            <div class="divide-y divide-border-default/50">
               {#each achievements as achievement (achievement.event)}
                 <div
-                  class="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/30 transition-colors"
+                  class="flex items-center gap-3 px-4 py-3 hover:bg-surface-input/30 transition-colors"
                 >
                   <div class="flex-shrink-0">
                     <svg
                       class="w-5 h-5 {achievement.placement === '1st Place'
-                        ? 'text-yellow-400'
+                        ? 'text-warning-400'
                         : achievement.placement === '2nd Place'
-                          ? 'text-gray-300'
+                          ? 'text-text-label'
                           : achievement.placement === '3rd Place'
-                            ? 'text-orange-400'
-                            : 'text-gray-500'}"
+                            ? 'text-primary-400'
+                            : 'text-text-muted'}"
                       fill="currentColor"
                       viewBox="0 0 24 24"
                     >
@@ -565,7 +568,7 @@
                         {achievement.event}
                       </span>
                     </div>
-                    <p class="text-xs text-gray-500 mt-0.5">
+                    <p class="text-xs text-text-muted mt-0.5">
                       {formatDate(achievement.date)}
                     </p>
                   </div>
@@ -574,25 +577,27 @@
             </div>
           {:else}
             <div class="px-4 py-6 text-center">
-              <p class="text-gray-500 text-sm">No achievements yet</p>
+              <p class="text-text-muted text-sm">No achievements yet</p>
             </div>
           {/if}
         </div>
 
         <!-- Tournaments -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-          <div class="bg-zinc-950/80 px-4 py-3 border-b border-zinc-800">
+        <div
+          class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+        >
+          <div class="bg-surface-page/80 px-4 py-3 border-b border-border-default">
             <h3 class="text-lg font-bold text-white">Tournaments</h3>
           </div>
           {#if tournaments.length > 0}
-            <div class="divide-y divide-zinc-800/50">
+            <div class="divide-y divide-border-default/50">
               {#each tournaments as t (t.id)}
                 <div
-                  class="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/30 transition-colors"
+                  class="flex items-center justify-between px-4 py-3 hover:bg-surface-input/30 transition-colors"
                 >
                   <div class="min-w-0">
                     <div class="text-sm text-white truncate">{t.name}</div>
-                    <div class="text-xs text-gray-600">{formatDate(t.date)}</div>
+                    <div class="text-xs text-text-muted">{formatDate(t.date)}</div>
                   </div>
                   <span
                     class="text-xs font-bold ml-3 whitespace-nowrap {getPlacementColor(
@@ -603,24 +608,26 @@
               {/each}
             </div>
           {:else}
-            <div class="px-4 py-6 text-center text-gray-500 text-sm">No tournament history</div>
+            <div class="px-4 py-6 text-center text-text-muted text-sm">No tournament history</div>
           {/if}
         </div>
 
         <!-- Fight Nights -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-          <div class="bg-zinc-950/80 px-4 py-3 border-b border-zinc-800">
+        <div
+          class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+        >
+          <div class="bg-surface-page/80 px-4 py-3 border-b border-border-default">
             <h3 class="text-lg font-bold text-white">Fight Nights</h3>
           </div>
           {#if fightNights.length > 0}
-            <div class="divide-y divide-zinc-800/50">
+            <div class="divide-y divide-border-default/50">
               {#each fightNights as fn (fn.id)}
                 <div
-                  class="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/30 transition-colors"
+                  class="flex items-center justify-between px-4 py-3 hover:bg-surface-input/30 transition-colors"
                 >
                   <div class="min-w-0">
                     <div class="text-sm text-white">{fn.fightNightName}</div>
-                    <div class="text-xs text-gray-500">vs {fn.opponent}</div>
+                    <div class="text-xs text-text-muted">vs {fn.opponent}</div>
                   </div>
                   <span
                     class="text-xs font-bold font-mono ml-3 whitespace-nowrap {getResultColor(
@@ -634,7 +641,7 @@
               {/each}
             </div>
           {:else}
-            <div class="px-4 py-6 text-center text-gray-500 text-sm">No Fight Night history</div>
+            <div class="px-4 py-6 text-center text-text-muted text-sm">No Fight Night history</div>
           {/if}
         </div>
       </aside>
@@ -643,15 +650,15 @@
       <main class="lg:col-span-9 space-y-6">
         <!-- 1v1 League -->
         <div
-          class="bg-zinc-900/80 backdrop-blur rounded-lg border border-purple-800/50 overflow-hidden"
+          class="bg-surface-card/80 backdrop-blur rounded-lg border border-purple-800/50 overflow-hidden"
         >
-          <div class="bg-zinc-950/80 px-6 py-4 border-b border-purple-800/50">
+          <div class="bg-surface-page/80 px-6 py-4 border-b border-purple-800/50">
             <h2 class="text-2xl font-bold text-white">1v1 League</h2>
-            <p class="text-sm text-gray-400 mt-1">Individual Competition</p>
+            <p class="text-sm text-text-body mt-1">Individual Competition</p>
           </div>
 
           {#if entries1v1.length > 0}
-            <div class="divide-y divide-zinc-800/50">
+            <div class="divide-y divide-border-default/50">
               {#each entries1v1 as entry (entry.id)}
                 {@const isOpen = expanded1v1[entry.id] ?? entry.active}
                 {@const pct = winPct(entry.wins, entry.losses)}
@@ -661,33 +668,33 @@
                     <button
                       type="button"
                       onclick={() => (expanded1v1[entry.id] = !isOpen)}
-                      class="flex-1 flex items-center justify-between px-6 py-4 hover:bg-zinc-800/30 transition-colors text-left"
+                      class="flex-1 flex items-center justify-between px-6 py-4 hover:bg-surface-input/30 transition-colors text-left"
                     >
                       <div class="flex items-center gap-4">
                         <span
                           class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {entry.active
                             ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                            : 'bg-zinc-800 text-gray-500 border-zinc-700'}"
+                            : 'bg-surface-input text-text-muted border-border-input'}"
                         >
                           S{entry.seasonNum}
                         </span>
                         <div>
                           <span class="font-semibold text-white text-sm">
                             {entry.division}
-                            <span class="text-gray-500 font-normal ml-1">· {entry.region}</span>
+                            <span class="text-text-muted font-normal ml-1">· {entry.region}</span>
                           </span>
                           <div class="flex items-center gap-3 mt-0.5">
                             <span
                               class="text-sm font-mono {entry.active
                                 ? 'text-purple-400'
-                                : 'text-gray-400'}"
+                                : 'text-text-body'}"
                             >
                               {entry.wins}–{entry.losses}
                             </span>
-                            <span class="text-xs text-gray-600">{pct}% WR</span>
+                            <span class="text-xs text-text-muted">{pct}% WR</span>
                             {#if entry.active}
                               <span
-                                class="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded border border-green-500/30"
+                                class="text-xs px-2 py-0.5 bg-success-500/20 text-success-400 rounded border border-success-500/30"
                                 >Active</span
                               >
                             {/if}
@@ -695,7 +702,7 @@
                         </div>
                       </div>
                       <svg
-                        class="w-4 h-4 text-gray-600 transition-transform duration-200 flex-shrink-0 {isOpen
+                        class="w-4 h-4 text-text-muted transition-transform duration-200 flex-shrink-0 {isOpen
                           ? 'rotate-180'
                           : ''}"
                         fill="none"
@@ -716,13 +723,13 @@
                           {#if isOwnProfile}
                             <a
                               href="/checkout/{player.steamId}?teamId={entry.id}"
-                              class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                              class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400 hover:bg-danger-500/20 transition-colors"
                             >
                               Payment Required
                             </a>
                           {:else}
                             <span
-                              class="px-3 py-1 text-xs font-medium rounded border bg-red-500/10 border-red-500/30 text-red-400"
+                              class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400"
                             >
                               Payment Required
                             </span>
@@ -750,7 +757,7 @@
                             <input type="hidden" name="teamId" value={entry.id} />
                             <button
                               type="submit"
-                              class="text-xs px-2 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded border border-green-500/30 transition-colors whitespace-nowrap"
+                              class="text-xs px-2 py-1 bg-success-500/20 hover:bg-success-500/30 text-success-400 rounded border border-success-500/30 transition-colors whitespace-nowrap"
                             >
                               Mark as Paid
                             </button>
@@ -771,7 +778,7 @@
                         {#if isOwnProfile}
                           <button
                             type="button"
-                            class="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors whitespace-nowrap"
+                            class="text-xs px-2 py-1 bg-danger-500/20 hover:bg-danger-500/30 text-danger-400 rounded border border-danger-500/30 transition-colors whitespace-nowrap"
                             onclick={() => (withdrawingEntry = entry)}
                           >
                             Withdraw
@@ -782,12 +789,12 @@
                   </div>
 
                   {#if isOpen}
-                    <div class="border-t border-zinc-800/50">
+                    <div class="border-t border-border-default/50">
                       {#if entry.matches.length > 0}
                         <table class="w-full text-sm">
                           <thead>
                             <tr
-                              class="bg-zinc-950/60 text-xs text-gray-600 uppercase tracking-wide"
+                              class="bg-surface-page/60 text-xs text-text-muted uppercase tracking-wide"
                             >
                               <th class="text-left px-6 py-2 font-medium">Week</th>
                               <th class="text-left px-6 py-2 font-medium">Opponent</th>
@@ -798,18 +805,18 @@
                           <tbody>
                             {#each entry.matches as match (match.matchId)}
                               <tr
-                                class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result ===
+                                class="border-t border-border-default/30 hover:bg-surface-input/20 transition-colors {match.result ===
                                 'TBD'
                                   ? 'opacity-50'
                                   : ''}"
                               >
-                                <td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap"
+                                <td class="px-6 py-2.5 text-text-muted text-xs whitespace-nowrap"
                                   >{match.week}</td
                                 >
                                 <td class="px-6 py-2.5">
                                   <a
                                     href="/matches/{match.matchId}"
-                                    class="text-white hover:text-blue-400 transition-colors font-medium text-sm"
+                                    class="text-white hover:text-primary-400 transition-colors font-medium text-sm"
                                   >
                                     {match.opponentName || 'TBD'}
                                   </a>
@@ -835,7 +842,9 @@
                           </tbody>
                         </table>
                       {:else}
-                        <div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
+                        <div class="px-6 py-4 text-sm text-text-muted">
+                          No matches scheduled yet.
+                        </div>
                       {/if}
                     </div>
                   {/if}
@@ -844,11 +853,11 @@
             </div>
           {:else}
             <div class="px-6 py-8 text-center">
-              <p class="text-gray-500 text-sm">No 1v1 season history</p>
+              <p class="text-text-muted text-sm">No 1v1 season history</p>
               {#if isOwnProfile}
                 <a
                   href="/leagues/1v1"
-                  class="inline-block mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors"
+                  class="inline-block mt-3 px-4 py-2 bg-format-1v1-600 hover:bg-format-1v1-500 text-white text-sm font-medium rounded-lg transition-colors"
                 >
                   Browse 1v1 League
                 </a>
@@ -858,14 +867,16 @@
         </div>
 
         <!-- 2v2 League -->
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
-          <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+        <div
+          class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+        >
+          <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
             <h2 class="text-2xl font-bold text-white">2v2 League</h2>
-            <p class="text-sm text-gray-400 mt-1">Team Competition</p>
+            <p class="text-sm text-text-body mt-1">Team Competition</p>
           </div>
 
           {#if teams2v2.length > 0}
-            <div class="divide-y divide-zinc-800/50">
+            <div class="divide-y divide-border-default/50">
               {#each teams2v2 as team (team.teamId)}
                 {@const isOpen = expanded2v2[team.teamId] ?? team.active}
                 {@const pct = winPct(team.wins, team.losses)}
@@ -874,15 +885,15 @@
                   <button
                     type="button"
                     onclick={() => (expanded2v2[team.teamId] = !isOpen)}
-                    class="w-full flex items-center justify-between px-6 py-4 hover:bg-zinc-800/30 transition-colors text-left {team.active
-                      ? 'bg-green-500/5'
+                    class="w-full flex items-center justify-between px-6 py-4 hover:bg-surface-input/30 transition-colors text-left {team.active
+                      ? 'bg-success-500/5'
                       : 'opacity-70'}"
                   >
                     <div class="flex items-center gap-4">
                       <span
                         class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {team.active
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                          : 'bg-zinc-800 text-gray-500 border-zinc-700'}"
+                          ? 'bg-success-500/20 text-success-400 border-success-500/30'
+                          : 'bg-surface-input text-text-muted border-border-input'}"
                       >
                         S{team.seasonNum}
                       </span>
@@ -890,27 +901,27 @@
                         <span class="font-semibold text-white text-sm">
                           <a
                             href="/teams/{team.teamId}"
-                            class="hover:text-blue-400 transition-colors"
+                            class="hover:text-primary-400 transition-colors"
                             onclick={(e) => e.stopPropagation()}
                           >
                             {team.teamName}
                           </a>
-                          <span class="text-gray-500 font-normal ml-1"
+                          <span class="text-text-muted font-normal ml-1"
                             >· {team.division} · {team.regionName}</span
                           >
                         </span>
                         <div class="flex items-center gap-3 mt-0.5">
                           <span
                             class="text-sm font-mono {team.active
-                              ? 'text-green-400'
-                              : 'text-gray-400'}"
+                              ? 'text-success-400'
+                              : 'text-text-body'}"
                           >
                             {team.wins}–{team.losses}
                           </span>
-                          <span class="text-xs text-gray-600">{pct}% WR</span>
+                          <span class="text-xs text-text-muted">{pct}% WR</span>
                           {#if team.active}
                             <span
-                              class="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded border border-green-500/30"
+                              class="text-xs px-2 py-0.5 bg-success-500/20 text-success-400 rounded border border-success-500/30"
                               >Active</span
                             >
                           {/if}
@@ -918,7 +929,7 @@
                       </div>
                     </div>
                     <svg
-                      class="w-4 h-4 text-gray-600 transition-transform duration-200 flex-shrink-0 {isOpen
+                      class="w-4 h-4 text-text-muted transition-transform duration-200 flex-shrink-0 {isOpen
                         ? 'rotate-180'
                         : ''}"
                       fill="none"
@@ -935,12 +946,12 @@
                   </button>
 
                   {#if isOpen}
-                    <div class="border-t border-zinc-800/50">
+                    <div class="border-t border-border-default/50">
                       {#if team.matches.length > 0}
                         <table class="w-full text-sm">
                           <thead>
                             <tr
-                              class="bg-zinc-950/60 text-xs text-gray-600 uppercase tracking-wide"
+                              class="bg-surface-page/60 text-xs text-text-muted uppercase tracking-wide"
                             >
                               <th class="text-left px-6 py-2 font-medium">Week</th>
                               <th class="text-left px-6 py-2 font-medium">Opponent</th>
@@ -951,24 +962,24 @@
                           <tbody>
                             {#each team.matches as match (match.matchId)}
                               <tr
-                                class="border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors {match.result ===
+                                class="border-t border-border-default/30 hover:bg-surface-input/20 transition-colors {match.result ===
                                 'TBD'
                                   ? 'opacity-50'
                                   : ''}"
                               >
-                                <td class="px-6 py-2.5 text-gray-500 text-xs whitespace-nowrap"
+                                <td class="px-6 py-2.5 text-text-muted text-xs whitespace-nowrap"
                                   >{match.week}</td
                                 >
                                 <td class="px-6 py-2.5">
                                   {#if match.opponentId}
                                     <a
                                       href="/teams/{match.opponentId}"
-                                      class="text-white hover:text-blue-400 transition-colors font-medium text-sm"
+                                      class="text-white hover:text-primary-400 transition-colors font-medium text-sm"
                                     >
                                       {match.opponentName}
                                     </a>
                                   {:else}
-                                    <span class="text-gray-600 italic text-sm">TBD</span>
+                                    <span class="text-text-muted italic text-sm">TBD</span>
                                   {/if}
                                 </td>
                                 <td class="px-6 py-2.5 text-center">
@@ -992,7 +1003,9 @@
                           </tbody>
                         </table>
                       {:else}
-                        <div class="px-6 py-4 text-sm text-gray-500">No matches scheduled yet.</div>
+                        <div class="px-6 py-4 text-sm text-text-muted">
+                          No matches scheduled yet.
+                        </div>
                       {/if}
                     </div>
                   {/if}
@@ -1001,14 +1014,11 @@
             </div>
           {:else}
             <div class="px-6 py-8 text-center">
-              <p class="text-gray-500 text-sm">No 2v2 season history</p>
+              <p class="text-text-muted text-sm">No 2v2 season history</p>
               {#if isOwnProfile}
-                <a
-                  href="/leagues/2v2"
-                  class="inline-block mt-3 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 text-sm font-medium rounded-lg border border-zinc-700 transition-colors"
-                >
+                <Button href="/leagues/2v2" variant="secondary" size="sm" class="mt-3">
                   Browse 2v2 League
-                </a>
+                </Button>
               {/if}
             </div>
           {/if}
@@ -1024,28 +1034,29 @@
   title="Unlink Discord Account"
   onClose={() => (showUnlinkDiscordConfirm = false)}
 >
-  <p class="text-gray-400 mb-4">
+  <p class="text-text-body mb-4">
     Are you sure you want to unlink <span class="text-white font-medium">{player.name}</span>'s
     Discord account?
   </p>
 
   {#if player.discordUsername}
-    <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+    <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
       <div class="flex items-center gap-2">
         <DiscordIcon size={16} />
-        <span class="text-green-400 text-sm">{player.discordUsername}</span>
+        <span class="text-success-400 text-sm">{player.discordUsername}</span>
       </div>
     </div>
   {/if}
 
   {#snippet footer()}
-    <button
+    <Button
       type="button"
+      variant="secondary"
+      class="flex-1"
       onclick={() => (showUnlinkDiscordConfirm = false)}
-      class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
     >
       Cancel
-    </button>
+    </Button>
     <form
       method="POST"
       action="?/unlinkDiscord"
@@ -1064,13 +1075,9 @@
       }}
       class="flex-1"
     >
-      <button
-        type="submit"
-        disabled={isUnlinkingDiscord}
-        class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
+      <Button type="submit" variant="danger" disabled={isUnlinkingDiscord} class="w-full">
         {isUnlinkingDiscord ? 'Unlinking...' : 'Unlink Discord'}
-      </button>
+      </Button>
     </form>
   {/snippet}
 </Dialog>
@@ -1081,39 +1088,40 @@
   title="Withdraw from 1v1 League"
   onClose={() => (withdrawingEntry = null)}
 >
-  <p class="text-gray-400 mb-4">
+  <p class="text-text-body mb-4">
     Are you sure you want to withdraw from the 1v1 league? This action cannot be undone.
   </p>
 
   {#if withdrawingEntry}
-    <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+    <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
       <div class="flex justify-between text-sm">
-        <span class="text-gray-400">Division:</span>
+        <span class="text-text-body">Division:</span>
         <span class="text-white">{withdrawingEntry.division}</span>
       </div>
       <div class="flex justify-between text-sm mt-1">
-        <span class="text-gray-400">Region:</span>
+        <span class="text-text-body">Region:</span>
         <span class="text-white">{withdrawingEntry.region}</span>
       </div>
       <div class="flex justify-between text-sm mt-1">
-        <span class="text-gray-400">Season:</span>
+        <span class="text-text-body">Season:</span>
         <span class="text-white">S{withdrawingEntry.seasonNum}</span>
       </div>
       <div class="flex justify-between text-sm mt-1">
-        <span class="text-gray-400">Record:</span>
+        <span class="text-text-body">Record:</span>
         <span class="text-white">{withdrawingEntry.wins}-{withdrawingEntry.losses}</span>
       </div>
     </div>
   {/if}
 
   {#snippet footer()}
-    <button
+    <Button
       type="button"
+      variant="secondary"
+      class="flex-1"
       onclick={() => (withdrawingEntry = null)}
-      class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
     >
       Cancel
-    </button>
+    </Button>
     {#if withdrawingEntry}
       <form
         method="POST"
@@ -1129,13 +1137,9 @@
         class="flex-1"
       >
         <input type="hidden" name="teamId" value={withdrawingEntry.id} />
-        <button
-          type="submit"
-          disabled={isWithdrawing}
-          class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <Button type="submit" variant="danger" disabled={isWithdrawing} class="w-full">
           {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-        </button>
+        </Button>
       </form>
     {/if}
   {/snippet}
@@ -1172,13 +1176,14 @@
   {/if}
 
   {#snippet footer()}
-    <button
+    <Button
       type="button"
+      variant="secondary"
+      class="flex-1"
       onclick={() => (changeDivisionEntry = null)}
-      class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
     >
       Cancel
-    </button>
+    </Button>
     {#if changeDivisionEntry}
       <form
         method="POST"
@@ -1200,14 +1205,14 @@
       >
         <input type="hidden" name="teamId" value={changeDivisionEntry.id} />
         <input type="hidden" name="divisionId" value={changeDivisionSelected} />
-        <button
+        <Button
           type="submit"
           disabled={isChangingDivision ||
             changeDivisionSelected === (changeDivisionEntry.divisionId ?? 0)}
-          class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-full"
         >
           {isChangingDivision ? 'Updating...' : 'Update Division'}
-        </button>
+        </Button>
       </form>
     {/if}
   {/snippet}
@@ -1219,17 +1224,17 @@
   title={player.nameOverride === 1 ? 'Manage Locked Name' : 'Set Custom Name'}
   onClose={() => (showEditName = false)}
 >
-  <div class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg mb-4">
+  <div class="flex items-center gap-3 p-3 bg-surface-input rounded-lg mb-4">
     {#if player.avatar}
       <img src={player.avatar} alt={player.name} class="w-10 h-10 rounded" />
     {/if}
     <div>
       <p class="text-white font-medium">{player.name}</p>
-      <p class="text-xs text-gray-500 font-mono">{player.steamId}</p>
+      <p class="text-xs text-text-muted font-mono">{player.steamId}</p>
     </div>
     {#if player.nameOverride === 1}
       <span
-        class="ml-auto px-2 py-0.5 text-[10px] font-bold rounded bg-orange-500/20 text-orange-400 border border-orange-500/30"
+        class="ml-auto px-2 py-0.5 text-[10px] font-bold rounded bg-orange-500/20 text-primary-400 border border-orange-500/30"
       >
         LOCKED
       </span>
@@ -1256,7 +1261,7 @@
       }}
     >
       <div class="mb-4">
-        <label for="edit-name" class="block text-sm font-medium text-gray-300 mb-2">
+        <label for="edit-name" class="block text-sm font-medium text-text-label mb-2">
           Change locked name
         </label>
         <input
@@ -1267,13 +1272,13 @@
           maxlength="64"
           required
           placeholder="New display name..."
-          class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
     </form>
 
-    <div class="border-t border-zinc-800 pt-4 mt-4">
-      <p class="text-xs text-gray-500">
+    <div class="border-t border-border-default pt-4 mt-4">
+      <p class="text-xs text-text-muted">
         Or unlock the name to let it sync from Steam on next login.
       </p>
       <form
@@ -1296,7 +1301,7 @@
       ></form>
     </div>
   {:else}
-    <p class="text-sm text-gray-400 mb-4">
+    <p class="text-sm text-text-body mb-4">
       This will set a custom name and lock it. The name will no longer auto-update from Steam.
     </p>
 
@@ -1319,7 +1324,7 @@
       }}
     >
       <div>
-        <label for="edit-name-new" class="block text-sm font-medium text-gray-300 mb-2">
+        <label for="edit-name-new" class="block text-sm font-medium text-text-label mb-2">
           Display Name
         </label>
         <input
@@ -1330,7 +1335,7 @@
           maxlength="64"
           required
           placeholder={player.name}
-          class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
     </form>
@@ -1338,48 +1343,46 @@
 
   {#snippet footer()}
     {#if player.nameOverride === 1}
-      <button
+      <Button
         type="submit"
         form="form-unlock-name"
+        variant="secondary"
         disabled={isAdminSubmitting}
-        class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
       >
         {isAdminSubmitting ? 'Unlocking...' : 'Unlock Name'}
-      </button>
+      </Button>
       <div class="flex-1"></div>
-      <button
-        type="button"
-        onclick={() => (showEditName = false)}
-        class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
-      >
+      <Button type="button" variant="secondary" onclick={() => (showEditName = false)}>
         Cancel
-      </button>
-      <button
+      </Button>
+      <Button
         type="submit"
         form="form-lock-name"
+        variant="primary"
         disabled={isAdminSubmitting ||
           !editNameValue.trim() ||
           editNameValue.trim() === player.name}
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
       >
         {isAdminSubmitting ? 'Saving...' : 'Save'}
-      </button>
+      </Button>
     {:else}
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        class="flex-1"
         onclick={() => (showEditName = false)}
-        class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
       >
         Cancel
-      </button>
-      <button
+      </Button>
+      <Button
         type="submit"
         form="form-lock-name"
+        variant="primary"
+        class="flex-1"
         disabled={isAdminSubmitting || !editNameValue.trim()}
-        class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
       >
         {isAdminSubmitting ? 'Saving...' : 'Set & Lock Name'}
-      </button>
+      </Button>
     {/if}
   {/snippet}
 </Dialog>
@@ -1392,16 +1395,16 @@
 >
   <div class="flex items-center gap-4 mb-4">
     <div class="flex-shrink-0">
-      <p class="text-xs text-gray-500 mb-1">Current</p>
+      <p class="text-xs text-text-muted mb-1">Current</p>
       {#if player.avatar}
         <img
           src={player.avatar}
           alt={player.name}
-          class="w-16 h-16 rounded-lg border border-zinc-700"
+          class="w-16 h-16 rounded-lg border border-border-input"
         />
       {:else}
         <div
-          class="w-16 h-16 rounded-lg border border-zinc-700 bg-zinc-800 flex items-center justify-center text-gray-500 text-xs"
+          class="w-16 h-16 rounded-lg border border-border-input bg-surface-input flex items-center justify-center text-text-muted text-xs"
         >
           None
         </div>
@@ -1409,11 +1412,11 @@
     </div>
     {#if editAvatarValue.trim()}
       <div class="flex-shrink-0">
-        <p class="text-xs text-gray-500 mb-1">Preview</p>
+        <p class="text-xs text-text-muted mb-1">Preview</p>
         <img
           src={editAvatarValue}
           alt="Preview"
-          class="w-16 h-16 rounded-lg border border-zinc-700 object-cover"
+          class="w-16 h-16 rounded-lg border border-border-input object-cover"
           onerror={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = 'none';
           }}
@@ -1441,7 +1444,7 @@
     }}
   >
     <div>
-      <label for="edit-avatar" class="block text-sm font-medium text-gray-300 mb-2">
+      <label for="edit-avatar" class="block text-sm font-medium text-text-label mb-2">
         Avatar URL
       </label>
       <input
@@ -1450,10 +1453,10 @@
         type="url"
         bind:value={editAvatarValue}
         placeholder="https://example.com/avatar.png"
-        class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+        class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
       />
       {#if player.avatarOverride === 0}
-        <p class="mt-1.5 text-xs text-gray-500">
+        <p class="mt-1.5 text-xs text-text-muted">
           Setting an avatar URL will lock it, preventing Steam from overwriting it on login.
         </p>
       {/if}
@@ -1461,8 +1464,8 @@
   </form>
 
   {#if player.avatarOverride === 1}
-    <div class="border-t border-zinc-800 pt-4 mt-4">
-      <p class="text-xs text-gray-500">
+    <div class="border-t border-border-default pt-4 mt-4">
+      <p class="text-xs text-text-muted">
         Or unlock the avatar to let it sync from Steam on next login.
       </p>
       <form
@@ -1488,46 +1491,44 @@
 
   {#snippet footer()}
     {#if player.avatarOverride === 1}
-      <button
+      <Button
         type="submit"
         form="form-unlock-avatar"
+        variant="secondary"
         disabled={isAdminSubmitting}
-        class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
       >
         {isAdminSubmitting ? 'Unlocking...' : 'Unlock Avatar'}
-      </button>
+      </Button>
       <div class="flex-1"></div>
-      <button
-        type="button"
-        onclick={() => (showEditAvatar = false)}
-        class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
-      >
+      <Button type="button" variant="secondary" onclick={() => (showEditAvatar = false)}>
         Cancel
-      </button>
-      <button
+      </Button>
+      <Button
         type="submit"
         form="form-edit-avatar"
+        variant="primary"
         disabled={isAdminSubmitting || !editAvatarValue.trim()}
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
       >
         {isAdminSubmitting ? 'Saving...' : 'Save'}
-      </button>
+      </Button>
     {:else}
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        class="flex-1"
         onclick={() => (showEditAvatar = false)}
-        class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
       >
         Cancel
-      </button>
-      <button
+      </Button>
+      <Button
         type="submit"
         form="form-edit-avatar"
+        variant="primary"
+        class="flex-1"
         disabled={isAdminSubmitting || !editAvatarValue.trim()}
-        class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
       >
         {isAdminSubmitting ? 'Saving...' : 'Set & Lock Avatar'}
-      </button>
+      </Button>
     {/if}
   {/snippet}
 </Dialog>
@@ -1541,13 +1542,13 @@
     punishSeverity = '';
   }}
 >
-  <div class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg mb-4">
+  <div class="flex items-center gap-3 p-3 bg-surface-input rounded-lg mb-4">
     {#if player.avatar}
       <img src={player.avatar} alt={player.name} class="w-10 h-10 rounded" />
     {/if}
     <div>
       <p class="text-white font-medium">{player.name}</p>
-      <p class="text-xs text-gray-500 font-mono">{player.steamId}</p>
+      <p class="text-xs text-text-muted font-mono">{player.steamId}</p>
     </div>
     {#if getBanBadge(player.banStatus)}
       {@const badge = getBanBadge(player.banStatus)!}
@@ -1577,7 +1578,7 @@
     }}
   >
     <div class="mb-4">
-      <label for="punish-severity" class="block text-sm font-medium text-gray-300 mb-2">
+      <label for="punish-severity" class="block text-sm font-medium text-text-label mb-2">
         Status
       </label>
       <select
@@ -1585,7 +1586,7 @@
         name="severity"
         required
         bind:value={punishSeverity}
-        class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+        class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
       >
         <option value="" disabled>Select status...</option>
         <option value="NONE">None (Clear punishment)</option>
@@ -1597,7 +1598,7 @@
 
     {#if punishSeverity && punishSeverity !== 'NONE'}
       <div class="mb-4">
-        <label for="punish-duration" class="block text-sm font-medium text-gray-300 mb-2">
+        <label for="punish-duration" class="block text-sm font-medium text-text-label mb-2">
           Duration (days)
         </label>
         <input
@@ -1606,14 +1607,14 @@
           type="number"
           min="1"
           placeholder="Leave empty for permanent"
-          class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
-        <p class="mt-1.5 text-xs text-gray-500">Leave empty for permanent punishment.</p>
+        <p class="mt-1.5 text-xs text-text-muted">Leave empty for permanent punishment.</p>
       </div>
 
       <div class="mb-4">
-        <label for="punish-reason" class="block text-sm font-medium text-gray-300 mb-2">
-          Reason <span class="text-red-500">*</span>
+        <label for="punish-reason" class="block text-sm font-medium text-text-label mb-2">
+          Reason <span class="text-danger-500">*</span>
         </label>
         <textarea
           id="punish-reason"
@@ -1621,20 +1622,20 @@
           rows="3"
           required
           placeholder="Explain why this user is being punished..."
-          class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors resize-none"
+          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
         ></textarea>
       </div>
     {/if}
 
     {#if punishSeverity === 'NONE'}
-      <div class="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-        <p class="text-green-400 text-xs">
+      <div class="p-3 bg-success-500/10 border border-success-500/30 rounded-lg">
+        <p class="text-success-400 text-xs">
           This will clear the user's punishment status and deactivate all active records.
         </p>
       </div>
     {:else if punishSeverity}
-      <div class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-        <p class="text-red-400 text-xs">
+      <div class="p-3 bg-danger-500/10 border border-danger-500/30 rounded-lg">
+        <p class="text-danger-400 text-xs">
           This will create a punishment record and update the user's ban status.
         </p>
       </div>
@@ -1642,29 +1643,29 @@
   </form>
 
   {#snippet footer()}
-    <button
+    <Button
       type="button"
+      variant="secondary"
+      class="flex-1"
       onclick={() => {
         showPunish = false;
         punishSeverity = '';
       }}
-      class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
     >
       Cancel
-    </button>
-    <button
+    </Button>
+    <Button
       type="submit"
       form="form-punish"
+      variant={punishSeverity === 'NONE' ? 'success' : 'danger'}
+      class="flex-1"
       disabled={isAdminSubmitting || !punishSeverity}
-      class="flex-1 px-4 py-2 {punishSeverity === 'NONE'
-        ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-600/50'
-        : 'bg-red-600 hover:bg-red-500 disabled:bg-red-600/50'} disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
     >
       {isAdminSubmitting
         ? 'Applying...'
         : punishSeverity === 'NONE'
           ? 'Clear Punishment'
           : 'Apply Punishment'}
-    </button>
+    </Button>
   {/snippet}
 </Dialog>

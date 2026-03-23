@@ -1,0 +1,44 @@
+---
+description: Prohibit raw Tailwind color classes in route files; enforce shared components
+alwaysApply: true
+---
+
+# No Raw Tailwind Colors in Route Files
+
+Route `.svelte` files must use shared components and design tokens, not raw Tailwind palette classes.
+
+## Always use components, never inline:
+
+- **Colored button / CTA:** `Button` from `$lib/components/ui/Button.svelte`
+- **Dark bordered container:** `Card` from `$lib/components/ui/Card.svelte`
+- **Status pill / label:** `Badge` from `$lib/components/ui/Badge.svelte`
+- **Labeled text input:** `FormInput` from `$lib/components/ui/form/FormInput.svelte`
+- **Labeled dropdown:** `FormSelect` from `$lib/components/ui/form/FormSelect.svelte`
+- **Destructive confirmation:** `ConfirmDialog` from `$lib/components/ui/ConfirmDialog.svelte` (never `window.confirm()`)
+
+## For any remaining color needs, use semantic tokens:
+
+```
+bg-surface-card     (not bg-zinc-900)
+bg-surface-input    (not bg-zinc-800)
+bg-surface-hover    (not bg-zinc-700)
+border-border-default  (not border-zinc-800)
+border-border-input    (not border-zinc-700)
+text-text-body      (not text-gray-400 / text-zinc-400)
+text-text-label     (not text-gray-300 / text-zinc-300)
+text-text-muted     (not text-gray-500 / text-zinc-500)
+bg-primary-600      (not bg-orange-600 for brand actions)
+bg-danger-600       (not bg-red-600)
+bg-success-600      (not bg-green-600 / bg-emerald-600)
+bg-warning-600      (not bg-yellow-600 / bg-amber-600)
+focus:ring-primary-500  (not focus:ring-blue-500 / focus:ring-orange-500)
+```
+
+## Format colors (only use in format-specific contexts):
+
+```
+bg-format-2v2-600   (2v2 league pages, 2v2 signup cards)
+bg-format-1v1-600   (1v1 league pages, 1v1 signup cards)
+```
+
+CI will fail if raw `bg-(blue|orange|indigo)-600 hover:bg-*` patterns appear in route files.

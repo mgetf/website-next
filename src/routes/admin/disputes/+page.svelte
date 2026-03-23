@@ -1,6 +1,9 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { PageData } from './$types';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
+  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -24,9 +27,9 @@
       case 'UNPLAYED':
         return 'bg-gray-500';
       case 'PLAYED':
-        return 'bg-green-500';
+        return 'bg-success-500';
       case 'DISPUTE':
-        return 'bg-red-500';
+        return 'bg-danger-500';
       default:
         return 'bg-gray-500';
     }
@@ -37,20 +40,20 @@
   <!-- Page Header -->
   <div>
     <h2 class="text-3xl font-bold text-white mb-2">Disputed Matches</h2>
-    <p class="text-gray-400">Review and resolve match disputes</p>
+    <p class="text-text-body">Review and resolve match disputes</p>
   </div>
 
   <!-- Disputed Matches List -->
   <div class="space-y-4">
     {#if data.disputedMatches.length === 0}
-      <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
+      <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">✅</div>
         <h3 class="text-xl font-bold text-white mb-2">No Disputed Matches</h3>
-        <p class="text-gray-400">All matches have been resolved</p>
-      </div>
+        <p class="text-text-body">All matches have been resolved</p>
+      </Card>
     {:else}
       {#each data.disputedMatches as match}
-        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+        <Card padding="lg">
           <div class="flex items-start justify-between mb-4">
             <div class="flex-1">
               <!-- Match Info -->
@@ -71,28 +74,28 @@
               <div class="flex items-center gap-3 mb-2">
                 <a
                   href="/teams/{match.homeTeam.id}"
-                  class="text-orange-400 hover:text-orange-300 font-medium transition-colors"
+                  class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
                 >
                   {match.homeTeam.name}
                 </a>
-                <span class="text-gray-500">vs</span>
+                <span class="text-text-muted">vs</span>
                 <a
                   href="/teams/{match.awayTeam.id}"
-                  class="text-orange-400 hover:text-orange-300 font-medium transition-colors"
+                  class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
                 >
                   {match.awayTeam.name}
                 </a>
               </div>
 
               <!-- Season & Result Info -->
-              <div class="flex items-center gap-3 text-sm text-gray-400">
+              <div class="flex items-center gap-3 text-sm text-text-body">
                 <span>
                   {match.season.region.name} - Season {match.season.seasonNum}
                   {#if match.weekNo}, Week {match.weekNo}{/if}
                 </span>
                 {#if match.winner}
                   <span>•</span>
-                  <span class="text-gray-300">
+                  <span class="text-text-label">
                     Winner: {match.winner.name} ({match.winnerScore}-{match.loserScore})
                   </span>
                 {/if}
@@ -100,12 +103,7 @@
             </div>
 
             <!-- View Match Button -->
-            <a
-              href="/matches/{match.id}"
-              class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-medium transition-colors"
-            >
-              View Details
-            </a>
+            <Button variant="primary" href="/matches/{match.id}">View Details</Button>
           </div>
 
           <!-- Resolution Form -->
@@ -119,32 +117,26 @@
                 isSubmitting = false;
               };
             }}
-            class="border-t border-zinc-800 pt-4 flex items-center gap-3"
+            class="border-t border-border-default pt-4 space-y-3"
           >
             <input type="hidden" name="matchId" value={match.id} />
 
-            <label for="status-{match.id}" class="text-sm font-medium text-gray-300">
-              Resolve Dispute:
-            </label>
-
-            <select
-              id="status-{match.id}"
+            <FormSelect
+              label="Resolve Dispute"
               name="status"
-              class="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              <option value="PLAYED">Mark as Played (Accept Result)</option>
-              <option value="UNPLAYED">Mark as Unplayed (Reset Match)</option>
-            </select>
+              value="PLAYED"
+              required
+              options={[
+                { value: 'PLAYED', label: 'Mark as Played (Accept Result)' },
+                { value: 'UNPLAYED', label: 'Mark as Unplayed (Reset Match)' },
+              ]}
+            />
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-medium transition-colors disabled:opacity-50"
-            >
+            <Button variant="primary" type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Resolving...' : 'Resolve'}
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
       {/each}
     {/if}
   </div>

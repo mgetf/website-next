@@ -70,16 +70,16 @@
   {/if}
 
   <div
-    class="subpixel-antialiased flex flex-col h-full overflow-hidden text-gray-200 relative z-10 {data
+    class="subpixel-antialiased flex flex-col h-full overflow-hidden text-text-label relative z-10 {data
       .siteSettings?.backgroundImagePath
       ? ''
-      : 'bg-zinc-950'}"
+      : 'bg-surface-page'}"
   >
     <LoadingBar />
 
     <!-- Environment indicator banner for staging (shown to admins) -->
     {#if data.appEnvironment === 'staging'}
-      <div class="bg-amber-600 px-4 py-1.5 text-center relative z-20">
+      <div class="bg-warning-600 px-4 py-1.5 text-center relative z-20">
         <span class="text-white text-sm font-semibold">
           ⚠️ Development Environment — Changes here are not live
         </span>
@@ -98,7 +98,7 @@
         />
 
         {#if data.announcements.length > 0 && !page.url.pathname.startsWith('/admin')}
-          <div class={data.siteSettings?.backgroundImagePath ? 'bg-zinc-950/50' : ''}>
+          <div class={data.siteSettings?.backgroundImagePath ? 'bg-surface-page/50' : ''}>
             <AnnouncementBanner announcements={data.announcements} />
           </div>
         {/if}

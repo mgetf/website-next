@@ -22,7 +22,7 @@
 
 <section
   class="relative py-12 px-6 bg-gradient-to-b from-zinc-950/80 to-zinc-900/60 backdrop-blur-sm{border
-    ? ' border-b border-zinc-800'
+    ? ' border-b border-border-default'
     : ''} {extraClass}"
 >
   <div class="{maxWidth} mx-auto">
@@ -31,7 +31,7 @@
     {:else}
       <h1 class="text-5xl font-black text-white mb-2">{title}</h1>
       {#if subtitle}
-        <p class="text-xl text-gray-400">{subtitle}</p>
+        <p class="text-xl text-text-body">{subtitle}</p>
       {/if}
     {/if}
   </div>

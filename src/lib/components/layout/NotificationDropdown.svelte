@@ -128,7 +128,7 @@
 <div class="notification-dropdown-container relative">
   <button
     onclick={toggleDropdown}
-    class="relative p-2 text-gray-400 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all"
+    class="relative p-2 text-text-body hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
     aria-label="Notifications"
   >
     <svg
@@ -147,7 +147,7 @@
     </svg>
     {#if notificationState.unreadCount > 0}
       <div
-        class="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold"
+        class="absolute top-1 right-1 bg-danger-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold"
         class:animate-bounce={notificationState.hasNewNotification}
       >
         {notificationState.unreadCount > 9 ? '9+' : notificationState.unreadCount}
@@ -157,13 +157,13 @@
 
   {#if open}
     <div
-      class="absolute right-0 mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50"
+      class="absolute right-0 mt-2 w-80 bg-surface-card border border-border-default rounded-lg shadow-xl overflow-hidden z-50"
     >
       <!-- Header -->
-      <div class="px-4 py-2 border-b border-zinc-800 flex justify-between items-center">
+      <div class="px-4 py-2 border-b border-border-default flex justify-between items-center">
         <span class="text-sm font-medium text-white">Notifications</span>
         {#if notificationState.unreadCount > 0}
-          <span class="text-xs text-gray-500">{notificationState.unreadCount} unread</span>
+          <span class="text-xs text-text-muted">{notificationState.unreadCount} unread</span>
         {/if}
       </div>
 
@@ -180,10 +180,10 @@
                   handleNotificationClick(notification);
                 }
               }}
-              class="w-full text-left px-4 py-3 border-b border-zinc-800/50 last:border-b-0 transition-all group
+              class="w-full text-left px-4 py-3 border-b border-border-default/50 last:border-b-0 transition-all group
 								{notification.isRead
-                ? 'bg-transparent hover:bg-zinc-800/30'
-                : 'bg-zinc-800/20 hover:bg-zinc-800/40'}"
+                ? 'bg-transparent hover:bg-surface-input/30'
+                : 'bg-surface-input/20 hover:bg-surface-input/40'}"
             >
               <div class="flex items-start gap-3">
                 <!-- Avatar or Icon -->
@@ -196,7 +196,7 @@
                     />
                   {:else}
                     <div
-                      class="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-lg"
+                      class="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-lg"
                     >
                       {getNotificationIcon(notification.type)}
                     </div>
@@ -207,7 +207,7 @@
                 <div class="flex-grow min-w-0">
                   <p
                     class="text-sm leading-snug {notification.isRead
-                      ? 'text-gray-400'
+                      ? 'text-text-body'
                       : 'text-white font-medium'}"
                   >
                     {#if notification.actor?.steamUsername}
@@ -215,7 +215,11 @@
                     {/if}
                     {notification.message || getFallbackText(notification.type)}
                   </p>
-                  <p class="text-xs {notification.isRead ? 'text-gray-600' : 'text-gray-500'} mt-1">
+                  <p
+                    class="text-xs {notification.isRead
+                      ? 'text-text-muted'
+                      : 'text-text-muted'} mt-1"
+                  >
                     {formatRelativeTime(notification.createdAt)}
                   </p>
                 </div>
@@ -224,7 +228,7 @@
                 {#if !notification.isRead}
                   <button
                     onclick={(e) => handleMarkOneRead(e, notification.id)}
-                    class="flex-shrink-0 p-1 text-gray-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    class="flex-shrink-0 p-1 text-text-muted hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Mark as read"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -243,11 +247,11 @@
         </div>
 
         <!-- Footer -->
-        <div class="border-t border-zinc-800 p-2 flex items-center justify-between gap-2">
+        <div class="border-t border-border-default p-2 flex items-center justify-between gap-2">
           {#if notificationState.unreadCount > 0}
             <button
               onclick={handleMarkAllRead}
-              class="flex-1 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-zinc-800/50 rounded transition-all"
+              class="flex-1 px-3 py-2 text-xs text-text-body hover:text-white hover:bg-surface-input/50 rounded transition-all"
             >
               Mark all as read
             </button>
@@ -259,7 +263,7 @@
             onclick={() => {
               open = false;
             }}
-            class="flex-1 px-3 py-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-zinc-800/50 rounded text-center transition-all"
+            class="flex-1 px-3 py-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-surface-input/50 rounded text-center transition-all"
           >
             See all notifications
           </a>
@@ -267,10 +271,10 @@
       {:else}
         <div class="px-4 py-8 text-center">
           <div
-            class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-3"
+            class="w-12 h-12 bg-surface-input rounded-full flex items-center justify-center mx-auto mb-3"
           >
             <svg
-              class="w-6 h-6 text-gray-500"
+              class="w-6 h-6 text-text-muted"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -283,8 +287,8 @@
               />
             </svg>
           </div>
-          <p class="text-gray-400 text-sm">No notifications yet</p>
-          <p class="text-gray-600 text-xs mt-1">You're all caught up!</p>
+          <p class="text-text-body text-sm">No notifications yet</p>
+          <p class="text-text-muted text-xs mt-1">You're all caught up!</p>
         </div>
       {/if}
     </div>

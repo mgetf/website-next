@@ -6,6 +6,9 @@
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -81,10 +84,10 @@
     goto('/users');
   }
 
-  function getRoleBadge(role: string) {
-    if (role === 'ADMIN') return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-    if (role === 'MODERATOR') return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
-    return 'bg-zinc-800 text-gray-400 border border-zinc-700';
+  function getRoleBadgeColor(role: string): 'purple' | 'blue' | 'zinc' {
+    if (role === 'ADMIN') return 'purple';
+    if (role === 'MODERATOR') return 'blue';
+    return 'zinc';
   }
 
   function getRoleLabel(role: string) {
@@ -93,11 +96,10 @@
     return 'Guest';
   }
 
-  function getBanBadge(status: string) {
-    if (status === 'BANNED') return 'bg-red-500/20 text-red-300 border border-red-500/30';
-    if (status === 'TEMP_BANNED')
-      return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
-    return '';
+  function getBanBadgeColor(status: string): 'red' | 'orange' | null {
+    if (status === 'BANNED') return 'red';
+    if (status === 'TEMP_BANNED') return 'orange';
+    return null;
   }
 
   function getBanLabel(status: string) {
@@ -120,11 +122,10 @@
     border
   />
   <div class="container mx-auto px-4 py-8 max-w-7xl">
-    <!-- Filters -->
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-6">
+    <Card padding="lg" class="mb-6">
       <form onsubmit={handleSearch} class="flex flex-col md:flex-row gap-4">
         <div class="flex-1">
-          <label for="search" class="block text-sm font-medium text-gray-400 mb-2"> Search </label>
+          <label for="search" class="block text-sm font-medium text-text-body mb-2">Search</label>
           <SearchInput
             bind:value={searchInput}
             placeholder="Search by username, Steam ID, or Discord..."
@@ -132,7 +133,7 @@
         </div>
 
         <div class="md:w-48">
-          <label for="role" class="block text-sm font-medium text-gray-400 mb-2">
+          <label for="role" class="block text-sm font-medium text-text-body mb-2">
             Filter by role
           </label>
           <SelectFilter
@@ -144,27 +145,15 @@
         </div>
 
         <div class="flex items-end gap-2">
-          <button
-            type="submit"
-            class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors"
-          >
-            Search
-          </button>
+          <Button type="submit">Search</Button>
 
           {#if data.filters.search || data.filters.role}
-            <button
-              type="button"
-              onclick={clearFilters}
-              class="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white font-medium rounded-lg transition-colors"
-            >
-              Clear
-            </button>
+            <Button type="button" variant="secondary" onclick={clearFilters}>Clear</Button>
           {/if}
         </div>
       </form>
-    </div>
+    </Card>
 
-    <!-- Users Table -->
     <DataTable
       data={data.users}
       {columns}
@@ -189,7 +178,7 @@
               class="w-8 h-8 rounded-full"
             />
             <span
-              class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors"
+              class="text-sm font-medium text-white group-hover:text-primary-400 transition-colors"
             >
               {user.steamUsername}
             </span>
@@ -198,36 +187,27 @@
           {#if user.discord?.discordUsername}
             <div class="flex items-center space-x-2 whitespace-nowrap">
               <DiscordIcon size={16} />
-              <span class="text-sm text-gray-300">
+              <span class="text-sm text-text-label">
                 {user.discord.discordUsername}
               </span>
             </div>
           {:else}
-            <span class="text-sm text-gray-500">—</span>
+            <span class="text-sm text-text-muted">—</span>
           {/if}
         {:else if col.key === 'role'}
-          <span
-            class="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap {getRoleBadge(
-              user.permissionLevel,
-            )}"
-          >
+          <Badge color={getRoleBadgeColor(user.permissionLevel)} class="whitespace-nowrap">
             {getRoleLabel(user.permissionLevel)}
-          </span>
+          </Badge>
         {:else if col.key === 'status'}
           {#if user.banStatus !== 'NONE'}
-            <span
-              class="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap {getBanBadge(
-                user.banStatus,
-              )}"
-            >
-              {getBanLabel(user.banStatus)}
-            </span>
+            {@const banColor = getBanBadgeColor(user.banStatus)}
+            {#if banColor}
+              <Badge color={banColor} class="whitespace-nowrap">
+                {getBanLabel(user.banStatus)}
+              </Badge>
+            {/if}
           {:else}
-            <span
-              class="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs font-semibold border border-green-500/30 whitespace-nowrap"
-            >
-              Active
-            </span>
+            <Badge color="green" class="whitespace-nowrap">Active</Badge>
           {/if}
         {/if}
       {/snippet}

@@ -118,12 +118,12 @@
     <h1 class="text-6xl font-black mb-8 text-white drop-shadow-2xl">2v2 MGE League</h1>
 
     {#if data.seasons.length === 0}
-      <p class="text-gray-400 text-lg">No 2v2 seasons have been created yet.</p>
+      <p class="text-text-body text-lg">No 2v2 seasons have been created yet.</p>
     {:else}
       <!-- Region & Season Controls -->
       <div class="flex items-start justify-center gap-8">
         <div class="flex flex-col items-center gap-2">
-          <span class="text-sm font-medium text-gray-400">Region</span>
+          <span class="text-sm font-medium text-text-body">Region</span>
           <div class="flex gap-2">
             {#each regionsWithSeasons as region}
               <button
@@ -131,8 +131,8 @@
                   selectedRegion = region.id;
                 }}
                 class="px-6 py-2 rounded font-medium transition-all {selectedRegion === region.id
-                  ? 'bg-zinc-700 text-white border border-zinc-600'
-                  : 'bg-zinc-900 text-gray-300 hover:bg-zinc-800 border border-zinc-800'}"
+                  ? 'bg-surface-hover text-white border border-zinc-600'
+                  : 'bg-surface-card text-text-label hover:bg-surface-input border border-border-default'}"
               >
                 {getRegionAbbr(region.id)}
               </button>
@@ -141,10 +141,10 @@
         </div>
 
         <div class="flex flex-col items-center gap-2">
-          <span class="text-sm font-medium text-gray-400">Season</span>
+          <span class="text-sm font-medium text-text-body">Season</span>
           <select
             bind:value={selectedSeason}
-            class="px-6 py-2 bg-zinc-900 text-white rounded border border-zinc-800 hover:bg-zinc-800 transition-all cursor-pointer"
+            class="px-6 py-2 bg-surface-card text-white rounded border border-border-default hover:bg-surface-input transition-all cursor-pointer"
           >
             {#each data.seasons.filter((s: (typeof data.seasons)[number]) => s.regionId === selectedRegion) as season}
               <option value={season.id}>{season.name}</option>
@@ -154,21 +154,21 @@
       </div>
 
       <!-- Tabs -->
-      <div class="inline-flex items-center gap-1 mt-8 bg-zinc-900/60 rounded-lg p-1">
+      <div class="inline-flex items-center gap-1 mt-8 bg-surface-card/60 rounded-lg p-1">
         <button
           onclick={() => (activeTab = 'standings')}
           class="px-5 py-2 rounded-md text-sm font-semibold transition-all {activeTab ===
           'standings'
-            ? 'bg-zinc-700 text-white shadow-sm'
-            : 'text-gray-400 hover:text-white hover:bg-zinc-800/50'}"
+            ? 'bg-surface-hover text-white shadow-sm'
+            : 'text-text-body hover:text-white hover:bg-surface-input/50'}"
         >
           Standings
         </button>
         <button
           onclick={() => (activeTab = 'info')}
           class="px-5 py-2 rounded-md text-sm font-semibold transition-all {activeTab === 'info'
-            ? 'bg-zinc-700 text-white shadow-sm'
-            : 'text-gray-400 hover:text-white hover:bg-zinc-800/50'}"
+            ? 'bg-surface-hover text-white shadow-sm'
+            : 'text-text-body hover:text-white hover:bg-surface-input/50'}"
         >
           Season Info
         </button>
@@ -192,25 +192,25 @@
         >
           <input type="hidden" name="seasonId" value={data.selectedSeasonId} />
           <div
-            class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden"
+            class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
           >
             <div
-              class="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950/50"
+              class="flex items-center justify-between px-4 py-3 border-b border-border-default bg-surface-page/50"
             >
-              <div class="flex items-center gap-1 bg-zinc-800/60 rounded-md p-1">
+              <div class="flex items-center gap-1 bg-surface-input/60 rounded-md p-1">
                 <button
                   type="button"
                   onclick={() => (showPreview = false)}
                   class="px-3 py-1 rounded text-xs font-semibold transition-all {!showPreview
-                    ? 'bg-zinc-600 text-white'
-                    : 'text-gray-400 hover:text-white'}">Edit</button
+                    ? 'bg-surface-hover text-white'
+                    : 'text-text-body hover:text-white'}">Edit</button
                 >
                 <button
                   type="button"
                   onclick={() => (showPreview = true)}
                   class="px-3 py-1 rounded text-xs font-semibold transition-all {showPreview
-                    ? 'bg-zinc-600 text-white'
-                    : 'text-gray-400 hover:text-white'}">Preview</button
+                    ? 'bg-surface-hover text-white'
+                    : 'text-text-body hover:text-white'}">Preview</button
                 >
               </div>
               <div class="flex items-center gap-2">
@@ -231,7 +231,7 @@
                 {#if editContent.trim()}
                   <MarkdownRenderer content={editContent} />
                 {:else}
-                  <p class="text-gray-500 text-sm italic">Nothing to preview.</p>
+                  <p class="text-text-muted text-sm italic">Nothing to preview.</p>
                 {/if}
               </div>
             {:else}
@@ -240,18 +240,20 @@
                 bind:value={editContent}
                 rows="24"
                 placeholder="Write season info using Markdown...&#10;&#10;## Key Dates&#10;| Event | Date |&#10;|---|---|&#10;&#10;### Weekly Arena Schedule&#10;..."
-                class="w-full bg-transparent text-gray-200 text-sm font-mono p-6 resize-none outline-none placeholder-zinc-600 leading-relaxed"
+                class="w-full bg-transparent text-white text-sm font-mono p-6 resize-none outline-none placeholder-text-muted leading-relaxed"
               ></textarea>
             {/if}
           </div>
         </form>
       {:else}
-        <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden">
+        <div
+          class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+        >
           {#if data.isAdmin}
             <div
-              class="flex items-center justify-between px-6 py-3 border-b border-zinc-800 bg-zinc-950/50"
+              class="flex items-center justify-between px-6 py-3 border-b border-border-default bg-surface-page/50"
             >
-              <span class="text-xs text-gray-500">Markdown supported</span>
+              <span class="text-xs text-text-muted">Markdown supported</span>
               <Button
                 variant="secondary"
                 size="sm"
@@ -268,15 +270,15 @@
               <MarkdownRenderer content={data.seasonInfo} />
             {:else if data.isAdmin}
               <div class="text-center py-10">
-                <p class="text-gray-400 font-medium">No season info yet.</p>
-                <p class="text-gray-500 text-sm mt-1">
+                <p class="text-text-body font-medium">No season info yet.</p>
+                <p class="text-text-muted text-sm mt-1">
                   Click Edit to add information for this season.
                 </p>
               </div>
             {:else}
               <div class="text-center py-12">
                 <svg
-                  class="w-12 h-12 text-gray-600 mx-auto mb-4"
+                  class="w-12 h-12 text-text-muted mx-auto mb-4"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -288,8 +290,8 @@
                     d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"
                   />
                 </svg>
-                <p class="text-gray-400 text-lg font-medium">No season information available</p>
-                <p class="text-gray-500 text-sm mt-1">
+                <p class="text-text-body text-lg font-medium">No season information available</p>
+                <p class="text-text-muted text-sm mt-1">
                   Admins haven't published info for this season yet.
                 </p>
               </div>
@@ -305,51 +307,46 @@
         <!-- Left Sidebar - Deadlines -->
         <aside class="lg:col-span-3 space-y-4">
           <!-- Team Registration Deadline -->
-          <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
-            <h3 class="text-sm font-medium text-gray-400 mb-3">Team Registration</h3>
+          <div class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default p-6">
+            <h3 class="text-sm font-medium text-text-body mb-3">Team Registration</h3>
             <div
               class="text-4xl font-black {data.deadlines.signupClosed
-                ? 'text-red-500'
-                : 'text-green-500'} mb-4"
+                ? 'text-danger-500'
+                : 'text-success-500'} mb-4"
             >
               {data.deadlines.signupClosed ? 'CLOSED' : 'OPEN'}
             </div>
             {#if !data.deadlines.signupClosed && !data.userAlreadySignedUp}
-              <a
-                href={signupHref}
-                class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Sign Up Now
-              </a>
+              <Button href={signupHref} variant="primary" size="sm">Sign Up Now</Button>
             {/if}
           </div>
 
           <!-- Payments Due -->
-          <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
-            <h3 class="text-sm font-medium text-gray-400 mb-4">Payment Status</h3>
+          <div class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default p-6">
+            <h3 class="text-sm font-medium text-text-body mb-4">Payment Status</h3>
             <div
               class="text-3xl font-black {data.deadlines.paymentRequired
-                ? 'text-yellow-500'
-                : 'text-gray-500'} mb-2"
+                ? 'text-warning-500'
+                : 'text-text-muted'} mb-2"
             >
               {data.deadlines.paymentRequired ? 'REQUIRED' : 'NOT REQUIRED'}
             </div>
             {#if data.deadlines.paymentRequired}
-              <p class="text-xs text-gray-400">Teams must pay registration fees</p>
+              <p class="text-xs text-text-body">Teams must pay registration fees</p>
             {/if}
           </div>
 
           <!-- Roster Lock Status -->
-          <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 p-6">
-            <h3 class="text-sm font-medium text-gray-400 mb-3">Roster Status</h3>
+          <div class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default p-6">
+            <h3 class="text-sm font-medium text-text-body mb-3">Roster Status</h3>
             <div
               class="text-3xl font-black {data.deadlines.rosterLocked
-                ? 'text-red-500'
-                : 'text-green-500'} mb-2"
+                ? 'text-danger-500'
+                : 'text-success-500'} mb-2"
             >
               {data.deadlines.rosterLocked ? 'LOCKED' : 'OPEN'}
             </div>
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-text-body">
               {data.deadlines.rosterLocked ? 'Rosters are frozen' : 'Teams can change rosters'}
             </p>
           </div>
@@ -359,23 +356,23 @@
         <main class="lg:col-span-6 space-y-8">
           {#if data.teamsByDivision.length === 0}
             <div
-              class="bg-zinc-900/50 backdrop-blur rounded-lg border border-zinc-800 p-12 text-center"
+              class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default p-12 text-center"
             >
-              <p class="text-gray-400 text-lg">No teams found for this season and region.</p>
-              <p class="text-gray-500 text-sm mt-2">
+              <p class="text-text-body text-lg">No teams found for this season and region.</p>
+              <p class="text-text-muted text-sm mt-2">
                 Check back later or select a different season.
               </p>
             </div>
           {:else}
             {#each data.teamsByDivision as divisionData}
               <div
-                class="bg-zinc-900/50 backdrop-blur rounded-lg border border-zinc-800 overflow-hidden"
+                class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default overflow-hidden"
               >
                 <!-- Division Header -->
-                <div class="bg-zinc-950/80 px-6 py-4 border-b border-zinc-800">
+                <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
                   <h2 class="text-2xl font-bold text-white uppercase tracking-wide">
                     {divisionData.division.name}
-                    <span class="text-gray-500">({getRegionAbbr(selectedRegion)})</span>
+                    <span class="text-text-muted">({getRegionAbbr(selectedRegion)})</span>
                   </h2>
                 </div>
 
@@ -389,7 +386,7 @@
                     {#if col.key === 'team'}
                       <a
                         href="/teams/{team.id}"
-                        class="flex items-center gap-2 text-white text-sm font-medium hover:text-blue-400 transition-colors"
+                        class="flex items-center gap-2 text-white text-sm font-medium hover:text-format-2v2-400 transition-colors"
                       >
                         <img
                           src={team.avatar ||
@@ -400,7 +397,7 @@
                         <span>{team.name}</span>
                       </a>
                     {:else if col.key === 'record'}
-                      <span class="text-gray-300 text-sm">{team.wins}-{team.losses}</span>
+                      <span class="text-text-label text-sm">{team.wins}-{team.losses}</span>
                     {:else if col.key === 'points'}
                       <span class="text-white text-sm font-medium">{team.points.toFixed(1)}</span>
                     {/if}
@@ -413,9 +410,11 @@
 
         <!-- Right Sidebar - Staff List -->
         <aside class="lg:col-span-3">
-          <div class="bg-zinc-900/80 backdrop-blur rounded-lg border border-zinc-800 sticky top-4">
+          <div
+            class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default sticky top-4"
+          >
             <!-- Staff Header -->
-            <div class="px-4 py-3 border-b border-zinc-800">
+            <div class="px-4 py-3 border-b border-border-default">
               <h3 class="text-lg font-bold text-white">Staff List</h3>
             </div>
 
@@ -423,14 +422,14 @@
             <div class="max-h-[calc(100vh-200px)] overflow-y-auto">
               {#if data.staffByDivision.length === 0}
                 <div class="px-4 py-8 text-center">
-                  <p class="text-gray-500 text-sm">No staff members found.</p>
+                  <p class="text-text-muted text-sm">No staff members found.</p>
                 </div>
               {:else}
                 {#each data.staffByDivision as divisionStaff}
-                  <div class="border-b border-zinc-800/50 last:border-0">
+                  <div class="border-b border-border-default/50 last:border-0">
                     <!-- Division Header -->
-                    <div class="px-4 py-2 bg-zinc-950/50">
-                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    <div class="px-4 py-2 bg-surface-page/50">
+                      <h4 class="text-xs font-bold text-text-body uppercase tracking-wider">
                         {divisionStaff.division.name} ({getRegionAbbr(selectedRegion)})
                       </h4>
                     </div>
@@ -440,7 +439,7 @@
                       {#each divisionStaff.staff as member}
                         <a
                           href="/users/{member.steamId}"
-                          class="flex items-center justify-between py-2 hover:bg-zinc-800/30 rounded px-2 -mx-2 transition-colors group"
+                          class="flex items-center justify-between py-2 hover:bg-surface-input/30 rounded px-2 -mx-2 transition-colors group"
                         >
                           <div class="flex items-center gap-2">
                             <img
@@ -449,12 +448,12 @@
                               class="w-7 h-7 rounded"
                             />
                             <span
-                              class="text-sm text-white group-hover:text-blue-400 transition-colors"
+                              class="text-sm text-white group-hover:text-primary-400 transition-colors"
                             >
                               {member.name}
                             </span>
                           </div>
-                          <span class="text-xs text-yellow-500/80">
+                          <span class="text-xs text-warning-500/80">
                             {member.role}
                           </span>
                         </a>

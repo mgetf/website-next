@@ -69,22 +69,28 @@
 </script>
 
 {#if data.length === 0}
-  <div class="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-lg py-12 text-center">
+  <div
+    class="bg-surface-card/80 backdrop-blur border border-border-default rounded-lg py-12 text-center"
+  >
     {#if emptyIcon}
       <div class="text-5xl mb-4">{emptyIcon}</div>
     {/if}
-    <p class="text-gray-400">{emptyMessage}</p>
+    <p class="text-text-body">{emptyMessage}</p>
   </div>
 {:else}
-  <div class="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-lg overflow-hidden">
+  <div
+    class="bg-surface-card/80 backdrop-blur border border-border-default rounded-lg overflow-hidden"
+  >
     <div class="overflow-x-auto">
       <table class="w-full">
-        <thead class="{headerClass || 'bg-zinc-900/80'} border-b border-zinc-800">
+        <thead class="{headerClass || 'bg-surface-card/80'} border-b border-border-default">
           <tr>
             {#each columns as col}
               <th
                 scope="col"
-                class="{headPadding} text-sm font-semibold text-gray-300 {getAlignClass(col.align)}"
+                class="{headPadding} text-sm font-semibold text-text-label {getAlignClass(
+                  col.align,
+                )}"
                 style={col.width ? `width: ${col.width}` : undefined}
               >
                 {#if col.srOnly}
@@ -96,10 +102,10 @@
             {/each}
           </tr>
         </thead>
-        <tbody class="divide-y divide-zinc-800">
+        <tbody class="divide-y divide-border-default">
           {#each data as row}
             <tr
-              class="hover:bg-zinc-800/50 transition-colors {onRowClick
+              class="hover:bg-surface-input/50 transition-colors {onRowClick
                 ? 'cursor-pointer'
                 : ''} {rowClass ? rowClass(row) : ''}"
               onclick={() => handleRowClick(row)}
@@ -111,7 +117,7 @@
               {/each}
             </tr>
             {#if expandedRow?.(row) && expandedContent}
-              <tr class="bg-zinc-800/30">
+              <tr class="bg-surface-input/30">
                 <td colspan={columns.length} class="px-4 py-3">
                   {@render expandedContent(row)}
                 </td>

@@ -4,6 +4,8 @@
   import { page } from '$app/state';
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -75,21 +77,21 @@
   function getCategoryColor(cat: string): string {
     switch (cat) {
       case 'AUTH':
-        return 'bg-blue-500/20 text-blue-400';
+        return 'bg-info-500/20 text-info-400';
       case 'USER':
         return 'bg-purple-500/20 text-purple-400';
       case 'TEAM':
-        return 'bg-green-500/20 text-green-400';
+        return 'bg-success-500/20 text-success-400';
       case 'ROSTER':
         return 'bg-teal-500/20 text-teal-400';
       case 'MATCH':
-        return 'bg-orange-500/20 text-orange-400';
+        return 'bg-orange-500/20 text-primary-400';
       case 'MAP_BAN':
-        return 'bg-yellow-500/20 text-yellow-400';
+        return 'bg-warning-500/20 text-warning-400';
       case 'SIGNUP':
         return 'bg-cyan-500/20 text-cyan-400';
       case 'PAYMENT':
-        return 'bg-emerald-500/20 text-emerald-400';
+        return 'bg-success-500/20 text-success-400';
       case 'DEMO':
         return 'bg-pink-500/20 text-pink-400';
       case 'LEAGUE_CONFIG':
@@ -97,9 +99,9 @@
       case 'TOURNAMENT':
         return 'bg-rose-500/20 text-rose-400';
       case 'SITE':
-        return 'bg-gray-500/20 text-gray-400';
+        return 'bg-gray-500/20 text-text-body';
       default:
-        return 'bg-zinc-700 text-zinc-300';
+        return 'bg-surface-hover text-text-label';
     }
   }
 
@@ -158,7 +160,7 @@
   <!-- Header -->
   <div>
     <h2 class="text-3xl font-bold text-white mb-2">Audit Logs</h2>
-    <p class="text-gray-400">
+    <p class="text-text-body">
       {data.pagination.totalCount.toLocaleString()} total entries recorded
     </p>
   </div>
@@ -173,9 +175,9 @@
             applyFilters();
           }}
           class="flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors text-sm
-						{filterCategory === stat.category
-            ? 'border-orange-500/50 bg-orange-500/10 text-orange-300'
-            : 'border-zinc-700 bg-zinc-900 text-gray-400 hover:border-zinc-600 hover:text-gray-200'}"
+					{filterCategory === stat.category
+            ? 'border-primary-500/50 bg-primary-500/10 text-primary-300'
+            : 'border-border-input bg-surface-card text-text-body hover:border-border-input hover:text-white'}"
         >
           <span class="px-1.5 py-0.5 rounded text-xs font-medium {getCategoryColor(stat.category)}">
             {stat.category}
@@ -187,7 +189,7 @@
   {/if}
 
   <!-- Filters -->
-  <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+  <Card padding="lg">
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <SelectFilter
         value={filterCategory}
@@ -205,7 +207,7 @@
           type="text"
           bind:value={filterAction}
           placeholder="Action (e.g. USER_BANNED)"
-          class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -216,7 +218,7 @@
           type="text"
           bind:value={filterActorId}
           placeholder="Actor Steam ID"
-          class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -236,7 +238,7 @@
           type="text"
           bind:value={filterTargetId}
           placeholder="Target ID"
-          class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -246,7 +248,7 @@
           id="f-from"
           type="date"
           bind:value={filterDateFrom}
-          class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -256,26 +258,18 @@
           id="f-to"
           type="date"
           bind:value={filterDateTo}
-          class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
       <div class="flex gap-2">
-        <button
-          onclick={applyFilters}
-          class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          Apply
-        </button>
-        <button
-          onclick={clearFilters}
-          class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-gray-300 hover:text-white text-sm rounded-lg transition-colors"
-        >
+        <Button variant="primary" type="button" onclick={applyFilters} class="flex-1">Apply</Button>
+        <Button variant="secondary" type="button" onclick={clearFilters} class="flex-1">
           Clear
-        </button>
+        </Button>
       </div>
     </div>
-  </div>
+  </Card>
 
   <!-- Table -->
   <DataTable
@@ -295,7 +289,7 @@
   >
     {#snippet cell(log, col)}
       {#if col.key === 'timestamp'}
-        <span class="font-mono text-xs text-gray-400 whitespace-nowrap">
+        <span class="font-mono text-xs text-text-body whitespace-nowrap">
           {formatTimestamp(log.timestamp)}
         </span>
       {:else if col.key === 'actor'}
@@ -307,20 +301,20 @@
             <a
               href="/users/{log.actorId}"
               onclick={(e) => e.stopPropagation()}
-              class="text-xs text-white hover:text-orange-400 transition-colors truncate"
+              class="text-xs text-white hover:text-primary-400 transition-colors truncate"
             >
               {log.actorUsername ?? log.actorId}
             </a>
           </div>
         {:else}
-          <span class="text-xs text-gray-500">System</span>
+          <span class="text-xs text-text-muted">System</span>
         {/if}
       {:else if col.key === 'category'}
         <span class="px-2 py-0.5 rounded text-xs font-medium {getCategoryColor(log.category)}">
           {log.category}
         </span>
       {:else if col.key === 'action'}
-        <span class="font-mono text-xs text-gray-200">{log.action}</span>
+        <span class="font-mono text-xs text-white">{log.action}</span>
       {:else if col.key === 'target'}
         {#if log.targetType === 'User' && log.targetId}
           <div class="flex items-center gap-2 min-w-0">
@@ -330,24 +324,24 @@
             <a
               href="/users/{log.targetId}"
               onclick={(e) => e.stopPropagation()}
-              class="text-xs text-white hover:text-orange-400 transition-colors truncate"
+              class="text-xs text-white hover:text-primary-400 transition-colors truncate"
             >
               {log.targetUsername ?? log.targetId}
             </a>
           </div>
         {:else if log.targetType}
-          <span class="text-xs text-gray-500">{log.targetType}</span>
+          <span class="text-xs text-text-muted">{log.targetType}</span>
           {#if log.targetId}
-            <span class="text-xs text-gray-400 ml-1 font-mono">#{log.targetId}</span>
+            <span class="text-xs text-text-body ml-1 font-mono">#{log.targetId}</span>
           {/if}
         {:else}
-          <span class="text-xs text-gray-600">—</span>
+          <span class="text-xs text-text-muted">—</span>
         {/if}
       {:else if col.key === 'ip'}
-        <span class="font-mono text-xs text-gray-500">{log.ipAddress ?? '—'}</span>
+        <span class="font-mono text-xs text-text-muted">{log.ipAddress ?? '—'}</span>
       {:else if col.key === 'expand'}
         {#if log.metadata}
-          <span class="text-gray-500 text-xs select-none">
+          <span class="text-text-muted text-xs select-none">
             {expandedRow === log.id ? '▲' : '▼'}
           </span>
         {/if}
@@ -356,7 +350,7 @@
 
     {#snippet expandedContent(log)}
       <pre
-        class="text-xs text-gray-300 font-mono whitespace-pre-wrap break-all leading-relaxed">{JSON.stringify(
+        class="text-xs text-text-label font-mono whitespace-pre-wrap break-all leading-relaxed">{JSON.stringify(
           log.metadata,
           null,
           2,

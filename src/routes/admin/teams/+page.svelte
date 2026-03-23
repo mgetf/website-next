@@ -8,6 +8,8 @@
   import SearchInput from '$lib/components/ui/SearchInput.svelte';
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
@@ -200,16 +202,29 @@
   };
 
   function getStatusColor(status: string) {
-    if (status === 'READY') return 'bg-green-500/20 text-green-400';
-    if (status === 'PENDING') return 'bg-yellow-500/20 text-yellow-400';
-    if (status === 'DEAD') return 'bg-red-500/20 text-red-400';
-    return 'bg-gray-500/20 text-gray-400';
+    if (status === 'READY') return 'bg-success-500/20 text-success-400';
+    if (status === 'PENDING') return 'bg-warning-500/20 text-warning-400';
+    if (status === 'DEAD') return 'bg-danger-500/20 text-danger-400';
+    return 'bg-gray-500/20 text-text-body';
   }
 
   function getPaymentColor(payment: number) {
-    if (payment === 1) return 'bg-green-500/20 text-green-400';
-    if (payment === 2) return 'bg-blue-500/20 text-blue-400';
-    return 'bg-red-500/20 text-red-400';
+    if (payment === 1) return 'bg-success-500/20 text-success-400';
+    if (payment === 2) return 'bg-info-500/20 text-info-400';
+    return 'bg-danger-500/20 text-danger-400';
+  }
+
+  function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'red' | 'zinc' {
+    if (status === 'READY') return 'green';
+    if (status === 'PENDING') return 'yellow';
+    if (status === 'DEAD') return 'red';
+    return 'zinc';
+  }
+
+  function getPaymentBadgeColor(payment: number): 'green' | 'blue' | 'red' {
+    if (payment === 1) return 'green';
+    if (payment === 2) return 'blue';
+    return 'red';
   }
 
   function goToPage(pageNum: number) {
@@ -241,19 +256,19 @@
   <!-- Page Header -->
   <div>
     <h2 class="text-3xl font-bold text-white mb-2">Team Management</h2>
-    <p class="text-gray-400">View and manage all teams across all divisions</p>
+    <p class="text-text-body">View and manage all teams across all divisions</p>
   </div>
 
   <!-- Filters -->
   <FilterBar onSubmit={handleSearch} onClear={clearFilters} {hasActiveFilters}>
     {#snippet filters()}
       <div class="flex-1">
-        <label for="search" class="block text-sm font-medium text-gray-400 mb-2">Search</label>
+        <label for="search" class="block text-sm font-medium text-text-body mb-2">Search</label>
         <SearchInput bind:value={searchInput} placeholder="Search teams..." />
       </div>
 
       <div class="md:w-40">
-        <label for="format" class="block text-sm font-medium text-gray-400 mb-2">Format</label>
+        <label for="format" class="block text-sm font-medium text-text-body mb-2">Format</label>
         <SelectFilter
           value={data.filters.format}
           options={formatOptions}
@@ -263,7 +278,7 @@
       </div>
 
       <div class="md:w-40">
-        <label for="region" class="block text-sm font-medium text-gray-400 mb-2">Region</label>
+        <label for="region" class="block text-sm font-medium text-text-body mb-2">Region</label>
         <SelectFilter
           value={data.filters.region}
           options={regionOptions}
@@ -273,7 +288,7 @@
       </div>
 
       <div class="md:w-44">
-        <label for="season" class="block text-sm font-medium text-gray-400 mb-2">Season</label>
+        <label for="season" class="block text-sm font-medium text-text-body mb-2">Season</label>
         <SelectFilter
           value={data.filters.season}
           options={seasonOptions}
@@ -283,7 +298,7 @@
       </div>
 
       <div class="md:w-44">
-        <label for="division" class="block text-sm font-medium text-gray-400 mb-2">Division</label>
+        <label for="division" class="block text-sm font-medium text-text-body mb-2">Division</label>
         <SelectFilter
           value={data.filters.division}
           options={divisionOptions}
@@ -293,7 +308,7 @@
       </div>
 
       <div class="md:w-40">
-        <label for="status" class="block text-sm font-medium text-gray-400 mb-2">Status</label>
+        <label for="status" class="block text-sm font-medium text-text-body mb-2">Status</label>
         <SelectFilter
           value={data.filters.status}
           options={statusOptions}
@@ -323,90 +338,88 @@
             <img src={team.avatar} alt={team.name} class="w-8 h-8 rounded" />
           {:else}
             <div
-              class="w-8 h-8 bg-zinc-700 rounded flex items-center justify-center text-xs font-bold text-gray-400"
+              class="w-8 h-8 bg-surface-hover rounded flex items-center justify-center text-xs font-bold text-text-body"
             >
               {team.acronym?.slice(0, 2) || team.name.slice(0, 2).toUpperCase()}
             </div>
           {/if}
           <div>
-            <a href="/teams/{team.id}" class="text-white font-medium hover:text-orange-400">
+            <a href="/teams/{team.id}" class="text-white font-medium hover:text-primary-400">
               {team.name}
             </a>
-            <p class="text-sm text-gray-400">{team.acronym}</p>
+            <p class="text-sm text-text-body">{team.acronym}</p>
           </div>
         </div>
       {:else if col.key === 'format'}
         {@const format = data.formats?.find((f) => f.id === team.formatId)}
-        <span
-          class="px-2 py-1 rounded text-xs font-medium {team.formatId === FORMAT_1V1
-            ? 'bg-purple-500/20 text-purple-400'
-            : 'bg-blue-500/20 text-blue-400'}"
-        >
+        <Badge color={team.formatId === FORMAT_1V1 ? 'purple' : 'blue'}>
           {format?.name ?? team.formatId}
-        </span>
+        </Badge>
       {:else if col.key === 'season'}
         {#if team.season}
-          <span class="text-gray-300">S{team.season.seasonNum}</span>
+          <span class="text-text-label">S{team.season.seasonNum}</span>
         {:else}
-          <span class="text-gray-500">—</span>
+          <span class="text-text-muted">—</span>
         {/if}
       {:else if col.key === 'division'}
-        <span class="text-gray-300">{team.division?.name || '—'}</span>
+        <span class="text-text-label">{team.division?.name || '—'}</span>
       {:else if col.key === 'region'}
-        <span class="text-gray-300">{team.region?.name || '—'}</span>
+        <span class="text-text-label">{team.region?.name || '—'}</span>
       {:else if col.key === 'record'}
         <span class="text-white font-mono">{team.record}</span>
       {:else if col.key === 'status'}
-        <span class="px-2 py-1 rounded text-xs font-medium {getStatusColor(team.status)}">
+        <Badge color={getStatusBadgeColor(team.status)}>
           {statusNames[team.status]}
-        </span>
+        </Badge>
       {:else if col.key === 'payment'}
-        <span class="px-2 py-1 rounded text-xs font-medium {getPaymentColor(team.paymentStatus)}">
+        <Badge color={getPaymentBadgeColor(team.paymentStatus)}>
           {paymentNames[team.paymentStatus]}
-        </span>
+        </Badge>
       {:else if col.key === 'actions'}
         <div class="flex items-center justify-end gap-2">
           {#if team.formatId !== 1}
-            <a
+            <Button
+              variant="primary"
+              size="sm"
               href="/teams/{team.id}"
-              class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-sm transition-colors"
               title="View team page with full management access (roster, status, deletion)"
             >
               Manage Team
-            </a>
+            </Button>
           {/if}
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onclick={() => openEditModal(team)}
-            class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors"
             title="Quick edit team metadata"
           >
             Quick Edit
-          </button>
+          </Button>
           {#if team.status !== 'DEAD'}
-            <button
-              type="button"
-              class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
+            <Button
+              variant="danger"
+              size="sm"
               title={team.formatId === FORMAT_1V1
                 ? 'Withdraw player from 1v1 league'
                 : 'Disband team (mark as dead and remove all players)'}
               onclick={() => (disbandingTeam = team)}
             >
               {team.formatId === FORMAT_1V1 ? 'Withdraw' : 'Disband'}
-            </button>
+            </Button>
           {:else if team.formatId === FORMAT_1V1}
-            <button
-              type="button"
-              class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-sm transition-colors"
+            <Button
+              variant="success"
+              size="sm"
               title="Restore player to 1v1 league"
               onclick={() => (restoringTeam = team)}
             >
               Restore
-            </button>
+            </Button>
           {/if}
           {#if data.isStrictAdmin}
-            <button
-              type="button"
-              class="px-3 py-1 bg-red-900/40 text-red-300 hover:bg-red-900/60 rounded text-sm transition-colors"
+            <Button
+              variant="danger"
+              size="sm"
               title="Permanently delete team and all related data"
               onclick={() => {
                 deletingTeam = team;
@@ -414,7 +427,7 @@
               }}
             >
               Delete
-            </button>
+            </Button>
           {/if}
         </div>
       {/if}
@@ -533,12 +546,12 @@
 
         {#if editingTeam.formatId === FORMAT_1V1}
           <div class="mb-6">
-            <span class="block text-sm font-medium text-gray-300 mb-2">Status</span>
+            <span class="block text-sm font-medium text-text-label mb-2">Status</span>
             <div class="flex items-center gap-3">
               <span
                 class="px-3 py-2 rounded-lg text-sm font-medium {editingTeam.status === 'READY'
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-red-500/20 text-red-400'}"
+                  ? 'bg-success-500/20 text-success-400'
+                  : 'bg-danger-500/20 text-danger-400'}"
               >
                 {editingTeam.status === 'READY' ? 'Active' : 'Withdrawn'}
               </span>
@@ -551,8 +564,8 @@
                 }}
                 class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {editingTeam.status ===
                 'READY'
-                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                  : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}"
+                  ? 'bg-danger-500/20 text-danger-400 hover:bg-danger-500/30'
+                  : 'bg-success-500/20 text-success-400 hover:bg-success-500/30'}"
               >
                 {editingTeam.status === 'READY' ? 'Withdraw' : 'Restore'}
               </button>
@@ -570,20 +583,10 @@
       </div>
 
       <div class="flex gap-3 justify-end">
-        <button
-          type="button"
-          onclick={closeEditModal}
-          class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-        >
+        <Button type="button" variant="secondary" onclick={closeEditModal}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : 'Save Changes'}
-        </button>
+        </Button>
       </div>
     </form>
   </Dialog>
@@ -598,22 +601,22 @@
       ? 'Are you sure you want to withdraw this player from the 1v1 league?'
       : 'Are you sure you want to disband this team? This will mark the team as DEAD and deactivate all players.'}
   <Dialog open={true} title={disbandTitle} onClose={() => (disbandingTeam = null)}>
-    <p class="text-gray-400 mb-4">{disbandDesc}</p>
+    <p class="text-text-body mb-4">{disbandDesc}</p>
 
-    <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+    <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
       <div class="flex items-center gap-3">
         {#if disbandingTeam.avatar}
           <img src={disbandingTeam.avatar} alt="" class="w-10 h-10 rounded" />
         {:else}
           <div
-            class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium"
+            class="w-10 h-10 rounded bg-surface-hover flex items-center justify-center text-text-body text-sm font-medium"
           >
             {disbandingTeam.acronym?.slice(0, 2) || disbandingTeam.name.slice(0, 2).toUpperCase()}
           </div>
         {/if}
         <div>
           <p class="text-white font-medium">{disbandingTeam.name}</p>
-          <p class="text-gray-400 text-sm">
+          <p class="text-text-body text-sm">
             {disbandingTeam.division?.name || 'No division'} · {disbandingTeam.region?.name ||
               'No region'}
           </p>
@@ -622,13 +625,14 @@
     </div>
 
     {#snippet footer()}
-      <button
+      <Button
         type="button"
+        variant="secondary"
         onclick={() => (disbandingTeam = null)}
-        class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+        class="flex-1"
       >
         Cancel
-      </button>
+      </Button>
       <form
         method="POST"
         action="?/disbandTeam"
@@ -643,17 +647,13 @@
         class="flex-1"
       >
         <input type="hidden" name="teamId" value={disbandingTeam!.id} />
-        <button
-          type="submit"
-          disabled={isDisbanding}
-          class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <Button type="submit" variant="danger" disabled={isDisbanding} class="w-full">
           {#if isDisbanding}
             {disbandingTeam!.formatId === FORMAT_1V1 ? 'Withdrawing...' : 'Disbanding...'}
           {:else}
             {disbandingTeam!.formatId === FORMAT_1V1 ? 'Withdraw' : 'Disband Team'}
           {/if}
-        </button>
+        </Button>
       </form>
     {/snippet}
   </Dialog>
@@ -662,25 +662,25 @@
 <!-- Restore 1v1 Player Confirmation Modal -->
 {#if restoringTeam}
   <Dialog open={true} title="Restore Player" onClose={() => (restoringTeam = null)}>
-    <p class="text-gray-400 mb-4">
+    <p class="text-text-body mb-4">
       Are you sure you want to restore this player to the 1v1 league? They will be set back to
       active status.
     </p>
 
-    <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+    <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
       <div class="flex items-center gap-3">
         {#if restoringTeam.avatar}
           <img src={restoringTeam.avatar} alt="" class="w-10 h-10 rounded" />
         {:else}
           <div
-            class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium"
+            class="w-10 h-10 rounded bg-surface-hover flex items-center justify-center text-text-body text-sm font-medium"
           >
             {restoringTeam.name.slice(0, 2).toUpperCase()}
           </div>
         {/if}
         <div>
           <p class="text-white font-medium">{restoringTeam.name}</p>
-          <p class="text-gray-400 text-sm">
+          <p class="text-text-body text-sm">
             {restoringTeam.division?.name || 'No division'} · {restoringTeam.region?.name ||
               'No region'}
           </p>
@@ -689,13 +689,14 @@
     </div>
 
     {#snippet footer()}
-      <button
+      <Button
         type="button"
+        variant="secondary"
         onclick={() => (restoringTeam = null)}
-        class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+        class="flex-1"
       >
         Cancel
-      </button>
+      </Button>
       <form
         method="POST"
         action="?/restore1v1"
@@ -710,13 +711,9 @@
         class="flex-1"
       >
         <input type="hidden" name="teamId" value={restoringTeam!.id} />
-        <button
-          type="submit"
-          disabled={isRestoring}
-          class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <Button type="submit" variant="success" disabled={isRestoring} class="w-full">
           {isRestoring ? 'Restoring...' : 'Restore'}
-        </button>
+        </Button>
       </form>
     {/snippet}
   </Dialog>
@@ -732,20 +729,20 @@
     onClose={() => (deletingTeam = null)}
   >
     <div class="mb-6">
-      <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+      <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
         <div class="flex items-center gap-3">
           {#if deletingTeam.avatar}
             <img src={deletingTeam.avatar} alt="" class="w-10 h-10 rounded" />
           {:else}
             <div
-              class="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center text-gray-400 text-sm font-medium"
+              class="w-10 h-10 rounded bg-surface-hover flex items-center justify-center text-text-body text-sm font-medium"
             >
               {deletingTeam.acronym?.slice(0, 2) || deletingTeam.name.slice(0, 2).toUpperCase()}
             </div>
           {/if}
           <div>
             <p class="text-white font-medium">{deletingTeam.name}</p>
-            <p class="text-gray-400 text-sm">
+            <p class="text-text-body text-sm">
               {deletingTeam.division?.name || 'No division'} · {deletingTeam.region?.name ||
                 'No region'}
             </p>
@@ -754,36 +751,36 @@
       </div>
 
       {#if hasMatches}
-        <div class="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg mb-4">
-          <p class="text-yellow-400 text-sm font-medium mb-1">
+        <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-4">
+          <p class="text-warning-400 text-sm font-medium mb-1">
             {deletingTeam.matchCount} match{deletingTeam.matchCount !== 1 ? 'es' : ''} will also be deleted
           </p>
-          <p class="text-yellow-300 text-sm">
+          <p class="text-warning-300 text-sm">
             The following matches (and their games, demos, comms, map bans) will be permanently
             removed.
           </p>
         </div>
 
-        <div class="max-h-48 overflow-y-auto border border-zinc-700 rounded-lg mb-4">
+        <div class="max-h-48 overflow-y-auto border border-border-input rounded-lg mb-4">
           <table class="w-full text-sm">
-            <thead class="bg-zinc-800 sticky top-0">
-              <tr class="text-gray-400 text-left">
+            <thead class="bg-surface-input sticky top-0">
+              <tr class="text-text-body text-left">
                 <th class="px-3 py-2">Week</th>
                 <th class="px-3 py-2">Match</th>
                 <th class="px-3 py-2">Score</th>
                 <th class="px-3 py-2">Status</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-800">
+            <tbody class="divide-y divide-border-default">
               {#each deletingTeam.matches as match}
-                <tr class="text-gray-300">
-                  <td class="px-3 py-2 text-gray-500">{match.weekNo ?? '—'}</td>
+                <tr class="text-text-label">
+                  <td class="px-3 py-2 text-text-muted">{match.weekNo ?? '—'}</td>
                   <td class="px-3 py-2">
                     <span
                       class={match.homeTeam === deletingTeam.name ? 'text-white font-medium' : ''}
                       >{match.homeTeam}</span
                     >
-                    <span class="text-gray-500 mx-1">vs</span>
+                    <span class="text-text-muted mx-1">vs</span>
                     <span
                       class={match.awayTeam === deletingTeam.name ? 'text-white font-medium' : ''}
                       >{match.awayTeam}</span
@@ -793,10 +790,10 @@
                     {#if match.winnerScore != null && match.loserScore != null}
                       {match.winnerScore}-{match.loserScore}
                     {:else}
-                      <span class="text-gray-500">—</span>
+                      <span class="text-text-muted">—</span>
                     {/if}
                   </td>
-                  <td class="px-3 py-2 text-gray-500">{match.status}</td>
+                  <td class="px-3 py-2 text-text-muted">{match.status}</td>
                 </tr>
               {/each}
             </tbody>
@@ -804,9 +801,9 @@
         </div>
       {/if}
 
-      <div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg mb-4">
-        <p class="text-red-400 text-sm font-medium mb-1">This action cannot be undone</p>
-        <p class="text-red-300 text-sm">
+      <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-4">
+        <p class="text-danger-400 text-sm font-medium mb-1">This action cannot be undone</p>
+        <p class="text-danger-300 text-sm">
           This will permanently remove the team, all roster records, pending players, denied
           players, name history{hasMatches
             ? ', and all matches listed above'
@@ -814,7 +811,7 @@
         </p>
       </div>
       <div>
-        <label for="deleteTeamConfirm" class="block text-sm text-gray-400 mb-1">
+        <label for="deleteTeamConfirm" class="block text-sm text-text-body mb-1">
           Type <strong class="text-white">DELETE</strong> to confirm
         </label>
         <input
@@ -822,19 +819,20 @@
           type="text"
           bind:value={deleteConfirmText}
           placeholder="DELETE"
-          class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+          class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-danger-500/50"
         />
       </div>
     </div>
 
     {#snippet footer()}
-      <button
+      <Button
         type="button"
+        variant="secondary"
         onclick={() => (deletingTeam = null)}
-        class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+        class="flex-1"
       >
         Cancel
-      </button>
+      </Button>
       <form
         method="POST"
         action="?/hardDeleteTeam"
@@ -852,10 +850,11 @@
         {#if hasMatches}
           <input type="hidden" name="cascadeMatches" value="true" />
         {/if}
-        <button
+        <Button
           type="submit"
+          variant="danger"
           disabled={isDeleting || deleteConfirmText !== 'DELETE'}
-          class="w-full px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-full"
         >
           {#if isDeleting}
             Deleting...
@@ -866,7 +865,7 @@
           {:else}
             Permanently Delete
           {/if}
-        </button>
+        </Button>
       </form>
     {/snippet}
   </Dialog>

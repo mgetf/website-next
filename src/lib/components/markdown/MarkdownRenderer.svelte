@@ -24,7 +24,7 @@
     margin-top: 2rem;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #3f3f46;
+    border-bottom: 2px solid var(--color-border-default);
   }
 
   .markdown-content :global(h2) {
@@ -38,7 +38,7 @@
   .markdown-content :global(h3) {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #e4e4e7;
+    color: var(--color-zinc-200);
     margin-top: 1.5rem;
     margin-bottom: 0.5rem;
   }
@@ -46,20 +46,20 @@
   .markdown-content :global(h4) {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #d4d4d8;
+    color: var(--color-zinc-300);
     margin-top: 1.25rem;
     margin-bottom: 0.5rem;
   }
 
   .markdown-content :global(p) {
-    color: #a1a1aa;
+    color: var(--color-zinc-400);
     line-height: 1.75;
     margin-bottom: 1rem;
   }
 
   .markdown-content :global(ul),
   .markdown-content :global(ol) {
-    color: #a1a1aa;
+    color: var(--color-zinc-400);
     margin-left: 1.5rem;
     margin-bottom: 1rem;
   }
@@ -69,26 +69,26 @@
   }
 
   .markdown-content :global(a) {
-    color: #60a5fa;
+    color: var(--color-blue-400);
     text-decoration: underline;
     transition: color 0.15s;
   }
 
   .markdown-content :global(a:hover) {
-    color: #93c5fd;
+    color: var(--color-blue-300);
   }
 
   .markdown-content :global(code) {
-    background: #27272a;
-    color: #f4f4f5;
+    background: var(--color-surface-input);
+    color: var(--color-zinc-100);
     padding: 0.125rem 0.375rem;
     border-radius: 0.25rem;
     font-size: 0.875em;
   }
 
   .markdown-content :global(pre) {
-    background: #18181b;
-    border: 1px solid #3f3f46;
+    background: var(--color-surface-page);
+    border: 1px solid var(--color-border-default);
     border-radius: 0.5rem;
     padding: 1rem;
     overflow-x: auto;
@@ -101,17 +101,17 @@
   }
 
   .markdown-content :global(blockquote) {
-    border-left: 4px solid #3b82f6;
+    border-left: 4px solid var(--color-blue-500);
     padding-left: 1rem;
     margin-left: 0;
-    color: #a1a1aa;
+    color: var(--color-zinc-400);
     font-style: italic;
     margin-bottom: 1rem;
   }
 
   .markdown-content :global(hr) {
     border: none;
-    border-top: 1px solid #3f3f46;
+    border-top: 1px solid var(--color-border-default);
     margin: 2rem 0;
   }
 
@@ -123,19 +123,19 @@
 
   .markdown-content :global(th),
   .markdown-content :global(td) {
-    border: 1px solid #3f3f46;
+    border: 1px solid var(--color-border-default);
     padding: 0.5rem 0.75rem;
     text-align: left;
   }
 
   .markdown-content :global(th) {
-    background: #27272a;
+    background: var(--color-surface-input);
     color: white;
     font-weight: 600;
   }
 
   .markdown-content :global(td) {
-    color: #a1a1aa;
+    color: var(--color-zinc-400);
   }
 
   .markdown-content :global(img) {

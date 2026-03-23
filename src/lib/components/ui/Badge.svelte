@@ -15,12 +15,12 @@
 
   // Static lookup map required — Tailwind v4 does not support dynamic class interpolation.
   const colorClasses: Record<Color, string> = {
-    green: 'bg-green-500/20 text-green-400 border border-green-500/30',
-    red: 'bg-red-500/20 text-red-400 border border-red-500/30',
-    yellow: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
-    blue: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-    purple: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
-    orange: 'bg-orange-500/20 text-orange-400 border border-orange-500/30',
+    green: 'bg-success-500/20 text-success-400 border border-success-500/30',
+    red: 'bg-danger-500/20 text-danger-400 border border-danger-500/30',
+    yellow: 'bg-warning-500/20 text-warning-400 border border-warning-500/30',
+    blue: 'bg-info-500/20 text-info-400 border border-info-500/30',
+    purple: 'bg-format-1v1-500/20 text-format-1v1-400 border border-format-1v1-500/30',
+    orange: 'bg-primary-500/20 text-primary-400 border border-primary-500/30',
     zinc: 'bg-zinc-500/20 text-zinc-400 border border-zinc-500/30',
   };
 

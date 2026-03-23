@@ -8,6 +8,8 @@
   import SearchInput from '$lib/components/ui/SearchInput.svelte';
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
@@ -119,15 +121,28 @@
 
   function getPermissionColor(permission: string) {
     if (permission === 'ADMIN') return 'bg-purple-500/20 text-purple-400';
-    if (permission === 'MODERATOR') return 'bg-blue-500/20 text-blue-400';
-    return 'bg-gray-500/20 text-gray-400';
+    if (permission === 'MODERATOR') return 'bg-info-500/20 text-info-400';
+    return 'bg-gray-500/20 text-text-body';
   }
 
   function getBanStatusColor(status: string) {
-    if (status === 'BANNED') return 'bg-red-500/20 text-red-400';
-    if (status === 'SUSPENDED') return 'bg-orange-500/20 text-orange-400';
-    if (status === 'WARNING') return 'bg-yellow-500/20 text-yellow-400';
-    return 'bg-green-500/20 text-green-400';
+    if (status === 'BANNED') return 'bg-danger-500/20 text-danger-400';
+    if (status === 'SUSPENDED') return 'bg-orange-500/20 text-primary-400';
+    if (status === 'WARNING') return 'bg-warning-500/20 text-warning-400';
+    return 'bg-success-500/20 text-success-400';
+  }
+
+  function getPermissionBadgeColor(permission: string): 'purple' | 'blue' | 'zinc' {
+    if (permission === 'ADMIN') return 'purple';
+    if (permission === 'MODERATOR') return 'blue';
+    return 'zinc';
+  }
+
+  function getBanStatusBadgeColor(status: string): 'red' | 'orange' | 'yellow' | 'green' {
+    if (status === 'BANNED') return 'red';
+    if (status === 'SUSPENDED') return 'orange';
+    if (status === 'WARNING') return 'yellow';
+    return 'green';
   }
 
   function goToPage(pageNum: number) {
@@ -157,19 +172,19 @@
   <!-- Page Header -->
   <div>
     <h2 class="text-3xl font-bold text-white mb-2">User Management</h2>
-    <p class="text-gray-400">Manage user accounts, roles, and permissions</p>
+    <p class="text-text-body">Manage user accounts, roles, and permissions</p>
   </div>
 
   <!-- Filters -->
   <FilterBar onSubmit={handleSearch} onClear={clearFilters} {hasActiveFilters}>
     {#snippet filters()}
       <div class="flex-1">
-        <label for="search" class="block text-sm font-medium text-gray-400 mb-2">Search</label>
+        <label for="search" class="block text-sm font-medium text-text-body mb-2">Search</label>
         <SearchInput bind:value={searchInput} placeholder="Search by username or Steam ID..." />
       </div>
 
       <div class="md:w-48">
-        <label for="permissionLevel" class="block text-sm font-medium text-gray-400 mb-2"
+        <label for="permissionLevel" class="block text-sm font-medium text-text-body mb-2"
           >Permission</label
         >
         <SelectFilter
@@ -181,7 +196,7 @@
       </div>
 
       <div class="md:w-48">
-        <label for="banStatus" class="block text-sm font-medium text-gray-400 mb-2">Status</label>
+        <label for="banStatus" class="block text-sm font-medium text-text-body mb-2">Status</label>
         <SelectFilter
           value={data.filters.banStatus}
           options={banStatusOptions}
@@ -211,7 +226,7 @@
             <img src={user.steamAvatar} alt={user.steamUsername} class="w-8 h-8 rounded" />
           {:else}
             <div
-              class="w-8 h-8 bg-zinc-700 rounded flex items-center justify-center text-xs font-bold text-gray-400"
+              class="w-8 h-8 bg-surface-hover rounded flex items-center justify-center text-xs font-bold text-text-body"
             >
               {user.steamUsername.slice(0, 2).toUpperCase()}
             </div>
@@ -219,7 +234,7 @@
           <div class="min-w-0">
             <a
               href="/users/{user.steamId}"
-              class="text-white text-sm font-medium hover:text-orange-400 block truncate"
+              class="text-white text-sm font-medium hover:text-primary-400 block truncate"
             >
               {user.steamUsername}
             </a>
@@ -227,7 +242,7 @@
               <p
                 class="text-xs truncate {user.permissionLevel === 'ADMIN'
                   ? 'text-purple-400'
-                  : 'text-blue-400'}"
+                  : 'text-info-400'}"
               >
                 Staff{user.staffDivisionName ? ` • ${user.staffDivisionName}` : ''}
               </p>
@@ -237,46 +252,29 @@
       {:else if col.key === 'discord'}
         {#if user.discordLinked && user.discordUsername}
           <span
-            class="text-green-400 text-xs truncate block max-w-[120px]"
+            class="text-success-400 text-xs truncate block max-w-[120px]"
             title={user.discordUsername}
           >
             {user.discordUsername}
           </span>
         {:else if user.discordLinked}
-          <span class="text-green-400 text-xs">✓</span>
+          <span class="text-success-400 text-xs">✓</span>
         {:else}
-          <span class="text-gray-500 text-xs">—</span>
+          <span class="text-text-muted text-xs">—</span>
         {/if}
       {:else if col.key === 'role'}
-        <span
-          class="px-2 py-1 rounded text-xs font-medium {getPermissionColor(user.permissionLevel)}"
-        >
+        <Badge color={getPermissionBadgeColor(user.permissionLevel)}>
           {permissionNames[user.permissionLevel]}
-        </span>
+        </Badge>
       {:else if col.key === 'status'}
-        <span class="px-2 py-1 rounded text-xs font-medium {getBanStatusColor(user.banStatus)}">
+        <Badge color={getBanStatusBadgeColor(user.banStatus)}>
           {banStatusNames[user.banStatus]}
-        </span>
+        </Badge>
       {:else if col.key === 'actions'}
         <div class="flex items-center justify-end gap-1">
-          <a
-            href="/users/{user.steamId}"
-            class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-sm transition-colors"
-          >
-            View
-          </a>
-          <button
-            onclick={() => openEditModal(user)}
-            class="px-3 py-1 bg-zinc-700 text-gray-300 hover:bg-zinc-600 rounded text-sm transition-colors"
-          >
-            Edit
-          </button>
-          <button
-            onclick={() => openBanModal(user)}
-            class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition-colors"
-          >
-            Punish
-          </button>
+          <Button variant="primary" size="sm" href="/users/{user.steamId}">View</Button>
+          <Button variant="secondary" size="sm" onclick={() => openEditModal(user)}>Edit</Button>
+          <Button variant="danger" size="sm" onclick={() => openBanModal(user)}>Punish</Button>
         </div>
       {/if}
     {/snippet}
@@ -322,28 +320,24 @@
       {:else}
         <input type="hidden" name="permissionLevel" value="" />
         <div class="mb-6">
-          <p class="block text-sm font-medium text-gray-300 mb-1">Permission Level</p>
-          <div class="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg">
-            <span
-              class="px-2 py-0.5 rounded text-xs font-medium {getPermissionColor(
-                editingUser.permissionLevel,
-              )}"
-            >
+          <p class="block text-sm font-medium text-text-label mb-1">Permission Level</p>
+          <div class="px-4 py-3 bg-surface-input border border-border-input rounded-lg">
+            <Badge color={getPermissionBadgeColor(editingUser.permissionLevel)}>
               {permissionNames[editingUser.permissionLevel]}
-            </span>
+            </Badge>
           </div>
         </div>
       {/if}
 
       {#if editingUser.permissionLevel === 'MODERATOR' || editingUser.permissionLevel === 'ADMIN'}
         <div class="mb-6">
-          <p class="block text-sm font-medium text-gray-300 mb-2">Staff Assignment</p>
+          <p class="block text-sm font-medium text-text-label mb-2">Staff Assignment</p>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="sr-only" for="staffRegion">Region</label>
               <select
                 id="staffRegion"
-                class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
                 value={selectedStaffRegionId ?? ''}
                 onchange={(e) => {
                   const val = e.currentTarget.value;
@@ -365,7 +359,7 @@
               <select
                 id="staffDivision"
                 name="staffDivisionId"
-                class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!selectedStaffRegionId}
                 value={editingUser.staffDivisionId ?? ''}
                 onchange={(e) => {
@@ -380,7 +374,7 @@
               </select>
             </div>
           </div>
-          <p class="mt-2 text-sm text-gray-500">
+          <p class="mt-2 text-sm text-text-muted">
             Which region/division this staff member is assigned to (for display on league page).
           </p>
         </div>
@@ -411,36 +405,26 @@
       />
 
       <div class="flex gap-3 justify-end">
-        <button
-          type="button"
-          onclick={closeEditModal}
-          class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-        >
+        <Button type="button" variant="secondary" onclick={closeEditModal}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : 'Save Changes'}
-        </button>
+        </Button>
       </div>
     </form>
 
     {#if editingUser.discordLinked}
-      <div class="pt-4 mt-4 border-t border-zinc-800">
-        <p class="block text-sm font-medium text-gray-300 mb-2">Discord Account</p>
-        <div class="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
+      <div class="pt-4 mt-4 border-t border-border-default">
+        <p class="block text-sm font-medium text-text-label mb-2">Discord Account</p>
+        <div class="flex items-center justify-between p-3 bg-surface-input rounded-lg">
           <div class="flex items-center gap-2">
             <DiscordIcon size={16} />
-            <span class="text-green-400 text-sm">{editingUser.discordUsername || 'Linked'}</span>
+            <span class="text-success-400 text-sm">{editingUser.discordUsername || 'Linked'}</span>
           </div>
           <button
             type="button"
             onclick={() => (unlinkingDiscordUser = editingUser)}
             disabled={isSubmitting}
-            class="text-xs text-red-400 hover:text-red-300 hover:underline transition-colors disabled:opacity-50"
+            class="text-xs text-danger-400 hover:text-danger-300 hover:underline transition-colors disabled:opacity-50"
           >
             Unlink
           </button>
@@ -453,16 +437,16 @@
 <!-- Unlink Discord Confirmation Modal -->
 {#if unlinkingDiscordUser}
   <Dialog open={true} title="Unlink Discord Account" onClose={() => (unlinkingDiscordUser = null)}>
-    <p class="text-gray-400 mb-4">
+    <p class="text-text-body mb-4">
       Are you sure you want to unlink <span class="text-white font-medium"
         >{unlinkingDiscordUser.steamUsername}</span
       >'s Discord account?
     </p>
 
-    <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-4">
+    <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
       <div class="flex items-center gap-2">
         <DiscordIcon size={16} />
-        <span class="text-green-400 text-sm"
+        <span class="text-success-400 text-sm"
           >{unlinkingDiscordUser.discordUsername || 'Linked'}</span
         >
       </div>
@@ -472,7 +456,7 @@
       <button
         type="button"
         onclick={() => (unlinkingDiscordUser = null)}
-        class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg font-medium transition-colors"
+        class="flex-1 px-4 py-2 bg-surface-input hover:bg-surface-hover text-text-label rounded-lg font-medium transition-colors"
       >
         Cancel
       </button>
@@ -493,13 +477,9 @@
         class="flex-1"
       >
         <input type="hidden" name="steamId" value={unlinkingDiscordUser!.steamId} />
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <Button type="submit" variant="danger" disabled={isSubmitting} class="w-full">
           {isSubmitting ? 'Unlinking...' : 'Unlink Discord'}
-        </button>
+        </Button>
       </form>
     {/snippet}
   </Dialog>
@@ -511,7 +491,7 @@
     <FormError error={form?.error} />
 
     <div class="mb-6">
-      <div class="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
+      <div class="flex items-center gap-3 p-3 bg-surface-input rounded-lg">
         {#if banningUser.steamAvatar}
           <img
             src={banningUser.steamAvatar}
@@ -520,14 +500,14 @@
           />
         {:else}
           <div
-            class="w-10 h-10 bg-zinc-700 rounded flex items-center justify-center text-sm font-bold text-gray-400"
+            class="w-10 h-10 bg-surface-hover rounded flex items-center justify-center text-sm font-bold text-text-body"
           >
             {banningUser.steamUsername.slice(0, 2).toUpperCase()}
           </div>
         {/if}
         <div>
           <p class="text-white font-medium">{banningUser.steamUsername}</p>
-          <p class="text-sm text-gray-400 font-mono">{banningUser.steamId}</p>
+          <p class="text-sm text-text-body font-mono">{banningUser.steamId}</p>
         </div>
       </div>
     </div>
@@ -569,8 +549,8 @@
       />
 
       <div class="mb-6">
-        <label for="ban-reason" class="block text-sm font-medium text-gray-300 mb-2">
-          Reason <span class="text-red-500">*</span>
+        <label for="ban-reason" class="block text-sm font-medium text-text-label mb-2">
+          Reason <span class="text-danger-400">*</span>
         </label>
         <textarea
           id="ban-reason"
@@ -578,31 +558,21 @@
           rows="4"
           required
           placeholder="Explain why this user is being punished..."
-          class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors resize-none"
+          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
         ></textarea>
       </div>
 
-      <div class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg mb-6">
-        <p class="text-red-400 text-sm">
+      <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-6">
+        <p class="text-danger-400 text-sm">
           This will create a punishment record and update the user's status.
         </p>
       </div>
 
       <div class="flex gap-3 justify-end">
-        <button
-          type="button"
-          onclick={closeBanModal}
-          class="px-4 py-2 bg-zinc-800 text-gray-300 hover:bg-zinc-700 rounded-lg transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-        >
+        <Button type="button" variant="secondary" onclick={closeBanModal}>Cancel</Button>
+        <Button type="submit" variant="danger" disabled={isSubmitting}>
           {isSubmitting ? 'Processing...' : 'Apply Punishment'}
-        </button>
+        </Button>
       </div>
     </form>
   </Dialog>

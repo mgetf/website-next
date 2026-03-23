@@ -37,5 +37,5 @@
   {value}
   {placeholder}
   oninput={handleInput}
-  class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors {className}"
+  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors {className}"
 />

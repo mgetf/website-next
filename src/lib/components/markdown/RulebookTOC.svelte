@@ -60,24 +60,24 @@
       case 1:
         return 'font-bold text-white';
       case 2:
-        return 'font-semibold text-gray-200';
+        return 'font-semibold text-text-label';
       default:
-        return 'font-normal text-gray-400';
+        return 'font-normal text-text-body';
     }
   }
 </script>
 
-<div class="toc-container bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+<div class="toc-container bg-surface-card border border-border-default rounded-lg overflow-hidden">
   <!-- Header -->
-  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+  <div class="p-4 border-b border-border-default flex items-center justify-between">
     <h3 class="font-bold text-white">Table of Contents</h3>
     <button
       onclick={() => (isCollapsed = !isCollapsed)}
-      class="lg:hidden p-1 hover:bg-zinc-800 rounded transition"
+      class="lg:hidden p-1 hover:bg-surface-input rounded transition"
       aria-label={isCollapsed ? 'Expand' : 'Collapse'}
     >
       <svg
-        class="w-5 h-5 text-gray-400 transition-transform {isCollapsed ? 'rotate-180' : ''}"
+        class="w-5 h-5 text-text-body transition-transform {isCollapsed ? 'rotate-180' : ''}"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -88,16 +88,16 @@
   </div>
 
   <!-- Search -->
-  <div class="p-3 border-b border-zinc-800 {isCollapsed ? 'hidden lg:block' : ''}">
+  <div class="p-3 border-b border-border-default {isCollapsed ? 'hidden lg:block' : ''}">
     <div class="relative">
       <input
         type="text"
         bind:value={searchQuery}
         placeholder="Search..."
-        class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full bg-surface-input border border-border-input rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
       />
       <svg
-        class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+        class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -118,14 +118,14 @@
     aria-label="Table of contents"
   >
     {#if filteredItems().length === 0}
-      <p class="text-gray-500 text-sm text-center py-4">No results found</p>
+      <p class="text-text-muted text-sm text-center py-4">No results found</p>
     {:else}
       <ul class="space-y-1">
         {#each filteredItems() as item}
           <li>
             <button
               onclick={() => scrollToSection(item.id)}
-              class="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-zinc-800 transition-colors {getIndentClass(
+              class="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-surface-input transition-colors {getIndentClass(
                 item.level,
               )} {getFontClass(item.level)} {activeId === item.id
                 ? 'bg-blue-500/20 text-blue-400'

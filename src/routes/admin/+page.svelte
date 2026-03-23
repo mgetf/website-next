@@ -4,6 +4,8 @@
   import BarChart from '$lib/components/charts/BarChart.svelte';
   import DoughnutChart from '$lib/components/charts/DoughnutChart.svelte';
   import DataTable from '$lib/components/ui/DataTable.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -34,7 +36,6 @@
   let decliningPlayerId = $state<string | null>(null);
   let declineReasons = $state<Record<string, string>>({});
 
-  // Calculate time remaining until deadline
   const deadlineInfo = $derived(() => {
     if (!matchDeadline) return null;
 
@@ -81,31 +82,27 @@
   <!-- Header -->
   <div class="mb-8">
     <h1 class="text-3xl font-bold text-white mb-2">Dashboard</h1>
-    <p class="text-gray-400">Manage your division's day-to-day operations</p>
+    <p class="text-text-body">Manage your division's day-to-day operations</p>
   </div>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- ACTIONABLE WORK SECTION - Primary focus area -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
 
   <!-- Match Creation Deadline Card -->
   {#if currentMatchWeek || matchDeadline}
     {@const info = deadlineInfo()}
     <div
-      class="bg-zinc-900 border rounded-lg shadow-lg overflow-hidden {info?.status === 'red'
-        ? 'border-red-500/50'
+      class="bg-surface-card border rounded-lg shadow-lg overflow-hidden {info?.status === 'red'
+        ? 'border-danger-500/50'
         : info?.status === 'yellow'
-          ? 'border-yellow-500/50'
-          : 'border-zinc-800'}"
+          ? 'border-warning-500/50'
+          : 'border-border-default'}"
     >
       <div class="p-5 flex items-center justify-between gap-4">
         <div class="flex items-center gap-4">
           <div
             class="w-12 h-12 rounded-lg flex items-center justify-center {info?.status === 'red'
-              ? 'bg-red-500/20 text-red-400'
+              ? 'bg-danger-500/20 text-danger-400'
               : info?.status === 'yellow'
-                ? 'bg-yellow-500/20 text-yellow-400'
-                : 'bg-green-500/20 text-green-400'}"
+                ? 'bg-warning-500/20 text-warning-400'
+                : 'bg-success-500/20 text-success-400'}"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -127,22 +124,24 @@
             {#if info}
               <p
                 class="text-sm {info.status === 'red'
-                  ? 'text-red-400'
+                  ? 'text-danger-400'
                   : info.status === 'yellow'
-                    ? 'text-yellow-400'
-                    : 'text-gray-400'}"
+                    ? 'text-warning-400'
+                    : 'text-text-body'}"
               >
                 <span class="font-medium">{info.timeText}</span>
-                <span class="text-gray-500 ml-1">• {info.formattedDate}</span>
+                <span class="text-text-muted ml-1">• {info.formattedDate}</span>
               </p>
             {:else}
-              <p class="text-sm text-gray-400">No deadline set</p>
+              <p class="text-sm text-text-body">No deadline set</p>
             {/if}
           </div>
         </div>
-        <a
+        <Button
+          variant="primary"
           href="/admin/matches/create"
-          class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+          size="lg"
+          class="flex items-center gap-2"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -153,16 +152,15 @@
             />
           </svg>
           Create Matches
-        </a>
+        </Button>
       </div>
     </div>
   {:else}
-    <!-- No deadline configured - show simple create matches button -->
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg overflow-hidden">
+    <Card padding="none" class="overflow-hidden shadow-lg">
       <div class="p-5 flex items-center justify-between gap-4">
         <div class="flex items-center gap-4">
           <div
-            class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400"
+            class="w-12 h-12 rounded-lg bg-info-500/20 flex items-center justify-center text-info-400"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -175,12 +173,16 @@
           </div>
           <div>
             <h2 class="text-xl font-bold text-white">Create Matches</h2>
-            <p class="text-sm text-gray-500">No deadline configured • Set one in Global Settings</p>
+            <p class="text-sm text-text-muted">
+              No deadline configured • Set one in Global Settings
+            </p>
           </div>
         </div>
-        <a
+        <Button
+          variant="primary"
           href="/admin/matches/create"
-          class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+          size="lg"
+          class="flex items-center gap-2"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -191,17 +193,17 @@
             />
           </svg>
           Create Matches
-        </a>
+        </Button>
       </div>
-    </div>
+    </Card>
   {/if}
 
   <!-- Pending Players - Inline Quick Actions -->
-  <div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg overflow-hidden">
-    <div class="p-5 border-b border-zinc-800 flex items-center justify-between">
+  <Card padding="none" class="overflow-hidden shadow-lg">
+    <div class="p-5 border-b border-border-default flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div
-          class="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center text-yellow-400"
+          class="w-10 h-10 rounded-lg bg-warning-500/20 flex items-center justify-center text-warning-400"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -214,7 +216,7 @@
         </div>
         <div>
           <h2 class="text-xl font-bold text-white">Pending Players</h2>
-          <p class="text-sm text-gray-400">
+          <p class="text-sm text-text-body">
             {pendingPlayers.length} player{pendingPlayers.length !== 1 ? 's' : ''} waiting for approval
           </p>
         </div>
@@ -222,26 +224,25 @@
       {#if pendingPlayers.length > 5}
         <a
           href="/admin/pending-players"
-          class="text-sm text-blue-400 hover:text-blue-300 font-medium transition"
+          class="text-sm text-info-400 hover:text-primary-300 font-medium transition"
         >
           View all →
         </a>
       {/if}
     </div>
 
-    <div class="divide-y divide-zinc-800">
+    <div class="divide-y divide-border-default">
       {#if pendingPlayers.length === 0}
         <div class="py-12 text-center">
           <span class="text-5xl mb-4 block">✅</span>
-          <p class="text-gray-400 font-medium">All caught up!</p>
-          <p class="text-gray-500 text-sm mt-1">No pending player requests</p>
+          <p class="text-text-body font-medium">All caught up!</p>
+          <p class="text-text-muted text-sm mt-1">No pending player requests</p>
         </div>
       {:else}
         {#each pendingPlayers.slice(0, 5) as request}
-          <div class="p-4 hover:bg-zinc-800/50 transition-colors">
+          <div class="p-4 hover:bg-surface-input/50 transition-colors">
             <div class="flex items-center justify-between gap-4">
               <div class="flex items-center gap-3 min-w-0 flex-1">
-                <!-- Player Avatar -->
                 <a href="/users/{request.player.steamId}" class="flex-shrink-0">
                   <img
                     src={request.player.steamAvatar || '/default-avatar.png'}
@@ -250,24 +251,23 @@
                   />
                 </a>
 
-                <!-- Request Details -->
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <a
                       href="/users/{request.player.steamId}"
-                      class="text-white font-semibold hover:text-blue-400 transition-colors truncate"
+                      class="text-white font-semibold hover:text-primary-400 transition-colors truncate"
                     >
                       {request.player.steamUsername}
                     </a>
-                    <span class="text-gray-500">→</span>
+                    <span class="text-text-muted">→</span>
                     <a
                       href="/teams/{request.team.id}"
-                      class="text-orange-400 hover:text-orange-300 font-medium transition-colors truncate"
+                      class="text-primary-400 hover:text-primary-300 font-medium transition-colors truncate"
                     >
                       {request.team.name}
                     </a>
                   </div>
-                  <div class="text-xs text-gray-500 mt-0.5">
+                  <div class="text-xs text-text-muted mt-0.5">
                     {request.team.division?.name || 'No Division'}
                   </div>
                 </div>
@@ -276,7 +276,6 @@
               <!-- Actions -->
               <div class="flex items-center gap-2 flex-shrink-0">
                 {#if decliningPlayerId === request.player.steamId}
-                  <!-- Decline Form -->
                   <form
                     method="POST"
                     action="?/decline"
@@ -299,25 +298,24 @@
                       bind:value={declineReasons[request.player.steamId]}
                       placeholder="Reason..."
                       required
-                      class="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-md text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 w-32"
+                      class="px-3 py-1.5 bg-surface-input border border-border-input rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
                     />
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      class="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
+                      class="px-3 py-1.5 bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
                     >
                       Confirm
                     </button>
                     <button
                       type="button"
                       onclick={() => (decliningPlayerId = null)}
-                      class="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors text-sm"
+                      class="px-3 py-1.5 bg-surface-hover hover:bg-surface-hover text-white rounded-lg transition-colors text-sm"
                     >
                       Cancel
                     </button>
                   </form>
                 {:else}
-                  <!-- Approve Button -->
                   <form
                     method="POST"
                     action="?/approve"
@@ -334,16 +332,15 @@
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      class="px-4 py-1.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
+                      class="px-4 py-1.5 bg-success-500/20 text-success-400 hover:bg-success-500/30 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
                     >
                       ✓ Approve
                     </button>
                   </form>
 
-                  <!-- Decline Button -->
                   <button
                     onclick={() => (decliningPlayerId = request.player.steamId)}
-                    class="px-4 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors font-medium text-sm"
+                    class="px-4 py-1.5 bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded-lg transition-colors font-medium text-sm"
                   >
                     ✗ Decline
                   </button>
@@ -354,14 +351,14 @@
         {/each}
       {/if}
     </div>
-  </div>
+  </Card>
 
   <!-- Recent Unplayed Matches -->
-  <div class="bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg overflow-hidden">
-    <div class="p-5 border-b border-zinc-800 flex items-center justify-between">
+  <Card padding="none" class="overflow-hidden shadow-lg">
+    <div class="p-5 border-b border-border-default flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div
-          class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400"
+          class="w-10 h-10 rounded-lg bg-info-500/20 flex items-center justify-center text-info-400"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -374,12 +371,12 @@
         </div>
         <div>
           <h2 class="text-xl font-bold text-white">Upcoming Matches</h2>
-          <p class="text-sm text-gray-400">Recent unplayed matches requiring attention</p>
+          <p class="text-sm text-text-body">Recent unplayed matches requiring attention</p>
         </div>
       </div>
       <a
         href="/admin/matches"
-        class="text-sm text-blue-400 hover:text-blue-300 font-medium transition"
+        class="text-sm text-info-400 hover:text-primary-300 font-medium transition"
       >
         Manage matches →
       </a>
@@ -388,9 +385,9 @@
     {#if recentMatches.length === 0}
       <div class="py-12 text-center">
         <span class="text-5xl mb-4 block">📋</span>
-        <p class="text-gray-400 font-medium">No unplayed matches</p>
-        <p class="text-gray-500 text-sm mt-1">
-          <a href="/admin/matches/create" class="text-blue-400 hover:text-blue-300"
+        <p class="text-text-body font-medium">No unplayed matches</p>
+        <p class="text-text-muted text-sm mt-1">
+          <a href="/admin/matches/create" class="text-info-400 hover:text-primary-300"
             >Create new matches</a
           > to get started
         </p>
@@ -401,19 +398,19 @@
           {#if col.key === 'match'}
             <div class="flex items-center gap-2">
               <span class="text-white font-medium">{match.homeTeam.name}</span>
-              <span class="text-gray-500 text-sm">vs</span>
+              <span class="text-text-muted text-sm">vs</span>
               <span class="text-white font-medium">{match.awayTeam.name}</span>
             </div>
           {:else if col.key === 'division'}
-            <span class="text-sm text-gray-300">{match.homeTeam.division?.name || '-'}</span>
+            <span class="text-sm text-text-label">{match.homeTeam.division?.name || '-'}</span>
           {:else if col.key === 'season'}
-            <span class="text-sm text-gray-400">
+            <span class="text-sm text-text-body">
               {match.season.region.name} S{match.season.seasonNum}
             </span>
           {:else if col.key === 'action'}
             <a
               href="/matches/{match.id}"
-              class="text-blue-400 hover:text-blue-300 text-sm font-medium"
+              class="text-info-400 hover:text-primary-300 text-sm font-medium"
             >
               View
             </a>
@@ -421,22 +418,19 @@
         {/snippet}
       </DataTable>
     {/if}
-  </div>
+  </Card>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- QUICK ALERTS - Secondary action items -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-
+  <!-- Quick Alerts -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <!-- Disputed Matches -->
     <a
       href="/admin/disputes"
-      class="bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:bg-zinc-800/70 transition group"
+      class="bg-surface-card border border-border-default rounded-lg p-5 hover:bg-surface-input/70 transition group"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div
-            class="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400 group-hover:bg-orange-500/30 transition"
+            class="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-400 group-hover:bg-primary-500/30 transition"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -448,14 +442,14 @@
             </svg>
           </div>
           <div>
-            <div class="text-2xl font-bold text-orange-400">
+            <div class="text-2xl font-bold text-primary-400">
               {analytics.keyMetrics.disputedMatches}
             </div>
-            <div class="text-sm text-gray-400">Disputed Matches</div>
+            <div class="text-sm text-text-body">Disputed Matches</div>
           </div>
         </div>
         <svg
-          class="w-5 h-5 text-gray-500 group-hover:text-orange-400 transition"
+          class="w-5 h-5 text-text-muted group-hover:text-primary-400 transition"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -468,12 +462,12 @@
     <!-- Open Demo Reports -->
     <a
       href="/admin/demos"
-      class="bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:bg-zinc-800/70 transition group"
+      class="bg-surface-card border border-border-default rounded-lg p-5 hover:bg-surface-input/70 transition group"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div
-            class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400 group-hover:bg-red-500/30 transition"
+            class="w-10 h-10 rounded-lg bg-danger-500/20 flex items-center justify-center text-danger-400 group-hover:bg-danger-500/30 transition"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -485,14 +479,14 @@
             </svg>
           </div>
           <div>
-            <div class="text-2xl font-bold text-red-400">
+            <div class="text-2xl font-bold text-danger-400">
               {analytics.keyMetrics.openDemoReports}
             </div>
-            <div class="text-sm text-gray-400">Open Demo Reports</div>
+            <div class="text-sm text-text-body">Open Demo Reports</div>
           </div>
         </div>
         <svg
-          class="w-5 h-5 text-gray-500 group-hover:text-red-400 transition"
+          class="w-5 h-5 text-text-muted group-hover:text-danger-400 transition"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -503,55 +497,47 @@
     </a>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- ANALYTICS SECTION - Overview metrics (moved to bottom) -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-
-  <div class="pt-6 border-t border-zinc-800">
+  <!-- Analytics Section -->
+  <div class="pt-6 border-t border-border-default">
     <div class="mb-6">
       <h2 class="text-xl font-bold text-white">League Overview</h2>
-      <p class="text-sm text-gray-500">Statistics from active seasons</p>
+      <p class="text-sm text-text-muted">Statistics from active seasons</p>
     </div>
 
     <!-- Key Metrics Cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <!-- Total Players -->
-      <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-        <div class="text-3xl font-bold text-blue-400 mb-1">
+      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
+        <div class="text-3xl font-bold text-info-400 mb-1">
           {analytics.totalPlayers}
         </div>
-        <div class="text-xs text-gray-400">Active Players</div>
+        <div class="text-xs text-text-body">Active Players</div>
       </div>
 
-      <!-- Total Teams -->
-      <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-        <div class="text-3xl font-bold text-blue-400 mb-1">
+      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
+        <div class="text-3xl font-bold text-info-400 mb-1">
           {analytics.totalTeams}
         </div>
-        <div class="text-xs text-gray-400">Active Teams</div>
+        <div class="text-xs text-text-body">Active Teams</div>
       </div>
 
-      <!-- Payment Rate -->
-      <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-        <div class="text-3xl font-bold text-green-400 mb-1">
+      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
+        <div class="text-3xl font-bold text-success-400 mb-1">
           {analytics.paymentStatus.paymentRate}%
         </div>
-        <div class="text-xs text-gray-400">Payment Rate</div>
+        <div class="text-xs text-text-body">Payment Rate</div>
       </div>
 
-      <!-- Active Seasons -->
-      <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
-        <div class="text-3xl font-bold text-blue-400 mb-1">
+      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
+        <div class="text-3xl font-bold text-info-400 mb-1">
           {analytics.activeSeasonCount}
         </div>
-        <div class="text-xs text-gray-400">Active Seasons</div>
+        <div class="text-xs text-text-body">Active Seasons</div>
       </div>
     </div>
 
     <!-- Charts Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Players Per Division -->
-      <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+      <Card padding="none" class="p-5">
         <h3 class="text-lg font-semibold text-white mb-4">Players Per Division</h3>
 
         {#if analytics.playersPerDivision.length > 0}
@@ -567,20 +553,19 @@
             <DataTable data={analytics.playersPerDivision} columns={divisionColumns}>
               {#snippet cell(division, col)}
                 {#if col.key === 'division'}
-                  <span class="text-gray-300">{division.divisionName}</span>
+                  <span class="text-text-label">{division.divisionName}</span>
                 {:else if col.key === 'players'}
-                  <span class="text-gray-400 font-mono">{division.playerCount}</span>
+                  <span class="text-text-body font-mono">{division.playerCount}</span>
                 {/if}
               {/snippet}
             </DataTable>
           </div>
         {:else}
-          <p class="text-gray-500 text-center py-8 text-sm">No active players</p>
+          <p class="text-text-muted text-center py-8 text-sm">No active players</p>
         {/if}
-      </div>
+      </Card>
 
-      <!-- Teams Per Region -->
-      <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+      <Card padding="none" class="p-5">
         <h3 class="text-lg font-semibold text-white mb-4">Teams Per Region</h3>
 
         {#if analytics.teamsPerRegion.length > 0}
@@ -596,26 +581,25 @@
             <DataTable data={analytics.teamsPerRegion} columns={regionColumns}>
               {#snippet cell(region, col)}
                 {#if col.key === 'region'}
-                  <span class="text-gray-300">{region.regionName}</span>
+                  <span class="text-text-label">{region.regionName}</span>
                 {:else if col.key === 'teams'}
-                  <span class="text-gray-400 font-mono">{region.teamCount}</span>
+                  <span class="text-text-body font-mono">{region.teamCount}</span>
                 {/if}
               {/snippet}
             </DataTable>
           </div>
         {:else}
-          <p class="text-gray-500 text-center py-8 text-sm">No active teams</p>
+          <p class="text-text-muted text-center py-8 text-sm">No active teams</p>
         {/if}
-      </div>
+      </Card>
     </div>
 
     <!-- Payment Status -->
     {#if analytics.paymentStatus.totalInPaidDivisions > 0}
-      <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-5 mt-6">
+      <Card padding="none" class="p-5 mt-6">
         <h3 class="text-lg font-semibold text-white mb-4">Payment Status</h3>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Chart -->
           <div class="flex items-center justify-center">
             <DoughnutChart
               labels={['Paid', 'Unpaid', 'Free Tier']}
@@ -627,47 +611,41 @@
             />
           </div>
 
-          <!-- Stats Grid -->
           <div class="grid grid-cols-2 gap-3">
-            <!-- Paid -->
-            <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
-              <div class="text-xl font-bold text-green-400 mb-0.5">
+            <div class="bg-surface-input/50 border border-border-input rounded-lg p-3">
+              <div class="text-xl font-bold text-success-400 mb-0.5">
                 {analytics.paymentStatus.paid}
               </div>
-              <div class="text-xs text-gray-400">Paid Players</div>
+              <div class="text-xs text-text-body">Paid Players</div>
             </div>
 
-            <!-- Unpaid -->
-            <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
-              <div class="text-xl font-bold text-red-400 mb-0.5">
+            <div class="bg-surface-input/50 border border-border-input rounded-lg p-3">
+              <div class="text-xl font-bold text-danger-400 mb-0.5">
                 {analytics.paymentStatus.unpaid}
               </div>
-              <div class="text-xs text-gray-400">Unpaid Players</div>
+              <div class="text-xs text-text-body">Unpaid Players</div>
             </div>
 
-            <!-- Free Tier -->
-            <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
-              <div class="text-xl font-bold text-blue-400 mb-0.5">
+            <div class="bg-surface-input/50 border border-border-input rounded-lg p-3">
+              <div class="text-xl font-bold text-info-400 mb-0.5">
                 {analytics.paymentStatus.freeTier}
               </div>
-              <div class="text-xs text-gray-400">Free Tier</div>
+              <div class="text-xs text-text-body">Free Tier</div>
             </div>
 
-            <!-- Total in Paid Divisions -->
-            <div class="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
-              <div class="text-xl font-bold text-gray-300 mb-0.5">
+            <div class="bg-surface-input/50 border border-border-input rounded-lg p-3">
+              <div class="text-xl font-bold text-text-label mb-0.5">
                 {analytics.paymentStatus.totalInPaidDivisions}
               </div>
-              <div class="text-xs text-gray-400">Total (Paid Divs)</div>
+              <div class="text-xs text-text-body">Total (Paid Divs)</div>
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     {/if}
   </div>
 
-  <!-- Footer Note -->
-  <div class="text-center text-sm text-gray-500 pt-4">
+  <div class="text-center text-sm text-text-muted pt-4">
     Statistics are calculated from active seasons only
   </div>
 </div>

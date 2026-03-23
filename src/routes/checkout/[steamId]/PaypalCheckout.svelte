@@ -207,28 +207,28 @@
 </script>
 
 {#if errorMessage}
-  <div class="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-    <p class="text-red-400">{errorMessage}</p>
+  <div class="mb-4 p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg">
+    <p class="text-danger-400">{errorMessage}</p>
   </div>
 {/if}
 
 {#if isProcessing}
   <div class="text-center py-8">
     <div
-      class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mb-4"
+      class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"
     ></div>
-    <p class="text-gray-400">Processing payment...</p>
+    <p class="text-text-body">Processing payment...</p>
   </div>
 {:else if isTestMode}
   <div class="space-y-4">
-    <div class="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-      <p class="text-yellow-400 text-sm font-medium">
+    <div class="p-4 bg-warning-500/10 border border-warning-500/30 rounded-lg">
+      <p class="text-warning-400 text-sm font-medium">
         TEST MODE - No real payment will be processed
       </p>
     </div>
     <button
       onclick={processTestPayment}
-      class="w-full py-4 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg transition-colors text-lg"
+      class="w-full py-4 bg-warning-500 hover:bg-warning-400 text-black font-bold rounded-lg transition-colors text-lg"
     >
       Complete Test Payment
     </button>
@@ -236,24 +236,24 @@
 {:else if !paypalLoaded}
   <div class="text-center py-8">
     <div
-      class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mb-4"
+      class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"
     ></div>
-    <p class="text-gray-400">Loading payment options...</p>
+    <p class="text-text-body">Loading payment options...</p>
   </div>
 {:else}
   <div id="paypal-button-container"></div>
 {/if}
 
 {#if isTestMode}
-  <div class="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-    <p class="text-blue-400 text-sm">
+  <div class="mt-6 p-4 bg-info-500/10 border border-info-500/30 rounded-lg">
+    <p class="text-info-400 text-sm">
       <strong>Test Mode:</strong> This is a simulated payment for development. No real charges will be
       made.
     </p>
   </div>
 {:else}
-  <div class="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-    <p class="text-blue-400 text-sm">
+  <div class="mt-6 p-4 bg-info-500/10 border border-info-500/30 rounded-lg">
+    <p class="text-info-400 text-sm">
       <strong>Note:</strong> Payment is processed securely through PayPal. Once payment is confirmed,
       your team registration will be activated.
     </p>

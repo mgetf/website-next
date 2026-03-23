@@ -65,20 +65,20 @@
       <!-- 2v2 League Card -->
       {#if league2v2Data.signupsOpen}
         <div
-          class="rounded-xl border-2 border-blue-400 shadow-2xl shadow-blue-500/25 flex flex-col overflow-hidden"
+          class="rounded-xl border-2 border-format-2v2-400 shadow-2xl shadow-format-2v2-500/25 flex flex-col overflow-hidden"
         >
-          <div class="h-1.5 w-full bg-blue-400"></div>
+          <div class="h-1.5 w-full bg-format-2v2-400"></div>
           <div class="bg-surface-card p-8 flex flex-col flex-grow">
-            <p class="text-primary-400 text-sm font-bold tracking-widest uppercase mb-6">
+            <p class="text-format-2v2-400 text-sm font-bold tracking-widest uppercase mb-6">
               2v2 League &mdash; {league2v2Data.season}
             </p>
             <div class="flex-grow flex flex-col justify-center mb-8">
               <p class="text-5xl font-black text-white uppercase leading-none mb-2">Signups</p>
-              <p class="text-5xl font-black text-primary-400 uppercase leading-none mb-6">
+              <p class="text-5xl font-black text-format-2v2-400 uppercase leading-none mb-6">
                 Are Open.
               </p>
               <p class="text-text-body text-base leading-relaxed">
-                New season, new teams. Get registered before it fills up.
+                New season, new teams. Get registered before it fills up!
               </p>
             </div>
             <a
@@ -97,10 +97,10 @@
         </div>
       {:else}
         <div
-          class="bg-surface-card rounded-xl p-8 border-2 border-primary-500 hover:border-blue-400 transition-all shadow-xl shadow-blue-500/10 hover:shadow-blue-500/20 flex flex-col"
+          class="bg-surface-card rounded-xl p-8 border-2 border-format-2v2-500 hover:border-format-2v2-400 transition-all shadow-xl shadow-format-2v2-500/10 hover:shadow-format-2v2-500/20 flex flex-col"
         >
           <div class="mb-4">
-            <h3 class="text-2xl font-bold text-primary-400">2v2 LEAGUE</h3>
+            <h3 class="text-2xl font-bold text-format-2v2-400">2v2 LEAGUE</h3>
           </div>
           <div class="mb-6">
             <p class="text-text-body text-sm mb-2">Current Season</p>
@@ -142,20 +142,20 @@
       <!-- 1v1 League Card -->
       {#if league1v1Data.signupsOpen}
         <div
-          class="rounded-xl border-2 border-purple-400 shadow-2xl shadow-purple-500/25 flex flex-col overflow-hidden"
+          class="rounded-xl border-2 border-format-1v1-400 shadow-2xl shadow-format-1v1-500/25 flex flex-col overflow-hidden"
         >
-          <div class="h-1.5 w-full bg-purple-400"></div>
+          <div class="h-1.5 w-full bg-format-1v1-400"></div>
           <div class="bg-surface-card p-8 flex flex-col flex-grow">
-            <p class="text-purple-400 text-sm font-bold tracking-widest uppercase mb-6">
+            <p class="text-format-1v1-400 text-sm font-bold tracking-widest uppercase mb-6">
               1v1 League &mdash; {league1v1Data.season}
             </p>
             <div class="flex-grow flex flex-col justify-center mb-8">
               <p class="text-5xl font-black text-white uppercase leading-none mb-2">Signups</p>
-              <p class="text-5xl font-black text-purple-400 uppercase leading-none mb-6">
+              <p class="text-5xl font-black text-format-1v1-400 uppercase leading-none mb-6">
                 Are Open.
               </p>
               <p class="text-text-body text-base leading-relaxed">
-                New season starting soon. Get your name on the list.
+                New season starting soon. Get your name on the list!
               </p>
             </div>
             <a
@@ -174,10 +174,10 @@
         </div>
       {:else}
         <div
-          class="bg-surface-card rounded-xl p-8 border-2 border-purple-500 hover:border-purple-400 transition-all shadow-xl shadow-purple-500/10 hover:shadow-purple-500/20 flex flex-col"
+          class="bg-surface-card rounded-xl p-8 border-2 border-format-1v1-500 hover:border-format-1v1-400 transition-all shadow-xl shadow-format-1v1-500/10 hover:shadow-format-1v1-500/20 flex flex-col"
         >
           <div class="mb-4">
-            <h3 class="text-2xl font-bold text-purple-400">1v1 LEAGUE</h3>
+            <h3 class="text-2xl font-bold text-format-1v1-400">1v1 LEAGUE</h3>
           </div>
           <div class="mb-6">
             <p class="text-text-body text-sm mb-2">Current Season</p>

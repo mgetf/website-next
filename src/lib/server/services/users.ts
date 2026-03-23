@@ -926,14 +926,38 @@ export async function findOrCreateSteamUser(steamUserJson: {
   });
 
   if (!existingUser) {
-    await prisma.user.create({
-      data: {
+    const created = await prisma.user.upsert({
+      where: { steamId: steamid },
+      create: {
         steamId: steamid,
         steamUsername: personaname,
         steamAvatar: avatarfull,
         permissionLevel: 'GUEST',
       },
+      update: {},
+      select: {
+        steamUsername: true,
+        steamAvatar: true,
+        permissionLevel: true,
+        banStatus: true,
+        nameOverride: true,
+        avatarOverride: true,
+      },
     });
+
+    const wasRace = created.permissionLevel !== 'GUEST' || created.nameOverride === 1;
+    if (wasRace) {
+      const username = created.nameOverride ? created.steamUsername : personaname;
+      const avatar = created.avatarOverride ? (created.steamAvatar ?? avatarfull) : avatarfull;
+      return {
+        username,
+        avatar,
+        permissionLevel: created.permissionLevel as string,
+        banStatus: created.banStatus as string,
+        isNewUser: false,
+      };
+    }
+
     return {
       username: personaname,
       avatar: avatarfull,

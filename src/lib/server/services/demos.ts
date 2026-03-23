@@ -47,19 +47,11 @@ export async function uploadDemo(data: UploadDemoData) {
     console.error('Failed to delete temp file:', err);
   }
 
-  const playerExists = await prisma.user.findUnique({
+  await prisma.user.upsert({
     where: { steamId: playerSteamId },
+    create: { steamId: playerSteamId, steamUsername: 'Unknown', steamAvatar: '' },
+    update: {},
   });
-
-  if (!playerExists) {
-    await prisma.user.create({
-      data: {
-        steamId: playerSteamId,
-        steamUsername: 'Unknown',
-        steamAvatar: '',
-      },
-    });
-  }
 
   const demo = await prisma.demo.create({
     data: {

@@ -5,19 +5,26 @@
  */
 
 import type { Handle, HandleServerError } from '@sveltejs/kit';
-import { getSession } from '$lib/server/session';
+import { getSession, clearSession } from '$lib/server/session';
 import { dev } from '$app/environment';
 import { isStaging, isUngatedRoute, getAppEnvironment } from '$lib/server/utils/environment';
 import { isAdmin } from '$lib/server/auth/permissions';
 import { validateEnvironment } from '$lib/server/utils/env';
+import { getSessionVersion } from '$lib/server/services/users';
 
 validateEnvironment();
 
 export const handle: Handle = async ({ event, resolve }) => {
-  // Get user session from cookies
-  const user = getSession(event.cookies);
+  let user = getSession(event.cookies);
 
-  // Make user available in locals for all server-side code
+  if (user) {
+    const dbVersion = await getSessionVersion(user.steamId);
+    if ((user.sessionVersion ?? 0) !== dbVersion) {
+      clearSession(event.cookies);
+      user = null;
+    }
+  }
+
   event.locals.user = user;
 
   // Store environment info for layouts/pages

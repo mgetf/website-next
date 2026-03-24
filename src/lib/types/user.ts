@@ -27,4 +27,5 @@ export interface SessionUser {
   steamAvatar: string;
   permissionLevel: UserRole;
   banStatus: BanStatus;
+  sessionVersion?: number;
 }

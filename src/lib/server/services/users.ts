@@ -13,6 +13,28 @@ import { getOptionalEnv } from '$lib/server/utils/env';
 export type { ProfileMatch } from '$lib/types/match';
 
 /**
+ * Fetch the current session version for a user.
+ * Used by hooks to detect stale sessions after role/ban changes.
+ */
+export async function getSessionVersion(steamId: string): Promise<number> {
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    select: { sessionVersion: true },
+  });
+  return user?.sessionVersion ?? 0;
+}
+
+/**
+ * Atomically increment a user's session version, invalidating any active sessions.
+ */
+export async function incrementSessionVersion(steamId: string): Promise<void> {
+  await prisma.user.update({
+    where: { steamId },
+    data: { sessionVersion: { increment: 1 } },
+  });
+}
+
+/**
  * Get user by Steam ID with basic info
  */
 export async function getUserBySteamId(steamId: string) {
@@ -629,6 +651,11 @@ export async function updateUser(
     updateData.staffDivisionId = data.staffDivisionId;
   }
 
+  const changesPermissions = data.permissionLevel !== undefined || data.banStatus !== undefined;
+  if (changesPermissions) {
+    updateData.sessionVersion = { increment: 1 };
+  }
+
   return await prisma.user.update({
     where: { steamId },
     data: updateData,
@@ -675,7 +702,10 @@ export async function clearPunishment(steamId: string, clearedBy: string) {
 
   await prisma.user.update({
     where: { steamId },
-    data: { banStatus: 'NONE' },
+    data: {
+      banStatus: 'NONE',
+      sessionVersion: { increment: 1 },
+    },
   });
 
   // Deactivate all active punishment records
@@ -692,11 +722,11 @@ export async function banUser(
   reason: string,
   duration?: number,
 ) {
-  // Update user's ban status
   await prisma.user.update({
     where: { steamId },
     data: {
       banStatus: severity,
+      sessionVersion: { increment: 1 },
     },
   });
 
@@ -932,6 +962,7 @@ export async function findOrCreateSteamUser(steamUserJson: {
   avatar: string;
   permissionLevel: string;
   banStatus: string;
+  sessionVersion: number;
   isNewUser: boolean;
 }> {
   const { steamid, personaname, avatarfull } = steamUserJson;
@@ -944,6 +975,7 @@ export async function findOrCreateSteamUser(steamUserJson: {
       steamAvatar: true,
       permissionLevel: true,
       banStatus: true,
+      sessionVersion: true,
       nameOverride: true,
       avatarOverride: true,
     },
@@ -964,6 +996,7 @@ export async function findOrCreateSteamUser(steamUserJson: {
         steamAvatar: true,
         permissionLevel: true,
         banStatus: true,
+        sessionVersion: true,
         nameOverride: true,
         avatarOverride: true,
       },
@@ -978,6 +1011,7 @@ export async function findOrCreateSteamUser(steamUserJson: {
         avatar,
         permissionLevel: created.permissionLevel as string,
         banStatus: created.banStatus as string,
+        sessionVersion: created.sessionVersion,
         isNewUser: false,
       };
     }
@@ -987,6 +1021,7 @@ export async function findOrCreateSteamUser(steamUserJson: {
       avatar: avatarfull,
       permissionLevel: 'GUEST',
       banStatus: 'NONE',
+      sessionVersion: 0,
       isNewUser: true,
     };
   }
@@ -1013,6 +1048,7 @@ export async function findOrCreateSteamUser(steamUserJson: {
     avatar,
     permissionLevel: existingUser.permissionLevel as string,
     banStatus: existingUser.banStatus as string,
+    sessionVersion: existingUser.sessionVersion,
     isNewUser: false,
   };
 }

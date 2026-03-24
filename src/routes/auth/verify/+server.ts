@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ cookies, request, getClientAddress }
 
     await getPermissionLevel(steamUser.steamid);
 
-    const { username, avatar, permissionLevel, banStatus, isNewUser } =
+    const { username, avatar, permissionLevel, banStatus, sessionVersion, isNewUser } =
       await findOrCreateSteamUser(steamUser);
 
     const sessionUser = {
@@ -30,6 +30,7 @@ export const GET: RequestHandler = async ({ cookies, request, getClientAddress }
       steamAvatar: avatar,
       permissionLevel: permissionLevel as unknown as UserRole,
       banStatus: banStatus as unknown as BanStatus,
+      sessionVersion,
     };
 
     setSession(cookies, sessionUser);

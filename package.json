@@ -7,7 +7,7 @@
     "dev": "vite dev",
     "build": "prisma generate && vite build",
     "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
+    "prepare": "svelte-kit sync || echo '' && husky",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "generate": "prisma generate",
@@ -27,6 +27,8 @@
     "brackets-model": "^1.6.2",
     "dotenv": "^17.3.1",
     "dotenv-cli": "^11.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
     "prisma": "^7.5.0",
@@ -55,5 +57,8 @@
     "svelte-exmarkdown": "^5.0.2",
     "tailwindcss": "^4.2.2",
     "zod": "^4.3.6"
+  },
+  "lint-staged": {
+    "*.{js,ts,svelte,css,html,json,md,yaml,yml}": "prettier --check"
   }
 }

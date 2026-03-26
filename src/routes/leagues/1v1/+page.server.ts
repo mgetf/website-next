@@ -25,9 +25,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     );
 
     // Find the most recent 1v1 season that has entries
-    // For 1v1, only READY (active) and DEAD (withdrawn) states are valid
     const defaultSeasonWithEntries = await findRecent1v1SeasonWithEntries(
-      ['READY', 'DEAD'],
+      ['UNREADY', 'PENDING', 'READY', 'DEAD'],
       FORMAT_1V1,
     );
 
@@ -64,12 +63,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     // Fetch all divisions (visible ones)
     const divisions = await getVisibleDivisions();
 
-    // Fetch entries (1v1 teams) for each division in the selected season/region
-    // For 1v1, only READY and DEAD are valid statuses
-    // DEAD entries that affected placements (played matches) are shown with "WITHDRAWN" label
     const entriesByDivision = await Promise.all(
       divisions.map(async (division) => {
         const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
+          'UNREADY',
+          'PENDING',
           'READY',
           'DEAD',
         ]);

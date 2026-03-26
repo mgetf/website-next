@@ -3,16 +3,15 @@
  * Handles individual player signup for 1v1 leagues using 1-person teams
  * The team abstraction is completely hidden from users
  *
- * IMPORTANT: 1v1 Status Model
- * ==========================
- * 1v1 teams only have 2 valid states:
- * - READY: Player is actively signed up for the season
- * - DEAD: Player has withdrawn from the season
+ * 1v1 Status Model
+ * ================
+ * 1v1 entries use the same lifecycle as 2v2:
+ * - UNREADY: Signed up, not yet readied
+ * - PENDING: Player toggled ready, awaiting admin approval
+ * - READY:   Admin approved, active for the season
+ * - DEAD:    Withdrawn
  *
- * Unlike 2v2 teams which use UNREADY/PENDING/READY/PLACEMENT states,
- * 1v1 entries are immediately READY upon signup (no waiting for teammates).
- * Detection of "active" 1v1 entries should ALWAYS check team.status === 'READY',
- * NOT PlayerInTeam.active, since the player IS the team.
+ * "Active" (not withdrawn) means status !== DEAD.
  */
 
 import { prisma } from '$lib/server/db';
@@ -22,9 +21,15 @@ import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSea
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { disbandTeam } from './teamManagement';
 
+const ACTIVE_1V1_STATUSES: TeamStatus[] = [
+  TeamStatus.UNREADY,
+  TeamStatus.PENDING,
+  TeamStatus.READY,
+];
+
 /**
- * Check if a user has an active 1v1 entry in any current signup season
- * "Active" for 1v1 means team status is READY (not DEAD)
+ * Check if a user has an active 1v1 entry in any current signup season.
+ * "Active" means any status that isn't DEAD.
  */
 export async function hasActive1v1Entry(steamId: string): Promise<boolean> {
   const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_1V1);
@@ -36,7 +41,7 @@ export async function hasActive1v1Entry(steamId: string): Promise<boolean> {
   const existing = await prisma.team.findFirst({
     where: {
       formatId: FORMAT_1V1,
-      status: TeamStatus.READY,
+      status: { in: ACTIVE_1V1_STATUSES },
       seasonId: { in: currentSignupSeasonIds },
       players: {
         some: { playerSteamId: steamId },
@@ -61,7 +66,7 @@ export async function getActive1v1Entry(steamId: string) {
   return await prisma.team.findFirst({
     where: {
       formatId: FORMAT_1V1,
-      status: TeamStatus.READY,
+      status: { in: ACTIVE_1V1_STATUSES },
       seasonId: { in: currentSignupSeasonIds },
       players: {
         some: { playerSteamId: steamId },
@@ -133,13 +138,10 @@ export async function get1v1SignupContext(steamId: string | null): Promise<Signu
 
     user = userData;
 
-    // Check if user already has an active 1v1 entry for a current signup season
-    // For 1v1, "active" means team status is READY (not DEAD)
-    // We check team status, not PlayerInTeam.active, because 1v1 only has 2 states
     const existing1v1Entry = await prisma.team.findFirst({
       where: {
         formatId: FORMAT_1V1,
-        status: TeamStatus.READY, // Only READY is considered active for 1v1
+        status: { in: ACTIVE_1V1_STATUSES },
         seasonId: {
           in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
         },
@@ -169,12 +171,10 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
   // Get current signup season IDs for 1v1 format
   const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_1V1);
 
-  // Check if user already has an active 1v1 entry for this season
-  // For 1v1, "active" means team status is READY (not DEAD)
   const existing1v1Entry = await prisma.team.findFirst({
     where: {
       formatId: FORMAT_1V1,
-      status: TeamStatus.READY, // Only READY is considered active for 1v1
+      status: { in: ACTIVE_1V1_STATUSES },
       seasonId: {
         in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
       },
@@ -277,9 +277,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
   });
 
   if (existingDeadEntry) {
-    // Reactivate the existing entry
-    // For 1v1, we always use READY status - no waiting for teammates
-    const initialStatus = TeamStatus.READY;
+    const initialStatus = TeamStatus.UNREADY;
 
     // Check payment status
     const existingPayment = await prisma.paymentTracker.findUnique({
@@ -293,7 +291,6 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
     const amountPaid = existingPayment?.amount || 0;
     const isPaid = division.signupCost === 0 || amountPaid >= division.signupCost;
 
-    // Update team status back to READY
     await prisma.team.update({
       where: { id: existingDeadEntry.id },
       data: {
@@ -326,9 +323,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
     return existingDeadEntry.id;
   }
 
-  // No existing entry to reactivate - create a new one
-  // For 1v1, we always use READY status - no waiting for teammates
-  const initialStatus = TeamStatus.READY;
+  const initialStatus = TeamStatus.UNREADY;
 
   // Create 1-person "team" with player's frozen name/avatar
   // No acronym, no join password (nobody can join a 1v1 entry)
@@ -463,6 +458,45 @@ export async function getUser1v1History(steamId: string) {
   });
 
   return entries.map((e) => e.team);
+}
+
+/**
+ * Toggle a 1v1 entry from UNREADY to PENDING.
+ * Requires the player to be paid (for paid divisions).
+ */
+export async function toggle1v1Ready(teamId: number, requestingSteamId: string): Promise<void> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      division: { select: { signupCost: true } },
+      players: {
+        where: { active: 1 },
+        select: { playerSteamId: true, paymentStatus: true, permissionLevel: true },
+      },
+    },
+  });
+
+  if (!team) notFound('1v1 entry not found');
+  if (team.formatId !== FORMAT_1V1) badRequest('This is not a 1v1 entry');
+
+  const player = team.players.find((p) => p.playerSteamId === requestingSteamId);
+  if (!player || player.permissionLevel < 2) {
+    forbidden('You can only ready up your own 1v1 entry');
+  }
+
+  if (team.status !== TeamStatus.UNREADY) {
+    badRequest('Entry must be in UNREADY status to ready up');
+  }
+
+  const isFreeDiv = !team.division || team.division.signupCost === 0;
+  if (!isFreeDiv && player.paymentStatus !== 1) {
+    badRequest('You must be paid before readying up');
+  }
+
+  await prisma.team.update({
+    where: { id: teamId },
+    data: { status: TeamStatus.PENDING },
+  });
 }
 
 /**

@@ -39,6 +39,7 @@
         wins: number;
         losses: number;
         points: number;
+        isWithdrawn?: boolean;
       }>;
     }>;
     staffByDivision: Array<{
@@ -394,20 +395,32 @@
                     {#if col.key === 'team'}
                       <a
                         href="/teams/{team.id}"
-                        class="flex items-center gap-2 text-white text-sm font-medium hover:text-format-2v2-400 transition-colors"
+                        class="flex items-center gap-2 text-sm font-medium hover:text-format-2v2-400 transition-colors {team.isWithdrawn
+                          ? 'text-text-body'
+                          : 'text-white'}"
                       >
                         <img
                           src={team.avatar ||
                             `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
                           alt="{team.name} logo"
-                          class="w-8 h-8 rounded object-cover"
+                          class="w-8 h-8 rounded object-cover {team.isWithdrawn ? 'grayscale' : ''}"
                         />
                         <span>{team.name}</span>
+                        {#if team.isWithdrawn}
+                          <span
+                            class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"
+                            >WITHDRAWN</span
+                          >
+                        {/if}
                       </a>
                     {:else if col.key === 'record'}
                       <span class="text-text-label text-sm">{team.wins}-{team.losses}</span>
                     {:else if col.key === 'points'}
-                      <span class="text-white text-sm font-medium">{team.points.toFixed(1)}</span>
+                      <span
+                        class="{team.isWithdrawn
+                          ? 'text-text-body'
+                          : 'text-white'} text-sm font-medium">{team.points.toFixed(1)}</span
+                      >
                     {/if}
                   {/snippet}
                 </DataTable>

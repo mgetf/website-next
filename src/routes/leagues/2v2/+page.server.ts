@@ -24,8 +24,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       (s) => visibleRegionIds.has(s.regionId) && s.formatId === FORMAT_2V2,
     );
 
-    // Find the most recent 2v2 season that has teams (any status, including historical)
-    // This ensures we show a season with actual data by default
     let defaultSeasonWithTeams = await findRecentSeasonWithTeams(
       ['UNREADY', 'PENDING', 'READY', 'PLACEMENT', 'DEAD'],
       FORMAT_2V2,
@@ -53,9 +51,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     // Order by ID descending to show highest divisions first (INVITE -> PREMIER -> INTERMEDIATE -> OPEN -> NEWCOMER)
     const divisions = await getVisibleDivisions();
 
-    // Fetch teams for each division in the selected season/region
-    // Include all team statuses (UNREADY, PENDING, READY, PLACEMENT, DEAD) to show historical data
-    // DEAD teams are included so past seasons can show teams that played but later disbanded
     const teamsByDivision = await Promise.all(
       divisions.map(async (division) => {
         const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
@@ -66,12 +61,19 @@ export const load: PageServerLoad = async ({ url, locals }) => {
           'DEAD',
         ]);
 
+        const filtered = teams
+          .filter((team: any) => team.status !== 'DEAD' || team.wins + team.losses > 0)
+          .map((team: any) => ({
+            ...team,
+            isWithdrawn: team.status === 'DEAD',
+          }));
+
         return {
           division: {
             id: division.id,
             name: division.name,
           },
-          teams,
+          teams: filtered,
         };
       }),
     );

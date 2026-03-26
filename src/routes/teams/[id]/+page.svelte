@@ -22,10 +22,18 @@
   let removeTarget: { steamId: string; name: string } | null = $state(null);
   let showMarkPaidDialog = $state(false);
   let markPaidTarget: { steamId: string; name: string } | null = $state(null);
+  let showReadyDialog = $state(false);
 
   let leaveFormEl: HTMLFormElement | undefined = $state();
   let removeFormEl: HTMLFormElement | undefined = $state();
   let markPaidFormEl: HTMLFormElement | undefined = $state();
+  let readyFormEl: HTMLFormElement | undefined = $state();
+
+  const canToggleReady = $derived(
+    data.canManageTeam &&
+      team.status === 'UNREADY' &&
+      (data.isFreeDivision || data.paidPlayerCount >= 2),
+  );
 
   onMount(() => {
     if (data.paymentSuccess) {
@@ -55,6 +63,7 @@
       removeTarget = null;
       showMarkPaidDialog = false;
       markPaidTarget = null;
+      showReadyDialog = false;
       if (form.success && form.message) {
         toast.success(form.message);
       } else if (form.error) {
@@ -470,7 +479,42 @@
         </div>
 
         <div class="p-6 space-y-6">
-          <Button href="/teams/{team.id}/edit" variant="secondary">✏️ Edit Team Settings</Button>
+          {#if team.status === 'UNREADY'}
+            <div class="p-4 rounded-lg border border-warning-500/30 bg-warning-500/5">
+              <h3 class="text-lg font-bold text-white mb-2">Ready Up</h3>
+              {#if !data.isFreeDivision && data.paidPlayerCount < 2}
+                <p class="text-sm text-text-body mb-3">
+                  At least 2 players must be paid before you can ready up.
+                  <span class="text-warning-400 font-medium">
+                    ({data.paidPlayerCount}/2 paid)
+                  </span>
+                </p>
+              {:else}
+                <p class="text-sm text-text-body mb-3">
+                  Once ready, an admin will review your team and approve it for the season.
+                </p>
+              {/if}
+              <Button
+                variant="primary"
+                disabled={!canToggleReady || submittingAction !== null}
+                onclick={() => (showReadyDialog = true)}
+              >
+                Ready Up
+              </Button>
+            </div>
+          {:else if team.status === 'PENDING'}
+            <div class="p-4 rounded-lg border border-warning-500/30 bg-warning-500/5">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-warning-400 animate-pulse"></span>
+                <span class="text-warning-400 font-semibold">Pending Admin Approval</span>
+              </div>
+              <p class="text-sm text-text-body mt-2">
+                Your team has been marked as ready and is awaiting admin review.
+              </p>
+            </div>
+          {/if}
+
+          <Button href="/teams/{team.id}/edit" variant="secondary">Edit Team Settings</Button>
 
           {#if data.isGlobalAdmin}
             <div class="pt-4 border-t border-border-default">
@@ -567,6 +611,14 @@
   <input type="hidden" name="playerSteamId" value={markPaidTarget?.steamId ?? ''} />
 </form>
 
+<form
+  bind:this={readyFormEl}
+  method="POST"
+  action="?/toggleReady"
+  use:enhance={makeEnhance('toggleReady')}
+  class="hidden"
+></form>
+
 <ConfirmDialog
   open={showLeaveDialog}
   title="Leave Team"
@@ -609,4 +661,16 @@
     showMarkPaidDialog = false;
     markPaidTarget = null;
   }}
+/>
+
+<ConfirmDialog
+  open={showReadyDialog}
+  title="Ready Up"
+  description="Mark {team.name} as ready? An admin will review and approve your team for the season."
+  confirmLabel="Ready Up"
+  loadingLabel="Submitting..."
+  variant="success"
+  isLoading={submittingAction === 'toggleReady'}
+  onConfirm={() => readyFormEl?.requestSubmit()}
+  onCancel={() => (showReadyDialog = false)}
 />

@@ -1,6 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
-import { getTeamById, updateTeamStatus, changeTeamDivision } from '$lib/server/services/teams';
+import {
+  getTeamById,
+  updateTeamStatus,
+  changeTeamDivision,
+  toggleTeamReady,
+} from '$lib/server/services/teams';
 import { isAdmin, isTeamAdmin } from '$lib/server/auth/permissions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { removePlayer } from '$lib/server/services/teamManagement';
@@ -212,6 +217,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     currentUserSteamId,
     paymentSuccess,
     signupSuccess,
+    paidPlayerCount: currentRoster.filter((p) => p.isPaid).length,
+    isFreeDivision: !team.division || team.division.signupCost === 0,
   };
 };
 
@@ -373,6 +380,23 @@ export const actions: Actions = {
     } catch (err) {
       return fail(err instanceof Error && 'status' in (err as any) ? (err as any).status : 500, {
         error: err instanceof Error ? err.message : 'Failed to mark player as paid',
+      });
+    }
+  },
+
+  toggleReady: async ({ params, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: 'You must be logged in' });
+    }
+
+    const teamId = parseInt(params.id);
+
+    try {
+      await toggleTeamReady(teamId, locals.user.steamId);
+      return { success: true, message: 'Team marked as ready! Awaiting admin approval.' };
+    } catch (err) {
+      return fail(err instanceof Error && 'status' in (err as any) ? (err as any).status : 500, {
+        error: err instanceof Error ? err.message : 'Failed to toggle ready',
       });
     }
   },

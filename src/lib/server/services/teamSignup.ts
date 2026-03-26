@@ -220,10 +220,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
     badRequest('No active signup season for this region');
   }
 
-  // Determine initial status based on division
-  // Premier (4) and Intermediate (3) start as PLACEMENT, others as UNREADY
-  const initialStatus =
-    data.divisionId === 3 || data.divisionId === 4 ? TeamStatus.PLACEMENT : TeamStatus.UNREADY;
+  const initialStatus = TeamStatus.UNREADY;
 
   // Hash the join password for secure storage
   const hashedPassword = await hashPassword(data.joinPassword);
@@ -333,8 +330,7 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
   }
 
   const initialPaymentStatus = division.signupCost === 0 ? 1 : 0;
-  const initialStatus =
-    data.divisionId === 3 || data.divisionId === 4 ? TeamStatus.PLACEMENT : TeamStatus.UNREADY;
+  const initialStatus = TeamStatus.UNREADY;
 
   // Deactivate any stale memberships on other 2v2 teams from previous seasons
   await prisma.playerInTeam.updateMany({

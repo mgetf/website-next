@@ -8,7 +8,7 @@ import { prisma } from '$lib/server/db';
 import { TeamStatus, NotificationType } from '$prisma/client.js';
 import type { Prisma } from '$prisma/client.js';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
-import { notFound, badRequest } from '$lib/server/utils/errors';
+import { notFound, badRequest, forbidden } from '$lib/server/utils/errors';
 import { createNotificationForUser } from '$lib/server/services/notifications';
 
 /**
@@ -521,6 +521,68 @@ export async function updateTeamStatus(id: number, status: TeamStatus) {
   return await prisma.team.update({
     where: { id },
     data: { status },
+  });
+}
+
+const MIN_PAID_PLAYERS_TO_READY = 2;
+
+/**
+ * Toggle a team from UNREADY to PENDING.
+ * Requires the caller to be a team admin (permissionLevel >= 1)
+ * and at least MIN_PAID_PLAYERS_TO_READY active players to be paid.
+ */
+export async function toggleTeamReady(teamId: number, userSteamId: string) {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      players: {
+        where: { active: 1 },
+        select: { playerSteamId: true, permissionLevel: true, paymentStatus: true },
+      },
+      division: { select: { signupCost: true } },
+    },
+  });
+
+  if (!team) notFound('Team not found');
+
+  const caller = team.players.find((p) => p.playerSteamId === userSteamId);
+  if (!caller || caller.permissionLevel < 1) {
+    forbidden('Only team admins can toggle ready');
+  }
+
+  if (team.status !== TeamStatus.UNREADY) {
+    badRequest('Team must be in UNREADY status to toggle ready');
+  }
+
+  const isFreeDiv = !team.division || team.division.signupCost === 0;
+  if (!isFreeDiv) {
+    const paidCount = team.players.filter((p) => p.paymentStatus === 1).length;
+    if (paidCount < MIN_PAID_PLAYERS_TO_READY) {
+      badRequest(`At least ${MIN_PAID_PLAYERS_TO_READY} players must be paid before readying up`);
+    }
+  }
+
+  return await prisma.team.update({
+    where: { id: teamId },
+    data: { status: TeamStatus.PENDING },
+  });
+}
+
+/**
+ * Reject a PENDING team back to UNREADY (admin action).
+ */
+export async function unreadyTeam(teamId: number) {
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+
+  if (!team) notFound('Team not found');
+
+  if (team.status !== TeamStatus.PENDING) {
+    badRequest('Team must be in PENDING status to reject');
+  }
+
+  return await prisma.team.update({
+    where: { id: teamId },
+    data: { status: TeamStatus.UNREADY },
   });
 }
 

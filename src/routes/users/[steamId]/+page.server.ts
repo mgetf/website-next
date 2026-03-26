@@ -9,7 +9,7 @@ import {
   banUser,
   clearPunishment,
 } from '$lib/server/services/users';
-import { withdraw1v1Entry } from '$lib/server/services/signup1v1';
+import { withdraw1v1Entry, toggle1v1Ready } from '$lib/server/services/signup1v1';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
@@ -103,6 +103,34 @@ export const actions: Actions = {
       console.error('Error withdrawing from 1v1:', err);
       return fail(err.status || 500, {
         error: err.body?.message || 'Failed to withdraw from 1v1 league',
+      });
+    }
+  },
+
+  ready1v1: async ({ request, params, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: 'You must be logged in' });
+    }
+
+    const { steamId } = params;
+
+    if (locals.user.steamId !== steamId) {
+      return fail(403, { error: 'You can only ready up your own 1v1 entry' });
+    }
+
+    const formData = await request.formData();
+    const teamId = parseInt(formData.get('teamId')?.toString() || '');
+
+    if (!teamId || isNaN(teamId)) {
+      return fail(400, { error: 'Invalid team ID' });
+    }
+
+    try {
+      await toggle1v1Ready(teamId, locals.user.steamId);
+      return { success: true, message: 'Entry marked as ready! Awaiting admin approval.' };
+    } catch (err: any) {
+      return fail(err.status || 500, {
+        error: err.body?.message || 'Failed to ready up',
       });
     }
   },

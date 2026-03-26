@@ -27,6 +27,7 @@
   interface Entry1v1WithMatches {
     id: number;
     active: boolean;
+    status: string;
     division: string;
     divisionId: number | null;
     regionId: number | null;
@@ -774,6 +775,42 @@
                           >
                             Change Division
                           </button>
+                        {/if}
+                        {#if isOwnProfile && entry.status === 'UNREADY'}
+                          <form
+                            method="POST"
+                            action="?/ready1v1"
+                            use:enhance={() => {
+                              return async ({ result, update }) => {
+                                await update({ reset: false });
+                                if (result.type === 'success') {
+                                  toast.success(
+                                    (result.data as any)?.message || 'Ready up submitted',
+                                  );
+                                } else if (result.type === 'failure') {
+                                  toast.error((result.data as any)?.error || 'Failed to ready up');
+                                }
+                              };
+                            }}
+                          >
+                            <input type="hidden" name="teamId" value={entry.id} />
+                            <button
+                              type="submit"
+                              disabled={!entry.isPaid && entry.signupCost > 0}
+                              class="text-xs px-2 py-1 bg-success-500/20 hover:bg-success-500/30 text-success-400 rounded border border-success-500/30 transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Ready Up
+                            </button>
+                          </form>
+                        {/if}
+                        {#if entry.status === 'PENDING'}
+                          <span
+                            class="inline-flex items-center gap-1.5 text-xs px-2 py-1 bg-warning-500/15 border border-warning-500/30 rounded text-warning-400 font-medium"
+                          >
+                            <span class="w-1.5 h-1.5 rounded-full bg-warning-400 animate-pulse"
+                            ></span>
+                            Pending Approval
+                          </span>
                         {/if}
                         {#if isOwnProfile}
                           <button

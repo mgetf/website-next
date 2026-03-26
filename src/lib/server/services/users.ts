@@ -451,13 +451,11 @@ export async function getPlayerProfile(steamId: string) {
   const fightNights = transformFightNightMatchups(fightNightMatchups, steamId);
   const achievements = buildAchievements(tournamentResults);
 
-  // Transform 1v1 entries
-  // For 1v1, only 2 states are valid: READY (active) or DEAD (withdrawn)
-  // The player IS the team - if the team is READY, the entry is active
-  const current1v1Entry = player1v1Entries.find((e) => e.team.status === 'READY');
+  const current1v1Entry = player1v1Entries.find((e) => e.team.status !== 'DEAD');
   const entries1v1Base = player1v1Entries.map((entry) => ({
     id: entry.team.id,
-    active: entry.team.status === 'READY',
+    active: entry.team.status !== 'DEAD',
+    status: entry.team.status,
     division: entry.team.division?.name || 'Unknown',
     divisionId: entry.team.division?.id ?? null,
     regionId: entry.team.regionId ?? null,

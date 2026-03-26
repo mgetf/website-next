@@ -27,11 +27,16 @@
 
   $effect(() => {
     if (!pageData.allPaid) {
-      selectedSteamIds = new Set(
-        pageData.unpaidPlayers
-          .filter((p: { steamId: string }) => p.steamId === pageData.steamId)
-          .map((p: { steamId: string }) => p.steamId),
+      const selfUnpaid = pageData.unpaidPlayers.filter(
+        (p: { steamId: string }) => p.steamId === pageData.steamId,
       );
+      if (selfUnpaid.length > 0) {
+        selectedSteamIds = new Set(selfUnpaid.map((p: { steamId: string }) => p.steamId));
+      } else {
+        selectedSteamIds = new Set(
+          pageData.unpaidPlayers.map((p: { steamId: string }) => p.steamId),
+        );
+      }
     }
   });
 
@@ -140,7 +145,7 @@
         </div>
 
         <!-- Player Selection -->
-        {#if pageData.unpaidPlayers.length > 1}
+        {#if pageData.unpaidPlayers.length > 0}
           <div class="p-6 border-b border-border-default">
             <h3 class="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">
               Select Players to Pay For

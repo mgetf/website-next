@@ -597,7 +597,8 @@ export interface ChangeTeamDivisionResult {
  * Change a team's division with payment status side-effects.
  *
  * Free → Paid:  resets paymentStatus to 0 for all active players and the team.
- * Paid → Free:  sends a refund-eligibility notification to any already-paid players.
+ * Paid → Free:  marks all active players and the team as paid (1), and sends
+ *               a refund-eligibility notification to any players who had already paid.
  * Same tier:    no payment changes.
  */
 export async function changeTeamDivision(
@@ -649,7 +650,13 @@ export async function changeTeamDivision(
       await tx.team.update({ where: { id: teamId }, data: { paymentStatus: 0 } });
       paymentStatusReset = true;
     } else if (!oldIsFree && newIsFree) {
-      // Paid → Free: notify any players who already paid
+      // Paid → Free: mark everyone as paid and notify players who already paid (refund eligibility)
+      await tx.playerInTeam.updateMany({
+        where: { teamId, active: 1 },
+        data: { paymentStatus: 1 },
+      });
+      await tx.team.update({ where: { id: teamId }, data: { paymentStatus: 1 } });
+
       const paidPlayers = team.players.filter((p) => p.paymentStatus === 1);
       for (const p of paidPlayers) {
         notifiedPlayerSteamIds.push(p.playerSteamId);

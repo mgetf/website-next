@@ -6,6 +6,8 @@
   import { toast } from '$lib/state/toast.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import type { ProfileMatch } from '$lib/types/match';
 
@@ -106,6 +108,14 @@
   const current1v1Entry = $derived(data.current1v1Entry);
   const entries1v1 = $derived(data.entries1v1);
 
+  const activeEntry = $derived(entries1v1.find((e) => e.active) ?? null);
+  const active1v1IsPaidDiv = $derived(activeEntry ? activeEntry.signupCost > 0 : false);
+  const active1v1CanReady = $derived(
+    activeEntry !== null &&
+      activeEntry.status === 'UNREADY' &&
+      (activeEntry.isPaid || !active1v1IsPaidDiv),
+  );
+
   // Merged 2v2 list: active teams first (current), then history, each sorted by seasonNum desc
   const teams2v2 = $derived([
     ...currentTeams.map((t) => ({ ...t, active: true })),
@@ -136,11 +146,6 @@
   let withdrawingEntry: (typeof data.entries1v1)[0] | null = $state(null);
   let isWithdrawing = $state(false);
 
-  // State for admin 1v1 division change dialog
-  let changeDivisionEntry: (typeof data.entries1v1)[0] | null = $state(null);
-  let changeDivisionSelected = $state(0);
-  let isChangingDivision = $state(false);
-
   // State for Discord unlink (admin only)
   let isUnlinkingDiscord = $state(false);
   let showUnlinkDiscordConfirm = $state(false);
@@ -153,6 +158,13 @@
   let editAvatarValue = $state('');
   let punishSeverity = $state('');
   let isAdminSubmitting = $state(false);
+
+  let showReadyConfirm = $state(false);
+  let isReadying = $state(false);
+  let showMarkPaidConfirm = $state(false);
+  let isMarkingPaid = $state(false);
+  let readyFormEl: HTMLFormElement | undefined = $state();
+  let markPaidFormEl: HTMLFormElement | undefined = $state();
 
   $effect(() => {
     const discord = page.url.searchParams.get('discord');
@@ -649,6 +661,42 @@
 
       <!-- Main Content -->
       <main class="lg:col-span-9 space-y-6">
+        <!-- Payment CTA Banner -->
+        {#if isOwnProfile && activeEntry && !activeEntry.isPaid && active1v1IsPaidDiv}
+          <div
+            class="rounded-lg border border-warning-500/30 bg-warning-500/5 p-4 flex items-center justify-between gap-4"
+          >
+            <div class="flex items-start gap-3">
+              <svg
+                class="w-5 h-5 text-warning-400 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              <div>
+                <h3 class="text-sm font-bold text-white">Payment Required</h3>
+                <p class="text-sm text-text-body mt-0.5">
+                  You need to pay your signup fee before you can ready up for the season.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="warning"
+              href="/checkout/{player.steamId}?teamId={activeEntry.id}"
+              class="flex-shrink-0"
+            >
+              Go to Checkout
+            </Button>
+          </div>
+        {/if}
+
         <!-- 1v1 League -->
         <div
           class="bg-surface-card/80 backdrop-blur rounded-lg border border-purple-800/50 overflow-hidden"
@@ -665,165 +713,60 @@
                 {@const pct = winPct(entry.wins, entry.losses)}
 
                 <div>
-                  <div class="flex items-center {entry.active ? 'bg-purple-500/5' : 'opacity-70'}">
-                    <button
-                      type="button"
-                      onclick={() => (expanded1v1[entry.id] = !isOpen)}
-                      class="flex-1 flex items-center justify-between px-6 py-4 hover:bg-surface-input/30 transition-colors text-left"
-                    >
-                      <div class="flex items-center gap-4">
-                        <span
-                          class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {entry.active
-                            ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                            : 'bg-surface-input text-text-muted border-border-input'}"
-                        >
-                          S{entry.seasonNum}
+                  <button
+                    type="button"
+                    onclick={() => (expanded1v1[entry.id] = !isOpen)}
+                    class="w-full flex items-center justify-between px-6 py-4 hover:bg-surface-input/30 transition-colors text-left {entry.active
+                      ? 'bg-purple-500/5'
+                      : 'opacity-70'}"
+                  >
+                    <div class="flex items-center gap-4">
+                      <span
+                        class="text-xs font-bold px-2 py-1 rounded border whitespace-nowrap {entry.active
+                          ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                          : 'bg-surface-input text-text-muted border-border-input'}"
+                      >
+                        S{entry.seasonNum}
+                      </span>
+                      <div>
+                        <span class="font-semibold text-white text-sm">
+                          {entry.division}
+                          <span class="text-text-muted font-normal ml-1">· {entry.region}</span>
                         </span>
-                        <div>
-                          <span class="font-semibold text-white text-sm">
-                            {entry.division}
-                            <span class="text-text-muted font-normal ml-1">· {entry.region}</span>
+                        <div class="flex items-center gap-3 mt-0.5">
+                          <span
+                            class="text-sm font-mono {entry.active
+                              ? 'text-purple-400'
+                              : 'text-text-body'}"
+                          >
+                            {entry.wins}–{entry.losses}
                           </span>
-                          <div class="flex items-center gap-3 mt-0.5">
-                            <span
-                              class="text-sm font-mono {entry.active
-                                ? 'text-purple-400'
-                                : 'text-text-body'}"
-                            >
-                              {entry.wins}–{entry.losses}
-                            </span>
-                            <span class="text-xs text-text-muted">{pct}% WR</span>
-                            {#if entry.active}
-                              <span
-                                class="text-xs px-2 py-0.5 bg-success-500/20 text-success-400 rounded border border-success-500/30"
-                                >Active</span
-                              >
-                            {/if}
-                          </div>
+                          <span class="text-xs text-text-muted">{pct}% WR</span>
+                          {#if entry.active}
+                            <Badge color="green">Active</Badge>
+                          {/if}
+                          {#if entry.active && entry.status === 'PENDING'}
+                            <Badge color="yellow">Pending</Badge>
+                          {/if}
                         </div>
                       </div>
-                      <svg
-                        class="w-4 h-4 text-text-muted transition-transform duration-200 flex-shrink-0 {isOpen
-                          ? 'rotate-180'
-                          : ''}"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                    {#if (isOwnProfile || isAdmin) && entry.active}
-                      <div class="pr-4 flex items-center gap-2">
-                        {#if !entry.isPaid && entry.signupCost > 0}
-                          {#if isOwnProfile}
-                            <a
-                              href="/checkout/{player.steamId}?teamId={entry.id}"
-                              class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400 hover:bg-danger-500/20 transition-colors"
-                            >
-                              Payment Required
-                            </a>
-                          {:else}
-                            <span
-                              class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400"
-                            >
-                              Payment Required
-                            </span>
-                          {/if}
-                        {/if}
-                        {#if isAdmin && !entry.isPaid && entry.signupCost > 0}
-                          <form
-                            method="POST"
-                            action="?/mark1v1Paid"
-                            use:enhance={() => {
-                              return async ({ result, update }) => {
-                                await update({ reset: false });
-                                if (result.type === 'success') {
-                                  toast.success(
-                                    (result.data as any)?.message || 'Player marked as paid',
-                                  );
-                                } else if (result.type === 'failure') {
-                                  toast.error(
-                                    (result.data as any)?.error || 'Failed to mark player as paid',
-                                  );
-                                }
-                              };
-                            }}
-                          >
-                            <input type="hidden" name="teamId" value={entry.id} />
-                            <button
-                              type="submit"
-                              class="text-xs px-2 py-1 bg-success-500/20 hover:bg-success-500/30 text-success-400 rounded border border-success-500/30 transition-colors whitespace-nowrap"
-                            >
-                              Mark as Paid
-                            </button>
-                          </form>
-                        {/if}
-                        {#if isAdmin && data.divisions1v1.length > 0}
-                          <button
-                            type="button"
-                            class="text-xs px-2 py-1 bg-primary-600/20 hover:bg-primary-600/30 text-primary-400 rounded border border-primary-600/30 transition-colors whitespace-nowrap"
-                            onclick={() => {
-                              changeDivisionEntry = entry;
-                              changeDivisionSelected = entry.divisionId ?? 0;
-                            }}
-                          >
-                            Change Division
-                          </button>
-                        {/if}
-                        {#if isOwnProfile && entry.status === 'UNREADY'}
-                          <form
-                            method="POST"
-                            action="?/ready1v1"
-                            use:enhance={() => {
-                              return async ({ result, update }) => {
-                                await update({ reset: false });
-                                if (result.type === 'success') {
-                                  toast.success(
-                                    (result.data as any)?.message || 'Ready up submitted',
-                                  );
-                                } else if (result.type === 'failure') {
-                                  toast.error((result.data as any)?.error || 'Failed to ready up');
-                                }
-                              };
-                            }}
-                          >
-                            <input type="hidden" name="teamId" value={entry.id} />
-                            <button
-                              type="submit"
-                              disabled={!entry.isPaid && entry.signupCost > 0}
-                              class="text-xs px-2 py-1 bg-success-500/20 hover:bg-success-500/30 text-success-400 rounded border border-success-500/30 transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              Ready Up
-                            </button>
-                          </form>
-                        {/if}
-                        {#if entry.status === 'PENDING'}
-                          <span
-                            class="inline-flex items-center gap-1.5 text-xs px-2 py-1 bg-warning-500/15 border border-warning-500/30 rounded text-warning-400 font-medium"
-                          >
-                            <span class="w-1.5 h-1.5 rounded-full bg-warning-400 animate-pulse"
-                            ></span>
-                            Pending Approval
-                          </span>
-                        {/if}
-                        {#if isOwnProfile}
-                          <button
-                            type="button"
-                            class="text-xs px-2 py-1 bg-danger-500/20 hover:bg-danger-500/30 text-danger-400 rounded border border-danger-500/30 transition-colors whitespace-nowrap"
-                            onclick={() => (withdrawingEntry = entry)}
-                          >
-                            Withdraw
-                          </button>
-                        {/if}
-                      </div>
-                    {/if}
-                  </div>
+                    </div>
+                    <svg
+                      class="w-4 h-4 text-text-muted transition-transform duration-200 flex-shrink-0 {isOpen
+                        ? 'rotate-180'
+                        : ''}"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
 
                   {#if isOpen}
                     <div class="border-t border-border-default/50">
@@ -892,12 +835,9 @@
             <div class="px-6 py-8 text-center">
               <p class="text-text-muted text-sm">No 1v1 season history</p>
               {#if isOwnProfile}
-                <a
-                  href="/leagues/1v1"
-                  class="inline-block mt-3 px-4 py-2 bg-format-1v1-600 hover:bg-format-1v1-500 text-white text-sm font-medium rounded-lg transition-colors"
-                >
+                <Button href="/leagues/1v1" variant="primary" size="sm" class="mt-3">
                   Browse 1v1 League
-                </a>
+                </Button>
               {/if}
             </div>
           {/if}
@@ -1060,10 +1000,295 @@
             </div>
           {/if}
         </div>
+
+        <!-- Section 2: 1v1 Management -->
+        {#if isOwnProfile && activeEntry}
+          <div
+            class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+          >
+            <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
+              <h2 class="text-xl font-bold text-white">1v1 Management</h2>
+            </div>
+
+            <div class="p-6 space-y-6">
+              {#if activeEntry.status === 'UNREADY'}
+                {#if active1v1IsPaidDiv}
+                  <div
+                    class="p-4 rounded-lg border {activeEntry.isPaid
+                      ? 'border-success-500/30 bg-success-500/5'
+                      : 'border-warning-500/30 bg-warning-500/5'}"
+                  >
+                    <div class="flex items-center gap-3 mb-2">
+                      <span
+                        class="flex items-center justify-center w-7 h-7 rounded-full {activeEntry.isPaid
+                          ? 'bg-success-600'
+                          : 'bg-warning-600'} text-white text-sm font-bold flex-shrink-0"
+                      >
+                        {#if activeEntry.isPaid}
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2.5"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        {:else}
+                          1
+                        {/if}
+                      </span>
+                      <h3 class="text-lg font-bold text-white">Pay Signup Fee</h3>
+                      <span
+                        class="text-sm {activeEntry.isPaid
+                          ? 'text-success-400'
+                          : 'text-warning-400'} font-medium ml-auto"
+                      >
+                        {activeEntry.isPaid ? 'Paid' : 'Unpaid'}
+                      </span>
+                    </div>
+                    {#if !activeEntry.isPaid}
+                      <div class="ml-10 space-y-3">
+                        <p class="text-sm text-text-body">
+                          Pay your signup fee to unlock the ready-up step.
+                        </p>
+                        <Button
+                          variant="warning"
+                          href="/checkout/{player.steamId}?teamId={activeEntry.id}"
+                        >
+                          Go to Checkout
+                        </Button>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+
+                <div
+                  class="p-4 rounded-lg border {active1v1CanReady
+                    ? 'border-primary-500/30 bg-primary-500/5'
+                    : 'border-border-default bg-surface-page/30'}"
+                >
+                  <div class="flex items-center gap-3 mb-2">
+                    <span
+                      class="flex items-center justify-center w-7 h-7 rounded-full {active1v1CanReady
+                        ? 'bg-primary-600'
+                        : 'bg-surface-input'} text-white text-sm font-bold flex-shrink-0"
+                    >
+                      {active1v1IsPaidDiv ? '2' : '1'}
+                    </span>
+                    <h3
+                      class="text-lg font-bold {active1v1CanReady
+                        ? 'text-white'
+                        : 'text-text-muted'}"
+                    >
+                      Ready Up
+                    </h3>
+                    {#if !active1v1CanReady && active1v1IsPaidDiv}
+                      <svg class="w-4 h-4 text-text-muted" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fill-rule="evenodd"
+                          d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                    {/if}
+                  </div>
+                  <div class="ml-10">
+                    {#if active1v1CanReady}
+                      <p class="text-sm text-text-body mb-3">
+                        Once ready, an admin will review and approve your entry for the season.
+                      </p>
+                      <Button variant="primary" onclick={() => (showReadyConfirm = true)}>
+                        Ready Up
+                      </Button>
+                    {:else if active1v1IsPaidDiv && !activeEntry.isPaid}
+                      <p class="text-sm text-text-muted">
+                        Available after you've paid your signup fee.
+                      </p>
+                    {/if}
+                  </div>
+                </div>
+              {:else if activeEntry.status === 'PENDING'}
+                <div class="p-4 rounded-lg border border-warning-500/30 bg-warning-500/5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-warning-400 animate-pulse"></span>
+                    <span class="text-warning-400 font-semibold">Pending Admin Approval</span>
+                  </div>
+                  <p class="text-sm text-text-body mt-2">
+                    Your entry has been marked as ready and is awaiting admin review.
+                  </p>
+                </div>
+              {/if}
+              <Button variant="danger" onclick={() => (withdrawingEntry = activeEntry)}>
+                Withdraw from League
+              </Button>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Section 3: 1v1 Admin Controls -->
+        {#if isAdmin && activeEntry}
+          <div
+            class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+          >
+            <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
+              <h2 class="text-xl font-bold text-white">Admin Controls</h2>
+            </div>
+
+            <div class="p-6 space-y-6">
+              {#if data.divisions1v1.length > 0}
+                <div>
+                  <h3 class="text-lg font-bold text-white mb-4">Change Division</h3>
+                  <form
+                    method="POST"
+                    action="?/change1v1Division"
+                    use:enhance={() => {
+                      return async ({ result, update }) => {
+                        await update({ reset: false });
+                        if (result.type === 'success') {
+                          toast.success((result.data as any)?.message || 'Division updated');
+                        } else if (result.type === 'failure') {
+                          toast.error((result.data as any)?.error || 'Failed to change division');
+                        }
+                      };
+                    }}
+                    class="flex gap-3 items-end"
+                  >
+                    <input type="hidden" name="teamId" value={activeEntry.id} />
+                    <div class="flex-1">
+                      <label
+                        for="admin-1v1-divisionId"
+                        class="block text-sm font-medium text-text-label mb-2"
+                      >
+                        Division
+                      </label>
+                      <select
+                        id="admin-1v1-divisionId"
+                        name="divisionId"
+                        class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                      >
+                        {#each data.divisions1v1 as division}
+                          <option
+                            value={division.id}
+                            selected={division.id === activeEntry.divisionId}
+                          >
+                            {division.name}{division.signupCost > 0
+                              ? ` ($${division.signupCost})`
+                              : ' (free)'}
+                          </option>
+                        {/each}
+                      </select>
+                    </div>
+                    <Button type="submit">Update Division</Button>
+                  </form>
+                </div>
+              {/if}
+
+              {#if !activeEntry.isPaid && activeEntry.signupCost > 0}
+                <div
+                  class={data.divisions1v1.length > 0 ? 'pt-4 border-t border-border-default' : ''}
+                >
+                  <h3 class="text-lg font-bold text-white mb-4">Mark as Paid</h3>
+                  <div class="flex items-center justify-between p-3 bg-surface-page/50 rounded-lg">
+                    <div class="flex items-center gap-3">
+                      {#if player.avatar}
+                        <img src={player.avatar} alt={player.name} class="w-8 h-8 rounded" />
+                      {/if}
+                      <span class="text-white font-medium">{player.name}</span>
+                      <Badge color="red">Unpaid</Badge>
+                    </div>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onclick={() => (showMarkPaidConfirm = true)}
+                    >
+                      Mark as Paid
+                    </Button>
+                  </div>
+                </div>
+              {/if}
+            </div>
+          </div>
+        {/if}
       </main>
     </div>
   </div>
 </div>
+
+<!-- Hidden forms for 1v1 management actions -->
+{#if activeEntry}
+  <form
+    bind:this={readyFormEl}
+    method="POST"
+    action="?/ready1v1"
+    use:enhance={() => {
+      isReadying = true;
+      return async ({ result, update }) => {
+        await update({ reset: false });
+        isReadying = false;
+        showReadyConfirm = false;
+        if (result.type === 'success') {
+          toast.success((result.data as any)?.message || 'Ready up submitted');
+        } else if (result.type === 'failure') {
+          toast.error((result.data as any)?.error || 'Failed to ready up');
+        }
+      };
+    }}
+    class="hidden"
+  >
+    <input type="hidden" name="teamId" value={activeEntry.id} />
+  </form>
+
+  <form
+    bind:this={markPaidFormEl}
+    method="POST"
+    action="?/mark1v1Paid"
+    use:enhance={() => {
+      isMarkingPaid = true;
+      return async ({ result, update }) => {
+        await update({ reset: false });
+        isMarkingPaid = false;
+        showMarkPaidConfirm = false;
+        if (result.type === 'success') {
+          toast.success((result.data as any)?.message || 'Player marked as paid');
+        } else if (result.type === 'failure') {
+          toast.error((result.data as any)?.error || 'Failed to mark player as paid');
+        }
+      };
+    }}
+    class="hidden"
+  >
+    <input type="hidden" name="teamId" value={activeEntry.id} />
+  </form>
+{/if}
+
+<ConfirmDialog
+  open={showReadyConfirm}
+  title="Ready Up"
+  description="Mark your 1v1 entry as ready? An admin will review and approve your entry for the season."
+  confirmLabel="Ready Up"
+  loadingLabel="Submitting..."
+  variant="success"
+  isLoading={isReadying}
+  onConfirm={() => readyFormEl?.requestSubmit()}
+  onCancel={() => (showReadyConfirm = false)}
+/>
+
+<ConfirmDialog
+  open={showMarkPaidConfirm}
+  title="Mark as Paid"
+  description="Mark {player.name} as paid? This records a manual payment outside of the automatic payment options."
+  confirmLabel="Mark as Paid"
+  loadingLabel="Saving..."
+  variant="success"
+  isLoading={isMarkingPaid}
+  onConfirm={() => markPaidFormEl?.requestSubmit()}
+  onCancel={() => (showMarkPaidConfirm = false)}
+/>
 
 <!-- Discord Unlink Confirmation Modal -->
 <Dialog
@@ -1176,79 +1401,6 @@
         <input type="hidden" name="teamId" value={withdrawingEntry.id} />
         <Button type="submit" variant="danger" disabled={isWithdrawing} class="w-full">
           {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-        </Button>
-      </form>
-    {/if}
-  {/snippet}
-</Dialog>
-
-<!-- Admin: Change 1v1 Division Dialog -->
-<Dialog
-  open={!!changeDivisionEntry}
-  title="Change Division"
-  onClose={() => (changeDivisionEntry = null)}
->
-  {#if changeDivisionEntry}
-    <p class="text-text-body mb-4">
-      Moving <span class="text-white font-medium">{player.name}</span> from
-      <span class="text-white font-medium">{changeDivisionEntry.division}</span> to a new division.
-    </p>
-
-    <div class="mb-4">
-      <label for="dialog-divisionId" class="block text-sm font-medium text-text-label mb-2">
-        New Division
-      </label>
-      <select
-        id="dialog-divisionId"
-        bind:value={changeDivisionSelected}
-        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-      >
-        {#each data.divisions1v1 as division}
-          <option value={division.id}>
-            {division.name}{division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}
-          </option>
-        {/each}
-      </select>
-    </div>
-  {/if}
-
-  {#snippet footer()}
-    <Button
-      type="button"
-      variant="secondary"
-      class="flex-1"
-      onclick={() => (changeDivisionEntry = null)}
-    >
-      Cancel
-    </Button>
-    {#if changeDivisionEntry}
-      <form
-        method="POST"
-        action="?/change1v1Division"
-        use:enhance={() => {
-          isChangingDivision = true;
-          return async ({ result, update }) => {
-            await update({ reset: false });
-            isChangingDivision = false;
-            changeDivisionEntry = null;
-            if (result.type === 'success') {
-              toast.success((result.data as any)?.message || 'Division updated');
-            } else if (result.type === 'failure') {
-              toast.error((result.data as any)?.error || 'Failed to change division');
-            }
-          };
-        }}
-        class="flex-1"
-      >
-        <input type="hidden" name="teamId" value={changeDivisionEntry.id} />
-        <input type="hidden" name="divisionId" value={changeDivisionSelected} />
-        <Button
-          type="submit"
-          disabled={isChangingDivision ||
-            changeDivisionSelected === (changeDivisionEntry.divisionId ?? 0)}
-          class="w-full"
-        >
-          {isChangingDivision ? 'Updating...' : 'Update Division'}
         </Button>
       </form>
     {/if}

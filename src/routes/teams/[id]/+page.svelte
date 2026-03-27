@@ -652,10 +652,7 @@
               </p>
             </div>
           {/if}
-
-          <div class="pt-4 border-border-default">
-            <Button href="/teams/{team.id}/edit" variant="secondary">Edit Team Settings</Button>
-          </div>
+          <Button href="/teams/{team.id}/edit" variant="secondary">Edit Team Settings</Button>
         </div>
       </div>
     {/if}

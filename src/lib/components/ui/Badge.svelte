@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import Tooltip from './Tooltip.svelte';
 
   type Color = 'green' | 'red' | 'yellow' | 'blue' | 'purple' | 'orange' | 'zinc';
   type Size = 'sm' | 'md';
@@ -7,11 +8,12 @@
   interface Props {
     color?: Color;
     size?: Size;
+    tooltip?: string;
     class?: string;
     children: Snippet;
   }
 
-  let { color = 'zinc', size = 'sm', class: extraClass = '', children }: Props = $props();
+  let { color = 'zinc', size = 'sm', tooltip, class: extraClass = '', children }: Props = $props();
 
   // Static lookup map required — Tailwind v4 does not support dynamic class interpolation.
   const colorClasses: Record<Color, string> = {
@@ -35,6 +37,14 @@
   );
 </script>
 
-<span class={classes}>
-  {@render children()}
-</span>
+{#if tooltip}
+  <Tooltip text={tooltip}>
+    <span class={classes}>
+      {@render children()}
+    </span>
+  </Tooltip>
+{:else}
+  <span class={classes}>
+    {@render children()}
+  </span>
+{/if}

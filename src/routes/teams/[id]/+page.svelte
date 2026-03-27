@@ -90,14 +90,35 @@
   }
 
   function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'zinc' {
-    const statusStr = status.toString();
-    if (statusStr === 'READY') return 'green';
-    if (statusStr === 'PENDING') return 'yellow';
+    if (status === 'READY') return 'green';
+    if (status === 'PENDING') return 'yellow';
     return 'zinc';
+  }
+
+  function getStatusTooltip(status: string): string {
+    switch (status) {
+      case 'UNREADY':
+        return 'Team is registered but has not readied up yet';
+      case 'PENDING':
+        return 'Team has readied up and is awaiting admin approval';
+      case 'READY':
+        return 'Team has been approved and is active for the season';
+      case 'DEAD':
+        return 'Team has been disbanded';
+      default:
+        return '';
+    }
   }
 
   const totalGames = $derived(team.wins + team.losses);
   const winRate = $derived(totalGames > 0 ? ((team.wins / totalGames) * 100).toFixed(1) : '0.0');
+
+  const hasUnpaidPlayers = $derived(!data.isFreeDivision && currentRoster.some((p) => !p.isPaid));
+  const unpaidPlayers = $derived(currentRoster.filter((p) => !p.isPaid));
+  const currentUserIsPaid = $derived(
+    currentRoster.find((p) => p.steamId === data.currentUserSteamId)?.isPaid ?? true,
+  );
+  const paymentStepComplete = $derived(data.isFreeDivision || data.paidPlayerCount >= 2);
 
   function makeEnhance(action: string) {
     return ({ cancel }: { cancel: () => void }) => {
@@ -153,7 +174,11 @@
           {#if team.seasonNum}
             <Badge color="purple" size="md">Season {team.seasonNum}</Badge>
           {/if}
-          <Badge color={getStatusBadgeColor(team.status)} size="md">{team.status}</Badge>
+          <Badge
+            color={getStatusBadgeColor(team.status)}
+            size="md"
+            tooltip={getStatusTooltip(team.status)}>{team.status}</Badge
+          >
         </div>
 
         <div class="flex flex-wrap gap-6 justify-center md:justify-start text-sm">
@@ -246,8 +271,62 @@
     </div>
   </PageHero>
 
-  <!-- Main Content - Two Column Layout -->
+  <!-- Main Content -->
   <div class="max-w-7xl mx-auto px-6 py-8">
+    <!-- Payment CTA Banner -->
+    {#if data.isOnTeam && hasUnpaidPlayers && team.status !== 'DEAD'}
+      <div
+        class="mb-6 p-5 rounded-lg border border-warning-500/30 bg-warning-500/5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+      >
+        <div class="flex items-start gap-3 flex-1">
+          <svg
+            class="w-6 h-6 text-warning-400 flex-shrink-0 mt-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <div>
+            <h3 class="text-lg font-bold text-white">Payment Required</h3>
+            {#if !currentUserIsPaid}
+              <p class="text-sm text-text-body mt-1">
+                You need to pay your signup fee before the team can ready up.
+                <span class="text-warning-400 font-medium">
+                  ({data.paidPlayerCount}/2 paid)
+                </span>
+              </p>
+            {:else}
+              <p class="text-sm text-text-body mt-1">
+                {unpaidPlayers.length}
+                teammate{unpaidPlayers.length !== 1 ? 's' : ''} still need{unpaidPlayers.length ===
+                1
+                  ? 's'
+                  : ''} to pay before the team can ready up.
+                <span class="text-warning-400 font-medium">
+                  ({data.paidPlayerCount}/2 paid)
+                </span>
+              </p>
+            {/if}
+          </div>
+        </div>
+        {#if data.currentUserSteamId}
+          <Button
+            variant="warning"
+            href="/checkout/{data.currentUserSteamId}?teamId={team.id}"
+            size="lg"
+          >
+            {!currentUserIsPaid ? 'Pay Signup Fee' : 'View Checkout'}
+          </Button>
+        {/if}
+      </div>
+    {/if}
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Left Column - Roster -->
       <div class="space-y-6">
@@ -290,56 +369,27 @@
                   </a>
 
                   <div class="flex items-center gap-2">
-                    {#if !player.isPaid}
-                      {#if data.currentUserSteamId && data.isOnTeam}
-                        <a
-                          href="/checkout/{data.currentUserSteamId}?teamId={data.team.id}"
-                          class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400 hover:bg-danger-500/20 transition-colors"
-                        >
-                          Payment Required
-                        </a>
-                      {:else}
-                        <span
-                          class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400"
-                        >
-                          Payment Required
-                        </span>
-                      {/if}
-                      {#if data.isGlobalAdmin}
-                        <button
-                          type="button"
-                          onclick={() => {
-                            markPaidTarget = { steamId: player.steamId, name: player.name };
-                            showMarkPaidDialog = true;
-                          }}
-                          class="px-3 py-1 text-xs font-medium rounded border bg-success-500/10 border-success-500/30 text-success-400 hover:bg-success-500/20 transition-colors"
-                        >
-                          Mark as Paid
-                        </button>
-                      {/if}
+                    {#if !player.isPaid && !data.isFreeDivision}
+                      <Badge color="red">Unpaid</Badge>
                     {/if}
 
                     {#if data.canManageTeam && player.permissionLevel !== 2 && player.steamId !== data.currentUserSteamId && (!data.rosterLocked || data.isGlobalAdmin)}
-                      <button
-                        type="button"
+                      <Button
+                        variant="danger"
+                        size="sm"
                         onclick={() => {
                           removeTarget = { steamId: player.steamId, name: player.name };
                           showRemoveDialog = true;
                         }}
-                        class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400 hover:bg-danger-500/20 transition-colors"
                       >
                         Remove
-                      </button>
+                      </Button>
                     {/if}
 
                     {#if player.steamId === data.currentUserSteamId && !data.isOwner && !data.rosterLocked}
-                      <button
-                        type="button"
-                        onclick={() => (showLeaveDialog = true)}
-                        class="px-3 py-1 text-xs font-medium rounded border bg-danger-500/10 border-danger-500/30 text-danger-400 hover:bg-danger-500/20 transition-colors"
-                      >
+                      <Button variant="danger" size="sm" onclick={() => (showLeaveDialog = true)}>
                         Leave Team
-                      </button>
+                      </Button>
                     {/if}
                   </div>
                 </div>
@@ -469,7 +519,7 @@
       </div>
     </div>
 
-    <!-- Admin Controls -->
+    <!-- Section 2: Team Management -->
     {#if data.canManageTeam}
       <div
         class="mt-8 bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
@@ -480,27 +530,116 @@
 
         <div class="p-6 space-y-6">
           {#if team.status === 'UNREADY'}
-            <div class="p-4 rounded-lg border border-warning-500/30 bg-warning-500/5">
-              <h3 class="text-lg font-bold text-white mb-2">Ready Up</h3>
-              {#if !data.isFreeDivision && data.paidPlayerCount < 2}
-                <p class="text-sm text-text-body mb-3">
-                  At least 2 players must be paid before you can ready up.
-                  <span class="text-warning-400 font-medium">
-                    ({data.paidPlayerCount}/2 paid)
-                  </span>
-                </p>
-              {:else}
-                <p class="text-sm text-text-body mb-3">
-                  Once ready, an admin will review your team and approve it for the season.
-                </p>
-              {/if}
-              <Button
-                variant="primary"
-                disabled={!canToggleReady || submittingAction !== null}
-                onclick={() => (showReadyDialog = true)}
+            <!-- Step 1: Pay Signup Fees (only for paid divisions) -->
+            {#if !data.isFreeDivision}
+              <div
+                class="p-4 rounded-lg border {paymentStepComplete
+                  ? 'border-success-500/30 bg-success-500/5'
+                  : 'border-warning-500/30 bg-warning-500/5'}"
               >
-                Ready Up
-              </Button>
+                <div class="flex items-center gap-3 mb-2">
+                  <span
+                    class="flex items-center justify-center w-7 h-7 rounded-full {paymentStepComplete
+                      ? 'bg-success-600'
+                      : 'bg-warning-600'} text-white text-sm font-bold flex-shrink-0"
+                  >
+                    {#if paymentStepComplete}
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2.5"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    {:else}
+                      1
+                    {/if}
+                  </span>
+                  <h3 class="text-lg font-bold text-white">Pay Signup Fees</h3>
+                  <span
+                    class="text-sm {paymentStepComplete
+                      ? 'text-success-400'
+                      : 'text-warning-400'} font-medium ml-auto"
+                  >
+                    {data.paidPlayerCount}/2 paid
+                  </span>
+                </div>
+                {#if !paymentStepComplete}
+                  <div class="ml-10 space-y-3">
+                    <div class="w-full bg-surface-input rounded-full h-1.5">
+                      <div
+                        class="bg-warning-500 h-1.5 rounded-full transition-all"
+                        style="width: {(data.paidPlayerCount / 2) * 100}%"
+                      ></div>
+                    </div>
+                    <div class="space-y-1">
+                      {#each unpaidPlayers as player}
+                        <div class="flex items-center gap-2 text-sm">
+                          <span class="w-1.5 h-1.5 rounded-full bg-danger-400"></span>
+                          <span class="text-text-body">{player.name}</span>
+                          <span class="text-danger-400">&mdash; unpaid</span>
+                        </div>
+                      {/each}
+                    </div>
+                    {#if data.currentUserSteamId}
+                      <Button
+                        variant="warning"
+                        href="/checkout/{data.currentUserSteamId}?teamId={team.id}"
+                      >
+                        Go to Checkout
+                      </Button>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {/if}
+
+            <!-- Step 2 (or Step 1 for free divisions): Ready Up -->
+            <div
+              class="p-4 rounded-lg border {canToggleReady
+                ? 'border-primary-500/30 bg-primary-500/5'
+                : 'border-border-default bg-surface-page/30'}"
+            >
+              <div class="flex items-center gap-3 mb-2">
+                <span
+                  class="flex items-center justify-center w-7 h-7 rounded-full {canToggleReady
+                    ? 'bg-primary-600'
+                    : 'bg-surface-input'} text-white text-sm font-bold flex-shrink-0"
+                >
+                  {data.isFreeDivision ? '1' : '2'}
+                </span>
+                <h3 class="text-lg font-bold {canToggleReady ? 'text-white' : 'text-text-muted'}">
+                  Ready Up
+                </h3>
+                {#if !canToggleReady && !data.isFreeDivision}
+                  <svg class="w-4 h-4 text-text-muted" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fill-rule="evenodd"
+                      d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                {/if}
+              </div>
+              <div class="ml-10">
+                {#if canToggleReady}
+                  <p class="text-sm text-text-body mb-3">
+                    Once ready, an admin will review your team and approve it for the season.
+                  </p>
+                  <Button
+                    variant="primary"
+                    disabled={submittingAction !== null}
+                    onclick={() => (showReadyDialog = true)}
+                  >
+                    Ready Up
+                  </Button>
+                {:else if !data.isFreeDivision && data.paidPlayerCount < 2}
+                  <p class="text-sm text-text-muted">
+                    Available after at least 2 players have paid their signup fees.
+                  </p>
+                {/if}
+              </div>
             </div>
           {:else if team.status === 'PENDING'}
             <div class="p-4 rounded-lg border border-warning-500/30 bg-warning-500/5">
@@ -514,67 +653,105 @@
             </div>
           {/if}
 
-          <Button href="/teams/{team.id}/edit" variant="secondary">Edit Team Settings</Button>
+          <div class="pt-4 border-border-default">
+            <Button href="/teams/{team.id}/edit" variant="secondary">Edit Team Settings</Button>
+          </div>
+        </div>
+      </div>
+    {/if}
 
-          {#if data.isGlobalAdmin}
-            <div class="pt-4 border-t border-border-default">
-              <h3 class="text-lg font-bold text-white mb-4">Change Team Status</h3>
-              <form method="POST" action="?/updateStatus" use:enhance class="flex gap-3 items-end">
+    <!-- Section 3: League Admin Controls -->
+    {#if data.isGlobalAdmin}
+      <div
+        class="mt-8 bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+      >
+        <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
+          <h2 class="text-xl font-bold text-white">Admin Controls</h2>
+        </div>
+
+        <div class="p-6 space-y-6">
+          <div>
+            <h3 class="text-lg font-bold text-white mb-4">Change Team Status</h3>
+            <form method="POST" action="?/updateStatus" use:enhance class="flex gap-3 items-end">
+              <div class="flex-1">
+                <label for="status" class="block text-sm font-medium text-text-label mb-2">
+                  Team Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  value={team.status}
+                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                >
+                  <option value="UNREADY">Unready</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="READY">Ready</option>
+                  <option value="DEAD">Dead</option>
+                  <option value="PLACEMENT">Placement</option>
+                </select>
+              </div>
+              <Button type="submit">Update Status</Button>
+            </form>
+          </div>
+
+          <div class="pt-4 border-t border-border-default">
+            <h3 class="text-lg font-bold text-white mb-4">Change Division</h3>
+            {#if data.divisions.length > 0}
+              <form
+                method="POST"
+                action="?/changeDivision"
+                use:enhance
+                class="flex gap-3 items-end"
+              >
                 <div class="flex-1">
-                  <label for="status" class="block text-sm font-medium text-text-label mb-2">
-                    Team Status
+                  <label for="divisionId" class="block text-sm font-medium text-text-label mb-2">
+                    Division
                   </label>
                   <select
-                    id="status"
-                    name="status"
-                    value={team.status}
+                    id="divisionId"
+                    name="divisionId"
                     class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
                   >
-                    <option value="UNREADY">Unready</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="READY">Ready</option>
-                    <option value="DEAD">Dead</option>
-                    <option value="PLACEMENT">Placement</option>
+                    {#each data.divisions as division}
+                      <option value={division.id} selected={division.id === team.divisionId}>
+                        {division.name}{division.signupCost > 0
+                          ? ` ($${division.signupCost})`
+                          : ' (free)'}
+                      </option>
+                    {/each}
                   </select>
                 </div>
-                <Button type="submit">Update Status</Button>
+                <Button type="submit" size="lg">Update Division</Button>
               </form>
-            </div>
+            {:else}
+              <p class="text-text-muted text-sm">No divisions available for this team's region.</p>
+            {/if}
+          </div>
 
+          {#if !data.isFreeDivision && unpaidPlayers.length > 0}
             <div class="pt-4 border-t border-border-default">
-              <h3 class="text-lg font-bold text-white mb-4">Change Division</h3>
-              {#if data.divisions.length > 0}
-                <form
-                  method="POST"
-                  action="?/changeDivision"
-                  use:enhance
-                  class="flex gap-3 items-end"
-                >
-                  <div class="flex-1">
-                    <label for="divisionId" class="block text-sm font-medium text-text-label mb-2">
-                      Division
-                    </label>
-                    <select
-                      id="divisionId"
-                      name="divisionId"
-                      class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+              <h3 class="text-lg font-bold text-white mb-4">Mark Player as Paid</h3>
+              <div class="space-y-2">
+                {#each unpaidPlayers as player}
+                  <div class="flex items-center justify-between p-3 bg-surface-page/50 rounded-lg">
+                    <div class="flex items-center gap-3">
+                      <img src={player.avatar} alt={player.name} class="w-8 h-8 rounded" />
+                      <span class="text-white font-medium">{player.name}</span>
+                      <Badge color="red">Unpaid</Badge>
+                    </div>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onclick={() => {
+                        markPaidTarget = { steamId: player.steamId, name: player.name };
+                        showMarkPaidDialog = true;
+                      }}
                     >
-                      {#each data.divisions as division}
-                        <option value={division.id} selected={division.id === team.divisionId}>
-                          {division.name}{division.signupCost > 0
-                            ? ` ($${division.signupCost})`
-                            : ' (free)'}
-                        </option>
-                      {/each}
-                    </select>
+                      Mark as Paid
+                    </Button>
                   </div>
-                  <Button type="submit" size="lg">Update Division</Button>
-                </form>
-              {:else}
-                <p class="text-text-muted text-sm">
-                  No divisions available for this team's region.
-                </p>
-              {/if}
+                {/each}
+              </div>
             </div>
           {/if}
         </div>

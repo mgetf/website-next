@@ -31,7 +31,7 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
-    "prisma": "^7.5.0",
+    "prisma": "^7.6.0",
     "svelte": "^5.55.0",
     "svelte-check": "^4.4.5",
     "typescript": "^6.0.2",
@@ -44,9 +44,9 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1018.0",
-    "@prisma/adapter-pg": "^7.5.0",
-    "@prisma/client": "^7.5.0",
+    "@aws-sdk/client-s3": "^3.1019.0",
+    "@prisma/adapter-pg": "^7.6.0",
+    "@prisma/client": "^7.6.0",
     "@tailwindcss/vite": "^4.2.2",
     "@types/jsonwebtoken": "^9.0.10",
     "chart.js": "^4.5.1",

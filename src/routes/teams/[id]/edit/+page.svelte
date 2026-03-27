@@ -346,12 +346,7 @@
                               name="playerSteamId"
                               value={player.playerSteamId}
                             />
-                            <button
-                              type="submit"
-                              class="px-3 py-1.5 text-sm bg-info-500/20 text-info-400 hover:bg-info-500/30 rounded transition-colors"
-                            >
-                              Promote
-                            </button>
+                            <Button type="submit" variant="ghost" size="sm">Promote</Button>
                           </form>
                         {:else if player.permissionLevel === 1}
                           <form method="POST" action="?/demotePlayer" use:enhance>
@@ -360,26 +355,21 @@
                               name="playerSteamId"
                               value={player.playerSteamId}
                             />
-                            <button
-                              type="submit"
-                              class="px-3 py-1.5 text-sm bg-warning-500/20 text-warning-400 hover:bg-warning-500/30 rounded transition-colors"
-                            >
-                              Demote
-                            </button>
+                            <Button type="submit" variant="warning" size="sm">Demote</Button>
                           </form>
                         {/if}
-                        <button
-                          type="button"
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onclick={() => {
                             removePlayerTarget = {
                               steamId: player.playerSteamId,
                               name: player.player.steamUsername,
                             };
                           }}
-                          class="px-3 py-1.5 text-sm bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded transition-colors"
                         >
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     {/if}
                   </div>

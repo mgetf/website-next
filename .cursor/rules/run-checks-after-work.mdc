@@ -1,0 +1,16 @@
+---
+description: Always run formatting and validation checks after making changes
+alwaysApply: true
+---
+
+# Run Checks After Making Changes
+
+After finishing work on any task, ALWAYS run these three commands:
+
+```bash
+bun run format
+bun run check
+bun run boundary-check
+```
+
+Do not skip any of them. Fix any issues they report before considering the task complete.

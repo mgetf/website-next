@@ -59,9 +59,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       nameOverride: user.nameOverride,
       discordLinked: !!user.discord,
       discordUsername: user.discord?.discordUsername,
-      staffDivisionId: user.staffDivisionId,
-      staffDivisionName: user.staffDivision?.name,
-      staffRegionId: user.staffDivision?.regionId,
+      staffDivisions: user.staffDivisions.map((d) => ({
+        id: d.id,
+        name: d.name,
+        regionId: d.region?.id,
+      })),
     })),
     regions: regions.map((r) => ({
       id: r.id,
@@ -96,7 +98,7 @@ export const actions: Actions = {
     const permissionLevel = formData.get('permissionLevel') as string;
     const banStatus = formData.get('banStatus') as string;
     const nameOverride = formData.get('nameOverride') as string;
-    const staffDivisionId = formData.get('staffDivisionId') as string;
+    const staffDivisionIds = formData.getAll('staffDivisionIds') as string[];
 
     if (!steamId) {
       return fail(400, { error: 'Invalid user ID' });
@@ -107,12 +109,16 @@ export const actions: Actions = {
     }
 
     try {
+      const parsedDivisionIds = staffDivisionIds
+        .filter((id) => id !== '')
+        .map((id) => parseInt(id))
+        .filter((id) => !isNaN(id));
+
       await updateUser(steamId, {
         permissionLevel: permissionLevel || undefined,
         banStatus: banStatus || undefined,
         nameOverride: nameOverride ? parseInt(nameOverride) : undefined,
-        staffDivisionId:
-          staffDivisionId === '' ? null : staffDivisionId ? parseInt(staffDivisionId) : undefined,
+        staffDivisionIds: parsedDivisionIds,
       });
 
       if (permissionLevel) {

@@ -56,7 +56,7 @@
       punishmentCount: number;
       nameOverride: number;
       avatarOverride: number;
-      staffDivision: { name: string; region: string } | null;
+      staffDivisions: { name: string; region: string }[];
     };
     isOwnProfile: boolean;
     isAdmin: boolean;
@@ -354,35 +354,65 @@
       {#if player.permissionLevel !== 'GUEST'}
         <div class="flex flex-wrap gap-2 justify-center">
           {#if player.permissionLevel === 'ADMIN'}
-            <span
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.15)]"
-            >
-              <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path
-                  fill-rule="evenodd"
-                  d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Z"
-                  clip-rule="evenodd"
-                />
-              </svg>
-              Admin{#if player.staffDivision}<span class="text-purple-500/70 font-normal mx-0.5"
-                  >·</span
-                >{player.staffDivision.name} · {player.staffDivision.region}{/if}
-            </span>
+            {#if player.staffDivisions.length > 0}
+              {#each player.staffDivisions as div}
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.15)]"
+                >
+                  <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      fill-rule="evenodd"
+                      d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  Admin<span class="text-purple-500/70 font-normal mx-0.5">·</span>{div.name} · {div.region}
+                </span>
+              {/each}
+            {:else}
+              <span
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.15)]"
+              >
+                <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    fill-rule="evenodd"
+                    d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                Admin
+              </span>
+            {/if}
           {:else if player.permissionLevel === 'MODERATOR'}
-            <span
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-info-500/20 text-blue-300 border border-info-500/40 shadow-[0_0_10px_rgba(59,130,246,0.15)]"
-            >
-              <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path
-                  fill-rule="evenodd"
-                  d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Z"
-                  clip-rule="evenodd"
-                />
-              </svg>
-              Moderator{#if player.staffDivision}<span class="text-blue-500/70 font-normal mx-0.5"
-                  >·</span
-                >{player.staffDivision.name} · {player.staffDivision.region}{/if}
-            </span>
+            {#if player.staffDivisions.length > 0}
+              {#each player.staffDivisions as div}
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-info-500/20 text-blue-300 border border-info-500/40 shadow-[0_0_10px_rgba(59,130,246,0.15)]"
+                >
+                  <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      fill-rule="evenodd"
+                      d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  Moderator<span class="text-blue-500/70 font-normal mx-0.5">·</span>{div.name} · {div.region}
+                </span>
+              {/each}
+            {:else}
+              <span
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-info-500/20 text-blue-300 border border-info-500/40 shadow-[0_0_10px_rgba(59,130,246,0.15)]"
+              >
+                <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    fill-rule="evenodd"
+                    d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                Moderator
+              </span>
+            {/if}
           {/if}
         </div>
       {/if}

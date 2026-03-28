@@ -42,7 +42,7 @@ export async function getUserBySteamId(steamId: string) {
     where: { steamId },
     include: {
       discord: true,
-      staffDivision: {
+      staffDivisions: {
         include: { region: true },
       },
     },
@@ -503,9 +503,10 @@ export async function getPlayerProfile(steamId: string) {
       punishmentCount,
       nameOverride: user.nameOverride,
       avatarOverride: user.avatarOverride,
-      staffDivision: user.staffDivision
-        ? { name: user.staffDivision.name, region: user.staffDivision.region.name }
-        : null,
+      staffDivisions: user.staffDivisions.map((d) => ({
+        name: d.name,
+        region: d.region.name,
+      })),
     },
     currentTeams: currentTeamsWithMatches,
     teamHistory: teamHistoryWithMatches,
@@ -566,7 +567,9 @@ export async function getUsers(options: {
     where,
     include: {
       discord: true,
-      staffDivision: true,
+      staffDivisions: {
+        include: { region: true },
+      },
     },
     orderBy: {
       steamUsername: 'asc',
@@ -619,10 +622,9 @@ export async function updateUser(
     permissionLevel?: string;
     banStatus?: string;
     nameOverride?: number;
-    staffDivisionId?: number | null;
+    staffDivisionIds?: number[];
   },
 ) {
-  // Check if user exists
   const user = await prisma.user.findUnique({
     where: { steamId },
   });
@@ -645,8 +647,10 @@ export async function updateUser(
     updateData.nameOverride = data.nameOverride;
   }
 
-  if (data.staffDivisionId !== undefined) {
-    updateData.staffDivisionId = data.staffDivisionId;
+  if (data.staffDivisionIds !== undefined) {
+    updateData.staffDivisions = {
+      set: data.staffDivisionIds.map((id) => ({ id })),
+    };
   }
 
   const changesPermissions = data.permissionLevel !== undefined || data.banStatus !== undefined;
@@ -676,15 +680,14 @@ export async function getStaffMembers() {
       steamUsername: true,
       steamAvatar: true,
       permissionLevel: true,
-      staffDivisionId: true,
-      staffDivision: {
+      staffDivisions: {
         select: {
           id: true,
           name: true,
         },
       },
     },
-    orderBy: [{ staffDivisionId: { sort: 'desc', nulls: 'last' } }, { steamUsername: 'asc' }],
+    orderBy: [{ steamUsername: 'asc' }],
   });
 }
 

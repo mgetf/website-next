@@ -23,15 +23,23 @@
   let unlinkingDiscordUser: (typeof data.users)[0] | null = $state(null);
   let isSubmitting = $state(false);
   let lastFormResult: ActionData = null;
-  let selectedStaffRegionId: number | null = $state(null);
+  let selectedStaffDivisionIds: number[] = $state([]);
+  let addRegionId: number | null = $state(null);
 
-  const filteredDivisions = $derived(
-    selectedStaffRegionId
+  const addFilteredDivisions = $derived(
+    addRegionId
       ? data.divisions.filter(
-          (d: (typeof data.divisions)[0]) => d.regionId === selectedStaffRegionId,
+          (d: (typeof data.divisions)[0]) =>
+            d.regionId === addRegionId && !selectedStaffDivisionIds.includes(d.id),
         )
       : [],
   );
+
+  function selectedDivisionsInfo() {
+    return selectedStaffDivisionIds
+      .map((id) => data.divisions.find((d) => d.id === id))
+      .filter(Boolean) as (typeof data.divisions)[number][];
+  }
 
   $effect(() => {
     if (form && form !== lastFormResult) {
@@ -151,12 +159,25 @@
 
   function openEditModal(user: (typeof data.users)[0]) {
     editingUser = { ...user };
-    selectedStaffRegionId = user.staffRegionId ?? null;
+    selectedStaffDivisionIds = user.staffDivisions.map((d) => d.id);
+    addRegionId = null;
   }
 
   function closeEditModal() {
     editingUser = null;
-    selectedStaffRegionId = null;
+    selectedStaffDivisionIds = [];
+    addRegionId = null;
+  }
+
+  function addStaffDivision(divisionId: number) {
+    if (!selectedStaffDivisionIds.includes(divisionId)) {
+      selectedStaffDivisionIds = [...selectedStaffDivisionIds, divisionId];
+    }
+    addRegionId = null;
+  }
+
+  function removeStaffDivision(divisionId: number) {
+    selectedStaffDivisionIds = selectedStaffDivisionIds.filter((id) => id !== divisionId);
   }
 
   function openBanModal(user: (typeof data.users)[0]) {
@@ -244,7 +265,9 @@
                   ? 'text-purple-400'
                   : 'text-info-400'}"
               >
-                Staff{user.staffDivisionName ? ` • ${user.staffDivisionName}` : ''}
+                Staff{user.staffDivisions.length > 0
+                  ? ` • ${user.staffDivisions.map((d) => d.name).join(', ')}`
+                  : ''}
               </p>
             {/if}
           </div>
@@ -306,9 +329,9 @@
       }}
     >
       <input type="hidden" name="steamId" value={editingUser.steamId} />
-      {#if editingUser.permissionLevel !== 'MODERATOR' && editingUser.permissionLevel !== 'ADMIN'}
-        <input type="hidden" name="staffDivisionId" value="" />
-      {/if}
+      {#each selectedStaffDivisionIds as divId}
+        <input type="hidden" name="staffDivisionIds" value={divId} />
+      {/each}
 
       {#if data.isStrictAdmin}
         <FormSelect
@@ -331,51 +354,72 @@
 
       {#if editingUser.permissionLevel === 'MODERATOR' || editingUser.permissionLevel === 'ADMIN'}
         <div class="mb-6">
-          <p class="block text-sm font-medium text-text-label mb-2">Staff Assignment</p>
+          <p class="block text-sm font-medium text-text-label mb-2">Staff Assignments</p>
+
+          {#if selectedStaffDivisionIds.length > 0}
+            <div class="space-y-2 mb-3">
+              {#each selectedDivisionsInfo() as div}
+                <div
+                  class="flex items-center justify-between px-3 py-2 bg-surface-input border border-border-input rounded-lg"
+                >
+                  <span class="text-sm text-white">
+                    {div.regionName} · {div.name}
+                  </span>
+                  <button
+                    type="button"
+                    onclick={() => removeStaffDivision(div.id)}
+                    class="text-danger-400 hover:text-danger-300 text-xs font-medium transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <p class="text-sm text-text-muted mb-3">No divisions assigned.</p>
+          {/if}
+
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="sr-only" for="staffRegion">Region</label>
+              <label class="sr-only" for="addStaffRegion">Region</label>
               <select
-                id="staffRegion"
+                id="addStaffRegion"
                 class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-                value={selectedStaffRegionId ?? ''}
+                value={addRegionId ?? ''}
                 onchange={(e) => {
                   const val = e.currentTarget.value;
-                  selectedStaffRegionId = val ? parseInt(val) : null;
-                  if (editingUser) editingUser.staffDivisionId = null;
+                  addRegionId = val ? parseInt(val) : null;
                 }}
               >
-                <option value="">No region</option>
+                <option value="">Select region...</option>
                 {#each data.regions as region}
                   <option value={region.id}>{region.name}</option>
                 {/each}
               </select>
             </div>
             <div>
-              {#if !selectedStaffRegionId}
-                <input type="hidden" name="staffDivisionId" value="" />
-              {/if}
-              <label class="sr-only" for="staffDivision">Division</label>
+              <label class="sr-only" for="addStaffDivision">Division</label>
               <select
-                id="staffDivision"
-                name="staffDivisionId"
+                id="addStaffDivision"
                 class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!selectedStaffRegionId}
-                value={editingUser.staffDivisionId ?? ''}
+                disabled={!addRegionId || addFilteredDivisions.length === 0}
+                value=""
                 onchange={(e) => {
                   const val = e.currentTarget.value;
-                  if (editingUser) editingUser.staffDivisionId = val ? parseInt(val) : null;
+                  if (val) addStaffDivision(parseInt(val));
                 }}
               >
-                <option value="">No division</option>
-                {#each filteredDivisions as division}
+                <option value=""
+                  >{addRegionId ? 'Select division...' : 'Pick a region first'}</option
+                >
+                {#each addFilteredDivisions as division}
                   <option value={division.id}>{division.name}</option>
                 {/each}
               </select>
             </div>
           </div>
           <p class="mt-2 text-sm text-text-muted">
-            Which region/division this staff member is assigned to (for display on league page).
+            Which region/division(s) this staff member is assigned to (for display on league pages).
           </p>
         </div>
       {/if}

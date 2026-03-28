@@ -130,25 +130,28 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     >();
 
     allStaff.forEach((staff) => {
-      if (!staff.staffDivisionId) return;
-      if (!regionDivisionIds.has(staff.staffDivisionId)) return;
+      if (staff.staffDivisions.length === 0) return;
 
-      if (!staffByDivisionMap.has(staff.staffDivisionId)) {
-        staffByDivisionMap.set(staff.staffDivisionId, {
-          division: {
-            id: staff.staffDivisionId,
-            name: staff.staffDivision?.name || 'Unknown',
-          },
-          staff: [],
+      for (const div of staff.staffDivisions) {
+        if (!regionDivisionIds.has(div.id)) continue;
+
+        if (!staffByDivisionMap.has(div.id)) {
+          staffByDivisionMap.set(div.id, {
+            division: {
+              id: div.id,
+              name: div.name,
+            },
+            staff: [],
+          });
+        }
+
+        staffByDivisionMap.get(div.id)!.staff.push({
+          steamId: staff.steamId,
+          name: staff.steamUsername,
+          avatar: staff.steamAvatar,
+          role: staff.permissionLevel === 'ADMIN' ? 'Head Admin' : 'Moderator',
         });
       }
-
-      staffByDivisionMap.get(staff.staffDivisionId)!.staff.push({
-        steamId: staff.steamId,
-        name: staff.steamUsername,
-        avatar: staff.steamAvatar,
-        role: staff.permissionLevel === 'ADMIN' ? 'Head Admin' : 'Moderator',
-      });
     });
 
     // Sort staff within each division by role (Head Admins first), then by name

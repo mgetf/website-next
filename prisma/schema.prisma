@@ -377,9 +377,8 @@ model User {
   nameOverride    Int       @default(0) @map("name_override")
   avatarOverride  Int       @default(0) @map("avatar_override")
   sessionVersion  Int       @default(0) @map("session_version")
-  staffDivisionId Int?      @map("staff_division_id")
 
-  staffDivision            Division?                 @relation(fields: [staffDivisionId], references: [id])
+  staffDivisions           Division[]                @relation("StaffAssignments")
   discord                  Discord?
   punishmentsReceived      Punishment[]              @relation("PunishedPlayer")
   punishmentsGiven         Punishment[]              @relation("Punisher")
@@ -662,7 +661,7 @@ model Division {
 
   region       Region               @relation(fields: [regionId], references: [id])
   teams        Team[]
-  staffMembers User[]
+  staffMembers User[]               @relation("StaffAssignments")
   itemPayment  DivisionItemPayment?
 
   @@unique([name, regionId])

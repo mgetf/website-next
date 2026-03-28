@@ -5,6 +5,9 @@
   --color-primary-400: var(--color-orange-400);
   --color-primary-500: var(--color-orange-500);
   --color-primary-600: var(--color-orange-600);
+  --color-primary-700: var(--color-orange-700);
+  --color-primary-800: var(--color-orange-800);
+  --color-primary-900: var(--color-orange-900);
 
   /* ── Format: 2v2 ── */
   --color-format-2v2-400: var(--color-blue-400);
@@ -39,6 +42,9 @@
   --color-danger-400: var(--color-red-400);
   --color-danger-500: var(--color-red-500);
   --color-danger-600: var(--color-red-600);
+  --color-danger-700: var(--color-red-700);
+  --color-danger-800: var(--color-red-800);
+  --color-danger-900: var(--color-red-900);
   --color-warning-400: var(--color-yellow-400);
   --color-warning-500: var(--color-yellow-500);
   --color-warning-600: var(--color-yellow-600);

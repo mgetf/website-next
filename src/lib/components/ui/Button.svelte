@@ -42,11 +42,11 @@
 
   const variantClasses: Record<Variant, string> = {
     primary:
-      'bg-primary-600 hover:bg-primary-500 text-white disabled:bg-primary-600/50 disabled:cursor-not-allowed',
+      'bg-primary-700 hover:bg-primary-600 text-white disabled:bg-primary-700/50 disabled:cursor-not-allowed',
     secondary:
       'bg-surface-input hover:bg-surface-hover text-text-label disabled:opacity-50 disabled:cursor-not-allowed',
     danger:
-      'bg-danger-600 hover:bg-danger-500 text-white disabled:bg-danger-600/50 disabled:cursor-not-allowed',
+      'bg-danger-800 hover:bg-danger-700 text-white disabled:bg-danger-800/50 disabled:cursor-not-allowed',
     success:
       'bg-success-600 hover:bg-success-500 text-white disabled:bg-success-600/50 disabled:cursor-not-allowed',
     warning:

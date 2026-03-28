@@ -21,6 +21,7 @@ export async function getUserActiveTeamForCheckout(steamId: string, teamId?: num
         division: true,
         region: true,
         season: true,
+        format: true,
       },
     },
   } as const;

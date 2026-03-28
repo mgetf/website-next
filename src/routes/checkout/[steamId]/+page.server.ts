@@ -34,6 +34,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   const team = playerInTeam.team;
   const division = team.division;
+  const region = team.region;
+  const season = team.season;
+  const format = team.format;
 
   if (!division) {
     throw redirect(303, `/teams/${team.id}`);
@@ -55,8 +58,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       team: { id: team.id, name: team.name, avatar: team.avatar },
       unpaidPlayers: [],
       division: { id: division.id, name: division.name },
-      currency: team.region?.currencyCode ?? 'USD',
-      currencySymbol: team.region?.currencySymbol ?? '$',
+      format: { name: format.name },
+      region: region ? { name: region.name } : null,
+      season: season ? { seasonNum: season.seasonNum } : null,
+      currency: region?.currencyCode ?? 'USD',
+      currencySymbol: region?.currencySymbol ?? '$',
       currentUserIsPaid: true,
       steamId,
       paypalClientId: '',
@@ -123,8 +129,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     team: { id: team.id, name: team.name, avatar: team.avatar },
     unpaidPlayers,
     division: { id: division.id, name: division.name },
-    currency: team.region?.currencyCode ?? 'USD',
-    currencySymbol: team.region?.currencySymbol ?? '$',
+    format: { name: format.name },
+    region: region ? { name: region.name } : null,
+    season: season ? { seasonNum: season.seasonNum } : null,
+    currency: region?.currencyCode ?? 'USD',
+    currencySymbol: region?.currencySymbol ?? '$',
     currentUserIsPaid,
     steamId,
     paypalClientId,

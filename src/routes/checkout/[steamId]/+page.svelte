@@ -117,28 +117,36 @@
       </Card>
     {:else}
       <Card padding="none" class="overflow-hidden">
-        <!-- Team Info -->
-        <div
-          class="bg-gradient-to-r from-primary-600/20 to-primary-600/5 p-6 border-b border-border-default"
-        >
+        <!-- Team & Registration Info -->
+        <div class="p-6 border-b border-border-default">
           <div class="flex items-center gap-4">
             {#if pageData.team.avatar}
               <img
                 src={pageData.team.avatar}
                 alt={pageData.team.name}
-                class="w-16 h-16 rounded-lg object-cover"
+                class="w-12 h-12 rounded-lg object-cover"
               />
             {:else}
               <div
-                class="w-16 h-16 rounded-lg bg-surface-input border border-border-input flex items-center justify-center"
+                class="w-12 h-12 rounded-lg bg-surface-input border border-border-input flex items-center justify-center"
               >
-                <span class="text-2xl text-text-muted">{pageData.team.name.charAt(0)}</span>
+                <span class="text-lg text-text-muted">{pageData.team.name.charAt(0)}</span>
               </div>
             {/if}
-            <div>
-              <h2 class="text-xl font-bold text-white">{pageData.team.name}</h2>
-              <p class="text-sm text-text-muted">
-                {pageData.division.name}
+            <div class="min-w-0">
+              <h2 class="text-lg font-bold text-white">{pageData.team.name}</h2>
+              <p class="text-sm mt-0.5">
+                <span class="text-text-body font-medium">{pageData.format.name}</span>
+                {#if pageData.region}
+                  <span class="mx-1 text-text-muted">&middot;</span>
+                  <span class="text-text-body font-medium">{pageData.region.name}</span>
+                {/if}
+                <span class="mx-1 text-text-muted">&middot;</span>
+                <span class="text-text-body font-medium">{pageData.division.name}</span>
+                {#if pageData.season}
+                  <span class="mx-1 text-text-muted">&middot;</span>
+                  <span class="text-text-body font-medium">Season {pageData.season.seasonNum}</span>
+                {/if}
               </p>
             </div>
           </div>

@@ -376,7 +376,7 @@
           {paymentNames[team.paymentStatus]}
         </Badge>
       {:else if col.key === 'actions'}
-        <div class="flex items-center justify-end gap-2">
+        <div class="flex items-center justify-end gap-2 whitespace-nowrap">
           {#if team.formatId !== 1}
             <Button
               variant="primary"

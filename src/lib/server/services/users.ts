@@ -25,6 +25,23 @@ export async function getSessionVersion(steamId: string): Promise<number> {
 }
 
 /**
+ * Fetch fresh session-relevant fields for a user.
+ * Used by hooks to refresh a stale session cookie without forcing re-login.
+ */
+export async function getSessionFields(steamId: string) {
+  return await prisma.user.findUnique({
+    where: { steamId },
+    select: {
+      steamUsername: true,
+      steamAvatar: true,
+      permissionLevel: true,
+      banStatus: true,
+      sessionVersion: true,
+    },
+  });
+}
+
+/**
  * Atomically increment a user's session version, invalidating any active sessions.
  */
 export async function incrementSessionVersion(steamId: string): Promise<void> {
@@ -653,8 +670,10 @@ export async function updateUser(
     };
   }
 
-  const changesPermissions = data.permissionLevel !== undefined || data.banStatus !== undefined;
-  if (changesPermissions) {
+  const permissionChanged =
+    data.permissionLevel !== undefined && data.permissionLevel !== user.permissionLevel;
+  const banChanged = data.banStatus !== undefined && data.banStatus !== user.banStatus;
+  if (permissionChanged || banChanged) {
     updateData.sessionVersion = { increment: 1 };
   }
 

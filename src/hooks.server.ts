@@ -5,12 +5,13 @@
  */
 
 import type { Handle, HandleServerError } from '@sveltejs/kit';
-import { getSession, clearSession } from '$lib/server/session';
+import { getSession, setSession, clearSession } from '$lib/server/session';
 import { dev } from '$app/environment';
 import { isStaging, isUngatedRoute, getAppEnvironment } from '$lib/server/utils/environment';
 import { isAdmin } from '$lib/server/auth/permissions';
 import { validateEnvironment } from '$lib/server/utils/env';
-import { getSessionVersion } from '$lib/server/services/users';
+import { getSessionVersion, getSessionFields } from '$lib/server/services/users';
+import { BanStatus, UserRole } from '$lib/types/user';
 
 validateEnvironment();
 
@@ -20,8 +21,21 @@ export const handle: Handle = async ({ event, resolve }) => {
   if (user) {
     const dbVersion = await getSessionVersion(user.steamId);
     if ((user.sessionVersion ?? 0) !== dbVersion) {
-      clearSession(event.cookies);
-      user = null;
+      const fresh = await getSessionFields(user.steamId);
+      if (!fresh || fresh.banStatus === 'BANNED' || fresh.banStatus === 'SUSPENDED') {
+        clearSession(event.cookies);
+        user = null;
+      } else {
+        user = {
+          ...user,
+          steamUsername: fresh.steamUsername,
+          steamAvatar: fresh.steamAvatar ?? user.steamAvatar,
+          permissionLevel: fresh.permissionLevel as unknown as UserRole,
+          banStatus: fresh.banStatus as unknown as BanStatus,
+          sessionVersion: fresh.sessionVersion,
+        };
+        setSession(event.cookies, user);
+      }
     }
   }
 

@@ -7,8 +7,16 @@ import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { getAllDemoReports, updateDemoReport } from '$lib/server/services/demoReports';
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import type { DemoStatus } from '$prisma/client.js';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const updateReportSchema = z.object({
+  reportId: z.coerce.number().int().positive('Invalid report ID'),
+  status: z.enum(['CLEAR', 'REVIEW', 'ACTION'], { message: 'Invalid status' }),
+  adminComments: z.string().optional().default(''),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -25,20 +33,13 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const reportId = parseInt(formData.get('reportId')?.toString() || '');
-    const status = formData.get('status')?.toString() as DemoStatus;
-    const adminComments = formData.get('adminComments')?.toString() || '';
+    const validation = validateForm(formData, updateReportSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!reportId || isNaN(reportId)) {
-      return fail(400, { error: 'Invalid report ID' });
-    }
-
-    if (!status || !['CLEAR', 'REVIEW', 'ACTION'].includes(status)) {
-      return fail(400, { error: 'Invalid status' });
-    }
+    const { reportId, status, adminComments } = validation.data;
 
     try {
-      await updateDemoReport(reportId, status, adminComments, locals.user.steamId);
+      await updateDemoReport(reportId, status as DemoStatus, adminComments, locals.user.steamId);
 
       await logAudit({
         actorId: locals.user?.steamId,

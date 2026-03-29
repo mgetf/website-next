@@ -6,7 +6,13 @@ import { getTeamsByDivision, findRecent1v1SeasonWithEntries } from '$lib/server/
 import { getStaffMembers, isUserSignedUpForFormat } from '$lib/server/services/users';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
-import { formError, formSuccess } from '$lib/server/utils/forms';
+import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
+import { z } from 'zod';
+
+const updateSeasonInfoSchema = z.object({
+  seasonId: z.coerce.number().int().positive('Invalid season ID'),
+  info: z.string().optional().default(''),
+});
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   try {
@@ -232,14 +238,12 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonId = parseInt(formData.get('seasonId') as string);
-    const info = (formData.get('info') as string) || null;
+    const validation = validateForm(formData, updateSeasonInfoSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(seasonId)) {
-      return formError('Invalid season ID', 400);
-    }
+    const { seasonId, info } = validation.data;
 
-    await updateSeasonInfo(seasonId, info);
+    await updateSeasonInfo(seasonId, info || null);
     return formSuccess({ seasonInfo: info }, 'Season info updated');
   },
 };

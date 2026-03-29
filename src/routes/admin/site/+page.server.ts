@@ -28,9 +28,43 @@ import {
   isR2Available,
 } from '$lib/server/utils/r2Upload';
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import { UserRole } from '$lib/types/user';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { createApiKey, getApiKeys, toggleApiKey, deleteApiKey } from '$lib/server/services/apiKeys';
+
+const siteTitleSchema = z.object({
+  siteTitle: z.string().min(1, 'Site title is required'),
+});
+
+const homepageContentSchema = z.object({
+  subtitle: z.string().optional().default(''),
+  about: z.string().optional().default(''),
+});
+
+const rulebookSchema = z.object({
+  content: z.string().min(1, 'Rulebook content cannot be empty'),
+});
+
+const backgroundSettingsSchema = z.object({
+  blur: z.coerce.number().min(0).max(30).default(0),
+  brightness: z.coerce.number().min(0.1).max(1.5).default(1),
+  overlay: z.coerce.number().min(0).max(1).default(0.85),
+});
+
+const apiKeyNameSchema = z.object({
+  name: z.string().min(1, 'API key name is required'),
+});
+
+const apiKeyToggleSchema = z.object({
+  id: z.coerce.number().int().positive('Invalid API key ID'),
+  active: z.string().transform((s) => s === 'true'),
+});
+
+const apiKeyIdSchema = z.object({
+  id: z.coerce.number().int().positive('Invalid API key ID'),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -77,14 +111,13 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const siteTitle = formData.get('siteTitle')?.toString();
+    const validation = validateForm(formData, siteTitleSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!siteTitle || siteTitle.trim().length === 0) {
-      return fail(400, { error: 'Site title is required' });
-    }
+    const siteTitle = validation.data.siteTitle.trim();
 
     try {
-      await updateSiteSettings({ siteTitle: siteTitle.trim() });
+      await updateSiteSettings({ siteTitle });
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
@@ -104,8 +137,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const subtitle = formData.get('subtitle')?.toString() || '';
-    const about = formData.get('about')?.toString() || '';
+    const validation = validateForm(formData, homepageContentSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { subtitle, about } = validation.data;
 
     try {
       await Promise.all([
@@ -131,11 +166,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const content = formData.get('content')?.toString() || '';
+    const validation = validateForm(formData, rulebookSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!content.trim()) {
-      return fail(400, { error: 'Rulebook content cannot be empty' });
-    }
+    const { content } = validation.data;
 
     try {
       await upsertContent(CONTENT_KEYS.RULEBOOK, content, locals.user.steamId);
@@ -166,19 +200,20 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const file = formData.get('backgroundImage') as File | null;
-    const blur = parseFloat(formData.get('blur')?.toString() || '0');
-    const brightness = parseFloat(formData.get('brightness')?.toString() || '1');
-    const overlay = parseFloat(formData.get('overlay')?.toString() || '0.85');
+    const validation = validateForm(formData, backgroundSettingsSchema);
+    if (!validation.success) return validationError(validation.errors);
 
     // Clamp values to valid ranges
-    const clampedBlur = Math.max(0, Math.min(30, isNaN(blur) ? 0 : blur));
-    const clampedBrightness = Math.max(0.1, Math.min(1.5, isNaN(brightness) ? 1 : brightness));
-    const clampedOverlay = Math.max(0, Math.min(1, isNaN(overlay) ? 0.85 : overlay));
+    const {
+      blur: clampedBlur,
+      brightness: clampedBrightness,
+      overlay: clampedOverlay,
+    } = validation.data;
+    const file = formData.get('backgroundImage');
 
     let tempPath: string | null = null;
     try {
-      if (file && file.size > 0) {
+      if (file instanceof File && file.size > 0) {
         // Validate image (5MB max)
         try {
           validateUploadedFile(file, 'image');
@@ -236,11 +271,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const name = formData.get('name')?.toString()?.trim();
+    const validation = validateForm(formData, apiKeyNameSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!name) {
-      return fail(400, { error: 'API key name is required' });
-    }
+    const name = validation.data.name.trim();
 
     try {
       const apiKey = await createApiKey(name, locals.user.steamId);
@@ -267,12 +301,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const id = parseInt(formData.get('id')?.toString() || '');
-    const active = formData.get('active') === 'true';
+    const validation = validateForm(formData, apiKeyToggleSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(id)) {
-      return fail(400, { error: 'Invalid API key ID' });
-    }
+    const { id, active } = validation.data;
 
     try {
       await toggleApiKey(id, active);
@@ -299,11 +331,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const id = parseInt(formData.get('id')?.toString() || '');
+    const validation = validateForm(formData, apiKeyIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(id)) {
-      return fail(400, { error: 'Invalid API key ID' });
-    }
+    const { id } = validation.data;
 
     try {
       await deleteApiKey(id);
@@ -335,9 +366,9 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const file = formData.get('favicon') as File | null;
+    const file = formData.get('favicon');
 
-    if (!file || file.size === 0) {
+    if (!(file instanceof File) || file.size === 0) {
       return fail(400, { error: 'No file provided' });
     }
 

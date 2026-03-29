@@ -21,6 +21,8 @@ import { getRegions } from '$lib/server/services/regions';
 import { getSeasons } from '$lib/server/services/seasons';
 import { getFormatsForFilter } from '$lib/server/services/formats';
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import {
   getSteamItems,
@@ -28,6 +30,66 @@ import {
   updateSteamItem as updateSteamItemService,
   deleteSteamItem as deleteSteamItemService,
 } from '$lib/server/services/steam-items';
+
+const createAnnouncementSchema = z.object({
+  content: z
+    .string()
+    .min(1, 'Announcement content is required')
+    .max(500, 'Announcement content must be less than 500 characters'),
+});
+
+const editAnnouncementSchema = z.object({
+  id: z.coerce.number().int().positive('Invalid announcement ID'),
+  content: z
+    .string()
+    .min(1, 'Announcement content is required')
+    .max(500, 'Announcement content must be less than 500 characters'),
+});
+
+const toggleVisibilitySchema = z.object({
+  id: z.coerce.number().int().positive('Invalid announcement ID'),
+  visible: z.string().transform((s) => s === '1'),
+});
+
+const announcementIdSchema = z.object({
+  id: z.coerce.number().int().positive('Invalid announcement ID'),
+});
+
+const seasonIdSchema = z.object({
+  seasonId: z.coerce.number().int().positive('Invalid season ID'),
+});
+
+const seasonMatchSettingsSchema = z.object({
+  seasonId: z.coerce.number().int().positive('Invalid season ID'),
+  matchWeek: z.string().optional().default(''),
+  matchDeadline: z.string().optional().default(''),
+});
+
+const updateFeesSchema = z.object({
+  fees: z.coerce.number().int().min(0, 'Invalid fee amount'),
+});
+
+const botSettingsSchema = z.object({
+  botTradeOfferUrl: z.string().optional().default(''),
+  botSteamId: z.string().optional().default(''),
+});
+
+const createSteamItemSchema = z.object({
+  name: z.string().min(1, 'Item name is required'),
+  appId: z.coerce.number().int().positive('Valid App ID is required'),
+  marketHashName: z.string().min(1, 'Market hash name is required'),
+  iconUrl: z.string().optional().default(''),
+});
+
+const updateSteamItemSchema = z.object({
+  id: z.coerce.number().int().positive('Invalid item ID'),
+  name: z.string().optional().default(''),
+  iconUrl: z.string().optional().default(''),
+});
+
+const itemIdSchema = z.object({
+  id: z.coerce.number().int().positive('Invalid item ID'),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -123,17 +185,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const content = formData.get('content')?.toString().trim();
+    const validation = validateForm(formData, createAnnouncementSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!content) {
-      return fail(400, { error: 'Announcement content is required' });
-    }
-
-    if (content.length > 500) {
-      return fail(400, {
-        error: 'Announcement content must be less than 500 characters',
-      });
-    }
+    const content = validation.data.content.trim();
 
     try {
       await createAnnouncement(content);
@@ -156,22 +211,11 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const id = parseInt(formData.get('id')?.toString() || '');
-    const content = formData.get('content')?.toString().trim();
+    const validation = validateForm(formData, editAnnouncementSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!id || isNaN(id)) {
-      return fail(400, { error: 'Invalid announcement ID' });
-    }
-
-    if (!content) {
-      return fail(400, { error: 'Announcement content is required' });
-    }
-
-    if (content.length > 500) {
-      return fail(400, {
-        error: 'Announcement content must be less than 500 characters',
-      });
-    }
+    const { id } = validation.data;
+    const content = validation.data.content.trim();
 
     try {
       await updateAnnouncement(id, content);
@@ -196,12 +240,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const id = parseInt(formData.get('id')?.toString() || '');
-    const visible = formData.get('visible') === '1';
+    const validation = validateForm(formData, toggleVisibilitySchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!id || isNaN(id)) {
-      return fail(400, { error: 'Invalid announcement ID' });
-    }
+    const { id, visible } = validation.data;
 
     try {
       await toggleAnnouncementVisibility(id, visible);
@@ -229,11 +271,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const id = parseInt(formData.get('id')?.toString() || '');
+    const validation = validateForm(formData, announcementIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!id || isNaN(id)) {
-      return fail(400, { error: 'Invalid announcement ID' });
-    }
+    const { id } = validation.data;
 
     try {
       await deleteAnnouncement(id);
@@ -258,11 +299,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
+    const validation = validateForm(formData, seasonIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(seasonId)) {
-      return fail(400, { error: 'Invalid season ID' });
-    }
+    const { seasonId } = validation.data;
 
     try {
       await toggleSeasonSignupsOpen(seasonId);
@@ -277,11 +317,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
+    const validation = validateForm(formData, seasonIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(seasonId)) {
-      return fail(400, { error: 'Invalid season ID' });
-    }
+    const { seasonId } = validation.data;
 
     try {
       await toggleSeasonRosterLocked(seasonId);
@@ -296,11 +335,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
+    const validation = validateForm(formData, seasonIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(seasonId)) {
-      return fail(400, { error: 'Invalid season ID' });
-    }
+    const { seasonId } = validation.data;
 
     try {
       await toggleSeasonPaymentRequired(seasonId);
@@ -317,13 +355,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonId = parseInt(formData.get('seasonId')?.toString() || '');
-    const matchWeekStr = formData.get('matchWeek')?.toString();
-    const matchDeadlineStr = formData.get('matchDeadline')?.toString();
+    const validation = validateForm(formData, seasonMatchSettingsSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(seasonId)) {
-      return fail(400, { error: 'Invalid season ID' });
-    }
+    const { seasonId, matchWeek: matchWeekStr, matchDeadline: matchDeadlineStr } = validation.data;
 
     const matchWeek = matchWeekStr ? parseInt(matchWeekStr) : null;
     const matchDeadline = matchDeadlineStr ? new Date(matchDeadlineStr) : null;
@@ -345,11 +380,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const fees = parseInt(formData.get('fees')?.toString() || '0');
+    const validation = validateForm(formData, updateFeesSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(fees) || fees < 0) {
-      return fail(400, { error: 'Invalid fee amount' });
-    }
+    const { fees } = validation.data;
 
     try {
       await updateGlobalSettings({ leagueFees: fees });
@@ -412,8 +446,11 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const botTradeOfferUrl = formData.get('botTradeOfferUrl')?.toString().trim() || null;
-    const botSteamId = formData.get('botSteamId')?.toString().trim() || null;
+    const validation = validateForm(formData, botSettingsSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const botTradeOfferUrl = validation.data.botTradeOfferUrl.trim() || null;
+    const botSteamId = validation.data.botSteamId.trim() || null;
 
     try {
       await updateGlobalSettings({ botTradeOfferUrl, botSteamId });
@@ -436,17 +473,18 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const name = formData.get('name')?.toString().trim() || '';
-    const appId = parseInt(formData.get('appId')?.toString() || '');
-    const marketHashName = formData.get('marketHashName')?.toString().trim() || '';
-    const iconUrl = formData.get('iconUrl')?.toString().trim() || null;
+    const validation = validateForm(formData, createSteamItemSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!name) return fail(400, { error: 'Item name is required' });
-    if (isNaN(appId) || appId < 1) return fail(400, { error: 'Valid App ID is required' });
-    if (!marketHashName) return fail(400, { error: 'Market hash name is required' });
+    const { name, appId, marketHashName, iconUrl } = validation.data;
 
     try {
-      await createSteamItemService({ name, appId, marketHashName, iconUrl });
+      await createSteamItemService({
+        name: name.trim(),
+        appId,
+        marketHashName: marketHashName.trim(),
+        iconUrl: iconUrl.trim() || null,
+      });
       return { success: true, message: 'Steam item added' };
     } catch (err) {
       console.error('Error creating steam item:', err);
@@ -460,14 +498,16 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const id = parseInt(formData.get('id')?.toString() || '');
-    const name = formData.get('name')?.toString().trim();
-    const iconUrl = formData.get('iconUrl')?.toString().trim() || null;
+    const validation = validateForm(formData, updateSteamItemSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(id)) return fail(400, { error: 'Invalid item ID' });
+    const { id, name, iconUrl } = validation.data;
 
     try {
-      await updateSteamItemService(id, { name, iconUrl });
+      await updateSteamItemService(id, {
+        name: name.trim() || undefined,
+        iconUrl: iconUrl.trim() || null,
+      });
       return { success: true, message: 'Steam item updated' };
     } catch (err) {
       console.error('Error updating steam item:', err);
@@ -481,9 +521,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const id = parseInt(formData.get('id')?.toString() || '');
+    const validation = validateForm(formData, itemIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(id)) return fail(400, { error: 'Invalid item ID' });
+    const { id } = validation.data;
 
     try {
       await deleteSteamItemService(id);

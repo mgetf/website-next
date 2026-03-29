@@ -7,6 +7,12 @@ import {
 } from '$lib/server/services/teamJoin';
 import { getEffectiveRosterLock } from '$lib/server/services/settings';
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
+
+const teamIdSchema = z.object({
+  teamId: z.coerce.number().int().positive('Invalid team ID'),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAuth(locals.user);
@@ -33,11 +39,10 @@ export const actions: Actions = {
     requireNotBanned(locals.user);
 
     const formData = await request.formData();
-    const teamId = parseInt(formData.get('teamId') as string);
+    const validation = validateForm(formData, teamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(teamId)) {
-      return fail(400, { error: 'Invalid team ID' });
-    }
+    const { teamId } = validation.data;
 
     const rosterLocked = await getEffectiveRosterLock(teamId);
     if (rosterLocked) {
@@ -58,11 +63,10 @@ export const actions: Actions = {
     requireAuth(locals.user);
 
     const formData = await request.formData();
-    const teamId = parseInt(formData.get('teamId') as string);
+    const validation = validateForm(formData, teamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(teamId)) {
-      return fail(400, { error: 'Invalid team ID' });
-    }
+    const { teamId } = validation.data;
 
     try {
       await declineInvitation(locals.user.steamId, teamId);

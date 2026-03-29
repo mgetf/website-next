@@ -8,6 +8,8 @@ import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import {
   validateUploadedFile,
   saveTempFile,
@@ -16,6 +18,14 @@ import {
 } from '$lib/server/utils/r2Upload';
 import path from 'path';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const createTeamFormSchema = z.object({
+  name: z.string().min(1, 'Team name is required'),
+  acronym: z.string().optional().default(''),
+  divisionId: z.coerce.number().int().positive('Division is required'),
+  regionId: z.coerce.number().int().positive('Region is required'),
+  joinPassword: z.string().min(1, 'Join password is required'),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAuth(locals.user);
@@ -64,23 +74,18 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const name = formData.get('name') as string;
-    const acronym = formData.get('acronym') as string;
-    const divisionId = parseInt(formData.get('divisionId') as string);
-    const regionId = parseInt(formData.get('regionId') as string);
-    const joinPassword = formData.get('joinPassword') as string;
-    const avatar = formData.get('avatar') as File;
-
     // Validate required fields
-    if (!name || !divisionId || !regionId || !joinPassword) {
-      return fail(400, { error: 'All fields are required' });
-    }
+    const validation = validateForm(formData, createTeamFormSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { name, acronym, divisionId, regionId, joinPassword } = validation.data;
+    const avatar = formData.get('avatar');
 
     // Handle avatar upload if provided
     let avatarUrl: string | undefined;
     let tempFilePath: string | undefined;
 
-    if (avatar && avatar.size > 0) {
+    if (avatar instanceof File && avatar.size > 0) {
       try {
         // Validate file
         validateUploadedFile(avatar);

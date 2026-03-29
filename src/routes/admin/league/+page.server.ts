@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import {
   getSeasons,
   createSeason,
@@ -50,6 +52,83 @@ import {
   upsertDivisionItemPayment,
   deleteDivisionItemPayment,
 } from '$lib/server/services/division-item-payments';
+
+const seasonIdSchema = z.object({ seasonId: z.coerce.number().int().positive() });
+const regionIdSchema = z.object({ regionId: z.coerce.number().int().positive() });
+const divisionIdSchema = z.object({ divisionId: z.coerce.number().int().positive() });
+const arenaIdSchema = z.object({ arenaId: z.coerce.number().int().positive() });
+const poolIdSchema = z.object({ poolId: z.coerce.number().int().positive() });
+const formatIdSchema = z.object({ formatId: z.coerce.number().int().positive() });
+const nameSchema = z.object({ name: z.string().min(1, 'Name is required') });
+
+const createSeasonSchema = z.object({
+  seasonNum: z.coerce.number().int().positive(),
+  regionId: z.coerce.number().int().positive(),
+  formatId: z.coerce.number().int().positive(),
+  numWeeks: z.coerce.number().int().positive(),
+});
+const updateSeasonSchema = createSeasonSchema.extend({
+  seasonId: z.coerce.number().int().positive(),
+});
+
+const updateRegionSchema = regionIdSchema.extend({
+  name: z.string().min(1, 'Region name is required'),
+  currencyCode: z.string().optional().default(''),
+});
+
+const createDivisionSchema = z.object({
+  name: z.string().min(1, 'Division name is required'),
+  signupCost: z.coerce.number().min(0).catch(0),
+  regionId: z.coerce.number().int().positive(),
+  steamItemId: z.coerce.number().int().catch(0),
+  itemQuantity: z.coerce.number().int().catch(0),
+});
+const updateDivisionSchema = createDivisionSchema.extend({
+  divisionId: z.coerce.number().int().positive(),
+});
+
+const createArenaSchema = z.object({
+  name: z.string().min(1, 'Arena name is required'),
+  avatarUrl: z.string().optional().default(''),
+  playoffMap: z.string().optional().default(''),
+});
+const updateArenaSchema = createArenaSchema.extend({
+  arenaId: z.coerce.number().int().positive(),
+});
+
+const updateMapBanPoolSchema = poolIdSchema.extend({
+  name: z.string().min(1, 'Pool name is required'),
+});
+const addMapsToPoolSchema = poolIdSchema.extend({
+  arenaIds: z.array(z.coerce.number().int().positive()).min(1, 'Please select at least one map'),
+});
+const removeMapFromPoolSchema = z.object({
+  poolId: z.coerce.number().int().positive(),
+  arenaId: z.coerce.number().int().positive(),
+});
+
+const managePlayoffSchema = z
+  .object({
+    seasonId: z.coerce.number().int().positive(),
+    format: z.enum(['tournament', 'rounds']),
+    numRounds: z.coerce.number().int().positive().optional().catch(undefined),
+    doubleElim: z.string().optional().default('0'),
+  })
+  .refine(
+    (data) => data.format !== 'rounds' || (data.numRounds !== undefined && data.numRounds >= 1),
+    {
+      message: 'Number of rounds is required for rounds format and must be >= 1',
+      path: ['numRounds'],
+    },
+  );
+
+const createFormatSchema = z.object({
+  name: z.string().min(1, 'Format name is required'),
+  code: z.string().min(1, 'Format code is required'),
+});
+const updateFormatSchema = createFormatSchema.extend({
+  formatId: z.coerce.number().int().positive(),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -171,24 +250,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonNum = parseInt(formData.get('seasonNum') as string);
-    const regionId = parseInt(formData.get('regionId') as string);
-    const formatId = parseInt(formData.get('formatId') as string);
-    const numWeeks = parseInt(formData.get('numWeeks') as string);
-
     // Validate inputs
-    if (!seasonNum || seasonNum < 1) {
-      return fail(400, { error: 'Invalid season number' });
-    }
-    if (!regionId || regionId < 1) {
-      return fail(400, { error: 'Invalid region' });
-    }
-    if (!formatId || formatId < 1) {
-      return fail(400, { error: 'Invalid format' });
-    }
-    if (!numWeeks || numWeeks < 1) {
-      return fail(400, { error: 'Invalid number of weeks' });
-    }
+    const validation = validateForm(formData, createSeasonSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { seasonNum, regionId, formatId, numWeeks } = validation.data;
 
     try {
       await createSeason({ seasonNum, regionId, formatId, numWeeks });
@@ -214,28 +279,10 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonId = parseInt(formData.get('seasonId') as string);
-    const seasonNum = parseInt(formData.get('seasonNum') as string);
-    const regionId = parseInt(formData.get('regionId') as string);
-    const formatId = parseInt(formData.get('formatId') as string);
-    const numWeeks = parseInt(formData.get('numWeeks') as string);
-
     // Validate inputs
-    if (!seasonId || seasonId < 1) {
-      return fail(400, { error: 'Invalid season ID' });
-    }
-    if (!seasonNum || seasonNum < 1) {
-      return fail(400, { error: 'Invalid season number' });
-    }
-    if (!regionId || regionId < 1) {
-      return fail(400, { error: 'Invalid region' });
-    }
-    if (!formatId || formatId < 1) {
-      return fail(400, { error: 'Invalid format' });
-    }
-    if (!numWeeks || numWeeks < 1) {
-      return fail(400, { error: 'Invalid number of weeks' });
-    }
+    const validation = validateForm(formData, updateSeasonSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { seasonId, seasonNum, regionId, formatId, numWeeks } = validation.data;
 
     try {
       await updateSeason(seasonId, { seasonNum, regionId, formatId, numWeeks });
@@ -263,11 +310,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const name = formData.get('name') as string;
-
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Region name is required' });
-    }
+    const validation = validateForm(formData, nameSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { name } = validation.data;
 
     try {
       await createRegion(name);
@@ -292,16 +337,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const regionId = parseInt(formData.get('regionId') as string);
-    const name = formData.get('name') as string;
-    const currencyCode = formData.get('currencyCode') as string;
-
-    if (!regionId || regionId < 1) {
-      return fail(400, { error: 'Invalid region ID' });
-    }
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Region name is required' });
-    }
+    const validation = validateForm(formData, updateRegionSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { regionId, name, currencyCode } = validation.data;
 
     try {
       await updateRegion(regionId, {
@@ -331,11 +369,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const regionId = parseInt(formData.get('regionId') as string);
-
-    if (!regionId || regionId < 1) {
-      return fail(400, { error: 'Invalid region ID' });
-    }
+    const validation = validateForm(formData, regionIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { regionId } = validation.data;
 
     try {
       const region = await toggleRegionVisibility(regionId);
@@ -366,22 +402,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const name = formData.get('name') as string;
-    const signupCost = parseFloat(formData.get('signupCost') as string) || 0;
-    const regionIdStr = formData.get('regionId') as string;
-    const regionId = regionIdStr ? parseInt(regionIdStr) : null;
-
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Division name is required' });
-    }
-    if (!regionId) {
-      return fail(400, { error: 'Region is required' });
-    }
-
-    const steamItemIdStr = formData.get('steamItemId') as string;
-    const itemQuantityStr = formData.get('itemQuantity') as string;
-    const steamItemId = steamItemIdStr ? parseInt(steamItemIdStr) : null;
-    const itemQuantity = itemQuantityStr ? parseInt(itemQuantityStr) : null;
+    const validation = validateForm(formData, createDivisionSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { name, signupCost, regionId, steamItemId, itemQuantity } = validation.data;
 
     try {
       const division = await createDivision({ name, signupCost, regionId });
@@ -411,26 +434,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const divisionId = parseInt(formData.get('divisionId') as string);
-    const name = formData.get('name') as string;
-    const signupCost = parseFloat(formData.get('signupCost') as string) || 0;
-    const regionIdStr = formData.get('regionId') as string;
-    const regionId = regionIdStr ? parseInt(regionIdStr) : null;
-
-    if (!divisionId || divisionId < 1) {
-      return fail(400, { error: 'Invalid division ID' });
-    }
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Division name is required' });
-    }
-    if (!regionId) {
-      return fail(400, { error: 'Region is required' });
-    }
-
-    const steamItemIdStr = formData.get('steamItemId') as string;
-    const itemQuantityStr = formData.get('itemQuantity') as string;
-    const steamItemId = steamItemIdStr ? parseInt(steamItemIdStr) : null;
-    const itemQuantity = itemQuantityStr ? parseInt(itemQuantityStr) : null;
+    const validation = validateForm(formData, updateDivisionSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { divisionId, name, signupCost, regionId, steamItemId, itemQuantity } = validation.data;
 
     try {
       await updateDivision(divisionId, { name, signupCost, regionId });
@@ -464,11 +470,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const divisionId = parseInt(formData.get('divisionId') as string);
-
-    if (!divisionId || divisionId < 1) {
-      return fail(400, { error: 'Invalid division ID' });
-    }
+    const validation = validateForm(formData, divisionIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { divisionId } = validation.data;
 
     try {
       const division = await toggleDivisionVisibility(divisionId);
@@ -489,19 +493,16 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const name = formData.get('name') as string;
-    const avatarFile = formData.get('avatarFile') as File | null;
-    const avatarUrl = formData.get('avatarUrl') as string;
-    const playoffMap = formData.get('playoffMap') === 'true' ? 1 : 0;
-
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Arena name is required' });
-    }
+    const validation = validateForm(formData, createArenaSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { name, avatarUrl, playoffMap: playoffMapStr } = validation.data;
+    const playoffMap = playoffMapStr === 'true' ? 1 : 0;
+    const avatarFile = formData.get('avatarFile');
 
     let finalAvatarUrl = avatarUrl?.trim() || null;
 
     try {
-      if (avatarFile && avatarFile.size > 0) {
+      if (avatarFile instanceof File && avatarFile.size > 0) {
         validateUploadedFile(avatarFile, 'image');
 
         const tempPath = await saveTempFile(avatarFile);
@@ -541,23 +542,16 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const arenaId = parseInt(formData.get('arenaId') as string);
-    const name = formData.get('name') as string;
-    const avatarFile = formData.get('avatarFile') as File | null;
-    const avatarUrl = formData.get('avatarUrl') as string;
-    const playoffMap = formData.get('playoffMap') === 'true' ? 1 : 0;
-
-    if (!arenaId || arenaId < 1) {
-      return fail(400, { error: 'Invalid arena ID' });
-    }
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Arena name is required' });
-    }
+    const validation = validateForm(formData, updateArenaSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { arenaId, name, avatarUrl, playoffMap: playoffMapStr } = validation.data;
+    const playoffMap = playoffMapStr === 'true' ? 1 : 0;
+    const avatarFile = formData.get('avatarFile');
 
     let finalAvatarUrl = avatarUrl?.trim() || null;
 
     try {
-      if (avatarFile && avatarFile.size > 0) {
+      if (avatarFile instanceof File && avatarFile.size > 0) {
         validateUploadedFile(avatarFile, 'image');
 
         const tempPath = await saveTempFile(avatarFile);
@@ -599,11 +593,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const arenaId = parseInt(formData.get('arenaId') as string);
-
-    if (!arenaId || arenaId < 1) {
-      return fail(400, { error: 'Invalid arena ID' });
-    }
+    const validation = validateForm(formData, arenaIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { arenaId } = validation.data;
 
     try {
       await deleteArena(arenaId);
@@ -630,11 +622,9 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const name = formData.get('name') as string;
-
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Map ban pool name is required' });
-    }
+    const validation = validateForm(formData, nameSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { name } = validation.data;
 
     try {
       await createMapBanPool(name);
@@ -659,15 +649,9 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const poolId = parseInt(formData.get('poolId') as string);
-    const name = formData.get('name') as string;
-
-    if (!poolId || poolId < 1) {
-      return fail(400, { error: 'Invalid pool ID' });
-    }
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Pool name is required' });
-    }
+    const validation = validateForm(formData, updateMapBanPoolSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { poolId, name } = validation.data;
 
     try {
       await updateMapBanPool(poolId, name);
@@ -684,11 +668,9 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const poolId = parseInt(formData.get('poolId') as string);
-
-    if (!poolId || poolId < 1) {
-      return fail(400, { error: 'Invalid pool ID' });
-    }
+    const validation = validateForm(formData, poolIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { poolId } = validation.data;
 
     try {
       const pool = await toggleMapBanPoolStatus(poolId);
@@ -708,15 +690,9 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const poolId = parseInt(formData.get('poolId') as string);
-    const arenaIds = formData.getAll('arenaIds').map((id) => parseInt(id as string));
-
-    if (!poolId || poolId < 1) {
-      return fail(400, { error: 'Invalid pool ID' });
-    }
-    if (!arenaIds || arenaIds.length === 0) {
-      return fail(400, { error: 'Please select at least one map' });
-    }
+    const validation = validateForm(formData, addMapsToPoolSchema, ['arenaIds']);
+    if (!validation.success) return validationError(validation.errors);
+    const { poolId, arenaIds } = validation.data;
 
     try {
       await addMapsToPool(poolId, arenaIds);
@@ -733,12 +709,9 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const poolId = parseInt(formData.get('poolId') as string);
-    const arenaId = parseInt(formData.get('arenaId') as string);
-
-    if (!poolId || poolId < 1 || !arenaId || arenaId < 1) {
-      return fail(400, { error: 'Invalid pool or arena ID' });
-    }
+    const validation = validateForm(formData, removeMapFromPoolSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { poolId, arenaId } = validation.data;
 
     try {
       await removeMapFromPool(poolId, arenaId);
@@ -755,11 +728,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const poolId = parseInt(formData.get('poolId') as string);
-
-    if (!poolId || poolId < 1) {
-      return fail(400, { error: 'Invalid pool ID' });
-    }
+    const validation = validateForm(formData, poolIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { poolId } = validation.data;
 
     try {
       await deleteMapBanPool(poolId);
@@ -777,28 +748,11 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonId = parseInt(formData.get('seasonId') as string);
-    const format = formData.get('format') as string;
-    const numRounds = formData.get('numRounds')
-      ? parseInt(formData.get('numRounds') as string)
-      : null;
-    const doubleElim = formData.get('doubleElim') === '1' ? 1 : 0;
-
-    if (!seasonId || seasonId < 1) {
-      return fail(400, { error: 'Invalid season ID' });
-    }
-
-    if (!format || (format !== 'tournament' && format !== 'rounds')) {
-      return fail(400, { error: 'Invalid playoff format' });
-    }
-
-    if (format === 'rounds' && (!numRounds || numRounds < 1)) {
-      return fail(400, {
-        error: 'Number of rounds is required for rounds format and must be >= 1',
-      });
-    }
-
+    const validation = validateForm(formData, managePlayoffSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { seasonId, format, numRounds, doubleElim: doubleElimStr } = validation.data;
     const isTournament = format === 'tournament';
+    const doubleElim = doubleElimStr === '1' ? 1 : 0;
 
     try {
       // Check if playoff already exists for this season
@@ -859,15 +813,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const name = formData.get('name') as string;
-    const code = formData.get('code') as string;
-
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Format name is required' });
-    }
-    if (!code || code.trim().length === 0) {
-      return fail(400, { error: 'Format code is required' });
-    }
+    const validation = validateForm(formData, createFormatSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { name, code } = validation.data;
 
     try {
       await createFormat({ name, code });
@@ -892,19 +840,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const formatId = parseInt(formData.get('formatId') as string);
-    const name = formData.get('name') as string;
-    const code = formData.get('code') as string;
-
-    if (!formatId || formatId < 1) {
-      return fail(400, { error: 'Invalid format ID' });
-    }
-    if (!name || name.trim().length === 0) {
-      return fail(400, { error: 'Format name is required' });
-    }
-    if (!code || code.trim().length === 0) {
-      return fail(400, { error: 'Format code is required' });
-    }
+    const validation = validateForm(formData, updateFormatSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { formatId, name, code } = validation.data;
 
     try {
       await updateFormat(formatId, { name, code });
@@ -931,11 +869,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const seasonId = parseInt(formData.get('seasonId') as string);
-
-    if (!seasonId || seasonId < 1) {
-      return fail(400, { error: 'Invalid season ID' });
-    }
+    const validation = validateForm(formData, seasonIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { seasonId } = validation.data;
 
     try {
       await deleteSeason(seasonId);
@@ -961,11 +897,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const regionId = parseInt(formData.get('regionId') as string);
-
-    if (!regionId || regionId < 1) {
-      return fail(400, { error: 'Invalid region ID' });
-    }
+    const validation = validateForm(formData, regionIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { regionId } = validation.data;
 
     try {
       await deleteRegion(regionId);
@@ -991,11 +925,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const divisionId = parseInt(formData.get('divisionId') as string);
-
-    if (!divisionId || divisionId < 1) {
-      return fail(400, { error: 'Invalid division ID' });
-    }
+    const validation = validateForm(formData, divisionIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { divisionId } = validation.data;
 
     try {
       await deleteDivision(divisionId);
@@ -1021,11 +953,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const formatId = parseInt(formData.get('formatId') as string);
-
-    if (!formatId || formatId < 1) {
-      return fail(400, { error: 'Invalid format ID' });
-    }
+    const validation = validateForm(formData, formatIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { formatId } = validation.data;
 
     try {
       await deleteFormat(formatId);

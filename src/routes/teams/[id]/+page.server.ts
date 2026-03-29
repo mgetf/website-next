@@ -1,5 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import {
   getTeamById,
   updateTeamStatus,
@@ -20,6 +22,18 @@ import {
   declineInvitation,
 } from '$lib/server/services/teamJoin';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const playerSteamIdSchema = z.object({
+  playerSteamId: z.string().min(1, 'Player Steam ID is required'),
+});
+
+const updateStatusSchema = z.object({
+  status: z.string().min(1, 'Status is required'),
+});
+
+const changeDivisionSchema = z.object({
+  divisionId: z.coerce.number().int().positive('A valid division is required'),
+});
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const teamId = parseInt(params.id);
@@ -237,11 +251,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId') as string;
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!playerSteamId) {
-      return fail(400, { error: 'Player Steam ID is required' });
-    }
+    const { playerSteamId } = validation.data;
 
     const rosterLocked = await getEffectiveRosterLock(teamId);
 
@@ -272,11 +285,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const status = formData.get('status') as string;
+    const validation = validateForm(formData, updateStatusSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!status) {
-      return fail(400, { error: 'Status is required' });
-    }
+    const { status } = validation.data;
 
     try {
       await updateTeamStatus(teamId, status as any);
@@ -356,11 +368,10 @@ export const actions: Actions = {
 
     const teamId = parseInt(params.id);
     const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId') as string;
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!playerSteamId) {
-      return fail(400, { error: 'Player Steam ID is required' });
-    }
+    const { playerSteamId } = validation.data;
 
     try {
       await markPlayerAsPaidManually(playerSteamId, teamId, locals.user.steamId);
@@ -412,12 +423,10 @@ export const actions: Actions = {
 
     const teamId = parseInt(params.id);
     const formData = await request.formData();
-    const divisionIdRaw = formData.get('divisionId');
-    const divisionId = divisionIdRaw ? parseInt(divisionIdRaw as string) : NaN;
+    const validation = validateForm(formData, changeDivisionSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (isNaN(divisionId) || divisionId <= 0) {
-      return fail(400, { error: 'A valid division is required' });
-    }
+    const { divisionId } = validation.data;
 
     try {
       const result = await changeTeamDivision(teamId, divisionId, locals.user.steamId);

@@ -8,7 +8,14 @@ import { requireAdmin } from '$lib/server/auth/permissions';
 import { getDisputedMatches, resolveDispute } from '$lib/server/services/disputes';
 import { MatchStatus } from '$prisma/client.js';
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const resolveDisputeSchema = z.object({
+  matchId: z.coerce.number().int().positive('Invalid match ID'),
+  status: z.enum(['UNPLAYED', 'PLAYED'], { message: 'Invalid status' }),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -25,19 +32,13 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const matchId = parseInt(formData.get('matchId')?.toString() || '');
-    const status = formData.get('status')?.toString() as MatchStatus;
+    const validation = validateForm(formData, resolveDisputeSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!matchId || isNaN(matchId)) {
-      return fail(400, { error: 'Invalid match ID' });
-    }
-
-    if (!status || !['UNPLAYED', 'PLAYED'].includes(status)) {
-      return fail(400, { error: 'Invalid status' });
-    }
+    const { matchId, status } = validation.data;
 
     try {
-      await resolveDispute(matchId, status);
+      await resolveDispute(matchId, status as MatchStatus);
 
       await logAudit({
         actorId: locals.user?.steamId,

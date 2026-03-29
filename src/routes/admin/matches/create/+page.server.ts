@@ -3,7 +3,7 @@
  * Dedicated page for creating matches with a progressive wizard interface
  */
 
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireStrictAdmin } from '$lib/server/auth/permissions';
 import {
@@ -18,6 +18,44 @@ import { getArenas } from '$lib/server/services/arenas';
 import { getMapBanPools } from '$lib/server/services/mapBanPools';
 import { getAllPlayoffs, getPlayoffBySeason } from '$lib/server/services/playoffs';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
+
+const optionalInt = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : val),
+  z.coerce.number().int().optional(),
+);
+
+const previewMatchesSchema = z.object({
+  regionId: z.coerce.number().int(),
+  divisionId: z.coerce.number().int(),
+  seasonId: z.coerce.number().int(),
+  weekNo: optionalInt,
+  isPlayoff: z
+    .string()
+    .optional()
+    .transform((v) => v === 'on'),
+  playoffRound: optionalInt,
+});
+
+const createMatchSetSchema = z.object({
+  regionId: z.coerce.number().int(),
+  divisionId: z.coerce.number().int(),
+  seasonId: z.coerce.number().int(),
+  boSeries: z.coerce.number().int(),
+  weekNo: optionalInt,
+  arenaId: optionalInt,
+  matchDateTime: z.string().optional().default(''),
+  mapBanPoolId: optionalInt,
+  isPlayoff: z
+    .string()
+    .optional()
+    .transform((v) => v === 'on'),
+  playoffRound: optionalInt,
+  boGames: optionalInt,
+  homeTeamIds: z.array(z.coerce.number().int()).optional().default([]),
+  awayTeamIds: z.array(z.coerce.number().int()).optional().default([]),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireStrictAdmin(locals.user);
@@ -50,15 +88,9 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const regionId = parseInt(formData.get('regionId') as string);
-    const divisionId = parseInt(formData.get('divisionId') as string);
-    const seasonId = parseInt(formData.get('seasonId') as string);
-    const weekNoRaw = formData.get('weekNo') as string;
-    const weekNo = weekNoRaw && weekNoRaw !== '' ? parseInt(weekNoRaw) : null;
-    const isPlayoff = formData.get('isPlayoff') === 'on';
-    const playoffRoundRaw = formData.get('playoffRound') as string;
-    const playoffRound =
-      playoffRoundRaw && playoffRoundRaw !== '' ? parseInt(playoffRoundRaw) : null;
+    const validation = validateForm(formData, previewMatchesSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { regionId, divisionId, seasonId, weekNo, isPlayoff, playoffRound } = validation.data;
 
     try {
       const teams = await getEligibleTeams(regionId, divisionId, seasonId);
@@ -193,25 +225,23 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-
-    const regionId = parseInt(formData.get('regionId') as string);
-    const divisionId = parseInt(formData.get('divisionId') as string);
-    const seasonId = parseInt(formData.get('seasonId') as string);
-    const weekNoRaw = formData.get('weekNo') as string;
-    const weekNo = weekNoRaw && weekNoRaw !== '' ? parseInt(weekNoRaw) : null;
-    const boSeries = parseInt(formData.get('boSeries') as string);
-    const arenaIdRaw = formData.get('arenaId') as string;
-    const arenaId = arenaIdRaw && arenaIdRaw !== '' ? parseInt(arenaIdRaw) : undefined;
-    const matchDateTime = (formData.get('matchDateTime') as string) || '';
-    const mapBanPoolIdRaw = formData.get('mapBanPoolId') as string;
-    const mapBanPoolId =
-      mapBanPoolIdRaw && mapBanPoolIdRaw !== '' ? parseInt(mapBanPoolIdRaw) : undefined;
-    const isPlayoff = formData.get('isPlayoff') === 'on';
-    const playoffRoundRaw = formData.get('playoffRound') as string;
-    const playoffRound =
-      playoffRoundRaw && playoffRoundRaw !== '' ? parseInt(playoffRoundRaw) : null;
-    const boGamesRaw = formData.get('boGames') as string;
-    const boGames = boGamesRaw && boGamesRaw !== '' ? parseInt(boGamesRaw) : null;
+    const validation = validateForm(formData, createMatchSetSchema, ['homeTeamIds', 'awayTeamIds']);
+    if (!validation.success) return validationError(validation.errors);
+    const {
+      regionId,
+      divisionId,
+      seasonId,
+      boSeries,
+      weekNo,
+      arenaId,
+      matchDateTime,
+      mapBanPoolId,
+      isPlayoff,
+      playoffRound,
+      boGames,
+      homeTeamIds,
+      awayTeamIds,
+    } = validation.data;
 
     console.log('Create match set params:', {
       regionId,
@@ -226,17 +256,6 @@ export const actions: Actions = {
       playoffRound,
       boGames,
     });
-
-    // Validate required fields
-    if (isNaN(regionId) || isNaN(divisionId) || isNaN(seasonId) || isNaN(boSeries)) {
-      console.error('Invalid form data:', {
-        regionId,
-        divisionId,
-        seasonId,
-        boSeries,
-      });
-      return fail(400, { error: 'Invalid form data: missing required fields' });
-    }
 
     // Additional validation for playoff matches
     if (isPlayoff) {
@@ -290,10 +309,6 @@ export const actions: Actions = {
           mapBanPoolId,
         });
 
-        // Get team selections from form
-        const homeTeamIds = formData.getAll('homeTeamIds').map((id) => parseInt(id as string));
-        const awayTeamIds = formData.getAll('awayTeamIds').map((id) => parseInt(id as string));
-
         if (homeTeamIds.length === 0 || awayTeamIds.length === 0) {
           return fail(400, {
             error: 'Please select teams for all playoff matchups',
@@ -304,11 +319,6 @@ export const actions: Actions = {
           return fail(400, {
             error: 'Home and away team selections must match',
           });
-        }
-
-        // Validate all team IDs are valid numbers
-        if (homeTeamIds.some((id) => isNaN(id)) || awayTeamIds.some((id) => isNaN(id))) {
-          return fail(400, { error: 'Invalid team selection' });
         }
 
         // Create playoff matches using the existing createPlayoffMatch function

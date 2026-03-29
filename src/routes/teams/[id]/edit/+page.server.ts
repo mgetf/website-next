@@ -13,9 +13,28 @@ import {
 import { declineInvitation } from '$lib/server/services/teamJoin';
 import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getTeamFormatCheck, getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const updateInfoSchema = z.object({
+  name: z.string().min(1, 'Team name is required'),
+  acronym: z.string().optional().default(''),
+});
+
+const updatePasswordSchema = z.object({
+  joinPassword: z.string().default(''),
+});
+
+const playerSteamIdSchema = z.object({
+  playerSteamId: z.string().min(1, 'Player Steam ID is required'),
+});
+
+const invitePlayerSchema = z.object({
+  steamId: z.string().min(1, 'Steam ID is required'),
+});
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   requireAuth(locals.user);
@@ -69,8 +88,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const name = formData.get('name') as string;
-    const acronym = formData.get('acronym') as string;
+    const validation = validateForm(formData, updateInfoSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { name, acronym } = validation.data;
 
     try {
       const before = await getTeamAuditSnapshot(teamId);
@@ -119,8 +140,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const joinPassword = (formData.get('joinPassword') as string)?.trim();
+    const validation = validateForm(formData, updatePasswordSchema);
+    if (!validation.success) return validationError(validation.errors);
 
+    const joinPassword = validation.data.joinPassword.trim();
     if (!joinPassword) {
       return { success: true, message: 'No changes made' };
     }
@@ -165,9 +188,9 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const avatar = formData.get('avatar') as File;
+    const avatar = formData.get('avatar');
 
-    if (!avatar || avatar.size === 0) {
+    if (!(avatar instanceof File) || avatar.size === 0) {
       return fail(400, { error: 'No file uploaded' });
     }
 
@@ -224,7 +247,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId') as string;
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { playerSteamId } = validation.data;
 
     try {
       await removePlayer(teamId, playerSteamId);
@@ -254,7 +280,10 @@ export const actions: Actions = {
     await requireTeamAdmin(locals.user, teamId);
 
     const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId') as string;
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { playerSteamId } = validation.data;
 
     try {
       await promotePlayer(teamId, playerSteamId);
@@ -284,7 +313,10 @@ export const actions: Actions = {
     await requireTeamAdmin(locals.user, teamId);
 
     const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId') as string;
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { playerSteamId } = validation.data;
 
     try {
       await demotePlayer(teamId, playerSteamId);
@@ -319,11 +351,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
+    const validation = validateForm(formData, invitePlayerSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId) {
-      return fail(400, { error: 'Steam ID is required' });
-    }
+    const { steamId } = validation.data;
 
     try {
       await invitePlayerBySteamId(teamId, steamId, locals.user.steamId);
@@ -353,7 +384,10 @@ export const actions: Actions = {
     await requireTeamAdmin(locals.user, teamId);
 
     const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId') as string;
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { playerSteamId } = validation.data;
 
     try {
       await declineInvitation(playerSteamId, teamId);

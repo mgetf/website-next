@@ -13,6 +13,17 @@ import {
 import { fetchSteamProfile } from '$lib/server/services/users';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { redirect, fail } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
+
+const createItemOrderSchema = z.object({
+  teamId: z.coerce.number().int().positive('Invalid team ID'),
+  paidForSteamIds: z.string().optional().default(''),
+});
+
+const cancelItemOrderSchema = z.object({
+  orderNumber: z.string().min(1, 'Missing order number'),
+});
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   requireAuth(locals.user);
@@ -156,12 +167,10 @@ export const actions: Actions = {
     requireAuth(locals.user);
 
     const formData = await request.formData();
-    const teamId = parseInt(formData.get('teamId') as string);
-    const paidForRaw = formData.get('paidForSteamIds') as string;
+    const validation = validateForm(formData, createItemOrderSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!teamId || isNaN(teamId)) {
-      return fail(400, { error: 'Invalid team ID' });
-    }
+    const { teamId, paidForSteamIds: paidForRaw } = validation.data;
 
     const paidForSteamIds = paidForRaw
       ? (JSON.parse(paidForRaw) as string[])
@@ -208,11 +217,10 @@ export const actions: Actions = {
     requireAuth(locals.user);
 
     const formData = await request.formData();
-    const orderNumber = formData.get('orderNumber') as string;
+    const validation = validateForm(formData, cancelItemOrderSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!orderNumber) {
-      return fail(400, { error: 'Missing order number' });
-    }
+    const { orderNumber } = validation.data;
 
     try {
       await cancelItemPaymentOrder(orderNumber, locals.user!.steamId);

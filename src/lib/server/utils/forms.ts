@@ -37,10 +37,16 @@ export type FormResult<T = unknown> = FormSuccess<T> | ActionFailure<FormActionE
 export function validateForm<T>(
   formData: FormData,
   schema: z.ZodSchema<T>,
+  arrayKeys?: string[],
 ): { success: true; data: T } | { success: false; errors: Record<string, string> } {
   try {
     // Convert FormData to plain object
-    const data = Object.fromEntries(formData);
+    const data: Record<string, unknown> = Object.fromEntries(formData);
+    if (arrayKeys) {
+      for (const key of arrayKeys) {
+        data[key] = formData.getAll(key).filter((v): v is string => typeof v === 'string');
+      }
+    }
 
     // Parse with Zod
     const parsed = schema.parse(data);

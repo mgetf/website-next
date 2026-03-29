@@ -8,6 +8,12 @@ import {
 } from '$lib/server/services/teamJoin';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
+
+const tokenSchema = z.object({
+  token: z.string().min(1, 'Invalid token'),
+});
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   requireAuth(locals.user);
@@ -53,11 +59,10 @@ export const actions: Actions = {
     requireNotBanned(locals.user);
 
     const formData = await request.formData();
-    const token = formData.get('token') as string;
+    const validation = validateForm(formData, tokenSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!token) {
-      return fail(400, { error: 'Invalid token' });
-    }
+    const { token } = validation.data;
 
     // Get team ID from token to check season settings
     const { validateJoinToken: decodeToken } = await import('$lib/server/services/teamSignup');
@@ -85,11 +90,10 @@ export const actions: Actions = {
     requireAuth(locals.user);
 
     const formData = await request.formData();
-    const token = formData.get('token') as string;
+    const validation = validateForm(formData, tokenSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!token) {
-      return fail(400, { error: 'Invalid token' });
-    }
+    const { token } = validation.data;
 
     try {
       // Just decode to get team ID, then delete pending

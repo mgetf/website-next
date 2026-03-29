@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import {
   getUsers,
   countUsers,
@@ -17,6 +19,35 @@ import {
 import { getDivisions } from '$lib/server/services/divisions';
 import { getRegions } from '$lib/server/services/regions';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const steamIdSchema = z.object({
+  steamId: z.string().min(1, 'Invalid user ID'),
+});
+
+const updateUserSchema = z.object({
+  steamId: z.string().min(1, 'Invalid user ID'),
+  permissionLevel: z.string().optional().default(''),
+  banStatus: z.string().optional().default(''),
+  nameOverride: z.string().optional().default(''),
+  staffDivisionIds: z.array(z.string()).optional().default([]),
+});
+
+const banUserSchema = z.object({
+  steamId: z.string().min(1, 'Invalid user ID'),
+  severity: z.enum(['WARNING', 'SUSPENDED', 'BANNED'], { message: 'Severity is required' }),
+  reason: z.string().min(1, 'Reason is required'),
+  duration: z.string().optional().default(''),
+});
+
+const lockUserNameSchema = z.object({
+  steamId: z.string().min(1, 'Steam ID is required'),
+  newName: z.string().min(1, 'Name is required'),
+});
+
+const lockUserAvatarSchema = z.object({
+  steamId: z.string().min(1, 'Steam ID is required'),
+  avatarUrl: z.string().min(1, 'Avatar URL is required'),
+});
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);
@@ -94,15 +125,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
-    const permissionLevel = formData.get('permissionLevel') as string;
-    const banStatus = formData.get('banStatus') as string;
-    const nameOverride = formData.get('nameOverride') as string;
-    const staffDivisionIds = formData.getAll('staffDivisionIds') as string[];
+    const validation = validateForm(formData, updateUserSchema, ['staffDivisionIds']);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId) {
-      return fail(400, { error: 'Invalid user ID' });
-    }
+    const { steamId, permissionLevel, banStatus, nameOverride, staffDivisionIds } = validation.data;
 
     if (permissionLevel) {
       requireStrictAdmin(locals.user);
@@ -146,25 +172,11 @@ export const actions: Actions = {
   banUser: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
-    if (!locals.user) {
-      return fail(401, { error: 'Unauthorized' });
-    }
-
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
-    const severity = formData.get('severity') as 'WARNING' | 'SUSPENDED' | 'BANNED';
-    const reason = formData.get('reason') as string;
-    const duration = formData.get('duration') as string;
+    const validation = validateForm(formData, banUserSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId) {
-      return fail(400, { error: 'Invalid user ID' });
-    }
-    if (!severity) {
-      return fail(400, { error: 'Severity is required' });
-    }
-    if (!reason || reason.trim().length === 0) {
-      return fail(400, { error: 'Reason is required' });
-    }
+    const { steamId, severity, reason, duration } = validation.data;
 
     const targetUser = await getUserBySteamId(steamId);
     if (
@@ -209,16 +221,11 @@ export const actions: Actions = {
   clearPunishment: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
-    if (!locals.user) {
-      return fail(401, { error: 'Unauthorized' });
-    }
-
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
+    const validation = validateForm(formData, steamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId) {
-      return fail(400, { error: 'Invalid user ID' });
-    }
+    const { steamId } = validation.data;
 
     try {
       await clearPunishment(steamId, locals.user.steamId);
@@ -246,12 +253,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
-    const newName = formData.get('newName') as string;
+    const validation = validateForm(formData, lockUserNameSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId || !newName) {
-      return fail(400, { error: 'Steam ID and name are required' });
-    }
+    const { steamId, newName } = validation.data;
 
     try {
       await lockUserName(steamId, newName);
@@ -280,11 +285,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
+    const validation = validateForm(formData, steamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId) {
-      return fail(400, { error: 'Invalid user ID' });
-    }
+    const { steamId } = validation.data;
 
     try {
       await unlockUserName(steamId);
@@ -312,12 +316,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
-    const avatarUrl = formData.get('avatarUrl') as string;
+    const validation = validateForm(formData, lockUserAvatarSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId || !avatarUrl) {
-      return fail(400, { error: 'Steam ID and avatar URL are required' });
-    }
+    const { steamId, avatarUrl } = validation.data;
 
     try {
       await lockUserAvatar(steamId, avatarUrl);
@@ -346,11 +348,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
+    const validation = validateForm(formData, steamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId) {
-      return fail(400, { error: 'Invalid user ID' });
-    }
+    const { steamId } = validation.data;
 
     try {
       await unlockUserAvatar(steamId);
@@ -378,11 +379,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const steamId = formData.get('steamId') as string;
+    const validation = validateForm(formData, steamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!steamId) {
-      return fail(400, { error: 'Invalid user ID' });
-    }
+    const { steamId } = validation.data;
 
     try {
       await unlinkDiscord(steamId);

@@ -15,6 +15,17 @@ import type { AuditContext } from '$lib/server/services/pendingPlayers';
 import { getRecentUnplayedMatches } from '$lib/server/services/adminMatches';
 import { getActiveSignupSeasonsWithDeadlines } from '$lib/server/services/signupSeasons';
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
+
+const approveSchema = z.object({
+  playerSteamId: z.string().min(1, 'Invalid player'),
+  teamId: z.coerce.number().int().positive('Invalid team'),
+});
+
+const declineSchema = approveSchema.extend({
+  reason: z.string().min(1, 'Decline reason is required'),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);
@@ -55,12 +66,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId')?.toString();
-    const teamId = parseInt(formData.get('teamId')?.toString() || '');
+    const validation = validateForm(formData, approveSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!playerSteamId || !teamId || isNaN(teamId)) {
-      return fail(400, { error: 'Invalid parameters' });
-    }
+    const { playerSteamId, teamId } = validation.data;
 
     const audit: AuditContext = {
       actorId: locals.user.steamId,
@@ -81,17 +90,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const playerSteamId = formData.get('playerSteamId')?.toString();
-    const teamId = parseInt(formData.get('teamId')?.toString() || '');
-    const reason = formData.get('reason')?.toString() || '';
+    const validation = validateForm(formData, declineSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!playerSteamId || !teamId || isNaN(teamId)) {
-      return fail(400, { error: 'Invalid parameters' });
-    }
-
-    if (!reason || reason.trim().length === 0) {
-      return fail(400, { error: 'Decline reason is required' });
-    }
+    const { playerSteamId, teamId, reason } = validation.data;
 
     const audit: AuditContext = {
       actorId: locals.user.steamId,

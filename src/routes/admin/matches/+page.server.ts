@@ -22,6 +22,59 @@ import { getMapBanPools } from '$lib/server/services/mapBanPools';
 import { getSeasonsByRegion } from '$lib/server/services/seasons';
 import { getMatchWeekLabels } from '$lib/server/services/matches';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
+
+const optionalInt = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : val),
+  z.coerce.number().int().optional(),
+);
+
+const previewMatchesSchema = z.object({
+  regionId: z.coerce.number().int(),
+  divisionId: z.coerce.number().int(),
+  seasonId: z.coerce.number().int(),
+});
+
+const createMatchSetSchema = z.object({
+  regionId: z.coerce.number().int(),
+  divisionId: z.coerce.number().int(),
+  seasonId: z.coerce.number().int(),
+  seasonNo: z.coerce.number().int(),
+  weekNo: z.coerce.number().int(),
+  boSeries: z.coerce.number().int(),
+  arenaId: optionalInt,
+  matchDateTime: z.string().optional().default(''),
+  mapBanPoolId: optionalInt,
+});
+
+const createPlayoffMatchSchema = z.object({
+  seasonId: z.coerce.number().int(),
+  seasonNo: z.coerce.number().int(),
+  playoffId: z.coerce.number().int(),
+  playoffRound: z.coerce.number().int(),
+  homeTeamId: z.coerce.number().int(),
+  awayTeamId: z.coerce.number().int(),
+  boSeries: z.coerce.number().int(),
+  boGames: optionalInt,
+  arenaId: optionalInt,
+  matchDateTime: z.string().optional().default(''),
+  mapBanPoolId: optionalInt,
+});
+
+const updateMatchStatusSchema = z.object({
+  matchId: z.coerce.number().int(),
+  status: z.coerce.number().int().min(0).max(2),
+});
+
+const updateScoresSchema = z.object({
+  matchId: z.coerce.number().int(),
+});
+
+const gameScoreEntrySchema = z.object({
+  homeScore: z.coerce.number().int().min(0),
+  awayScore: z.coerce.number().int().min(0),
+});
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);
@@ -121,9 +174,9 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const regionId = parseInt(formData.get('regionId') as string);
-    const divisionId = parseInt(formData.get('divisionId') as string);
-    const seasonId = parseInt(formData.get('seasonId') as string);
+    const validation = validateForm(formData, previewMatchesSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { regionId, divisionId, seasonId } = validation.data;
 
     try {
       const teams = await getEligibleTeams(regionId, divisionId, seasonId);
@@ -138,20 +191,19 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-
-    const regionId = parseInt(formData.get('regionId') as string);
-    const divisionId = parseInt(formData.get('divisionId') as string);
-    const seasonId = parseInt(formData.get('seasonId') as string);
-    const seasonNo = parseInt(formData.get('seasonNo') as string);
-    const weekNo = parseInt(formData.get('weekNo') as string);
-    const boSeries = parseInt(formData.get('boSeries') as string);
-    const arenaId = formData.get('arenaId')
-      ? parseInt(formData.get('arenaId') as string)
-      : undefined;
-    const matchDateTime = formData.get('matchDateTime') as string;
-    const mapBanPoolId = formData.get('mapBanPoolId')
-      ? parseInt(formData.get('mapBanPoolId') as string)
-      : undefined;
+    const validation = validateForm(formData, createMatchSetSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const {
+      regionId,
+      divisionId,
+      seasonId,
+      seasonNo,
+      weekNo,
+      boSeries,
+      arenaId,
+      matchDateTime,
+      mapBanPoolId,
+    } = validation.data;
 
     try {
       const matches = await createMatchSet(regionId, divisionId, {
@@ -188,24 +240,21 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-
-    const seasonId = parseInt(formData.get('seasonId') as string);
-    const seasonNo = parseInt(formData.get('seasonNo') as string);
-    const playoffId = parseInt(formData.get('playoffId') as string);
-    const playoffRound = parseInt(formData.get('playoffRound') as string);
-    const homeTeamId = parseInt(formData.get('homeTeamId') as string);
-    const awayTeamId = parseInt(formData.get('awayTeamId') as string);
-    const boSeries = parseInt(formData.get('boSeries') as string);
-    const boGames = formData.get('boGames')
-      ? parseInt(formData.get('boGames') as string)
-      : undefined;
-    const arenaId = formData.get('arenaId')
-      ? parseInt(formData.get('arenaId') as string)
-      : undefined;
-    const matchDateTime = formData.get('matchDateTime') as string;
-    const mapBanPoolId = formData.get('mapBanPoolId')
-      ? parseInt(formData.get('mapBanPoolId') as string)
-      : undefined;
+    const validation = validateForm(formData, createPlayoffMatchSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const {
+      seasonId,
+      seasonNo,
+      playoffId,
+      playoffRound,
+      homeTeamId,
+      awayTeamId,
+      boSeries,
+      boGames,
+      arenaId,
+      matchDateTime,
+      mapBanPoolId,
+    } = validation.data;
 
     try {
       const match = await createPlayoffMatch({
@@ -249,14 +298,16 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const matchId = parseInt(formData.get('matchId') as string);
-    const statusNum = parseInt(formData.get('status') as string);
+    const validation = validateForm(formData, updateMatchStatusSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { matchId, status } = validation.data;
 
-    let newStatus: MatchStatus;
-    if (statusNum === 0) newStatus = MatchStatus.UNPLAYED;
-    else if (statusNum === 1) newStatus = MatchStatus.PLAYED;
-    else if (statusNum === 2) newStatus = MatchStatus.DISPUTE;
-    else return fail(400, { error: 'Invalid status' });
+    const statusMap: Record<number, MatchStatus> = {
+      0: MatchStatus.UNPLAYED,
+      1: MatchStatus.PLAYED,
+      2: MatchStatus.DISPUTE,
+    };
+    const newStatus = statusMap[status]!;
 
     try {
       await updateMatchStatus(matchId, newStatus);
@@ -282,20 +333,24 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const matchId = parseInt(formData.get('matchId') as string);
+    const validation = validateForm(formData, updateScoresSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { matchId } = validation.data;
 
     const gameResults = [];
     for (let i = 0; i < 10; i++) {
-      const homeScoreStr = formData.get(`homeScore_${i}`) as string;
-      const awayScoreStr = formData.get(`awayScore_${i}`) as string;
+      const homeScoreStr = formData.get(`homeScore_${i}`)?.toString() ?? '';
+      const awayScoreStr = formData.get(`awayScore_${i}`)?.toString() ?? '';
 
       if (homeScoreStr && awayScoreStr) {
-        const homeScore = parseInt(homeScoreStr);
-        const awayScore = parseInt(awayScoreStr);
-
-        if (!isNaN(homeScore) && !isNaN(awayScore)) {
-          gameResults.push({ gameNum: i + 1, homeScore, awayScore });
+        const entry = gameScoreEntrySchema.safeParse({
+          homeScore: homeScoreStr,
+          awayScore: awayScoreStr,
+        });
+        if (!entry.success) {
+          return fail(400, { error: `Game ${i + 1}: ${entry.error.issues[0]?.message}` });
         }
+        gameResults.push({ gameNum: i + 1, ...entry.data });
       }
     }
 

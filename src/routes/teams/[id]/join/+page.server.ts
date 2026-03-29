@@ -9,9 +9,15 @@ import {
 import { getTeamById } from '$lib/server/services/teams';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const joinTeamSchema = z.object({
+  password: z.string().min(1, 'Password is required'),
+});
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   requireAuth(locals.user);
@@ -127,11 +133,10 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const password = formData.get('password') as string;
+    const validation = validateForm(formData, joinTeamSchema);
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!password) {
-      return fail(400, { error: 'Password is required' });
-    }
+    const { password } = validation.data;
 
     try {
       await joinByPassword(teamId, locals.user.steamId, password);

@@ -1,0 +1,10 @@
+---
+description: Prevent the agent from deleting existing comments when editing code
+alwaysApply: true
+---
+
+# Preserve Existing Comments
+
+When editing code, do NOT delete existing comments unless they are factually wrong or refer to code that no longer exists. This applies even to descriptive/narrating comments.
+
+The instruction to avoid redundant comments only applies to NEW comments you write, not to removing ones already in the codebase.

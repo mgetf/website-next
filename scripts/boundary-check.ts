@@ -99,6 +99,13 @@ const architectureChecks: Check[] = [
     message: 'Use $app/state instead.',
     severity: 'error',
   },
+  {
+    name: 'No formData.get() with type assertions in routes',
+    globs: ROUTE_SERVER_TS,
+    pattern: /formData\.get\(.+\)\s+as\s+/,
+    message: 'Use validateForm() with a Zod schema.',
+    severity: 'error',
+  },
 ];
 
 // ---------------------------------------------------------------------------

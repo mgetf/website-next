@@ -71,6 +71,17 @@ const reportDemoSchema = z.object({
     .max(2000, 'Description too long'),
 });
 
+const gameScoreEntrySchema = z.object({
+  homeScore: z.coerce.number().int().min(0, 'Score cannot be negative'),
+  awayScore: z.coerce.number().int().min(0, 'Score cannot be negative'),
+  arenaId: z.coerce.number().int().positive().optional(),
+});
+
+const uploadDemoFieldsSchema = z.object({
+  playerSteamId: z.string().min(1, 'Player selection is required'),
+  description: z.string().optional().default(''),
+});
+
 export const load: PageServerLoad = async ({ params, locals }) => {
   const matchId = parseInt(params.id);
   if (isNaN(matchId)) {
@@ -212,50 +223,38 @@ export const actions: Actions = {
 
     for (let i = 0; i < boSeries; i++) {
       // If match already decided, skip remaining games
-      if (matchDecided) {
-        break;
-      }
+      if (matchDecided) break;
 
-      const homeScoreStr = formData.get(`homeScore_${i}`) as string;
-      const awayScoreStr = formData.get(`awayScore_${i}`) as string;
+      const homeScoreRaw = formData.get(`homeScore_${i}`)?.toString() ?? '';
+      const awayScoreRaw = formData.get(`awayScore_${i}`)?.toString() ?? '';
 
       // Only require scores if match hasn't been decided yet
-      if (!homeScoreStr || !awayScoreStr) {
+      if (!homeScoreRaw || !awayScoreRaw) {
         return fail(400, { error: `Missing scores for Game ${i + 1}` });
       }
 
-      const homeScore = parseInt(homeScoreStr);
-      const awayScore = parseInt(awayScoreStr);
-      const arenaId = formData.get(`arenaId_${i}`)
-        ? parseInt(formData.get(`arenaId_${i}`) as string)
-        : undefined;
+      const arenaIdRaw = formData.get(`arenaId_${i}`)?.toString();
+      const entry = gameScoreEntrySchema.safeParse({
+        homeScore: homeScoreRaw,
+        awayScore: awayScoreRaw,
+        ...(arenaIdRaw ? { arenaId: arenaIdRaw } : {}),
+      });
 
-      if (isNaN(homeScore) || isNaN(awayScore)) {
-        return fail(400, { error: `Invalid scores for Game ${i + 1}` });
+      if (!entry.success) {
+        const msg = entry.error.issues[0]?.message ?? 'Invalid scores';
+        return fail(400, { error: `Game ${i + 1}: ${msg}` });
       }
 
-      if (homeScore < 0 || awayScore < 0) {
-        return fail(400, {
-          error: `Scores cannot be negative for Game ${i + 1}`,
-        });
-      }
+      const { homeScore, awayScore, arenaId } = entry.data;
 
       parsedScores[`homeScore_${i}`] = homeScore;
       parsedScores[`awayScore_${i}`] = awayScore;
 
-      gameResults.push({
-        gameNum: i + 1,
-        homeScore,
-        awayScore,
-        arenaId,
-      });
+      gameResults.push({ gameNum: i + 1, homeScore, awayScore, arenaId });
 
       // Track wins to determine if match is decided
-      if (homeScore > awayScore) {
-        homeWins++;
-      } else if (awayScore > homeScore) {
-        awayWins++;
-      }
+      if (homeScore > awayScore) homeWins++;
+      else if (awayScore > homeScore) awayWins++;
 
       // Check if match is now decided
       if (homeWins >= gamesToWin || awayWins >= gamesToWin) {
@@ -582,18 +581,21 @@ export const actions: Actions = {
     try {
       console.log(`[Demo Upload] Parsing form data...`);
       const formData = await request.formData();
-      const file = formData.get('file') as File;
-      const playerSteamId = formData.get('playerSteamId') as string;
-      const description = formData.get('description') as string;
+      const file = formData.get('file');
 
-      console.log(
-        `[Demo Upload] File: ${file?.name || 'none'}, Size: ${file?.size || 0} bytes, Player: ${playerSteamId}`,
-      );
-
-      if (!file || file.size === 0) {
+      if (!(file instanceof File) || file.size === 0) {
         console.log(`[Demo Upload] Error: No file provided`);
         return fail(400, { error: 'File is required' });
       }
+
+      const fieldValidation = validateForm(formData, uploadDemoFieldsSchema);
+      if (!fieldValidation.success) return validationError(fieldValidation.errors);
+
+      const { playerSteamId, description } = fieldValidation.data;
+
+      console.log(
+        `[Demo Upload] File: ${file.name}, Size: ${file.size} bytes, Player: ${playerSteamId}`,
+      );
 
       // Validate file extension
       if (!file.name.toLowerCase().endsWith('.dem')) {
@@ -608,10 +610,6 @@ export const actions: Actions = {
       if (file.size > maxSize) {
         console.log(`[Demo Upload] Error: File too large: ${file.size} bytes`);
         return fail(400, { error: 'File too large. Maximum size is 200MB.' });
-      }
-
-      if (!playerSteamId) {
-        return fail(400, { error: 'Player selection is required' });
       }
 
       const match = await getMatchDetails(matchId);

@@ -8,7 +8,15 @@ import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { validateForm, validationError } from '$lib/server/utils/forms';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const reregisterTeamSchema = z.object({
+  teamId: z.coerce.number().int().positive('Team is required'),
+  divisionId: z.coerce.number().int().positive('Division is required'),
+  regionId: z.coerce.number().int().positive('Region is required'),
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAuth(locals.user);
@@ -68,14 +76,11 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const teamId = parseInt(formData.get('teamId') as string);
-    const divisionId = parseInt(formData.get('divisionId') as string);
-    const regionId = parseInt(formData.get('regionId') as string);
-
     // Validate required fields
-    if (!teamId || !divisionId || !regionId) {
-      return fail(400, { error: 'All fields are required' });
-    }
+    const validation = validateForm(formData, reregisterTeamSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { teamId, divisionId, regionId } = validation.data;
 
     try {
       const before = await getTeamAuditSnapshot(teamId);

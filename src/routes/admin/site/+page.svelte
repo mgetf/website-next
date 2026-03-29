@@ -629,26 +629,24 @@
                         >
                           <input type="hidden" name="id" value={apiKey.id} />
                           <input type="hidden" name="active" value={String(!apiKey.active)} />
-                          <button
+                          <Button
                             type="submit"
+                            variant={apiKey.active ? 'secondary' : 'success'}
+                            size="sm"
                             disabled={isSubmitting || !data.isHeadAdmin}
-                            class="text-xs px-3 py-1 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed
-													{apiKey.active
-                              ? 'bg-surface-hover hover:bg-surface-input text-text-label'
-                              : 'bg-success-600/20 hover:bg-success-600/30 text-success-400'}"
                           >
                             {apiKey.active ? 'Disable' : 'Enable'}
-                          </button>
+                          </Button>
                         </form>
-                        <!-- Delete -->
-                        <button
+                        <Button
                           type="button"
+                          variant="danger"
+                          size="sm"
                           disabled={isSubmitting || !data.isHeadAdmin}
                           onclick={() => (deletingApiKey = { id: apiKey.id, name: apiKey.name })}
-                          class="text-xs px-3 py-1 rounded-lg bg-danger-500/10 hover:bg-danger-500/20 text-danger-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

@@ -1096,24 +1096,20 @@
                   <div class="flex items-center gap-2">
                     <form method="POST" action="?/toggleMapBanPoolStatus" use:enhance>
                       <input type="hidden" name="poolId" value={pool.id} />
-                      <button
+                      <Button
                         type="submit"
-                        class="px-3 py-1.5 text-sm rounded transition-colors {pool.isActive
-                          ? 'bg-danger-500/20 text-danger-400 hover:bg-danger-500/30'
-                          : 'bg-success-500/20 text-success-400 hover:bg-success-500/30'}"
+                        variant={pool.isActive ? 'danger' : 'success'}
+                        size="sm"
                       >
                         {pool.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
+                      </Button>
                     </form>
                     <Button variant="secondary" size="sm" onclick={() => (addingMapsToPool = pool)}>
                       Add Maps
                     </Button>
-                    <button
-                      onclick={() => (editingPool = pool)}
-                      class="px-3 py-1.5 text-sm bg-surface-input text-text-label hover:bg-surface-hover rounded transition-colors"
-                    >
+                    <Button variant="secondary" size="sm" onclick={() => (editingPool = pool)}>
                       Edit
-                    </button>
+                    </Button>
                     {#if data.isStrictAdmin}
                       <Button variant="danger" size="sm" onclick={() => (deletingPool = pool)}>
                         Delete
@@ -1267,12 +1263,9 @@
             {:else if col.key === 'actions'}
               {#if data.isStrictAdmin}
                 <div class="flex items-center justify-end gap-2">
-                  <button
-                    onclick={() => (editingFormat = format)}
-                    class="px-3 py-1 text-sm bg-info-500/20 text-info-400 rounded hover:bg-info-500/30 transition-colors"
-                  >
+                  <Button variant="secondary" size="sm" onclick={() => (editingFormat = format)}>
                     Edit
-                  </button>
+                  </Button>
                   <Button
                     variant="danger"
                     size="sm"

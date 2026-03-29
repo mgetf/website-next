@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { LayoutData } from './$types';
   import { page } from '$app/state';
+  import Button from '$lib/components/ui/Button.svelte';
 
   import dashboardIcon from '$lib/assets/icons/dashboard.png';
   import trophyIcon from '$lib/assets/icons/trophy.png';
@@ -85,10 +86,11 @@
   </aside>
 
   <!-- Mobile Menu Toggle (Floating Button) -->
-  <button
+  <Button
+    variant="primary"
     onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-    class="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-primary-600 hover:bg-primary-500 rounded-full shadow-lg transition-colors"
     aria-label="Toggle menu"
+    class="lg:hidden fixed bottom-6 right-6 z-50 !p-4 !rounded-full shadow-lg"
   >
     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
@@ -98,7 +100,7 @@
         d="M4 6h16M4 12h16M4 18h16"
       />
     </svg>
-  </button>
+  </Button>
 
   <!-- Mobile Sidebar -->
   {#if mobileMenuOpen}

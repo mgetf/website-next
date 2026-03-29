@@ -201,19 +201,6 @@
     2: 'Exempt',
   };
 
-  function getStatusColor(status: string) {
-    if (status === 'READY') return 'bg-success-500/20 text-success-400';
-    if (status === 'PENDING') return 'bg-warning-500/20 text-warning-400';
-    if (status === 'DEAD') return 'bg-danger-500/20 text-danger-400';
-    return 'bg-gray-500/20 text-text-body';
-  }
-
-  function getPaymentColor(payment: number) {
-    if (payment === 1) return 'bg-success-500/20 text-success-400';
-    if (payment === 2) return 'bg-info-500/20 text-info-400';
-    return 'bg-danger-500/20 text-danger-400';
-  }
-
   function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'red' | 'zinc' {
     if (status === 'READY') return 'green';
     if (status === 'PENDING') return 'yellow';
@@ -548,27 +535,21 @@
           <div class="mb-6">
             <span class="block text-sm font-medium text-text-label mb-2">Status</span>
             <div class="flex items-center gap-3">
-              <span
-                class="px-3 py-2 rounded-lg text-sm font-medium {editingTeam.status === 'READY'
-                  ? 'bg-success-500/20 text-success-400'
-                  : 'bg-danger-500/20 text-danger-400'}"
-              >
+              <Badge color={editingTeam.status === 'READY' ? 'green' : 'red'} size="md">
                 {editingTeam.status === 'READY' ? 'Active' : 'Withdrawn'}
-              </span>
-              <button
+              </Badge>
+              <Button
                 type="button"
+                variant={editingTeam.status === 'READY' ? 'danger' : 'success'}
+                size="sm"
                 onclick={() => {
                   if (editingTeam) {
                     editingTeam.status = editingTeam.status === 'READY' ? 'DEAD' : 'READY';
                   }
                 }}
-                class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {editingTeam.status ===
-                'READY'
-                  ? 'bg-danger-500/20 text-danger-400 hover:bg-danger-500/30'
-                  : 'bg-success-500/20 text-success-400 hover:bg-success-500/30'}"
               >
                 {editingTeam.status === 'READY' ? 'Withdraw' : 'Restore'}
-              </button>
+              </Button>
             </div>
             <input type="hidden" name="status" value={statusToInt[editingTeam.status]} />
           </div>

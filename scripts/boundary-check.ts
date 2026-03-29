@@ -331,15 +331,22 @@ const componentPatternChecks: Check[] = [
   {
     name: 'No inline button pattern in routes (solid)',
     globs: [ROUTE_SVELTE],
-    pattern: /bg-[a-z]+-600[^"']*hover:bg-[^"']*rounded-lg/,
+    pattern: /bg-[a-z]+-600[^"']*\shover:bg-/,
     message: 'Use <Button> component.',
     severity: 'warning',
   },
   {
     name: 'No inline button pattern in routes (soft/outline)',
     globs: [ROUTE_SVELTE],
-    pattern: /bg-[a-z]+-500\/\d+[^"']*hover:bg-[a-z]+-500\/\d+[^"']*rounded/,
+    pattern: /bg-[a-z]+-500\/\d+[^"']*\shover:bg-[a-z]+-500\/\d+/,
     message: 'Use <Button> component.',
+    severity: 'warning',
+  },
+  {
+    name: 'No styled raw <button> in routes',
+    globs: [ROUTE_SVELTE],
+    pattern: /<button\b[^>]*\bclass\s*=/,
+    message: 'Use <Button> component instead of raw <button> with classes.',
     severity: 'warning',
   },
   {

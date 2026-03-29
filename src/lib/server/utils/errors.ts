@@ -3,7 +3,7 @@
  * Standardized error handling and reporting
  */
 
-import { error, type NumericRange } from '@sveltejs/kit';
+import { error, isHttpError, type NumericRange } from '@sveltejs/kit';
 import { ZodError } from 'zod';
 import { logger } from './logger';
 
@@ -169,6 +169,16 @@ export function assert(
   if (!condition) {
     throw new AppError(message, statusCode);
   }
+}
+
+/**
+ * Extract a human-readable message from an unknown caught value.
+ * Handles SvelteKit HttpError (body.message), standard Error, and arbitrary throws.
+ */
+export function getErrorMessage(err: unknown, fallback = 'An unexpected error occurred'): string {
+  if (isHttpError(err)) return err.body.message;
+  if (err instanceof Error) return err.message;
+  return fallback;
 }
 
 /**

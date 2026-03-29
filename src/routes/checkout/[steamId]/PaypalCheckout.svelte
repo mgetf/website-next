@@ -104,8 +104,8 @@
         errorMessage = result.error || 'Test payment failed.';
         isProcessing = false;
       }
-    } catch (err: any) {
-      errorMessage = err.message || 'Test payment failed.';
+    } catch (err) {
+      errorMessage = err instanceof Error ? err.message : 'Test payment failed.';
       isProcessing = false;
     }
   }
@@ -150,8 +150,11 @@
                 throw new Error(order.error || 'Failed to create order');
               }
               return order.id;
-            } catch (err: any) {
-              errorMessage = err.message || 'Failed to create payment order. Please try again.';
+            } catch (err) {
+              errorMessage =
+                err instanceof Error
+                  ? err.message
+                  : 'Failed to create payment order. Please try again.';
               throw err;
             }
           },

@@ -6,6 +6,7 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import { MatchStatus } from '$prisma/client.js';
 import {
   createMatchSet,
@@ -182,8 +183,8 @@ export const actions: Actions = {
       const teams = await getEligibleTeams(regionId, divisionId, seasonId);
 
       return { preview: { teams }, success: true };
-    } catch (err: any) {
-      return fail(400, { error: err.message || 'Failed to load teams' });
+    } catch (err) {
+      return fail(400, { error: getErrorMessage(err, 'Failed to load teams') });
     }
   },
 
@@ -231,8 +232,8 @@ export const actions: Actions = {
         success: true,
         message: `Created ${matches.length} matches successfully`,
       };
-    } catch (err: any) {
-      return fail(400, { error: err.message || 'Failed to create matches' });
+    } catch (err) {
+      return fail(400, { error: getErrorMessage(err, 'Failed to create matches') });
     }
   },
 
@@ -287,9 +288,9 @@ export const actions: Actions = {
         message: `Playoff match created successfully`,
         matchId: match.id,
       };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.message || 'Failed to create playoff match',
+        error: getErrorMessage(err, 'Failed to create playoff match'),
       });
     }
   },
@@ -324,7 +325,7 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Match status updated' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(500, { error: 'Failed to update match status' });
     }
   },
@@ -373,8 +374,8 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Scores updated successfully' };
-    } catch (err: any) {
-      return fail(500, { error: err.message || 'Failed to update scores' });
+    } catch (err) {
+      return fail(500, { error: getErrorMessage(err, 'Failed to update scores') });
     }
   },
 };

@@ -9,6 +9,7 @@ import { requireAuth } from '$lib/server/auth/permissions';
 import { z } from 'zod';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 
 import { MatchStatus } from '$prisma/client.js';
 import {
@@ -296,8 +297,8 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Scores submitted successfully' };
-    } catch (err: any) {
-      return fail(500, { error: err.message || 'Failed to submit scores' });
+    } catch (err) {
+      return fail(500, { error: getErrorMessage(err, 'Failed to submit scores') });
     }
   },
 
@@ -342,8 +343,8 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Dispute filed successfully' };
-    } catch (err: any) {
-      return fail(400, { error: err.message || 'Failed to file dispute' });
+    } catch (err) {
+      return fail(400, { error: getErrorMessage(err, 'Failed to file dispute') });
     }
   },
 
@@ -381,8 +382,8 @@ export const actions: Actions = {
       );
 
       return { success: true };
-    } catch (err: any) {
-      return fail(500, { error: err.message || 'Failed to post message' });
+    } catch (err) {
+      return fail(500, { error: getErrorMessage(err, 'Failed to post message') });
     }
   },
 
@@ -440,9 +441,9 @@ export const actions: Actions = {
       );
 
       return { success: true, message: 'Reschedule request sent' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(500, {
-        error: err.message || 'Failed to request reschedule',
+        error: getErrorMessage(err, 'Failed to request reschedule'),
       });
     }
   },
@@ -485,9 +486,9 @@ export const actions: Actions = {
         success: true,
         message: `Reschedule ${responseText} successfully`,
       };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.message || 'Failed to respond to reschedule',
+        error: getErrorMessage(err, 'Failed to respond to reschedule'),
       });
     }
   },
@@ -560,9 +561,9 @@ export const actions: Actions = {
       });
 
       return { success: true };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.message || 'Failed to process map action',
+        error: getErrorMessage(err, 'Failed to process map action'),
       });
     }
   },
@@ -672,14 +673,16 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Demo uploaded successfully' };
-    } catch (err: any) {
+    } catch (err) {
       console.error(`[Demo Upload] Error for match ${matchId}:`, err);
-      console.error(`[Demo Upload] Error details:`, {
-        name: err.name,
-        message: err.message,
-        stack: err.stack?.slice(0, 500),
-      });
-      return fail(500, { error: err.message || 'Failed to upload demo' });
+      if (err instanceof Error) {
+        console.error(`[Demo Upload] Error details:`, {
+          name: err.name,
+          message: err.message,
+          stack: err.stack?.slice(0, 500),
+        });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to upload demo') });
     }
   },
 
@@ -714,8 +717,8 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Demo report submitted successfully' };
-    } catch (err: any) {
-      return fail(400, { error: err.message || 'Failed to submit report' });
+    } catch (err) {
+      return fail(400, { error: getErrorMessage(err, 'Failed to submit report') });
     }
   },
 };

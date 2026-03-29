@@ -15,6 +15,7 @@ import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import { getTeamFormatCheck, getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -122,9 +123,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Team info updated successfully' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to update team info',
+        error: getErrorMessage(err, 'Failed to update team info'),
       });
     }
   },
@@ -170,9 +171,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Join password updated successfully' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to update password',
+        error: getErrorMessage(err, 'Failed to update password'),
       });
     }
   },
@@ -226,9 +227,9 @@ export const actions: Actions = {
         message: 'Avatar updated successfully',
         avatarUrl,
       };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to upload avatar',
+        error: getErrorMessage(err, 'Failed to upload avatar'),
       });
     }
   },
@@ -267,9 +268,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Player removed successfully' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to remove player',
+        error: getErrorMessage(err, 'Failed to remove player'),
       });
     }
   },
@@ -300,9 +301,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Player promoted successfully' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to promote player',
+        error: getErrorMessage(err, 'Failed to promote player'),
       });
     }
   },
@@ -333,9 +334,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Player demoted successfully' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to demote player',
+        error: getErrorMessage(err, 'Failed to demote player'),
       });
     }
   },
@@ -371,9 +372,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Player invited successfully' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to invite player',
+        error: getErrorMessage(err, 'Failed to invite player'),
       });
     }
   },
@@ -392,9 +393,9 @@ export const actions: Actions = {
     try {
       await declineInvitation(playerSteamId, teamId);
       return { success: true, message: 'Invitation cancelled' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to cancel invitation',
+        error: getErrorMessage(err, 'Failed to cancel invitation'),
       });
     }
   },

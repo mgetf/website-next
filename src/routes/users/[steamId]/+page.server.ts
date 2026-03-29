@@ -1,4 +1,5 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, isHttpError } from '@sveltejs/kit';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import {
   getPlayerProfile,
   unlinkDiscord,
@@ -99,10 +100,10 @@ export const actions: Actions = {
         success: true,
         message: 'Successfully withdrawn from 1v1 league',
       };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error withdrawing from 1v1:', err);
-      return fail(err.status || 500, {
-        error: err.body?.message || 'Failed to withdraw from 1v1 league',
+      return fail(isHttpError(err) ? err.status : 500, {
+        error: getErrorMessage(err, 'Failed to withdraw from 1v1 league'),
       });
     }
   },
@@ -128,9 +129,9 @@ export const actions: Actions = {
     try {
       await toggle1v1Ready(teamId, locals.user.steamId);
       return { success: true, message: 'Entry marked as ready! Awaiting admin approval.' };
-    } catch (err: any) {
-      return fail(err.status || 500, {
-        error: err.body?.message || 'Failed to ready up',
+    } catch (err) {
+      return fail(isHttpError(err) ? err.status : 500, {
+        error: getErrorMessage(err, 'Failed to ready up'),
       });
     }
   },
@@ -156,10 +157,10 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Discord account unlinked' };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error unlinking Discord:', err);
       return fail(400, {
-        error: err.message || 'Failed to unlink Discord',
+        error: getErrorMessage(err, 'Failed to unlink Discord'),
       });
     }
   },
@@ -195,9 +196,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Name set and locked' };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error locking username:', err);
-      return fail(400, { error: err.message || 'Failed to update username' });
+      return fail(400, { error: getErrorMessage(err, 'Failed to update username') });
     }
   },
 
@@ -233,9 +234,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: `Name unlocked — synced to "${updated.steamUsername}"` };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error unlocking username:', err);
-      return fail(400, { error: err.message || 'Failed to unlock username' });
+      return fail(400, { error: getErrorMessage(err, 'Failed to unlock username') });
     }
   },
 
@@ -273,9 +274,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Avatar set and locked' };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error locking avatar:', err);
-      return fail(400, { error: err.message || 'Failed to update avatar' });
+      return fail(400, { error: getErrorMessage(err, 'Failed to update avatar') });
     }
   },
 
@@ -310,9 +311,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Avatar unlocked — synced from Steam' };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error unlocking avatar:', err);
-      return fail(400, { error: err.message || 'Failed to unlock avatar' });
+      return fail(400, { error: getErrorMessage(err, 'Failed to unlock avatar') });
     }
   },
 
@@ -374,9 +375,9 @@ export const actions: Actions = {
       });
 
       return { success: true, message: `User punished: ${severity}` };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error updating punishment:', err);
-      return fail(400, { error: err.message || 'Failed to update punishment' });
+      return fail(400, { error: getErrorMessage(err, 'Failed to update punishment') });
     }
   },
 
@@ -408,10 +409,10 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Player marked as paid' };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error marking 1v1 player as paid:', err);
-      return fail(err.status || 500, {
-        error: err.body?.message || err.message || 'Failed to mark player as paid',
+      return fail(isHttpError(err) ? err.status : 500, {
+        error: getErrorMessage(err, 'Failed to mark player as paid'),
       });
     }
   },
@@ -456,10 +457,10 @@ export const actions: Actions = {
       });
 
       return { success: true, message: `Division changed to ${result.newDivision.name}` };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error changing 1v1 division:', err);
-      return fail(err.status || 500, {
-        error: err.body?.message || err.message || 'Failed to change division',
+      return fail(isHttpError(err) ? err.status : 500, {
+        error: getErrorMessage(err, 'Failed to change division'),
       });
     }
   },

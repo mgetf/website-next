@@ -30,6 +30,7 @@ import {
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import { UserRole } from '$lib/types/user';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { createApiKey, getApiKeys, toggleApiKey, deleteApiKey } from '$lib/server/services/apiKeys';
@@ -217,8 +218,8 @@ export const actions: Actions = {
         // Validate image (5MB max)
         try {
           validateUploadedFile(file, 'image');
-        } catch (e: any) {
-          return fail(400, { error: e.body?.message || 'Invalid file' });
+        } catch (e) {
+          return fail(400, { error: getErrorMessage(e, 'Invalid file') });
         }
 
         tempPath = await saveTempFile(file);
@@ -378,8 +379,8 @@ export const actions: Actions = {
       if (file.size > 1024 * 1024) {
         return fail(400, { error: 'Favicon must be less than 1MB' });
       }
-    } catch (e: any) {
-      return fail(400, { error: e.body?.message || 'Invalid file' });
+    } catch (e) {
+      return fail(400, { error: getErrorMessage(e, 'Invalid file') });
     }
 
     let tempPath: string | null = null;

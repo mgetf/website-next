@@ -8,9 +8,10 @@ import {
 } from '$lib/server/services/teamJoin';
 import { getTeamById } from '$lib/server/services/teams';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -159,11 +160,9 @@ export const actions: Actions = {
       });
 
       throw redirect(303, `/teams/${teamId}?joined=awaiting-admin`);
-    } catch (err: any) {
-      if (err.status === 303) {
-        throw err;
-      }
-      return fail(400, { error: err.body?.message || 'Failed to join team' });
+    } catch (err) {
+      if (isRedirect(err)) throw err;
+      return fail(400, { error: getErrorMessage(err, 'Failed to join team') });
     }
   },
 };

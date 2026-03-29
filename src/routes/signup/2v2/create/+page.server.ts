@@ -7,9 +7,10 @@ import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import {
   validateUploadedFile,
   saveTempFile,
@@ -107,11 +108,11 @@ export const actions: Actions = {
 
         // Delete temp file
         deleteTempFile(tempFilePath);
-      } catch (err: any) {
+      } catch (err) {
         if (tempFilePath) {
           deleteTempFile(tempFilePath);
         }
-        return fail(400, { error: err.message || 'Failed to upload avatar' });
+        return fail(400, { error: getErrorMessage(err, 'Failed to upload avatar') });
       }
     }
 
@@ -163,14 +164,11 @@ export const actions: Actions = {
       }
 
       throw redirect(303, `/teams/${teamId}?signup=created`);
-    } catch (err: any) {
-      // If it's a redirect, let it through
-      if (err.status === 303) {
-        throw err;
-      }
+    } catch (err) {
+      if (isRedirect(err)) throw err;
 
       console.error('Error creating team:', err);
-      return fail(400, { error: err.body?.message || 'Failed to create team' });
+      return fail(400, { error: getErrorMessage(err, 'Failed to create team') });
     }
   },
 };

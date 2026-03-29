@@ -106,6 +106,13 @@ const architectureChecks: Check[] = [
     message: 'Use validateForm() with a Zod schema.',
     severity: 'error',
   },
+  {
+    name: 'No catch (err: any) blocks',
+    globs: ['src/**/*.ts', ALL_SVELTE],
+    pattern: /catch\s*\(\s*\w+\s*:\s*any\s*\)/,
+    message: 'Remove : any — strict mode treats catch variables as unknown.',
+    severity: 'error',
+  },
 ];
 
 // ---------------------------------------------------------------------------

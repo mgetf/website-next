@@ -8,6 +8,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { requireAuth } from '$lib/server/auth/permissions';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import {
   getAllNotifications,
   getNotificationCounts,
@@ -58,8 +59,8 @@ export const actions: Actions = {
     try {
       await markAllAsRead(locals.user.steamId);
       return { success: true };
-    } catch (err: any) {
-      return fail(500, { error: err.message || 'Failed to mark all as read' });
+    } catch (err) {
+      return fail(500, { error: getErrorMessage(err, 'Failed to mark all as read') });
     }
   },
 };

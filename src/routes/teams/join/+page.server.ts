@@ -7,9 +7,10 @@ import {
   hasAnyPendingRequest,
 } from '$lib/server/services/teamJoin';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 
 const tokenSchema = z.object({
   token: z.string().min(1, 'Invalid token'),
@@ -42,9 +43,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       token,
       rosterLocked,
     };
-  } catch (err: any) {
+  } catch (err) {
     return {
-      error: err.body?.message || 'Invalid or expired invitation link',
+      error: getErrorMessage(err, 'Invalid or expired invitation link'),
       team: null,
       activePlayers: [],
       canJoin: false,
@@ -76,12 +77,10 @@ export const actions: Actions = {
     try {
       const teamId = await acceptInviteByToken(token, locals.user.steamId);
       throw redirect(303, `/teams/${teamId}?joined=awaiting-admin`);
-    } catch (err: any) {
-      if (err.status === 303) {
-        throw err;
-      }
+    } catch (err) {
+      if (isRedirect(err)) throw err;
       return fail(400, {
-        error: err.body?.message || 'Failed to accept invitation',
+        error: getErrorMessage(err, 'Failed to accept invitation'),
       });
     }
   },
@@ -103,12 +102,10 @@ export const actions: Actions = {
       await declineInvitation(locals.user.steamId, teamId);
 
       throw redirect(303, '/');
-    } catch (err: any) {
-      if (err.status === 303) {
-        throw err;
-      }
+    } catch (err) {
+      if (isRedirect(err)) throw err;
       return fail(400, {
-        error: err.body?.message || 'Failed to decline invitation',
+        error: getErrorMessage(err, 'Failed to decline invitation'),
       });
     }
   },

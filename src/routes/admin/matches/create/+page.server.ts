@@ -3,9 +3,10 @@
  * Dedicated page for creating matches with a progressive wizard interface
  */
 
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireStrictAdmin } from '$lib/server/auth/permissions';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import {
   getEligibleTeams,
   createMatchSet,
@@ -213,8 +214,8 @@ export const actions: Actions = {
           success: true,
         };
       }
-    } catch (err: any) {
-      return fail(400, { error: err.message || 'Failed to load teams' });
+    } catch (err) {
+      return fail(400, { error: getErrorMessage(err, 'Failed to load teams') });
     }
   },
 
@@ -385,10 +386,10 @@ export const actions: Actions = {
       });
 
       throw redirect(303, `/admin/matches?created=${matches.length}`);
-    } catch (err: any) {
+    } catch (err) {
+      if (isRedirect(err)) throw err;
       console.error('Error creating match set:', err);
-      if (err.status === 303) throw err; // Re-throw redirects
-      return fail(400, { error: err.message || 'Failed to create matches' });
+      return fail(400, { error: getErrorMessage(err, 'Failed to create matches') });
     }
   },
 };

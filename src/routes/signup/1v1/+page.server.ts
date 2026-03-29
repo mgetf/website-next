@@ -6,9 +6,10 @@ import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 // Zod schema for 1v1 signup form
@@ -135,15 +136,12 @@ export const actions: Actions = {
       }
 
       throw redirect(303, `/users/${locals.user.steamId}?signup=1v1`);
-    } catch (err: any) {
-      // If it's a redirect, let it through
-      if (err.status === 303) {
-        throw err;
-      }
+    } catch (err) {
+      if (isRedirect(err)) throw err;
 
       console.error('Error signing up for 1v1:', err);
       return fail(400, {
-        error: err.body?.message || 'Failed to sign up for 1v1 league',
+        error: getErrorMessage(err, 'Failed to sign up for 1v1 league'),
       });
     }
   },

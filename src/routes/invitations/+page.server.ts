@@ -9,6 +9,7 @@ import { getEffectiveRosterLock } from '$lib/server/services/settings';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 
 const teamIdSchema = z.object({
   teamId: z.coerce.number().int().positive('Invalid team ID'),
@@ -52,9 +53,9 @@ export const actions: Actions = {
     try {
       await acceptTeamInvite(locals.user.steamId, teamId);
       return { success: true, message: 'Join request submitted! An admin will review it shortly.' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to accept invitation',
+        error: getErrorMessage(err, 'Failed to accept invitation'),
       });
     }
   },
@@ -71,9 +72,9 @@ export const actions: Actions = {
     try {
       await declineInvitation(locals.user.steamId, teamId);
       return { success: true, message: 'Request withdrawn' };
-    } catch (err: any) {
+    } catch (err) {
       return fail(400, {
-        error: err.body?.message || 'Failed to withdraw request',
+        error: getErrorMessage(err, 'Failed to withdraw request'),
       });
     }
   },

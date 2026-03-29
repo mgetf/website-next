@@ -112,7 +112,7 @@
     </div>
 
     <!-- Announcements List -->
-    <div class="space-y-3">
+    <div class="space-y-3 border-t border-border-default pt-6">
       {#if data.announcements.length === 0}
         <div class="text-center py-12 text-text-muted">
           <p class="text-lg mb-2">No announcements yet</p>
@@ -145,34 +145,34 @@
                       name="visible"
                       value={announcement.visible === 1 ? '0' : '1'}
                     />
-                    <button
+                    <Button
                       type="submit"
+                      variant={announcement.visible === 1 ? 'success' : 'secondary'}
+                      size="sm"
                       disabled={isSubmitting}
-                      class="px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50 {announcement.visible ===
-                      1
-                        ? 'bg-success-500/20 text-success-400 hover:bg-success-500/30 border border-success-500/30'
-                        : 'bg-zinc-500/20 text-text-body hover:bg-zinc-500/30 border border-zinc-500/30'}"
                     >
                       {announcement.visible === 1 ? 'Hide' : 'Show'}
-                    </button>
+                    </Button>
                   </form>
 
                   <!-- Edit Button -->
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onclick={() => toggleEditForm(announcement)}
-                    class="px-3 py-1 bg-info-500/20 text-info-400 hover:bg-info-500/30 border border-info-500/30 rounded text-sm font-medium transition-colors"
                   >
                     Edit
-                  </button>
+                  </Button>
 
                   <!-- Delete Button -->
                   {#if data.isStrictAdmin}
-                    <button
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onclick={() => (deletingAnnouncement = announcement)}
-                      class="px-3 py-1 bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 border border-danger-500/30 rounded text-sm font-medium transition-colors"
                     >
                       Delete
-                    </button>
+                    </Button>
                   {/if}
                 </div>
               </div>
@@ -205,13 +205,14 @@
                     <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
                       {isSubmitting ? 'Saving...' : 'Save'}
                     </Button>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onclick={() => (editingAnnouncement = null)}
-                      class="px-3 py-1 bg-zinc-500/20 text-text-body hover:bg-zinc-500/30 rounded text-sm font-medium transition-colors"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </form>
               {/if}
@@ -382,49 +383,46 @@
                           class="flex flex-wrap items-center gap-3 pt-3 border-t border-border-default"
                         >
                           <!-- Signups Toggle -->
-                          <button
+                          <Button
                             type="submit"
                             formaction="?/toggleSeasonSignups"
                             formmethod="POST"
                             name="seasonId"
                             value={currentSeasonId}
+                            variant={seasonSettings.signupsOpen ? 'success' : 'danger'}
+                            size="sm"
                             disabled={isSubmitting}
-                            class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {seasonSettings.signupsOpen
-                              ? 'bg-success-500/20 text-success-400 hover:bg-success-500/30 border border-success-500/30'
-                              : 'bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 border border-danger-500/30'}"
                           >
                             Signups: {seasonSettings.signupsOpen ? 'OPEN' : 'CLOSED'}
-                          </button>
+                          </Button>
 
                           <!-- Roster Lock Toggle -->
-                          <button
+                          <Button
                             type="submit"
                             formaction="?/toggleSeasonRoster"
                             formmethod="POST"
                             name="seasonId"
                             value={currentSeasonId}
+                            variant={seasonSettings.rosterLocked ? 'danger' : 'success'}
+                            size="sm"
                             disabled={isSubmitting}
-                            class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {seasonSettings.rosterLocked
-                              ? 'bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 border border-danger-500/30'
-                              : 'bg-success-500/20 text-success-400 hover:bg-success-500/30 border border-success-500/30'}"
                           >
                             Rosters: {seasonSettings.rosterLocked ? 'LOCKED' : 'OPEN'}
-                          </button>
+                          </Button>
 
                           <!-- Payment Toggle -->
-                          <button
+                          <Button
                             type="submit"
                             formaction="?/toggleSeasonPayment"
                             formmethod="POST"
                             name="seasonId"
                             value={currentSeasonId}
+                            variant={seasonSettings.paymentRequired ? 'warning' : 'secondary'}
+                            size="sm"
                             disabled={isSubmitting}
-                            class="px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 {seasonSettings.paymentRequired
-                              ? 'bg-warning-500/20 text-warning-400 hover:bg-warning-500/30 border border-warning-500/30'
-                              : 'bg-zinc-500/20 text-text-body hover:bg-zinc-500/30 border border-zinc-500/30'}"
                           >
                             Payment: {seasonSettings.paymentRequired ? 'REQUIRED' : 'NOT REQ'}
-                          </button>
+                          </Button>
 
                           <!-- Match Week Info -->
                           {#if seasonSettings.matchWeek}
@@ -570,12 +568,12 @@
 
       <!-- Items List -->
       {#if data.steamItems.length === 0}
-        <div class="text-center py-8 text-text-muted">
+        <div class="text-center py-8 text-text-muted border-t border-border-default">
           <p>No Steam items configured</p>
           <p class="text-sm mt-1">Add items above to enable item payments for divisions</p>
         </div>
       {:else}
-        <div class="space-y-2">
+        <div class="space-y-2 border-t border-border-default pt-6">
           {#each data.steamItems as item}
             <div
               class="flex items-center justify-between bg-surface-input/50 border border-border-input rounded-lg p-3"
@@ -607,13 +605,9 @@
                 }}
               >
                 <input type="hidden" name="id" value={item.id} />
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  class="px-3 py-1 bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 border border-danger-500/30 rounded text-sm font-medium transition-colors disabled:opacity-50"
-                >
+                <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
                   Delete
-                </button>
+                </Button>
               </form>
             </div>
           {/each}
@@ -640,13 +634,14 @@
   {/if}
 
   {#snippet footer()}
-    <button
+    <Button
       type="button"
+      variant="secondary"
       onclick={() => (deletingAnnouncement = null)}
-      class="flex-1 px-4 py-2 bg-surface-input hover:bg-surface-hover text-text-label rounded-lg font-medium transition-colors"
+      class="flex-1"
     >
       Cancel
-    </button>
+    </Button>
     {#if deletingAnnouncement}
       <form
         method="POST"

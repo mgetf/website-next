@@ -300,20 +300,17 @@
                       required
                       class="px-3 py-1.5 bg-surface-input border border-border-input rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
                     />
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      class="px-3 py-1.5 bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
                       Confirm
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="secondary"
+                      size="sm"
                       onclick={() => (decliningPlayerId = null)}
-                      class="px-3 py-1.5 bg-surface-hover hover:bg-surface-hover text-white rounded-lg transition-colors text-sm"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </form>
                 {:else}
                   <form
@@ -329,21 +326,18 @@
                   >
                     <input type="hidden" name="playerSteamId" value={request.player.steamId} />
                     <input type="hidden" name="teamId" value={request.team.id} />
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      class="px-4 py-1.5 bg-success-500/20 text-success-400 hover:bg-success-500/30 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="success" size="sm" disabled={isSubmitting}>
                       ✓ Approve
-                    </button>
+                    </Button>
                   </form>
 
-                  <button
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onclick={() => (decliningPlayerId = request.player.steamId)}
-                    class="px-4 py-1.5 bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded-lg transition-colors font-medium text-sm"
                   >
                     ✗ Decline
-                  </button>
+                  </Button>
                 {/if}
               </div>
             </div>

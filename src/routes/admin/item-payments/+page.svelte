@@ -3,6 +3,7 @@
   import { toast } from '$lib/state/toast.svelte';
   import type { PageData } from './$types';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -140,13 +141,14 @@
                       }}
                     >
                       <input type="hidden" name="orderNumber" value={order.orderNumber} />
-                      <button
+                      <Button
                         type="submit"
+                        variant="danger"
+                        size="sm"
                         disabled={cancellingOrder === order.orderNumber}
-                        class="text-xs px-2 py-1 bg-danger-500/20 hover:bg-danger-500/30 text-danger-400 rounded border border-danger-500/30 transition-colors disabled:opacity-50"
                       >
                         {cancellingOrder === order.orderNumber ? 'Cancelling...' : 'Cancel'}
-                      </button>
+                      </Button>
                     </form>
                   {/if}
                 </td>

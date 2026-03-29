@@ -48,7 +48,7 @@
     danger:
       'bg-danger-800 hover:bg-danger-700 text-white disabled:bg-danger-800/50 disabled:cursor-not-allowed',
     success:
-      'bg-success-600 hover:bg-success-500 text-white disabled:bg-success-600/50 disabled:cursor-not-allowed',
+      'bg-success-700 hover:bg-success-600 text-white disabled:bg-success-700/50 disabled:cursor-not-allowed',
     warning:
       'bg-warning-600 hover:bg-warning-500 text-white disabled:bg-warning-600/50 disabled:cursor-not-allowed',
     ghost:

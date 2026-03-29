@@ -462,7 +462,9 @@
                     {:else if col.key === 'actions'}
                       {#if data.isStrictAdmin}
                         <div class="flex items-center justify-end gap-2">
-                          <button
+                          <Button
+                            variant="format-1v1"
+                            size="sm"
                             onclick={() => {
                               showPlayoffModal = season;
                               playoffFormat =
@@ -470,25 +472,26 @@
                                   ? 'tournament'
                                   : 'rounds';
                             }}
-                            class="px-3 py-1 text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-colors"
                           >
                             {season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onclick={() => (editingSeason = season)}
-                            class="px-3 py-1 text-sm bg-info-500/20 text-info-400 hover:bg-info-500/30 rounded transition-colors"
                           >
                             Edit
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
                             onclick={() => {
                               deletingSeason = season;
                               deleteConfirmText = '';
                             }}
-                            class="px-3 py-1 text-sm bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded transition-colors"
                           >
                             Delete
-                          </button>
+                          </Button>
                         </div>
                       {/if}
                     {/if}
@@ -574,12 +577,9 @@
               <div class="flex items-center justify-end gap-2">
                 <form method="POST" action="?/toggleRegionVisibility" use:enhance>
                   <input type="hidden" name="regionId" value={region.id} />
-                  <button
-                    type="submit"
-                    class="px-3 py-1 text-sm bg-info-500/20 text-info-400 hover:bg-info-500/30 rounded transition-colors"
-                  >
+                  <Button type="submit" variant="secondary" size="sm">
                     {region.hidden === 0 ? 'Hide' : 'Show'}
-                  </button>
+                  </Button>
                 </form>
                 <button
                   onclick={() => (editingRegion = region)}
@@ -587,15 +587,16 @@
                 >
                   Edit
                 </button>
-                <button
+                <Button
+                  variant="danger"
+                  size="sm"
                   onclick={() => {
                     deletingRegion = region;
                     deleteConfirmText = '';
                   }}
-                  class="px-3 py-1 text-sm bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded transition-colors"
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             {/if}
           {/if}
@@ -810,12 +811,9 @@
                       <div class="flex items-center justify-end gap-2">
                         <form method="POST" action="?/toggleDivisionVisibility" use:enhance>
                           <input type="hidden" name="divisionId" value={division.id} />
-                          <button
-                            type="submit"
-                            class="px-3 py-1 text-sm bg-info-500/20 text-info-400 hover:bg-info-500/30 rounded transition-colors"
-                          >
+                          <Button type="submit" variant="secondary" size="sm">
                             {division.hidden === 0 ? 'Hide' : 'Show'}
-                          </button>
+                          </Button>
                         </form>
                         <button
                           onclick={() => (editingDivision = division)}
@@ -823,15 +821,16 @@
                         >
                           Edit
                         </button>
-                        <button
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onclick={() => {
                             deletingDivision = division;
                             deleteConfirmText = '';
                           }}
-                          class="px-3 py-1 text-sm bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded transition-colors"
                         >
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     {/if}
                   {/if}
@@ -999,15 +998,16 @@
                     Edit
                   </button>
                   {#if data.isStrictAdmin}
-                    <button
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onclick={() => {
                         deletingArena = arena;
                         deleteConfirmText = '';
                       }}
-                      class="px-3 py-1 text-sm bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded transition-colors"
                     >
                       Delete
-                    </button>
+                    </Button>
                   {/if}
                 </div>
               {/if}
@@ -1105,12 +1105,9 @@
                         {pool.isActive ? 'Deactivate' : 'Activate'}
                       </button>
                     </form>
-                    <button
-                      onclick={() => (addingMapsToPool = pool)}
-                      class="px-3 py-1.5 text-sm bg-info-500/20 text-info-400 hover:bg-info-500/30 rounded transition-colors"
-                    >
+                    <Button variant="secondary" size="sm" onclick={() => (addingMapsToPool = pool)}>
                       Add Maps
-                    </button>
+                    </Button>
                     <button
                       onclick={() => (editingPool = pool)}
                       class="px-3 py-1.5 text-sm bg-surface-input text-text-label hover:bg-surface-hover rounded transition-colors"
@@ -1118,12 +1115,9 @@
                       Edit
                     </button>
                     {#if data.isStrictAdmin}
-                      <button
-                        onclick={() => (deletingPool = pool)}
-                        class="px-3 py-1.5 text-sm bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded transition-colors"
-                      >
+                      <Button variant="danger" size="sm" onclick={() => (deletingPool = pool)}>
                         Delete
-                      </button>
+                      </Button>
                     {/if}
                   </div>
                 </div>
@@ -1279,15 +1273,16 @@
                   >
                     Edit
                   </button>
-                  <button
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onclick={() => {
                       deletingFormat = format;
                       deleteConfirmText = '';
                     }}
-                    class="px-3 py-1 text-sm bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 rounded transition-colors"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               {/if}
             {/if}

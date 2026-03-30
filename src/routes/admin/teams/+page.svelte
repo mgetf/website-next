@@ -531,36 +531,12 @@
           }}
         />
 
-        {#if editingTeam.formatId === FORMAT_1V1}
-          <div class="mb-6">
-            <span class="block text-sm font-medium text-text-label mb-2">Status</span>
-            <div class="flex items-center gap-3">
-              <Badge color={editingTeam.status === 'READY' ? 'green' : 'red'} size="md">
-                {editingTeam.status === 'READY' ? 'Active' : 'Withdrawn'}
-              </Badge>
-              <Button
-                type="button"
-                variant={editingTeam.status === 'READY' ? 'danger' : 'success'}
-                size="sm"
-                onclick={() => {
-                  if (editingTeam) {
-                    editingTeam.status = editingTeam.status === 'READY' ? 'DEAD' : 'READY';
-                  }
-                }}
-              >
-                {editingTeam.status === 'READY' ? 'Withdraw' : 'Restore'}
-              </Button>
-            </div>
-            <input type="hidden" name="status" value={statusToInt[editingTeam.status]} />
-          </div>
-        {:else}
-          <FormSelect
-            label="Status"
-            name="status"
-            value={String(statusToInt[editingTeam.status])}
-            options={statusOptions}
-          />
-        {/if}
+        <FormSelect
+          label="Status"
+          name="status"
+          value={String(statusToInt[editingTeam.status])}
+          options={statusOptions}
+        />
       </div>
 
       <div class="flex gap-3 justify-end">

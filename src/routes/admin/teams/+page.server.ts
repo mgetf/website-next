@@ -7,7 +7,9 @@ import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getDivisionsForFilter } from '$lib/server/services/divisions';
 import { getTeams, countTeams, updateTeam, getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { disbandTeam, hardDeleteTeam } from '$lib/server/services/teamManagement';
+import { change1v1Status } from '$lib/server/services/signup1v1';
 import { getFormatsForFilter } from '$lib/server/services/formats';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { getMatchesByTeamIds } from '$lib/server/services/adminMatches';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
@@ -200,14 +202,29 @@ export const actions: Actions = {
         divisionId === 'none' ? null : divisionId ? parseInt(divisionId) : null;
       const nextRegionId = regionId === 'none' ? null : regionId ? parseInt(regionId) : null;
 
-      await updateTeam(teamId, {
-        name,
-        acronym,
-        seasonId: nextSeasonId,
-        divisionId: nextDivisionId,
-        regionId: nextRegionId,
-        status: teamStatus,
-      });
+      // For 1v1 entries, status changes need side effects (player activation/deactivation)
+      const is1v1 = before.formatId === FORMAT_1V1;
+      const statusChanging = teamStatus !== undefined && teamStatus !== before.status;
+
+      if (is1v1 && statusChanging) {
+        await change1v1Status(teamId, teamStatus!);
+        await updateTeam(teamId, {
+          name,
+          acronym,
+          seasonId: nextSeasonId,
+          divisionId: nextDivisionId,
+          regionId: nextRegionId,
+        });
+      } else {
+        await updateTeam(teamId, {
+          name,
+          acronym,
+          seasonId: nextSeasonId,
+          divisionId: nextDivisionId,
+          regionId: nextRegionId,
+          status: teamStatus,
+        });
+      }
 
       const after = await getTeamAuditSnapshot(teamId);
       const changedFields = after

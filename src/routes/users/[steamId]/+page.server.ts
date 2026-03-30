@@ -10,7 +10,8 @@ import {
   banUser,
   clearPunishment,
 } from '$lib/server/services/users';
-import { withdraw1v1Entry, toggle1v1Ready } from '$lib/server/services/signup1v1';
+import { withdraw1v1Entry, toggle1v1Ready, change1v1Status } from '$lib/server/services/signup1v1';
+import { TeamStatus } from '$prisma/client.js';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
@@ -413,6 +414,51 @@ export const actions: Actions = {
       console.error('Error marking 1v1 player as paid:', err);
       return fail(isHttpError(err) ? err.status : 500, {
         error: getErrorMessage(err, 'Failed to mark player as paid'),
+      });
+    }
+  },
+
+  change1v1Status: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user || !isAdmin(locals.user)) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const teamId = parseInt(formData.get('teamId')?.toString() || '');
+    const newStatus = formData.get('status')?.toString();
+
+    if (!teamId || isNaN(teamId)) {
+      return fail(400, { error: 'Invalid team ID' });
+    }
+
+    const validStatuses = ['UNREADY', 'PENDING', 'READY', 'DEAD'];
+    if (!newStatus || !validStatuses.includes(newStatus)) {
+      return fail(400, { error: 'Invalid status' });
+    }
+
+    try {
+      const result = await change1v1Status(teamId, newStatus as TeamStatus);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_STATUS_CHANGED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: {
+          targetSteamId: params.steamId,
+          oldStatus: result.oldStatus,
+          newStatus: result.newStatus,
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: `Status changed to ${result.newStatus}` };
+    } catch (err) {
+      console.error('Error changing 1v1 status:', err);
+      return fail(isHttpError(err) ? err.status : 500, {
+        error: getErrorMessage(err, 'Failed to change status'),
       });
     }
   },

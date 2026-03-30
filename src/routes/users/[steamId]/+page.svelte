@@ -17,6 +17,7 @@
     division: string;
     regionName: string;
     seasonNum: number;
+    status: string;
     wins: number;
     losses: number;
     totalRecord: string;
@@ -772,11 +773,12 @@
                             {entry.wins}–{entry.losses}
                           </span>
                           <span class="text-xs text-text-muted">{pct}% WR</span>
-                          {#if entry.active}
+                          {#if entry.status === 'READY' || entry.status === 'PLACEMENT'}
                             <Badge color="green">Active</Badge>
-                          {/if}
-                          {#if entry.active && entry.status === 'PENDING'}
+                          {:else if entry.status === 'PENDING'}
                             <Badge color="yellow">Pending</Badge>
+                          {:else if entry.status === 'UNREADY'}
+                            <Badge color="zinc">Unready</Badge>
                           {/if}
                         </div>
                       </div>
@@ -862,12 +864,14 @@
               {/each}
             </div>
           {:else}
-            <div class="px-6 py-8 text-center">
+            <div class="px-6 py-8 text-center space-y-4">
               <p class="text-text-muted text-sm">No 1v1 season history</p>
               {#if isOwnProfile}
-                <Button href="/leagues/1v1" variant="primary" size="sm" class="mt-3">
-                  Browse 1v1 League
-                </Button>
+                <div>
+                  <Button href="/leagues/1v1" variant="format-1v1" size="sm">
+                    Browse 1v1 League
+                  </Button>
+                </div>
               {/if}
             </div>
           {/if}
@@ -926,11 +930,12 @@
                             {team.wins}–{team.losses}
                           </span>
                           <span class="text-xs text-text-muted">{pct}% WR</span>
-                          {#if team.active}
-                            <span
-                              class="text-xs px-2 py-0.5 bg-success-500/20 text-success-400 rounded border border-success-500/30"
-                              >Active</span
-                            >
+                          {#if team.status === 'READY' || team.status === 'PLACEMENT'}
+                            <Badge color="green">Active</Badge>
+                          {:else if team.status === 'PENDING'}
+                            <Badge color="yellow">Pending</Badge>
+                          {:else if team.status === 'UNREADY'}
+                            <Badge color="zinc">Unready</Badge>
                           {/if}
                         </div>
                       </div>
@@ -1020,12 +1025,14 @@
               {/each}
             </div>
           {:else}
-            <div class="px-6 py-8 text-center">
+            <div class="px-6 py-8 text-center space-y-4">
               <p class="text-text-muted text-sm">No 2v2 season history</p>
               {#if isOwnProfile}
-                <Button href="/leagues/2v2" variant="secondary" size="sm" class="mt-3">
-                  Browse 2v2 League
-                </Button>
+                <div>
+                  <Button href="/leagues/2v2" variant="format-2v2" size="sm">
+                    Browse 2v2 League
+                  </Button>
+                </div>
               {/if}
             </div>
           {/if}
@@ -1170,8 +1177,49 @@
             </div>
 
             <div class="p-6 space-y-6">
+              <div>
+                <h3 class="text-lg font-bold text-white mb-4">Change Status</h3>
+                <form
+                  method="POST"
+                  action="?/change1v1Status"
+                  use:enhance={() => {
+                    return async ({ result, update }) => {
+                      await update({ reset: false });
+                      if (result.type === 'success') {
+                        toast.success((result.data as any)?.message || 'Status updated');
+                      } else if (result.type === 'failure') {
+                        toast.error((result.data as any)?.error || 'Failed to change status');
+                      }
+                    };
+                  }}
+                  class="flex gap-3 items-end"
+                >
+                  <input type="hidden" name="teamId" value={activeEntry.id} />
+                  <div class="flex-1">
+                    <label
+                      for="admin-1v1-status"
+                      class="block text-sm font-medium text-text-label mb-2"
+                    >
+                      Status
+                    </label>
+                    <select
+                      id="admin-1v1-status"
+                      name="status"
+                      class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    >
+                      {#each [{ value: 'UNREADY', label: 'Unready' }, { value: 'PENDING', label: 'Pending' }, { value: 'READY', label: 'Ready' }, { value: 'DEAD', label: 'Withdrawn' }] as opt}
+                        <option value={opt.value} selected={opt.value === activeEntry.status}>
+                          {opt.label}
+                        </option>
+                      {/each}
+                    </select>
+                  </div>
+                  <Button type="submit">Update Status</Button>
+                </form>
+              </div>
+
               {#if data.divisions1v1.length > 0}
-                <div>
+                <div class="pt-4 border-t border-border-default">
                   <h3 class="text-lg font-bold text-white mb-4">Change Division</h3>
                   <form
                     method="POST"
@@ -1219,9 +1267,7 @@
               {/if}
 
               {#if !activeEntry.isPaid && activeEntry.signupCost > 0}
-                <div
-                  class={data.divisions1v1.length > 0 ? 'pt-4 border-t border-border-default' : ''}
-                >
+                <div class="pt-4 border-t border-border-default">
                   <h3 class="text-lg font-bold text-white mb-4">Mark as Paid</h3>
                   <div class="flex items-center justify-between p-3 bg-surface-page/50 rounded-lg">
                     <div class="flex items-center gap-3">

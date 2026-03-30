@@ -599,3 +599,62 @@ export async function restore1v1Entry(teamId: number): Promise<void> {
     });
   }
 }
+
+const VALID_1V1_STATUSES: TeamStatus[] = [
+  TeamStatus.UNREADY,
+  TeamStatus.PENDING,
+  TeamStatus.READY,
+  TeamStatus.DEAD,
+];
+
+/**
+ * Change a 1v1 entry's status (admin only).
+ * Handles side effects: transitioning to DEAD deactivates the player,
+ * transitioning from DEAD reactivates them.
+ */
+export async function change1v1Status(
+  teamId: number,
+  newStatus: TeamStatus,
+): Promise<{ oldStatus: string; newStatus: string }> {
+  if (!VALID_1V1_STATUSES.includes(newStatus)) {
+    badRequest(`Invalid status: ${newStatus}`);
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      players: {
+        select: { playerSteamId: true, active: true },
+      },
+    },
+  });
+
+  if (!team) notFound('1v1 entry not found');
+  if (team.formatId !== FORMAT_1V1) badRequest('This is not a 1v1 entry');
+
+  const oldStatus = team.status;
+  if (oldStatus === newStatus) badRequest('Status is already ' + newStatus);
+
+  if (oldStatus === TeamStatus.DEAD && newStatus !== TeamStatus.DEAD) {
+    // Restoring from DEAD — reactivate the player
+    await prisma.team.update({
+      where: { id: teamId },
+      data: { status: newStatus },
+    });
+    await prisma.playerInTeam.updateMany({
+      where: { teamId },
+      data: { active: 1, leftAt: null },
+    });
+  } else if (newStatus === TeamStatus.DEAD) {
+    // Withdrawing — use disbandTeam for consistent side effects
+    await disbandTeam(teamId);
+  } else {
+    // Normal transition between active states
+    await prisma.team.update({
+      where: { id: teamId },
+      data: { status: newStatus },
+    });
+  }
+
+  return { oldStatus, newStatus };
+}

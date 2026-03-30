@@ -28,6 +28,7 @@ class NotificationState {
   hasNewNotification = $state(false);
   private eventSource: EventSource | null = null;
   private initialized = false;
+  private ownerSteamId: string | null = null;
 
   /**
    * Computed: Number of unread notifications
@@ -65,11 +66,15 @@ class NotificationState {
   }
 
   /**
-   * Initialize the notification state with server data and connect to SSE
+   * Initialize the notification state with server data and connect to SSE.
+   * If called with a different userSteamId than the current owner, resets
+   * state first so stale notifications from a previous user are never shown.
    */
-  initialize(initialNotifications: Notification[]) {
-    if (this.initialized) return;
+  initialize(initialNotifications: Notification[], userSteamId: string) {
+    if (this.initialized && this.ownerSteamId === userSteamId) return;
+    if (this.initialized) this.reset();
 
+    this.ownerSteamId = userSteamId;
     this.notifications = initialNotifications;
     this.initialized = true;
 
@@ -182,6 +187,7 @@ class NotificationState {
     this.disconnect();
     this.notifications = [];
     this.initialized = false;
+    this.ownerSteamId = null;
   }
 }
 

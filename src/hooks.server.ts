@@ -61,6 +61,11 @@ export const handle: Handle = async ({ event, resolve }) => {
   // Add security headers to all responses
   // These headers protect against common web vulnerabilities
 
+  // Prevent CDN and shared caches from serving one user's personalized
+  // response to another. SvelteKit auto-sets this on __data.json but NOT
+  // on SSR HTML pages, which embed user identity from the root layout.
+  response.headers.set('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+
   // Prevent clickjacking attacks
   response.headers.set('X-Frame-Options', 'DENY');
 

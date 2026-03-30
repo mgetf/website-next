@@ -12,9 +12,11 @@
 
   let open = $state(false);
 
-  // Initialize the notification state with server data
+  // Initialize the notification state with server data.
+  // Passing userSteamId lets the singleton detect identity changes and reset
+  // itself, preventing stale notifications from a previous user being shown.
   $effect(() => {
-    notificationState.initialize(initialNotifications);
+    notificationState.initialize(initialNotifications, userSteamId);
   });
 
   // Track when new notifications arrive for visual feedback

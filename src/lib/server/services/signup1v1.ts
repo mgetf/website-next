@@ -289,7 +289,8 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
       },
     });
     const amountPaid = existingPayment?.amount || 0;
-    const isPaid = division.signupCost === 0 || amountPaid >= division.signupCost;
+    const reactivationPaymentStatus =
+      division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
 
     await prisma.team.update({
       where: { id: existingDeadEntry.id },
@@ -298,6 +299,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
         // Update name/avatar to current values
         name: user.steamUsername,
         avatar: user.steamAvatar,
+        paymentStatus: reactivationPaymentStatus,
       },
     });
 
@@ -313,7 +315,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
         data: {
           active: 1,
           permissionLevel: 2, // Owner
-          paymentStatus: isPaid ? 1 : 0,
+          paymentStatus: reactivationPaymentStatus,
           leftAt: null,
           startedAt: new Date(),
         },
@@ -338,7 +340,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
       seasonId: seasonId,
       formatId: FORMAT_1V1,
       status: initialStatus,
-      paymentStatus: division.signupCost === 0 ? 1 : 0,
+      paymentStatus: division.signupCost === 0 ? 2 : 0,
     },
   });
 
@@ -353,7 +355,8 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
   });
 
   const amountPaid = existingPayment?.amount || 0;
-  const isPaid = division.signupCost === 0 || amountPaid >= division.signupCost;
+  const playerPaymentStatus =
+    division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
 
   // Add player as sole owner (permissionLevel = 2)
   await prisma.playerInTeam.create({
@@ -361,7 +364,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
       playerSteamId: data.ownerSteamId,
       teamId: team.id,
       permissionLevel: 2, // Owner
-      paymentStatus: isPaid ? 1 : 0,
+      paymentStatus: playerPaymentStatus,
       active: 1,
     },
   });
@@ -489,7 +492,7 @@ export async function toggle1v1Ready(teamId: number, requestingSteamId: string):
   }
 
   const isFreeDiv = !team.division || team.division.signupCost === 0;
-  if (!isFreeDiv && player.paymentStatus !== 1) {
+  if (!isFreeDiv && player.paymentStatus === 0) {
     badRequest('You must be paid before readying up');
   }
 

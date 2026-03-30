@@ -232,7 +232,7 @@ export async function confirmItemPayment(data: {
       const pit = await tx.playerInTeam.findUnique({
         where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId: order.teamId } },
       });
-      if (!pit || pit.paymentStatus === 1) continue;
+      if (!pit || pit.paymentStatus !== 0) continue;
 
       await tx.paymentTracker.upsert({
         where: {

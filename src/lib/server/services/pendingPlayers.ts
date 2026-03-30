@@ -109,7 +109,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
   });
   const amountPaid = payment?.amount || 0;
   const signupCost = team.division?.signupCost || 0;
-  const paymentStatus = amountPaid >= signupCost ? 1 : 0;
+  const paymentStatus = signupCost === 0 ? 2 : amountPaid >= signupCost ? 1 : 0;
 
   await prisma.$transaction(async (tx) => {
     await tx.playerInTeam.updateMany({
@@ -152,16 +152,20 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
       },
     });
 
-    const paidPlayersCount = await tx.playerInTeam.count({
-      where: { teamId, active: 1, paymentStatus: 1 },
-    });
-
-    await tx.team.update({
-      where: { id: teamId },
-      data: {
-        paymentStatus: paidPlayersCount >= 2 ? 1 : 0,
-      },
-    });
+    if (signupCost === 0) {
+      await tx.team.update({
+        where: { id: teamId },
+        data: { paymentStatus: 2 },
+      });
+    } else {
+      const paidPlayersCount = await tx.playerInTeam.count({
+        where: { teamId, active: 1, paymentStatus: 1 },
+      });
+      await tx.team.update({
+        where: { id: teamId },
+        data: { paymentStatus: paidPlayersCount >= 2 ? 1 : 0 },
+      });
+    }
   });
 
   await logAudit({

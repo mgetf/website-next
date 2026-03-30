@@ -561,7 +561,7 @@ export async function toggleTeamReady(teamId: number, userSteamId: string) {
 
   const isFreeDiv = !team.division || team.division.signupCost === 0;
   if (!isFreeDiv) {
-    const paidCount = team.players.filter((p) => p.paymentStatus === 1).length;
+    const paidCount = team.players.filter((p) => p.paymentStatus !== 0).length;
     if (paidCount < MIN_PAID_PLAYERS_TO_READY) {
       badRequest(`At least ${MIN_PAID_PLAYERS_TO_READY} players must be paid before readying up`);
     }
@@ -655,12 +655,12 @@ export async function changeTeamDivision(
       await tx.team.update({ where: { id: teamId }, data: { paymentStatus: 0 } });
       paymentStatusReset = true;
     } else if (!oldIsFree && newIsFree) {
-      // Paid → Free: mark everyone as paid and notify players who already paid (refund eligibility)
+      // Paid → Free: mark everyone as exempt and notify players who actually paid (refund eligibility)
       await tx.playerInTeam.updateMany({
         where: { teamId, active: 1 },
-        data: { paymentStatus: 1 },
+        data: { paymentStatus: 2 },
       });
-      await tx.team.update({ where: { id: teamId }, data: { paymentStatus: 1 } });
+      await tx.team.update({ where: { id: teamId }, data: { paymentStatus: 2 } });
 
       const paidPlayers = team.players.filter((p) => p.paymentStatus === 1);
       for (const p of paidPlayers) {

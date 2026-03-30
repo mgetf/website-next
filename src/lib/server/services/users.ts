@@ -484,7 +484,7 @@ export async function getPlayerProfile(steamId: string) {
     losses: entry.team.losses,
     startedAt: entry.startedAt,
     leftAt: entry.leftAt,
-    isPaid: entry.paymentStatus === 1,
+    isPaid: entry.paymentStatus !== 0,
     signupCost: entry.team.division?.signupCost ?? 0,
   }));
 

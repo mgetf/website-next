@@ -81,7 +81,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       name: p.player.steamUsername,
       avatar: p.player.steamAvatar,
       joinedAt: p.startedAt,
-      isPaid: p.paymentStatus === 1,
+      isPaid: p.paymentStatus !== 0,
       isLeader: p.permissionLevel >= 1, // ADMIN (1) or STATUS (2)
       permissionLevel: p.permissionLevel,
     }));

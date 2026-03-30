@@ -180,7 +180,7 @@ export async function markPlayerAsPaidManually(
     notFound('Player is not on this team');
   }
 
-  if (playerInTeam.paymentStatus === 1) {
+  if (playerInTeam.paymentStatus !== 0) {
     badRequest('Player is already marked as paid');
   }
 
@@ -267,7 +267,7 @@ export async function recordPayPalCapture(options: {
       const pit = await tx.playerInTeam.findUnique({
         where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId } },
       });
-      if (!pit || pit.paymentStatus === 1) continue;
+      if (!pit || pit.paymentStatus !== 0) continue;
 
       await tx.paymentTracker.upsert({
         where: { playerSteamId_seasonId: { playerSteamId: targetSteamId, seasonId } },

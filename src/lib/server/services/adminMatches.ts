@@ -172,7 +172,7 @@ export async function createMatchSet(
   };
 
   if (paymentRequired) {
-    conditions.paymentStatus = 1; // PAID
+    conditions.paymentStatus = { in: [1, 2] }; // PAID or EXEMPT
   }
 
   // Get eligible teams
@@ -442,7 +442,7 @@ export async function getEligibleTeams(regionId: number, divisionId: number, sea
   };
 
   if (paymentRequired) {
-    conditions.paymentStatus = 1;
+    conditions.paymentStatus = { in: [1, 2] }; // PAID or EXEMPT
   }
 
   return await prisma.team.findMany({

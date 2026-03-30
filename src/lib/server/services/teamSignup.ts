@@ -237,7 +237,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
       formatId: FORMAT_2V2,
       status: initialStatus,
       joinPassword: hashedPassword,
-      paymentStatus: division.signupCost === 0 ? 1 : 0,
+      paymentStatus: division.signupCost === 0 ? 2 : 0,
     },
   });
 
@@ -252,7 +252,8 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   });
 
   const amountPaid = existingPayment?.amount || 0;
-  const isPaid = division.signupCost === 0 || amountPaid >= division.signupCost;
+  const playerPaymentStatus =
+    division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
 
   // Deactivate any stale memberships on other 2v2 teams from previous seasons
   // before adding the owner to the new team
@@ -277,7 +278,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
       playerSteamId: data.ownerSteamId,
       teamId: team.id,
       permissionLevel: 2,
-      paymentStatus: isPaid ? 1 : 0,
+      paymentStatus: playerPaymentStatus,
       active: 1,
     },
   });
@@ -329,7 +330,7 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
     badRequest('Invalid division selected');
   }
 
-  const initialPaymentStatus = division.signupCost === 0 ? 1 : 0;
+  const initialPaymentStatus = division.signupCost === 0 ? 2 : 0;
   const initialStatus = TeamStatus.UNREADY;
 
   // Deactivate any stale memberships on other 2v2 teams from previous seasons

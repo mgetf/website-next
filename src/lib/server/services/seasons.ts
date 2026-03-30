@@ -233,6 +233,12 @@ export async function getSeasonsForFilter(limit = 50) {
           name: true,
         },
       },
+      format: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
     orderBy: [{ seasonNum: 'desc' }, { regionId: 'asc' }],
     take: limit,

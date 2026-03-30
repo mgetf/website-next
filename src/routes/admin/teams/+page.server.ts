@@ -52,6 +52,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const statusFilter = url.searchParams.get('status');
   const seasonFilter = url.searchParams.get('season');
   const formatFilter = url.searchParams.get('format');
+  const paymentFilter = url.searchParams.get('payment');
 
   // Parse filters
   const divisionId =
@@ -69,6 +70,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     else if (statusInt === 3) status = TeamStatus.DEAD;
   }
 
+  let paymentStatus: number | undefined;
+  if (paymentFilter && paymentFilter !== 'all') {
+    const p = parseInt(paymentFilter);
+    if (p === 0 || p === 1 || p === 2) paymentStatus = p;
+  }
+
   // Get total count for pagination
   const totalTeams = await countTeams({
     search,
@@ -77,6 +84,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     status,
     seasonId,
     formatId,
+    paymentStatus,
   });
 
   // Fetch teams with pagination
@@ -87,6 +95,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     status,
     seasonId,
     formatId,
+    paymentStatus,
     page,
     pageSize,
   });
@@ -161,6 +170,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       status: statusFilter || '',
       season: seasonFilter || '',
       format: formatFilter || '',
+      payment: paymentFilter || '',
     },
     isStrictAdmin: isStrictAdmin(locals.user),
   };

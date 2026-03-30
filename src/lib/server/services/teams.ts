@@ -22,6 +22,7 @@ export async function getTeams(options: {
   status?: TeamStatus;
   seasonId?: number;
   formatId?: number;
+  paymentStatus?: number;
   page?: number;
   pageSize?: number;
 }) {
@@ -32,6 +33,7 @@ export async function getTeams(options: {
     status,
     seasonId,
     formatId,
+    paymentStatus,
     page = 1,
     pageSize = 20,
   } = options;
@@ -51,6 +53,7 @@ export async function getTeams(options: {
   if (status) where.status = status;
   if (seasonId) where.seasonId = seasonId;
   if (formatId) where.formatId = formatId;
+  if (paymentStatus !== undefined) where.paymentStatus = paymentStatus;
 
   const teams = await prisma.team.findMany({
     where,
@@ -187,8 +190,9 @@ export async function countTeams(options: {
   status?: TeamStatus;
   seasonId?: number;
   formatId?: number;
+  paymentStatus?: number;
 }) {
-  const { search, divisionId, regionId, status, seasonId, formatId } = options;
+  const { search, divisionId, regionId, status, seasonId, formatId, paymentStatus } = options;
 
   const where: Prisma.TeamWhereInput = {};
 
@@ -204,6 +208,7 @@ export async function countTeams(options: {
   if (status) where.status = status;
   if (seasonId) where.seasonId = seasonId;
   if (formatId) where.formatId = formatId;
+  if (paymentStatus !== undefined) where.paymentStatus = paymentStatus;
 
   return await prisma.team.count({ where });
 }

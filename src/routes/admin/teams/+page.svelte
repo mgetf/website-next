@@ -72,7 +72,7 @@
     `Showing ${(data.pagination.page - 1) * data.pagination.pageSize + 1} to ${Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalTeams)} of ${data.pagination.totalTeams} teams`,
   );
 
-  const filteredSeasons = $derived(() => {
+  const seasonOptions = $derived(() => {
     let seasons = data.seasons;
     if (data.filters.region) {
       const regionId = parseInt(data.filters.region);
@@ -82,21 +82,30 @@
       const formatId = parseInt(data.filters.format);
       seasons = seasons.filter((s) => s.formatId === formatId);
     }
-    return seasons;
+    const needRegion = !data.filters.region;
+    const needFormat = !data.filters.format;
+    return seasons.map((s) => {
+      let label = `Season ${s.seasonNum}`;
+      const parts: string[] = [];
+      if (needRegion) parts.push(s.region.name);
+      if (needFormat) parts.push(s.format.name);
+      if (parts.length > 0) label += ` (${parts.join(', ')})`;
+      return { value: s.id.toString(), label };
+    });
   });
 
-  const seasonOptions = $derived(
-    filteredSeasons().map((s) => ({
-      value: s.id.toString(),
-      label: `Season ${s.seasonNum} (${s.region.name})`,
-    })),
-  );
-
-  const divisionOptions = $derived(
-    data.divisions
-      .filter((d) => !data.filters.region || d.regionId === parseInt(data.filters.region))
-      .map((d) => ({ value: d.id.toString(), label: d.name })),
-  );
+  const divisionOptions = $derived(() => {
+    let divisions = data.divisions;
+    if (data.filters.region) {
+      const regionId = parseInt(data.filters.region);
+      divisions = divisions.filter((d) => d.regionId === regionId);
+    }
+    const needRegion = !data.filters.region;
+    return divisions.map((d) => ({
+      value: d.id.toString(),
+      label: needRegion ? `${d.name} (${d.region.name})` : d.name,
+    }));
+  });
 
   const regionOptions = $derived(
     data.regions.map((r) => ({ value: r.id.toString(), label: r.name })),
@@ -113,6 +122,12 @@
     { value: '3', label: 'Dead' },
   ];
 
+  const paymentFilterOptions = [
+    { value: '1', label: 'Paid' },
+    { value: '0', label: 'Unpaid' },
+    { value: '2', label: 'Exempt' },
+  ];
+
   let searchInput = $state('');
 
   $effect(() => {
@@ -126,7 +141,8 @@
       data.filters.region ||
       data.filters.season ||
       data.filters.division ||
-      data.filters.status
+      data.filters.status ||
+      data.filters.payment
     ),
   );
 
@@ -278,7 +294,7 @@
         <label for="season" class="block text-sm font-medium text-text-body mb-2">Season</label>
         <SelectFilter
           value={data.filters.season}
-          options={seasonOptions}
+          options={seasonOptions()}
           allLabel="All Seasons"
           onChange={(v) => updateFilters({ season: v })}
         />
@@ -288,7 +304,7 @@
         <label for="division" class="block text-sm font-medium text-text-body mb-2">Division</label>
         <SelectFilter
           value={data.filters.division}
-          options={divisionOptions}
+          options={divisionOptions()}
           allLabel="All Divisions"
           onChange={(v) => updateFilters({ division: v })}
         />
@@ -301,6 +317,16 @@
           options={statusOptions}
           allLabel="All Status"
           onChange={(v) => updateFilters({ status: v })}
+        />
+      </div>
+
+      <div class="md:w-40">
+        <label for="payment" class="block text-sm font-medium text-text-body mb-2">Payment</label>
+        <SelectFilter
+          value={data.filters.payment}
+          options={paymentFilterOptions}
+          allLabel="All Payments"
+          onChange={(v) => updateFilters({ payment: v })}
         />
       </div>
     {/snippet}

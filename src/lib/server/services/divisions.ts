@@ -60,7 +60,14 @@ export async function getVisibleDivisions() {
 export async function getDivisionsForFilter() {
   return await prisma.division.findMany({
     where: { hidden: 0 },
-    select: { id: true, name: true, regionId: true },
+    select: {
+      id: true,
+      name: true,
+      regionId: true,
+      region: {
+        select: { name: true },
+      },
+    },
     orderBy: { id: 'asc' },
   });
 }

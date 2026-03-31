@@ -273,8 +273,8 @@
 
   <!-- Main Content -->
   <div class="max-w-7xl mx-auto px-6 py-8">
-    <!-- Payment CTA Banner -->
-    {#if data.isOnTeam && hasUnpaidPlayers && team.status !== 'DEAD'}
+    <!-- Payment CTA Banner — only blocks when minimum paid count not met -->
+    {#if data.isOnTeam && !paymentStepComplete && hasUnpaidPlayers && team.status !== 'DEAD'}
       <div
         class="mb-6 p-5 rounded-lg border border-warning-500/30 bg-warning-500/5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
       >

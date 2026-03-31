@@ -5,7 +5,14 @@ import { fail } from '@sveltejs/kit';
 import { getSeasonsForFilter } from '$lib/server/services/seasons';
 import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getDivisionsForFilter } from '$lib/server/services/divisions';
-import { getTeams, countTeams, updateTeam, getTeamAuditSnapshot } from '$lib/server/services/teams';
+import {
+  getTeams,
+  countTeams,
+  updateTeam,
+  adminSetTeamStatus,
+  changeTeamDivision,
+  getTeamAuditSnapshot,
+} from '$lib/server/services/teams';
 import { disbandTeam, hardDeleteTeam } from '$lib/server/services/teamManagement';
 import { change1v1Status } from '$lib/server/services/signup1v1';
 import { getFormatsForFilter } from '$lib/server/services/formats';
@@ -14,6 +21,7 @@ import { getMatchesByTeamIds } from '$lib/server/services/adminMatches';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { getErrorMessage } from '$lib/server/utils/errors';
 
 // Zod schema for team update form
 const updateTeamSchema = z.object({
@@ -182,7 +190,6 @@ export const actions: Actions = {
 
     const formData = await request.formData();
 
-    // Validate form data with Zod
     const validation = validateForm(formData, updateTeamSchema);
     if (!validation.success) {
       return validationError(validation.errors, 'Invalid form data');
@@ -212,29 +219,33 @@ export const actions: Actions = {
         divisionId === 'none' ? null : divisionId ? parseInt(divisionId) : null;
       const nextRegionId = regionId === 'none' ? null : regionId ? parseInt(regionId) : null;
 
-      // For 1v1 entries, status changes need side effects (player activation/deactivation)
       const is1v1 = before.formatId === FORMAT_1V1;
+      const divisionChanging = nextDivisionId !== null && nextDivisionId !== before.divisionId;
       const statusChanging = teamStatus !== undefined && teamStatus !== before.status;
 
-      if (is1v1 && statusChanging) {
-        await change1v1Status(teamId, teamStatus!);
-        await updateTeam(teamId, {
-          name,
-          acronym,
-          seasonId: nextSeasonId,
-          divisionId: nextDivisionId,
-          regionId: nextRegionId,
-        });
-      } else {
-        await updateTeam(teamId, {
-          name,
-          acronym,
-          seasonId: nextSeasonId,
-          divisionId: nextDivisionId,
-          regionId: nextRegionId,
-          status: teamStatus,
-        });
+      // Division changes must go through changeTeamDivision() for payment side-effects.
+      // Status changes must go through the validated domain functions.
+      // Metadata updates (name, acronym, season, region) use updateTeam().
+      // All three can happen in the same form submission, so handle them independently.
+
+      if (divisionChanging) {
+        await changeTeamDivision(teamId, nextDivisionId!, locals.user!.steamId);
       }
+
+      if (statusChanging) {
+        if (is1v1) {
+          await change1v1Status(teamId, teamStatus!);
+        } else {
+          await adminSetTeamStatus(teamId, teamStatus!);
+        }
+      }
+
+      await updateTeam(teamId, {
+        name,
+        acronym,
+        seasonId: nextSeasonId,
+        regionId: nextRegionId,
+      });
 
       const after = await getTeamAuditSnapshot(teamId);
       const changedFields = after
@@ -247,7 +258,7 @@ export const actions: Actions = {
             before.status !== after.status ? 'status' : null,
           ].filter((field): field is string => field !== null)
         : [];
-      const statusChanged = after ? before.status !== after.status : teamStatus !== undefined;
+      const statusChanged = after ? before.status !== after.status : statusChanging;
 
       await logAudit({
         actorId: locals.user?.steamId,
@@ -281,10 +292,10 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Team updated successfully!' };
-    } catch (error) {
-      console.error('Error updating team:', error);
-      return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to update team',
+    } catch (err) {
+      console.error('Error updating team:', err);
+      return fail('status' in (err as any) ? (err as any).status : 400, {
+        error: getErrorMessage(err, 'Failed to update team'),
       });
     }
   },
@@ -328,10 +339,10 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Team disbanded successfully!' };
-    } catch (error) {
-      console.error('Error disbanding team:', error);
-      return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to disband team',
+    } catch (err) {
+      console.error('Error disbanding team:', err);
+      return fail('status' in (err as any) ? (err as any).status : 400, {
+        error: getErrorMessage(err, 'Failed to disband team'),
       });
     }
   },
@@ -377,10 +388,10 @@ export const actions: Actions = {
       const matchMsg =
         deletedMatches > 0 ? ` and ${deletedMatches} match${deletedMatches !== 1 ? 'es' : ''}` : '';
       return { success: true, message: `Team "${teamName}"${matchMsg} permanently deleted.` };
-    } catch (error) {
-      console.error('Error hard-deleting team:', error);
-      return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to delete team',
+    } catch (err) {
+      console.error('Error hard-deleting team:', err);
+      return fail('status' in (err as any) ? (err as any).status : 400, {
+        error: getErrorMessage(err, 'Failed to delete team'),
       });
     }
   },
@@ -414,10 +425,10 @@ export const actions: Actions = {
       });
 
       return { success: true, message: 'Player restored successfully!' };
-    } catch (error) {
-      console.error('Error restoring 1v1 entry:', error);
-      return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to restore player',
+    } catch (err) {
+      console.error('Error restoring 1v1 entry:', err);
+      return fail('status' in (err as any) ? (err as any).status : 400, {
+        error: getErrorMessage(err, 'Failed to restore player'),
       });
     }
   },

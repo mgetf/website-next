@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import {
   getTeamById,
-  updateTeamStatus,
+  adminSetTeamStatus,
   changeTeamDivision,
   toggleTeamReady,
 } from '$lib/server/services/teams';
@@ -22,6 +22,7 @@ import {
   declineInvitation,
 } from '$lib/server/services/teamJoin';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { getErrorMessage } from '$lib/server/utils/errors';
 
 const playerSteamIdSchema = z.object({
   playerSteamId: z.string().min(1, 'Player Steam ID is required'),
@@ -266,9 +267,7 @@ export const actions: Actions = {
       await removePlayer(teamId, playerSteamId);
       return { success: true, message: 'Player removed successfully' };
     } catch (err) {
-      return fail(500, {
-        error: err instanceof Error ? err.message : 'Failed to remove player',
-      });
+      return fail(500, { error: getErrorMessage(err, 'Failed to remove player') });
     }
   },
 
@@ -278,9 +277,8 @@ export const actions: Actions = {
     }
 
     const teamId = parseInt(params.id);
-    const isGlobalAdmin = isAdmin(locals.user);
 
-    if (!isGlobalAdmin) {
+    if (!isAdmin(locals.user)) {
       return fail(403, { error: 'Only global admins can change team status' });
     }
 
@@ -291,11 +289,11 @@ export const actions: Actions = {
     const { status } = validation.data;
 
     try {
-      await updateTeamStatus(teamId, status as any);
+      await adminSetTeamStatus(teamId, status as any);
       return { success: true, message: 'Team status updated successfully' };
     } catch (err) {
-      return fail(500, {
-        error: err instanceof Error ? err.message : 'Failed to update team status',
+      return fail('status' in (err as any) ? (err as any).status : 500, {
+        error: getErrorMessage(err, 'Failed to update team status'),
       });
     }
   },
@@ -311,8 +309,8 @@ export const actions: Actions = {
       await acceptTeamInvite(locals.user.steamId, teamId);
       return { success: true, message: 'Join request submitted! An admin will review it shortly.' };
     } catch (err) {
-      return fail(400, {
-        error: err instanceof Error ? err.message : 'Failed to accept invitation',
+      return fail('status' in (err as any) ? (err as any).status : 400, {
+        error: getErrorMessage(err, 'Failed to accept invitation'),
       });
     }
   },
@@ -328,8 +326,8 @@ export const actions: Actions = {
       await declineInvitation(locals.user.steamId, teamId);
       return { success: true, message: 'Invitation declined' };
     } catch (err) {
-      return fail(500, {
-        error: err instanceof Error ? err.message : 'Failed to decline invitation',
+      return fail('status' in (err as any) ? (err as any).status : 500, {
+        error: getErrorMessage(err, 'Failed to decline invitation'),
       });
     }
   },
@@ -351,8 +349,8 @@ export const actions: Actions = {
       await removePlayer(teamId, locals.user.steamId);
       return { success: true, message: 'You have left the team' };
     } catch (err) {
-      return fail(500, {
-        error: err instanceof Error ? err.message : 'Failed to leave team',
+      return fail('status' in (err as any) ? (err as any).status : 500, {
+        error: getErrorMessage(err, 'Failed to leave team'),
       });
     }
   },
@@ -389,8 +387,8 @@ export const actions: Actions = {
 
       return { success: true, message: 'Player marked as paid' };
     } catch (err) {
-      return fail(err instanceof Error && 'status' in (err as any) ? (err as any).status : 500, {
-        error: err instanceof Error ? err.message : 'Failed to mark player as paid',
+      return fail('status' in (err as any) ? (err as any).status : 500, {
+        error: getErrorMessage(err, 'Failed to mark player as paid'),
       });
     }
   },
@@ -406,8 +404,8 @@ export const actions: Actions = {
       await toggleTeamReady(teamId, locals.user.steamId);
       return { success: true, message: 'Team marked as ready! Awaiting admin approval.' };
     } catch (err) {
-      return fail(err instanceof Error && 'status' in (err as any) ? (err as any).status : 500, {
-        error: err instanceof Error ? err.message : 'Failed to toggle ready',
+      return fail('status' in (err as any) ? (err as any).status : 500, {
+        error: getErrorMessage(err, 'Failed to toggle ready'),
       });
     }
   },
@@ -451,8 +449,8 @@ export const actions: Actions = {
 
       return { success: true, message: `Division changed to ${result.newDivision.name}` };
     } catch (err) {
-      return fail(err instanceof Error && 'status' in (err as any) ? (err as any).status : 500, {
-        error: err instanceof Error ? err.message : 'Failed to change division',
+      return fail('status' in (err as any) ? (err as any).status : 500, {
+        error: getErrorMessage(err, 'Failed to change division'),
       });
     }
   },

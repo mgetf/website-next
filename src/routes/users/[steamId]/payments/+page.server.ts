@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { requireAuth } from '$lib/server/auth/permissions';
+import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
 import { getUserPaymentHistory } from '$lib/server/services/payments';
 import type { PageServerLoad } from './$types';
 
@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   const { steamId } = params;
 
-  if (steamId !== locals.user!.steamId) {
+  if (steamId !== locals.user!.steamId && !isAdmin(locals.user)) {
     throw redirect(303, `/users/${steamId}`);
   }
 

@@ -50,7 +50,7 @@
       lastFormResult = form;
       if (form.success && form.message) {
         toast.success(form.message);
-      } else if (form.error && !editingTeam) {
+      } else if (form.error) {
         toast.error(form.error);
       }
     }

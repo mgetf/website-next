@@ -472,10 +472,9 @@ export async function getTeamAuditSnapshot(id: number) {
 }
 
 /**
- * Update an existing team
- *
- * Business logic validation:
- * - Team must exist
+ * Update team metadata (name, acronym, seasonId, regionId).
+ * Does NOT handle status or division changes — use adminSetTeamStatus() and
+ * changeTeamDivision() for those, as they carry payment side-effects.
  */
 export async function updateTeam(
   id: number,
@@ -483,9 +482,7 @@ export async function updateTeam(
     name: string;
     acronym?: string | null;
     seasonId?: number | null;
-    divisionId?: number | null;
     regionId?: number | null;
-    status?: TeamStatus;
   },
 ) {
   const trimmedName = data.name.trim();
@@ -494,7 +491,6 @@ export async function updateTeam(
     throw new Error('Team name is required');
   }
 
-  // Check if team exists
   const team = await prisma.team.findUnique({ where: { id } });
   if (!team) {
     throw new Error('Team not found');
@@ -506,21 +502,42 @@ export async function updateTeam(
       name: trimmedName,
       acronym: data.acronym?.trim() || null,
       seasonId: data.seasonId,
-      divisionId: data.divisionId,
       regionId: data.regionId,
-      status: data.status,
     },
   });
 }
 
 /**
- * Update team status
+ * Set a team's status with payment enforcement (admin action).
+ *
+ * Setting to READY is hard-blocked for paid divisions unless all required
+ * players already have a non-zero paymentStatus. Admins must use the
+ * "Mark as paid" action first.
  */
-export async function updateTeamStatus(id: number, status: TeamStatus) {
-  const team = await prisma.team.findUnique({ where: { id } });
+export async function adminSetTeamStatus(id: number, status: TeamStatus) {
+  const team = await prisma.team.findUnique({
+    where: { id },
+    include: {
+      division: { select: { signupCost: true } },
+      players: {
+        where: { active: 1 },
+        select: { paymentStatus: true },
+      },
+    },
+  });
 
-  if (!team) {
-    throw new Error('Team not found');
+  if (!team) notFound('Team not found');
+
+  if (status === TeamStatus.READY || status === TeamStatus.PENDING) {
+    const isFreeDiv = !team.division || team.division.signupCost === 0;
+    if (!isFreeDiv) {
+      const paidCount = team.players.filter((p) => p.paymentStatus !== 0).length;
+      if (paidCount < MIN_PAID_PLAYERS_TO_READY) {
+        badRequest(
+          `Cannot set team to ${status}: at least ${MIN_PAID_PLAYERS_TO_READY} active players must be marked as paid first`,
+        );
+      }
+    }
   }
 
   return await prisma.team.update({
@@ -595,6 +612,7 @@ export interface ChangeTeamDivisionResult {
   oldDivision: { id: number; name: string; signupCost: number } | null;
   newDivision: { id: number; name: string; signupCost: number };
   paymentStatusReset: boolean;
+  statusReset: boolean;
   notifiedPlayerSteamIds: string[];
 }
 
@@ -642,18 +660,31 @@ export async function changeTeamDivision(
 
   const notifiedPlayerSteamIds: string[] = [];
   let paymentStatusReset = false;
+  let statusReset = false;
 
   await prisma.$transaction(async (tx) => {
     await tx.team.update({ where: { id: teamId }, data: { divisionId: newDivisionId } });
 
     if (oldIsFree && !newIsFree) {
-      // Free → Paid: mark all active players and the team as unpaid
+      // Free → Paid: mark all active players and the team as unpaid.
+      // If the team was READY or PENDING in the free division, kick it back to
+      // UNREADY so it must go through the paid ready-up flow again.
       await tx.playerInTeam.updateMany({
         where: { teamId, active: 1 },
         data: { paymentStatus: 0 },
       });
-      await tx.team.update({ where: { id: teamId }, data: { paymentStatus: 0 } });
+
+      const statusNeedsReset =
+        team.status === TeamStatus.READY || team.status === TeamStatus.PENDING;
+      await tx.team.update({
+        where: { id: teamId },
+        data: {
+          paymentStatus: 0,
+          ...(statusNeedsReset ? { status: TeamStatus.UNREADY } : {}),
+        },
+      });
       paymentStatusReset = true;
+      statusReset = statusNeedsReset;
     } else if (!oldIsFree && newIsFree) {
       // Paid → Free: mark everyone as exempt and notify players who actually paid (refund eligibility)
       await tx.playerInTeam.updateMany({
@@ -690,6 +721,7 @@ export async function changeTeamDivision(
       : null,
     newDivision: { id: newDivision.id, name: newDivision.name, signupCost: newDivision.signupCost },
     paymentStatusReset,
+    statusReset,
     notifiedPlayerSteamIds,
   };
 }

@@ -557,14 +557,11 @@ export async function withdraw1v1Entry(
  * Sets team status back to READY and reactivates the player
  */
 export async function restore1v1Entry(teamId: number): Promise<void> {
-  // Get the team and verify it's a 1v1 entry
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
       players: {
-        select: {
-          playerSteamId: true,
-        },
+        select: { playerSteamId: true },
       },
     },
   });
@@ -581,24 +578,18 @@ export async function restore1v1Entry(teamId: number): Promise<void> {
     badRequest('This 1v1 entry is not withdrawn');
   }
 
-  // Update team status to READY (the only active state for 1v1)
+  // Restore to UNREADY so the player goes through the normal paid ready-up
+  // flow — the same path as a fresh signup. Setting READY directly would
+  // bypass payment validation.
   await prisma.team.update({
     where: { id: teamId },
-    data: {
-      status: TeamStatus.READY,
-    },
+    data: { status: TeamStatus.UNREADY },
   });
 
-  // Reactivate the player in the team
   if (team.players.length > 0) {
     await prisma.playerInTeam.updateMany({
-      where: {
-        teamId: teamId,
-      },
-      data: {
-        active: 1,
-        leftAt: null,
-      },
+      where: { teamId },
+      data: { active: 1, leftAt: null },
     });
   }
 }
@@ -614,6 +605,7 @@ const VALID_1V1_STATUSES: TeamStatus[] = [
  * Change a 1v1 entry's status (admin only).
  * Handles side effects: transitioning to DEAD deactivates the player,
  * transitioning from DEAD reactivates them.
+ * Setting to READY is hard-blocked for paid divisions unless the player is paid.
  */
 export async function change1v1Status(
   teamId: number,
@@ -626,8 +618,9 @@ export async function change1v1Status(
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
+      division: { select: { signupCost: true } },
       players: {
-        select: { playerSteamId: true, active: true },
+        select: { playerSteamId: true, active: true, paymentStatus: true },
       },
     },
   });
@@ -637,6 +630,16 @@ export async function change1v1Status(
 
   const oldStatus = team.status;
   if (oldStatus === newStatus) badRequest('Status is already ' + newStatus);
+
+  if (newStatus === TeamStatus.READY) {
+    const isFreeDiv = !team.division || team.division.signupCost === 0;
+    if (!isFreeDiv) {
+      const player = team.players.find((p) => p.active === 1);
+      if (!player || player.paymentStatus === 0) {
+        badRequest('Cannot set entry to READY: player must be marked as paid first');
+      }
+    }
+  }
 
   if (oldStatus === TeamStatus.DEAD && newStatus !== TeamStatus.DEAD) {
     // Restoring from DEAD — reactivate the player

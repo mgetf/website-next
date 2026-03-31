@@ -13,6 +13,7 @@
 
   let selectedMethod = $state<'paypal' | 'items'>('paypal');
   let selectedSteamIds = $state<Set<string>>(new Set());
+  let acceptedRefundPolicy = $state(false);
 
   $effect(() => {
     selectedMethod = pageData.pendingItemOrder
@@ -248,10 +249,34 @@
           </div>
         {/if}
 
+        <!-- Refund Policy Agreement -->
+        {#if selectedPlayers.length > 0}
+          <div class="px-6 pt-6 pb-0">
+            <label for="accept-refund" class="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                id="accept-refund"
+                bind:checked={acceptedRefundPolicy}
+                class="mt-0.5 w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500 focus:ring-offset-zinc-900"
+              />
+              <span class="text-sm text-text-label">
+                I understand that league fees are non-refundable and that by paying, I commit to
+                participating for the entire season
+              </span>
+            </label>
+          </div>
+        {/if}
+
         <div class="p-8">
           {#if selectedPlayers.length === 0}
             <div class="text-center py-8">
               <p class="text-text-muted">Select at least one player to continue with payment.</p>
+            </div>
+          {:else if !acceptedRefundPolicy}
+            <div class="text-center py-4">
+              <p class="text-text-muted text-sm">
+                Please accept the terms above to proceed with payment.
+              </p>
             </div>
           {:else if selectedMethod === 'items' && hasItemPayment && pageData.itemPaymentConfig}
             <h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>

@@ -7,7 +7,6 @@ import { getItemPaymentByDivisionId } from '$lib/server/services/division-item-p
 import {
   createItemPaymentOrder,
   cancelItemPaymentOrder,
-  expireOverdueOrders,
   getPendingOrderForCheckout,
 } from '$lib/server/services/item-payments';
 import { fetchSteamProfile } from '$lib/server/services/users';
@@ -15,6 +14,7 @@ import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/audit
 import { redirect, fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
+import { logPrismaError } from '$lib/server/utils/prisma-errors';
 
 const createItemOrderSchema = z.object({
   teamId: z.coerce.number().int().positive('Invalid team ID'),
@@ -131,7 +131,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   } | null = null;
 
   if (itemPaymentConfig) {
-    await expireOverdueOrders();
     pendingItemOrder = await getPendingOrderForCheckout(steamId, team.id);
   }
 
@@ -206,6 +205,10 @@ export const actions: Actions = {
         },
       };
     } catch (err) {
+      logPrismaError('checkout.actions.createItemOrder', err, {
+        teamId,
+        actorSteamId: locals.user?.steamId ?? null,
+      });
       console.error('Error creating item order:', err);
       return fail(400, {
         error: err instanceof Error ? err.message : 'Failed to create item payment order',
@@ -238,6 +241,10 @@ export const actions: Actions = {
 
       return { success: true, message: 'Order cancelled' };
     } catch (err) {
+      logPrismaError('checkout.actions.cancelItemOrder', err, {
+        orderNumber,
+        actorSteamId: locals.user?.steamId ?? null,
+      });
       console.error('Error cancelling item order:', err);
       return fail(400, {
         error: err instanceof Error ? err.message : 'Failed to cancel order',

@@ -29,6 +29,7 @@ class NotificationState {
   private eventSource: EventSource | null = null;
   private initialized = false;
   private ownerSteamId: string | null = null;
+  private visibilityListener: (() => void) | null = null;
 
   /**
    * Computed: Number of unread notifications
@@ -81,7 +82,31 @@ class NotificationState {
     // Only connect to SSE in browser
     if (typeof window !== 'undefined') {
       this.connect();
+      this.ensureVisibilityListener();
     }
+  }
+
+  /**
+   * Pause SSE while tab is hidden to reduce unnecessary server polling.
+   */
+  private ensureVisibilityListener() {
+    if (this.visibilityListener || typeof document === 'undefined') return;
+
+    this.visibilityListener = () => {
+      if (document.visibilityState === 'visible') {
+        this.connect();
+      } else {
+        this.disconnect();
+      }
+    };
+
+    document.addEventListener('visibilitychange', this.visibilityListener);
+  }
+
+  private removeVisibilityListener() {
+    if (!this.visibilityListener || typeof document === 'undefined') return;
+    document.removeEventListener('visibilitychange', this.visibilityListener);
+    this.visibilityListener = null;
   }
 
   /**
@@ -185,6 +210,7 @@ class NotificationState {
    */
   reset() {
     this.disconnect();
+    this.removeVisibilityListener();
     this.notifications = [];
     this.initialized = false;
     this.ownerSteamId = null;

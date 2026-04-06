@@ -875,6 +875,9 @@ model Notification {
   user  User? @relation("NotificationRecipient", fields: [userSteamId], references: [steamId])
   actor User? @relation("NotificationActor", fields: [actorSteamId], references: [steamId])
 
+  @@index([userSteamId, id])
+  @@index([userSteamId, createdAt])
+  @@index([userSteamId, isRead, createdAt])
   @@map("notifications")
 }
 

@@ -13,7 +13,9 @@ import {
   getNotificationsSinceId,
 } from '$lib/server/services/notifications';
 
-const POLL_INTERVAL_MS = 5000;
+const BASE_POLL_INTERVAL_MS = 15000;
+const MAX_POLL_INTERVAL_MS = 60000;
+const MAX_POLL_JITTER_MS = 3000;
 const HEARTBEAT_INTERVAL_MS = 30000;
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -50,11 +52,22 @@ export const GET: RequestHandler = async ({ locals }) => {
 
       let lastHeartbeat = Date.now();
 
+      let consecutiveFailures = 0;
+
+      const getNextPollDelay = () => {
+        const backoffStep = Math.min(consecutiveFailures, 2);
+        const backoffMultiplier = 2 ** backoffStep;
+        const baseDelay = BASE_POLL_INTERVAL_MS * backoffMultiplier;
+        const jitter = Math.floor(Math.random() * MAX_POLL_JITTER_MS);
+        return Math.min(baseDelay + jitter, MAX_POLL_INTERVAL_MS);
+      };
+
       const poll = async () => {
         if (!isActive) return;
 
         try {
           const newNotifications = await getNotificationsSinceId(userSteamId, lastNotificationId);
+          consecutiveFailures = 0;
 
           for (const notification of newNotifications) {
             if (!safeEnqueue(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`)) {
@@ -71,13 +84,19 @@ export const GET: RequestHandler = async ({ locals }) => {
             lastHeartbeat = now;
           }
         } catch (err) {
+          consecutiveFailures += 1;
           if (isActive) {
-            console.error('SSE poll error:', err);
+            console.error('SSE poll error:', {
+              route: '/api/notifications/stream',
+              userSteamId,
+              consecutiveFailures,
+              message: err instanceof Error ? err.message : String(err),
+            });
           }
         }
 
         if (isActive) {
-          timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
+          timeoutId = setTimeout(poll, getNextPollDelay());
         }
       };
 

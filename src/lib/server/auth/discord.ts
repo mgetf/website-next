@@ -101,6 +101,7 @@ export async function handleDiscordCallback(
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'mge.tf (https://mge.tf)',
     },
     body: tokenParams.toString(),
   });
@@ -118,6 +119,7 @@ export async function handleDiscordCallback(
   const userResponse = await fetch(DISCORD_USER_ENDPOINT, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      'User-Agent': 'mge.tf (https://mge.tf)',
     },
   });
 

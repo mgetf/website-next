@@ -273,8 +273,8 @@
 
   <!-- Main Content -->
   <div class="max-w-7xl mx-auto px-6 py-8">
-    <!-- Payment CTA Banner — only blocks when minimum paid count not met -->
-    {#if data.isOnTeam && !paymentStepComplete && hasUnpaidPlayers && team.status !== 'DEAD'}
+    <!-- Payment CTA Banner — shows when minimum not met, or when current user still hasn't paid -->
+    {#if data.isOnTeam && hasUnpaidPlayers && (!paymentStepComplete || !currentUserIsPaid) && team.status !== 'DEAD'}
       <div
         class="mb-6 p-5 rounded-lg border border-warning-500/30 bg-warning-500/5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
       >
@@ -293,8 +293,14 @@
             />
           </svg>
           <div>
-            <h3 class="text-lg font-bold text-white">Payment Required</h3>
-            {#if !currentUserIsPaid}
+            {#if !currentUserIsPaid && paymentStepComplete}
+              <h3 class="text-lg font-bold text-white">Signup Fee Unpaid</h3>
+              <p class="text-sm text-text-body mt-1">
+                You haven't paid your signup fee yet. The team can ready up, but your payment is
+                still required.
+              </p>
+            {:else if !currentUserIsPaid}
+              <h3 class="text-lg font-bold text-white">Payment Required</h3>
               <p class="text-sm text-text-body mt-1">
                 You need to pay your signup fee before the team can ready up.
                 <span class="text-warning-400 font-medium">
@@ -302,6 +308,7 @@
                 </span>
               </p>
             {:else}
+              <h3 class="text-lg font-bold text-white">Payment Required</h3>
               <p class="text-sm text-text-body mt-1">
                 {unpaidPlayers.length}
                 teammate{unpaidPlayers.length !== 1 ? 's' : ''} still need{unpaidPlayers.length ===
@@ -588,6 +595,20 @@
                         href="/checkout/{data.currentUserSteamId}?teamId={team.id}"
                       >
                         Go to Checkout
+                      </Button>
+                    {/if}
+                  </div>
+                {:else if !currentUserIsPaid}
+                  <div class="ml-10 mt-2">
+                    <p class="text-sm text-text-body mb-2">
+                      Minimum met, but you haven't paid yet.
+                    </p>
+                    {#if data.currentUserSteamId}
+                      <Button
+                        variant="warning"
+                        href="/checkout/{data.currentUserSteamId}?teamId={team.id}"
+                      >
+                        Pay Signup Fee
                       </Button>
                     {/if}
                   </div>

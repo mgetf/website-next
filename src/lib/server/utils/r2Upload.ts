@@ -3,7 +3,12 @@
  * Handles file uploads to R2 storage
  */
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
@@ -126,11 +131,85 @@ export function isR2Available(): boolean {
 }
 
 /**
+ * Upload a Buffer directly to R2 with an explicit key and content type.
+ * Unlike uploadToR2, this does NOT prepend "images/" to the key.
+ * @param buffer - Raw file content
+ * @param key - Full R2 object key (e.g. "maps/mge_foo.bsp")
+ * @param contentType - MIME type for the object
+ * @returns Public URL of the uploaded file, or null if R2 not configured
+ */
+export async function uploadBufferToR2(
+  buffer: Buffer,
+  key: string,
+  contentType: string,
+): Promise<string | null> {
+  if (!isR2Configured || !r2Client) {
+    console.warn('R2 not configured, skipping upload');
+    return null;
+  }
+
+  try {
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    });
+
+    await r2Client.send(command);
+
+    const baseUrl = R2_PUBLIC_URL.endsWith('/') ? R2_PUBLIC_URL : `${R2_PUBLIC_URL}/`;
+    return `${baseUrl}${key}`;
+  } catch (err) {
+    console.error('Error uploading buffer to R2:', err);
+    throw error(500, 'Failed to upload file');
+  }
+}
+
+/**
+ * Fetch an object from R2 and return its content as a Buffer.
+ * Used for server-side zip generation.
+ * @param key - Full R2 object key (e.g. "maps/mge_foo.bsp")
+ */
+export async function getObjectFromR2(key: string): Promise<Buffer> {
+  if (!isR2Configured || !r2Client) {
+    throw error(500, 'R2 storage is not configured');
+  }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+    });
+
+    const response = await r2Client.send(command);
+
+    if (!response.Body) {
+      throw error(404, 'Object not found in R2');
+    }
+
+    // @aws-sdk/client-s3 returns a ReadableStream in Node.js — collect it
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  } catch (err) {
+    if ((err as { status?: number }).status) throw err; // re-throw SvelteKit errors
+    console.error('Error fetching object from R2:', err);
+    throw error(500, 'Failed to fetch file from storage');
+  }
+}
+
+/**
  * Validate uploaded file
  * @param file - File object from form data
- * @param type - 'image' or 'demo'
+ * @param type - 'image', 'demo', 'bsp', or 'cfg'
  */
-export function validateUploadedFile(file: File, type: 'image' | 'demo' = 'image'): void {
+export function validateUploadedFile(
+  file: File,
+  type: 'image' | 'demo' | 'bsp' | 'cfg' = 'image',
+): void {
   if (type === 'image') {
     // Check file size (5MB max for images)
     const maxSize = 5 * 1024 * 1024; // 5MB
@@ -154,6 +233,28 @@ export function validateUploadedFile(file: File, type: 'image' | 'demo' = 'image
     const fileName = file.name.toLowerCase();
     if (!fileName.endsWith('.dem')) {
       throw error(400, 'Only .dem demo files are allowed');
+    }
+  } else if (type === 'bsp') {
+    // Check file size (200MB max for BSP map files)
+    const maxSize = 200 * 1024 * 1024; // 200MB
+    if (file.size > maxSize) {
+      throw error(400, 'BSP file size must be less than 200MB');
+    }
+
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.bsp')) {
+      throw error(400, 'Only .bsp map files are allowed');
+    }
+  } else if (type === 'cfg') {
+    // Check file size (1MB max for config files)
+    const maxSize = 1 * 1024 * 1024; // 1MB
+    if (file.size > maxSize) {
+      throw error(400, 'CFG file size must be less than 1MB');
+    }
+
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.cfg')) {
+      throw error(400, 'Only .cfg config files are allowed');
     }
   }
 }

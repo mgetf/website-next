@@ -406,6 +406,7 @@ model User {
   eventParticipants        EventParticipant[]
   eventPlacements          EventPlacement[]
   itemPaymentOrders        ItemPaymentOrder[]
+  mapFilesUploaded         MapFile[]
 
   @@map("users")
 }
@@ -925,6 +926,25 @@ model SiteSettings {
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("site_settings")
+}
+
+// Map File Downloads
+model MapFile {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique // e.g. "mge_chillypunch_final4"
+  bspUrl       String   @map("bsp_url")
+  bspSize      BigInt   @map("bsp_size")
+  cfgUrl       String   @map("cfg_url")
+  cfgSize      BigInt   @map("cfg_size")
+  thumbnailUrl String?  @map("thumbnail_url")
+  description  String?
+  uploadedBy   String   @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  uploader User @relation(fields: [uploadedBy], references: [steamId])
+
+  @@map("map_files")
 }
 
 // API Key Management

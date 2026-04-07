@@ -14,6 +14,7 @@
   import webIcon from '$lib/assets/icons/web.png';
   import settingIcon from '$lib/assets/icons/setting.png';
   import auditIcon from '$lib/assets/icons/audit.png';
+  import mapIcon from '$lib/assets/icons/location.png';
 
   let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -27,23 +28,31 @@
 
   // Sidebar menu items
   const allMenuItems = [
-    { name: 'Dashboard', path: '/admin', icon: dashboardIcon, adminOnly: false },
-    { name: 'League', path: '/admin/league', icon: trophyIcon, adminOnly: false },
-    { name: 'Teams', path: '/admin/teams', icon: groupIcon, adminOnly: false },
-    { name: 'Matches', path: '/admin/matches', icon: battleIcon, adminOnly: false },
+    { name: 'Dashboard', path: '/admin', icon: dashboardIcon, adminOnly: false, badge: '' },
+    { name: 'League', path: '/admin/league', icon: trophyIcon, adminOnly: false, badge: '' },
+    { name: 'Teams', path: '/admin/teams', icon: groupIcon, adminOnly: false, badge: '' },
+    { name: 'Matches', path: '/admin/matches', icon: battleIcon, adminOnly: false, badge: '' },
     {
       name: 'Pending Players',
       path: '/admin/pending-players',
       icon: hourglassIcon,
       adminOnly: false,
+      badge: '',
     },
-    { name: 'Demos', path: '/admin/demos', icon: videoCameraIcon, adminOnly: false },
-    { name: 'Disputes', path: '/admin/disputes', icon: maceIcon, adminOnly: false },
-    { name: 'Users', path: '/admin/users', icon: userIcon, adminOnly: false },
-    { name: 'Global', path: '/admin/global', icon: webIcon, adminOnly: false },
-    { name: 'Item Orders', path: '/admin/item-payments', icon: hourglassIcon, adminOnly: false },
-    { name: 'Site', path: '/admin/site', icon: settingIcon, adminOnly: false },
-    { name: 'Audit Logs', path: '/admin/audit-logs', icon: auditIcon, adminOnly: true },
+    { name: 'Demos', path: '/admin/demos', icon: videoCameraIcon, adminOnly: false, badge: '' },
+    { name: 'Maps', path: '/admin/maps', icon: mapIcon, adminOnly: false, badge: 'new' },
+    { name: 'Disputes', path: '/admin/disputes', icon: maceIcon, adminOnly: false, badge: '' },
+    { name: 'Users', path: '/admin/users', icon: userIcon, adminOnly: false, badge: '' },
+    { name: 'Global', path: '/admin/global', icon: webIcon, adminOnly: false, badge: '' },
+    {
+      name: 'Item Orders',
+      path: '/admin/item-payments',
+      icon: hourglassIcon,
+      adminOnly: false,
+      badge: '',
+    },
+    { name: 'Site', path: '/admin/site', icon: settingIcon, adminOnly: false, badge: '' },
+    { name: 'Audit Logs', path: '/admin/audit-logs', icon: auditIcon, adminOnly: true, badge: '' },
   ];
 
   const menuItems = $derived(allMenuItems.filter((item) => !item.adminOnly || data.isStrictAdmin));
@@ -74,12 +83,20 @@
       {#each menuItems as item}
         <a
           href={item.path}
-          class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(item.path)
+          class="relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(
+            item.path,
+          )
             ? 'bg-orange-500/20 text-primary-400 font-medium'
             : 'text-text-label hover:bg-surface-input hover:text-white'}"
         >
           <img src={item.icon} alt={item.name} class="w-6 h-6 brightness-0 invert opacity-70" />
           <span>{item.name}</span>
+          {#if item.badge}
+            <span
+              class="ml-auto text-[9px] font-bold uppercase tracking-wide px-1.5 py-px rounded-full bg-danger-500 text-white leading-none"
+              >{item.badge}</span
+            >
+          {/if}
         </a>
       {/each}
     </nav>
@@ -130,7 +147,7 @@
             <a
               href={item.path}
               onclick={() => (mobileMenuOpen = false)}
-              class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(
+              class="relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(
                 item.path,
               )
                 ? 'bg-orange-500/20 text-primary-400 font-medium'
@@ -138,6 +155,12 @@
             >
               <img src={item.icon} alt={item.name} class="w-5 h-5 brightness-0 invert opacity-70" />
               <span>{item.name}</span>
+              {#if item.badge}
+                <span
+                  class="ml-auto text-[9px] font-bold uppercase tracking-wide px-1.5 py-px rounded-full bg-danger-500 text-white leading-none"
+                  >{item.badge}</span
+                >
+              {/if}
             </a>
           {/each}
         </nav>

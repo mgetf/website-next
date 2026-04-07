@@ -44,6 +44,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   }
 
+  const seasonActive = team.season ? await isSeasonCurrentlyActive(team.season.id) : false;
+
+  if (!seasonActive) {
+    return {
+      team,
+      error: "This team's season has ended. Joining is no longer available.",
+      canJoin: false,
+      rosterLocked: false,
+    };
+  }
+
   if (isBanned(locals.user)) {
     return {
       team,
@@ -126,6 +137,16 @@ export const actions: Actions = {
     const teamId = parseInt(params.id);
     if (isNaN(teamId)) {
       return fail(400, { error: 'Invalid team ID' });
+    }
+
+    const team = await getTeamById(teamId);
+    if (!team) {
+      return fail(404, { error: 'Team not found' });
+    }
+
+    const seasonActive = team.season ? await isSeasonCurrentlyActive(team.season.id) : false;
+    if (!seasonActive) {
+      return fail(400, { error: "This team's season has ended. Joining is no longer available." });
     }
 
     const rosterLocked = await getEffectiveRosterLock(teamId);

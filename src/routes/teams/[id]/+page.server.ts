@@ -70,9 +70,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const isTeamAdminUser = locals.user ? await isTeamAdmin(locals.user, teamId) : false;
   const canManageTeam = isGlobalAdmin || isTeamAdminUser;
 
-  const rosterLocked = team.season?.rosterLocked
-    ? await isSeasonCurrentlyActive(team.season.id)
-    : false;
+  const seasonActive = team.season ? await isSeasonCurrentlyActive(team.season.id) : false;
+
+  const rosterLocked = team.season?.rosterLocked ? seasonActive : false;
 
   // Separate active and inactive players
   const currentRoster = team.players
@@ -229,6 +229,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     pendingStatus,
     hasPendingRequestElsewhere,
     rosterLocked,
+    isSeasonActive: seasonActive,
     currentUserSteamId,
     paymentSuccess,
     signupSuccess,

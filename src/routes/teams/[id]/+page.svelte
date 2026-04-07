@@ -262,6 +262,10 @@
               <p class="text-sm text-warning-400">
                 You have a pending join request for another team. Resolve it before joining here.
               </p>
+            {:else if !data.isSeasonActive}
+              <p class="text-sm text-text-muted">
+                This team's season has ended. Joining is no longer available.
+              </p>
             {:else if !data.rosterLocked}
               <Button href="/teams/{team.id}/join" variant="primary" size="lg">Join Team</Button>
             {/if}

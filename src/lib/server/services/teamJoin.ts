@@ -7,6 +7,7 @@ import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { validateJoinToken } from './teamSignup';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
+import { isSeasonCurrentlyActive } from './settings';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 import { verifyPassword } from '$lib/server/utils/password';
 
@@ -142,6 +143,13 @@ export async function joinByPassword(
     badRequest('Cannot join 1v1 teams');
   }
 
+  if (team.seasonId) {
+    const seasonActive = await isSeasonCurrentlyActive(team.seasonId);
+    if (!seasonActive) {
+      badRequest("This team's season has ended. Joining is no longer available.");
+    }
+  }
+
   if (team.players.length >= 3) {
     badRequest('Team is full (maximum 3 players)');
   }
@@ -198,6 +206,13 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
     badRequest('Cannot join 1v1 teams');
   }
 
+  if (team.seasonId) {
+    const seasonActive = await isSeasonCurrentlyActive(team.seasonId);
+    if (!seasonActive) {
+      badRequest("This team's season has ended. Joining is no longer available.");
+    }
+  }
+
   const isTeamMember = team.players.some(
     (p) => p.playerSteamId === steamId && p.permissionLevel >= 0,
   );
@@ -245,6 +260,18 @@ export async function acceptTeamInvite(steamId: string, teamId: number): Promise
 
   if (!pending || pending.status !== 0) {
     badRequest('No pending invitation found for this team');
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { seasonId: true },
+  });
+
+  if (team?.seasonId) {
+    const seasonActive = await isSeasonCurrentlyActive(team.seasonId);
+    if (!seasonActive) {
+      badRequest("This team's season has ended. Joining is no longer available.");
+    }
   }
 
   await prisma.pendingPlayer.update({

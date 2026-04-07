@@ -6,7 +6,11 @@ import {
   declineInvitation,
   hasAnyPendingRequest,
 } from '$lib/server/services/teamJoin';
-import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
+import {
+  isSeasonCurrentlyActive,
+  isTeamSeasonActive,
+  getEffectiveRosterLock,
+} from '$lib/server/services/settings';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
@@ -28,9 +32,21 @@ export const load: PageServerLoad = async ({ url, locals }) => {
   try {
     const teamInfo = await validateTokenAndGetTeam(token, locals.user.steamId);
 
-    const rosterLocked = teamInfo.team?.season?.rosterLocked
+    const seasonActive = teamInfo.team?.season
       ? await isSeasonCurrentlyActive(teamInfo.team.season.id)
       : false;
+
+    if (!seasonActive) {
+      return {
+        ...teamInfo,
+        canJoin: false,
+        error: "This team's season has ended. Joining is no longer available.",
+        token,
+        rosterLocked: false,
+      };
+    }
+
+    const rosterLocked = teamInfo.team?.season?.rosterLocked ? seasonActive : false;
 
     const hasPending = teamInfo.canJoin ? await hasAnyPendingRequest(locals.user.steamId) : false;
 
@@ -68,6 +84,13 @@ export const actions: Actions = {
     // Get team ID from token to check season settings
     const { validateJoinToken: decodeToken } = await import('$lib/server/services/teamSignup');
     const { teamId } = decodeToken(token);
+
+    const seasonActive = await isTeamSeasonActive(teamId);
+    if (!seasonActive) {
+      return fail(400, {
+        error: "This team's season has ended. Joining is no longer available.",
+      });
+    }
 
     const rosterLocked = await getEffectiveRosterLock(teamId);
     if (rosterLocked) {

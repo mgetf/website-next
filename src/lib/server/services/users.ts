@@ -590,9 +590,7 @@ export async function getUsers(options: {
         include: { region: true },
       },
     },
-    orderBy: {
-      steamUsername: 'asc',
-    },
+    orderBy: [{ steamUsername: 'asc' }, { steamId: 'asc' }],
     skip: (page - 1) * pageSize,
     take: pageSize,
   });

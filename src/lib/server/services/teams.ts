@@ -83,7 +83,7 @@ export async function getTeams(options: {
         },
       },
     },
-    orderBy: [{ status: 'desc' }, { wins: 'desc' }, { losses: 'asc' }],
+    orderBy: [{ status: 'desc' }, { wins: 'desc' }, { losses: 'asc' }, { id: 'asc' }],
     skip: (page - 1) * pageSize,
     take: pageSize,
   });
@@ -157,7 +157,7 @@ export async function getTeamsPublic(
           },
         },
       },
-      orderBy: [{ wins: 'desc' }, { losses: 'asc' }],
+      orderBy: [{ wins: 'desc' }, { losses: 'asc' }, { id: 'asc' }],
       skip,
       take: TEAMS_PER_PAGE,
     }),
@@ -761,7 +761,7 @@ export async function getTop1v1EntriesForHomepage(options: {
     where: {
       seasonId,
       divisionId,
-      status: 'READY',
+      status: { in: ['READY', 'PENDING'] },
     },
     select: {
       id: true,

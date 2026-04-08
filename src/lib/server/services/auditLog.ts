@@ -241,7 +241,7 @@ export async function getAuditLogs(filters: AuditLogFilters = {}) {
           },
         },
       },
-      orderBy: { timestamp: 'desc' },
+      orderBy: [{ timestamp: 'desc' }, { id: 'asc' }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

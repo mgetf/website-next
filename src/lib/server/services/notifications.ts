@@ -75,9 +75,7 @@ export async function getAllNotifications(userSteamId: string, limit = 50, offse
         },
       },
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
     skip: offset,
     take: limit,
   });

@@ -113,6 +113,9 @@
     URL.revokeObjectURL(url);
   }
 
+  const DOWNLOAD_TIMEOUT_MS = 180_000; // 3 minutes for zip preparation
+  const STREAM_STALL_MS = 30_000; // 30s without receiving data
+
   async function downloadSelected() {
     if (selectedIds.size === 0) return;
     errorMessage = '';
@@ -121,21 +124,43 @@
     downloadProgress = 0;
     startFakeProgress();
 
-    // Build per-map file preference list
     const maps = [...selections.entries()]
       .filter(([, s]) => s.bsp || s.cfg)
       .map(([id, s]) => ({ id, bsp: s.bsp, cfg: s.cfg }));
 
+    const controller = new AbortController();
+    let downloadTimeout: ReturnType<typeof setTimeout> | null = null;
+
     try {
+      // Guard against the zip preparation hanging forever
+      downloadTimeout = setTimeout(() => {
+        controller.abort();
+        errorMessage = 'Download timed out — the server took too long to build the zip.';
+      }, DOWNLOAD_TIMEOUT_MS);
+
       const response = await fetch('/api/maps/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ maps }),
+        signal: controller.signal,
       });
 
+      if (downloadTimeout) {
+        clearTimeout(downloadTimeout);
+        downloadTimeout = null;
+      }
+
       if (!response.ok) {
-        const text = await response.text();
-        errorMessage = text || 'Download failed. Please try again.';
+        let detail = '';
+        try {
+          detail = await response.text();
+        } catch {
+          /* ignore */
+        }
+        errorMessage =
+          response.status === 502
+            ? 'Some map files could not be retrieved from storage. Try again later.'
+            : detail || `Download failed (HTTP ${response.status}). Please try again.`;
         return;
       }
 
@@ -156,20 +181,41 @@
       const reader = response.body.getReader();
       const chunks: Uint8Array<ArrayBuffer>[] = [];
       let received = 0;
+      let lastDataAt = Date.now();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        received += value.length;
-        downloadProgress = Math.round((received / total) * 100);
+      // Stall detection for the streaming phase
+      const stallCheck = setInterval(() => {
+        if (Date.now() - lastDataAt > STREAM_STALL_MS) {
+          clearInterval(stallCheck);
+          controller.abort();
+          errorMessage = 'Download stalled — try again or check your connection.';
+        }
+      }, 5_000);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          lastDataAt = Date.now();
+          downloadProgress = Math.round((received / total) * 100);
+        }
+      } finally {
+        clearInterval(stallCheck);
       }
 
       downloadProgress = 100;
       triggerBlobDownload(new Blob(chunks, { type: 'application/zip' }));
-    } catch {
-      errorMessage = 'An unexpected error occurred. Please try again.';
+    } catch (err) {
+      if (!errorMessage) {
+        errorMessage =
+          err instanceof DOMException && err.name === 'AbortError'
+            ? errorMessage || 'Download was cancelled.'
+            : 'An unexpected error occurred. Please try again.';
+      }
     } finally {
+      if (downloadTimeout) clearTimeout(downloadTimeout);
       stopFakeProgress();
       downloading = false;
       downloadPhase = 'idle';

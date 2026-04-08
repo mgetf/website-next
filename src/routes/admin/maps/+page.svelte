@@ -55,6 +55,10 @@
     if (complete) uploadProgress = 100;
   }
 
+  // Stall detection: if upload progress doesn't move for this long, consider it stuck
+  const UPLOAD_STALL_MS = 30_000;
+  const SAVING_TIMEOUT_MS = 120_000;
+
   async function handleUpload(e: SubmitEvent) {
     e.preventDefault();
     if (!uploadFormEl || uploading) return;
@@ -67,28 +71,89 @@
     try {
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        let stallTimer: ReturnType<typeof setTimeout> | null = null;
+        let savingTimer: ReturnType<typeof setTimeout> | null = null;
+        let lastProgressAt = Date.now();
+
+        function clearTimers() {
+          if (stallTimer) {
+            clearTimeout(stallTimer);
+            stallTimer = null;
+          }
+          if (savingTimer) {
+            clearTimeout(savingTimer);
+            savingTimer = null;
+          }
+        }
+
+        function failWith(msg: string) {
+          clearTimers();
+          stopFakeProgress(false);
+          xhr.abort();
+          toast.error(msg);
+          reject();
+        }
+
+        // Reset the stall timer every time we get progress
+        function resetStallTimer() {
+          lastProgressAt = Date.now();
+          if (stallTimer) clearTimeout(stallTimer);
+          stallTimer = setTimeout(() => {
+            if (uploadPhase === 'uploading') {
+              failWith(
+                `Upload stalled at ${uploadProgress}% — the file may be too large for the server. ` +
+                  'Try a smaller file or contact an admin.',
+              );
+            }
+          }, UPLOAD_STALL_MS);
+        }
 
         xhr.upload.addEventListener('progress', (ev) => {
           if (ev.lengthComputable) {
             uploadProgress = Math.round((ev.loaded / ev.total) * 100);
           }
+          resetStallTimer();
         });
 
         xhr.upload.addEventListener('load', () => {
-          // File received by server; now server is uploading to R2
+          clearTimers();
           uploadPhase = 'saving';
           startFakeProgress();
+          // Guard against the server-side R2 upload hanging forever
+          savingTimer = setTimeout(() => {
+            failWith('Saving to storage is taking too long — please try again.');
+          }, SAVING_TIMEOUT_MS);
+        });
+
+        xhr.upload.addEventListener('error', () => {
+          failWith(
+            'Upload failed — connection was interrupted. The file may exceed the server size limit.',
+          );
         });
 
         xhr.addEventListener('load', async () => {
+          clearTimers();
           stopFakeProgress(true);
+
+          if (xhr.status === 0) {
+            toast.error('Upload failed — the server closed the connection unexpectedly.');
+            reject();
+            return;
+          }
+
+          if (xhr.status === 413) {
+            toast.error('Upload rejected — file is too large for the server.');
+            reject();
+            return;
+          }
+
           try {
             const result = JSON.parse(xhr.responseText) as {
               success?: boolean;
               message?: string;
               error?: string;
             };
-            if (result.success) {
+            if (xhr.status >= 200 && xhr.status < 300 && result.success) {
               toast.success(result.message ?? 'Map uploaded');
               uploadFormEl?.reset();
               bspFileName = '';
@@ -96,20 +161,26 @@
               thumbnailFileName = '';
               await invalidateAll();
             } else {
-              toast.error(result.error ?? 'Upload failed');
+              toast.error(result.error ?? `Upload failed (HTTP ${xhr.status})`);
             }
           } catch {
-            toast.error('Upload failed — unexpected response');
+            toast.error(`Upload failed — unexpected response (HTTP ${xhr.status})`);
           }
           resolve();
         });
 
         xhr.addEventListener('error', () => {
-          stopFakeProgress(false);
-          toast.error('Upload failed — network error');
-          reject();
+          failWith('Upload failed — network error. Check your connection and try again.');
         });
 
+        xhr.addEventListener('abort', () => {
+          clearTimers();
+          stopFakeProgress(false);
+          // Only toast if we didn't already toast in failWith
+          resolve();
+        });
+
+        resetStallTimer();
         xhr.open('POST', '/api/maps/upload');
         xhr.send(formData);
       });

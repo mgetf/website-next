@@ -10,7 +10,7 @@ const config = {
   kit: {
     adapter: adapter({
       out: 'build',
-      bodySize: 6 * 1024 * 1024,
+      bodySize: 250 * 1024 * 1024, // 250 MB — needed for map BSP uploads (up to 200 MB)
     }),
     alias: {
       $prisma: './prisma/generated',

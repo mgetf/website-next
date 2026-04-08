@@ -16,6 +16,7 @@
   let isEditing = $state(false);
   let showPreview = $state(false);
   let editContent = $state('');
+  let showAll = $state(false);
 
   interface PageData {
     user: any;
@@ -39,6 +40,7 @@
         wins: number;
         losses: number;
         points: number;
+        status: string;
         isWithdrawn?: boolean;
       }>;
     }>;
@@ -87,6 +89,28 @@
       data.seasons.some((s: (typeof data.seasons)[number]) => s.regionId === region.id),
     ),
   );
+
+  const visibleTeamsByDivision = $derived(
+    data.teamsByDivision
+      .map((div: PageData['teamsByDivision'][number]) => ({
+        ...div,
+        teams: showAll
+          ? div.teams
+          : div.teams.filter(
+              (t: PageData['teamsByDivision'][number]['teams'][number]) =>
+                t.status !== 'UNREADY',
+            ),
+      }))
+      .filter((div: PageData['teamsByDivision'][number]) => div.teams.length > 0),
+  );
+
+  function teamRowClass(team: PageData['teamsByDivision'][0]['teams'][0]): string {
+    if (!data.isAdmin || !showAll) return '';
+    if (team.status === 'READY') return 'bg-success-500/10';
+    if (team.status === 'PENDING') return 'bg-warning-500/10';
+    if (team.status === 'UNREADY') return 'bg-danger-500/10';
+    return '';
+  }
 
   $effect(() => {
     const seasonsForRegion = data.seasons.filter(
@@ -363,7 +387,22 @@
 
         <!-- Center - Division Tables -->
         <main class="lg:col-span-6 space-y-8">
-          {#if data.teamsByDivision.length === 0}
+          {#if data.isAdmin}
+            <div class="flex justify-end">
+              <button
+                onclick={() => (showAll = !showAll)}
+                class="flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors {showAll
+                  ? 'bg-warning-500/20 text-warning-400 border border-warning-500/30'
+                  : 'bg-surface-card text-text-muted border border-border-default hover:text-text-label'}"
+              >
+                <span
+                  class="w-1.5 h-1.5 rounded-full {showAll ? 'bg-warning-400' : 'bg-text-muted'}"
+                ></span>
+                {showAll ? 'Showing all teams' : 'Show all teams'}
+              </button>
+            </div>
+          {/if}
+          {#if visibleTeamsByDivision.length === 0}
             <div
               class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default p-12 text-center"
             >
@@ -373,7 +412,7 @@
               </p>
             </div>
           {:else}
-            {#each data.teamsByDivision as divisionData}
+            {#each visibleTeamsByDivision as divisionData}
               <div
                 class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default overflow-hidden"
               >
@@ -390,6 +429,7 @@
                   data={divisionData.teams}
                   columns={standingsColumns}
                   emptyMessage="No teams in this division"
+                  rowClass={teamRowClass}
                 >
                   {#snippet cell(team: PageData['teamsByDivision'][0]['teams'][0], col)}
                     {#if col.key === 'team'}

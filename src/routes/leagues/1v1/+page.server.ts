@@ -95,6 +95,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
               wins: team.wins,
               losses: team.losses,
               points: team.points,
+              status: team.status,
               isWithdrawn: team.status === 'DEAD',
             };
           });

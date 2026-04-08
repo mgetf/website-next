@@ -33,7 +33,7 @@ export const load = async () => {
       const teams = await getTeamsForStandings({
         seasonId: season2v2.id,
         divisionId: premierDivision.id,
-        statuses: [TeamStatus.READY],
+        statuses: [TeamStatus.READY, TeamStatus.PENDING],
         limit: 3,
       });
 

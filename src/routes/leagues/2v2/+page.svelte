@@ -97,8 +97,7 @@
         teams: showAll
           ? div.teams
           : div.teams.filter(
-              (t: PageData['teamsByDivision'][number]['teams'][number]) =>
-                t.status !== 'UNREADY',
+              (t: PageData['teamsByDivision'][number]['teams'][number]) => t.status !== 'UNREADY',
             ),
       }))
       .filter((div: PageData['teamsByDivision'][number]) => div.teams.length > 0),

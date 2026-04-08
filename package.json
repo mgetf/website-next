@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.4",
-    "@sveltejs/kit": "^2.56.1",
+    "@sveltejs/kit": "^2.57.0",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@types/archiver": "^7.0.0",
     "@types/node": "^25.5.2",
@@ -46,6 +46,7 @@
   ],
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1026.0",
+    "@aws-sdk/s3-request-presigner": "^3.1026.0",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@tailwindcss/vite": "^4.2.2",

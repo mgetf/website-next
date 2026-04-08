@@ -24,26 +24,27 @@
 
   // Upload form state
   let uploadFormEl: HTMLFormElement | undefined = $state();
+  let bspFile = $state<File | null>(null);
   let bspFileName = $state('');
   let cfgFileName = $state('');
   let thumbnailFileName = $state('');
   let uploading = $state(false);
 
-  // Upload progress — two phases:
-  // 'uploading': client → server (XHR upload progress, tracked %)
-  // 'saving':    server → R2    (indeterminate fake progress)
-  type UploadPhase = 'idle' | 'uploading' | 'saving';
+  // Upload progress — three phases:
+  // 'presigning': server validates + generates presigned URL (instant)
+  // 'uploading':  browser → R2 direct PUT (tracked %)
+  // 'saving':     server uploads CFG/thumbnail + writes DB record (quick)
+  type UploadPhase = 'idle' | 'presigning' | 'uploading' | 'saving';
   let uploadPhase = $state<UploadPhase>('idle');
   let uploadProgress = $state(0); // 0–100
 
-  // Fake progress ticker for the indeterminate "saving" phase
+  // Fake progress ticker for indeterminate phases (presigning / saving)
   let fakeProgressTimer: ReturnType<typeof setInterval> | null = null;
 
   function startFakeProgress() {
     uploadProgress = 0;
     fakeProgressTimer = setInterval(() => {
-      // Logarithmic approach to 90 — feels natural, never reaches 100 on its own
-      uploadProgress = Math.min(90, uploadProgress + (90 - uploadProgress) * 0.06);
+      uploadProgress = Math.min(90, uploadProgress + (90 - uploadProgress) * 0.08);
     }, 200);
   }
 
@@ -55,137 +56,162 @@
     if (complete) uploadProgress = 100;
   }
 
-  // Stall detection: if upload progress doesn't move for this long, consider it stuck
-  const UPLOAD_STALL_MS = 30_000;
   const SAVING_TIMEOUT_MS = 120_000;
 
   async function handleUpload(e: SubmitEvent) {
     e.preventDefault();
     if (!uploadFormEl || uploading) return;
 
-    const formData = new FormData(uploadFormEl);
+    const rawFormData = new FormData(uploadFormEl);
+    const cfgFileEntry = rawFormData.get('cfgFile');
+    const thumbnailFileEntry = rawFormData.get('thumbnailFile');
+    const description = rawFormData.get('description');
+
+    if (!bspFile) {
+      toast.error('Please select a .bsp map file.');
+      return;
+    }
+
+    // Derive map name from BSP filename (strip extension)
+    const rawMapName = bspFile.name
+      .replace(/\.bsp$/i, '')
+      .toLowerCase()
+      .trim();
+
     uploading = true;
+
+    // ── Phase 1: Presign ─────────────────────────────────────────────────────
+    uploadPhase = 'presigning';
+    startFakeProgress();
+
+    let presignedUrl: string;
+    let bspKey: string;
+
+    try {
+      const presignRes = await fetch('/api/maps/upload/presign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mapName: rawMapName, bspSize: bspFile.size }),
+      });
+      const presignData = (await presignRes.json()) as {
+        presignedUrl?: string;
+        bspKey?: string;
+        error?: string;
+      };
+      if (!presignRes.ok || !presignData.presignedUrl || !presignData.bspKey) {
+        toast.error(presignData.error ?? 'Failed to prepare upload — please try again.');
+        return;
+      }
+      presignedUrl = presignData.presignedUrl;
+      bspKey = presignData.bspKey;
+    } catch {
+      toast.error('Network error while preparing upload — check your connection.');
+      return;
+    } finally {
+      stopFakeProgress(false);
+    }
+
+    // ── Phase 2: Direct BSP upload to R2 ─────────────────────────────────────
     uploadPhase = 'uploading';
     uploadProgress = 0;
 
     try {
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        let stallTimer: ReturnType<typeof setTimeout> | null = null;
         let savingTimer: ReturnType<typeof setTimeout> | null = null;
-        let lastProgressAt = Date.now();
-
-        function clearTimers() {
-          if (stallTimer) {
-            clearTimeout(stallTimer);
-            stallTimer = null;
-          }
-          if (savingTimer) {
-            clearTimeout(savingTimer);
-            savingTimer = null;
-          }
-        }
 
         function failWith(msg: string) {
-          clearTimers();
-          stopFakeProgress(false);
+          if (savingTimer) clearTimeout(savingTimer);
           xhr.abort();
           toast.error(msg);
-          reject();
-        }
-
-        // Reset the stall timer every time we get progress
-        function resetStallTimer() {
-          lastProgressAt = Date.now();
-          if (stallTimer) clearTimeout(stallTimer);
-          stallTimer = setTimeout(() => {
-            if (uploadPhase === 'uploading') {
-              failWith(
-                `Upload stalled at ${uploadProgress}% — the file may be too large for the server. ` +
-                  'Try a smaller file or contact an admin.',
-              );
-            }
-          }, UPLOAD_STALL_MS);
+          reject(new Error(msg));
         }
 
         xhr.upload.addEventListener('progress', (ev) => {
           if (ev.lengthComputable) {
             uploadProgress = Math.round((ev.loaded / ev.total) * 100);
           }
-          resetStallTimer();
-        });
-
-        xhr.upload.addEventListener('load', () => {
-          clearTimers();
-          uploadPhase = 'saving';
-          startFakeProgress();
-          // Guard against the server-side R2 upload hanging forever
-          savingTimer = setTimeout(() => {
-            failWith('Saving to storage is taking too long — please try again.');
-          }, SAVING_TIMEOUT_MS);
         });
 
         xhr.upload.addEventListener('error', () => {
-          failWith(
-            'Upload failed — connection was interrupted. The file may exceed the server size limit.',
-          );
+          failWith('BSP upload failed — connection interrupted. Try again.');
         });
 
-        xhr.addEventListener('load', async () => {
-          clearTimers();
-          stopFakeProgress(true);
-
-          if (xhr.status === 0) {
-            toast.error('Upload failed — the server closed the connection unexpectedly.');
-            reject();
-            return;
+        xhr.addEventListener('load', () => {
+          if (savingTimer) clearTimeout(savingTimer);
+          // R2 returns 200 on success for PUT
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            failWith(`BSP upload rejected by storage (HTTP ${xhr.status}). Try again.`);
           }
-
-          if (xhr.status === 413) {
-            toast.error('Upload rejected — file is too large for the server.');
-            reject();
-            return;
-          }
-
-          try {
-            const result = JSON.parse(xhr.responseText) as {
-              success?: boolean;
-              message?: string;
-              error?: string;
-            };
-            if (xhr.status >= 200 && xhr.status < 300 && result.success) {
-              toast.success(result.message ?? 'Map uploaded');
-              uploadFormEl?.reset();
-              bspFileName = '';
-              cfgFileName = '';
-              thumbnailFileName = '';
-              await invalidateAll();
-            } else {
-              toast.error(result.error ?? `Upload failed (HTTP ${xhr.status})`);
-            }
-          } catch {
-            toast.error(`Upload failed — unexpected response (HTTP ${xhr.status})`);
-          }
-          resolve();
         });
 
         xhr.addEventListener('error', () => {
-          failWith('Upload failed — network error. Check your connection and try again.');
+          failWith('BSP upload failed — network error. Check your connection.');
         });
 
         xhr.addEventListener('abort', () => {
-          clearTimers();
-          stopFakeProgress(false);
-          // Only toast if we didn't already toast in failWith
+          if (savingTimer) clearTimeout(savingTimer);
           resolve();
         });
 
-        resetStallTimer();
-        xhr.open('POST', '/api/maps/upload');
-        xhr.send(formData);
+        // Timeout guard in case R2 hangs
+        savingTimer = setTimeout(() => {
+          failWith('BSP upload timed out — the file may be too large. Try again.');
+        }, SAVING_TIMEOUT_MS);
+
+        xhr.open('PUT', presignedUrl);
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        xhr.send(bspFile);
       });
     } catch {
-      // error already toasted
+      // error already toasted inside the Promise
+      return;
+    } finally {
+      if (uploadPhase === 'uploading') uploadProgress = 100;
+    }
+
+    // ── Phase 3: Finalize — upload CFG/thumbnail + create DB record ───────────
+    uploadPhase = 'saving';
+    startFakeProgress();
+
+    try {
+      const finalFormData = new FormData();
+      finalFormData.set('bspKey', bspKey);
+      finalFormData.set('bspSize', String(bspFile.size));
+      if (cfgFileEntry instanceof File) finalFormData.set('cfgFile', cfgFileEntry);
+      if (thumbnailFileEntry instanceof File && thumbnailFileEntry.size > 0) {
+        finalFormData.set('thumbnailFile', thumbnailFileEntry);
+      }
+      if (typeof description === 'string') finalFormData.set('description', description);
+
+      const saveRes = await fetch('/api/maps/upload', {
+        method: 'POST',
+        body: finalFormData,
+      });
+      const saveData = (await saveRes.json()) as {
+        success?: boolean;
+        message?: string;
+        error?: string;
+      };
+
+      if (saveRes.ok && saveData.success) {
+        stopFakeProgress(true);
+        toast.success(saveData.message ?? 'Map uploaded');
+        uploadFormEl?.reset();
+        bspFile = null;
+        bspFileName = '';
+        cfgFileName = '';
+        thumbnailFileName = '';
+        await invalidateAll();
+      } else {
+        stopFakeProgress(false);
+        toast.error(saveData.error ?? `Failed to save map (HTTP ${saveRes.status})`);
+      }
+    } catch {
+      stopFakeProgress(false);
+      toast.error('Network error while saving map — check your connection.');
     } finally {
       uploading = false;
       uploadPhase = 'idle';
@@ -263,7 +289,8 @@
               required
               class="sr-only"
               onchange={(e) => {
-                const f = (e.currentTarget as HTMLInputElement).files?.[0];
+                const f = (e.currentTarget as HTMLInputElement).files?.[0] ?? null;
+                bspFile = f;
                 bspFileName = f ? f.name : '';
               }}
             />
@@ -345,7 +372,13 @@
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs text-text-muted">
               <span>
-                {uploadPhase === 'uploading' ? 'Uploading to server…' : 'Saving to storage…'}
+                {#if uploadPhase === 'presigning'}
+                  Preparing upload…
+                {:else if uploadPhase === 'uploading'}
+                  Uploading to storage… {uploadProgress}%
+                {:else}
+                  Saving map record…
+                {/if}
               </span>
               {#if uploadPhase === 'uploading'}
                 <span>{uploadProgress}%</span>
@@ -362,11 +395,17 @@
 
         <div class="flex justify-end">
           <Button type="submit" variant="primary" disabled={uploading}>
-            {uploading
-              ? uploadPhase === 'uploading'
-                ? `Uploading… ${uploadProgress}%`
-                : 'Saving to storage…'
-              : 'Upload Map'}
+            {#if uploading}
+              {#if uploadPhase === 'presigning'}
+                Preparing…
+              {:else if uploadPhase === 'uploading'}
+                Uploading… {uploadProgress}%
+              {:else}
+                Saving…
+              {/if}
+            {:else}
+              Upload Map
+            {/if}
           </Button>
         </div>
       </form>

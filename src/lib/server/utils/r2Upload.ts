@@ -9,6 +9,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
@@ -131,6 +132,16 @@ export function isR2Available(): boolean {
 }
 
 /**
+ * Build a public URL for a given R2 key using the configured public base URL.
+ * Returns null if R2 is not configured.
+ */
+export function getPublicUrl(key: string): string | null {
+  if (!R2_PUBLIC_URL) return null;
+  const base = R2_PUBLIC_URL.endsWith('/') ? R2_PUBLIC_URL : `${R2_PUBLIC_URL}/`;
+  return `${base}${key}`;
+}
+
+/**
  * Upload a Buffer directly to R2 with an explicit key and content type.
  * Unlike uploadToR2, this does NOT prepend "images/" to the key.
  * @param buffer - Raw file content
@@ -199,6 +210,32 @@ export async function getObjectFromR2(key: string): Promise<Buffer> {
     console.error('Error fetching object from R2:', err);
     throw error(500, 'Failed to fetch file from storage');
   }
+}
+
+/**
+ * Generate a presigned PUT URL so the browser can upload directly to R2,
+ * bypassing the SvelteKit server and Cloudflare proxy entirely.
+ * @param key - Full R2 object key (e.g. "maps/mge_foo.bsp")
+ * @param contentType - MIME type the browser will send in the PUT
+ * @param expiresIn - URL lifetime in seconds (default 1 hour)
+ * @returns Presigned URL string, or null if R2 is not configured
+ */
+export async function getPresignedUploadUrl(
+  key: string,
+  contentType: string,
+  expiresIn = 3600,
+): Promise<string | null> {
+  if (!isR2Configured || !r2Client) {
+    return null;
+  }
+
+  const command = new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME!,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  return await getSignedUrl(r2Client, command, { expiresIn });
 }
 
 /**

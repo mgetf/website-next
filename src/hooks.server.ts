@@ -100,7 +100,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     // Frames: PayPal and Steam
     'frame-src https://www.paypal.com https://www.sandbox.paypal.com https://steamcommunity.com',
     // Connect: self, PayPal API, and Cloudflare
-    "connect-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://cloudflareinsights.com",
+    "connect-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://cloudflareinsights.com https://*.r2.cloudflarestorage.com",
     // Form actions: self and Steam OpenID (for login redirect)
     "form-action 'self' https://steamcommunity.com",
     // Base URI: self

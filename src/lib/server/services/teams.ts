@@ -754,14 +754,15 @@ export async function getTop1v1EntriesForHomepage(options: {
   seasonId: number;
   divisionId: number;
   limit?: number;
+  statuses?: string[];
 }) {
-  const { seasonId, divisionId, limit = 3 } = options;
+  const { seasonId, divisionId, limit = 3, statuses = ['READY', 'PENDING'] } = options;
 
   const teams = await prisma.team.findMany({
     where: {
       seasonId,
       divisionId,
-      status: { in: ['READY', 'PENDING'] },
+      status: { in: statuses as any },
     },
     select: {
       id: true,

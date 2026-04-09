@@ -36,7 +36,7 @@
     "svelte": "^5.55.2",
     "svelte-check": "^4.4.6",
     "typescript": "^6.0.2",
-    "vite": "^8.0.7"
+    "vite": "^8.0.8"
   },
   "trustedDependencies": [
     "@prisma/client",
@@ -45,8 +45,8 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1026.0",
-    "@aws-sdk/s3-request-presigner": "^3.1026.0",
+    "@aws-sdk/client-s3": "^3.1027.0",
+    "@aws-sdk/s3-request-presigner": "^3.1027.0",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@tailwindcss/vite": "^4.2.2",

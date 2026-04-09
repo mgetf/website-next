@@ -4,6 +4,7 @@ import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision, findRecent1v1SeasonWithEntries } from '$lib/server/services/teams';
 import { getStaffMembers, isUserSignedUpForFormat } from '$lib/server/services/users';
+import { getGlobalSettings } from '$lib/server/services/settings';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
@@ -21,8 +22,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     const regionParam = url.searchParams.get('region');
 
     // Fetch all regions first (only visible ones)
-    const allRegions = await getVisibleRegions();
+    const [allRegions, globalSettings] = await Promise.all([
+      getVisibleRegions(),
+      getGlobalSettings(),
+    ]);
     const visibleRegionIds = new Set(allRegions.map((r) => r.id));
+
+    // Statuses controlled by admin; fallback to READY+PENDING if unset
+    // Always include DEAD so withdrawn teams that played can still appear (filtered post-query)
+    const visibleStatuses = globalSettings?.standingsVisibleStatuses?.length
+      ? globalSettings.standingsVisibleStatuses
+      : ['READY', 'PENDING'];
 
     // Fetch all seasons and filter to 1v1 only, AND only for visible regions
     const allSeasons = await getSeasons();
@@ -32,7 +42,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     // Find the most recent 1v1 season that has entries
     const defaultSeasonWithEntries = await findRecent1v1SeasonWithEntries(
-      ['UNREADY', 'PENDING', 'READY', 'DEAD'],
+      visibleStatuses,
       FORMAT_1V1,
     );
 
@@ -71,12 +81,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     const entriesByDivision = await Promise.all(
       divisions.map(async (division) => {
-        const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
-          'UNREADY',
-          'PENDING',
-          'READY',
-          'DEAD',
-        ]);
+        const teams = await getTeamsByDivision(
+          division.id,
+          selectedSeasonId!,
+          selectedRegionId!,
+          visibleStatuses,
+        );
 
         // Transform to show player info instead of team info
         // The "team" name is actually the player's frozen Steam name for 1v1

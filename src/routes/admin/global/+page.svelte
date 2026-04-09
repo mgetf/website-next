@@ -25,6 +25,10 @@
   let editingAnnouncement: (typeof data.announcements)[0] | null = $state(null);
   let deletingAnnouncement: (typeof data.announcements)[0] | null = $state(null);
   let isSubmitting = $state(false);
+  let standingsStatuses = $state<string[]>([]);
+  $effect(() => {
+    standingsStatuses = [...(data.globalSettings?.standingsVisibleStatuses ?? [])];
+  });
   let showSeasonAssignmentWarning = $state(false);
   let seasonAssignmentForm: HTMLFormElement | null = $state(null);
   function getRegionsWithSeasonsForFormat(formatId: number) {
@@ -477,7 +481,67 @@
     {/if}
   </Card>
 
-  <!-- Section 3: Steam Bot Settings -->
+  <!-- Section 3: League Standings Visibility -->
+  {#if data.isStrictAdmin}
+    <Card padding="none" class="p-6 space-y-6">
+      <div class="border-b border-border-default pb-4">
+        <h3 class="text-2xl font-bold text-white mb-2">League Standings Visibility</h3>
+        <p class="text-text-body">
+          Choose which team statuses are shown in the public league standings pages
+        </p>
+      </div>
+
+      <form
+        method="POST"
+        action="?/updateStandingsStatuses"
+        use:enhance={() => {
+          isSubmitting = true;
+          return async ({ update }) => {
+            await update({ reset: false });
+            isSubmitting = false;
+          };
+        }}
+        class="space-y-4"
+      >
+        <div class="space-y-3">
+          {#each [{ value: 'READY', label: 'Ready', description: 'Team has completed signup and is confirmed', colorClass: 'bg-success-500' }, { value: 'PENDING', label: 'Pending', description: 'Team has submitted signup, awaiting admin approval', colorClass: 'bg-warning-500' }, { value: 'UNREADY', label: 'Unready', description: 'Team has signed up but is not ready yet', colorClass: 'bg-danger-500' }, { value: 'PLACEMENT', label: 'Placement', description: 'Team is in placement matches', colorClass: 'bg-info-500' }, { value: 'DEAD', label: 'Dead / Withdrawn', description: 'Team has disbanded or withdrawn (only shown if they played matches)', colorClass: 'bg-text-muted' }] as statusOption}
+            <label class="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                name="status_{statusOption.value}"
+                value="1"
+                checked={standingsStatuses.includes(statusOption.value)}
+                onchange={(e) => {
+                  if (e.currentTarget.checked) {
+                    standingsStatuses = [...standingsStatuses, statusOption.value];
+                  } else {
+                    standingsStatuses = standingsStatuses.filter((s) => s !== statusOption.value);
+                  }
+                }}
+                class="mt-0.5 w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500 focus:ring-offset-0 cursor-pointer"
+              />
+              <div class="flex items-center gap-2 flex-1">
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 {statusOption.colorClass}"
+                ></span>
+                <div>
+                  <span
+                    class="text-sm font-medium text-text-label group-hover:text-white transition-colors"
+                    >{statusOption.label}</span
+                  >
+                  <p class="text-xs text-text-muted">{statusOption.description}</p>
+                </div>
+              </div>
+            </label>
+          {/each}
+        </div>
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving...' : 'Save Visibility Settings'}
+        </Button>
+      </form>
+    </Card>
+  {/if}
+
+  <!-- Section 4: Steam Bot Settings -->
   {#if data.isStrictAdmin}
     <Card padding="none" class="p-6 space-y-6">
       <div class="border-b border-border-default pb-4">

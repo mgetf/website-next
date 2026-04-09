@@ -39,6 +39,7 @@ export async function updateGlobalSettings(data: {
   leagueFees?: number;
   botTradeOfferUrl?: string | null;
   botSteamId?: string | null;
+  standingsVisibleStatuses?: string[];
 }) {
   const existingSettings = await prisma.global.findFirst();
 
@@ -53,6 +54,7 @@ export async function updateGlobalSettings(data: {
         leagueFees: data.leagueFees ?? 0,
         botTradeOfferUrl: data.botTradeOfferUrl ?? null,
         botSteamId: data.botSteamId ?? null,
+        standingsVisibleStatuses: data.standingsVisibleStatuses ?? ['READY', 'PENDING'],
       },
     });
   }

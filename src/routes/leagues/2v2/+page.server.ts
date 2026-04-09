@@ -4,6 +4,7 @@ import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
 import { getStaffMembers, isUserSignedUpForFormat } from '$lib/server/services/users';
+import { getGlobalSettings } from '$lib/server/services/settings';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
@@ -21,8 +22,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     const regionParam = url.searchParams.get('region');
 
     // Fetch all regions first (only visible ones)
-    const allRegions = await getVisibleRegions();
+    const [allRegions, globalSettings] = await Promise.all([
+      getVisibleRegions(),
+      getGlobalSettings(),
+    ]);
     const visibleRegionIds = new Set(allRegions.map((r) => r.id));
+
+    // Statuses controlled by admin; fallback to READY+PENDING if unset
+    // Always include DEAD so withdrawn teams that played can still appear (filtered post-query)
+    const visibleStatuses = globalSettings?.standingsVisibleStatuses?.length
+      ? globalSettings.standingsVisibleStatuses
+      : ['READY', 'PENDING'];
 
     // Fetch all seasons and filter to only visible regions AND 2v2 format
     const allSeasonsRaw = await getSeasons();
@@ -30,10 +40,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       (s) => visibleRegionIds.has(s.regionId) && s.formatId === FORMAT_2V2,
     );
 
-    let defaultSeasonWithTeams = await findRecentSeasonWithTeams(
-      ['UNREADY', 'PENDING', 'READY', 'PLACEMENT', 'DEAD'],
-      FORMAT_2V2,
-    );
+    let defaultSeasonWithTeams = await findRecentSeasonWithTeams(visibleStatuses, FORMAT_2V2);
 
     // Determine selected season and region
     let selectedSeasonId: number | undefined;
@@ -59,13 +66,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     const teamsByDivision = await Promise.all(
       divisions.map(async (division) => {
-        const teams = await getTeamsByDivision(division.id, selectedSeasonId!, selectedRegionId!, [
-          'UNREADY',
-          'PENDING',
-          'READY',
-          'PLACEMENT',
-          'DEAD',
-        ]);
+        const teams = await getTeamsByDivision(
+          division.id,
+          selectedSeasonId!,
+          selectedRegionId!,
+          visibleStatuses,
+        );
 
         const filtered = teams
           .filter((team: any) => team.status !== 'DEAD' || team.wins + team.losses > 0)

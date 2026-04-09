@@ -469,6 +469,30 @@ export const actions: Actions = {
     }
   },
 
+  updateStandingsStatuses: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validStatuses = ['READY', 'PENDING', 'UNREADY', 'DEAD', 'PLACEMENT'];
+    const statuses = validStatuses.filter((s) => formData.get(`status_${s}`) === '1');
+
+    try {
+      await updateGlobalSettings({ standingsVisibleStatuses: statuses });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.GLOBAL_SETTINGS_UPDATED,
+        metadata: { standingsVisibleStatuses: statuses },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Standings visibility updated' };
+    } catch (error) {
+      console.error('Error updating standings statuses:', error);
+      return fail(500, { error: 'Failed to update standings visibility' });
+    }
+  },
+
   createSteamItem: async ({ request, locals }) => {
     requireStrictAdmin(locals.user);
 

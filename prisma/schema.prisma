@@ -637,10 +637,11 @@ model Match {
 }
 
 model Global {
-  id               Int     @id @default(autoincrement())
-  leagueFees       Int     @default(0) @map("league_fees")
-  botTradeOfferUrl String? @map("bot_trade_offer_url")
-  botSteamId       String? @map("bot_steam_id")
+  id                       Int      @id @default(autoincrement())
+  leagueFees               Int      @default(0) @map("league_fees")
+  botTradeOfferUrl         String?  @map("bot_trade_offer_url")
+  botSteamId               String?  @map("bot_steam_id")
+  standingsVisibleStatuses String[] @default(["READY", "PENDING"]) @map("standings_visible_statuses")
 
   @@map("global")
 }

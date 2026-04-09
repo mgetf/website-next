@@ -7,18 +7,28 @@ import {
 import { TeamStatus } from '$prisma/client.js';
 import { findDivisionByName } from '$lib/server/services/divisions';
 import { getContent, CONTENT_KEYS, getDefaultContent } from '$lib/server/services/siteContent';
+import { getGlobalSettings } from '$lib/server/services/settings';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 
 export const load = async () => {
   try {
-    const [season2v2, season1v1, premierDivision, homepageSubtitle, homepageAbout] =
+    const [season2v2, season1v1, premierDivision, homepageSubtitle, homepageAbout, globalSettings] =
       await Promise.all([
         getCurrentSeasonByFormat(FORMAT_2V2),
         getCurrentSeasonByFormat(FORMAT_1V1),
         findDivisionByName('Premier'),
         getContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
         getContent(CONTENT_KEYS.HOMEPAGE_ABOUT),
+        getGlobalSettings(),
       ]);
+
+    // Use admin-configured statuses; only include READY and PENDING for home page teaser
+    // (UNREADY and DEAD are not meaningful for a public highlight)
+    const standingsStatuses = (
+      globalSettings?.standingsVisibleStatuses?.length
+        ? globalSettings.standingsVisibleStatuses
+        : ['READY', 'PENDING']
+    ).filter((s) => s === 'READY' || s === 'PENDING') as TeamStatus[];
 
     // 2v2 card data
     let topTeams2v2: Array<{
@@ -33,7 +43,7 @@ export const load = async () => {
       const teams = await getTeamsForStandings({
         seasonId: season2v2.id,
         divisionId: premierDivision.id,
-        statuses: [TeamStatus.READY, TeamStatus.PENDING],
+        statuses: standingsStatuses,
         limit: 3,
       });
 
@@ -65,6 +75,7 @@ export const load = async () => {
         seasonId: season1v1.id,
         divisionId: premierDivision.id,
         limit: 3,
+        statuses: standingsStatuses as string[],
       });
 
       topEntries1v1 = entries.map((e) => ({

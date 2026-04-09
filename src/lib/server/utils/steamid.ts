@@ -29,20 +29,28 @@ export function steamId64FromSteamId32(steamId32: string): string {
  * Convert Steam ID 64 to Steam ID 32
  * @param steamId64 - Steam ID 64 as string
  * @returns Steam ID 32 in format STEAM_0:Y:Z
+ * @throws Error if the input is not a valid Steam ID 64
  */
 export function steamId32FromSteamId64(steamId64: string): string {
-  const id64 = BigInt(steamId64);
-  const base = BigInt(76561197960265728);
-
-  if (id64 < base) {
-    throw new Error(`Invalid Steam ID 64: ${steamId64}`);
+  if (!isValidSteamId64(steamId64)) {
+    throw new Error(
+      `Invalid Steam ID 64: "${steamId64}". Expected a 17-digit numeric string in the valid Steam ID 64 range.`,
+    );
   }
 
-  const offset = id64 - base;
-  const y = offset % 2n;
-  const z = offset / 2n;
+  try {
+    const id64 = BigInt(steamId64);
+    const base = BigInt(76561197960265728);
+    const offset = id64 - base;
+    const y = offset % 2n;
+    const z = offset / 2n;
 
-  return `STEAM_0:${y}:${z}`;
+    return `STEAM_0:${y}:${z}`;
+  } catch (err) {
+    throw new Error(
+      `Failed to convert Steam ID 64 "${steamId64}" to Steam ID 32: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 /**

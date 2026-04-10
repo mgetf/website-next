@@ -10,6 +10,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import type { ProfileMatch } from '$lib/types/match';
+  import { steamId32FromSteamId64 } from '$lib/utils/steamid';
 
   interface TeamWithMatches {
     teamId: number;
@@ -183,15 +184,6 @@
     }
   });
 
-  // Convert Steam64 to Steam2 ID format (STEAM_0:X:Y)
-  function steamIdToSteam2(steamId64: string): string {
-    const id = BigInt(steamId64);
-    const accountId = id - BigInt('76561197960265728');
-    const y = accountId / BigInt(2);
-    const x = accountId % BigInt(2);
-    return `STEAM_0:${x}:${y}`;
-  }
-
   // External profile links - also reactive to player changes
   const externalLinks = $derived([
     {
@@ -216,7 +208,7 @@
     },
     {
       name: 'UGC-Gaming',
-      url: `https://stats.ugc-gaming.net/mge-stats/?search=${encodeURIComponent(steamIdToSteam2(player.steamId))}`,
+      url: `https://stats.ugc-gaming.net/mge-stats/?search=${encodeURIComponent(steamId32FromSteamId64(player.steamId))}`,
       logo: '/ugcgaming_logo.png',
     },
     {

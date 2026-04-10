@@ -15,8 +15,5 @@ export * from './logger';
 // Sanitization
 export * from './sanitization';
 
-// Steam ID utilities
-export * from './steamid';
-
 // Validation
 export * from './validation';

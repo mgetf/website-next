@@ -2,7 +2,18 @@
   import type { PageData } from './$types';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+
+  type MapRow = (typeof data.maps)[number];
+
+  const columns: Column[] = [
+    { key: 'checkbox', label: 'Select', srOnly: true, width: '2.5rem' },
+    { key: 'name', label: 'Map' },
+    { key: 'bspSize', label: '.bsp size', align: 'right' },
+    { key: 'cfgSize', label: '.cfg size', align: 'right' },
+    { key: 'files', label: 'Files', align: 'right' },
+  ];
 
   let { data }: { data: PageData } = $props();
 
@@ -46,14 +57,19 @@
 
   function toggleFile(id: number, file: 'bsp' | 'cfg', e: MouseEvent) {
     e.stopPropagation();
-    const current = selections.get(id) ?? { bsp: true, cfg: true };
-    const updated = { ...current, [file]: !current[file] };
     const next = new Map(selections);
-    // If both are now off, deselect the map entirely
-    if (!updated.bsp && !updated.cfg) {
-      next.delete(id);
+    if (!isSelected(id)) {
+      // Map not yet selected — select it with only this file type
+      next.set(id, { bsp: file === 'bsp', cfg: file === 'cfg' });
     } else {
-      next.set(id, updated);
+      const current = selections.get(id)!;
+      const updated = { ...current, [file]: !current[file] };
+      // If both are now off, deselect the map entirely
+      if (!updated.bsp && !updated.cfg) {
+        next.delete(id);
+      } else {
+        next.set(id, updated);
+      }
     }
     selections = next;
   }
@@ -231,229 +247,187 @@
 <PageHero title="Maps" subtitle="Download MGE arenas and spawn configs for your server." border />
 
 <div class="max-w-6xl mx-auto px-6 py-10">
-  {#if data.maps.length === 0}
-    <Card>
-      <p class="text-text-muted text-center py-8">No maps have been uploaded yet.</p>
-    </Card>
-  {:else}
-    <!-- Controls bar -->
-    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-      <div class="flex items-center gap-3">
-        <label class="flex items-center gap-2 cursor-pointer select-none text-text-label text-sm">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onchange={toggleAll}
-            class="w-4 h-4 rounded border-border-input bg-surface-input accent-primary-600 cursor-pointer"
-          />
-          {allSelected ? 'Deselect all' : 'Select all'}
-          <span class="text-text-muted">({data.maps.length} maps)</span>
-        </label>
+  <!-- Controls bar -->
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div class="flex items-center gap-3">
+      <label class="flex items-center gap-2 cursor-pointer select-none text-text-label text-sm">
+        <input
+          type="checkbox"
+          checked={allSelected}
+          onchange={toggleAll}
+          class="w-4 h-4 rounded border-border-input bg-surface-input accent-primary-600 cursor-pointer"
+        />
+        {allSelected ? 'Deselect all' : 'Select all'}
+        <span class="text-text-muted">({data.maps.length} maps)</span>
+      </label>
 
-        {#if selectedIds.size > 0}
-          <span class="text-text-muted text-sm">
-            {selectedIds.size} map{selectedIds.size !== 1 ? 's' : ''} · {totalFiles} file{totalFiles !==
-            1
-              ? 's'
-              : ''}
-          </span>
-        {/if}
-      </div>
-
-      <div class="flex flex-col items-end gap-2">
-        {#if errorMessage}
-          <p class="text-danger-400 text-sm">{errorMessage}</p>
-        {/if}
-        <Button
-          variant="primary"
-          disabled={selectedIds.size === 0 || downloading}
-          onclick={downloadSelected}
-        >
-          {#if downloading}
-            {downloadPhase === 'preparing' ? 'Preparing zip…' : `Downloading… ${downloadProgress}%`}
-          {:else}
-            Download{selectedIds.size > 0
-              ? ` (${totalFiles} file${totalFiles !== 1 ? 's' : ''})`
-              : ''}
-          {/if}
-        </Button>
-        {#if downloading}
-          <div class="w-48">
-            <div class="w-full h-1 rounded-full bg-surface-input overflow-hidden">
-              <div
-                class="h-full rounded-full bg-primary-600 transition-[width] duration-150"
-                style="width: {downloadProgress}%"
-              ></div>
-            </div>
-          </div>
-        {/if}
-      </div>
+      {#if selectedIds.size > 0}
+        <span class="text-text-muted text-sm">
+          {selectedIds.size} map{selectedIds.size !== 1 ? 's' : ''} · {totalFiles} file{totalFiles !==
+          1
+            ? 's'
+            : ''}
+        </span>
+      {/if}
     </div>
 
-    <!-- Download structure hint -->
-    <Card padding="sm" class="mb-6 text-sm text-text-muted">
-      <p>
-        The zip uses the correct TF2 directory structure:
-        <code class="font-mono text-text-label">maps/</code> for .bsp files and
-        <code class="font-mono text-text-label">addons/sourcemod/configs/mge/</code> for spawn
-        configs. Select individual files per map using the <span class="text-text-label">.bsp</span>
-        / <span class="text-text-label">.cfg</span> chips on each card.
-      </p>
-    </Card>
-
-    <!-- Map grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {#each data.maps as map (map.id)}
-        {@const sel = isSelected(map.id)}
-        {@const fileSel = getSelection(map.id)}
-        <!-- svelte-ignore a11y_interactive_supports_focus -->
-        <div
-          role="button"
-          tabindex="0"
-          onclick={() => toggleMap(map.id)}
-          onkeydown={(e) => (e.key === 'Enter' || e.key === ' ' ? toggleMap(map.id) : null)}
-          class="relative text-left rounded-lg border transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500
-            {sel
-            ? 'border-primary-600 bg-surface-card ring-1 ring-primary-600'
-            : 'border-border-default bg-surface-card hover:border-border-input'}"
-        >
-          <!-- Thumbnail -->
-          <div class="relative aspect-video rounded-t-lg overflow-hidden bg-surface-page">
-            {#if map.thumbnailUrl}
-              <img src={map.thumbnailUrl} alt={map.name} class="w-full h-full object-cover" />
-            {:else}
-              <div
-                class="w-full h-full flex items-center justify-center text-text-muted text-xs font-mono"
-              >
-                {map.name}
-              </div>
-            {/if}
-
-            <!-- Checkbox overlay -->
-            <div class="absolute top-2 right-2">
-              <div
-                class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
-                  {sel
-                  ? 'bg-primary-600 border-primary-600'
-                  : 'bg-surface-card/80 border-border-input'}"
-              >
-                {#if sel}
-                  <svg class="w-3 h-3 text-white" viewBox="0 0 12 12">
-                    <path
-                      d="M2 6l3 3 5-5"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      fill="none"
-                    />
-                  </svg>
-                {/if}
-              </div>
-            </div>
-          </div>
-
-          <!-- Info -->
-          <div class="p-3">
-            <p class="font-mono text-sm font-semibold text-white truncate">{map.name}</p>
-            {#if map.description}
-              <p class="text-text-muted text-xs mt-0.5 line-clamp-2">{map.description}</p>
-            {/if}
-
-            <!-- File size row + per-file toggles when selected -->
-            <div class="flex items-center justify-between mt-2 gap-2">
-              <div class="flex gap-3 text-xs text-text-muted">
-                <span>.bsp {formatBytes(map.bspSizeBytes)}</span>
-                <span>.cfg {formatBytes(map.cfgSizeBytes)}</span>
-              </div>
-
-              {#if sel}
-                <!-- File toggles — stop propagation so they don't toggle the whole card -->
-                <div class="flex gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onclick={(e) => toggleFile(map.id, 'bsp', e)}
-                    title={fileSel.bsp ? 'Exclude .bsp' : 'Include .bsp'}
-                    class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border transition-colors
-                      {fileSel.bsp
-                      ? 'bg-primary-600/20 border-primary-500 text-primary-400'
-                      : 'bg-surface-input border-border-input text-text-muted line-through'}"
-                  >
-                    .bsp
-                  </button>
-                  <button
-                    type="button"
-                    onclick={(e) => toggleFile(map.id, 'cfg', e)}
-                    title={fileSel.cfg ? 'Exclude .cfg' : 'Include .cfg'}
-                    class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border transition-colors
-                      {fileSel.cfg
-                      ? 'bg-primary-600/20 border-primary-500 text-primary-400'
-                      : 'bg-surface-input border-border-input text-text-muted line-through'}"
-                  >
-                    .cfg
-                  </button>
-                </div>
-              {/if}
-            </div>
-          </div>
-        </div>
-      {/each}
-    </div>
-
-    <!-- Sticky bottom bar when something is selected -->
-    {#if selectedIds.size > 0}
-      <div
-        class="fixed bottom-0 left-0 right-0 z-50 bg-surface-card border-t border-border-default shadow-lg"
+    <div class="flex flex-col items-end gap-2">
+      {#if errorMessage}
+        <p class="text-danger-400 text-sm">{errorMessage}</p>
+      {/if}
+      <Button
+        variant="primary"
+        disabled={selectedIds.size === 0 || downloading}
+        onclick={downloadSelected}
       >
         {#if downloading}
-          <div class="w-full h-1 bg-surface-input">
+          {downloadPhase === 'preparing' ? 'Preparing zip…' : `Downloading… ${downloadProgress}%`}
+        {:else}
+          Download{selectedIds.size > 0
+            ? ` (${totalFiles} file${totalFiles !== 1 ? 's' : ''})`
+            : ''}
+        {/if}
+      </Button>
+      {#if downloading}
+        <div class="w-48">
+          <div class="w-full h-1 rounded-full bg-surface-input overflow-hidden">
             <div
-              class="h-full bg-primary-600 transition-[width] duration-150"
+              class="h-full rounded-full bg-primary-600 transition-[width] duration-150"
               style="width: {downloadProgress}%"
             ></div>
           </div>
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  <!-- Download structure hint -->
+  <Card padding="sm" class="mb-6 text-sm text-text-muted">
+    <p>
+      The zip uses the correct TF2 directory structure:
+      <code class="font-mono text-text-label">maps/</code> for .bsp files and
+      <code class="font-mono text-text-label">addons/sourcemod/configs/mge/</code> for spawn
+      configs. Toggle individual file types per map using the
+      <span class="text-text-label">.bsp</span> /
+      <span class="text-text-label">.cfg</span> buttons in the table.
+    </p>
+  </Card>
+
+  <!-- Map table -->
+  <DataTable
+    data={data.maps}
+    {columns}
+    emptyMessage="No maps have been uploaded yet."
+    onRowClick={(row) => toggleMap(row.id)}
+    rowClass={(row) => (isSelected(row.id) ? 'bg-primary-600/5' : '')}
+  >
+    {#snippet cell(row: MapRow, col: Column)}
+      {#if col.key === 'checkbox'}
+        <input
+          type="checkbox"
+          checked={isSelected(row.id)}
+          onclick={(e) => e.stopPropagation()}
+          onchange={() => toggleMap(row.id)}
+          class="w-4 h-4 rounded border-border-input bg-surface-input accent-primary-600 cursor-pointer"
+        />
+      {:else if col.key === 'name'}
+        <p class="font-mono font-semibold text-white">{row.name}</p>
+        {#if row.description}
+          <p class="text-text-muted text-xs mt-0.5 line-clamp-1">{row.description}</p>
         {/if}
-        <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-          <div class="flex flex-col gap-0.5">
-            <span class="text-text-label text-sm">
-              {selectedIds.size} map{selectedIds.size !== 1 ? 's' : ''} · {totalFiles} file{totalFiles !==
-              1
-                ? 's'
-                : ''} selected
+      {:else if col.key === 'bspSize'}
+        <span class="text-text-muted font-mono text-xs">{formatBytes(row.bspSizeBytes)}</span>
+      {:else if col.key === 'cfgSize'}
+        <span class="text-text-muted font-mono text-xs">{formatBytes(row.cfgSizeBytes)}</span>
+      {:else if col.key === 'files'}
+        {@const sel = isSelected(row.id)}
+        {@const fileSel = getSelection(row.id)}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="flex gap-1 justify-end"
+          onclick={(e) => e.stopPropagation()}
+          onkeydown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onclick={(e) => toggleFile(row.id, 'bsp', e)}
+            title={sel && fileSel.bsp ? 'Exclude .bsp' : 'Include .bsp'}
+            class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border transition-colors
+              {sel && fileSel.bsp
+              ? 'bg-primary-600/20 border-primary-500 text-primary-400'
+              : 'bg-surface-input border-border-input text-text-muted'}"
+          >
+            .bsp
+          </button>
+          <button
+            type="button"
+            onclick={(e) => toggleFile(row.id, 'cfg', e)}
+            title={sel && fileSel.cfg ? 'Exclude .cfg' : 'Include .cfg'}
+            class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border transition-colors
+              {sel && fileSel.cfg
+              ? 'bg-primary-600/20 border-primary-500 text-primary-400'
+              : 'bg-surface-input border-border-input text-text-muted'}"
+          >
+            .cfg
+          </button>
+        </div>
+      {/if}
+    {/snippet}
+  </DataTable>
+
+  <!-- Sticky bottom bar when something is selected -->
+  {#if selectedIds.size > 0}
+    <div
+      class="fixed bottom-0 left-0 right-0 z-50 bg-surface-card border-t border-border-default shadow-lg"
+    >
+      {#if downloading}
+        <div class="w-full h-1 bg-surface-input">
+          <div
+            class="h-full bg-primary-600 transition-[width] duration-150"
+            style="width: {downloadProgress}%"
+          ></div>
+        </div>
+      {/if}
+      <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+        <div class="flex flex-col gap-0.5">
+          <span class="text-text-label text-sm">
+            {selectedIds.size} map{selectedIds.size !== 1 ? 's' : ''} · {totalFiles} file{totalFiles !==
+            1
+              ? 's'
+              : ''} selected
+          </span>
+          {#if downloading}
+            <span class="text-text-muted text-xs">
+              {downloadPhase === 'preparing'
+                ? 'Building zip…'
+                : `Downloading… ${downloadProgress}%`}
             </span>
+          {/if}
+        </div>
+        <div class="flex gap-3 items-center">
+          {#if errorMessage}
+            <p class="text-danger-400 text-sm">{errorMessage}</p>
+          {/if}
+          {#if !downloading}
+            <button
+              type="button"
+              onclick={clearAll}
+              class="text-text-muted text-sm hover:text-text-label transition-colors"
+            >
+              Clear
+            </button>
+          {/if}
+          <Button variant="primary" disabled={downloading} onclick={downloadSelected}>
             {#if downloading}
-              <span class="text-text-muted text-xs">
-                {downloadPhase === 'preparing'
-                  ? 'Building zip…'
-                  : `Downloading… ${downloadProgress}%`}
-              </span>
+              {downloadPhase === 'preparing'
+                ? 'Building zip…'
+                : `Downloading… ${downloadProgress}%`}
+            {:else}
+              Download {totalFiles} file{totalFiles !== 1 ? 's' : ''}
             {/if}
-          </div>
-          <div class="flex gap-3 items-center">
-            {#if errorMessage}
-              <p class="text-danger-400 text-sm">{errorMessage}</p>
-            {/if}
-            {#if !downloading}
-              <button
-                type="button"
-                onclick={clearAll}
-                class="text-text-muted text-sm hover:text-text-label transition-colors"
-              >
-                Clear
-              </button>
-            {/if}
-            <Button variant="primary" disabled={downloading} onclick={downloadSelected}>
-              {#if downloading}
-                {downloadPhase === 'preparing'
-                  ? 'Building zip…'
-                  : `Downloading… ${downloadProgress}%`}
-              {:else}
-                Download {totalFiles} file{totalFiles !== 1 ? 's' : ''}
-              {/if}
-            </Button>
-          </div>
+          </Button>
         </div>
       </div>
-    {/if}
+    </div>
   {/if}
 </div>

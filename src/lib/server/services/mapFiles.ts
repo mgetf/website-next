@@ -2,7 +2,7 @@
  * Map Files Service
  *
  * Handles upload, retrieval, and deletion of MGE map download packages.
- * Each entry bundles a .bsp map file with its .cfg spawn config, plus an optional thumbnail.
+ * Each entry bundles a .bsp map file with its .cfg spawn config.
  */
 
 import { prisma } from '$lib/server/db';
@@ -27,7 +27,6 @@ export interface MapFileRow {
   bspSize: bigint;
   cfgUrl: string;
   cfgSize: bigint;
-  thumbnailUrl: string | null;
   description: string | null;
   uploadedBy: string;
   uploaderName: string;
@@ -42,7 +41,6 @@ export interface MapFileSummary {
   bspSizeBytes: number;
   cfgUrl: string;
   cfgSizeBytes: number;
-  thumbnailUrl: string | null;
   description: string | null;
   createdAt: string;
 }
@@ -55,10 +53,6 @@ function bspKey(name: string) {
 
 function cfgKey(name: string) {
   return `maps/configs/${name}.cfg`;
-}
-
-function thumbnailKey(name: string, ext: string) {
-  return `maps/thumbnails/${name}${ext}`;
 }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -85,7 +79,6 @@ export async function getMapFiles(): Promise<MapFileRow[]> {
     bspSize: m.bspSize,
     cfgUrl: m.cfgUrl,
     cfgSize: m.cfgSize,
-    thumbnailUrl: m.thumbnailUrl,
     description: m.description,
     uploadedBy: m.uploadedBy,
     uploaderName: m.uploader.steamUsername,
@@ -120,16 +113,14 @@ export async function getMapFilesByIds(ids: number[]) {
 export async function createMapFile(params: {
   bspFile: File;
   cfgFile: File;
-  thumbnailFile?: File | null;
   description?: string | null;
   uploadedBy: string;
 }) {
-  const { bspFile, cfgFile, thumbnailFile, description, uploadedBy } = params;
+  const { bspFile, cfgFile, description, uploadedBy } = params;
 
   // Validate files
   validateUploadedFile(bspFile, 'bsp');
   validateUploadedFile(cfgFile, 'cfg');
-  if (thumbnailFile) validateUploadedFile(thumbnailFile, 'image');
 
   // Derive the canonical map name from the BSP filename (strip extension)
   const rawName = path.basename(bspFile.name, '.bsp').toLowerCase().trim();
@@ -147,7 +138,6 @@ export async function createMapFile(params: {
   // Save temp files and read buffers
   const bspTempPath = await saveTempFile(bspFile);
   const cfgTempPath = await saveTempFile(cfgFile);
-  let thumbnailTempPath: string | null = null;
 
   try {
     const bspBuffer = fs.readFileSync(bspTempPath);
@@ -161,19 +151,6 @@ export async function createMapFile(params: {
     const cfgUrl = await uploadBufferToR2(cfgBuffer, cfgKey(rawName), 'text/plain');
     if (!cfgUrl) badRequest('R2 storage is not configured — cannot upload config files');
 
-    // Upload thumbnail (optional)
-    let thumbUrl: string | null = null;
-    if (thumbnailFile) {
-      thumbnailTempPath = await saveTempFile(thumbnailFile);
-      const thumbBuffer = fs.readFileSync(thumbnailTempPath);
-      const thumbExt = path.extname(thumbnailFile.name).toLowerCase();
-      thumbUrl = await uploadBufferToR2(
-        thumbBuffer,
-        thumbnailKey(rawName, thumbExt),
-        thumbnailFile.type || 'image/jpeg',
-      );
-    }
-
     // bspUrl and cfgUrl are guaranteed non-null here: badRequest throws above
     return await prisma.mapFile.create({
       data: {
@@ -182,7 +159,6 @@ export async function createMapFile(params: {
         bspSize: BigInt(bspFile.size),
         cfgUrl: cfgUrl as string,
         cfgSize: BigInt(cfgFile.size),
-        thumbnailUrl: thumbUrl,
         description: description?.trim() || null,
         uploadedBy,
       },
@@ -190,33 +166,30 @@ export async function createMapFile(params: {
   } finally {
     deleteTempFile(bspTempPath);
     deleteTempFile(cfgTempPath);
-    if (thumbnailTempPath) deleteTempFile(thumbnailTempPath);
   }
 }
 
 /**
  * Create a MapFile record after the BSP has already been uploaded directly to R2
- * via a presigned PUT URL. CFG and thumbnail are still uploaded through the server
- * (they are small enough to pass through Cloudflare without issue).
+ * via a presigned PUT URL. CFG is still uploaded through the server
+ * (it is small enough to pass through Cloudflare without issue).
  */
 export async function createMapFileFromPresigned(params: {
   bspKey: string;
   bspSize: number;
   cfgFile: File;
-  thumbnailFile?: File | null;
   description?: string | null;
   uploadedBy: string;
 }) {
-  const { bspKey: bspR2Key, bspSize, cfgFile, thumbnailFile, description, uploadedBy } = params;
+  const { bspKey: bspR2Key, bspSize, cfgFile, description, uploadedBy } = params;
 
   // Derive canonical map name from the BSP key (e.g. "maps/mge_foo.bsp" → "mge_foo")
   const keyBasename = path.basename(bspR2Key, '.bsp'); // "mge_foo"
   const rawName = keyBasename.toLowerCase().trim();
   if (!rawName) badRequest('Could not derive map name from bspKey');
 
-  // Validate CFG + optional thumbnail (BSP was already validated at presign time)
+  // Validate CFG (BSP was already validated at presign time)
   validateUploadedFile(cfgFile, 'cfg');
-  if (thumbnailFile) validateUploadedFile(thumbnailFile, 'image');
 
   // Verify the map name was not claimed between presign and finalize
   const existing = await prisma.mapFile.findUnique({ where: { name: rawName } });
@@ -228,25 +201,11 @@ export async function createMapFileFromPresigned(params: {
 
   // Upload CFG through server
   const cfgTempPath = await saveTempFile(cfgFile);
-  let thumbnailTempPath: string | null = null;
 
   try {
     const cfgBuffer = fs.readFileSync(cfgTempPath);
     const cfgUrl = await uploadBufferToR2(cfgBuffer, cfgKey(rawName), 'text/plain');
     if (!cfgUrl) badRequest('R2 storage is not configured — cannot upload config file');
-
-    // Upload thumbnail (optional)
-    let thumbUrl: string | null = null;
-    if (thumbnailFile) {
-      thumbnailTempPath = await saveTempFile(thumbnailFile);
-      const thumbBuffer = fs.readFileSync(thumbnailTempPath);
-      const thumbExt = path.extname(thumbnailFile.name).toLowerCase();
-      thumbUrl = await uploadBufferToR2(
-        thumbBuffer,
-        thumbnailKey(rawName, thumbExt),
-        thumbnailFile.type || 'image/jpeg',
-      );
-    }
 
     return await prisma.mapFile.create({
       data: {
@@ -255,14 +214,12 @@ export async function createMapFileFromPresigned(params: {
         bspSize: BigInt(bspSize),
         cfgUrl: cfgUrl as string,
         cfgSize: BigInt(cfgFile.size),
-        thumbnailUrl: thumbUrl,
         description: description?.trim() || null,
         uploadedBy,
       },
     });
   } finally {
     deleteTempFile(cfgTempPath);
-    if (thumbnailTempPath) deleteTempFile(thumbnailTempPath);
   }
 }
 
@@ -286,11 +243,6 @@ export async function deleteMapFile(id: number): Promise<void> {
   // Remove files from R2 (best-effort — don't fail if already gone)
   await deleteFromR2(bspKey(m.name));
   await deleteFromR2(cfgKey(m.name));
-  if (m.thumbnailUrl) {
-    // Derive key from URL by stripping the base URL prefix
-    const thumbKey = m.thumbnailUrl.replace(/^https?:\/\/[^/]+\//, '');
-    await deleteFromR2(thumbKey);
-  }
 
   await prisma.mapFile.delete({ where: { id } });
 }

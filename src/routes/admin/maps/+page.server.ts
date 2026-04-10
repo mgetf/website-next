@@ -35,7 +35,6 @@ export const load: PageServerLoad = async ({ locals }) => {
       bspSizeBytes: Number(m.bspSize),
       cfgUrl: m.cfgUrl,
       cfgSizeBytes: Number(m.cfgSize),
-      thumbnailUrl: m.thumbnailUrl,
       description: m.description,
       uploadedBy: m.uploadedBy,
       uploaderName: m.uploaderName,
@@ -56,7 +55,6 @@ export const actions: Actions = {
     const formData = await request.formData();
     const bspFile = formData.get('bspFile');
     const cfgFile = formData.get('cfgFile');
-    const thumbnailFile = formData.get('thumbnailFile');
     const description = formData.get('description');
 
     if (!(bspFile instanceof File) || bspFile.size === 0) {
@@ -67,14 +65,10 @@ export const actions: Actions = {
       return fail(400, { error: 'A .cfg spawn config file is required' });
     }
 
-    const thumbnail =
-      thumbnailFile instanceof File && thumbnailFile.size > 0 ? thumbnailFile : null;
-
     try {
       const mapFile = await createMapFile({
         bspFile,
         cfgFile,
-        thumbnailFile: thumbnail,
         description: typeof description === 'string' ? description : null,
         uploadedBy: locals.user!.steamId,
       });

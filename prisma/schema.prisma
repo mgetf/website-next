@@ -937,7 +937,6 @@ model MapFile {
   bspSize      BigInt   @map("bsp_size")
   cfgUrl       String   @map("cfg_url")
   cfgSize      BigInt   @map("cfg_size")
-  thumbnailUrl String?  @map("thumbnail_url")
   description  String?
   uploadedBy   String   @map("uploaded_by")
   createdAt    DateTime @default(now()) @map("created_at")

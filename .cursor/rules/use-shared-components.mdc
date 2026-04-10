@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Components
 
-NEVER write inline button, card, or badge styles. Always use the shared components from `$lib/components/ui/`.
+NEVER write inline button, card, badge, or table styles. Always use the shared components from `$lib/components/ui/`.
 
 ### Button
 
@@ -98,6 +98,47 @@ Use semantic token class names instead of raw Tailwind color classes. These are 
 **Only use `format-2v2-*` or `format-1v1-*` tokens when the context is explicitly about that format** (league cards, format-specific sections, format badges). For generic actions that are not format-specific, always use `primary-*` (orange).
 
 Admin pages use `primary-*` (orange), not blue. Blue is reserved for 2v2 format contexts only.
+
+### DataTable
+
+```svelte
+<!-- ✅ CORRECT -->
+import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
+
+const columns: Column[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'status', label: 'Status', align: 'center' },
+  { key: 'actions', label: 'Actions', align: 'right', srOnly: true },
+];
+
+<DataTable {data} {columns}>
+  {#snippet cell(row, col)}
+    {#if col.key === 'name'}
+      <span class="font-semibold text-white">{row.name}</span>
+    {:else if col.key === 'status'}
+      <Badge color="green">{row.status}</Badge>
+    {:else if col.key === 'actions'}
+      <Button variant="ghost" size="sm">Edit</Button>
+    {/if}
+  {/snippet}
+</DataTable>
+
+<!-- ❌ WRONG — raw table with inline styles -->
+<div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+  <table class="w-full">...</table>
+</div>
+```
+
+**Props:**
+- `data: T[]` — array of row objects
+- `columns: Column[]` — column definitions (`key`, `label`, `align?`, `width?`, `srOnly?`)
+- `cell: Snippet<[T, Column]>` — render snippet for each cell
+- `emptyMessage?` / `emptyIcon?` — shown when data is empty
+- `onRowClick?: (row: T) => void` — makes rows clickable
+- `rowClass?: (row: T) => string` — conditional row styling
+- `compact?: boolean` — tighter padding
+- `pagination?: { currentPage, totalPages, onPageChange, infoText? }` — adds paginator
+- `expandedRow? / expandedContent?` — collapsible row detail
 
 ---
 

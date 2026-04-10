@@ -15,6 +15,7 @@ Route `.svelte` files must use shared components and design tokens, not raw Tail
 - **Labeled text input:** `FormInput` from `$lib/components/ui/form/FormInput.svelte`
 - **Labeled dropdown:** `FormSelect` from `$lib/components/ui/form/FormSelect.svelte`
 - **Destructive confirmation:** `ConfirmDialog` from `$lib/components/ui/ConfirmDialog.svelte` (never `window.confirm()`)
+- **Data table / list:** `DataTable` from `$lib/components/ui/DataTable.svelte` (never raw `<table>` with inline styles)
 
 ## For any remaining color needs, use semantic tokens:
 

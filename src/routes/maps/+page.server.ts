@@ -8,7 +8,6 @@ export const load: PageServerLoad = async () => {
     maps: maps.map((m) => ({
       id: m.id,
       name: m.name,
-      thumbnailUrl: m.thumbnailUrl,
       description: m.description,
       bspSizeBytes: Number(m.bspSize),
       cfgSizeBytes: Number(m.cfgSize),

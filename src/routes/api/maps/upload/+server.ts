@@ -18,7 +18,6 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
   const bspKey = formData.get('bspKey');
   const bspSizeRaw = formData.get('bspSize');
   const cfgFile = formData.get('cfgFile');
-  const thumbnailFile = formData.get('thumbnailFile');
   const description = formData.get('description');
 
   if (typeof bspKey !== 'string' || !bspKey.trim()) {
@@ -34,14 +33,11 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
     return json({ error: 'A .cfg spawn config file is required' }, { status: 400 });
   }
 
-  const thumbnail = thumbnailFile instanceof File && thumbnailFile.size > 0 ? thumbnailFile : null;
-
   try {
     const mapFile = await createMapFileFromPresigned({
       bspKey: bspKey.trim(),
       bspSize,
       cfgFile,
-      thumbnailFile: thumbnail,
       description: typeof description === 'string' ? description : null,
       uploadedBy: locals.user!.steamId,
     });

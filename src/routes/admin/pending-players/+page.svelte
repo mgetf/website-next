@@ -4,6 +4,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import { steamId32FromSteamId64 } from '$lib/utils/steamid';
 
   let { data }: { data: PageData } = $props();
 
@@ -34,14 +35,6 @@
     });
   });
 
-  function steamIdToSteam2(steamId64: string): string {
-    const id = BigInt(steamId64);
-    const accountId = id - BigInt('76561197960265728');
-    const y = accountId / BigInt(2);
-    const x = accountId % BigInt(2);
-    return `STEAM_0:${x}:${y}`;
-  }
-
   function getRglUrl(steamId: string): string {
     return `https://rgl.gg/Public/PlayerProfile.aspx?p=${steamId}`;
   }
@@ -51,7 +44,7 @@
   }
 
   function getUgcUrl(steamId: string): string {
-    const steam2Id = steamIdToSteam2(steamId);
+    const steam2Id = steamId32FromSteamId64(steamId);
     return `https://stats.ugc-gaming.net/mge-stats/?search=${encodeURIComponent(steam2Id)}`;
   }
 

@@ -2,17 +2,19 @@
   import { enhance } from '$app/forms';
   import { toast } from '$lib/state/toast.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import type { CheckoutTeamSelection } from '$lib/types/checkout';
 
   let {
-    teamId,
-    itemPaymentConfig,
+    teams,
+    itemName,
+    totalItemsRequired,
     botTradeOfferUrl,
     botProfile,
     pendingItemOrder,
-    paidForSteamIds,
   }: {
-    teamId: number;
-    itemPaymentConfig: { itemName: string; itemQuantity: number; itemAppId: number };
+    teams: CheckoutTeamSelection[];
+    itemName: string;
+    totalItemsRequired: number;
     botTradeOfferUrl: string | null;
     botProfile: { steamId: string; name: string; avatar: string; profileUrl: string } | null;
     pendingItemOrder: {
@@ -21,7 +23,6 @@
       itemsRequired: number;
       expiresAt: string;
     } | null;
-    paidForSteamIds: string[];
   } = $props();
 
   let isSubmitting = $state(false);
@@ -68,7 +69,7 @@
         const data = await res.json();
         if (data.status === 'COMPLETED') {
           stopPolling();
-          window.location.href = `/teams/${teamId}?payment=success`;
+          window.location.href = `/checkout/${teams[0]?.teamId}?payment=success`;
         } else if (data.status === 'EXPIRED' || data.status === 'CANCELLED') {
           stopPolling();
           order = null;
@@ -149,17 +150,14 @@
         };
       }}
     >
-      <input type="hidden" name="teamId" value={teamId} />
-      <input type="hidden" name="paidForSteamIds" value={JSON.stringify(paidForSteamIds)} />
+      <input type="hidden" name="teams" value={JSON.stringify(teams)} />
       <Button
         type="submit"
         variant="primary"
         disabled={isSubmitting}
         class="w-full py-4 text-lg font-bold"
       >
-        {isSubmitting
-          ? 'Creating Order...'
-          : `Pay with ${itemPaymentConfig.itemQuantity}x ${itemPaymentConfig.itemName}`}
+        {isSubmitting ? 'Creating Order...' : `Pay with ${totalItemsRequired}x ${itemName}`}
       </Button>
     </form>
   </div>

@@ -11,9 +11,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     requireAuth(locals.user);
 
     const body = await request.json();
-    const { amount, currency, steamId, teamId, paidForSteamIds } = body;
+    const { amount, currency, steamId, teams, teamId, paidForSteamIds } = body;
 
-    if (!amount || !currency || !steamId || !teamId) {
+    if (!amount || !currency || !steamId) {
+      return json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Normalise to teams array; fall back to legacy single-team shape
+    const teamsArray: { teamId: number; paidForSteamIds: string[] }[] =
+      Array.isArray(teams) && teams.length > 0
+        ? teams
+        : teamId
+          ? [{ teamId, paidForSteamIds: Array.isArray(paidForSteamIds) ? paidForSteamIds : [] }]
+          : [];
+
+    if (teamsArray.length === 0) {
       return json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -24,17 +36,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       );
     }
 
-    if (paidForSteamIds && !Array.isArray(paidForSteamIds)) {
-      return json({ error: 'paidForSteamIds must be an array' }, { status: 400 });
-    }
-
     const baseUrl = env.PUBLIC_URL || 'http://localhost:5173';
+    const firstTeamId = teamsArray[0]!.teamId;
+    const customId = teamsArray.length > 1 ? `${steamId}|multi` : `${steamId}|${firstTeamId}`;
 
     const result = await createPayPalOrder({
       amount,
       currency,
       steamId,
-      teamId,
+      teamId: firstTeamId,
+      customId,
       returnUrl: `${baseUrl}/checkout/${steamId}`,
       cancelUrl: `${baseUrl}/checkout/${steamId}`,
     });
@@ -43,7 +54,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       // Log error server-side (sanitized - no sensitive data)
       await logError('PayPal create-order failed', {
         steamId,
-        teamId,
+        firstTeamId,
         amount,
         currency,
         error: result.error || 'Unknown error',

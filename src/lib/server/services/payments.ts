@@ -8,6 +8,7 @@ import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import type { CheckoutParticipation } from '$lib/types/checkout';
 
 /**
  * Get user's active team for checkout.
@@ -393,6 +394,160 @@ export async function getUserPaymentHistory(
   const paginated = entries.slice(start, start + limit);
 
   return { entries: paginated, total };
+}
+
+/**
+ * Load all unpaid participations for a user across all their active teams.
+ * Used by the multi-team checkout page.
+ */
+export async function getAllUnpaidParticipations(
+  steamId: string,
+): Promise<CheckoutParticipation[]> {
+  const playerInTeams = await prisma.playerInTeam.findMany({
+    where: {
+      playerSteamId: steamId,
+      active: 1,
+      paymentStatus: 0,
+      team: {
+        division: { signupCost: { gt: 0 } },
+      },
+    },
+    include: {
+      team: {
+        include: {
+          division: {
+            include: {
+              itemPayment: { include: { steamItem: true } },
+            },
+          },
+          region: true,
+          season: true,
+          format: true,
+        },
+      },
+    },
+  });
+
+  const result: CheckoutParticipation[] = [];
+
+  for (const pit of playerInTeams) {
+    const team = pit.team;
+    const division = team.division;
+    const region = team.region;
+    const season = team.season;
+
+    if (!division || !team.seasonId) continue;
+
+    const unpaidPlayers = await getTeamUnpaidPlayers(team.id, team.seasonId);
+
+    result.push({
+      teamId: team.id,
+      teamName: team.name,
+      teamAvatar: team.avatar,
+      formatName: team.format.name,
+      formatId: team.formatId,
+      divisionName: division.name,
+      divisionId: division.id,
+      regionName: region?.name ?? null,
+      seasonNum: season?.seasonNum ?? null,
+      seasonId: team.seasonId,
+      signupCost: division.signupCost,
+      currency: region?.currencyCode ?? 'USD',
+      currencySymbol: region?.currencySymbol ?? '$',
+      unpaidPlayers,
+      itemPaymentConfig: division.itemPayment
+        ? {
+            itemName: division.itemPayment.steamItem.name,
+            itemQuantity: division.itemPayment.itemQuantity,
+            itemAppId: division.itemPayment.steamItem.appId,
+          }
+        : null,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Record completed PayPal captures for multiple teams in a single transaction.
+ * League fee is charged once per season and is tracked via PaymentTracker;
+ * we simply record the signupCost increment per player (matching single-team behaviour).
+ */
+export async function recordMultiTeamPayPalCapture(options: {
+  payerSteamId: string;
+  teams: { teamId: number; paidForSteamIds: string[] }[];
+  captureId: string;
+  currency: string;
+}): Promise<void> {
+  const { payerSteamId, teams, captureId, currency } = options;
+
+  const teamRecords = await prisma.team.findMany({
+    where: { id: { in: teams.map((t) => t.teamId) } },
+    include: { division: true },
+  });
+
+  const teamMap = new Map(teamRecords.map((t) => [t.id, t]));
+
+  await prisma.$transaction(async (tx) => {
+    let paymentIndex = 0;
+
+    for (const { teamId, paidForSteamIds } of teams) {
+      const team = teamMap.get(teamId);
+      if (!team?.seasonId) continue;
+
+      const seasonId = team.seasonId;
+      const signupCost = team.division?.signupCost ?? 0;
+
+      for (const targetSteamId of paidForSteamIds) {
+        const pit = await tx.playerInTeam.findUnique({
+          where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId } },
+        });
+        if (!pit || pit.paymentStatus !== 0) {
+          paymentIndex++;
+          continue;
+        }
+
+        await tx.paymentTracker.upsert({
+          where: { playerSteamId_seasonId: { playerSteamId: targetSteamId, seasonId } },
+          create: { playerSteamId: targetSteamId, seasonId, amount: signupCost },
+          update: { amount: { increment: signupCost } },
+        });
+
+        await tx.payment.create({
+          data: {
+            paymentId: `${captureId}-${paymentIndex}`,
+            purchasedFor: targetSteamId,
+            purchasedBy: payerSteamId,
+            amount: signupCost.toString(),
+            currency,
+            purchaseDate: new Date(),
+            description: `Team signup payment - Team #${teamId}`,
+            teamId,
+          },
+        });
+
+        await tx.playerInTeam.update({
+          where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId } },
+          data: { paymentStatus: 1 },
+        });
+
+        paymentIndex++;
+      }
+
+      const paidPlayersCount = await tx.playerInTeam.count({
+        where: { teamId, active: 1, paymentStatus: 1 },
+      });
+
+      const requiredPaidPlayers = team.formatId === FORMAT_1V1 ? 1 : 2;
+
+      if (paidPlayersCount >= requiredPaidPlayers) {
+        await tx.team.update({
+          where: { id: teamId },
+          data: { paymentStatus: 1 },
+        });
+      }
+    }
+  });
 }
 
 /**

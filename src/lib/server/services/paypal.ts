@@ -133,10 +133,12 @@ export async function createPayPalOrder(params: {
   currency: string;
   steamId: string;
   teamId: number;
+  customId?: string;
   returnUrl: string;
   cancelUrl: string;
 }): Promise<{ success: boolean; order?: any; error?: string }> {
-  const { amount, currency, steamId, teamId, returnUrl, cancelUrl } = params;
+  const { amount, currency, steamId, teamId, customId, returnUrl, cancelUrl } = params;
+  const resolvedCustomId = customId ?? `${steamId}|${teamId}`;
   const config = getPayPalConfig();
 
   // TEST MODE: Return mock order
@@ -186,7 +188,7 @@ export async function createPayPalOrder(params: {
               value: amount.toFixed(2),
             },
             description: `MGE.tf Team Signup - Team #${teamId}`,
-            custom_id: `${steamId}|${teamId}`,
+            custom_id: resolvedCustomId,
           },
         ],
         application_context: {

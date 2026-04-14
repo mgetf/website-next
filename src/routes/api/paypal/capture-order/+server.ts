@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { capturePayPalOrder, isPayPalTestMode } from '$lib/server/services/paypal';
-import { recordPayPalCapture } from '$lib/server/services/payments';
+import { recordPayPalCapture, recordMultiTeamPayPalCapture } from '$lib/server/services/payments';
 import { logError } from '$lib/server/utils/logger';
 import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -14,13 +14,26 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
     const {
       orderID,
       steamId,
+      teams,
       teamId,
       amount: requestAmount,
       currency: requestCurrency,
       paidForSteamIds,
     } = body;
 
-    if (!orderID || !steamId || !teamId) {
+    if (!orderID || !steamId) {
+      return json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Normalise to teams array; fall back to legacy single-team shape
+    const teamsArray: { teamId: number; paidForSteamIds: string[] }[] =
+      Array.isArray(teams) && teams.length > 0
+        ? teams
+        : teamId
+          ? [{ teamId, paidForSteamIds: Array.isArray(paidForSteamIds) ? paidForSteamIds : [] }]
+          : [];
+
+    if (teamsArray.length === 0) {
       return json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -31,11 +44,10 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       );
     }
 
-    const targets: string[] =
-      Array.isArray(paidForSteamIds) && paidForSteamIds.length > 0 ? paidForSteamIds : [steamId];
+    const firstTeamId = teamsArray[0]!.teamId;
 
     const testData = isPayPalTestMode()
-      ? { steamId, teamId, amount: requestAmount, currency: requestCurrency }
+      ? { steamId, teamId: firstTeamId, amount: requestAmount, currency: requestCurrency }
       : undefined;
 
     const result = await capturePayPalOrder(orderID, testData);
@@ -73,14 +85,27 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
     const amount = parseFloat(capture.amount.value);
     const currency = capture.amount.currency_code;
 
-    await recordPayPalCapture({
-      payerSteamId: steamId,
-      paidForSteamIds: targets,
-      teamId,
-      captureId: capture.id,
-      amount,
-      currency,
-    });
+    if (teamsArray.length > 1) {
+      await recordMultiTeamPayPalCapture({
+        payerSteamId: steamId,
+        teams: teamsArray,
+        captureId: capture.id,
+        currency,
+      });
+    } else {
+      const single = teamsArray[0]!;
+      const targets: string[] =
+        single.paidForSteamIds.length > 0 ? single.paidForSteamIds : [steamId];
+
+      await recordPayPalCapture({
+        payerSteamId: steamId,
+        paidForSteamIds: targets,
+        teamId: single.teamId,
+        captureId: capture.id,
+        amount,
+        currency,
+      });
+    }
 
     await logAudit({
       actorId: locals.user?.steamId,
@@ -88,12 +113,18 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       category: AuditCategory.PAYMENT,
       action: AuditAction.PAYMENT_CAPTURED,
       targetType: 'Team',
-      targetId: String(teamId),
-      metadata: { paymentId: capture.id, amount, currency, steamId, paidForSteamIds: targets },
+      targetId: teamsArray.map((t) => String(t.teamId)).join(','),
+      metadata: {
+        paymentId: capture.id,
+        amount,
+        currency,
+        steamId,
+        teams: teamsArray,
+      },
       ipAddress: getClientAddress(),
     });
 
-    return json({ success: true, teamId });
+    return json({ success: true, teamId: firstTeamId });
   } catch (err) {
     await logError('PayPal capture-order exception', {
       error: err instanceof Error ? err.message : 'Unknown error',

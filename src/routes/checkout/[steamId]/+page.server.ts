@@ -1,13 +1,13 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth, isBanned } from '$lib/server/auth/permissions';
-import { getUserActiveTeamForCheckout, getTeamUnpaidPlayers } from '$lib/server/services/payments';
+import { getAllUnpaidParticipations } from '$lib/server/services/payments';
 import { isPayPalTestMode, getPayPalConfig } from '$lib/server/services/paypal';
 import { getGlobalSettings } from '$lib/server/services/settings';
-import { getItemPaymentByDivisionId } from '$lib/server/services/division-item-payments';
 import {
   createItemPaymentOrder,
+  createMultiTeamItemOrder,
   cancelItemPaymentOrder,
-  getPendingOrderForCheckout,
+  getPendingOrderForUser,
 } from '$lib/server/services/item-payments';
 import { fetchSteamProfile } from '$lib/server/services/users';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -15,17 +15,17 @@ import { redirect, fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { logPrismaError } from '$lib/server/utils/prisma-errors';
+import type { CheckoutTeamSelection } from '$lib/types/checkout';
 
 const createItemOrderSchema = z.object({
-  teamId: z.coerce.number().int().positive('Invalid team ID'),
-  paidForSteamIds: z.string().optional().default(''),
+  teams: z.string().min(1, 'Missing teams'),
 });
 
 const cancelItemOrderSchema = z.object({
   orderNumber: z.string().min(1, 'Missing order number'),
 });
 
-export const load: PageServerLoad = async ({ params, locals, url }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
   requireAuth(locals.user);
 
   const steamId = params.steamId;
@@ -34,79 +34,18 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     throw redirect(303, '/');
   }
 
-  const teamIdParam = url.searchParams.get('teamId');
-  const teamId = teamIdParam ? parseInt(teamIdParam, 10) : undefined;
+  const participations = await getAllUnpaidParticipations(steamId);
 
-  const playerInTeam = await getUserActiveTeamForCheckout(steamId, teamId);
-
-  if (!playerInTeam || !playerInTeam.team) {
+  if (participations.length === 0) {
     throw redirect(303, '/');
   }
 
-  const team = playerInTeam.team;
-  const division = team.division;
-  const region = team.region;
-  const season = team.season;
-  const format = team.format;
-
-  if (!division) {
-    throw redirect(303, `/teams/${team.id}`);
-  }
-
-  if (division.signupCost === 0) {
-    throw redirect(303, `/teams/${team.id}`);
-  }
-
-  if (!team.seasonId) {
-    throw redirect(303, `/teams/${team.id}`);
-  }
-
-  const unpaidPlayers = await getTeamUnpaidPlayers(team.id, team.seasonId);
-
-  if (unpaidPlayers.length === 0) {
-    return {
-      allPaid: true as const,
-      team: { id: team.id, name: team.name, avatar: team.avatar },
-      unpaidPlayers: [],
-      division: { id: division.id, name: division.name },
-      format: { name: format.name },
-      region: region ? { name: region.name } : null,
-      season: season ? { seasonNum: season.seasonNum } : null,
-      currency: region?.currencyCode ?? 'USD',
-      currencySymbol: region?.currencySymbol ?? '$',
-      currentUserIsPaid: true,
-      steamId,
-      paypalClientId: '',
-      isTestMode: false,
-      itemPaymentConfig: null as {
-        itemName: string;
-        itemQuantity: number;
-        itemAppId: number;
-      } | null,
-      botTradeOfferUrl: null as string | null,
-      botProfile: null as {
-        steamId: string;
-        name: string;
-        avatar: string;
-        profileUrl: string;
-      } | null,
-      pendingItemOrder: null as {
-        orderNumber: string;
-        itemName: string;
-        itemsRequired: number;
-        expiresAt: string;
-      } | null,
-    };
-  }
-
-  const currentUserIsPaid = !unpaidPlayers.some((p) => p.steamId === steamId);
-
-  const [globalSettings, itemPaymentConfig] = await Promise.all([
+  const [globalSettings, paypalConfig] = await Promise.all([
     getGlobalSettings(),
-    getItemPaymentByDivisionId(division.id),
+    Promise.resolve(getPayPalConfig()),
   ]);
 
-  const paypalClientId = getPayPalConfig().clientId;
+  const paypalClientId = paypalConfig.clientId;
   const isTestMode = isPayPalTestMode();
 
   let botProfile: { steamId: string; name: string; avatar: string; profileUrl: string } | null =
@@ -123,41 +62,24 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     }
   }
 
-  let pendingItemOrder: {
-    orderNumber: string;
-    itemName: string;
-    itemsRequired: number;
-    expiresAt: string;
-  } | null = null;
-
-  if (itemPaymentConfig) {
-    pendingItemOrder = await getPendingOrderForCheckout(steamId, team.id);
-  }
+  const pendingItemOrder = await getPendingOrderForUser(steamId);
 
   return {
-    allPaid: false as const,
-    team: { id: team.id, name: team.name, avatar: team.avatar },
-    unpaidPlayers,
-    division: { id: division.id, name: division.name },
-    format: { name: format.name },
-    region: region ? { name: region.name } : null,
-    season: season ? { seasonNum: season.seasonNum } : null,
-    currency: region?.currencyCode ?? 'USD',
-    currencySymbol: region?.currencySymbol ?? '$',
-    currentUserIsPaid,
     steamId,
+    participations,
     paypalClientId,
     isTestMode,
-    itemPaymentConfig: itemPaymentConfig
-      ? {
-          itemName: itemPaymentConfig.steamItem.name,
-          itemQuantity: itemPaymentConfig.itemQuantity,
-          itemAppId: itemPaymentConfig.steamItem.appId,
-        }
-      : null,
     botTradeOfferUrl: globalSettings?.botTradeOfferUrl ?? null,
     botProfile,
-    pendingItemOrder,
+    pendingItemOrder: pendingItemOrder
+      ? {
+          orderNumber: pendingItemOrder.orderNumber,
+          itemName: pendingItemOrder.itemName,
+          itemsRequired: pendingItemOrder.itemsRequired,
+          expiresAt: pendingItemOrder.expiresAt,
+          checkoutTeams: pendingItemOrder.checkoutTeams,
+        }
+      : null,
   };
 };
 
@@ -169,14 +91,28 @@ export const actions: Actions = {
     const validation = validateForm(formData, createItemOrderSchema);
     if (!validation.success) return validationError(validation.errors);
 
-    const { teamId, paidForSteamIds: paidForRaw } = validation.data;
+    const teams = JSON.parse(validation.data.teams) as CheckoutTeamSelection[];
 
-    const paidForSteamIds = paidForRaw
-      ? (JSON.parse(paidForRaw) as string[])
-      : [locals.user!.steamId];
+    if (!Array.isArray(teams) || teams.length === 0) {
+      return fail(400, { error: 'Invalid teams selection' });
+    }
 
     try {
-      const order = await createItemPaymentOrder(locals.user!.steamId, teamId, paidForSteamIds);
+      let order: {
+        orderNumber: string;
+        itemName: string;
+        itemsRequired: number;
+        expiresAt: Date;
+      };
+
+      if (teams.length === 1) {
+        const single = teams[0]!;
+        const paidForSteamIds =
+          single.paidForSteamIds.length > 0 ? single.paidForSteamIds : [locals.user!.steamId];
+        order = await createItemPaymentOrder(locals.user!.steamId, single.teamId, paidForSteamIds);
+      } else {
+        order = await createMultiTeamItemOrder(locals.user!.steamId, teams);
+      }
 
       await logAudit({
         actorId: locals.user!.steamId,
@@ -184,13 +120,12 @@ export const actions: Actions = {
         category: AuditCategory.PAYMENT,
         action: AuditAction.ITEM_ORDER_CREATED,
         targetType: 'Team',
-        targetId: String(teamId),
+        targetId: teams.map((t) => String(t.teamId)).join(','),
         metadata: {
           orderNumber: order.orderNumber,
-          teamId,
+          teams,
           itemName: order.itemName,
           itemsRequired: order.itemsRequired,
-          paidForSteamIds,
         },
         ipAddress: getClientAddress(),
       });
@@ -206,7 +141,7 @@ export const actions: Actions = {
       };
     } catch (err) {
       logPrismaError('checkout.actions.createItemOrder', err, {
-        teamId,
+        teams,
         actorSteamId: locals.user?.steamId ?? null,
       });
       console.error('Error creating item order:', err);

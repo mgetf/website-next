@@ -710,11 +710,7 @@
                 </p>
               </div>
             </div>
-            <Button
-              variant="warning"
-              href="/checkout/{player.steamId}?teamId={activeEntry.id}"
-              class="flex-shrink-0"
-            >
+            <Button variant="warning" href="/checkout/{player.steamId}" class="flex-shrink-0">
               Go to Checkout
             </Button>
           </div>
@@ -1085,10 +1081,7 @@
                         <p class="text-sm text-text-body">
                           Pay your signup fee to unlock the ready-up step.
                         </p>
-                        <Button
-                          variant="warning"
-                          href="/checkout/{player.steamId}?teamId={activeEntry.id}"
-                        >
+                        <Button variant="warning" href="/checkout/{player.steamId}">
                           Go to Checkout
                         </Button>
                       </div>

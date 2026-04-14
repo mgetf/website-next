@@ -1,22 +1,21 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import type { CheckoutTeamSelection } from '$lib/types/checkout';
 
   let {
     paypalClientId,
     currency,
     totalAmount,
     steamId,
-    teamId,
+    teams,
     isTestMode,
-    paidForSteamIds,
   }: {
     paypalClientId: string;
     currency: string;
     totalAmount: number;
     steamId: string;
-    teamId: number;
+    teams: CheckoutTeamSelection[];
     isTestMode: boolean;
-    paidForSteamIds: string[];
   } = $props();
 
   let paypalLoaded = $state(false);
@@ -76,7 +75,7 @@
       const createResponse = await fetch('/api/paypal/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: totalAmount, currency, steamId, teamId, paidForSteamIds }),
+        body: JSON.stringify({ amount: totalAmount, currency, steamId, teams }),
       });
 
       const order = await createResponse.json();
@@ -90,16 +89,15 @@
         body: JSON.stringify({
           orderID: order.id,
           steamId,
-          teamId,
+          teams,
           amount: totalAmount,
           currency,
-          paidForSteamIds,
         }),
       });
 
       const result = await captureResponse.json();
       if (result.success) {
-        window.location.href = `/teams/${result.teamId || teamId}?payment=success`;
+        window.location.href = `/checkout/${steamId}?payment=success`;
       } else {
         errorMessage = result.error || 'Test payment failed.';
         isProcessing = false;
@@ -141,8 +139,7 @@
                   amount: totalAmount,
                   currency,
                   steamId,
-                  teamId,
-                  paidForSteamIds,
+                  teams,
                 }),
               });
               const order = await response.json();
@@ -168,15 +165,14 @@
                 body: JSON.stringify({
                   orderID: paypalData.orderID,
                   steamId,
-                  teamId,
+                  teams,
                   amount: totalAmount,
                   currency,
-                  paidForSteamIds,
                 }),
               });
               const result = await response.json();
               if (result.success) {
-                window.location.href = `/teams/${result.teamId || teamId}?payment=success`;
+                window.location.href = `/checkout/${steamId}?payment=success`;
               } else {
                 errorMessage = result.error || 'Payment failed. Please contact support.';
                 isProcessing = false;

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "knip": {
+      "command": "bunx",
+      "args": ["@knip/mcp"]
+    }
+  }
+}

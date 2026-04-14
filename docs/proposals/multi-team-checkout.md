@@ -86,8 +86,9 @@ Two required checkboxes gate the payment buttons:
 
 1. **Rulebook:** "I agree to follow the league rulebook" (links to `/rulebook`)
 2. **Commitment:** "I understand that all fees are non-refundable. By completing this payment, I commit to participating for the full duration of the season."
+3. **Confirmation** "I confirm that I'm paying for my participation in the [NA/EU/ASIA/SA] [1v1/2v2] season [N] league."
 
-Both must be checked before PayPal or item payment buttons become active.
+All must be checked before PayPal or item payment buttons become active.
 
 ## Technical Design
 

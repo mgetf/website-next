@@ -327,11 +327,7 @@
           </div>
         </div>
         {#if data.currentUserSteamId}
-          <Button
-            variant="warning"
-            href="/checkout/{data.currentUserSteamId}?teamId={team.id}"
-            size="lg"
-          >
+          <Button variant="warning" href="/checkout/{data.currentUserSteamId}" size="lg">
             {!currentUserIsPaid ? 'Pay Signup Fee' : 'View Checkout'}
           </Button>
         {/if}
@@ -594,10 +590,7 @@
                       {/each}
                     </div>
                     {#if data.currentUserSteamId}
-                      <Button
-                        variant="warning"
-                        href="/checkout/{data.currentUserSteamId}?teamId={team.id}"
-                      >
+                      <Button variant="warning" href="/checkout/{data.currentUserSteamId}">
                         Go to Checkout
                       </Button>
                     {/if}
@@ -608,10 +601,7 @@
                       Minimum met, but you haven't paid yet.
                     </p>
                     {#if data.currentUserSteamId}
-                      <Button
-                        variant="warning"
-                        href="/checkout/{data.currentUserSteamId}?teamId={team.id}"
-                      >
+                      <Button variant="warning" href="/checkout/{data.currentUserSteamId}">
                         Pay Signup Fee
                       </Button>
                     {/if}

@@ -37,7 +37,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const participations = await getAllUnpaidParticipations(steamId);
 
   if (participations.length === 0) {
-    throw redirect(303, '/');
+    return {
+      steamId,
+      participations: [],
+      paypalClientId: '',
+      isTestMode: false,
+      botTradeOfferUrl: null,
+      botProfile: null,
+      pendingItemOrder: null,
+    };
   }
 
   const [globalSettings, paypalConfig] = await Promise.all([

@@ -618,8 +618,9 @@ model Match {
   weekNo        Int?        @map("week_no")
   boSeries      Int?        @map("bo_series")
   boGames       Int?        @map("bo_games")
-  matchDateTime DateTime?   @map("match_date_time")
-  status        MatchStatus @default(UNPLAYED)
+  matchDateTime    DateTime? @map("match_date_time")
+  matchTimezone    String?   @map("match_timezone")
+  status           MatchStatus @default(UNPLAYED)
   submittedBy   String?     @map("submitted_by")
   submittedAt   DateTime?   @map("submitted_at")
 

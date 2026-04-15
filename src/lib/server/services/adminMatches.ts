@@ -354,7 +354,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
       weekNo: null,
       boSeries,
       boGames: boGames || null,
-      matchDateTime: matchDateTime ? new Date(matchDateTime) : null,
+      matchDateTime: matchDateTime ? new Date(matchDateTime + 'Z') : null,
       status: MatchStatus.UNPLAYED,
     },
   });
@@ -849,6 +849,89 @@ export async function getMatchesForAdminWeekView(options: {
     },
     orderBy: [{ id: 'asc' }],
   });
+}
+
+/**
+ * Admin: update a match's scheduled date/time and source timezone.
+ * matchDateTimeUtc must be a valid UTC ISO 8601 string (or null to clear).
+ * Both fields are updated atomically.
+ */
+export async function adminUpdateMatchSchedule(
+  matchId: number,
+  matchDateTimeUtc: string | null,
+  matchTimezone: string | null,
+) {
+  const match = await prisma.match.findUnique({ where: { id: matchId }, select: { id: true } });
+  if (!match) notFound('Match not found');
+
+  return await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      matchDateTime: matchDateTimeUtc ? new Date(matchDateTimeUtc) : null,
+      matchTimezone: matchTimezone || null,
+    },
+  });
+}
+
+/**
+ * Admin: update per-game arena assignments for a match.
+ * Each entry maps a gameId to an arenaId (null clears the assignment).
+ */
+export async function adminUpdateMatchArenas(
+  matchId: number,
+  arenaAssignments: { gameId: number; arenaId: number | null }[],
+) {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { id: true, games: { select: { id: true } } },
+  });
+  if (!match) notFound('Match not found');
+
+  const validGameIds = new Set(match.games.map((g) => g.id));
+
+  for (const { gameId, arenaId } of arenaAssignments) {
+    if (!validGameIds.has(gameId)) {
+      badRequest(`Game ${gameId} does not belong to match ${matchId}`);
+    }
+    await prisma.game.update({
+      where: { id: gameId },
+      data: { arenaId: arenaId ?? null },
+    });
+  }
+}
+
+/**
+ * Admin: delete an unplayed match with no submitted game results.
+ * Cascades related records in dependency order.
+ * Throws if the match is already played/disputed or has recorded scores.
+ */
+export async function adminDeleteMatch(matchId: number) {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: {
+      id: true,
+      status: true,
+      games: { select: { id: true, homeTeamScore: true, awayTeamScore: true } },
+    },
+  });
+
+  if (!match) notFound('Match not found');
+
+  if (match.status !== MatchStatus.UNPLAYED) {
+    badRequest('Only unplayed matches can be deleted');
+  }
+
+  const hasScores = match.games.some((g) => g.homeTeamScore !== null || g.awayTeamScore !== null);
+  if (hasScores) {
+    badRequest('Cannot delete a match that already has recorded scores');
+  }
+
+  await prisma.$transaction([
+    prisma.matchMapBan.deleteMany({ where: { matchId } }),
+    prisma.matchComm.deleteMany({ where: { matchId } }),
+    prisma.game.deleteMany({ where: { matchId } }),
+    prisma.match.delete({ where: { id: matchId } }),
+  ]);
 }
 
 /**

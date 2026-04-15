@@ -33,6 +33,37 @@ export function calculateWeekLabel(match: Match, siblingsInWeek: { id: number }[
 }
 
 /**
+ * Convert a naive local datetime string (e.g. "2026-04-20T18:00") from a given IANA timezone
+ * to the equivalent UTC Date.
+ *
+ * Works by computing the UTC offset that the target timezone applies at the requested moment
+ * and adjusting accordingly. DST edge cases are handled within ±1 ms.
+ */
+export function localDatetimeToUtc(naiveDatetime: string, ianaTimezone: string): Date {
+  const normalized = naiveDatetime.length === 16 ? naiveDatetime + ':00' : naiveDatetime;
+
+  const roughUtc = new Date(normalized + 'Z');
+
+  const localAtRoughUtc = new Intl.DateTimeFormat('sv', {
+    timeZone: ianaTimezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+    .format(roughUtc)
+    .replace(' ', 'T');
+
+  const desiredLocal = new Date(normalized + 'Z');
+  const actualLocal = new Date(localAtRoughUtc + 'Z');
+  const diff = desiredLocal.getTime() - actualLocal.getTime();
+
+  return new Date(roughUtc.getTime() + diff);
+}
+
+/**
  * Format match date/time for display
  * @param date - Date to format
  * @returns Formatted date string

@@ -3,7 +3,7 @@
  * Handles match viewing, score submission, disputes, reschedules, map bans, and communications
  */
 
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect, isRedirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { z } from 'zod';
@@ -30,9 +30,15 @@ import {
   getMatchCommById,
 } from '$lib/server/services/matchComms';
 import { getMapBanStatus, processBanPickAction } from '$lib/server/services/mapBans';
-import { canDisputeMatch } from '$lib/server/utils/matchHelpers';
+import { canDisputeMatch, localDatetimeToUtc } from '$lib/server/utils/matchHelpers';
 import { createNotificationForMatch } from '$lib/server/services/notifications';
 import { uploadDemo, reportDemo, getUserDemoReports } from '$lib/server/services/demos';
+import {
+  adminUpdateMatchSchedule,
+  adminUpdateMatchArenas,
+  adminDeleteMatch as deleteMatchRecord,
+} from '$lib/server/services/adminMatches';
+import { getArenas } from '$lib/server/services/arenas';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -81,6 +87,16 @@ const gameScoreEntrySchema = z.object({
 const uploadDemoFieldsSchema = z.object({
   playerSteamId: z.string().min(1, 'Player selection is required'),
   description: z.string().optional().default(''),
+});
+
+const adminEditScheduleSchema = z.object({
+  matchDateTime: z.string().optional().default(''),
+  matchTimezone: z.string().optional().default(''),
+});
+
+const adminEditArenasSchema = z.object({
+  gameId: z.array(z.coerce.number().int().positive()).min(1, 'At least one game is required'),
+  arenaId: z.array(z.string()),
 });
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -172,6 +188,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     }
   }
 
+  const arenas = permissions.isAdmin ? await getArenas() : [];
+
   return {
     match,
     weekLabel,
@@ -187,6 +205,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     canUploadDemo,
     userDemoReports,
     user,
+    arenas,
   };
 };
 
@@ -719,6 +738,148 @@ export const actions: Actions = {
       return { success: true, message: 'Demo report submitted successfully' };
     } catch (err) {
       return fail(400, { error: getErrorMessage(err, 'Failed to submit report') });
+    }
+  },
+
+  /**
+   * Admin: update match schedule and timezone
+   */
+  adminEditSchedule: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, adminEditScheduleSchema);
+    if (!validation.success) {
+      return validationError(validation.errors, 'Invalid form data');
+    }
+
+    const { matchDateTime, matchTimezone } = validation.data;
+    const tz = matchTimezone || 'UTC';
+
+    let utcIso: string | null = null;
+    if (matchDateTime) {
+      try {
+        utcIso = localDatetimeToUtc(matchDateTime, tz).toISOString();
+      } catch {
+        return fail(400, { error: 'Invalid date/time value' });
+      }
+    }
+
+    try {
+      await adminUpdateMatchSchedule(matchId, utcIso, matchTimezone || null);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_SCHEDULE_UPDATED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { matchDateTimeUtc: utcIso, matchTimezone: matchTimezone || null },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Schedule updated successfully' };
+    } catch (err) {
+      return fail(500, { error: getErrorMessage(err, 'Failed to update schedule') });
+    }
+  },
+
+  /**
+   * Admin: update per-game arena assignments
+   */
+  adminEditArenas: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, adminEditArenasSchema, ['gameId', 'arenaId']);
+    if (!validation.success) {
+      return validationError(validation.errors, 'Invalid form data');
+    }
+
+    const { gameId: gameIds, arenaId: arenaIdStrings } = validation.data;
+
+    if (gameIds.length !== arenaIdStrings.length) {
+      return fail(400, { error: 'Game and arena lists must be the same length' });
+    }
+
+    const arenaAssignments = gameIds.map((gid, i) => ({
+      gameId: gid,
+      arenaId: arenaIdStrings[i] ? parseInt(arenaIdStrings[i]) : null,
+    }));
+
+    try {
+      await adminUpdateMatchArenas(matchId, arenaAssignments);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_ARENAS_UPDATED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { arenaAssignments },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Arenas updated successfully' };
+    } catch (err) {
+      return fail(500, { error: getErrorMessage(err, 'Failed to update arenas') });
+    }
+  },
+
+  /**
+   * Admin: delete an unplayed match with no scores
+   */
+  adminDeleteMatch: async ({ params, locals, getClientAddress, request }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    // Consume the form body (required even if unused for named actions)
+    await request.formData();
+
+    try {
+      await deleteMatchRecord(matchId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_DELETED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: {
+          homeTeamId: match.homeTeamId,
+          awayTeamId: match.awayTeamId,
+          seasonId: match.seasonId,
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      throw redirect(303, '/admin/matches');
+    } catch (err) {
+      if (isRedirect(err)) throw err;
+      return fail(400, { error: getErrorMessage(err, 'Failed to delete match') });
     }
   },
 };

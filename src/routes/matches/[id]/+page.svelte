@@ -3,6 +3,7 @@
   import type { PageData, ActionData } from './$types';
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -22,6 +23,77 @@
   let isSubmittingMessage = $state(false);
   let isUploadingDemo = $state(false);
   let isReportingDemo = $state(false);
+
+  // Admin controls
+  const TIMEZONES = [
+    { value: 'UTC', label: 'UTC' },
+    { value: 'America/New_York', label: 'EDT/EST (US East)' },
+    { value: 'America/Chicago', label: 'CDT/CST (US Central)' },
+    { value: 'America/Denver', label: 'MDT/MST (US Mountain)' },
+    { value: 'America/Los_Angeles', label: 'PDT/PST (US West)' },
+    { value: 'Europe/London', label: 'BST/GMT (London)' },
+    { value: 'Europe/Berlin', label: 'CEST/CET (Central Europe)' },
+    { value: 'Europe/Helsinki', label: 'EEST/EET (East Europe)' },
+    { value: 'Asia/Tokyo', label: 'JST (Japan)' },
+    { value: 'Australia/Sydney', label: 'AEST/AEDT (Sydney)' },
+  ];
+
+  let showAdminEditSchedule = $state(false);
+  let showAdminEditArenas = $state(false);
+  let showAdminConfirmDelete = $state(false);
+  let isDeletingMatch = $state(false);
+  let isEditingSchedule = $state(false);
+  let isEditingArenas = $state(false);
+
+  let editMatchDateTime = $state('');
+  let editMatchTimezone = $state('UTC');
+  let editArenas = $state<{ gameId: number; arenaId: string }[]>([]);
+  let localTimeStr = $state<string | null>(null);
+
+  $effect(() => {
+    const dt = data.match.matchDateTime;
+    const tz = data.match.matchTimezone || 'UTC';
+    if (dt) {
+      const d = new Date(dt);
+      const parts = new Intl.DateTimeFormat('sv', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+        .format(d)
+        .replace(' ', 'T');
+      editMatchDateTime = parts;
+    } else {
+      editMatchDateTime = '';
+    }
+    editMatchTimezone = tz;
+  });
+
+  $effect(() => {
+    editArenas = data.match.games.map((g) => ({
+      gameId: g.id,
+      arenaId: g.arenaId ? String(g.arenaId) : '',
+    }));
+  });
+
+  $effect(() => {
+    if (data.match.matchDateTime) {
+      localTimeStr = new Date(data.match.matchDateTime).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short',
+        hour12: true,
+      });
+    } else {
+      localTimeStr = null;
+    }
+  });
 
   // Demo upload state
   let selectedDemoFile = $state<File | null>(null);
@@ -398,18 +470,17 @@
                 {new Date(match.matchDateTime).toLocaleString('en-US', {
                   month: 'short',
                   day: 'numeric',
+                  year: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit',
-                  timeZone: 'UTC',
+                  timeZone: match.matchTimezone || 'UTC',
+                  timeZoneName: 'short',
                   hour12: true,
                 })}
               </p>
-              <p class="text-xs text-text-muted leading-tight">
-                {new Date(match.matchDateTime).toLocaleString('en-US', {
-                  year: 'numeric',
-                  timeZone: 'UTC',
-                })} (UTC)
-              </p>
+              {#if localTimeStr}
+                <p class="text-xs text-text-muted leading-tight">Your time: {localTimeStr}</p>
+              {/if}
             {:else}
               <p class="text-text-body font-medium leading-tight">To Be Determined</p>
             {/if}
@@ -496,6 +567,26 @@
       <div class="mt-6">
         <p class="text-xs text-text-body uppercase tracking-wide mb-3">Maps</p>
         <div class="text-text-muted text-sm">To be determined</div>
+      </div>
+    {/if}
+
+    <!-- Admin Controls -->
+    {#if data.permissions.isAdmin}
+      <div class="mt-6 pt-6 border-t border-border-default">
+        <p class="text-xs text-text-muted uppercase tracking-wide mb-3">Admin Controls</p>
+        <div class="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" onclick={() => (showAdminEditSchedule = true)}>
+            Edit Schedule
+          </Button>
+          <Button variant="secondary" size="sm" onclick={() => (showAdminEditArenas = true)}>
+            Edit Arenas
+          </Button>
+          {#if isUnplayed}
+            <Button variant="danger" size="sm" onclick={() => (showAdminConfirmDelete = true)}>
+              Delete Match
+            </Button>
+          {/if}
+        </div>
       </div>
     {/if}
   </Card>
@@ -1075,6 +1166,158 @@
     {/if}
   </Card>
 </div>
+
+<!-- Admin: Edit Schedule Dialog -->
+<Dialog
+  open={showAdminEditSchedule}
+  title="Edit Match Schedule"
+  onClose={() => (showAdminEditSchedule = false)}
+>
+  <FormError error={form?.error} success={form?.success ? form.message : null} />
+  <form
+    method="POST"
+    action="?/adminEditSchedule"
+    use:enhance={() => {
+      isEditingSchedule = true;
+      return async ({ result, update }) => {
+        isEditingSchedule = false;
+        if (result.type === 'success') {
+          showAdminEditSchedule = false;
+          toast.success('Schedule updated');
+        } else if (result.type === 'failure') {
+          const d = result.data as { error?: string } | undefined;
+          toast.error(d?.error || 'Failed to update schedule');
+        }
+        await update();
+      };
+    }}
+  >
+    <div class="mb-4">
+      <label for="adminMatchDateTime" class="block text-sm font-medium text-text-label mb-2">
+        Date &amp; Time <span class="text-text-muted text-xs">(in the timezone below)</span>
+      </label>
+      <input
+        id="adminMatchDateTime"
+        type="datetime-local"
+        name="matchDateTime"
+        bind:value={editMatchDateTime}
+        class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      />
+    </div>
+    <FormSelect
+      label="Timezone"
+      name="matchTimezone"
+      bind:value={editMatchTimezone}
+      options={TIMEZONES}
+    />
+    <p class="text-xs text-text-muted mt-2 mb-4">
+      Enter the date and time in the selected timezone. Leave the date blank to set the schedule to
+      TBD.
+    </p>
+    <div class="flex justify-end gap-3">
+      <Button
+        type="button"
+        variant="secondary"
+        onclick={() => (showAdminEditSchedule = false)}
+        disabled={isEditingSchedule}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" variant="primary" disabled={isEditingSchedule}>
+        {isEditingSchedule ? 'Saving...' : 'Save Schedule'}
+      </Button>
+    </div>
+  </form>
+</Dialog>
+
+<!-- Admin: Edit Arenas Dialog -->
+<Dialog
+  open={showAdminEditArenas}
+  title="Edit Match Arenas"
+  onClose={() => (showAdminEditArenas = false)}
+>
+  <FormError error={form?.error} success={form?.success ? form.message : null} />
+  <form
+    method="POST"
+    action="?/adminEditArenas"
+    use:enhance={() => {
+      isEditingArenas = true;
+      return async ({ result, update }) => {
+        isEditingArenas = false;
+        if (result.type === 'success') {
+          showAdminEditArenas = false;
+          toast.success('Arenas updated');
+        } else if (result.type === 'failure') {
+          const d = result.data as { error?: string } | undefined;
+          toast.error(d?.error || 'Failed to update arenas');
+        }
+        await update();
+      };
+    }}
+  >
+    {#each editArenas as entry, i}
+      <input type="hidden" name="gameId" value={entry.gameId} />
+      <FormSelect
+        label="Game {i + 1} Arena"
+        name="arenaId"
+        bind:value={entry.arenaId}
+        options={[
+          { value: '', label: '— None —' },
+          ...data.arenas.map((a) => ({ value: String(a.id), label: a.name })),
+        ]}
+      />
+    {/each}
+    <div class="flex justify-end gap-3 mt-4">
+      <Button
+        type="button"
+        variant="secondary"
+        onclick={() => (showAdminEditArenas = false)}
+        disabled={isEditingArenas}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" variant="primary" disabled={isEditingArenas}>
+        {isEditingArenas ? 'Saving...' : 'Save Arenas'}
+      </Button>
+    </div>
+  </form>
+</Dialog>
+
+<!-- Admin: Delete Match Confirmation -->
+<ConfirmDialog
+  open={showAdminConfirmDelete}
+  title="Delete Match"
+  description="This will permanently delete match #{match.id} and all related data (games, comms, map bans). This action cannot be undone."
+  variant="danger"
+  confirmLabel="Delete Match"
+  isLoading={isDeletingMatch}
+  onConfirm={() => {
+    const deleteForm = document.getElementById('adminDeleteMatchForm') as HTMLFormElement | null;
+    deleteForm?.requestSubmit();
+  }}
+  onCancel={() => (showAdminConfirmDelete = false)}
+/>
+
+<form
+  id="adminDeleteMatchForm"
+  method="POST"
+  action="?/adminDeleteMatch"
+  class="hidden"
+  use:enhance={() => {
+    isDeletingMatch = true;
+    return async ({ result, update }) => {
+      isDeletingMatch = false;
+      if (result.type === 'redirect') {
+        showAdminConfirmDelete = false;
+      } else if (result.type === 'failure') {
+        showAdminConfirmDelete = false;
+        const d = result.data as { error?: string } | undefined;
+        toast.error(d?.error || 'Failed to delete match');
+      }
+      await update();
+    };
+  }}
+></form>
 
 <!-- Demo Upload Modal -->
 <Dialog open={showDemoUploadModal} title="Upload Demo" onClose={closeDemoUploadModal}>

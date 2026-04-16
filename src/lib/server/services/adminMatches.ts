@@ -225,6 +225,10 @@ export async function createMatchSet(
     }
   }
 
+  // Identify teams that were not paired — they receive a bye week
+  const pairedTeamIds = new Set(matchPairs.flatMap((p) => [p.homeTeam.id, p.awayTeam.id]));
+  const byeTeams = teams.filter((t) => !pairedTeamIds.has(t.id));
+
   // Create matches
   const matches = [];
   for (const { homeTeam, awayTeam } of matchPairs) {
@@ -305,7 +309,23 @@ Good luck to both teams!`,
     matches.push(match);
   }
 
-  return matches;
+  // Create bye week records and notify owners for unpaired teams
+  for (const byeTeam of byeTeams) {
+    if (weekNo !== undefined) {
+      await prisma.byeWeek.create({
+        data: { teamId: byeTeam.id, seasonId, seasonNo, weekNo },
+      });
+
+      await createNotificationForTeamOwners(
+        [byeTeam.id],
+        'BYE_WEEK',
+        `/teams/${byeTeam.id}`,
+        `Your team has a bye week for Week ${weekNo}. No match was scheduled this week.`,
+      );
+    }
+  }
+
+  return { matches, byeTeams };
 }
 
 interface CreatePlayoffMatchParams {

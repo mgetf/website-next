@@ -289,6 +289,7 @@ export const actions: Actions = {
       }
 
       let matches;
+      let byeTeamIds: number[] = [];
 
       if (isPlayoff) {
         // Get playoff configuration
@@ -361,7 +362,7 @@ export const actions: Actions = {
           mapBanPoolId,
         });
 
-        matches = await createMatchSet(regionId, divisionId, {
+        const result = await createMatchSet(regionId, divisionId, {
           seasonId,
           seasonNo: season.seasonNum,
           weekNo: weekNo || undefined,
@@ -375,7 +376,15 @@ export const actions: Actions = {
               : undefined,
         });
 
-        console.log('Successfully created regular season matches:', matches.length);
+        matches = result.matches;
+        byeTeamIds = result.byeTeams.map((t) => t.id);
+
+        console.log(
+          'Successfully created regular season matches:',
+          matches.length,
+          'bye teams:',
+          byeTeamIds,
+        );
       }
 
       await logAudit({
@@ -385,7 +394,13 @@ export const actions: Actions = {
         action: AuditAction.MATCH_CREATED,
         targetType: 'Season',
         targetId: String(seasonId),
-        metadata: { matchCount: matches.length, isPlayoff, divisionId, weekNo: weekNo ?? null },
+        metadata: {
+          matchCount: matches.length,
+          isPlayoff,
+          divisionId,
+          weekNo: weekNo ?? null,
+          byeTeamIds,
+        },
         ipAddress: getClientAddress(),
       });
 

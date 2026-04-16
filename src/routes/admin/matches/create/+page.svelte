@@ -577,7 +577,7 @@
               <div
                 class="flex items-center gap-2 px-3 py-3 cursor-grab select-none border
                   {isLastOdd
-                  ? 'col-span-2 rounded-lg bg-warning-500/10 border-warning-500/30'
+                  ? 'col-span-2 mt-4 rounded-lg bg-warning-500/10 border-warning-500/30'
                   : isHome
                     ? 'rounded-l-lg border-r-0 bg-surface-input border-l-2 border-l-primary-600 border-border-input'
                     : 'rounded-r-lg bg-surface-input/60 border-border-input'}"
@@ -585,8 +585,8 @@
                 <span class="text-text-muted text-sm leading-none">⠿</span>
                 <div class="flex-1 min-w-0">
                   {#if isLastOdd}
-                    <div class="text-xs font-medium text-warning-400 mb-0.5">
-                      BYE — no match this week
+                    <div class="text-xs font-semibold text-warning-300 uppercase tracking-wider mb-1">
+                      Bye week
                     </div>
                   {:else if isHome}
                     <div class="text-xs font-medium text-primary-400 mb-0.5">Match {matchNum}</div>

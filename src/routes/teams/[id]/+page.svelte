@@ -462,43 +462,65 @@
               <div class="p-6">
                 <div class="space-y-2">
                   {#each seasonData.matches as match}
-                    <a
-                      href="/matches/{match.matchId}"
-                      class="flex items-center justify-between p-3 bg-surface-page/50 rounded hover:bg-surface-input/30 transition-colors group"
-                    >
-                      <div class="flex items-center gap-4 flex-1">
-                        <div class="text-sm font-medium text-text-body w-20">
-                          {match.week}
+                    {#if match.type === 'bye'}
+                      <div
+                        class="flex items-center justify-between p-3 bg-warning-500/5 border border-warning-500/20 rounded"
+                      >
+                        <div class="flex items-center gap-4 flex-1">
+                          <div class="text-sm font-medium text-text-body w-20">
+                            {match.week}
+                          </div>
+                          <div class="flex-1">
+                            <Badge color="yellow">Bye week</Badge>
+                          </div>
                         </div>
-                        <div class="flex-1">
-                          {#if match.opponent && match.opponentId}
-                            <span class="text-white group-hover:text-primary-400 transition-colors">
-                              vs {match.opponent}
+                        <span class="text-xs text-text-muted">No match scheduled</span>
+                      </div>
+                    {:else}
+                      <a
+                        href="/matches/{match.matchId}"
+                        class="flex items-center justify-between p-3 bg-surface-page/50 rounded hover:bg-surface-input/30 transition-colors group"
+                      >
+                        <div class="flex items-center gap-4 flex-1">
+                          <div class="text-sm font-medium text-text-body w-20">
+                            {match.week}
+                          </div>
+                          <div class="flex-1">
+                            {#if match.opponent && match.opponentId}
+                              <span
+                                class="text-white group-hover:text-primary-400 transition-colors"
+                              >
+                                vs {match.opponent}
+                              </span>
+                            {:else if match.opponent}
+                              <span
+                                class="text-white group-hover:text-primary-400 transition-colors"
+                              >
+                                vs {match.opponent}
+                              </span>
+                            {:else}
+                              <span class="text-text-muted italic">{match.score}</span>
+                            {/if}
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                          {#if match.opponent && match.result !== 'TBD'}
+                            <span
+                              class="text-sm {getResultColor(
+                                match.result,
+                              )} font-bold w-20 text-right"
+                            >
+                              {match.result}
+                              {match.score}
                             </span>
-                          {:else if match.opponent}
-                            <span class="text-white group-hover:text-primary-400 transition-colors">
-                              vs {match.opponent}
+                          {:else if match.result === 'TBD'}
+                            <span class="text-sm text-text-muted w-20 text-right">
+                              {formatDate(match.date)}
                             </span>
-                          {:else}
-                            <span class="text-text-muted italic">{match.score}</span>
                           {/if}
                         </div>
-                      </div>
-                      <div class="flex items-center gap-4">
-                        {#if match.opponent && match.result !== 'TBD'}
-                          <span
-                            class="text-sm {getResultColor(match.result)} font-bold w-20 text-right"
-                          >
-                            {match.result}
-                            {match.score}
-                          </span>
-                        {:else if match.result === 'TBD'}
-                          <span class="text-sm text-text-muted w-20 text-right">
-                            {formatDate(match.date)}
-                          </span>
-                        {/if}
-                      </div>
-                    </a>
+                      </a>
+                    {/if}
                   {/each}
                 </div>
               </div>

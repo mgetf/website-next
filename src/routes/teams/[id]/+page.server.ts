@@ -23,6 +23,7 @@ import {
 } from '$lib/server/services/teamJoin';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getErrorMessage } from '$lib/server/utils/errors';
+import { getByeWeeksForTeam } from '$lib/server/services/byeWeeks';
 
 const playerSteamIdSchema = z.object({
   playerSteamId: z.string().min(1, 'Player Steam ID is required'),
@@ -97,6 +98,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       leftAt: p.leftAt,
     }));
 
+  // Fetch bye weeks for this team
+  const byeWeeks = await getByeWeeksForTeam(teamId);
+
   // Combine and organize matches by season
   const allMatches = [
     ...team.homeMatches.map((m) => ({
@@ -161,13 +165,47 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     });
   }
 
+  // Merge bye weeks into the season map
+  for (const bye of byeWeeks) {
+    const seasonId = bye.seasonId;
+    if (!matchesBySeasonMap.has(seasonId)) {
+      matchesBySeasonMap.set(seasonId, []);
+    }
+    matchesBySeasonMap.get(seasonId)?.push({
+      type: 'bye' as const,
+      week: `Week ${bye.weekNo}`,
+      weekNo: bye.weekNo,
+      opponent: null,
+      opponentId: null,
+      result: 'BYE' as const,
+      score: null,
+      date: null,
+      matchId: null,
+      seasonNum: bye.season.seasonNum,
+    });
+  }
+
+  // Build a lookup for season nums from bye weeks (for seasons that may have no matches)
+  const byeSeasonNums = new Map(byeWeeks.map((b) => [b.seasonId, b.season.seasonNum]));
+
   // Convert map to array and sort by season number (descending)
   const matchesBySeason = Array.from(matchesBySeasonMap.entries())
     .map(([seasonId, matches]) => {
       const seasonData = allMatches.find((m) => m.season.id === seasonId)?.season;
+      const seasonNum = seasonData?.seasonNum ?? byeSeasonNums.get(seasonId) ?? seasonId;
+
+      // Sort entries within a season: by weekNo ascending, bye weeks sorted alongside matches
+      matches.sort((a: any, b: any) => {
+        const weekA =
+          a.weekNo ?? (typeof a.week === 'string' ? parseInt(a.week.replace(/\D/g, '')) : 0);
+        const weekB =
+          b.weekNo ?? (typeof b.week === 'string' ? parseInt(b.week.replace(/\D/g, '')) : 0);
+        return weekA - weekB;
+      });
+
       return {
         seasonId,
-        season: `Season ${seasonData?.seasonNum || seasonId}`,
+        season: `Season ${seasonNum}`,
         matches,
       };
     })

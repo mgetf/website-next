@@ -47,6 +47,7 @@ const createMatchSetSchema = z.object({
   weekNo: optionalInt,
   arenaId: optionalInt,
   matchDateTime: z.string().optional().default(''),
+  matchTimezone: z.string().optional().default(''),
   mapBanPoolId: optionalInt,
   isPlayoff: z
     .string()
@@ -236,6 +237,7 @@ export const actions: Actions = {
       weekNo,
       arenaId,
       matchDateTime,
+      matchTimezone,
       mapBanPoolId,
       isPlayoff,
       playoffRound,
@@ -340,6 +342,7 @@ export const actions: Actions = {
             boSeries,
             boGames: boGames || undefined,
             matchDateTime,
+            matchTimezone: matchTimezone || undefined,
             mapBanPoolId,
           });
 
@@ -368,6 +371,7 @@ export const actions: Actions = {
           boSeries,
           arenaId,
           matchDateTime,
+          matchTimezone: matchTimezone || undefined,
           mapBanPoolId,
         });
 

@@ -16,9 +16,23 @@
   let boSeries = $state(1);
   let selectedArenaId = $state<number | null>(null);
   let matchDateTime = $state('');
+  let matchTimezone = $state('UTC');
   let mapBanPoolId = $state<number | null>(null);
   let playoffRound = $state<number | null>(null);
   let boGames = $state<number | null>(null);
+
+  const TIMEZONES = [
+    { value: 'UTC', label: 'UTC' },
+    { value: 'America/New_York', label: 'EDT/EST (US East)' },
+    { value: 'America/Chicago', label: 'CDT/CST (US Central)' },
+    { value: 'America/Denver', label: 'MDT/MST (US Mountain)' },
+    { value: 'America/Los_Angeles', label: 'PDT/PST (US West)' },
+    { value: 'Europe/London', label: 'BST/GMT (London)' },
+    { value: 'Europe/Berlin', label: 'CEST/CET (Central Europe)' },
+    { value: 'Europe/Helsinki', label: 'EEST/EET (East Europe)' },
+    { value: 'Asia/Tokyo', label: 'JST (Japan)' },
+    { value: 'Australia/Sydney', label: 'AEST/AEDT (Sydney)' },
+  ];
 
   let previewMatchups = $state<any[]>([]);
   let previewByeTeam = $state<any | null>(null);
@@ -379,7 +393,7 @@
         <!-- Match Date and Time -->
         <div>
           <label for="matchDateTime" class="block text-sm font-medium text-text-label mb-1"
-            >Match Date and Time (UTC)</label
+            >Match Date and Time</label
           >
           <input
             id="matchDateTime"
@@ -389,8 +403,19 @@
             class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500"
           />
           <p class="text-xs text-text-muted mt-1">
-            Optional: Default scheduled time (enter in UTC timezone)
+            Optional: Default scheduled time (enter in the timezone selected below)
           </p>
+        </div>
+
+        <!-- Timezone -->
+        <div>
+          <FormSelect
+            label="Timezone"
+            name="matchTimezone"
+            bind:value={matchTimezone}
+            options={TIMEZONES}
+            hint="Timezone for the match date/time above"
+          />
         </div>
 
         <input type="hidden" name="mapBanPoolId" value={mapBanPoolId || ''} />
@@ -445,6 +470,7 @@
           <input type="hidden" name="seasonId" value={selectedSeasonId} />
           <input type="hidden" name="boSeries" value={boSeries} />
           <input type="hidden" name="matchDateTime" value={matchDateTime} />
+          <input type="hidden" name="matchTimezone" value={matchTimezone} />
           <input type="hidden" name="mapBanPoolId" value={mapBanPoolId || ''} />
           <input type="hidden" name="isPlayoff" value="on" />
           <input type="hidden" name="playoffRound" value={playoffRound || ''} />
@@ -565,6 +591,7 @@
             <input type="hidden" name="boSeries" value={boSeries} />
             <input type="hidden" name="arenaId" value={selectedArenaId || ''} />
             <input type="hidden" name="matchDateTime" value={matchDateTime} />
+            <input type="hidden" name="matchTimezone" value={matchTimezone} />
             <input type="hidden" name="mapBanPoolId" value={mapBanPoolId || ''} />
             {#if isPlayoff}
               <input type="hidden" name="isPlayoff" value="on" />

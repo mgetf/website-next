@@ -369,6 +369,10 @@ export const actions: Actions = {
           arenaId,
           matchDateTime,
           mapBanPoolId,
+          manualPairings:
+            homeTeamIds.length > 0 && homeTeamIds.length === awayTeamIds.length
+              ? homeTeamIds.map((homeTeamId, i) => ({ homeTeamId, awayTeamId: awayTeamIds[i] }))
+              : undefined,
         });
 
         console.log('Successfully created regular season matches:', matches.length);

@@ -119,6 +119,8 @@ interface CreateMatchSetParams {
   playoffId?: number;
   playoffRound?: number;
   boGames?: number;
+  // Optional admin-specified pairings (skips auto-pairing algorithm when provided)
+  manualPairings?: { homeTeamId: number; awayTeamId: number }[];
 }
 
 /**
@@ -141,6 +143,7 @@ export async function createMatchSet(
     playoffId,
     playoffRound,
     boGames,
+    manualPairings,
   } = params;
 
   // For playoff matches, use the dedicated playoff match creation function
@@ -184,21 +187,47 @@ export async function createMatchSet(
     badRequest('Not enough eligible teams for match creation');
   }
 
-  // Pair teams
-  const pairedTeams = await pairTeamsForMatches(teams, seasonId);
-
-  if (pairedTeams.length === 0) {
-    badRequest('No valid team pairings found');
-  }
-
   const seasonFormatId = season?.formatId;
+  const eligibleTeamIds = new Set(teams.map((t) => t.id));
+
+  let matchPairs: { homeTeam: Team; awayTeam: Team }[];
+
+  if (manualPairings && manualPairings.length > 0) {
+    // Validate each pairing against eligible teams
+    for (const { homeTeamId, awayTeamId } of manualPairings) {
+      if (!eligibleTeamIds.has(homeTeamId)) {
+        badRequest(`Team ${homeTeamId} is not eligible for this match set`);
+      }
+      if (!eligibleTeamIds.has(awayTeamId)) {
+        badRequest(`Team ${awayTeamId} is not eligible for this match set`);
+      }
+      if (homeTeamId === awayTeamId) {
+        badRequest(`A team cannot play against itself (team ${homeTeamId})`);
+      }
+    }
+
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+    matchPairs = manualPairings.map(({ homeTeamId, awayTeamId }) => ({
+      homeTeam: teamsById.get(homeTeamId)!,
+      awayTeam: teamsById.get(awayTeamId)!,
+    }));
+  } else {
+    // Auto-pair using standings-based algorithm
+    const pairedTeams = await pairTeamsForMatches(teams, seasonId);
+
+    if (pairedTeams.length === 0) {
+      badRequest('No valid team pairings found');
+    }
+
+    matchPairs = [];
+    for (let i = 0; i < pairedTeams.length - 1; i += 2) {
+      matchPairs.push({ homeTeam: pairedTeams[i], awayTeam: pairedTeams[i + 1] });
+    }
+  }
 
   // Create matches
   const matches = [];
-  for (let i = 0; i < pairedTeams.length - 1; i += 2) {
-    const homeTeam = pairedTeams[i];
-    const awayTeam = pairedTeams[i + 1];
-
+  for (const { homeTeam, awayTeam } of matchPairs) {
     if (homeTeam.formatId !== seasonFormatId || awayTeam.formatId !== seasonFormatId) {
       badRequest(
         `Format mismatch: teams must match the season's format. ` +

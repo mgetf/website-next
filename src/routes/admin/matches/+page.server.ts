@@ -207,7 +207,7 @@ export const actions: Actions = {
     } = validation.data;
 
     try {
-      const matches = await createMatchSet(regionId, divisionId, {
+      const { matches, byeTeams } = await createMatchSet(regionId, divisionId, {
         seasonId,
         seasonNo,
         weekNo,
@@ -224,7 +224,7 @@ export const actions: Actions = {
         action: AuditAction.MATCH_CREATED,
         targetType: 'Season',
         targetId: String(seasonId),
-        metadata: { matchCount: matches.length, divisionId, weekNo, boSeries },
+        metadata: { matchCount: matches.length, byeTeamIds: byeTeams.map((t) => t.id), divisionId, weekNo, boSeries },
         ipAddress: getClientAddress(),
       });
 

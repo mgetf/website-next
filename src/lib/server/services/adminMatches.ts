@@ -120,6 +120,8 @@ interface CreateMatchSetParams {
   playoffId?: number;
   playoffRound?: number;
   boGames?: number;
+  // Optional admin-specified pairings (skips auto-pairing algorithm when provided)
+  manualPairings?: { homeTeamId: number; awayTeamId: number }[];
 }
 
 /**
@@ -143,6 +145,7 @@ export async function createMatchSet(
     playoffId,
     playoffRound,
     boGames,
+    manualPairings,
   } = params;
 
   // For playoff matches, use the dedicated playoff match creation function
@@ -186,21 +189,51 @@ export async function createMatchSet(
     badRequest('Not enough eligible teams for match creation');
   }
 
-  // Pair teams
-  const pairedTeams = await pairTeamsForMatches(teams, seasonId);
+  const seasonFormatId = season?.formatId;
+  const eligibleTeamIds = new Set(teams.map((t) => t.id));
 
-  if (pairedTeams.length === 0) {
-    badRequest('No valid team pairings found');
+  let matchPairs: { homeTeam: Team; awayTeam: Team }[];
+
+  if (manualPairings && manualPairings.length > 0) {
+    // Validate each pairing against eligible teams
+    for (const { homeTeamId, awayTeamId } of manualPairings) {
+      if (!eligibleTeamIds.has(homeTeamId)) {
+        badRequest(`Team ${homeTeamId} is not eligible for this match set`);
+      }
+      if (!eligibleTeamIds.has(awayTeamId)) {
+        badRequest(`Team ${awayTeamId} is not eligible for this match set`);
+      }
+      if (homeTeamId === awayTeamId) {
+        badRequest(`A team cannot play against itself (team ${homeTeamId})`);
+      }
+    }
+
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+    matchPairs = manualPairings.map(({ homeTeamId, awayTeamId }) => ({
+      homeTeam: teamsById.get(homeTeamId)!,
+      awayTeam: teamsById.get(awayTeamId)!,
+    }));
+  } else {
+    // Auto-pair using standings-based algorithm
+    const pairedTeams = await pairTeamsForMatches(teams, seasonId);
+
+    if (pairedTeams.length === 0) {
+      badRequest('No valid team pairings found');
+    }
+
+    matchPairs = [];
+    for (let i = 0; i < pairedTeams.length - 1; i += 2) {
+      matchPairs.push({ homeTeam: pairedTeams[i], awayTeam: pairedTeams[i + 1] });
+    }
   }
 
-  const seasonFormatId = season?.formatId;
+  // Identify teams that were not paired — they receive a bye week
+  const pairedTeamIds = new Set(matchPairs.flatMap((p) => [p.homeTeam.id, p.awayTeam.id]));
+  const byeTeams = teams.filter((t) => !pairedTeamIds.has(t.id));
 
   // Create matches
   const matches = [];
-  for (let i = 0; i < pairedTeams.length - 1; i += 2) {
-    const homeTeam = pairedTeams[i];
-    const awayTeam = pairedTeams[i + 1];
-
+  for (const { homeTeam, awayTeam } of matchPairs) {
     if (homeTeam.formatId !== seasonFormatId || awayTeam.formatId !== seasonFormatId) {
       badRequest(
         `Format mismatch: teams must match the season's format. ` +
@@ -279,7 +312,23 @@ Good luck to both teams!`,
     matches.push(match);
   }
 
-  return matches;
+  // Create bye week records and notify owners for unpaired teams
+  for (const byeTeam of byeTeams) {
+    if (weekNo !== undefined) {
+      await prisma.byeWeek.create({
+        data: { teamId: byeTeam.id, seasonId, seasonNo, weekNo },
+      });
+
+      await createNotificationForTeamOwners(
+        [byeTeam.id],
+        'BYE_WEEK',
+        `/teams/${byeTeam.id}`,
+        `Your team has a bye week for Week ${weekNo}. No match was scheduled this week.`,
+      );
+    }
+  }
+
+  return { matches, byeTeams };
 }
 
 interface CreatePlayoffMatchParams {

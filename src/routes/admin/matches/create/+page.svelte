@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
+  import { dndzone } from 'svelte-dnd-action';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
@@ -36,9 +36,33 @@
 
   let previewMatchups = $state<any[]>([]);
   let previewByeTeam = $state<any | null>(null);
+  
+  type DndTeam = {
+    id: number;
+    name: string;
+    acronym: string | null;
+    wins: number;
+    losses: number;
+    seed: number;
+  };
+
+  let dndItems = $state<DndTeam[]>([]);
+  let originalDndItems: DndTeam[] = [];
+  let playoffMatchups = $state<any[]>([]);
+
   let weekLabel = $state<string | null>(null);
   let existingMatchSetsCount = $state(0);
   let showPreview = $state(false);
+
+  const previewPairs = $derived.by(() => {
+    const pairs: { home: DndTeam; away: DndTeam }[] = [];
+    for (let i = 0; i + 1 < dndItems.length; i += 2) {
+      pairs.push({ home: dndItems[i], away: dndItems[i + 1] });
+    }
+    return pairs;
+  });
+
+  const previewByeTeam = $derived(dndItems.length % 2 === 1 ? dndItems[dndItems.length - 1] : null);
 
   let isCreating = $state(false);
   let isPreviewing = $state(false);
@@ -98,27 +122,34 @@
 
   let previewTeams = $state<any[]>([]);
 
+  function buildDndItems(preview: any): DndTeam[] {
+    const items: DndTeam[] = [];
+    for (const matchup of preview.matchups || []) {
+      if (matchup.home) items.push(matchup.home);
+      if (matchup.away) items.push(matchup.away);
+    }
+    if (preview.byeTeam) items.push(preview.byeTeam);
+    return items;
+  }
+
   const handlePreviewEnhance = () => {
     isPreviewing = true;
 
     return async ({ result, update }: any) => {
       if (result.type === 'success' && result.data && 'preview' in result.data) {
         const preview = (result.data as any).preview;
-        previewMatchups = preview.matchups || [];
-        previewByeTeam = preview.byeTeam || null;
         previewTeams = preview.teams || [];
         weekLabel = preview.weekLabel || null;
         existingMatchSetsCount = preview.existingCount || 0;
         showPreview = true;
 
-        console.log('Preview loaded:', {
-          matchups: previewMatchups.length,
-          byeTeam: previewByeTeam?.name,
-          teams: previewTeams.length,
-          weekLabel,
-          existingMatchSetsCount,
-          isPlayoff: preview.isPlayoff,
-        });
+        if (preview.isPlayoff) {
+          playoffMatchups = preview.matchups || [];
+        } else {
+          const items = buildDndItems(preview);
+          dndItems = items;
+          originalDndItems = [...items];
+        }
       } else if (result.type === 'failure') {
         alert(`Error: ${result.data?.error || 'Failed to preview matches'}`);
       }
@@ -149,11 +180,24 @@
     };
   };
 
+  function handleDndConsider(e: CustomEvent) {
+    dndItems = (e as CustomEvent<{ items: DndTeam[] }>).detail.items;
+  }
+
+  function handleDndFinalize(e: CustomEvent) {
+    dndItems = (e as CustomEvent<{ items: DndTeam[] }>).detail.items;
+  }
+
+  function resetToSuggestedPairing() {
+    dndItems = [...originalDndItems];
+  }
+
   function onFieldChange() {
     if (showPreview) {
       showPreview = false;
-      previewMatchups = [];
-      previewByeTeam = null;
+      dndItems = [];
+      originalDndItems = [];
+      playoffMatchups = [];
       weekLabel = null;
       existingMatchSetsCount = 0;
     }
@@ -164,12 +208,6 @@
     selectedSeasonId = null;
     onFieldChange();
   }
-
-  const matchPreviewColumns = [
-    { key: 'home', label: 'Home' },
-    { key: 'vs', label: '', align: 'center' as const },
-    { key: 'away', label: 'Away' },
-  ];
 </script>
 
 <div class="max-w-4xl mx-auto space-y-6">
@@ -450,7 +488,7 @@
         </div>
       {/if}
 
-      {#if previewMatchups.length === 0}
+      {#if isPlayoff ? playoffMatchups.length === 0 : dndItems.length === 0}
         <div class="text-center py-8">
           <p class="text-text-body">No eligible teams found for this configuration.</p>
           <p class="text-sm text-text-muted mt-2">
@@ -488,13 +526,13 @@
           </div>
 
           <p class="text-text-label mb-4">
-            <span class="font-semibold text-white">{previewMatchups.length} matches</span> will be created.
+            <span class="font-semibold text-white">{playoffMatchups.length} matches</span> will be created.
             Select teams for each matchup:
           </p>
 
           <!-- Manual Team Selection for Playoffs -->
           <div class="space-y-4">
-            {#each previewMatchups as matchup, i}
+            {#each playoffMatchups as matchup, i}
               <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
                 <h4 class="text-white font-semibold mb-3">Match {i + 1}</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -531,58 +569,77 @@
           <Button variant="success" type="submit" disabled={isCreating} class="w-full mt-6">
             {isCreating
               ? 'Creating...'
-              : `Create ${previewMatchups.length} Playoff Match${previewMatchups.length === 1 ? '' : 'es'}`}
+              : `Create ${playoffMatchups.length} Playoff Match${playoffMatchups.length === 1 ? '' : 'es'}`}
           </Button>
         </form>
       {:else}
         <div class="space-y-4">
-          <p class="text-text-label mb-4">
-            <span class="font-semibold text-white">{previewMatchups.length} matches</span> will be created:
-          </p>
+          <div class="flex items-center justify-between">
+            <p class="text-text-label">
+              <span class="font-semibold text-white"
+                >{previewPairs.length} match{previewPairs.length === 1 ? '' : 'es'}</span
+              >
+              will be created. Drag teams to change pairings or home/away sides.
+            </p>
+            <Button variant="ghost" size="sm" onclick={resetToSuggestedPairing}>
+              Reset to suggested
+            </Button>
+          </div>
 
-          <!-- Matchups Table -->
-          <DataTable data={previewMatchups} columns={matchPreviewColumns}>
-            {#snippet cell(matchup, col)}
-              {#if col.key === 'home'}
-                <div class="flex flex-col">
-                  <span class="text-white font-semibold">{matchup.home.name}</span>
-                  <span class="text-xs text-text-body">
-                    Seed #{matchup.home.seed} • {matchup.home.wins}-{matchup.home.losses}
-                  </span>
-                </div>
-              {:else if col.key === 'vs'}
-                <span class="text-text-muted text-sm">vs</span>
-              {:else if col.key === 'away'}
-                <div class="flex flex-col">
-                  <span class="text-white font-semibold">{matchup.away.name}</span>
-                  <span class="text-xs text-text-body">
-                    Seed #{matchup.away.seed} • {matchup.away.wins}-{matchup.away.losses}
-                  </span>
-                </div>
-              {/if}
-            {/snippet}
-          </DataTable>
+          <!-- Column headers -->
+          <div class="grid grid-cols-[1fr_32px_1fr] gap-x-0 px-1">
+            <span class="text-xs font-medium text-text-muted uppercase tracking-wider">Home</span>
+            <span></span>
+            <span class="text-xs font-medium text-text-muted uppercase tracking-wider">Away</span>
+          </div>
 
-          <!-- Bye Team Row -->
+          <!-- Draggable grid — even positions = home (left), odd = away (right), last if odd count = bye (spans both) -->
+          <div
+            use:dndzone={{ items: dndItems, flipDurationMs: 200 }}
+            onconsider={handleDndConsider}
+            onfinalize={handleDndFinalize}
+            class="grid grid-cols-2 gap-y-2 gap-x-0"
+          >
+            {#each dndItems as team, i (team.id)}
+              {@const isLastOdd = i === dndItems.length - 1 && dndItems.length % 2 === 1}
+              {@const isHome = i % 2 === 0}
+              {@const matchNum = Math.floor(i / 2) + 1}
+              <div
+                class="flex items-center gap-2 px-3 py-3 cursor-grab select-none border
+                  {isLastOdd
+                  ? 'col-span-2 mt-4 rounded-lg bg-warning-500/10 border-warning-500/30'
+                  : isHome
+                    ? 'rounded-l-lg border-r-0 bg-surface-input border-l-2 border-l-primary-600 border-border-input'
+                    : 'rounded-r-lg bg-surface-input/60 border-border-input'}"
+              >
+                <span class="text-text-muted text-sm leading-none">⠿</span>
+                <div class="flex-1 min-w-0">
+                  {#if isLastOdd}
+                    <div class="text-xs font-semibold text-warning-300 uppercase tracking-wider mb-1">
+                      Bye week
+                    </div>
+                  {:else if isHome}
+                    <div class="text-xs font-medium text-primary-400 mb-0.5">Match {matchNum}</div>
+                  {/if}
+                  <div class="text-white font-semibold truncate">{team.name}</div>
+                  <div class="text-xs text-text-body">
+                    #{team.seed} · {team.wins}W-{team.losses}L
+                  </div>
+                </div>
+                {#if isHome && !isLastOdd}
+                  <span class="text-text-muted text-xs font-medium shrink-0 pr-1">vs</span>
+                {/if}
+              </div>
+            {/each}
+          </div>
+
           {#if previewByeTeam}
-            <div
-              class="mt-2 bg-warning-500/10 border border-border-default rounded-lg p-4 flex items-center"
-            >
-              <div class="flex-1">
-                <span class="text-white font-semibold">{previewByeTeam.name}</span>
-                <span class="text-xs text-text-body ml-2">
-                  Seed #{previewByeTeam.seed} • {previewByeTeam.wins}-{previewByeTeam.losses}
-                </span>
-              </div>
-              <span class="text-text-muted text-sm px-4">vs</span>
-              <div class="flex-1 text-right">
-                <span class="text-warning-400 font-bold">BYE</span>
-                <span class="text-xs text-warning-300 ml-2">Receives bye week</span>
-              </div>
-            </div>
+            <p class="text-xs text-warning-400">
+              Drag {previewByeTeam.name} into any match position to give them an opponent.
+            </p>
           {/if}
 
-          <!-- Create Button -->
+          <!-- Create form — serialises current pairing order as hidden inputs -->
           <form method="POST" action="?/createMatchSet" use:enhance={handleCreateEnhance}>
             <input type="hidden" name="regionId" value={selectedRegionId} />
             <input type="hidden" name="divisionId" value={selectedDivisionId} />
@@ -593,16 +650,21 @@
             <input type="hidden" name="matchDateTime" value={matchDateTime} />
             <input type="hidden" name="matchTimezone" value={matchTimezone} />
             <input type="hidden" name="mapBanPoolId" value={mapBanPoolId || ''} />
-            {#if isPlayoff}
-              <input type="hidden" name="isPlayoff" value="on" />
-              <input type="hidden" name="playoffRound" value={playoffRound || ''} />
-              <input type="hidden" name="boGames" value={boGames || ''} />
-            {/if}
 
-            <Button variant="success" type="submit" disabled={isCreating} class="w-full mt-6">
+            {#each previewPairs as pair}
+              <input type="hidden" name="homeTeamIds" value={pair.home.id} />
+              <input type="hidden" name="awayTeamIds" value={pair.away.id} />
+            {/each}
+
+            <Button
+              variant="success"
+              type="submit"
+              disabled={isCreating || previewPairs.length === 0}
+              class="w-full mt-6"
+            >
               {isCreating
                 ? 'Creating...'
-                : `Create ${previewMatchups.length} Match${previewMatchups.length === 1 ? '' : 'es'}`}
+                : `Create ${previewPairs.length} Match${previewPairs.length === 1 ? '' : 'es'}`}
             </Button>
           </form>
         </div>

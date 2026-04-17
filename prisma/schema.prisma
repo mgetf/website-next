@@ -70,6 +70,7 @@ enum NotificationType {
   MATCH_CREATED // 2
   PLAYER_INVITE // 3
   ADMIN_ACTION // 4
+  BYE_WEEK // 5
 }
 
 enum MapBanActionType {
@@ -520,6 +521,7 @@ model Season {
   paymentTrackers     PaymentTracker[]
   activeSignupSeasons ActiveSignupSeason[]
   itemPaymentOrders   ItemPaymentOrder[]
+  byeWeeks            ByeWeek[]
 
   @@map("seasons")
 }
@@ -572,6 +574,7 @@ model Team {
   payments           Payment[]
   mapBanActions      MapBanAction[]
   itemPaymentOrders  ItemPaymentOrder[]
+  byeWeeks           ByeWeek[]
 
   @@map("teams")
 }
@@ -962,4 +965,19 @@ model ApiKey {
   creator     User      @relation(fields: [createdBy], references: [steamId])
 
   @@map("api_keys")
+}
+
+model ByeWeek {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  seasonId  Int      @map("season_id")
+  seasonNo  Int      @map("season_no")
+  weekNo    Int      @map("week_no")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team   Team   @relation(fields: [teamId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id])
+
+  @@unique([teamId, seasonId, weekNo])
+  @@map("bye_weeks")
 }

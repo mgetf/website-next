@@ -113,6 +113,7 @@ interface CreateMatchSetParams {
   boSeries: number;
   arenaId?: number;
   matchDateTime?: string;
+  matchTimezone?: string;
   mapBanPoolId?: number;
   // Playoff-specific parameters
   isPlayoff?: boolean;
@@ -138,6 +139,7 @@ export async function createMatchSet(
     boSeries,
     arenaId,
     matchDateTime,
+    matchTimezone,
     mapBanPoolId,
     isPlayoff,
     playoffId,
@@ -248,6 +250,7 @@ export async function createMatchSet(
         weekNo,
         boSeries,
         matchDateTime: matchDateTime ? new Date(matchDateTime + 'Z') : null,
+        matchTimezone: matchTimezone || null,
         status: MatchStatus.UNPLAYED,
       },
     });
@@ -339,6 +342,7 @@ interface CreatePlayoffMatchParams {
   boGames?: number;
   arenaId?: number;
   matchDateTime?: string;
+  matchTimezone?: string;
   mapBanPoolId?: number;
 }
 
@@ -357,6 +361,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
     boGames,
     arenaId,
     matchDateTime,
+    matchTimezone,
     mapBanPoolId,
   } = params;
 
@@ -404,6 +409,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
       boSeries,
       boGames: boGames || null,
       matchDateTime: matchDateTime ? new Date(matchDateTime + 'Z') : null,
+      matchTimezone: matchTimezone || null,
       status: MatchStatus.UNPLAYED,
     },
   });

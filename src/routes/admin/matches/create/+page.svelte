@@ -34,9 +34,6 @@
     { value: 'Australia/Sydney', label: 'AEST/AEDT (Sydney)' },
   ];
 
-  let previewMatchups = $state<any[]>([]);
-  let previewByeTeam = $state<any | null>(null);
-  
   type DndTeam = {
     id: number;
     name: string;
@@ -615,7 +612,9 @@
                 <span class="text-text-muted text-sm leading-none">⠿</span>
                 <div class="flex-1 min-w-0">
                   {#if isLastOdd}
-                    <div class="text-xs font-semibold text-warning-300 uppercase tracking-wider mb-1">
+                    <div
+                      class="text-xs font-semibold text-warning-300 uppercase tracking-wider mb-1"
+                    >
                       Bye week
                     </div>
                   {:else if isHome}

@@ -15,7 +15,17 @@ export const GET: RequestHandler = async ({ cookies, url, request }) => {
 
   // Create Steam auth instance and get redirect URL
   const steam = createSteamAuth(request);
-  const redirectUrl = await steam.getRedirectUrl();
+
+  let redirectUrl: string;
+  try {
+    redirectUrl = await steam.getRedirectUrl();
+  } catch (err) {
+    // node-steam-openid stringifies the underlying openid error via `"..." + error`,
+    // which yields "[object Object]". Log the raw value here so we can see what Steam
+    // actually returned (timeout, 5xx, TLS error, etc.) when discovery fails.
+    console.error('Steam OpenID discovery failed:', err);
+    throw redirect(302, '/?error=steam_unavailable');
+  }
 
   throw redirect(302, redirectUrl);
 };

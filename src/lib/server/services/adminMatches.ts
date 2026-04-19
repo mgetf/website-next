@@ -7,7 +7,11 @@ import { prisma } from '$lib/server/db';
 import type { Team } from '$prisma/client.js';
 import { MatchStatus, TeamStatus } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
-import { calculateWinLossRatio, calculatePointsPerGame } from '$lib/server/utils/matchHelpers';
+import {
+  calculateWinLossRatio,
+  calculatePointsPerGame,
+  localDatetimeToUtc,
+} from '$lib/server/utils/matchHelpers';
 import { createNotificationForTeamOwners } from './notifications';
 
 /**
@@ -249,7 +253,9 @@ export async function createMatchSet(
         seasonNo,
         weekNo,
         boSeries,
-        matchDateTime: matchDateTime ? new Date(matchDateTime + 'Z') : null,
+        matchDateTime: matchDateTime
+          ? localDatetimeToUtc(matchDateTime, matchTimezone || 'UTC')
+          : null,
         matchTimezone: matchTimezone || null,
         status: MatchStatus.UNPLAYED,
       },
@@ -408,7 +414,9 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
       weekNo: null,
       boSeries,
       boGames: boGames || null,
-      matchDateTime: matchDateTime ? new Date(matchDateTime + 'Z') : null,
+      matchDateTime: matchDateTime
+        ? localDatetimeToUtc(matchDateTime, matchTimezone || 'UTC')
+        : null,
       matchTimezone: matchTimezone || null,
       status: MatchStatus.UNPLAYED,
     },

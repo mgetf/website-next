@@ -31,13 +31,6 @@ export interface CheckoutParticipation {
   itemPaymentConfig: CheckoutItemPaymentConfig | null;
 }
 
-export interface CheckoutPendingItemOrder {
-  orderNumber: string;
-  itemName: string;
-  itemsRequired: number;
-  expiresAt: string;
-}
-
 /** Wire shape sent from checkout UI to PayPal/item API routes. */
 export interface CheckoutTeamSelection {
   teamId: number;

@@ -47,5 +47,3 @@ if (!building && typeof window === 'undefined') {
     await prisma.$disconnect();
   });
 }
-
-export default prisma;

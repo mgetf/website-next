@@ -140,27 +140,3 @@ export async function logFormAction(
   });
   await writeLog(entry, filename);
 }
-
-/**
- * Create a custom logger with a specific prefix
- */
-export function createLogger(prefix: string) {
-  return {
-    info: (message: string, data?: unknown) => logInfo(`[${prefix}] ${message}`, data),
-    warn: (message: string, data?: unknown) => logWarn(`[${prefix}] ${message}`, data),
-    error: (message: string, error?: unknown) => logError(`[${prefix}] ${message}`, error),
-    debug: (message: string, data?: unknown) => logDebug(`[${prefix}] ${message}`, data),
-  };
-}
-
-/**
- * Logger instance for general use
- */
-export const logger = {
-  info: logInfo,
-  warn: logWarn,
-  error: logError,
-  debug: logDebug,
-  request: logRequest,
-  formAction: logFormAction,
-};

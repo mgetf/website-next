@@ -38,20 +38,6 @@ export function isStaging(): boolean {
 }
 
 /**
- * Check if the app is running in production mode
- */
-export function isProduction(): boolean {
-  return getAppEnvironment() === 'production';
-}
-
-/**
- * Check if the app is running in local development mode
- */
-export function isDevelopment(): boolean {
-  return getAppEnvironment() === 'development';
-}
-
-/**
  * Routes that should be accessible even when the site is gated
  * (needed for login flow to work)
  */

@@ -64,69 +64,6 @@ export function localDatetimeToUtc(naiveDatetime: string, ianaTimezone: string):
 }
 
 /**
- * Format match date/time for display
- * @param date - Date to format
- * @returns Formatted date string
- */
-export function formatMatchDateTime(date: Date | string | null): string {
-  if (!date) return 'TBD';
-
-  const d = typeof date === 'string' ? new Date(date) : date;
-
-  if (isNaN(d.getTime())) return 'Invalid Date';
-
-  return d.toLocaleDateString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  });
-}
-
-/**
- * Calculate time remaining in a time window
- * @param startTimestamp - Unix timestamp (seconds) when period started
- * @param hoursAllowed - Number of hours allowed
- * @returns Time remaining as "HH:MM:SS" or "00:00:00" if expired
- */
-export function calculateTimeRemaining(startTimestamp: number, hoursAllowed: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const deadline = startTimestamp + hoursAllowed * 60 * 60;
-  const secondsRemaining = deadline - now;
-
-  if (secondsRemaining <= 0) {
-    return '00:00:00';
-  }
-
-  const hours = Math.floor(secondsRemaining / 3600);
-  const minutes = Math.floor((secondsRemaining % 3600) / 60);
-  const seconds = secondsRemaining % 60;
-
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-/**
- * Get human-readable match status
- * @param status - Match status enum value
- * @returns Status label
- */
-export function getMatchStatusLabel(status: number): string {
-  switch (status) {
-    case 0:
-      return 'Unplayed';
-    case 1:
-      return 'Played';
-    case 2:
-      return 'Disputed';
-    default:
-      return 'Unknown';
-  }
-}
-
-/**
  * Check if a match can be disputed
  * Must be within 24 hours of submission and status must be PLAYED
  * @param match - Match to check
@@ -141,16 +78,6 @@ export function canDisputeMatch(match: Match): boolean {
   const hoursSinceSubmission = (now - submittedTime) / (1000 * 3600);
 
   return hoursSinceSubmission < 24;
-}
-
-/**
- * Check if a match can be rescheduled
- * Must be UNPLAYED status
- * @param match - Match to check
- * @returns True if reschedule is allowed
- */
-export function canRescheduleMatch(match: Match): boolean {
-  return match.status === 'UNPLAYED';
 }
 
 /**
@@ -179,28 +106,4 @@ export function calculatePointsPerGame(
   const totalGames = gamesWon + gamesLost;
   if (totalGames === 0) return 0;
   return pointsScored / totalGames;
-}
-
-/**
- * Format time remaining for display with automatic refresh hint
- * @param timestamp - Start timestamp
- * @param hours - Hours allowed
- * @returns Object with formatted time and expiry status
- */
-export function getTimeRemainingInfo(
-  timestamp: number | null,
-  hours: number,
-): { formatted: string; expired: boolean; active: boolean } {
-  if (!timestamp) {
-    return { formatted: 'N/A', expired: false, active: false };
-  }
-
-  const remaining = calculateTimeRemaining(timestamp, hours);
-  const expired = remaining === '00:00:00';
-
-  return {
-    formatted: remaining,
-    expired,
-    active: !expired,
-  };
 }

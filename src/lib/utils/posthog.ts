@@ -27,22 +27,3 @@ export function identifyUser(user: SessionUser): void {
     permissionLevel: user.permissionLevel,
   });
 }
-
-/**
- * Reset PostHog identity
- * Should be called when user logs out
- */
-export function resetIdentity(): void {
-  if (typeof window === 'undefined' || !window.posthog) return;
-
-  window.posthog.reset();
-}
-
-/**
- * Track custom event
- */
-export function trackEvent(event: string, properties?: Record<string, unknown>): void {
-  if (typeof window === 'undefined' || !window.posthog) return;
-
-  window.posthog.capture(event, properties);
-}

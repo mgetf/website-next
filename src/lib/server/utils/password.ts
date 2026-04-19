@@ -66,32 +66,3 @@ export async function verifyPassword(password: string, storedHash: string): Prom
     return false;
   }
 }
-
-/**
- * Check if a stored password is hashed (vs plaintext)
- * Useful for migration detection
- */
-export function isPasswordHashed(storedPassword: string): boolean {
-  // Hashed passwords have format salt:hash (both base64)
-  const parts = storedPassword.split(':');
-  if (parts.length !== 2) return false;
-
-  // Check if both parts look like base64
-  const base64Regex = /^[A-Za-z0-9+/]+=*$/;
-  return base64Regex.test(parts[0]) && base64Regex.test(parts[1]);
-}
-
-/**
- * Generate a random password (for resetting or initial setup)
- */
-export function generateRandomPassword(length: number = 16): string {
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const randomBytes = crypto.randomBytes(length);
-  let password = '';
-
-  for (let i = 0; i < length; i++) {
-    password += charset[randomBytes[i] % charset.length];
-  }
-
-  return password;
-}

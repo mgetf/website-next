@@ -42,13 +42,6 @@ export function isStrictAdmin(user: SessionUser | null): boolean {
 }
 
 /**
- * Check if user is authenticated
- */
-export function isAuthenticated(user: SessionUser | null): boolean {
-  return user !== null;
-}
-
-/**
  * Check if user is an admin/owner of a specific team
  */
 export async function isTeamAdmin(user: SessionUser | null, teamId: number): Promise<boolean> {
@@ -119,21 +112,6 @@ export function requireStrictAdmin(user: SessionUser | null): asserts user is Se
   requireAuth(user);
   if (!isStrictAdmin(user)) {
     forbidden('You must be a full administrator to access this resource');
-  }
-}
-
-/**
- * Require user to have at least the specified role
- * Throws 401 if not authenticated, 403 if insufficient permissions
- */
-export function requireRole(
-  user: SessionUser | null,
-  minRole: UserRole,
-  message?: string,
-): asserts user is SessionUser {
-  requireAuth(user);
-  if (!hasRole(user, minRole)) {
-    forbidden(message || `You must have ${minRole} role to access this resource`);
   }
 }
 

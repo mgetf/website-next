@@ -28,17 +28,3 @@ export function createSteamAuth(request: Request): SteamAuth {
     apiKey: env.STEAM_API_KEY ?? '',
   });
 }
-
-/**
- * Steam user data returned from authentication
- */
-export interface SteamUser {
-  steamid: string;
-  username: string;
-  avatar: {
-    small: string;
-    medium: string;
-    large: string;
-  };
-  profile: string;
-}

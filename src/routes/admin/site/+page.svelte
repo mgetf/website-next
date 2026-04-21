@@ -11,7 +11,7 @@
   let { data }: { data: PageData } = $props();
 
   // Tabs
-  type Tab = 'settings' | 'homepage' | 'rulebook' | 'apikeys';
+  type Tab = 'settings' | 'homepage' | 'rulebook' | 'match_message' | 'apikeys';
   let activeTab = $state<Tab>('settings');
 
   // Background image state
@@ -46,6 +46,7 @@
   let homepageSubtitle = $state('');
   let homepageAbout = $state('');
   let rulebookContent = $state('');
+  let matchCreatedMessage = $state('');
 
   // Sync state when data changes (after form submission)
   $effect(() => {
@@ -60,9 +61,13 @@
   $effect(() => {
     rulebookContent = data.rulebookContent;
   });
+  $effect(() => {
+    matchCreatedMessage = data.matchCreatedMessage;
+  });
 
-  // Preview toggle for rulebook
+  // Preview toggles
   let showPreview = $state(false);
+  let showMatchMessagePreview = $state(false);
 
   function handleEnhance(action: string) {
     return () => {
@@ -84,6 +89,7 @@
     { id: 'settings', label: 'Site Settings' },
     { id: 'homepage', label: 'Homepage Content' },
     { id: 'rulebook', label: 'Rulebook' },
+    { id: 'match_message', label: 'Match Message' },
     { id: 'apikeys', label: 'API Keys' },
   ];
 
@@ -711,6 +717,62 @@
               {isSubmitting ? 'Saving...' : 'Save Rulebook'}
             </Button>
             <span class="text-sm text-text-muted"> Changes are published immediately </span>
+          </div>
+        </div>
+      </form>
+    {:else if activeTab === 'match_message'}
+      <!-- Match Created Message Editor -->
+      <form
+        method="POST"
+        action="?/updateMatchCreatedMessage"
+        use:enhance={handleEnhance('match_message')}
+      >
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-semibold text-white">Match Created Message</h3>
+              <p class="text-sm text-text-body">
+                This message is posted as a system comment whenever a new match is created. Supports
+                Markdown.
+              </p>
+            </div>
+            <button
+              type="button"
+              onclick={() => (showMatchMessagePreview = !showMatchMessagePreview)}
+              class="px-4 py-2 bg-surface-input hover:bg-surface-hover text-white text-sm rounded-lg transition"
+            >
+              {showMatchMessagePreview ? 'Hide Preview' : 'Show Preview'}
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 {showMatchMessagePreview ? 'lg:grid-cols-2' : ''} gap-4">
+            <!-- Editor -->
+            <div>
+              <textarea
+                name="content"
+                bind:value={matchCreatedMessage}
+                rows="20"
+                disabled={!data.isHeadAdmin}
+                class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
+                placeholder="**Match Created!** ..."
+              ></textarea>
+            </div>
+
+            <!-- Preview -->
+            {#if showMatchMessagePreview}
+              <div
+                class="bg-surface-input border border-border-input rounded-lg p-6 overflow-y-auto max-h-[500px]"
+              >
+                <MarkdownRenderer content={matchCreatedMessage} />
+              </div>
+            {/if}
+          </div>
+
+          <div class="pt-4 flex items-center gap-4">
+            <Button type="submit" variant="success" disabled={isSubmitting || !data.isHeadAdmin}>
+              {isSubmitting ? 'Saving...' : 'Save Message'}
+            </Button>
+            <span class="text-sm text-text-muted"> Applied to all new matches </span>
           </div>
         </div>
       </form>

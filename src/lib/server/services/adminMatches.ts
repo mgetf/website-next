@@ -13,6 +13,14 @@ import {
   localDatetimeToUtc,
 } from '$lib/server/utils/matchHelpers';
 import { createNotificationForTeamOwners } from './notifications';
+import { getContent, getDefaultContent, CONTENT_KEYS } from './siteContent';
+
+async function getMatchCreatedMessage(): Promise<string> {
+  return (
+    (await getContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE)) ??
+    getDefaultContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE)
+  );
+}
 
 /**
  * Sort teams by standings
@@ -235,6 +243,8 @@ export async function createMatchSet(
   const pairedTeamIds = new Set(matchPairs.flatMap((p) => [p.homeTeam.id, p.awayTeam.id]));
   const byeTeams = teams.filter((t) => !pairedTeamIds.has(t.id));
 
+  const matchCreatedMessage = await getMatchCreatedMessage();
+
   // Create matches
   const matches = [];
   for (const { homeTeam, awayTeam } of matchPairs) {
@@ -277,20 +287,7 @@ export async function createMatchSet(
       data: {
         matchId: match.id,
         owner: null,
-        content: `Match Created! Important Information:
-
-1. Contact: Please reach out to your opponent via Discord or Steam.
-2. Demo Required: You must record a demo of your match.
-3. Servers: Check #match-servers in Discord for official server information.
-4. Rules: Review the rulebook at https://mge.tf/rulebook
-5. Issue Resolution:
-  - First, check the rulebook
-  - Then, communicate with your opponent
-  - Only contact an admin as a last resort
-
-Need help? Ask in Discord or contact an admin.
-
-Good luck to both teams!`,
+        content: matchCreatedMessage,
         createdAt: new Date(),
       },
     });
@@ -441,20 +438,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
     data: {
       matchId: match.id,
       owner: null,
-      content: `Match Created! Important Information:
-
-1. Contact: Please reach out to your opponent via Discord or Steam.
-2. Demo Required: You must record a demo of your match.
-3. Servers: Check #match-servers in Discord for official server information.
-4. Rules: Review the rulebook at https://mge.tf/rulebook
-5. Issue Resolution:
-  - First, check the rulebook
-  - Then, communicate with your opponent
-  - Only contact an admin as a last resort
-
-Need help? Ask in Discord or contact an admin.
-
-Good luck to both teams!`,
+      content: await getMatchCreatedMessage(),
       createdAt: new Date(),
     },
   });

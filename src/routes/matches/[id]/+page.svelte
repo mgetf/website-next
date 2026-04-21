@@ -1094,7 +1094,7 @@
                 {/if}
               </div>
               <div class="mt-1">
-                <MarkdownRenderer content={comm.content} class="text-text-label" />
+                <MarkdownRenderer content={comm.content ?? ''} class="text-text-label" />
               </div>
             </div>
           </div>

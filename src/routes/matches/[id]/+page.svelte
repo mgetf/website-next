@@ -9,6 +9,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import { toast } from '$lib/state/toast.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -1092,7 +1093,9 @@
                   <span class="text-xs text-text-muted italic"> No timestamp </span>
                 {/if}
               </div>
-              <p class="text-text-label mt-1 whitespace-pre-wrap">{comm.content}</p>
+              <div class="mt-1">
+                <MarkdownRenderer content={comm.content} class="text-text-label" />
+              </div>
             </div>
           </div>
         </div>

@@ -48,6 +48,10 @@ const rulebookSchema = z.object({
   content: z.string().min(1, 'Rulebook content cannot be empty'),
 });
 
+const matchCreatedMessageSchema = z.object({
+  content: z.string().min(1, 'Match created message cannot be empty'),
+});
+
 const backgroundSettingsSchema = z.object({
   blur: z.coerce.number().min(0).max(30).default(0),
   brightness: z.coerce.number().min(0.1).max(1.5).default(1),
@@ -89,13 +93,17 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
   }
 
-  // Get rulebook content specifically
-  const rulebookContent = await getContent(CONTENT_KEYS.RULEBOOK);
+  const [rulebookContent, matchCreatedMessageContent] = await Promise.all([
+    getContent(CONTENT_KEYS.RULEBOOK),
+    getContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE),
+  ]);
 
   return {
     settings,
     content: contentMap,
     rulebookContent: rulebookContent || getDefaultContent(CONTENT_KEYS.RULEBOOK),
+    matchCreatedMessage:
+      matchCreatedMessageContent || getDefaultContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE),
     isHeadAdmin: locals.user.permissionLevel === UserRole.ADMIN,
     isR2Available: isR2Available(),
     apiKeys,
@@ -186,6 +194,32 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error updating rulebook:', error);
       return fail(500, { error: 'Failed to update rulebook' });
+    }
+  },
+
+  updateMatchCreatedMessage: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, matchCreatedMessageSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { content } = validation.data;
+
+    try {
+      await upsertContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE, content, locals.user.steamId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.CONTENT_UPDATED,
+        metadata: { key: 'match_created_message' },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Match created message updated' };
+    } catch (error) {
+      console.error('Error updating match created message:', error);
+      return fail(500, { error: 'Failed to update match created message' });
     }
   },
 

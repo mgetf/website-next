@@ -10,6 +10,7 @@ export const CONTENT_KEYS = {
   RULEBOOK: 'rulebook',
   HOMEPAGE_SUBTITLE: 'homepage_subtitle',
   HOMEPAGE_ABOUT: 'homepage_about',
+  MATCH_CREATED_MESSAGE: 'match_created_message',
 } as const;
 
 export type ContentKey = (typeof CONTENT_KEYS)[keyof typeof CONTENT_KEYS];
@@ -119,6 +120,22 @@ MGE (My Gaming Edge) is a competitive 1v1 and 2v2 arena format for Team Fortress
 - **Active Community** - Join our Discord and connect with fellow players
 - **Improve Your Skills** - Nothing beats focused practice against skilled opponents
 - **Prizes & Recognition** - Top performers earn recognition and prizes`;
+
+    case CONTENT_KEYS.MATCH_CREATED_MESSAGE:
+      return `**Match Created!** Important Information:
+
+1. **Contact:** Please reach out to your opponent via Discord or Steam.
+2. **Demo Required:** You must record a demo of your match.
+3. **Servers:** Check \`#match-servers\` in Discord for official server information.
+4. **Rules:** Review the [rulebook](https://mge.tf/rulebook).
+5. **Issue Resolution:**
+   - First, check the rulebook
+   - Then, communicate with your opponent
+   - Only contact an admin as a last resort
+
+Need help? Ask in Discord or contact an admin.
+
+Good luck to both teams!`;
 
     default:
       return '';

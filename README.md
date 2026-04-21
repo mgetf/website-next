@@ -63,6 +63,9 @@ POSTHOG_HOST="https://us.i.posthog.com"
 
 # Session
 SESSION_SECRET="generate-a-random-32-char-string"
+
+# Game server panel base URL (optional — defaults to https://panel.mge.tf)
+MGE_PANEL_URL="https://panel.mge.tf"
 ```
 
 ### 3. Set up the database
@@ -176,6 +179,7 @@ The server runs on `PORT` (default: 3000).
 - **Admin Panel**: User management, match creation, site content CMS
 - **PayPal Integration**: League fee payments
 - **Demo System**: Upload and review match demos
+- **Servers page** (`/servers`): Live public server browser backed by the mge-servers-panel API (`panel.mge.tf`). Refreshes every 30 seconds. Panel URL is configurable via `MGE_PANEL_URL`.
 
 ## Contributing
 

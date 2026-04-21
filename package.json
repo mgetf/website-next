@@ -29,15 +29,15 @@
     "dotenv": "^17.4.2",
     "dotenv-cli": "^11.0.0",
     "husky": "^9.1.7",
-    "knip": "^6.4.1",
+    "knip": "^6.5.0",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "prettier-plugin-svelte": "^3.5.1",
     "prisma": "^7.7.0",
     "svelte": "^5.55.4",
     "svelte-check": "^4.4.6",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.8"
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9"
   },
   "trustedDependencies": [
     "@prisma/client",
@@ -46,20 +46,21 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1031.0",
-    "@aws-sdk/s3-request-presigner": "^3.1031.0",
+    "@aws-sdk/client-s3": "^3.1033.0",
+    "@aws-sdk/s3-request-presigner": "^3.1033.0",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
-    "@tailwindcss/vite": "^4.2.2",
+    "@tailwindcss/vite": "^4.2.3",
     "@types/jsonwebtoken": "^9.0.10",
     "archiver": "^7.0.1",
     "chart.js": "^4.5.1",
+    "flag-icons": "^7.5.0",
     "fuse.js": "^7.3.0",
     "jsonwebtoken": "^9.0.3",
     "node-steam-openid": "^2.0.0",
     "svelte-dnd-action": "^0.9.69",
     "svelte-exmarkdown": "^5.0.2",
-    "tailwindcss": "^4.2.2",
+    "tailwindcss": "^4.2.3",
     "zod": "^4.3.6"
   },
   "lint-staged": {

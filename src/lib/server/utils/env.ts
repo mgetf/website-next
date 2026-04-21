@@ -35,6 +35,7 @@ const RECOMMENDED_VARS = [
   'CLOUDFLARE_PUBLIC_URL',
   'PUBLIC_URL',
   'LOG_DIR',
+  'MGE_PANEL_URL',
 ] as const;
 
 type RequiredSecret = (typeof REQUIRED_SECRETS)[number];
@@ -140,4 +141,12 @@ export function getJwtSecret(): string {
  */
 export function getSessionSecret(): string {
   return getRequiredEnv('SESSION_SECRET');
+}
+
+/**
+ * Get the base URL for the mge-servers-panel API
+ * Defaults to the production panel if not set
+ */
+export function getPanelUrl(): string {
+  return getOptionalEnv('MGE_PANEL_URL', 'https://panel.mge.tf').replace(/\/$/, '');
 }

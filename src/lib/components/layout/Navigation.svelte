@@ -119,6 +119,16 @@
             >
           </a>
           <a
+            href="/servers"
+            class="relative px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
+          >
+            Servers
+            <span
+              class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
+              >new</span
+            >
+          </a>
+          <a
             href="/rulebook"
             class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
@@ -242,6 +252,16 @@
           class="relative inline-block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Maps
+          <span
+            class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
+            >new</span
+          >
+        </a>
+        <a
+          href="/servers"
+          class="relative inline-block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
+        >
+          Servers
           <span
             class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
             >new</span

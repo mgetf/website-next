@@ -1,5 +1,6 @@
 <script lang="ts">
   import '../app.css';
+  import 'flag-icons/css/flag-icons.min.css';
   import type { LayoutData } from './$types';
   import Navigation from '$lib/components/layout/Navigation.svelte';
   import AnnouncementBanner from '$lib/components/layout/AnnouncementBanner.svelte';

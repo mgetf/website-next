@@ -13,14 +13,6 @@ import {
   localDatetimeToUtc,
 } from '$lib/server/utils/matchHelpers';
 import { createNotificationForTeamOwners } from './notifications';
-import { getContent, getDefaultContent, CONTENT_KEYS } from './siteContent';
-
-async function getMatchCreatedMessage(): Promise<string> {
-  return (
-    (await getContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE)) ??
-    getDefaultContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE)
-  );
-}
 
 /**
  * Sort teams by standings
@@ -243,8 +235,6 @@ export async function createMatchSet(
   const pairedTeamIds = new Set(matchPairs.flatMap((p) => [p.homeTeam.id, p.awayTeam.id]));
   const byeTeams = teams.filter((t) => !pairedTeamIds.has(t.id));
 
-  const matchCreatedMessage = await getMatchCreatedMessage();
-
   // Create matches
   const matches = [];
   for (const { homeTeam, awayTeam } of matchPairs) {
@@ -281,16 +271,6 @@ export async function createMatchSet(
         },
       });
     }
-
-    // Create initial match comm with instructions
-    await prisma.matchComm.create({
-      data: {
-        matchId: match.id,
-        owner: null,
-        content: matchCreatedMessage,
-        createdAt: new Date(),
-      },
-    });
 
     // Initialize map ban phase if pool specified
     if (mapBanPoolId) {
@@ -432,16 +412,6 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
       },
     });
   }
-
-  // Create initial match comm
-  await prisma.matchComm.create({
-    data: {
-      matchId: match.id,
-      owner: null,
-      content: await getMatchCreatedMessage(),
-      createdAt: new Date(),
-    },
-  });
 
   // Initialize map ban phase if pool specified
   if (mapBanPoolId) {

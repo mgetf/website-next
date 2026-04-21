@@ -14,6 +14,8 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
+  let userComms = $derived(data.match.matchComms.filter((c) => c.owner !== null));
+
   let showDisputeForm = $state(false);
   let showRescheduleForm = $state(false);
   let showDemoUploadModal = $state(false);
@@ -1056,35 +1058,29 @@
 
     <!-- Messages -->
     <div class="space-y-3">
-      {#each match.matchComms as comm, index}
+      {#each userComms as comm, index}
         <div class="p-4 bg-surface-input rounded-lg">
           <div class="flex items-start space-x-3">
             <div class="flex-shrink-0">
               <span
                 class="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-xs font-semibold text-text-label"
               >
-                #{match.matchComms.length - index}
+                #{userComms.length - index + 1}
               </span>
             </div>
             <img
-              src={comm.owner
-                ? comm.user?.steamAvatar || '/default-avatar.png'
-                : '/mge_transparent_logo.png'}
-              alt={comm.user?.steamUsername || 'System'}
+              src={comm.user?.steamAvatar || '/default-avatar.png'}
+              alt={comm.user?.steamUsername || 'Unknown'}
               class="w-10 h-10 rounded-full"
             />
             <div class="flex-1">
               <div class="flex items-center space-x-2">
-                {#if comm.owner}
-                  <a
-                    href="/users/{comm.owner}"
-                    class="font-semibold text-white hover:text-primary-400"
-                  >
-                    {comm.user?.steamUsername || 'System'}
-                  </a>
-                {:else}
-                  <span class="font-semibold text-text-body">System</span>
-                {/if}
+                <a
+                  href="/users/{comm.owner}"
+                  class="font-semibold text-white hover:text-primary-400"
+                >
+                  {comm.user?.steamUsername || 'Unknown'}
+                </a>
                 {#if comm.createdAt}
                   <span class="text-xs text-text-body">
                     {new Date(comm.createdAt).toLocaleString()}
@@ -1100,6 +1096,28 @@
           </div>
         </div>
       {/each}
+
+      <!-- System message, always #1 at the bottom -->
+      <div class="p-4 bg-surface-input rounded-lg">
+        <div class="flex items-start space-x-3">
+          <div class="flex-shrink-0">
+            <span
+              class="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-xs font-semibold text-text-label"
+            >
+              #1
+            </span>
+          </div>
+          <img src="/mge_transparent_logo.png" alt="System" class="w-10 h-10 rounded-full" />
+          <div class="flex-1">
+            <div class="flex items-center space-x-2">
+              <span class="font-semibold text-text-body">System</span>
+            </div>
+            <div class="mt-1">
+              <MarkdownRenderer content={data.matchCreatedMessage} class="text-text-label" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </Card>
 

@@ -40,6 +40,7 @@ import {
   adminUpdateScores,
 } from '$lib/server/services/adminMatches';
 import { getArenas } from '$lib/server/services/arenas';
+import { getContent, getDefaultContent, CONTENT_KEYS } from '$lib/server/services/siteContent';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -193,7 +194,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     }
   }
 
-  const arenas = permissions.isAdmin ? await getArenas() : [];
+  const [arenas, matchCreatedMessageContent] = await Promise.all([
+    permissions.isAdmin ? getArenas() : Promise.resolve([]),
+    getContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE),
+  ]);
 
   return {
     match,
@@ -211,6 +215,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     userDemoReports,
     user,
     arenas,
+    matchCreatedMessage:
+      matchCreatedMessageContent ?? getDefaultContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE),
   };
 };
 

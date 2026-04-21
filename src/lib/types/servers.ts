@@ -1,13 +1,13 @@
 export type ServerStatus = 'running' | 'stopped' | 'restarting' | 'missing' | 'unknown';
 
 export interface PublicGameServer {
-	regionSlug: string;
-	regionName: string;
-	regionFlag?: string;
-	hostSlug: string;
-	slot: number;
-	host: string;
-	port: number;
+  regionSlug: string;
+  regionName: string;
+  regionFlag?: string;
+  hostSlug: string;
+  slot: number;
+  host: string;
+  port: number;
   connect: string;
   displayName: string;
   map: string;

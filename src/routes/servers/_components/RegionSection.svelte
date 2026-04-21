@@ -68,21 +68,33 @@
       class="hidden md:grid grid-cols-[3fr_2fr_9rem_8rem_13rem] gap-x-4 px-5 py-2.5 border-b border-border-default bg-surface-input/20"
       aria-hidden="true"
     >
-      <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest">Server</span>
+      <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest">Server</span
+      >
       <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest">Map</span>
-      <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest">Players</span>
-      <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest">Status</span>
-      <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest text-right">Connect</span>
+      <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest"
+        >Players</span
+      >
+      <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest">Status</span
+      >
+      <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest text-right"
+        >Connect</span
+      >
     </div>
 
     {#each locationGroups() as loc, li (loc.slug)}
       {#if multipleLocations}
         <div
-          class="px-5 py-2 {li > 0 ? 'border-t border-border-default' : ''} bg-surface-input/10 flex items-center gap-2"
+          class="px-5 py-2 {li > 0
+            ? 'border-t border-border-default'
+            : ''} bg-surface-input/10 flex items-center gap-2"
         >
-          <span class="text-xs font-semibold text-text-muted uppercase tracking-widest">{loc.name}</span>
+          <span class="text-xs font-semibold text-text-muted uppercase tracking-widest"
+            >{loc.name}</span
+          >
           <span class="text-border-default text-xs">·</span>
-          <span class="text-xs text-text-muted">{loc.servers.length} {loc.servers.length !== 1 ? 'servers' : 'server'}</span>
+          <span class="text-xs text-text-muted"
+            >{loc.servers.length} {loc.servers.length !== 1 ? 'servers' : 'server'}</span
+          >
         </div>
       {/if}
       {#each loc.servers as server, i (server.connect)}

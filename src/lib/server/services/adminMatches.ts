@@ -708,7 +708,11 @@ export async function getRecentUnplayedMatches(limit: number = 10) {
 /**
  * Admin override scores (reverses old stats and applies new ones)
  */
-export async function adminUpdateScores(matchId: number, gameResults: GameResult[]) {
+export async function adminUpdateScores(
+  matchId: number,
+  gameResults: GameResult[],
+  options: { resolveDispute?: boolean } = {},
+) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
@@ -816,6 +820,12 @@ export async function adminUpdateScores(matchId: number, gameResults: GameResult
     },
   });
 
+  const previousStatus = match.status;
+  const nextStatus =
+    previousStatus === MatchStatus.DISPUTE && !options.resolveDispute
+      ? MatchStatus.DISPUTE
+      : MatchStatus.PLAYED;
+
   // Update match
   return await prisma.match.update({
     where: { id: matchId },
@@ -823,7 +833,7 @@ export async function adminUpdateScores(matchId: number, gameResults: GameResult
       winnerId,
       winnerScore,
       loserScore,
-      status: MatchStatus.PLAYED,
+      status: nextStatus,
     },
   });
 }

@@ -41,13 +41,17 @@
   let showAdminEditSchedule = $state(false);
   let showAdminEditArenas = $state(false);
   let showAdminConfirmDelete = $state(false);
+  let showAdminEditScores = $state(false);
   let isDeletingMatch = $state(false);
   let isEditingSchedule = $state(false);
   let isEditingArenas = $state(false);
+  let isEditingScores = $state(false);
 
   let editMatchDateTime = $state('');
   let editMatchTimezone = $state('UTC');
   let editArenas = $state<{ gameId: number; arenaId: string }[]>([]);
+  let editScores = $state<{ home: string; away: string }[]>([]);
+  let adminResolveDispute = $state(false);
   let localTimeStr = $state<string | null>(null);
 
   $effect(() => {
@@ -77,6 +81,18 @@
       gameId: g.id,
       arenaId: g.arenaId ? String(g.arenaId) : '',
     }));
+  });
+
+  $effect(() => {
+    const boSeries = data.match.boSeries || 3;
+    editScores = Array.from({ length: boSeries }, (_, i) => {
+      const g = data.match.games[i];
+      return {
+        home: g?.homeTeamScore != null ? String(g.homeTeamScore) : '',
+        away: g?.awayTeamScore != null ? String(g.awayTeamScore) : '',
+      };
+    });
+    adminResolveDispute = false;
   });
 
   $effect(() => {
@@ -580,6 +596,9 @@
           </Button>
           <Button variant="secondary" size="sm" onclick={() => (showAdminEditArenas = true)}>
             Edit Arenas
+          </Button>
+          <Button variant="secondary" size="sm" onclick={() => (showAdminEditScores = true)}>
+            Edit Scores
           </Button>
           {#if isUnplayed}
             <Button variant="danger" size="sm" onclick={() => (showAdminConfirmDelete = true)}>
@@ -1318,6 +1337,109 @@
     };
   }}
 ></form>
+
+<!-- Admin: Edit Scores Dialog -->
+<Dialog
+  open={showAdminEditScores}
+  title="Edit Match Scores"
+  onClose={() => (showAdminEditScores = false)}
+>
+  <FormError error={form?.error} success={form?.success ? form.message : null} />
+  <form
+    method="POST"
+    action="?/adminUpdateScores"
+    use:enhance={() => {
+      isEditingScores = true;
+      return async ({ result, update }) => {
+        isEditingScores = false;
+        if (result.type === 'success') {
+          showAdminEditScores = false;
+          toast.success('Scores updated');
+        } else if (result.type === 'failure') {
+          const d = result.data as { error?: string } | undefined;
+          toast.error(d?.error || 'Failed to update scores');
+        }
+        await update();
+      };
+    }}
+  >
+    <div class="grid grid-cols-3 gap-4 items-center mb-4 pb-3 border-b border-border-input">
+      <p class="text-sm font-medium text-text-label">{getHomeName()}</p>
+      <p class="text-sm font-medium text-text-muted text-center">vs</p>
+      <p class="text-sm font-medium text-text-label text-right">{getAwayName()}</p>
+    </div>
+
+    <div class="space-y-3 mb-4">
+      {#each editScores as entry, i}
+        <div class="grid grid-cols-3 gap-4 items-center">
+          <div>
+            <label for="adminHomeScore-{i}" class="sr-only"
+              >{getHomeName()} score, game {i + 1}</label
+            >
+            <input
+              id="adminHomeScore-{i}"
+              type="number"
+              name="homeScore_{i}"
+              min="0"
+              bind:value={entry.home}
+              placeholder="0"
+              class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+            />
+          </div>
+          <p class="text-text-muted text-center text-sm">Game {i + 1}</p>
+          <div>
+            <label for="adminAwayScore-{i}" class="sr-only"
+              >{getAwayName()} score, game {i + 1}</label
+            >
+            <input
+              id="adminAwayScore-{i}"
+              type="number"
+              name="awayScore_{i}"
+              min="0"
+              bind:value={entry.away}
+              placeholder="0"
+              class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+            />
+          </div>
+        </div>
+      {/each}
+    </div>
+
+    {#if isDisputed}
+      <label class="flex items-center gap-3 mb-4 cursor-pointer">
+        <input
+          type="checkbox"
+          name="resolveDispute"
+          value="true"
+          bind:checked={adminResolveDispute}
+          class="w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
+        />
+        <span class="text-sm text-text-label">Resolve dispute and mark as Played</span>
+      </label>
+    {:else}
+      <input type="hidden" name="resolveDispute" value="false" />
+    {/if}
+
+    <p class="text-xs text-text-muted mb-4">
+      Leave all fields for a game blank to omit that game. At least one complete game score is
+      required.
+    </p>
+
+    <div class="flex justify-end gap-3">
+      <Button
+        type="button"
+        variant="secondary"
+        onclick={() => (showAdminEditScores = false)}
+        disabled={isEditingScores}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" variant="primary" disabled={isEditingScores}>
+        {isEditingScores ? 'Saving...' : 'Save Scores'}
+      </Button>
+    </div>
+  </form>
+</Dialog>
 
 <!-- Demo Upload Modal -->
 <Dialog open={showDemoUploadModal} title="Upload Demo" onClose={closeDemoUploadModal}>

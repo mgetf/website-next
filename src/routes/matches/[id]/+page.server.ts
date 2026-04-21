@@ -37,6 +37,7 @@ import {
   adminUpdateMatchSchedule,
   adminUpdateMatchArenas,
   adminDeleteMatch as deleteMatchRecord,
+  adminUpdateScores,
 } from '$lib/server/services/adminMatches';
 import { getArenas } from '$lib/server/services/arenas';
 import { writeFile, mkdir } from 'fs/promises';
@@ -97,6 +98,10 @@ const adminEditScheduleSchema = z.object({
 const adminEditArenasSchema = z.object({
   gameId: z.array(z.coerce.number().int().positive()).min(1, 'At least one game is required'),
   arenaId: z.array(z.string()),
+});
+
+const adminUpdateScoresSchema = z.object({
+  resolveDispute: z.coerce.boolean().optional().default(false),
 });
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -880,6 +885,81 @@ export const actions: Actions = {
     } catch (err) {
       if (isRedirect(err)) throw err;
       return fail(400, { error: getErrorMessage(err, 'Failed to delete match') });
+    }
+  },
+
+  /**
+   * Admin: override match scores (works on UNPLAYED, PLAYED, and DISPUTE matches)
+   */
+  adminUpdateScores: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, adminUpdateScoresSchema);
+    if (!validation.success) return validationError(validation.errors, 'Invalid form data');
+    const { resolveDispute } = validation.data;
+
+    const boSeries = match.boSeries || 3;
+    const gameResults = [];
+
+    for (let i = 0; i < boSeries; i++) {
+      const homeScoreStr = formData.get(`homeScore_${i}`)?.toString() ?? '';
+      const awayScoreStr = formData.get(`awayScore_${i}`)?.toString() ?? '';
+
+      if (!homeScoreStr && !awayScoreStr) continue;
+
+      if (!homeScoreStr || !awayScoreStr) {
+        return fail(400, { error: `Game ${i + 1}: both scores are required` });
+      }
+
+      const entry = gameScoreEntrySchema.safeParse({
+        homeScore: homeScoreStr,
+        awayScore: awayScoreStr,
+      });
+
+      if (!entry.success) {
+        return fail(400, { error: `Game ${i + 1}: ${entry.error.issues[0]?.message}` });
+      }
+
+      gameResults.push({ gameNum: i + 1, ...entry.data });
+    }
+
+    if (gameResults.length === 0) {
+      return fail(400, { error: 'No valid scores provided' });
+    }
+
+    const previousStatus = match.status;
+
+    try {
+      await adminUpdateScores(matchId, gameResults, { resolveDispute });
+
+      await createNotificationForMatch(
+        matchId,
+        'An admin updated the match scores',
+        locals.user.steamId,
+      );
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_SCORES_OVERRIDDEN,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { gameResults, resolveDispute, previousStatus },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Scores updated successfully' };
+    } catch (err) {
+      return fail(500, { error: getErrorMessage(err, 'Failed to update scores') });
     }
   },
 };

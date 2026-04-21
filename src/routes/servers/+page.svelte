@@ -170,7 +170,9 @@
   {/if}
 
   <!-- CTA -->
-  <div class="mt-14 rounded-xl border border-border-default bg-surface-card px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+  <div
+    class="mt-14 rounded-xl border border-border-default bg-surface-card px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-6"
+  >
     <div>
       <p class="text-white font-semibold text-lg mb-1">Experiencing performance issues?</p>
       <p class="text-text-body text-sm">

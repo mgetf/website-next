@@ -33,7 +33,10 @@
 >
   <!-- Display name + ELO -->
   <div class="flex items-center gap-2 min-w-0">
-    <span class="font-semibold text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis" title={server.displayName}>
+    <span
+      class="font-semibold text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis"
+      title={server.displayName}
+    >
       {server.displayName}
     </span>
     {#if server.elo}
@@ -78,15 +81,18 @@
 <!-- Mobile card -->
 <div class="md:hidden px-4 py-4 {last ? '' : 'border-b border-border-default'}">
   <div class="flex items-start justify-between gap-3 mb-3">
-      <div class="min-w-0">
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis">{server.displayName}</span>
-          {#if server.elo}
-            <Badge color="blue" class="shrink-0">ELO</Badge>
-          {/if}
-        </div>
-        <p class="font-mono text-xs text-text-muted mt-0.5 truncate">{server.map}</p>
+    <div class="min-w-0">
+      <div class="flex items-center gap-2">
+        <span
+          class="font-semibold text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis"
+          >{server.displayName}</span
+        >
+        {#if server.elo}
+          <Badge color="blue" class="shrink-0">ELO</Badge>
+        {/if}
       </div>
+      <p class="font-mono text-xs text-text-muted mt-0.5 truncate">{server.map}</p>
+    </div>
     <div class="shrink-0">
       <ServerStatusBadge status={server.status} />
     </div>

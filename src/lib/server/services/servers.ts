@@ -17,13 +17,13 @@ import type { PublicGameServer, ServersPageData } from '$lib/types/servers';
 const ServerStatusSchema = z.enum(['running', 'stopped', 'restarting', 'missing', 'unknown']);
 
 const PublicGameServerSchema = z.object({
-	regionSlug: z.string(),
-	regionName: z.string(),
-	regionFlag: z.string().optional(),
-	hostSlug: z.string(),
-	slot: z.number().int(),
-	host: z.string(),
-	port: z.number().int(),
+  regionSlug: z.string(),
+  regionName: z.string(),
+  regionFlag: z.string().optional(),
+  hostSlug: z.string(),
+  slot: z.number().int(),
+  host: z.string(),
+  port: z.number().int(),
   connect: z.string(),
   displayName: z.string(),
   map: z.string(),

@@ -13,7 +13,6 @@ import {
   createPlayoffMatch,
   getEligibleTeams,
   updateMatchStatus,
-  adminUpdateScores,
   getWeekOptionsForSeason,
   getMatchesForAdminWeekView,
 } from '$lib/server/services/adminMatches';
@@ -66,15 +65,6 @@ const createPlayoffMatchSchema = z.object({
 const updateMatchStatusSchema = z.object({
   matchId: z.coerce.number().int(),
   status: z.coerce.number().int().min(0).max(2),
-});
-
-const updateScoresSchema = z.object({
-  matchId: z.coerce.number().int(),
-});
-
-const gameScoreEntrySchema = z.object({
-  homeScore: z.coerce.number().int().min(0),
-  awayScore: z.coerce.number().int().min(0),
 });
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -333,55 +323,6 @@ export const actions: Actions = {
       return { success: true, message: 'Match status updated' };
     } catch (err) {
       return fail(500, { error: 'Failed to update match status' });
-    }
-  },
-
-  updateScores: async ({ request, locals, getClientAddress }) => {
-    requireAdmin(locals.user);
-
-    const formData = await request.formData();
-    const validation = validateForm(formData, updateScoresSchema);
-    if (!validation.success) return validationError(validation.errors);
-    const { matchId } = validation.data;
-
-    const gameResults = [];
-    for (let i = 0; i < 10; i++) {
-      const homeScoreStr = formData.get(`homeScore_${i}`)?.toString() ?? '';
-      const awayScoreStr = formData.get(`awayScore_${i}`)?.toString() ?? '';
-
-      if (homeScoreStr && awayScoreStr) {
-        const entry = gameScoreEntrySchema.safeParse({
-          homeScore: homeScoreStr,
-          awayScore: awayScoreStr,
-        });
-        if (!entry.success) {
-          return fail(400, { error: `Game ${i + 1}: ${entry.error.issues[0]?.message}` });
-        }
-        gameResults.push({ gameNum: i + 1, ...entry.data });
-      }
-    }
-
-    if (gameResults.length === 0) {
-      return fail(400, { error: 'No valid scores provided' });
-    }
-
-    try {
-      await adminUpdateScores(matchId, gameResults);
-
-      await logAudit({
-        actorId: locals.user?.steamId,
-        actorRole: locals.user?.permissionLevel,
-        category: AuditCategory.MATCH,
-        action: AuditAction.MATCH_SCORES_OVERRIDDEN,
-        targetType: 'Match',
-        targetId: String(matchId),
-        metadata: { gameResults },
-        ipAddress: getClientAddress(),
-      });
-
-      return { success: true, message: 'Scores updated successfully' };
-    } catch (err) {
-      return fail(500, { error: getErrorMessage(err, 'Failed to update scores') });
     }
   },
 };

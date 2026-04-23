@@ -9,8 +9,16 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
+  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import type { ProfileMatch } from '$lib/types/match';
+  import type { MgeRating } from '$lib/types/mge';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
+
+  const REGION_FLAGS: Record<string, string> = {
+    na: 'us',
+    eu: 'eu',
+    as: 'sg',
+  };
 
   interface TeamWithMatches {
     teamId: number;
@@ -95,11 +103,13 @@
     } | null;
     entries1v1: Entry1v1WithMatches[];
     divisions1v1: Array<{ id: number; name: string; signupCost: number; regionId: number }>;
+    ratings: MgeRating[];
   }
 
   let { data }: { data: PlayerData } = $props();
 
   const player = $derived(data.player);
+  const mgeRatings = $derived(data.ratings);
   const currentTeams = $derived(data.currentTeams);
   const teamHistory = $derived(data.teamHistory);
   const tournaments = $derived(data.tournaments);
@@ -565,6 +575,31 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <!-- Left Sidebar -->
       <aside class="lg:col-span-3 space-y-6">
+        <!-- MGE ELO -->
+        {#if mgeRatings.length > 0}
+          <div
+            class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
+          >
+            <div class="bg-surface-page/80 px-4 py-3 border-b border-border-default">
+              <h3 class="text-lg font-bold text-white">MGE ELO</h3>
+            </div>
+            <div class="divide-y divide-border-default/50">
+              {#each mgeRatings as rating}
+                {@const flagCode = REGION_FLAGS[rating.region] ?? rating.region}
+                <div class="flex items-center justify-between px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <FlagIcon code={flagCode} class="w-6 h-4 rounded" />
+                    <span class="text-sm font-medium text-text-label"
+                      >{rating.region.toUpperCase()}</span
+                    >
+                  </div>
+                  <span class="text-lg font-black text-white">{rating.elo}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
         <!-- Achievements -->
         <div
           class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"

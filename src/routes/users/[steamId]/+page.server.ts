@@ -19,12 +19,16 @@ import { isAdmin } from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { getPlayerRatings } from '$lib/server/clients/mgePlatform';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
 
   try {
-    const profile = await getPlayerProfile(steamId);
+    const [profile, ratings] = await Promise.all([
+      getPlayerProfile(steamId),
+      getPlayerRatings(steamId),
+    ]);
 
     if (!profile) {
       throw error(404, 'User not found');
@@ -43,6 +47,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     return {
       ...profile,
+      ratings,
       isOwnProfile,
       isAdmin: isUserAdmin,
       signupSuccess,

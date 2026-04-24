@@ -334,10 +334,9 @@ export async function getTeamsByDivision(
       };
     })
     .sort((a, b) => {
-      // Sort by avg points DESC, then wins DESC, then losses ASC
-      if (b._sortKey !== a._sortKey) return b._sortKey - a._sortKey;
       if (b.wins !== a.wins) return b.wins - a.wins;
-      return a.losses - b.losses;
+      if (a.losses !== b.losses) return a.losses - b.losses;
+      return b._sortKey - a._sortKey;
     })
     .map(({ _sortKey, ...team }) => team); // Remove temporary sort key
 }

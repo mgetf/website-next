@@ -593,7 +593,16 @@
                       >{rating.region.toUpperCase()}</span
                     >
                   </div>
-                  <span class="text-lg font-black text-white">{rating.elo}</span>
+                  <div class="text-right">
+                    <span class="text-lg font-black text-white">{rating.elo}</span>
+                    {#if rating.wins !== null || rating.losses !== null}
+                      <div class="text-xs text-text-muted">
+                        <span class="text-success-400">{rating.wins ?? 0}W</span>
+                        <span class="mx-0.5">/</span>
+                        <span class="text-danger-400">{rating.losses ?? 0}L</span>
+                      </div>
+                    {/if}
+                  </div>
                 </div>
               {/each}
             </div>

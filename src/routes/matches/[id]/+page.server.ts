@@ -28,6 +28,9 @@ import {
   canRequestReschedule,
   getRescheduleTimeRemaining,
   getMatchCommById,
+  formatRescheduleDateTime,
+  getRescheduleDisplay,
+  settleExpiredReschedules,
 } from '$lib/server/services/matchComms';
 import { getMapBanStatus, processBanPickAction } from '$lib/server/services/mapBans';
 import { canDisputeMatch, localDatetimeToUtc } from '$lib/server/utils/matchHelpers';
@@ -56,6 +59,7 @@ const postMessageSchema = z.object({
 
 const requestRescheduleSchema = z.object({
   proposedDateTime: z.string().min(1, 'Proposed date/time is required'),
+  proposedTimezone: z.string().min(1, 'Proposed timezone is required').default('UTC'),
 });
 
 const respondRescheduleSchema = z.object({
@@ -111,6 +115,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     throw error(400, 'Invalid match ID');
   }
 
+  await settleExpiredReschedules(matchId);
+
   const match = await getMatchDetails(matchId);
   const user = locals.user || null;
 
@@ -123,7 +129,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // Get pending reschedule request
   const pendingReschedule = await getPendingReschedule(matchId);
   let rescheduleTimeRemaining: string | null = null;
+  let pendingRescheduleFormatted: string | null = null;
   let hasPendingReschedule = false;
+
+  if (pendingReschedule) {
+    pendingRescheduleFormatted = getRescheduleDisplay(
+      pendingReschedule,
+      match.matchTimezone || 'UTC',
+    );
+  }
 
   if (pendingReschedule && user) {
     const timeInfo = getRescheduleTimeRemaining(pendingReschedule);
@@ -204,6 +218,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     weekLabel,
     permissions,
     pendingReschedule,
+    pendingRescheduleFormatted,
     rescheduleTimeRemaining,
     hasPendingReschedule,
     mapBanStatus,
@@ -432,7 +447,9 @@ export const actions: Actions = {
       return validationError(validation.errors, 'Invalid form data');
     }
 
-    const { proposedDateTime } = validation.data;
+    const { proposedDateTime, proposedTimezone } = validation.data;
+
+    await settleExpiredReschedules(matchId);
 
     const match = await getMatchDetails(matchId);
     const permissions = canUserManageMatch(locals.user, match);
@@ -451,17 +468,22 @@ export const actions: Actions = {
       return fail(400, { error: 'Reschedule request already pending' });
     }
 
-    try {
-      const utcDateTime = new Date(proposedDateTime + 'Z').toISOString();
-      const formattedDate = new Date(utcDateTime).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
+    const timezone = proposedTimezone || 'UTC';
+    let utcDateTime: string;
+    let formattedDate: string;
 
+    try {
+      utcDateTime = localDatetimeToUtc(proposedDateTime, timezone).toISOString();
+      formattedDate =
+        formatRescheduleDateTime(utcDateTime, timezone) ?? new Date(utcDateTime).toISOString();
+    } catch {
+      return fail(400, { error: 'Invalid date/time or timezone value' });
+    }
+
+    try {
       await createMatchComm(matchId, locals.user.steamId, '', {
         proposedDateTime: utcDateTime,
+        proposedTimezone: timezone,
       });
 
       await createNotificationForMatch(
@@ -494,6 +516,8 @@ export const actions: Actions = {
     }
 
     const { commId, response } = validation.data;
+
+    await settleExpiredReschedules(matchId);
 
     const match = await getMatchDetails(matchId);
     const comm = await getMatchCommById(commId);

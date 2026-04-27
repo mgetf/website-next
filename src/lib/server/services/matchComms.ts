@@ -7,6 +7,48 @@ import { prisma } from '$lib/server/db';
 import type { User, Match, MatchComm } from '$prisma/client.js';
 import { MatchStatus, UserRole } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
+import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+const RESCHEDULE_RESPONSE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const RESCHEDULE_STATUS_PENDING = 0;
+const RESCHEDULE_STATUS_ACCEPTED = 1;
+const RESCHEDULE_REQUEST_PREFIX = 'RESCHEDULE REQUESTED:';
+
+export function formatRescheduleDateTime(
+  value: string | Date | null | undefined,
+  timeZone = 'UTC',
+): string | null {
+  if (!value) return null;
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  try {
+    return date.toLocaleString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone,
+      timeZoneName: 'short',
+      hour12: true,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export function getRescheduleDisplay(comm: MatchComm, fallbackTimeZone = 'UTC'): string {
+  const content = comm.content?.trim() ?? '';
+  if (content.startsWith(RESCHEDULE_REQUEST_PREFIX)) {
+    const contentTime = content.slice(RESCHEDULE_REQUEST_PREFIX.length).trim();
+    if (contentTime && !/^\d{4}-\d{2}-\d{2}T/.test(contentTime)) {
+      return contentTime;
+    }
+  }
+
+  return formatRescheduleDateTime(comm.reschedule, fallbackTimeZone) ?? comm.reschedule ?? '';
+}
 
 /**
  * Create a match communication (message or reschedule request)
@@ -17,6 +59,7 @@ export async function createMatchComm(
   content: string,
   rescheduleData?: {
     proposedDateTime: string;
+    proposedTimezone?: string;
   },
 ) {
   const match = await prisma.match.findUnique({
@@ -36,8 +79,11 @@ export async function createMatchComm(
 
   if (rescheduleData) {
     commData.reschedule = rescheduleData.proposedDateTime;
-    commData.rescheduleStatus = 0; // Pending
-    commData.content = `RESCHEDULE REQUESTED: ${rescheduleData.proposedDateTime}`;
+    commData.rescheduleStatus = RESCHEDULE_STATUS_PENDING; // Pending
+    commData.content = `${RESCHEDULE_REQUEST_PREFIX} ${
+      formatRescheduleDateTime(rescheduleData.proposedDateTime, rescheduleData.proposedTimezone) ??
+      rescheduleData.proposedDateTime
+    }`;
   }
 
   const comm = await prisma.matchComm.create({
@@ -56,7 +102,7 @@ export async function getPendingReschedule(matchId: number) {
   const reschedule = await prisma.matchComm.findFirst({
     where: {
       matchId,
-      rescheduleStatus: 0, // Pending
+      rescheduleStatus: RESCHEDULE_STATUS_PENDING, // Pending
     },
     include: {
       user: true,
@@ -164,7 +210,7 @@ export async function updateRescheduleStatus(
     notFound('Reschedule request not found');
   }
 
-  if (comm.rescheduleStatus !== 0) {
+  if (comm.rescheduleStatus !== RESCHEDULE_STATUS_PENDING) {
     badRequest('Reschedule request already processed');
   }
 
@@ -172,7 +218,7 @@ export async function updateRescheduleStatus(
   let responseMessage: string;
 
   if (status === 'accept') {
-    newStatus = 1; // Accepted
+    newStatus = RESCHEDULE_STATUS_ACCEPTED; // Accepted
     responseMessage = 'MATCH RESPONSE: Reschedule request accepted.';
 
     // Update match date/time
@@ -229,7 +275,7 @@ export function getRescheduleTimeRemaining(comm: MatchComm): {
 
   const now = Date.now();
   const createdTime = comm.createdAt.getTime();
-  const deadline = createdTime + 24 * 60 * 60 * 1000; // 24 hours in ms
+  const deadline = createdTime + RESCHEDULE_RESPONSE_WINDOW_MS; // 24 hours in ms
   const msRemaining = deadline - now;
 
   if (msRemaining <= 0) {
@@ -252,6 +298,92 @@ export function getRescheduleTimeRemaining(comm: MatchComm): {
  */
 export function canRequestReschedule(match: Match): boolean {
   return match.status === MatchStatus.UNPLAYED;
+}
+
+export async function settleExpiredReschedules(matchId?: number): Promise<number> {
+  const cutoff = new Date(Date.now() - RESCHEDULE_RESPONSE_WINDOW_MS);
+  const expiredReschedules = await prisma.matchComm.findMany({
+    where: {
+      ...(matchId ? { matchId } : {}),
+      rescheduleStatus: RESCHEDULE_STATUS_PENDING,
+      createdAt: { lte: cutoff },
+      reschedule: { not: null },
+    },
+    include: {
+      match: {
+        select: {
+          id: true,
+          status: true,
+          matchDateTime: true,
+          matchTimezone: true,
+        },
+      },
+    },
+  });
+
+  let settledCount = 0;
+
+  for (const comm of expiredReschedules) {
+    if (comm.match.status !== MatchStatus.UNPLAYED || !comm.reschedule) continue;
+
+    const requestedDate = new Date(comm.reschedule);
+    if (Number.isNaN(requestedDate.getTime())) continue;
+
+    const settled = await prisma.$transaction(async (tx) => {
+      const updatedComm = await tx.matchComm.updateMany({
+        where: {
+          id: comm.id,
+          rescheduleStatus: RESCHEDULE_STATUS_PENDING,
+        },
+        data: {
+          rescheduleStatus: RESCHEDULE_STATUS_ACCEPTED,
+        },
+      });
+
+      if (updatedComm.count === 0) {
+        return false;
+      }
+
+      await tx.match.update({
+        where: { id: comm.matchId },
+        data: {
+          matchDateTime: requestedDate,
+        },
+      });
+
+      await tx.matchComm.create({
+        data: {
+          matchId: comm.matchId,
+          owner: null,
+          content: 'MATCH RESPONSE: Reschedule request automatically accepted after 24 hours.',
+          createdAt: new Date(),
+        },
+      });
+
+      return true;
+    });
+
+    if (!settled) continue;
+
+    settledCount++;
+    await logAudit({
+      actorId: null,
+      actorRole: null,
+      category: AuditCategory.MATCH,
+      action: AuditAction.MATCH_SCHEDULE_UPDATED,
+      targetType: 'Match',
+      targetId: String(comm.matchId),
+      metadata: {
+        rescheduleCommId: comm.id,
+        matchDateTimeUtc: requestedDate.toISOString(),
+        previousMatchDateTimeUtc: comm.match.matchDateTime?.toISOString() ?? null,
+        matchTimezone: comm.match.matchTimezone,
+        reason: 'reschedule_request_auto_accepted',
+      },
+    });
+  }
+
+  return settledCount;
 }
 
 /**

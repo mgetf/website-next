@@ -4,6 +4,7 @@
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -22,6 +23,8 @@
   let showDemoReportModal = $state(false);
   let selectedDemoForReport = $state<any>(null);
   let messageContent = $state('');
+  let proposedDateTime = $state('');
+  let proposedTimezone = $state('UTC');
   let isSubmittingScore = $state(false);
   let isSubmittingMessage = $state(false);
   let isUploadingDemo = $state(false);
@@ -77,6 +80,10 @@
       editMatchDateTime = '';
     }
     editMatchTimezone = tz;
+  });
+
+  $effect(() => {
+    proposedTimezone = data.match.matchTimezone || 'UTC';
   });
 
   $effect(() => {
@@ -240,6 +247,17 @@
     if (status === 'PLAYED') return 'Played';
     if (status === 'DISPUTE') return 'Disputed';
     return 'Unknown';
+  };
+
+  const getPendingRescheduleDisplay = () => {
+    const formatted =
+      'pendingRescheduleFormatted' in data &&
+      typeof data.pendingRescheduleFormatted === 'string' &&
+      data.pendingRescheduleFormatted.trim().length > 0
+        ? data.pendingRescheduleFormatted
+        : null;
+
+    return formatted ?? data.pendingReschedule?.reschedule ?? '';
   };
 
   // Map ban/pick state
@@ -951,7 +969,7 @@
           <div>
             <p class="font-semibold text-info-400">Reschedule Request Pending</p>
             <p class="text-sm text-info-400">
-              Proposed: {data.pendingReschedule.reschedule}
+              Proposed: {getPendingRescheduleDisplay()}
             </p>
             {#if data.rescheduleTimeRemaining}
               <p class="text-xs text-info-400 mt-1">
@@ -1037,19 +1055,21 @@
       {#if showRescheduleForm && data.canReschedule && !data.pendingReschedule}
         <div class="mb-6 p-4 bg-surface-input rounded-lg">
           <form method="POST" action="?/requestReschedule" use:enhance>
-            <div class="mb-3">
-              <label for="proposedDateTime" class="block text-sm font-medium text-text-label mb-1"
-                >Proposed Date/Time (UTC)</label
-              >
-              <input
-                id="proposedDateTime"
-                type="datetime-local"
-                name="proposedDateTime"
-                required
-                class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-              <p class="text-xs text-text-muted mt-1">Enter time in UTC timezone</p>
-            </div>
+            <FormInput
+              label={`Proposed Date/Time (${proposedTimezone})`}
+              type="datetime-local"
+              name="proposedDateTime"
+              bind:value={proposedDateTime}
+              required
+              hint={`Enter the date and time in ${proposedTimezone}.`}
+            />
+            <FormSelect
+              label="Timezone"
+              name="proposedTimezone"
+              bind:value={proposedTimezone}
+              options={TIMEZONES}
+              required
+            />
             <Button type="submit" variant="primary" size="sm">Send Request</Button>
           </form>
         </div>

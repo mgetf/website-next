@@ -14,7 +14,7 @@
   }: {
     label: string;
     name: string;
-    type?: 'text' | 'email' | 'password' | 'url' | 'tel' | 'number';
+    type?: 'text' | 'email' | 'password' | 'url' | 'tel' | 'number' | 'datetime-local';
     value?: string | null;
     placeholder?: string;
     required?: boolean;

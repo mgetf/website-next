@@ -3,7 +3,7 @@
  * Handles match viewing, score submission, disputes, reschedules, map bans, and communications
  */
 
-import { error, fail, redirect, isRedirect } from '@sveltejs/kit';
+import { error, fail, redirect, isRedirect, isHttpError } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth } from '$lib/server/auth/permissions';
 import { z } from 'zod';
@@ -107,6 +107,10 @@ const adminEditArenasSchema = z.object({
 
 const adminUpdateScoresSchema = z.object({
   resolveDispute: z.coerce.boolean().optional().default(false),
+  boSeries: z.coerce
+    .number()
+    .int()
+    .refine((n) => [1, 3, 5, 7].includes(n), 'Best of must be 1, 3, 5, or 7'),
 });
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -934,9 +938,8 @@ export const actions: Actions = {
     const formData = await request.formData();
     const validation = validateForm(formData, adminUpdateScoresSchema);
     if (!validation.success) return validationError(validation.errors, 'Invalid form data');
-    const { resolveDispute } = validation.data;
+    const { resolveDispute, boSeries } = validation.data;
 
-    const boSeries = match.boSeries || 3;
     const gameResults = [];
 
     for (let i = 0; i < boSeries; i++) {
@@ -966,9 +969,10 @@ export const actions: Actions = {
     }
 
     const previousStatus = match.status;
+    const previousBoSeries = match.boSeries ?? null;
 
     try {
-      await adminUpdateScores(matchId, gameResults, { resolveDispute });
+      await adminUpdateScores(matchId, gameResults, { resolveDispute, boSeries });
 
       await createNotificationForMatch(
         matchId,
@@ -983,12 +987,21 @@ export const actions: Actions = {
         action: AuditAction.MATCH_SCORES_OVERRIDDEN,
         targetType: 'Match',
         targetId: String(matchId),
-        metadata: { gameResults, resolveDispute, previousStatus },
+        metadata: {
+          gameResults,
+          resolveDispute,
+          previousStatus,
+          previousBoSeries,
+          boSeries,
+        },
         ipAddress: getClientAddress(),
       });
 
       return { success: true, message: 'Scores updated successfully' };
     } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to update scores') });
+      }
       return fail(500, { error: getErrorMessage(err, 'Failed to update scores') });
     }
   },

@@ -3,7 +3,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import type { ParsedMatch, KillEvent } from '$lib/types/matchLog';
+  import type { ParsedMatch, KillEvent, PlayerRecord } from '$lib/types/matchLog';
 
   interface PageLog {
     id: number;
@@ -27,12 +27,25 @@
   let killEventsPage = $state(1);
   const KILLS_PER_PAGE = 25;
 
+  const log = $derived(data.log);
+  const players = $derived(log.parsedData.players);
+
   const killEvents = $derived(
-    data.log.parsedData.events.filter((e): e is KillEvent => e.type === 'kill'),
+    log.parsedData.events.filter((e): e is KillEvent => e.type === 'kill'),
   );
   const killEventsTotalPages = $derived(Math.ceil(killEvents.length / KILLS_PER_PAGE));
   const pagedKillEvents = $derived(
     killEvents.slice((killEventsPage - 1) * KILLS_PER_PAGE, killEventsPage * KILLS_PER_PAGE),
+  );
+
+  const showResultHero = $derived(!log.aborted && players.length === 2);
+  const heroWinner = $derived(players.find((p) => p.won) ?? null);
+  const heroLoser = $derived(players.find((p) => !p.won) ?? null);
+
+  const playersGridClass = $derived(
+    players.length === 1
+      ? 'max-w-md mx-auto'
+      : 'grid md:grid-cols-2 gap-4',
   );
 
   function formatTimestamp(iso: string): string {
@@ -52,7 +65,7 @@
   }
 
   function getPlayerName(steamId: string): string {
-    return data.log.parsedData.players.find((p) => p.steamId === steamId)?.name ?? steamId;
+    return players.find((p) => p.steamId === steamId)?.name ?? steamId;
   }
 
   function formatAccuracy(acc: number | null): string {
@@ -65,6 +78,21 @@
     return `${((shotsHit / shotsFired) * 100).toFixed(1)}%`;
   }
 
+  function hasNoSubstats(player: PlayerRecord): boolean {
+    return (
+      player.stats.kills === 0 &&
+      player.stats.deaths === 0 &&
+      player.stats.damageDone === 0 &&
+      player.stats.accuracy === null
+    );
+  }
+
+  function filteredWeapons(player: PlayerRecord): [string, (typeof player.stats.weaponBreakdown)[string]][] {
+    return Object.entries(player.stats.weaponBreakdown).filter(
+      ([, w]) => w.kills > 0 || w.damage > 0,
+    );
+  }
+
   const killColumns: Column[] = [
     { key: 'time', label: 'Time', width: '90px' },
     { key: 'killer', label: 'Killer' },
@@ -75,7 +103,7 @@
 </script>
 
 <svelte:head>
-  <title>{data.log.hostname ?? 'Unknown Server'} — #{data.log.mgeMatchId} — MGE.TF</title>
+  <title>{log.hostname ?? 'Unknown Server'} — #{log.mgeMatchId} — MGE.TF</title>
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -86,86 +114,117 @@
     </a>
     <div class="mt-3 flex items-start justify-between gap-4 flex-wrap">
       <div>
-        <h1 class="text-3xl font-bold text-white">
-          {data.log.hostname ?? 'Unknown Server'} — #{data.log.mgeMatchId}
-        </h1>
-        <div class="mt-2 flex items-center gap-2 flex-wrap text-text-body">
-          <span>{data.log.map}</span>
-          {#if data.log.arena}
-            <span class="text-text-muted">•</span>
-            <span>{data.log.arena}</span>
+        <h1 class="text-3xl font-bold text-white">{log.hostname ?? 'Unknown Server'}</h1>
+        <div class="mt-2 flex items-center gap-2 flex-wrap text-text-body text-sm">
+          <span class="font-mono text-text-muted">#{log.mgeMatchId}</span>
+          <span class="text-text-muted">·</span>
+          <span>{log.map}</span>
+          {#if log.arena}
+            <span class="text-text-muted">·</span>
+            <span>{log.arena}</span>
           {/if}
-          <span class="text-text-muted">•</span>
-          <Badge color={data.log.format === '1v1' ? 'blue' : 'green'}>{data.log.format}</Badge>
-          {#if data.log.aborted}
+          <span class="text-text-muted">·</span>
+          <Badge color={log.format === '1v1' ? 'purple' : 'blue'}>{log.format}</Badge>
+          {#if log.aborted}
             <Badge color="red">Aborted</Badge>
           {/if}
         </div>
         <p class="mt-1 text-sm text-text-muted">
-          {formatDate(data.log.startedAt)}{#if data.log.durationSec !== null}
-            · {formatDuration(data.log.durationSec)}{/if}
+          {formatDate(log.startedAt)}{#if log.durationSec !== null}
+            · {formatDuration(log.durationSec)}{/if}
         </p>
       </div>
-      {#if data.log.rawLogUrl}
-        <Button variant="secondary" size="sm" href={data.log.rawLogUrl} target="_blank">
+      {#if log.rawLogUrl}
+        <Button variant="secondary" size="sm" href={log.rawLogUrl} target="_blank">
           Download Raw Log
         </Button>
       {/if}
     </div>
   </div>
 
+  <!-- Match result hero -->
+  {#if showResultHero && heroWinner && heroLoser}
+    <Card>
+      <div class="flex items-center justify-between gap-4 py-2">
+        <div class="flex-1 text-left">
+          <div class="text-lg font-bold text-white">{heroWinner.name}</div>
+          <div class="flex items-center gap-2 mt-1">
+            <Badge color={heroWinner.team === 'Red' ? 'red' : 'blue'}>{heroWinner.team}</Badge>
+            <span class="text-text-muted text-sm">{heroWinner.startClass}</span>
+          </div>
+          <div class="text-4xl font-bold text-warning-400 mt-2">{heroWinner.score}</div>
+        </div>
+
+        <div class="shrink-0 px-4 text-text-muted font-semibold text-lg">vs</div>
+
+        <div class="flex-1 text-right">
+          <div class="text-lg font-bold text-white">{heroLoser.name}</div>
+          <div class="flex items-center justify-end gap-2 mt-1">
+            <Badge color={heroLoser.team === 'Red' ? 'red' : 'blue'}>{heroLoser.team}</Badge>
+            <span class="text-text-muted text-sm">{heroLoser.startClass}</span>
+          </div>
+          <div class="text-4xl font-bold text-text-muted mt-2">{heroLoser.score}</div>
+        </div>
+      </div>
+    </Card>
+  {/if}
+
   <!-- Players -->
   <div>
     <h2 class="text-xl font-semibold text-white mb-4">Players</h2>
-    <div class="grid gap-4 md:grid-cols-2">
-      {#each data.log.parsedData.players as player (player.steamId)}
+    <div class={playersGridClass}>
+      {#each players as player (player.steamId)}
+        {@const weapons = filteredWeapons(player)}
         <Card>
           <div class="space-y-4">
-            <div class="flex items-center justify-between gap-2 flex-wrap">
-              <div class="flex items-center gap-2">
+            <!-- Player header row -->
+            <div class="flex items-start justify-between gap-2 flex-wrap">
+              <div class="flex items-center gap-2 flex-wrap">
                 {#if player.won}
                   <span class="text-warning-400 text-lg" aria-label="Winner">★</span>
                 {/if}
-                <span class="text-lg font-semibold text-white">{player.name}</span>
+                <span class="text-lg font-bold text-white">{player.name}</span>
+                <span class="text-2xl font-bold text-white">{player.score}</span>
               </div>
               <div class="flex items-center gap-2">
                 <Badge color={player.team === 'Red' ? 'red' : 'blue'}>{player.team}</Badge>
-                <span class="text-text-muted text-sm">{player.startClass}</span>
+                <span class="text-text-muted text-sm capitalize">{player.startClass}</span>
               </div>
             </div>
 
-            <div class="text-center">
-              <div class="text-2xl font-bold text-white">{player.score}</div>
-              <div class="text-xs text-text-muted uppercase tracking-wide">Score</div>
-            </div>
+            <!-- Stats -->
+            {#if hasNoSubstats(player)}
+              <p class="text-sm text-text-muted italic">No supstats2 data</p>
+            {:else}
+              <div class="grid grid-cols-3 gap-2 text-sm">
+                <div class="bg-surface-input rounded-md p-2">
+                  <div class="text-text-muted text-xs">Kills</div>
+                  <div class="text-white font-medium">{player.stats.kills}</div>
+                </div>
+                <div class="bg-surface-input rounded-md p-2">
+                  <div class="text-text-muted text-xs">Deaths</div>
+                  <div class="text-white font-medium">{player.stats.deaths}</div>
+                </div>
+                <div class="bg-surface-input rounded-md p-2">
+                  <div class="text-text-muted text-xs">DPM</div>
+                  <div class="text-white font-medium">{player.stats.dpm.toFixed(0)}</div>
+                </div>
+                <div class="bg-surface-input rounded-md p-2">
+                  <div class="text-text-muted text-xs">Accuracy</div>
+                  <div class="text-white font-medium">{formatAccuracy(player.stats.accuracy)}</div>
+                </div>
+                <div class="bg-surface-input rounded-md p-2">
+                  <div class="text-text-muted text-xs">Airshots</div>
+                  <div class="text-white font-medium">{player.stats.airshots}</div>
+                </div>
+                <div class="bg-surface-input rounded-md p-2">
+                  <div class="text-text-muted text-xs">Headshots</div>
+                  <div class="text-white font-medium">{player.stats.headshotKills}</div>
+                </div>
+              </div>
+            {/if}
 
-            <div class="grid grid-cols-2 gap-2 text-sm">
-              <div class="bg-surface-input rounded-md p-2">
-                <div class="text-text-muted text-xs">Kills</div>
-                <div class="text-white font-medium">{player.stats.kills}</div>
-              </div>
-              <div class="bg-surface-input rounded-md p-2">
-                <div class="text-text-muted text-xs">Deaths</div>
-                <div class="text-white font-medium">{player.stats.deaths}</div>
-              </div>
-              <div class="bg-surface-input rounded-md p-2">
-                <div class="text-text-muted text-xs">DPM</div>
-                <div class="text-white font-medium">{player.stats.dpm.toFixed(0)}</div>
-              </div>
-              <div class="bg-surface-input rounded-md p-2">
-                <div class="text-text-muted text-xs">Accuracy</div>
-                <div class="text-white font-medium">{formatAccuracy(player.stats.accuracy)}</div>
-              </div>
-              <div class="bg-surface-input rounded-md p-2">
-                <div class="text-text-muted text-xs">Airshots</div>
-                <div class="text-white font-medium">{player.stats.airshots}</div>
-              </div>
-              <div class="bg-surface-input rounded-md p-2">
-                <div class="text-text-muted text-xs">Headshots</div>
-                <div class="text-white font-medium">{player.stats.headshotKills}</div>
-              </div>
-            </div>
-
+            <!-- ELO -->
             {#if player.elo !== null}
               <div class="border-t border-border-default pt-3">
                 <div class="text-xs text-text-muted uppercase tracking-wide mb-1">ELO</div>
@@ -184,7 +243,8 @@
               </div>
             {/if}
 
-            {#if Object.keys(player.stats.weaponBreakdown).length > 0}
+            <!-- Weapon Breakdown -->
+            {#if weapons.length > 0}
               <div class="border-t border-border-default pt-3">
                 <div class="text-xs text-text-muted uppercase tracking-wide mb-2">
                   Weapon Breakdown
@@ -208,7 +268,7 @@
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-border-default">
-                      {#each Object.entries(player.stats.weaponBreakdown) as [weapon, wStats] (weapon)}
+                      {#each weapons as [weapon, wStats] (weapon)}
                         <tr>
                           <td class="py-1 text-text-body capitalize">{weapon}</td>
                           <td class="py-1 text-text-body text-right">{wStats.kills}</td>
@@ -230,58 +290,59 @@
   </div>
 
   <!-- Kill Events Timeline -->
-  <div>
-    <h2 class="text-xl font-semibold text-white mb-4">Kill Events</h2>
-    <DataTable
-      data={pagedKillEvents}
-      columns={killColumns}
-      compact={true}
-      emptyMessage="No kill events recorded."
-      pagination={killEventsTotalPages > 1
-        ? {
-            currentPage: killEventsPage,
-            totalPages: killEventsTotalPages,
-            onPageChange: (p) => {
-              killEventsPage = p;
-            },
-            infoText: `${killEvents.length} kill events`,
-          }
-        : undefined}
-    >
-      {#snippet cell(event, col)}
-        {#if col.key === 'time'}
-          <span class="font-mono text-text-muted text-xs">{formatTimestamp(event.timestamp)}</span>
-        {:else if col.key === 'killer'}
-          <span class="text-text-label">{getPlayerName(event.attackerSteamId)}</span>
-        {:else if col.key === 'victim'}
-          <span class="text-text-label">{getPlayerName(event.victimSteamId)}</span>
-        {:else if col.key === 'weapon'}
-          <span class="text-text-body capitalize">{event.weapon}</span>
-        {:else if col.key === 'flags'}
-          {#if event.headshot || event.airshot}
-            <div class="flex items-center justify-center gap-1">
-              {#if event.headshot}
-                <Badge color="orange">HS</Badge>
-              {/if}
-              {#if event.airshot}
-                <Badge color="blue">AS</Badge>
-              {/if}
-            </div>
-          {:else}
-            <span class="text-text-muted">—</span>
+  {#if killEvents.length > 0}
+    <div>
+      <h2 class="text-xl font-semibold text-white mb-4">Kill Events ({killEvents.length})</h2>
+      <DataTable
+        data={pagedKillEvents}
+        columns={killColumns}
+        compact={true}
+        pagination={killEventsTotalPages > 1
+          ? {
+              currentPage: killEventsPage,
+              totalPages: killEventsTotalPages,
+              onPageChange: (p) => {
+                killEventsPage = p;
+              },
+              infoText: `${killEvents.length} kill events`,
+            }
+          : undefined}
+      >
+        {#snippet cell(event, col)}
+          {#if col.key === 'time'}
+            <span class="font-mono text-text-muted text-xs">{formatTimestamp(event.timestamp)}</span>
+          {:else if col.key === 'killer'}
+            <span class="text-text-label">{getPlayerName(event.attackerSteamId)}</span>
+          {:else if col.key === 'victim'}
+            <span class="text-text-label">{getPlayerName(event.victimSteamId)}</span>
+          {:else if col.key === 'weapon'}
+            <span class="text-text-body capitalize">{event.weapon}</span>
+          {:else if col.key === 'flags'}
+            {#if event.headshot || event.airshot}
+              <div class="flex items-center justify-center gap-1">
+                {#if event.headshot}
+                  <Badge color="orange">HS</Badge>
+                {/if}
+                {#if event.airshot}
+                  <Badge color="blue">AS</Badge>
+                {/if}
+              </div>
+            {:else}
+              <span class="text-text-muted">—</span>
+            {/if}
           {/if}
-        {/if}
-      {/snippet}
-    </DataTable>
-  </div>
+        {/snippet}
+      </DataTable>
+    </div>
+  {/if}
 
   <!-- Chat Log -->
-  {#if data.log.parsedData.chat.length > 0}
+  {#if log.parsedData.chat.length > 0}
     <div>
       <h2 class="text-xl font-semibold text-white mb-4">Chat Log</h2>
       <Card>
         <div class="space-y-1">
-          {#each data.log.parsedData.chat as msg, i (i)}
+          {#each log.parsedData.chat as msg, i (i)}
             <div class="flex items-start gap-3 text-sm py-1">
               <span class="font-mono text-text-muted text-xs shrink-0 mt-0.5">
                 {formatTimestamp(msg.timestamp)}

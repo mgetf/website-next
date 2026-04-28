@@ -981,3 +981,23 @@ model ByeWeek {
   @@unique([teamId, seasonId, weekNo])
   @@map("bye_weeks")
 }
+
+// MGE Match Logs
+model MatchLog {
+  id          Int       @id @default(autoincrement())
+  mgeMatchId  String    @unique @map("mge_match_id")
+  rawLogKey   String    @map("raw_log_key")
+  parsedData  Json      @map("parsed_data")
+  hostname    String?
+  map         String
+  arena       String?
+  gamemode    String
+  format      String
+  aborted     Boolean   @default(false)
+  startedAt   DateTime? @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  durationSec Int?      @map("duration_sec")
+  uploadedAt  DateTime  @default(now()) @map("uploaded_at")
+
+  @@map("match_logs")
+}

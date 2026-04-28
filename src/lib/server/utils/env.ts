@@ -36,6 +36,7 @@ const RECOMMENDED_VARS = [
   'PUBLIC_URL',
   'LOG_DIR',
   'MGE_PANEL_URL',
+  'PARSER_URL',
 ] as const;
 
 type RequiredSecret = (typeof REQUIRED_SECRETS)[number];
@@ -149,4 +150,11 @@ export function getSessionSecret(): string {
  */
 export function getPanelUrl(): string {
   return getOptionalEnv('MGE_PANEL_URL', 'https://panel.mge.tf').replace(/\/$/, '');
+}
+
+/**
+ * Get the internal URL for the mge-logs-parser service
+ */
+export function getParserUrl(): string {
+  return getOptionalEnv('PARSER_URL', 'http://localhost:3000').replace(/\/$/, '');
 }

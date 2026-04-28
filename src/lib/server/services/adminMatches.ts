@@ -613,12 +613,6 @@ export async function updateMatchStatus(matchId: number, status: MatchStatus) {
   });
 }
 
-interface GameResult {
-  gameNum: number;
-  homeScore: number;
-  awayScore: number;
-}
-
 /**
  * Get recent unplayed matches for dashboard quick view
  */
@@ -659,136 +653,188 @@ export async function getRecentUnplayedMatches(limit: number = 10) {
   });
 }
 
+interface GameResult {
+  gameNum: number;
+  homeScore: number;
+  awayScore: number;
+}
+
+const ALLOWED_BO_SERIES = new Set([1, 3, 5, 7]);
+
 /**
- * Admin override scores (reverses old stats and applies new ones)
+ * Admin override scores (reverses old stats and applies new ones).
+ * Optionally changes Best of series (`boSeries`), creating or removing `Game` rows as needed.
  */
 export async function adminUpdateScores(
   matchId: number,
   gameResults: GameResult[],
-  options: { resolveDispute?: boolean } = {},
+  options: { resolveDispute?: boolean; boSeries?: number } = {},
 ) {
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    include: {
-      homeTeam: true,
-      awayTeam: true,
-      games: true,
-    },
-  });
+  return await prisma.$transaction(async (tx) => {
+    const match = await tx.match.findUnique({
+      where: { id: matchId },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        games: { orderBy: { gameNum: 'asc' } },
+      },
+    });
 
-  if (!match) {
-    notFound('Match not found');
-  }
+    if (!match) {
+      notFound('Match not found');
+    }
 
-  // If match was already played, reverse old stats
-  if (match.winnerId) {
-    const previousHomeWins = match.games.filter(
-      (g) => g.homeTeamScore && g.awayTeamScore && g.homeTeamScore > g.awayTeamScore,
-    ).length;
-    const previousAwayWins = match.games.filter(
-      (g) => g.homeTeamScore && g.awayTeamScore && g.awayTeamScore > g.homeTeamScore,
-    ).length;
-    const previousHomePoints = match.games.reduce((sum, g) => sum + (g.homeTeamScore || 0), 0);
-    const previousAwayPoints = match.games.reduce((sum, g) => sum + (g.awayTeamScore || 0), 0);
+    const targetBo =
+      options.boSeries !== undefined && options.boSeries !== null
+        ? options.boSeries
+        : (match.boSeries ?? 3);
 
-    // Reverse home team stats
-    await prisma.team.update({
+    if (!ALLOWED_BO_SERIES.has(targetBo)) {
+      badRequest('Best of series must be 1, 3, 5, or 7');
+    }
+
+    for (const r of gameResults) {
+      if (r.gameNum < 1 || r.gameNum > targetBo) {
+        badRequest(`Invalid game number ${r.gameNum} for Best of ${targetBo}`);
+      }
+    }
+
+    // If match was already played, reverse old stats
+    if (match.winnerId) {
+      const previousHomeWins = match.games.filter(
+        (g) => g.homeTeamScore != null && g.awayTeamScore != null && g.homeTeamScore > g.awayTeamScore,
+      ).length;
+      const previousAwayWins = match.games.filter(
+        (g) => g.homeTeamScore != null && g.awayTeamScore != null && g.awayTeamScore > g.homeTeamScore,
+      ).length;
+      const previousHomePoints = match.games.reduce((sum, g) => sum + (g.homeTeamScore || 0), 0);
+      const previousAwayPoints = match.games.reduce((sum, g) => sum + (g.awayTeamScore || 0), 0);
+
+      await tx.team.update({
+        where: { id: match.homeTeamId },
+        data: {
+          wins: { decrement: match.winnerId === match.homeTeamId ? 1 : 0 },
+          losses: { decrement: match.winnerId === match.awayTeamId ? 1 : 0 },
+          gamesWon: { decrement: previousHomeWins },
+          gamesLost: { decrement: previousAwayWins },
+          pointsScored: { decrement: previousHomePoints },
+          pointsScoredAgainst: { decrement: previousAwayPoints },
+        },
+      });
+
+      await tx.team.update({
+        where: { id: match.awayTeamId },
+        data: {
+          wins: { decrement: match.winnerId === match.awayTeamId ? 1 : 0 },
+          losses: { decrement: match.winnerId === match.homeTeamId ? 1 : 0 },
+          gamesWon: { decrement: previousAwayWins },
+          gamesLost: { decrement: previousHomeWins },
+          pointsScored: { decrement: previousAwayPoints },
+          pointsScoredAgainst: { decrement: previousHomePoints },
+        },
+      });
+    }
+
+    const toRemove = match.games.filter((g) => g.gameNum > targetBo);
+    for (const g of toRemove) {
+      if (g.homeTeamScore != null || g.awayTeamScore != null) {
+        badRequest(
+          `Cannot reduce Best of to ${targetBo}: game ${g.gameNum} has scores. Remove those scores or choose a higher Best of.`,
+        );
+      }
+    }
+    if (toRemove.length > 0) {
+      await tx.game.deleteMany({
+        where: { matchId, gameNum: { gt: targetBo } },
+      });
+    }
+
+    const defaultArenaId = match.games.find((g) => g.gameNum === 1)?.arenaId ?? null;
+    const existingNums = new Set(
+      (
+        await tx.game.findMany({
+          where: { matchId },
+          select: { gameNum: true },
+        })
+      ).map((g) => g.gameNum),
+    );
+    for (let n = 1; n <= targetBo; n++) {
+      if (!existingNums.has(n)) {
+        await tx.game.create({
+          data: { matchId, gameNum: n, arenaId: defaultArenaId },
+        });
+      }
+    }
+
+    for (const result of gameResults) {
+      await tx.game.updateMany({
+        where: { matchId, gameNum: result.gameNum },
+        data: {
+          homeTeamScore: result.homeScore,
+          awayTeamScore: result.awayScore,
+        },
+      });
+    }
+
+    const homeWins = gameResults.filter((g) => g.homeScore > g.awayScore).length;
+    const awayWins = gameResults.filter((g) => g.awayScore > g.homeScore).length;
+    const homePoints = gameResults.reduce((sum, g) => sum + g.homeScore, 0);
+    const awayPoints = gameResults.reduce((sum, g) => sum + g.awayScore, 0);
+
+    let winnerId: number | null = null;
+    let winnerScore = 0;
+    let loserScore = 0;
+
+    if (homeWins > awayWins) {
+      winnerId = match.homeTeamId;
+      winnerScore = homeWins;
+      loserScore = awayWins;
+    } else if (awayWins > homeWins) {
+      winnerId = match.awayTeamId;
+      winnerScore = awayWins;
+      loserScore = homeWins;
+    }
+
+    await tx.team.update({
       where: { id: match.homeTeamId },
       data: {
-        wins: { decrement: match.winnerId === match.homeTeamId ? 1 : 0 },
-        losses: { decrement: match.winnerId === match.awayTeamId ? 1 : 0 },
-        gamesWon: { decrement: previousHomeWins },
-        gamesLost: { decrement: previousAwayWins },
-        pointsScored: { decrement: previousHomePoints },
-        pointsScoredAgainst: { decrement: previousAwayPoints },
+        wins: { increment: winnerId === match.homeTeamId ? 1 : 0 },
+        losses: { increment: winnerId === match.awayTeamId ? 1 : 0 },
+        gamesWon: { increment: homeWins },
+        gamesLost: { increment: awayWins },
+        pointsScored: { increment: homePoints },
+        pointsScoredAgainst: { increment: awayPoints },
       },
     });
 
-    // Reverse away team stats
-    await prisma.team.update({
+    await tx.team.update({
       where: { id: match.awayTeamId },
       data: {
-        wins: { decrement: match.winnerId === match.awayTeamId ? 1 : 0 },
-        losses: { decrement: match.winnerId === match.homeTeamId ? 1 : 0 },
-        gamesWon: { decrement: previousAwayWins },
-        gamesLost: { decrement: previousHomeWins },
-        pointsScored: { decrement: previousAwayPoints },
-        pointsScoredAgainst: { decrement: previousHomePoints },
+        wins: { increment: winnerId === match.awayTeamId ? 1 : 0 },
+        losses: { increment: winnerId === match.homeTeamId ? 1 : 0 },
+        gamesWon: { increment: awayWins },
+        gamesLost: { increment: homeWins },
+        pointsScored: { increment: awayPoints },
+        pointsScoredAgainst: { increment: homePoints },
       },
     });
-  }
 
-  // Update games with new scores
-  for (const result of gameResults) {
-    await prisma.game.updateMany({
-      where: { matchId, gameNum: result.gameNum },
+    const previousStatus = match.status;
+    const nextStatus =
+      previousStatus === MatchStatus.DISPUTE && !options.resolveDispute
+        ? MatchStatus.DISPUTE
+        : MatchStatus.PLAYED;
+
+    return await tx.match.update({
+      where: { id: matchId },
       data: {
-        homeTeamScore: result.homeScore,
-        awayTeamScore: result.awayScore,
+        winnerId,
+        winnerScore,
+        loserScore,
+        status: nextStatus,
+        boSeries: targetBo,
       },
     });
-  }
-
-  // Calculate new winner
-  const homeWins = gameResults.filter((g) => g.homeScore > g.awayScore).length;
-  const awayWins = gameResults.filter((g) => g.awayScore > g.homeScore).length;
-  const homePoints = gameResults.reduce((sum, g) => sum + g.homeScore, 0);
-  const awayPoints = gameResults.reduce((sum, g) => sum + g.awayScore, 0);
-
-  let winnerId: number | null = null;
-  let winnerScore = 0;
-  let loserScore = 0;
-
-  if (homeWins > awayWins) {
-    winnerId = match.homeTeamId;
-    winnerScore = homeWins;
-    loserScore = awayWins;
-  } else if (awayWins > homeWins) {
-    winnerId = match.awayTeamId;
-    winnerScore = awayWins;
-    loserScore = homeWins;
-  }
-
-  // Apply new team stats
-  await prisma.team.update({
-    where: { id: match.homeTeamId },
-    data: {
-      wins: { increment: winnerId === match.homeTeamId ? 1 : 0 },
-      losses: { increment: winnerId === match.awayTeamId ? 1 : 0 },
-      gamesWon: { increment: homeWins },
-      gamesLost: { increment: awayWins },
-      pointsScored: { increment: homePoints },
-      pointsScoredAgainst: { increment: awayPoints },
-    },
-  });
-
-  await prisma.team.update({
-    where: { id: match.awayTeamId },
-    data: {
-      wins: { increment: winnerId === match.awayTeamId ? 1 : 0 },
-      losses: { increment: winnerId === match.homeTeamId ? 1 : 0 },
-      gamesWon: { increment: awayWins },
-      gamesLost: { increment: homeWins },
-      pointsScored: { increment: awayPoints },
-      pointsScoredAgainst: { increment: homePoints },
-    },
-  });
-
-  const previousStatus = match.status;
-  const nextStatus =
-    previousStatus === MatchStatus.DISPUTE && !options.resolveDispute
-      ? MatchStatus.DISPUTE
-      : MatchStatus.PLAYED;
-
-  // Update match
-  return await prisma.match.update({
-    where: { id: matchId },
-    data: {
-      winnerId,
-      winnerScore,
-      loserScore,
-      status: nextStatus,
-    },
   });
 }
 

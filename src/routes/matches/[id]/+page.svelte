@@ -57,6 +57,7 @@
   let editMatchTimezone = $state('UTC');
   let editArenas = $state<{ gameId: number; arenaId: string }[]>([]);
   let editScores = $state<{ home: string; away: string }[]>([]);
+  let adminEditBoSeriesStr = $state('3');
   let adminResolveDispute = $state(false);
   let localTimeStr = $state<string | null>(null);
 
@@ -93,17 +94,34 @@
     }));
   });
 
-  $effect(() => {
-    const boSeries = data.match.boSeries || 3;
-    editScores = Array.from({ length: boSeries }, (_, i) => {
-      const g = data.match.games[i];
+  function openAdminEditScores() {
+    const bo = data.match.boSeries || 3;
+    adminEditBoSeriesStr = String(bo);
+    editScores = Array.from({ length: bo }, (_, i) => {
+      const g = data.match.games.find((g) => g.gameNum === i + 1);
       return {
         home: g?.homeTeamScore != null ? String(g.homeTeamScore) : '',
         away: g?.awayTeamScore != null ? String(g.awayTeamScore) : '',
       };
     });
     adminResolveDispute = false;
-  });
+    showAdminEditScores = true;
+  }
+
+  function onAdminEditBoSeriesChange(v: string) {
+    const parsed = parseInt(v, 10);
+    const newBo = [1, 3, 5, 7].includes(parsed) ? parsed : 3;
+    adminEditBoSeriesStr = String(newBo);
+    const prev = editScores;
+    editScores = Array.from({ length: newBo }, (_, i) => {
+      if (prev[i]) return prev[i];
+      const g = data.match.games.find((g) => g.gameNum === i + 1);
+      return {
+        home: g?.homeTeamScore != null ? String(g.homeTeamScore) : '',
+        away: g?.awayTeamScore != null ? String(g.awayTeamScore) : '',
+      };
+    });
+  }
 
   $effect(() => {
     if (data.match.matchDateTime) {
@@ -618,7 +636,7 @@
           <Button variant="secondary" size="sm" onclick={() => (showAdminEditArenas = true)}>
             Edit Arenas
           </Button>
-          <Button variant="secondary" size="sm" onclick={() => (showAdminEditScores = true)}>
+          <Button variant="secondary" size="sm" onclick={openAdminEditScores}>
             Edit Scores
           </Button>
           {#if isUnplayed}
@@ -1404,6 +1422,24 @@
       };
     }}
   >
+    <div class="mb-4">
+      <FormSelect
+        label="Best of series"
+        name="boSeries"
+        bind:value={adminEditBoSeriesStr}
+        required
+        placeholder="Select"
+        options={[
+          { value: '1', label: 'Bo1' },
+          { value: '3', label: 'Bo3' },
+          { value: '5', label: 'Bo5' },
+          { value: '7', label: 'Bo7' },
+        ]}
+        hint="Changing this adds or removes game slots. Lowering Best of is blocked if dropped games still have scores."
+        onChange={onAdminEditBoSeriesChange}
+      />
+    </div>
+
     <div class="grid grid-cols-3 gap-4 items-center mb-4 pb-3 border-b border-border-input">
       <p class="text-sm font-medium text-text-label">{getHomeName()}</p>
       <p class="text-sm font-medium text-text-muted text-center">vs</p>

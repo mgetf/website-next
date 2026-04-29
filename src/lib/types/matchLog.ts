@@ -109,6 +109,18 @@ export interface ChatMessage {
   message: string;
 }
 
+export interface MatchPreviewSide {
+  names: string[];
+  classes: string[];
+  score: number;
+  team: Team;
+}
+
+export interface MatchPreview {
+  winner: MatchPreviewSide;
+  loser: MatchPreviewSide;
+}
+
 export interface MatchLogSummary {
   id: number;
   mgeMatchId: string;
@@ -123,6 +135,7 @@ export interface MatchLogSummary {
   startedAt: string | null;
   endedAt: string | null;
   uploadedAt: string;
+  preview: MatchPreview | null;
 }
 
 export interface MatchLogDetail extends MatchLogSummary {

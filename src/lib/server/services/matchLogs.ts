@@ -2,7 +2,12 @@ import { prisma } from '$lib/server/db';
 import { uploadBufferToR2, getPublicUrl } from '$lib/server/utils/r2Upload';
 import { getParserUrl } from '$lib/server/utils/env';
 import { notFound } from '$lib/server/utils/errors';
-import type { ParsedMatch, MatchLogSummary, MatchLogDetail } from '$lib/types/matchLog';
+import type {
+  ParsedMatch,
+  MatchLogSummary,
+  MatchLogDetail,
+  MatchPreview,
+} from '$lib/types/matchLog';
 
 const LOGS_PER_PAGE = 50;
 
@@ -13,21 +18,46 @@ export class ParseError extends Error {
   }
 }
 
-function toSummary(row: {
-  id: number;
-  mgeMatchId: string;
-  hostname: string | null;
-  map: string;
-  arena: string | null;
-  gamemode: string;
-  format: string;
-  aborted: boolean;
-  players: unknown;
-  durationSec: number | null;
-  startedAt: Date | null;
-  endedAt?: Date | null;
-  uploadedAt: Date;
-}): MatchLogSummary {
+function buildPreview(parsed: ParsedMatch): MatchPreview | null {
+  if (parsed.meta.aborted) return null;
+  const winners = parsed.players.filter((p) => p.won);
+  const losers = parsed.players.filter((p) => !p.won);
+  if (winners.length === 0 || losers.length === 0) return null;
+
+  return {
+    winner: {
+      names: winners.map((p) => p.name),
+      classes: winners.map((p) => p.startClass),
+      score: Math.max(...winners.map((p) => p.score)),
+      team: winners[0].team,
+    },
+    loser: {
+      names: losers.map((p) => p.name),
+      classes: losers.map((p) => p.startClass),
+      score: Math.max(...losers.map((p) => p.score)),
+      team: losers[0].team,
+    },
+  };
+}
+
+function toSummary(
+  row: {
+    id: number;
+    mgeMatchId: string;
+    hostname: string | null;
+    map: string;
+    arena: string | null;
+    gamemode: string;
+    format: string;
+    aborted: boolean;
+    players: unknown;
+    durationSec: number | null;
+    startedAt: Date | null;
+    endedAt?: Date | null;
+    uploadedAt: Date;
+  },
+  parsed?: ParsedMatch,
+): MatchLogSummary {
   return {
     id: row.id,
     mgeMatchId: row.mgeMatchId,
@@ -42,6 +72,7 @@ function toSummary(row: {
     startedAt: row.startedAt?.toISOString() ?? null,
     endedAt: row.endedAt?.toISOString() ?? null,
     uploadedAt: row.uploadedAt.toISOString(),
+    preview: parsed ? buildPreview(parsed) : null,
   };
 }
 
@@ -72,7 +103,8 @@ export async function uploadMatchLog({
 }): Promise<MatchLogSummary> {
   const existing = await prisma.matchLog.findUnique({ where: { mgeMatchId } });
   if (existing) {
-    return toSummary(existing);
+    const existingParsed = existing.parsedData as unknown as ParsedMatch;
+    return toSummary(existing, existingParsed);
   }
 
   const parsed = await callParser(logText);
@@ -100,16 +132,17 @@ export async function uploadMatchLog({
     },
   });
 
-  return toSummary(row);
+  return toSummary(row, parsed);
 }
 
 export async function getMatchLog(id: number): Promise<MatchLogDetail> {
   const row = await prisma.matchLog.findUnique({ where: { id } });
   if (!row) notFound('Match log not found');
 
+  const parsed = row.parsedData as unknown as ParsedMatch;
   return {
-    ...toSummary(row),
-    parsedData: row.parsedData as unknown as ParsedMatch,
+    ...toSummary(row, parsed),
+    parsedData: parsed,
     rawLogKey: row.rawLogKey,
   };
 }
@@ -140,13 +173,14 @@ export async function listMatchLogs(page: number = 1): Promise<{
         startedAt: true,
         endedAt: true,
         uploadedAt: true,
+        parsedData: true,
       },
     }),
     prisma.matchLog.count(),
   ]);
 
   return {
-    logs: rows.map(toSummary),
+    logs: rows.map((row) => toSummary(row, row.parsedData as unknown as ParsedMatch)),
     total,
     totalPages: Math.ceil(total / LOGS_PER_PAGE),
   };

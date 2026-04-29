@@ -2,30 +2,22 @@
   import { goto } from '$app/navigation';
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import PageHero from '$lib/components/layout/PageHero.svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
 
   const columns: Column[] = [
-    { key: 'id', label: '#', align: 'left', width: '80px' },
     { key: 'match', label: 'Match' },
-    { key: 'arena', label: 'Arena' },
-    { key: 'format', label: 'Format', align: 'center' },
-    { key: 'status', label: 'Status', align: 'center' },
-    { key: 'date', label: 'Date' },
-    { key: 'duration', label: 'Duration', align: 'right' },
+    { key: 'map', label: 'Map', width: '180px' },
+    { key: 'format', label: 'Format', align: 'center', width: '80px' },
+    { key: 'date', label: 'Date', align: 'right', width: '130px' },
   ];
-
-  function formatDuration(sec: number | null): string {
-    if (sec === null) return '—';
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}m ${s}s`;
-  }
 
   function formatDate(iso: string | null): string {
     if (!iso) return '—';
-    return new Date(iso).toLocaleDateString();
+    const d = new Date(iso);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   }
 
   const perPage = $derived(
@@ -46,15 +38,17 @@
   <title>Match Logs — MGE.TF</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto px-4 py-8">
-  <div class="mb-6">
-    <h1 class="text-3xl font-bold text-white mb-2">Match Logs</h1>
-    <p class="text-text-body">Browse recent MGE match logs from official servers.</p>
-  </div>
+<PageHero
+  title="Match Logs"
+  subtitle="Browse recent MGE match logs from official servers."
+  border={true}
+/>
 
+<div class="max-w-7xl mx-auto px-4 py-8">
   <DataTable
     data={data.logs}
     {columns}
+    compact={true}
     emptyMessage="No match logs have been uploaded yet."
     pagination={{
       currentPage: data.pagination.page,
@@ -64,32 +58,33 @@
     }}
   >
     {#snippet cell(log, col)}
-      {#if col.key === 'id'}
-        <span class="text-text-muted font-mono text-sm">#{log.id}</span>
-      {:else if col.key === 'match'}
+      {#if col.key === 'match'}
         <div>
           <a
             href="/logs/{log.id}"
-            class="text-white font-medium hover:text-primary-400 transition-colors"
+            class="text-white text-sm font-medium hover:text-primary-400 transition-colors"
           >
-            {log.hostname ?? 'Unknown'} — #{log.mgeMatchId}
+            {log.hostname ?? 'Unknown'} —
+            {#if log.players.length >= 2}
+              {log.players[0]} vs {log.players[1]}
+            {:else if log.players.length === 1}
+              {log.players[0]}
+            {:else}
+              #{log.mgeMatchId}
+            {/if}
           </a>
-          <p class="text-text-muted text-sm mt-0.5">{log.map}</p>
         </div>
-      {:else if col.key === 'arena'}
-        <span class="text-text-body">{log.arena ?? '—'}</span>
+      {:else if col.key === 'map'}
+        <div class="min-w-0">
+          <span class="text-text-body text-sm truncate block">{log.map}</span>
+          {#if log.arena}
+            <p class="text-text-muted text-xs mt-0.5 truncate">{log.arena}</p>
+          {/if}
+        </div>
       {:else if col.key === 'format'}
         <Badge color={log.format === '1v1' ? 'blue' : 'green'}>{log.format}</Badge>
-      {:else if col.key === 'status'}
-        {#if log.aborted}
-          <Badge color="red">Aborted</Badge>
-        {:else}
-          <Badge color="green">Completed</Badge>
-        {/if}
       {:else if col.key === 'date'}
-        <span class="text-text-body">{formatDate(log.startedAt)}</span>
-      {:else if col.key === 'duration'}
-        <span class="text-text-body text-right">{formatDuration(log.durationSec)}</span>
+        <span class="text-text-muted text-sm whitespace-nowrap">{formatDate(log.startedAt)}</span>
       {/if}
     {/snippet}
   </DataTable>

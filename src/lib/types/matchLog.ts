@@ -118,6 +118,7 @@ export interface MatchLogSummary {
   gamemode: string;
   format: string;
   aborted: boolean;
+  players: string[];
   durationSec: number | null;
   startedAt: string | null;
   endedAt: string | null;

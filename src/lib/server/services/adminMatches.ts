@@ -702,10 +702,12 @@ export async function adminUpdateScores(
     // If match was already played, reverse old stats
     if (match.winnerId) {
       const previousHomeWins = match.games.filter(
-        (g) => g.homeTeamScore != null && g.awayTeamScore != null && g.homeTeamScore > g.awayTeamScore,
+        (g) =>
+          g.homeTeamScore != null && g.awayTeamScore != null && g.homeTeamScore > g.awayTeamScore,
       ).length;
       const previousAwayWins = match.games.filter(
-        (g) => g.homeTeamScore != null && g.awayTeamScore != null && g.awayTeamScore > g.homeTeamScore,
+        (g) =>
+          g.homeTeamScore != null && g.awayTeamScore != null && g.awayTeamScore > g.homeTeamScore,
       ).length;
       const previousHomePoints = match.games.reduce((sum, g) => sum + (g.homeTeamScore || 0), 0);
       const previousAwayPoints = match.games.reduce((sum, g) => sum + (g.awayTeamScore || 0), 0);

@@ -988,6 +988,7 @@ model MatchLog {
   mgeMatchId  String    @unique @map("mge_match_id")
   rawLogKey   String    @map("raw_log_key")
   parsedData  Json      @map("parsed_data")
+  players     Json      @default("[]") @map("players")
   hostname    String?
   map         String
   arena       String?

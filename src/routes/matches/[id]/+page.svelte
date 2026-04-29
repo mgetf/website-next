@@ -636,9 +636,7 @@
           <Button variant="secondary" size="sm" onclick={() => (showAdminEditArenas = true)}>
             Edit Arenas
           </Button>
-          <Button variant="secondary" size="sm" onclick={openAdminEditScores}>
-            Edit Scores
-          </Button>
+          <Button variant="secondary" size="sm" onclick={openAdminEditScores}>Edit Scores</Button>
           {#if isUnplayed}
             <Button variant="danger" size="sm" onclick={() => (showAdminConfirmDelete = true)}>
               Delete Match

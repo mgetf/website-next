@@ -121,6 +121,15 @@
     return '±0';
   }
 
+  // Step the player-name font size down for long names so they never overflow the hero column.
+  function nameFontClass(name: string): string {
+    const len = name.length;
+    if (len <= 10) return 'text-xl sm:text-2xl md:text-4xl';
+    if (len <= 16) return 'text-lg sm:text-xl md:text-3xl';
+    if (len <= 22) return 'text-base sm:text-lg md:text-2xl';
+    return 'text-sm sm:text-base md:text-xl';
+  }
+
   // Solid (non-blurred) offset shadow tinted by team. Color identity moves from a chip into the type itself.
   // Emphasis is conditional: bold for the highlighted side, muted for the greyed-out side, so the shadow
   // never overpowers the text it sits behind.
@@ -279,7 +288,9 @@
                     />
                   {/if}
                   <span
-                    class="text-xl sm:text-2xl md:text-4xl font-bold text-white leading-tight break-words"
+                    class="font-bold text-white leading-tight whitespace-nowrap {nameFontClass(
+                      player.name,
+                    )}"
                     style={teamShadow(winnerTeam, 'name', 'bold')}
                   >
                     {player.name}
@@ -326,7 +337,9 @@
                 {@const icon = classIcon(player.startClass)}
                 <div class="flex items-center gap-2 sm:gap-3 justify-start">
                   <span
-                    class="text-xl sm:text-2xl md:text-4xl font-bold text-text-label leading-tight break-words"
+                    class="font-bold text-text-label leading-tight whitespace-nowrap {nameFontClass(
+                      player.name,
+                    )}"
                     style={teamShadow(loserTeam, 'name', 'muted')}
                   >
                     {player.name}

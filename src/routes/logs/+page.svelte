@@ -138,7 +138,7 @@
           {/if}
         </div>
       {:else if col.key === 'format'}
-        <Badge color={log.format === '1v1' ? 'blue' : 'green'}>{log.format}</Badge>
+        <Badge color={log.format === '1v1' ? 'purple' : 'blue'}>{log.format}</Badge>
       {:else if col.key === 'date'}
         <span class="text-text-muted text-sm whitespace-nowrap">{formatDate(log.startedAt)}</span>
       {/if}

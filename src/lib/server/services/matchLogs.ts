@@ -22,6 +22,7 @@ function toSummary(row: {
   gamemode: string;
   format: string;
   aborted: boolean;
+  players: unknown;
   durationSec: number | null;
   startedAt: Date | null;
   endedAt?: Date | null;
@@ -36,6 +37,7 @@ function toSummary(row: {
     gamemode: row.gamemode,
     format: row.format,
     aborted: row.aborted,
+    players: Array.isArray(row.players) ? (row.players as string[]) : [],
     durationSec: row.durationSec,
     startedAt: row.startedAt?.toISOString() ?? null,
     endedAt: row.endedAt?.toISOString() ?? null,
@@ -78,11 +80,14 @@ export async function uploadMatchLog({
   const rawLogKey = `logs/${mgeMatchId}.log`;
   await uploadBufferToR2(Buffer.from(logText, 'utf-8'), rawLogKey, 'text/plain');
 
+  const playerNames = parsed.players.map((p) => p.name);
+
   const row = await prisma.matchLog.create({
     data: {
       mgeMatchId,
       rawLogKey,
       parsedData: parsed as object,
+      players: playerNames,
       hostname: hostname ?? null,
       map: parsed.meta.map,
       arena: parsed.meta.arena ?? null,
@@ -130,6 +135,7 @@ export async function listMatchLogs(page: number = 1): Promise<{
         gamemode: true,
         format: true,
         aborted: true,
+        players: true,
         durationSec: true,
         startedAt: true,
         endedAt: true,

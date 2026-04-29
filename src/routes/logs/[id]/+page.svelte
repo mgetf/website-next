@@ -43,9 +43,7 @@
   const heroLoser = $derived(players.find((p) => !p.won) ?? null);
 
   const playersGridClass = $derived(
-    players.length === 1
-      ? 'max-w-md mx-auto'
-      : 'grid md:grid-cols-2 gap-4',
+    players.length === 1 ? 'max-w-md mx-auto' : 'grid md:grid-cols-2 gap-4',
   );
 
   function formatTimestamp(iso: string): string {
@@ -87,7 +85,9 @@
     );
   }
 
-  function filteredWeapons(player: PlayerRecord): [string, (typeof player.stats.weaponBreakdown)[string]][] {
+  function filteredWeapons(
+    player: PlayerRecord,
+  ): [string, (typeof player.stats.weaponBreakdown)[string]][] {
     return Object.entries(player.stats.weaponBreakdown).filter(
       ([, w]) => w.kills > 0 || w.damage > 0,
     );
@@ -310,7 +310,8 @@
       >
         {#snippet cell(event, col)}
           {#if col.key === 'time'}
-            <span class="font-mono text-text-muted text-xs">{formatTimestamp(event.timestamp)}</span>
+            <span class="font-mono text-text-muted text-xs">{formatTimestamp(event.timestamp)}</span
+            >
           {:else if col.key === 'killer'}
             <span class="text-text-label">{getPlayerName(event.attackerSteamId)}</span>
           {:else if col.key === 'victim'}

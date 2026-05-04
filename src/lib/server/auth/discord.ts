@@ -138,21 +138,13 @@ export async function handleDiscordCallback(
 }
 
 /**
- * Format Discord username for display
- * Uses global_name if available, otherwise username#discriminator (legacy) or just username
+ * Format the Discord account handle for display (profile, admin lists, API).
+ * Uses the unique username (new system) or username#discriminator (legacy), not global_name.
  */
 export function formatDiscordUsername(user: DiscordUser): string {
-  // Prefer global_name (new Discord display names)
-  if (user.global_name) {
-    return user.global_name;
-  }
-
-  // Legacy format with discriminator (if not #0)
   if (user.discriminator && user.discriminator !== '0') {
     return `${user.username}#${user.discriminator}`;
   }
-
-  // New format without discriminator
   return user.username;
 }
 

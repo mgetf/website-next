@@ -30,22 +30,22 @@
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.4",
-    "@sveltejs/kit": "^2.58.0",
-    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@sveltejs/kit": "^2.60.1",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@types/archiver": "^7.0.0",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.8.0",
     "dotenv": "^17.4.2",
     "dotenv-cli": "^11.0.0",
     "husky": "^9.1.7",
-    "knip": "^6.7.0",
-    "lint-staged": "^16.4.0",
+    "knip": "^6.13.1",
+    "lint-staged": "^17.0.4",
     "prettier": "^3.8.3",
-    "prettier-plugin-svelte": "^3.5.1",
+    "prettier-plugin-svelte": "^3.5.2",
     "prisma": "^7.8.0",
-    "svelte": "^5.55.5",
-    "svelte-check": "^4.4.6",
+    "svelte": "^5.55.7",
+    "svelte-check": "^4.4.8",
     "typescript": "^6.0.3",
-    "vite": "^8.0.10"
+    "vite": "^8.0.13"
   },
   "trustedDependencies": [
     "@prisma/client",
@@ -54,13 +54,13 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1038.0",
-    "@aws-sdk/s3-request-presigner": "^3.1038.0",
+    "@aws-sdk/client-s3": "^3.1047.0",
+    "@aws-sdk/s3-request-presigner": "^3.1047.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "@tailwindcss/vite": "^4.2.4",
+    "@tailwindcss/vite": "^4.3.0",
     "@types/jsonwebtoken": "^9.0.10",
-    "archiver": "^7.0.1",
+    "archiver": "^8.0.0",
     "chart.js": "^4.5.1",
     "flag-icons": "^7.5.0",
     "fuse.js": "^7.3.0",
@@ -68,8 +68,8 @@
     "node-steam-openid": "^2.0.0",
     "svelte-dnd-action": "^0.9.69",
     "svelte-exmarkdown": "^5.0.2",
-    "tailwindcss": "^4.2.4",
-    "zod": "^4.3.6"
+    "tailwindcss": "^4.3.0",
+    "zod": "^4.4.3"
   },
   "lint-staged": {
     "*.{js,ts,svelte,css,html,json,md,yaml,yml}": "prettier --check"

@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server/db';
+import { Prisma } from '$prisma/client.js';
 import { uploadBufferToR2, getPublicUrl } from '$lib/server/utils/r2Upload';
 import { getParserUrl } from '$lib/server/utils/env';
 import { notFound } from '$lib/server/utils/errors';
@@ -56,7 +57,7 @@ function toSummary(
     endedAt?: Date | null;
     uploadedAt: Date;
   },
-  parsed?: ParsedMatch,
+  preview: MatchPreview | null,
 ): MatchLogSummary {
   return {
     id: row.id,
@@ -72,7 +73,7 @@ function toSummary(
     startedAt: row.startedAt?.toISOString() ?? null,
     endedAt: row.endedAt?.toISOString() ?? null,
     uploadedAt: row.uploadedAt.toISOString(),
-    preview: parsed ? buildPreview(parsed) : null,
+    preview,
   };
 }
 
@@ -103,8 +104,10 @@ export async function uploadMatchLog({
 }): Promise<MatchLogSummary> {
   const existing = await prisma.matchLog.findUnique({ where: { mgeMatchId } });
   if (existing) {
-    const existingParsed = existing.parsedData as unknown as ParsedMatch;
-    return toSummary(existing, existingParsed);
+    const existingPreview =
+      (existing.preview as MatchPreview | null) ??
+      buildPreview(existing.parsedData as unknown as ParsedMatch);
+    return toSummary(existing, existingPreview);
   }
 
   const parsed = await callParser(logText);
@@ -113,6 +116,7 @@ export async function uploadMatchLog({
   await uploadBufferToR2(Buffer.from(logText, 'utf-8'), rawLogKey, 'text/plain');
 
   const playerNames = parsed.players.map((p) => p.name);
+  const preview = buildPreview(parsed);
 
   const row = await prisma.matchLog.create({
     data: {
@@ -120,6 +124,7 @@ export async function uploadMatchLog({
       rawLogKey,
       parsedData: parsed as object,
       players: playerNames,
+      preview: preview === null ? Prisma.DbNull : (preview as unknown as Prisma.InputJsonValue),
       hostname: hostname ?? null,
       map: parsed.meta.map,
       arena: parsed.meta.arena ?? null,
@@ -132,7 +137,7 @@ export async function uploadMatchLog({
     },
   });
 
-  return toSummary(row, parsed);
+  return toSummary(row, preview);
 }
 
 export async function getMatchLog(id: number): Promise<MatchLogDetail> {
@@ -140,8 +145,9 @@ export async function getMatchLog(id: number): Promise<MatchLogDetail> {
   if (!row) notFound('Match log not found');
 
   const parsed = row.parsedData as unknown as ParsedMatch;
+  const preview = (row.preview as MatchPreview | null) ?? buildPreview(parsed);
   return {
-    ...toSummary(row, parsed),
+    ...toSummary(row, preview),
     parsedData: parsed,
     rawLogKey: row.rawLogKey,
   };
@@ -154,7 +160,7 @@ export async function listMatchLogs(page: number = 1): Promise<{
 }> {
   const skip = (page - 1) * LOGS_PER_PAGE;
 
-  const [rows, total] = await prisma.$transaction([
+  const [rows, total] = await Promise.all([
     prisma.matchLog.findMany({
       orderBy: { uploadedAt: 'desc' },
       skip,
@@ -173,14 +179,14 @@ export async function listMatchLogs(page: number = 1): Promise<{
         startedAt: true,
         endedAt: true,
         uploadedAt: true,
-        parsedData: true,
+        preview: true,
       },
     }),
     prisma.matchLog.count(),
   ]);
 
   return {
-    logs: rows.map((row) => toSummary(row, row.parsedData as unknown as ParsedMatch)),
+    logs: rows.map((row) => toSummary(row, row.preview as MatchPreview | null)),
     total,
     totalPages: Math.ceil(total / LOGS_PER_PAGE),
   };

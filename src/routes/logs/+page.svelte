@@ -66,22 +66,14 @@
     {#snippet cell(log, col)}
       {#if col.key === 'match'}
         {#if log.preview}
-          <a
-            href="/logs/{log.id}"
-            class="flex items-center gap-2 sm:gap-3 min-w-0 group py-0.5"
-          >
+          <a href="/logs/{log.id}" class="flex items-center gap-2 sm:gap-3 min-w-0 group py-0.5">
             <!-- Winner: icons → name → score -->
             <div class="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
               <div class="flex items-center gap-0.5 shrink-0">
                 {#each log.preview.winner.classes as cls, i (i)}
                   {@const icon = classIcon(cls)}
                   {#if icon}
-                    <img
-                      src={icon}
-                      alt={cls}
-                      title={cls}
-                      class="w-5 h-5 shrink-0"
-                    />
+                    <img src={icon} alt={cls} title={cls} class="w-5 h-5 shrink-0" />
                   {/if}
                 {/each}
               </div>
@@ -110,12 +102,7 @@
                 {#each log.preview.loser.classes as cls, i (i)}
                   {@const icon = classIcon(cls)}
                   {#if icon}
-                    <img
-                      src={icon}
-                      alt={cls}
-                      title={cls}
-                      class="w-5 h-5 shrink-0"
-                    />
+                    <img src={icon} alt={cls} title={cls} class="w-5 h-5 shrink-0" />
                   {/if}
                 {/each}
               </div>

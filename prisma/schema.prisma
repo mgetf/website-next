@@ -989,6 +989,7 @@ model MatchLog {
   rawLogKey   String    @map("raw_log_key")
   parsedData  Json      @map("parsed_data")
   players     Json      @default("[]") @map("players")
+  preview     Json?     @map("preview")
   hostname    String?
   map         String
   arena       String?
@@ -1000,5 +1001,6 @@ model MatchLog {
   durationSec Int?      @map("duration_sec")
   uploadedAt  DateTime  @default(now()) @map("uploaded_at")
 
+  @@index([uploadedAt(sort: Desc)])
   @@map("match_logs")
 }

@@ -191,9 +191,7 @@
     return Math.round((w.damage / player.stats.damageDone) * 100);
   }
 
-  const winnerWeaponPlayers = $derived(
-    winningPlayers.filter((p) => filteredWeapons(p).length > 0),
-  );
+  const winnerWeaponPlayers = $derived(winningPlayers.filter((p) => filteredWeapons(p).length > 0));
   const loserWeaponPlayers = $derived(losingPlayers.filter((p) => filteredWeapons(p).length > 0));
 
   const cleanedArena = $derived(cleanArenaName(log.arena));
@@ -458,8 +456,7 @@
                 {#if player.won}
                   <span class="text-warning-400 text-xs" aria-label="Winner">★</span>
                 {/if}
-                <span
-                  class="text-xs font-bold {player.won ? 'text-white' : 'text-text-label'}"
+                <span class="text-xs font-bold {player.won ? 'text-white' : 'text-text-label'}"
                   >{player.name}</span
                 >
                 <span class="text-[10px] uppercase tracking-wider text-text-muted"
@@ -512,8 +509,7 @@
                         <span class="text-text-muted ml-1">({dPct}%)</span>
                       {/if}
                     </td>
-                    <td
-                      class="py-1 pl-3 text-right tabular-nums text-text-body whitespace-nowrap"
+                    <td class="py-1 pl-3 text-right tabular-nums text-text-body whitespace-nowrap"
                       >{weaponAccuracy(w.shotsFired, w.shotsHit)}</td
                     >
                   </tr>
@@ -561,9 +557,9 @@
                   : seg.team === 'Blue'
                     ? 'bg-info-500'
                     : 'bg-zinc-600'}"
-                title="{formatTimestamp(seg.timestamp)} — {seg.attacker} → {seg.victim} ({formatWeaponName(
-                  seg.weapon,
-                )})"
+                title="{formatTimestamp(
+                  seg.timestamp,
+                )} — {seg.attacker} → {seg.victim} ({formatWeaponName(seg.weapon)})"
               ></div>
             {/each}
           </div>

@@ -37,8 +37,8 @@
     "dotenv": "^17.4.2",
     "dotenv-cli": "^11.0.0",
     "husky": "^9.1.7",
-    "knip": "^6.13.1",
-    "lint-staged": "^17.0.4",
+    "knip": "^6.14.1",
+    "lint-staged": "^17.0.5",
     "prettier": "^3.8.3",
     "prettier-plugin-svelte": "^3.5.2",
     "prisma": "^7.8.0",
@@ -54,8 +54,8 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1047.0",
-    "@aws-sdk/s3-request-presigner": "^3.1047.0",
+    "@aws-sdk/client-s3": "^3.1048.0",
+    "@aws-sdk/s3-request-presigner": "^3.1048.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@tailwindcss/vite": "^4.3.0",

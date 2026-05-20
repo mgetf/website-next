@@ -580,8 +580,11 @@
           <div
             class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
           >
-            <div class="bg-surface-page/80 px-4 py-3 border-b border-border-default">
+            <div
+              class="bg-surface-page/80 px-4 py-3 border-b border-border-default flex items-center justify-between"
+            >
               <h3 class="text-lg font-bold text-white">MGE ELO</h3>
+              <Button variant="primary" size="sm" href="/logs?player={player.steamId}">Logs</Button>
             </div>
             <div class="divide-y divide-border-default/50">
               {#each mgeRatings as rating}

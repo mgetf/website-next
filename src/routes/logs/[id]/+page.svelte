@@ -25,7 +25,13 @@
     parsedData: ParsedMatch;
   }
 
-  let { data }: { data: { log: PageLog } } = $props();
+  let { data }: { data: { log: PageLog; knownSteamIds: string[] } } = $props();
+
+  const knownSteamIds = $derived(new Set(data.knownSteamIds));
+
+  function playerLink(steamId: string): string | null {
+    return knownSteamIds.has(steamId) ? `/users/${steamId}` : null;
+  }
 
   let killEventsPage = $state(1);
   const KILLS_PER_PAGE = 25;
@@ -276,6 +282,7 @@
             <div class="space-y-1">
               {#each winningPlayers as player (player.steamId)}
                 {@const icon = classIcon(player.startClass)}
+                {@const link = playerLink(player.steamId)}
                 <div class="flex items-center gap-2 sm:gap-3 justify-end">
                   {#if icon}
                     <img
@@ -285,14 +292,26 @@
                       class="w-6 h-6 sm:w-7 sm:h-7 md:w-9 md:h-9 shrink-0"
                     />
                   {/if}
-                  <span
-                    class="font-bold text-white leading-tight whitespace-nowrap {nameFontClass(
-                      player.name,
-                    )}"
-                    style={teamShadow(winnerTeam, 'name', 'bold')}
-                  >
-                    {player.name}
-                  </span>
+                  {#if link}
+                    <a
+                      href={link}
+                      class="font-bold text-white leading-tight whitespace-nowrap hover:text-primary-400 transition-colors {nameFontClass(
+                        player.name,
+                      )}"
+                      style={teamShadow(winnerTeam, 'name', 'bold')}
+                    >
+                      {player.name}
+                    </a>
+                  {:else}
+                    <span
+                      class="font-bold text-white leading-tight whitespace-nowrap {nameFontClass(
+                        player.name,
+                      )}"
+                      style={teamShadow(winnerTeam, 'name', 'bold')}
+                    >
+                      {player.name}
+                    </span>
+                  {/if}
                 </div>
               {/each}
             </div>
@@ -333,15 +352,28 @@
             <div class="space-y-1">
               {#each losingPlayers as player (player.steamId)}
                 {@const icon = classIcon(player.startClass)}
+                {@const link = playerLink(player.steamId)}
                 <div class="flex items-center gap-2 sm:gap-3 justify-start">
-                  <span
-                    class="font-bold text-text-label leading-tight whitespace-nowrap {nameFontClass(
-                      player.name,
-                    )}"
-                    style={teamShadow(loserTeam, 'name', 'muted')}
-                  >
-                    {player.name}
-                  </span>
+                  {#if link}
+                    <a
+                      href={link}
+                      class="font-bold text-text-label leading-tight whitespace-nowrap hover:text-primary-400 transition-colors {nameFontClass(
+                        player.name,
+                      )}"
+                      style={teamShadow(loserTeam, 'name', 'muted')}
+                    >
+                      {player.name}
+                    </a>
+                  {:else}
+                    <span
+                      class="font-bold text-text-label leading-tight whitespace-nowrap {nameFontClass(
+                        player.name,
+                      )}"
+                      style={teamShadow(loserTeam, 'name', 'muted')}
+                    >
+                      {player.name}
+                    </span>
+                  {/if}
                   {#if icon}
                     <img
                       src={icon}
@@ -452,13 +484,23 @@
         {#if weapons.length > 0}
           <div class="space-y-1.5">
             {#if !isOneVsOne}
+              {@const link = playerLink(player.steamId)}
               <div class="flex items-center gap-2">
                 {#if player.won}
                   <span class="text-warning-400 text-xs" aria-label="Winner">★</span>
                 {/if}
-                <span class="text-xs font-bold {player.won ? 'text-white' : 'text-text-label'}"
-                  >{player.name}</span
-                >
+                {#if link}
+                  <a
+                    href={link}
+                    class="text-xs font-bold hover:text-primary-400 transition-colors {player.won
+                      ? 'text-white'
+                      : 'text-text-label'}">{player.name}</a
+                  >
+                {:else}
+                  <span class="text-xs font-bold {player.won ? 'text-white' : 'text-text-label'}"
+                    >{player.name}</span
+                  >
+                {/if}
                 <span class="text-[10px] uppercase tracking-wider text-text-muted"
                   >{player.startClass}</span
                 >
@@ -631,9 +673,25 @@
                 >{formatTimestamp(event.timestamp)}</span
               >
             {:else if col.key === 'killer'}
-              <span class="text-text-label">{getPlayerName(event.attackerSteamId)}</span>
+              {#if playerLink(event.attackerSteamId)}
+                <a
+                  href={playerLink(event.attackerSteamId)}
+                  class="text-text-label hover:text-primary-400 transition-colors"
+                  >{getPlayerName(event.attackerSteamId)}</a
+                >
+              {:else}
+                <span class="text-text-label">{getPlayerName(event.attackerSteamId)}</span>
+              {/if}
             {:else if col.key === 'victim'}
-              <span class="text-text-label">{getPlayerName(event.victimSteamId)}</span>
+              {#if playerLink(event.victimSteamId)}
+                <a
+                  href={playerLink(event.victimSteamId)}
+                  class="text-text-label hover:text-primary-400 transition-colors"
+                  >{getPlayerName(event.victimSteamId)}</a
+                >
+              {:else}
+                <span class="text-text-label">{getPlayerName(event.victimSteamId)}</span>
+              {/if}
             {:else if col.key === 'weapon'}
               <span class="text-text-body">{formatWeaponName(event.weapon)}</span>
             {:else if col.key === 'flags'}
@@ -678,7 +736,17 @@
               <span class="font-mono text-text-muted text-xs shrink-0 mt-0.5">
                 {formatTimestamp(msg.timestamp)}
               </span>
-              <span class="text-text-label font-medium shrink-0">{getPlayerName(msg.steamId)}</span>
+              {#if playerLink(msg.steamId)}
+                <a
+                  href={playerLink(msg.steamId)}
+                  class="text-text-label font-medium shrink-0 hover:text-primary-400 transition-colors"
+                  >{getPlayerName(msg.steamId)}</a
+                >
+              {:else}
+                <span class="text-text-label font-medium shrink-0"
+                  >{getPlayerName(msg.steamId)}</span
+                >
+              {/if}
               {#if msg.scope === 'team'}
                 <Badge color="zinc">TEAM</Badge>
               {/if}

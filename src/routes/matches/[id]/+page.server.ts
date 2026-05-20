@@ -22,6 +22,7 @@ import {
 } from '$lib/server/services/matches';
 import {
   createMatchComm,
+  createAdminActionComm,
   getPendingReschedule,
   updateRescheduleStatus,
   canRespondToReschedule,
@@ -814,6 +815,17 @@ export const actions: Actions = {
     try {
       await adminUpdateMatchSchedule(matchId, utcIso, matchTimezone || null);
 
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      let scheduleNote: string;
+      if (utcIso) {
+        const tz = matchTimezone || 'UTC';
+        const formatted = formatRescheduleDateTime(utcIso, tz);
+        scheduleNote = `${roleLabel} ${locals.user.steamUsername} updated the match schedule to ${formatted ?? utcIso}.`;
+      } else {
+        scheduleNote = `${roleLabel} ${locals.user.steamUsername} cleared the match schedule.`;
+      }
+      await createAdminActionComm(matchId, locals.user.steamId, scheduleNote);
+
       await logAudit({
         actorId: locals.user.steamId,
         actorRole: locals.user.permissionLevel,
@@ -979,6 +991,13 @@ export const actions: Actions = {
         'An admin updated the match scores',
         locals.user.steamId,
       );
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      const gamesSummary = gameResults
+        .map((g) => `Game ${g.gameNum}: ${g.homeScore}–${g.awayScore}`)
+        .join(', ');
+      const scoresNote = `${roleLabel} ${locals.user.steamUsername} overrode the match scores: ${gamesSummary}.`;
+      await createAdminActionComm(matchId, locals.user.steamId, scoresNote);
 
       await logAudit({
         actorId: locals.user.steamId,

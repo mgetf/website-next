@@ -402,6 +402,25 @@ export async function getMatchComms(matchId: number) {
 }
 
 /**
+ * Create a staff-action comment in a match's communication thread.
+ * Attributed to the acting staff member's account (owner = steamId).
+ */
+export async function createAdminActionComm(
+  matchId: number,
+  actorSteamId: string,
+  content: string,
+) {
+  return await prisma.matchComm.create({
+    data: {
+      matchId,
+      owner: actorSteamId,
+      content,
+      createdAt: new Date(),
+    },
+  });
+}
+
+/**
  * Get a single match communication by ID
  */
 export async function getMatchCommById(commId: number) {

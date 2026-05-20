@@ -40,6 +40,7 @@
     { value: 'Europe/London', label: 'BST/GMT (London)' },
     { value: 'Europe/Berlin', label: 'CEST/CET (Central Europe)' },
     { value: 'Europe/Helsinki', label: 'EEST/EET (East Europe)' },
+    { value: 'Asia/Singapore', label: 'SGT (Singapore)' },
     { value: 'Asia/Tokyo', label: 'JST (Japan)' },
     { value: 'Australia/Sydney', label: 'AEST/AEDT (Sydney)' },
   ];

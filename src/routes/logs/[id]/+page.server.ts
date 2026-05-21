@@ -1,6 +1,5 @@
 import type { PageServerLoad } from './$types';
 import { getMatchLog, getRawLogUrl } from '$lib/server/services/matchLogs';
-import { getRegisteredSteamIds } from '$lib/server/services/users';
 import { notFound } from '$lib/server/utils/errors';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -9,9 +8,6 @@ export const load: PageServerLoad = async ({ params }) => {
 
   const log = await getMatchLog(id);
   const rawLogUrl = getRawLogUrl(log.rawLogKey);
-
-  const playerSteamIds = log.parsedData.players.map((p) => p.steamId);
-  const knownSteamIds = await getRegisteredSteamIds(playerSteamIds);
 
   return {
     log: {
@@ -30,6 +26,5 @@ export const load: PageServerLoad = async ({ params }) => {
       rawLogUrl,
       parsedData: log.parsedData,
     },
-    knownSteamIds,
   };
 };

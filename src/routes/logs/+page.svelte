@@ -2,15 +2,12 @@
   import { goto } from '$app/navigation';
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { classIcon } from '$lib/utils/classIcons';
   import { cleanArenaName } from '$lib/utils/arenaNames';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
-
-  const filterPlayer = $derived(data.filterPlayer);
 
   const columns: Column[] = [
     { key: 'match', label: 'Match' },
@@ -39,10 +36,7 @@
   const infoText = $derived(`Showing ${startItem} to ${endItem} of ${data.pagination.total} logs`);
 
   function goToPage(page: number) {
-    const params = new URLSearchParams();
-    params.set('page', String(page));
-    if (filterPlayer) params.set('player', filterPlayer.steamId);
-    goto(`?${params.toString()}`);
+    goto(`?page=${page}`);
   }
 </script>
 
@@ -57,22 +51,6 @@
 />
 
 <div class="max-w-7xl mx-auto px-4 py-8">
-  {#if filterPlayer}
-    <div
-      class="flex items-center justify-between gap-3 mb-6 px-4 py-3 rounded-lg bg-surface-card border border-border-default"
-    >
-      <span class="text-sm text-text-body">
-        Showing logs for
-        <a
-          href="/users/{filterPlayer.steamId}"
-          class="font-semibold text-white hover:text-primary-400 transition-colors"
-        >
-          {filterPlayer.name ?? filterPlayer.steamId}
-        </a>
-      </span>
-      <Button variant="ghost" size="sm" href="/logs">Clear filter</Button>
-    </div>
-  {/if}
   <DataTable
     data={data.logs}
     {columns}

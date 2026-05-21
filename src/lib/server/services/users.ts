@@ -66,6 +66,15 @@ export async function getUserBySteamId(steamId: string) {
   });
 }
 
+export async function getRegisteredSteamIds(steamIds: string[]): Promise<string[]> {
+  if (steamIds.length === 0) return [];
+  const users = await prisma.user.findMany({
+    where: { steamId: { in: steamIds } },
+    select: { steamId: true },
+  });
+  return users.map((u) => u.steamId);
+}
+
 /**
  * Look up a user by their linked Discord ID.
  * Returns the Discord record (with player relation) or null if not linked.

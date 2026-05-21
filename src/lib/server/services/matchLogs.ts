@@ -153,6 +153,55 @@ export async function getMatchLog(id: number): Promise<MatchLogDetail> {
   };
 }
 
+export async function listMatchLogsByPlayer(
+  steamId: string,
+  page: number = 1,
+): Promise<{
+  logs: MatchLogSummary[];
+  total: number;
+  totalPages: number;
+}> {
+  const skip = (page - 1) * LOGS_PER_PAGE;
+  const playerFilter: Prisma.MatchLogWhereInput = {
+    parsedData: {
+      path: ['players'],
+      array_contains: [{ steamId }],
+    },
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.matchLog.findMany({
+      where: playerFilter,
+      orderBy: { uploadedAt: 'desc' },
+      skip,
+      take: LOGS_PER_PAGE,
+      select: {
+        id: true,
+        mgeMatchId: true,
+        hostname: true,
+        map: true,
+        arena: true,
+        gamemode: true,
+        format: true,
+        aborted: true,
+        players: true,
+        durationSec: true,
+        startedAt: true,
+        endedAt: true,
+        uploadedAt: true,
+        preview: true,
+      },
+    }),
+    prisma.matchLog.count({ where: playerFilter }),
+  ]);
+
+  return {
+    logs: rows.map((row) => toSummary(row, row.preview as MatchPreview | null)),
+    total,
+    totalPages: Math.ceil(total / LOGS_PER_PAGE),
+  };
+}
+
 export async function listMatchLogs(page: number = 1): Promise<{
   logs: MatchLogSummary[];
   total: number;

@@ -165,7 +165,7 @@ export async function listMatchLogsByPlayer(
   const playerFilter: Prisma.MatchLogWhereInput = {
     parsedData: {
       path: ['players'],
-      array_contains: [{ steamId }],
+      array_contains: { steamId },
     },
   };
 

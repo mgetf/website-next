@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server/db';
 import { Prisma } from '$prisma/client.js';
+import { steamId3FromSteamId64 } from '$lib/utils/steamid';
 import { uploadBufferToR2, getPublicUrl } from '$lib/server/utils/r2Upload';
 import { getParserUrl } from '$lib/server/utils/env';
 import { notFound } from '$lib/server/utils/errors';
@@ -162,38 +163,55 @@ export async function listMatchLogsByPlayer(
   totalPages: number;
 }> {
   const skip = (page - 1) * LOGS_PER_PAGE;
-  const playerFilter: Prisma.MatchLogWhereInput = {
-    parsedData: {
-      path: ['players'],
-      array_contains: { steamId },
-    },
-  };
 
-  const [rows, total] = await Promise.all([
-    prisma.matchLog.findMany({
-      where: playerFilter,
-      orderBy: { uploadedAt: 'desc' },
-      skip,
-      take: LOGS_PER_PAGE,
-      select: {
-        id: true,
-        mgeMatchId: true,
-        hostname: true,
-        map: true,
-        arena: true,
-        gamemode: true,
-        format: true,
-        aborted: true,
-        players: true,
-        durationSec: true,
-        startedAt: true,
-        endedAt: true,
-        uploadedAt: true,
-        preview: true,
-      },
-    }),
-    prisma.matchLog.count({ where: playerFilter }),
+  const steamId3 = steamId3FromSteamId64(steamId);
+  const jsonbFilter = JSON.stringify({ players: [{ steamId: steamId3 }] });
+
+  // Prisma's path+array_contains JSON filter generates incorrect SQL for nested array object matching.
+  // Raw SQL with PostgreSQL's @> (JSONB containment) operator is required here.
+  const [idRows, totalRows] = await Promise.all([
+    prisma.$queryRaw<{ id: number }[]>`
+      SELECT id FROM match_logs
+      WHERE parsed_data @> ${jsonbFilter}::jsonb
+      ORDER BY uploaded_at DESC
+      LIMIT ${LOGS_PER_PAGE} OFFSET ${skip}
+    `,
+    prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*) as count FROM match_logs
+      WHERE parsed_data @> ${jsonbFilter}::jsonb
+    `,
   ]);
+
+  const total = Number(totalRows[0]?.count ?? 0n);
+  const ids = idRows.map((r) => r.id);
+
+  if (ids.length === 0) {
+    return { logs: [], total, totalPages: Math.ceil(total / LOGS_PER_PAGE) };
+  }
+
+  const rows = await prisma.matchLog.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      mgeMatchId: true,
+      hostname: true,
+      map: true,
+      arena: true,
+      gamemode: true,
+      format: true,
+      aborted: true,
+      players: true,
+      durationSec: true,
+      startedAt: true,
+      endedAt: true,
+      uploadedAt: true,
+      preview: true,
+    },
+  });
+
+  // Restore the order from the raw SQL query (uploaded_at DESC)
+  const idOrder = new Map(ids.map((id, i) => [id, i]));
+  rows.sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
 
   return {
     logs: rows.map((row) => toSummary(row, row.preview as MatchPreview | null)),

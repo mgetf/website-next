@@ -11,3 +11,12 @@ export function steamId32FromSteamId64(steamId64: string): string {
 
   return `STEAM_0:${y}:${z}`;
 }
+
+/**
+ * Convert Steam ID 64 to Steam ID 3 format (used in TF2 server logs)
+ * @example steamId3FromSteamId64("76561198179807307") // "[U:1:219541579]"
+ */
+export function steamId3FromSteamId64(steamId64: string): string {
+  const accountId = BigInt(steamId64) - STEAM_ID_64_BASE;
+  return `[U:1:${accountId}]`;
+}

@@ -53,10 +53,16 @@ export const GET: RequestHandler = async ({ locals }) => {
       let lastHeartbeat = Date.now();
 
       let consecutiveFailures = 0;
+      // Tracks how many successive polls returned no new notifications.
+      // Drives idle backoff so quiet connections don't poll at full rate.
+      let consecutiveEmpty = 0;
 
       const getNextPollDelay = () => {
-        const backoffStep = Math.min(consecutiveFailures, 2);
-        const backoffMultiplier = 2 ** backoffStep;
+        // Error backoff: up to 2 doublings on DB errors (15s → 30s → 60s)
+        const errorStep = Math.min(consecutiveFailures, 2);
+        // Idle backoff: up to 2 doublings when nothing is happening (15s → 30s → 60s)
+        const idleStep = Math.min(consecutiveEmpty, 2);
+        const backoffMultiplier = 2 ** Math.max(errorStep, idleStep);
         const baseDelay = BASE_POLL_INTERVAL_MS * backoffMultiplier;
         const jitter = Math.floor(Math.random() * MAX_POLL_JITTER_MS);
         return Math.min(baseDelay + jitter, MAX_POLL_INTERVAL_MS);
@@ -68,6 +74,12 @@ export const GET: RequestHandler = async ({ locals }) => {
         try {
           const newNotifications = await getNotificationsSinceId(userSteamId, lastNotificationId);
           consecutiveFailures = 0;
+
+          if (newNotifications.length === 0) {
+            consecutiveEmpty += 1;
+          } else {
+            consecutiveEmpty = 0;
+          }
 
           for (const notification of newNotifications) {
             if (!safeEnqueue(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`)) {
@@ -85,6 +97,7 @@ export const GET: RequestHandler = async ({ locals }) => {
           }
         } catch (err) {
           consecutiveFailures += 1;
+          consecutiveEmpty = 0;
           if (isActive) {
             console.error('SSE poll error:', {
               route: '/api/notifications/stream',

@@ -374,6 +374,16 @@ export async function getNotificationsSinceId(userSteamId: string, sinceId: numb
       userSteamId,
       id: { gt: sinceId },
     },
+    include: {
+      actor: {
+        select: {
+          steamId: true,
+          steamUsername: true,
+          steamAvatar: true,
+        },
+      },
+    },
     orderBy: { id: 'asc' },
+    take: 50,
   });
 }

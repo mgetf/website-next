@@ -21,3 +21,35 @@ export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
     return [];
   }
 }
+
+export async function getRegions(): Promise<string[]> {
+  const base = getPlatformUrl();
+  if (!base) return [];
+  try {
+    const res = await fetch(`${base}/api/v1/regions`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.regions ?? []) as string[];
+  } catch {
+    return [];
+  }
+}
+
+export async function getLeaderboard(
+  region: string,
+  limit: number,
+): Promise<{ steamId: string; elo: number }[]> {
+  const base = getPlatformUrl();
+  if (!base) return [];
+  try {
+    const url = `${base}/api/v1/regions/${encodeURIComponent(region)}/leaderboard?limit=${limit}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.entries ?? []) as { steamId: string; elo: number }[];
+  } catch {
+    return [];
+  }
+}

@@ -13,6 +13,7 @@
   "scripts": {
     "preinstall": "node -e \"const ua = process.env.npm_config_user_agent; if (!ua || !ua.startsWith('bun/')) { process.stderr.write('\\n\\x1b[31mError: This project requires bun. Use: bun install\\x1b[0m\\n\\n'); process.exit(1); }\"",
     "dev": "vite dev",
+    "dev:prod": "bun --env-file=.env.production run dev",
     "build": "prisma generate && vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo '' && husky",

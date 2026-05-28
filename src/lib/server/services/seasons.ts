@@ -70,6 +70,25 @@ export async function getCurrentSeasonByFormat(formatId: number) {
 }
 
 /**
+ * Get the latest season per region for a specific format.
+ * Returns one entry per region (the most recent season number), useful for
+ * building per-region home page standings without picking a random single region.
+ */
+export async function getLatestSeasonPerRegionByFormat(formatId: number) {
+  const seasons = await prisma.season.findMany({
+    where: { formatId },
+    orderBy: [{ seasonNum: 'desc' }, { signupsOpen: 'desc' }],
+    include: { region: true },
+  });
+  const seen = new Set<number>();
+  return seasons.filter((s) => {
+    if (seen.has(s.regionId)) return false;
+    seen.add(s.regionId);
+    return true;
+  });
+}
+
+/**
  * Create a new season
  *
  * Business logic validation:

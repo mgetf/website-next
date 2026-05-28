@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from '$lib/components/ui/Button.svelte';
 
-  let { connect }: { connect: string } = $props();
+  let { connect, sdrConnect }: { connect: string; sdrConnect?: string } = $props();
 
   let copied = $state(false);
   let copyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -56,5 +56,15 @@
     {/if}
   </button>
 
-  <Button variant="primary" size="sm" href="steam://connect/{connect}">Connect</Button>
+  <div class="flex items-center gap-1.5">
+    {#if sdrConnect}
+      <span
+        class="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-info-500/20 text-info-400 border border-info-500/30"
+        >SDR</span
+      >
+    {/if}
+    <Button variant="primary" size="sm" href="steam://connect/{sdrConnect ?? connect}"
+      >Connect</Button
+    >
+  </div>
 </div>

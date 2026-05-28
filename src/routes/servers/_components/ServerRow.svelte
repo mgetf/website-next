@@ -74,7 +74,7 @@
 
   <!-- Connect -->
   <div class="flex justify-end">
-    <ConnectChip connect={server.connect} />
+    <ConnectChip connect={server.connect} sdrConnect={server.sdrConnect} />
   </div>
 </div>
 
@@ -118,5 +118,5 @@
     </div>
   </div>
 
-  <ConnectChip connect={server.connect} />
+  <ConnectChip connect={server.connect} sdrConnect={server.sdrConnect} />
 </div>

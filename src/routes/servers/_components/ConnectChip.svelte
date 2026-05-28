@@ -3,12 +3,25 @@
 
   let { connect, sdrConnect }: { connect: string; sdrConnect?: string } = $props();
 
+  let useSdr = $state(true);
   let copied = $state(false);
   let copyTimer: ReturnType<typeof setTimeout> | null = null;
 
+  let activeAddress = $derived(sdrConnect && useSdr ? sdrConnect : connect);
+
+  function selectMode(sdr: boolean) {
+    if (useSdr === sdr) return;
+    useSdr = sdr;
+    copied = false;
+    if (copyTimer) {
+      clearTimeout(copyTimer);
+      copyTimer = null;
+    }
+  }
+
   async function copyToClipboard() {
     try {
-      await navigator.clipboard.writeText(connect);
+      await navigator.clipboard.writeText(activeAddress);
       copied = true;
       if (copyTimer) clearTimeout(copyTimer);
       copyTimer = setTimeout(() => {
@@ -22,18 +35,35 @@
 </script>
 
 <div class="flex items-center gap-2">
+  {#if sdrConnect}
+    <div class="flex items-center bg-surface-input border border-border-input rounded p-0.5">
+      <button
+        type="button"
+        onclick={() => selectMode(true)}
+        class="text-[10px] font-semibold px-2 py-0.5 rounded-[3px] transition-all
+          {useSdr ? 'bg-primary-600 text-white' : 'text-text-muted hover:text-text-label'}"
+      >SDR</button>
+      <button
+        type="button"
+        onclick={() => selectMode(false)}
+        class="text-[10px] font-semibold px-2 py-0.5 rounded-[3px] transition-all
+          {!useSdr ? 'bg-primary-600 text-white' : 'text-text-muted hover:text-text-label'}"
+      >Direct</button>
+    </div>
+  {/if}
+
   <!-- IP chip with inline copy -->
   <button
     type="button"
     onclick={copyToClipboard}
-    aria-label="Copy {connect} to clipboard"
+    aria-label="Copy {activeAddress} to clipboard"
     title={copied ? 'Copied!' : 'Copy address'}
     class="flex items-center gap-1.5 font-mono text-[11px] px-2 py-1 rounded border transition-all
       {copied
       ? 'bg-success-500/15 border-success-500/40 text-success-400'
       : 'bg-surface-input border-border-input text-text-muted hover:text-text-label hover:border-border-default'}"
   >
-    <span>{connect}</span>
+    <span>{activeAddress}</span>
     {#if copied}
       <svg class="w-3 h-3 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path
@@ -56,15 +86,5 @@
     {/if}
   </button>
 
-  <div class="flex items-center gap-1.5">
-    {#if sdrConnect}
-      <span
-        class="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-info-500/20 text-info-400 border border-info-500/30"
-        >SDR</span
-      >
-    {/if}
-    <Button variant="primary" size="sm" href="steam://connect/{sdrConnect ?? connect}"
-      >Connect</Button
-    >
-  </div>
+  <Button variant="primary" size="sm" href="steam://connect/{activeAddress}">Connect</Button>
 </div>

@@ -25,12 +25,11 @@
     parsedData: ParsedMatch;
   }
 
-  let { data }: { data: { log: PageLog; knownSteamIds: string[] } } = $props();
+  let { data }: { data: { log: PageLog; profileSteamIds: Record<string, string> } } = $props();
 
-  const knownSteamIds = $derived(new Set(data.knownSteamIds));
-
-  function playerLink(steamId: string): string | null {
-    return knownSteamIds.has(steamId) ? `/users/${steamId}` : null;
+  function playerLink(steamId3: string): string | null {
+    const steamId64 = data.profileSteamIds[steamId3];
+    return steamId64 ? `/users/${steamId64}` : null;
   }
 
   let killEventsPage = $state(1);

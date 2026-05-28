@@ -65,7 +65,7 @@
   <div class="rounded-xl border border-border-default bg-surface-card overflow-hidden">
     <!-- Column headers -->
     <div
-      class="hidden md:grid grid-cols-[3fr_2fr_9rem_8rem_13rem] gap-x-4 px-5 py-2.5 border-b border-border-default bg-surface-input/20"
+      class="hidden md:grid grid-cols-[3fr_2fr_9rem_8rem_20rem] gap-x-4 px-5 py-2.5 border-b border-border-default bg-surface-input/20"
       aria-hidden="true"
     >
       <span class="text-[11px] font-semibold text-text-muted uppercase tracking-widest">Server</span

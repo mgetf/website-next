@@ -105,6 +105,19 @@ export async function findDivisionByName(name: string, onlyVisible = true) {
 }
 
 /**
+ * Find the top-ranked visible division for a specific region.
+ * Uses id DESC ordering which matches the existing convention
+ * (higher id = lower division tier: INVITE > PREMIER > INTERMEDIATE > OPEN > NEWCOMER).
+ * This avoids hardcoding a division name like "Premier" that may differ per region.
+ */
+export async function findTopDivisionByRegion(regionId: number) {
+  return await prisma.division.findFirst({
+    where: { regionId, hidden: 0 },
+    orderBy: { id: 'desc' },
+  });
+}
+
+/**
  * Create a new division
  *
  * Business logic validation:

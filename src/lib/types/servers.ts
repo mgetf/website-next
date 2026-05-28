@@ -9,6 +9,7 @@ export interface PublicGameServer {
   host: string;
   port: number;
   connect: string;
+  sdrConnect?: string;
   displayName: string;
   map: string;
   label: string;

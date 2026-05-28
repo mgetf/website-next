@@ -1,105 +1,225 @@
-import { getCurrentSeasonByFormat } from '$lib/server/services/seasons';
 import {
   getTeamsForStandings,
   calculateStandingsStats,
   getTop1v1EntriesForHomepage,
 } from '$lib/server/services/teams';
-import { TeamStatus } from '$prisma/client.js';
-import { findDivisionByName } from '$lib/server/services/divisions';
+import { getLatestSeasonPerRegionByFormat } from '$lib/server/services/seasons';
+import { findTopDivisionByRegion } from '$lib/server/services/divisions';
 import { getContent, CONTENT_KEYS, getDefaultContent } from '$lib/server/services/siteContent';
 import { getGlobalSettings } from '$lib/server/services/settings';
+import { getUserDisplaysByIds, fetchSteamNames } from '$lib/server/services/users';
+import { getRegions, getLeaderboard } from '$lib/server/clients/mgePlatform';
+import { steamId64FromSteamId32 } from '$lib/utils/steamid';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
+import { TeamStatus } from '$prisma/client.js';
+
+const REGION_ORDER: Record<string, number> = {
+  na: 0,
+  'north america': 0,
+  us: 0,
+  eu: 1,
+  europe: 1,
+  as: 2,
+  asia: 2,
+  sea: 2,
+};
+
+function regionSortKey(name: string): number {
+  return REGION_ORDER[name.toLowerCase()] ?? 99;
+}
 
 export const load = async () => {
   try {
-    const [season2v2, season1v1, premierDivision, homepageSubtitle, homepageAbout, globalSettings] =
-      await Promise.all([
-        getCurrentSeasonByFormat(FORMAT_2V2),
-        getCurrentSeasonByFormat(FORMAT_1V1),
-        findDivisionByName('Premier'),
-        getContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
-        getContent(CONTENT_KEYS.HOMEPAGE_ABOUT),
-        getGlobalSettings(),
-      ]);
+    const [
+      seasons2v2,
+      seasons1v1,
+      homepageSubtitle,
+      homepageAbout,
+      globalSettings,
+      platformRegions,
+    ] = await Promise.all([
+      getLatestSeasonPerRegionByFormat(FORMAT_2V2),
+      getLatestSeasonPerRegionByFormat(FORMAT_1V1),
+      getContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
+      getContent(CONTENT_KEYS.HOMEPAGE_ABOUT),
+      getGlobalSettings(),
+      getRegions(),
+    ]);
 
-    // Use admin-configured statuses; only include READY and PENDING for home page teaser
-    // (UNREADY and DEAD are not meaningful for a public highlight)
     const standingsStatuses = (
       globalSettings?.standingsVisibleStatuses?.length
         ? globalSettings.standingsVisibleStatuses
         : ['READY', 'PENDING']
     ).filter((s) => s === 'READY' || s === 'PENDING') as TeamStatus[];
 
-    // 2v2 card data
-    let topTeams2v2: Array<{
-      rank: number;
-      name: string;
-      record: string;
-      points: number;
-      id: number;
-    }> = [];
+    // --- MGE ELO Leaderboard (from platform API) ---
+    const eloLeaderboard: {
+      region: string;
+      entries: { elo: number; steamId64: string; name: string | null; avatar: string | null }[];
+    }[] = [];
 
-    if (season2v2 && !season2v2.signupsOpen && premierDivision) {
-      const teams = await getTeamsForStandings({
-        seasonId: season2v2.id,
-        divisionId: premierDivision.id,
-        statuses: standingsStatuses,
-        limit: 3,
-      });
+    if (platformRegions.length > 0) {
+      const regionEntries = await Promise.all(
+        platformRegions.map((region) => getLeaderboard(region, 3)),
+      );
 
-      topTeams2v2 = teams.map((team, index) => {
-        const stats = calculateStandingsStats(team);
-        return {
-          rank: index + 1,
-          name: team.name,
-          record: stats.record,
-          points: stats.pointsPerGame,
-          id: team.id,
-        };
-      });
+      // Collect all unique Steam64 IDs to batch-lookup names/avatars
+      const allSteam64s: string[] = [];
+      const regionEntryMaps: { region: string; entries: { steam32: string; elo: number }[] }[] = [];
+
+      for (let i = 0; i < platformRegions.length; i++) {
+        const rawEntries = regionEntries[i];
+        const mapped = rawEntries
+          .map((e) => {
+            const steam64 = steamId64FromSteamId32(e.steamId);
+            return steam64 ? { steam32: e.steamId, steam64, elo: e.elo } : null;
+          })
+          .filter((e): e is { steam32: string; steam64: string; elo: number } => e !== null);
+
+        for (const e of mapped) allSteam64s.push(e.steam64);
+        regionEntryMaps.push({
+          region: platformRegions[i],
+          entries: mapped.map((e) => ({ steam32: e.steam32, elo: e.elo })),
+        });
+      }
+
+      const userDisplays = await getUserDisplaysByIds(allSteam64s);
+
+      // For entries not in our DB, fetch their Steam display name in one bulk call
+      const unregisteredIds = allSteam64s.filter((id) => !userDisplays[id]);
+      const steamNames = await fetchSteamNames(unregisteredIds);
+
+      for (const { region, entries } of regionEntryMaps) {
+        if (entries.length === 0) continue;
+        eloLeaderboard.push({
+          region,
+          entries: entries.map(({ steam32, elo }) => {
+            const steam64 = steamId64FromSteamId32(steam32) ?? '';
+            const display = userDisplays[steam64] ?? null;
+            const isRegistered = display !== null;
+            return {
+              elo,
+              steamId64: steam64,
+              isRegistered,
+              name: display?.name ?? steamNames[steam64] ?? null,
+              avatar: display?.avatar ?? null,
+            };
+          }),
+        });
+      }
     }
 
-    // 1v1 card data
-    let topEntries1v1: Array<{
-      rank: number;
-      id: number;
-      name: string;
-      avatar: string | null;
-      steamId: string | null;
-      record: string;
-      points: number;
-    }> = [];
+    // --- League Standings (per region, top 3 from Premier) ---
+    const buildLeague2v2 = async () => {
+      return Promise.all(
+        seasons2v2.map(async (season) => {
+          const division = await findTopDivisionByRegion(season.regionId);
+          if (!division) return null;
 
-    if (season1v1 && !season1v1.signupsOpen && premierDivision) {
-      const entries = await getTop1v1EntriesForHomepage({
-        seasonId: season1v1.id,
-        divisionId: premierDivision.id,
-        limit: 3,
-        statuses: standingsStatuses as string[],
-      });
+          let topTeams: {
+            rank: number;
+            name: string;
+            avatar: string | null;
+            record: string;
+            points: number;
+            id: number;
+          }[] = [];
 
-      topEntries1v1 = entries.map((e) => ({
-        rank: e.rank,
-        id: e.id,
-        name: e.name,
-        avatar: e.avatar,
-        steamId: e.steamId,
-        record: e.record,
-        points: e.pointsPerGame,
-      }));
-    }
+          if (!season.signupsOpen) {
+            const teams = await getTeamsForStandings({
+              seasonId: season.id,
+              divisionId: division.id,
+              statuses: standingsStatuses,
+              limit: 3,
+            });
+            topTeams = teams.map((team, index) => {
+              const stats = calculateStandingsStats(team);
+              return {
+                rank: index + 1,
+                name: team.name,
+                avatar: team.avatar ?? null,
+                record: stats.record,
+                points: stats.pointsPerGame,
+                id: team.id,
+              };
+            });
+          }
+
+          return {
+            regionName: season.region.name,
+            season: `Season ${season.seasonNum}`,
+            signupsOpen: season.signupsOpen,
+            topTeams,
+          };
+        }),
+      );
+    };
+
+    const buildLeague1v1 = async () => {
+      return Promise.all(
+        seasons1v1.map(async (season) => {
+          const division = await findTopDivisionByRegion(season.regionId);
+          if (!division) return null;
+
+          let topEntries: {
+            rank: number;
+            id: number;
+            name: string;
+            avatar: string | null;
+            steamId: string | null;
+            record: string;
+            points: number;
+          }[] = [];
+
+          if (!season.signupsOpen) {
+            const entries = await getTop1v1EntriesForHomepage({
+              seasonId: season.id,
+              divisionId: division.id,
+              limit: 3,
+              statuses: standingsStatuses as string[],
+            });
+            topEntries = entries.map((e) => ({
+              rank: e.rank,
+              id: e.id,
+              name: e.name,
+              avatar: e.avatar,
+              steamId: e.steamId,
+              record: e.record,
+              points: e.pointsPerGame,
+            }));
+          }
+
+          return {
+            regionName: season.region.name,
+            season: `Season ${season.seasonNum}`,
+            signupsOpen: season.signupsOpen,
+            topEntries,
+          };
+        }),
+      );
+    };
+
+    const [raw2v2, raw1v1] = await Promise.all([buildLeague2v2(), buildLeague1v1()]);
+
+    const leaderboard2v2 = raw2v2
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .sort((a, b) => regionSortKey(a.regionName) - regionSortKey(b.regionName));
+    const leaderboard1v1 = raw1v1
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .sort((a, b) => regionSortKey(a.regionName) - regionSortKey(b.regionName));
+
+    eloLeaderboard.sort((a, b) => regionSortKey(a.region) - regionSortKey(b.region));
+
+    // Determine if any format has signups open (for signup CTA card)
+    const anySignupsOpen2v2 = leaderboard2v2.some((r) => r.signupsOpen);
+    const anySignupsOpen1v1 = leaderboard1v1.some((r) => r.signupsOpen);
 
     return {
-      league2v2Data: {
-        season: season2v2 ? `Season ${season2v2.seasonNum}` : 'Season 1',
-        signupsOpen: season2v2?.signupsOpen ?? false,
-        topTeams: topTeams2v2,
-      },
-      league1v1Data: {
-        season: season1v1 ? `Season ${season1v1.seasonNum}` : 'Season 1',
-        signupsOpen: season1v1?.signupsOpen ?? false,
-        topEntries: topEntries1v1,
-      },
+      eloLeaderboard,
+      leaderboard2v2,
+      leaderboard1v1,
+      anySignupsOpen2v2,
+      anySignupsOpen1v1,
       siteContent: {
         subtitle: homepageSubtitle || getDefaultContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
         about: homepageAbout || getDefaultContent(CONTENT_KEYS.HOMEPAGE_ABOUT),
@@ -109,16 +229,11 @@ export const load = async () => {
     console.error('Error loading homepage:', error);
 
     return {
-      league2v2Data: {
-        season: 'Season 1',
-        signupsOpen: false,
-        topTeams: [],
-      },
-      league1v1Data: {
-        season: 'Season 1',
-        signupsOpen: false,
-        topEntries: [],
-      },
+      eloLeaderboard: [],
+      leaderboard2v2: [],
+      leaderboard1v1: [],
+      anySignupsOpen2v2: false,
+      anySignupsOpen1v1: false,
       siteContent: {
         subtitle: getDefaultContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
         about: getDefaultContent(CONTENT_KEYS.HOMEPAGE_ABOUT),

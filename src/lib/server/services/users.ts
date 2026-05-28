@@ -76,6 +76,25 @@ export async function getRegisteredSteamIds(steamIds: string[]): Promise<string[
 }
 
 /**
+ * Bulk-fetch name and avatar for a list of Steam64 IDs.
+ * Used to annotate leaderboard entries with display names.
+ */
+export async function getUserDisplaysByIds(
+  steamIds: string[],
+): Promise<Record<string, { name: string; avatar: string | null }>> {
+  if (steamIds.length === 0) return {};
+  const users = await prisma.user.findMany({
+    where: { steamId: { in: steamIds } },
+    select: { steamId: true, steamUsername: true, steamAvatar: true },
+  });
+  const result: Record<string, { name: string; avatar: string | null }> = {};
+  for (const u of users) {
+    result[u.steamId] = { name: u.steamUsername, avatar: u.steamAvatar ?? null };
+  }
+  return result;
+}
+
+/**
  * Look up a user by their linked Discord ID.
  * Returns the Discord record (with player relation) or null if not linked.
  */
@@ -840,6 +859,33 @@ export async function fetchSteamProfile(
     };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Bulk-fetch Steam display names for a list of Steam64 IDs in a single API call.
+ * Returns a map of steamId64 → personaname for players found.
+ * Silently returns an empty map on API errors or missing key.
+ */
+export async function fetchSteamNames(steamIds: string[]): Promise<Record<string, string>> {
+  if (steamIds.length === 0) return {};
+  const apiKey = getOptionalEnv('STEAM_API_KEY');
+  if (!apiKey) return {};
+
+  try {
+    const res = await fetch(
+      `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${steamIds.join(',')}`,
+    );
+    if (!res.ok) return {};
+    const data = await res.json();
+    const players: { steamid: string; personaname: string }[] = data?.response?.players ?? [];
+    const result: Record<string, string> = {};
+    for (const p of players) {
+      result[p.steamid] = p.personaname;
+    }
+    return result;
+  } catch {
+    return {};
   }
 }
 

@@ -110,33 +110,21 @@
           </a>
           <a
             href="/maps"
-            class="relative px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
+            class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
             Maps
-            <span
-              class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
-              >new</span
-            >
           </a>
           <a
             href="/servers"
-            class="relative px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
+            class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
             Servers
-            <span
-              class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
-              >new</span
-            >
           </a>
           <a
             href="/logs"
-            class="relative px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
+            class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
             Logs
-            <span
-              class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
-              >new</span
-            >
           </a>
           <a
             href="/rulebook"
@@ -259,33 +247,21 @@
         </a>
         <a
           href="/maps"
-          class="relative inline-block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
+          class="inline-block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Maps
-          <span
-            class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
-            >new</span
-          >
         </a>
         <a
           href="/servers"
-          class="relative inline-block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
+          class="inline-block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Servers
-          <span
-            class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
-            >new</span
-          >
         </a>
         <a
           href="/logs"
-          class="relative inline-block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
+          class="inline-block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Logs
-          <span
-            class="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded-full bg-danger-500 text-white leading-none"
-            >new</span
-          >
         </a>
         <a
           href="/rulebook"

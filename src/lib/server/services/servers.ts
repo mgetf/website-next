@@ -25,6 +25,7 @@ const PublicGameServerSchema = z.object({
   host: z.string(),
   port: z.number().int(),
   connect: z.string(),
+  sdrConnect: z.string().optional(),
   displayName: z.string(),
   map: z.string(),
   label: z.string(),

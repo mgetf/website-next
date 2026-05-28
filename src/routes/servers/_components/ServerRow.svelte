@@ -27,7 +27,7 @@
 
 <!-- Desktop row -->
 <div
-  class="hidden md:grid grid-cols-[3fr_2fr_9rem_8rem_13rem] gap-x-4 items-center px-5 py-4
+  class="hidden md:grid grid-cols-[3fr_2fr_9rem_8rem_20rem] gap-x-4 items-center px-5 py-4
     {last ? '' : 'border-b border-border-default'}
     hover:bg-surface-input/20 transition-colors"
 >
@@ -74,7 +74,7 @@
 
   <!-- Connect -->
   <div class="flex justify-end">
-    <ConnectChip connect={server.connect} />
+    <ConnectChip connect={server.connect} sdrConnect={server.sdrConnect} />
   </div>
 </div>
 
@@ -118,5 +118,5 @@
     </div>
   </div>
 
-  <ConnectChip connect={server.connect} />
+  <ConnectChip connect={server.connect} sdrConnect={server.sdrConnect} />
 </div>

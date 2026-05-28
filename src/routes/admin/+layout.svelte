@@ -40,7 +40,7 @@
       badge: '',
     },
     { name: 'Demos', path: '/admin/demos', icon: videoCameraIcon, adminOnly: false, badge: '' },
-    { name: 'Maps', path: '/admin/maps', icon: mapIcon, adminOnly: false, badge: 'new' },
+    { name: 'Maps', path: '/admin/maps', icon: mapIcon, adminOnly: false, badge: '' },
     { name: 'Disputes', path: '/admin/disputes', icon: maceIcon, adminOnly: false, badge: '' },
     { name: 'Users', path: '/admin/users', icon: userIcon, adminOnly: false, badge: '' },
     { name: 'Global', path: '/admin/global', icon: webIcon, adminOnly: false, badge: '' },

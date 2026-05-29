@@ -42,13 +42,15 @@
         onclick={() => selectMode(true)}
         class="text-[10px] font-semibold px-2 py-0.5 rounded-[3px] transition-all
           {useSdr ? 'bg-primary-600 text-white' : 'text-text-muted hover:text-text-label'}"
-      >SDR</button>
+        >SDR</button
+      >
       <button
         type="button"
         onclick={() => selectMode(false)}
         class="text-[10px] font-semibold px-2 py-0.5 rounded-[3px] transition-all
           {!useSdr ? 'bg-primary-600 text-white' : 'text-text-muted hover:text-text-label'}"
-      >Direct</button>
+        >Direct</button
+      >
     </div>
   {/if}
 

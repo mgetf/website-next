@@ -693,8 +693,13 @@ export async function adminUpdateScores(
       badRequest('Best of series must be 1, 3, 5, or 7');
     }
 
+    // Playoff matches play `boGames` games per arena, so the match has
+    // `targetBo * gamesPerArena` game rows in total (regular matches use 1).
+    const gamesPerArena = match.boGames && match.boGames > 1 ? match.boGames : 1;
+    const maxGameNum = targetBo * gamesPerArena;
+
     for (const r of gameResults) {
-      if (r.gameNum < 1 || r.gameNum > targetBo) {
+      if (r.gameNum < 1 || r.gameNum > maxGameNum) {
         badRequest(`Invalid game number ${r.gameNum} for Best of ${targetBo}`);
       }
     }
@@ -737,7 +742,7 @@ export async function adminUpdateScores(
       });
     }
 
-    const toRemove = match.games.filter((g) => g.gameNum > targetBo);
+    const toRemove = match.games.filter((g) => g.gameNum > maxGameNum);
     for (const g of toRemove) {
       if (g.homeTeamScore != null || g.awayTeamScore != null) {
         badRequest(
@@ -747,7 +752,7 @@ export async function adminUpdateScores(
     }
     if (toRemove.length > 0) {
       await tx.game.deleteMany({
-        where: { matchId, gameNum: { gt: targetBo } },
+        where: { matchId, gameNum: { gt: maxGameNum } },
       });
     }
 
@@ -760,7 +765,7 @@ export async function adminUpdateScores(
         })
       ).map((g) => g.gameNum),
     );
-    for (let n = 1; n <= targetBo; n++) {
+    for (let n = 1; n <= maxGameNum; n++) {
       if (!existingNums.has(n)) {
         await tx.game.create({
           data: { matchId, gameNum: n, arenaId: defaultArenaId },
@@ -783,18 +788,38 @@ export async function adminUpdateScores(
     const homePoints = gameResults.reduce((sum, g) => sum + g.homeScore, 0);
     const awayPoints = gameResults.reduce((sum, g) => sum + g.awayScore, 0);
 
+    // For playoff series the match is decided by arenas won, not raw game wins.
+    let homeUnits = homeWins;
+    let awayUnits = awayWins;
+    if (gamesPerArena > 1) {
+      const arenaTally = new Map<number, { home: number; away: number }>();
+      for (const g of gameResults) {
+        const arenaIndex = Math.floor((g.gameNum - 1) / gamesPerArena);
+        const tally = arenaTally.get(arenaIndex) ?? { home: 0, away: 0 };
+        if (g.homeScore > g.awayScore) tally.home++;
+        else if (g.awayScore > g.homeScore) tally.away++;
+        arenaTally.set(arenaIndex, tally);
+      }
+      homeUnits = 0;
+      awayUnits = 0;
+      for (const tally of arenaTally.values()) {
+        if (tally.home > tally.away) homeUnits++;
+        else if (tally.away > tally.home) awayUnits++;
+      }
+    }
+
     let winnerId: number | null = null;
     let winnerScore = 0;
     let loserScore = 0;
 
-    if (homeWins > awayWins) {
+    if (homeUnits > awayUnits) {
       winnerId = match.homeTeamId;
-      winnerScore = homeWins;
-      loserScore = awayWins;
-    } else if (awayWins > homeWins) {
+      winnerScore = homeUnits;
+      loserScore = awayUnits;
+    } else if (awayUnits > homeUnits) {
       winnerId = match.awayTeamId;
-      winnerScore = awayWins;
-      loserScore = homeWins;
+      winnerScore = awayUnits;
+      loserScore = homeUnits;
     }
 
     await tx.team.update({

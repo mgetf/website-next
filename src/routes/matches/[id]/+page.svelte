@@ -54,6 +54,22 @@
   let isEditingArenas = $state(false);
   let isEditingScores = $state(false);
 
+  // Map ban/pick confirmation
+  let pendingMapAction = $state<{
+    id: number;
+    name: string;
+    avatar: string | null;
+    actionType: 'ban' | 'pick';
+  } | null>(null);
+  let isConfirmingMapAction = $state(false);
+
+  function openMapActionConfirm(
+    arena: { id: number; name: string; avatar: string | null },
+    actionType: 'ban' | 'pick',
+  ) {
+    pendingMapAction = { id: arena.id, name: arena.name, avatar: arena.avatar, actionType };
+  }
+
   let editMatchDateTime = $state('');
   let editMatchTimezone = $state('UTC');
   let editArenas = $state<{ gameId: number; arenaId: string }[]>([]);
@@ -95,16 +111,26 @@
     }));
   });
 
-  function openAdminEditScores() {
-    const bo = data.match.boSeries || 3;
-    adminEditBoSeriesStr = String(bo);
-    editScores = Array.from({ length: bo }, (_, i) => {
+  // Games per arena for the admin editor (1 for regular matches)
+  const adminGamesPerArena = () =>
+    data.match.boGames && data.match.boGames > 1 ? data.match.boGames : 1;
+
+  function buildEditScores(bo: number, previous: { home: string; away: string }[] = []) {
+    const slots = bo * adminGamesPerArena();
+    return Array.from({ length: slots }, (_, i) => {
+      if (previous[i]) return previous[i];
       const g = data.match.games.find((g) => g.gameNum === i + 1);
       return {
         home: g?.homeTeamScore != null ? String(g.homeTeamScore) : '',
         away: g?.awayTeamScore != null ? String(g.awayTeamScore) : '',
       };
     });
+  }
+
+  function openAdminEditScores() {
+    const bo = data.match.boSeries || 3;
+    adminEditBoSeriesStr = String(bo);
+    editScores = buildEditScores(bo);
     adminResolveDispute = false;
     showAdminEditScores = true;
   }
@@ -113,16 +139,22 @@
     const parsed = parseInt(v, 10);
     const newBo = [1, 3, 5, 7].includes(parsed) ? parsed : 3;
     adminEditBoSeriesStr = String(newBo);
-    const prev = editScores;
-    editScores = Array.from({ length: newBo }, (_, i) => {
-      if (prev[i]) return prev[i];
-      const g = data.match.games.find((g) => g.gameNum === i + 1);
-      return {
-        home: g?.homeTeamScore != null ? String(g.homeTeamScore) : '',
-        away: g?.awayTeamScore != null ? String(g.awayTeamScore) : '',
-      };
-    });
+    editScores = buildEditScores(newBo, editScores);
   }
+
+  // Group admin edit-score slots into arenas for multi-arena playoff matches
+  const adminScoreArenas = $derived(() => {
+    const per = playoffBoGames;
+    const bo = parseInt(adminEditBoSeriesStr, 10) || (data.match.boSeries ?? 3);
+    const arenas: { arenaIndex: number; arena: ScoreGame['arena']; slotIndices: number[] }[] = [];
+    for (let a = 0; a < bo; a++) {
+      const slotIndices: number[] = [];
+      for (let g = 0; g < per; g++) slotIndices.push(a * per + g);
+      const firstGame = data.match.games.find((gm) => gm.gameNum === a * per + 1);
+      arenas.push({ arenaIndex: a, arena: firstGame?.arena ?? null, slotIndices });
+    }
+    return arenas;
+  });
 
   $effect(() => {
     if (data.match.matchDateTime) {
@@ -145,14 +177,26 @@
   let demoUploadError = $state<string | null>(null);
   let demoUploadProgress = $state<string>('Preparing upload...');
 
-  // Score submission state - track scores as user types
+  // Score submission state - track scores as user types (indexed by gameNum - 1)
   let gameScores = $state<{ home: number | null; away: number | null }[]>([]);
 
-  // Initialize gameScores when match changes
+  // Playoff series structure.
+  // boSeries = number of arenas (maps) in the series.
+  // boGames = games played on each arena (playoffs only; regular matches use 1).
+  const playoffBoGames = $derived(
+    data.match.boGames && data.match.boGames > 1 ? data.match.boGames : 1,
+  );
+  const seriesArenaCount = $derived(data.match.boSeries || 3);
+  const isMultiArena = $derived(playoffBoGames > 1);
+  const totalGameSlots = $derived(
+    isMultiArena ? seriesArenaCount * playoffBoGames : seriesArenaCount,
+  );
+
+  // Initialize gameScores when the match (or its slot count) changes
   $effect(() => {
-    const boSeries = data.match.boSeries || 3;
-    if (gameScores.length !== boSeries) {
-      gameScores = Array(boSeries)
+    const total = totalGameSlots;
+    if (gameScores.length !== total) {
+      gameScores = Array(total)
         .fill(null)
         .map(() => ({ home: null, away: null }));
     }
@@ -242,6 +286,86 @@
       .filter((g) => g.arena && !seen.has(g.arena.id) && seen.add(g.arena.id))
       .map((g) => g.arena!);
   });
+
+  // --- Playoff (multi-arena) score helpers ---
+  type ScoreGame = PageData['match']['games'][number];
+
+  const gameWinsPerArena = $derived(Math.ceil(playoffBoGames / 2));
+  const arenaWinsNeeded = $derived(Math.ceil(seriesArenaCount / 2));
+
+  // Group the match games into arenas (each a best-of-`playoffBoGames` block)
+  const scoreArenas = $derived(() => {
+    const arenas: { arenaIndex: number; arena: ScoreGame['arena']; games: ScoreGame[] }[] = [];
+    for (let a = 0; a * playoffBoGames < match.games.length; a++) {
+      const games = match.games.slice(a * playoffBoGames, a * playoffBoGames + playoffBoGames);
+      arenas.push({ arenaIndex: a, arena: games[0]?.arena ?? null, games });
+    }
+    return arenas;
+  });
+
+  // Tally the live result of a single arena from the entered scores
+  const arenaResultFor = (arenaIndex: number) => {
+    let home = 0;
+    let away = 0;
+    let decidedAtGame = -1;
+    for (let g = 0; g < playoffBoGames; g++) {
+      const slot = gameScores[arenaIndex * playoffBoGames + g];
+      if (slot && slot.home !== null && slot.away !== null) {
+        if (slot.home > slot.away) home++;
+        else if (slot.away > slot.home) away++;
+        if (decidedAtGame === -1 && (home >= gameWinsPerArena || away >= gameWinsPerArena)) {
+          decidedAtGame = g;
+        }
+      }
+    }
+    const decided = home >= gameWinsPerArena || away >= gameWinsPerArena;
+    const winner: 'home' | 'away' | null = decided ? (home > away ? 'home' : 'away') : null;
+    return { home, away, decided, winner, decidedAtGame };
+  };
+
+  // Live overall series result (arenas won) for the playoff form
+  const playoffProgress = $derived(() => {
+    let homeArenas = 0;
+    let awayArenas = 0;
+    let decidedAtArena = -1;
+    for (let a = 0; a < seriesArenaCount; a++) {
+      const result = arenaResultFor(a);
+      if (result.decided) {
+        if (result.winner === 'home') homeArenas++;
+        else awayArenas++;
+        if (
+          decidedAtArena === -1 &&
+          (homeArenas >= arenaWinsNeeded || awayArenas >= arenaWinsNeeded)
+        ) {
+          decidedAtArena = a;
+        }
+      }
+    }
+    const decided = homeArenas >= arenaWinsNeeded || awayArenas >= arenaWinsNeeded;
+    return { homeArenas, awayArenas, decided, decidedAtArena };
+  });
+
+  // A playoff game is disabled when it is not needed or earlier games are unfilled
+  const isPlayoffGameDisabled = (arenaIndex: number, gameInArena: number) => {
+    const progress = playoffProgress();
+    if (progress.decidedAtArena !== -1 && arenaIndex > progress.decidedAtArena) return true;
+
+    const arenaResult = arenaResultFor(arenaIndex);
+    if (arenaResult.decidedAtGame !== -1 && gameInArena > arenaResult.decidedAtGame) return true;
+
+    // Earlier arenas must be decided before this one can be filled
+    for (let a = 0; a < arenaIndex; a++) {
+      if (!arenaResultFor(a).decided) return true;
+    }
+
+    // Earlier games in this arena must be filled first
+    for (let g = 0; g < gameInArena; g++) {
+      const slot = gameScores[arenaIndex * playoffBoGames + g];
+      if (!slot || slot.home === null || slot.away === null) return true;
+    }
+
+    return false;
+  };
 
   const canSubmitScores = $derived(
     isUnplayed &&
@@ -712,100 +836,221 @@
           </div>
         </div>
 
-        <div class="space-y-4">
-          {#each Array(match.boSeries || 3) as _, i}
-            {@const disabled = isGameDisabled(i)}
-            {@const decidedAt = matchDecidedAtGame()}
-            {@const isMatchDecidedBefore = decidedAt !== null && i > decidedAt}
-            <div class="border border-border-input rounded-lg p-4 {disabled ? 'opacity-50' : ''}">
-              <div class="flex items-center justify-between mb-3">
-                <h3 class="font-semibold text-white">Game {i + 1}</h3>
-                {#if disabled}
-                  <span class="text-xs text-text-muted bg-surface-input px-2 py-1 rounded">
-                    {isMatchDecidedBefore
-                      ? 'Not needed - match already decided'
-                      : 'Fill previous games first'}
-                  </span>
+        {#if isMultiArena}
+          <!-- Playoff: best-of-arenas, each arena a best-of-games sub-series -->
+          <div class="space-y-6">
+            {#each scoreArenas() as group (group.arenaIndex)}
+              {@const arenaResult = arenaResultFor(group.arenaIndex)}
+              <div class="border border-border-input rounded-lg overflow-hidden">
+                <div
+                  class="flex items-center gap-3 bg-surface-input/60 px-4 py-3 border-b border-border-input"
+                >
+                  {#if group.arena?.avatar}
+                    <img
+                      src={group.arena.avatar}
+                      alt={group.arena.name}
+                      class="w-9 h-9 rounded object-cover flex-shrink-0"
+                    />
+                  {:else}
+                    <div
+                      class="w-9 h-9 rounded bg-surface-hover flex items-center justify-center flex-shrink-0"
+                    >
+                      <span class="text-text-muted">🗺️</span>
+                    </div>
+                  {/if}
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-text-muted uppercase tracking-wide">
+                      Arena {group.arenaIndex + 1}
+                    </p>
+                    <p class="font-semibold text-white truncate">
+                      {group.arena?.name ?? 'To be determined'}
+                    </p>
+                  </div>
+                  <span class="text-xs text-text-body whitespace-nowrap"
+                    >Best of {playoffBoGames}</span
+                  >
+                  {#if arenaResult.decided}
+                    <Badge color="green" size="sm">
+                      {arenaResult.winner === 'home' ? getHomeName() : getAwayName()}
+                      {Math.max(arenaResult.home, arenaResult.away)}–{Math.min(
+                        arenaResult.home,
+                        arenaResult.away,
+                      )}
+                    </Badge>
+                  {/if}
+                </div>
+                <div class="p-4 space-y-3">
+                  {#each group.games as game, gameInArena (game.id)}
+                    {@const slotIndex = game.gameNum - 1}
+                    {@const disabled = isPlayoffGameDisabled(group.arenaIndex, gameInArena)}
+                    <div class={disabled ? 'opacity-50' : ''}>
+                      <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-medium text-text-label">Game {gameInArena + 1}</h4>
+                      </div>
+                      <div class="grid grid-cols-3 gap-4 items-center">
+                        <div>
+                          <label for="homeScore-{slotIndex}" class="sr-only"
+                            >{getHomeName()} score</label
+                          >
+                          <input
+                            id="homeScore-{slotIndex}"
+                            type="number"
+                            name="homeScore_{slotIndex}"
+                            min="0"
+                            {disabled}
+                            value={gameScores[slotIndex]?.home ?? ''}
+                            oninput={(e) => {
+                              const val = e.currentTarget.value;
+                              if (gameScores[slotIndex]) {
+                                gameScores[slotIndex].home = val === '' ? null : parseInt(val);
+                              }
+                            }}
+                            class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                          />
+                        </div>
+                        <div class="text-center text-text-body font-semibold">VS</div>
+                        <div>
+                          <label for="awayScore-{slotIndex}" class="sr-only"
+                            >{getAwayName()} score</label
+                          >
+                          <input
+                            id="awayScore-{slotIndex}"
+                            type="number"
+                            name="awayScore_{slotIndex}"
+                            min="0"
+                            {disabled}
+                            value={gameScores[slotIndex]?.away ?? ''}
+                            oninput={(e) => {
+                              const val = e.currentTarget.value;
+                              if (gameScores[slotIndex]) {
+                                gameScores[slotIndex].away = val === '' ? null : parseInt(val);
+                              }
+                            }}
+                            class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                          />
+                        </div>
+                      </div>
+                      {#if game.arena}
+                        <input type="hidden" name="arenaId_{slotIndex}" value={game.arena.id} />
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+
+          <!-- Match status indicator (playoff) -->
+          {#if playoffProgress().decided}
+            {@const progress = playoffProgress()}
+            <div class="mt-4 p-3 bg-success-500/20 border border-success-500/30 rounded-lg">
+              <p class="text-success-400 text-sm">
+                &#10003; Match decided: <strong
+                  >{progress.homeArenas >= arenaWinsNeeded ? getHomeName() : getAwayName()}</strong
+                >
+                wins {Math.max(progress.homeArenas, progress.awayArenas)}-{Math.min(
+                  progress.homeArenas,
+                  progress.awayArenas,
+                )} arenas
+              </p>
+            </div>
+          {/if}
+        {:else}
+          <div class="space-y-4">
+            {#each Array(match.boSeries || 3) as _, i}
+              {@const disabled = isGameDisabled(i)}
+              {@const decidedAt = matchDecidedAtGame()}
+              {@const isMatchDecidedBefore = decidedAt !== null && i > decidedAt}
+              <div class="border border-border-input rounded-lg p-4 {disabled ? 'opacity-50' : ''}">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="font-semibold text-white">Game {i + 1}</h3>
+                  {#if disabled}
+                    <span class="text-xs text-text-muted bg-surface-input px-2 py-1 rounded">
+                      {isMatchDecidedBefore
+                        ? 'Not needed - match already decided'
+                        : 'Fill previous games first'}
+                    </span>
+                  {/if}
+                </div>
+                <div class="grid grid-cols-3 gap-4 items-center">
+                  <div>
+                    <label for="homeScore-{i}" class="sr-only">{getHomeName()} score</label>
+                    <input
+                      id="homeScore-{i}"
+                      type="number"
+                      name="homeScore_{i}"
+                      min="0"
+                      required={!disabled}
+                      {disabled}
+                      value={gameScores[i]?.home ?? ''}
+                      oninput={(e) => {
+                        const val = e.currentTarget.value;
+                        if (gameScores[i]) {
+                          gameScores[i].home = val === '' ? null : parseInt(val);
+                        }
+                      }}
+                      class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                    />
+                  </div>
+                  <div class="text-center text-text-body font-semibold">VS</div>
+                  <div>
+                    <label for="awayScore-{i}" class="sr-only">{getAwayName()} score</label>
+                    <input
+                      id="awayScore-{i}"
+                      type="number"
+                      name="awayScore_{i}"
+                      min="0"
+                      required={!disabled}
+                      {disabled}
+                      value={gameScores[i]?.away ?? ''}
+                      oninput={(e) => {
+                        const val = e.currentTarget.value;
+                        if (gameScores[i]) {
+                          gameScores[i].away = val === '' ? null : parseInt(val);
+                        }
+                      }}
+                      class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                    />
+                  </div>
+                </div>
+                {#if !data.mapBanStatus || data.mapBanStatus.isComplete}
+                  {@const gameArena = match.games[i]?.arena}
+                  {@const defaultArenaId =
+                    gameArena?.id ?? (matchArenas().length === 1 ? matchArenas()[0].id : null)}
+                  <div class="mt-3">
+                    <label for="arenaId-{i}" class="block text-sm font-medium text-text-label mb-1"
+                      >Arena/Map</label
+                    >
+                    <select
+                      id="arenaId-{i}"
+                      name="arenaId_{i}"
+                      {disabled}
+                      class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                    >
+                      {#each matchArenas() as arena}
+                        <option value={arena.id} selected={defaultArenaId === arena.id}
+                          >{arena.name}</option
+                        >
+                      {/each}
+                    </select>
+                  </div>
                 {/if}
               </div>
-              <div class="grid grid-cols-3 gap-4 items-center">
-                <div>
-                  <label for="homeScore-{i}" class="sr-only">{getHomeName()} score</label>
-                  <input
-                    id="homeScore-{i}"
-                    type="number"
-                    name="homeScore_{i}"
-                    min="0"
-                    required={!disabled}
-                    {disabled}
-                    value={gameScores[i]?.home ?? ''}
-                    oninput={(e) => {
-                      const val = e.currentTarget.value;
-                      if (gameScores[i]) {
-                        gameScores[i].home = val === '' ? null : parseInt(val);
-                      }
-                    }}
-                    class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
-                  />
-                </div>
-                <div class="text-center text-text-body font-semibold">VS</div>
-                <div>
-                  <label for="awayScore-{i}" class="sr-only">{getAwayName()} score</label>
-                  <input
-                    id="awayScore-{i}"
-                    type="number"
-                    name="awayScore_{i}"
-                    min="0"
-                    required={!disabled}
-                    {disabled}
-                    value={gameScores[i]?.away ?? ''}
-                    oninput={(e) => {
-                      const val = e.currentTarget.value;
-                      if (gameScores[i]) {
-                        gameScores[i].away = val === '' ? null : parseInt(val);
-                      }
-                    }}
-                    class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
-                  />
-                </div>
-              </div>
-              {#if !data.mapBanStatus || data.mapBanStatus.isComplete}
-                {@const gameArena = match.games[i]?.arena}
-                {@const defaultArenaId =
-                  gameArena?.id ?? (matchArenas().length === 1 ? matchArenas()[0].id : null)}
-                <div class="mt-3">
-                  <label for="arenaId-{i}" class="block text-sm font-medium text-text-label mb-1"
-                    >Arena/Map</label
-                  >
-                  <select
-                    id="arenaId-{i}"
-                    name="arenaId_{i}"
-                    {disabled}
-                    class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
-                  >
-                    {#each matchArenas() as arena}
-                      <option value={arena.id} selected={defaultArenaId === arena.id}
-                        >{arena.name}</option
-                      >
-                    {/each}
-                  </select>
-                </div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-
-        <!-- Match status indicator -->
-        {#if matchDecided()}
-          {@const wins = gamesWonByTeam()}
-          <div class="mt-4 p-3 bg-success-500/20 border border-success-500/30 rounded-lg">
-            <p class="text-success-400 text-sm">
-              &#10003; Match decided: <strong
-                >{wins.home >= gamesToWin ? getHomeName() : getAwayName()}</strong
-              >
-              wins {Math.max(wins.home, wins.away)}-{Math.min(wins.home, wins.away)}
-            </p>
+            {/each}
           </div>
+
+          <!-- Match status indicator -->
+          {#if matchDecided()}
+            {@const wins = gamesWonByTeam()}
+            <div class="mt-4 p-3 bg-success-500/20 border border-success-500/30 rounded-lg">
+              <p class="text-success-400 text-sm">
+                &#10003; Match decided: <strong
+                  >{wins.home >= gamesToWin ? getHomeName() : getAwayName()}</strong
+                >
+                wins {Math.max(wins.home, wins.away)}-{Math.min(wins.home, wins.away)}
+              </p>
+            </div>
+          {/if}
         {/if}
         <div class="mt-6">
           <Button type="submit" variant="success" size="lg" disabled={isSubmittingScore}>
@@ -932,19 +1177,33 @@
           <h3 class="font-semibold text-white mb-3">Available Maps</h3>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {#each data.mapBanStatus.availableArenas as mapInPool}
-              <form method="POST" action="?/mapAction" use:enhance>
-                <input type="hidden" name="arenaId" value={mapInPool.arena.id} />
-                <input type="hidden" name="actionType" value={data.mapBanStatus.nextAction} />
-                <button
-                  type="submit"
-                  class="w-full p-4 border-2 border-border-input rounded-lg hover:border-primary-500 hover:bg-primary-500/10 transition"
-                >
+              <button
+                type="button"
+                onclick={() =>
+                  openMapActionConfirm(
+                    mapInPool.arena,
+                    data.mapBanStatus?.nextAction === 'ban' ? 'ban' : 'pick',
+                  )}
+                class="w-full overflow-hidden border-2 border-border-input rounded-lg hover:border-primary-500 hover:bg-primary-500/10 transition text-left"
+              >
+                {#if mapInPool.arena.avatar}
+                  <img
+                    src={mapInPool.arena.avatar}
+                    alt={mapInPool.arena.name}
+                    class="w-full h-24 object-cover"
+                  />
+                {:else}
+                  <div class="w-full h-24 bg-surface-hover flex items-center justify-center">
+                    <span class="text-2xl text-text-muted">🗺️</span>
+                  </div>
+                {/if}
+                <div class="p-3">
                   <div class="font-semibold">{mapInPool.arena.name}</div>
                   <div class="text-xs text-text-body mt-1 uppercase">
                     {data.mapBanStatus.nextAction}
                   </div>
-                </button>
-              </form>
+                </div>
+              </button>
             {/each}
           </div>
         </div>
@@ -1396,6 +1655,68 @@
   }}
 ></form>
 
+<!-- Map Ban/Pick Confirmation -->
+<form
+  id="mapActionForm"
+  method="POST"
+  action="?/mapAction"
+  class="hidden"
+  use:enhance={() => {
+    isConfirmingMapAction = true;
+    return async ({ result, update }) => {
+      isConfirmingMapAction = false;
+      if (result.type === 'success') {
+        pendingMapAction = null;
+      } else if (result.type === 'failure') {
+        const d = result.data as { error?: string } | undefined;
+        toast.error(d?.error || 'Failed to process map action');
+      }
+      await update();
+    };
+  }}
+>
+  <input type="hidden" name="arenaId" value={pendingMapAction?.id ?? ''} />
+  <input type="hidden" name="actionType" value={pendingMapAction?.actionType ?? ''} />
+</form>
+
+<ConfirmDialog
+  open={pendingMapAction !== null}
+  title={`${pendingMapAction?.actionType === 'ban' ? 'Ban' : 'Pick'} ${pendingMapAction?.name ?? ''}?`}
+  description={pendingMapAction?.actionType === 'ban'
+    ? `Are you sure you want to ban ${pendingMapAction?.name}? This removes it from the pool and cannot be undone.`
+    : `Are you sure you want to pick ${pendingMapAction?.name}? This map will be added to the match and cannot be undone.`}
+  variant={pendingMapAction?.actionType === 'ban' ? 'danger' : 'info'}
+  confirmLabel={pendingMapAction?.actionType === 'ban' ? 'Ban Map' : 'Pick Map'}
+  isLoading={isConfirmingMapAction}
+  onConfirm={() => {
+    const mapForm = document.getElementById('mapActionForm') as HTMLFormElement | null;
+    mapForm?.requestSubmit();
+  }}
+  onCancel={() => (pendingMapAction = null)}
+>
+  {#snippet preview()}
+    <div class="flex items-center gap-3">
+      {#if pendingMapAction?.avatar}
+        <img
+          src={pendingMapAction.avatar}
+          alt={pendingMapAction.name}
+          class="w-16 h-16 rounded object-cover flex-shrink-0"
+        />
+      {:else}
+        <div
+          class="w-16 h-16 rounded bg-surface-hover flex items-center justify-center flex-shrink-0"
+        >
+          <span class="text-2xl text-text-muted">🗺️</span>
+        </div>
+      {/if}
+      <div>
+        <p class="font-semibold text-white">{pendingMapAction?.name}</p>
+        <p class="text-xs text-text-body uppercase">{pendingMapAction?.actionType}</p>
+      </div>
+    </div>
+  {/snippet}
+</ConfirmDialog>
+
 <!-- Admin: Edit Scores Dialog -->
 <Dialog
   open={showAdminEditScores}
@@ -1421,23 +1742,27 @@
       };
     }}
   >
-    <div class="mb-4">
-      <FormSelect
-        label="Best of series"
-        name="boSeries"
-        bind:value={adminEditBoSeriesStr}
-        required
-        placeholder="Select"
-        options={[
-          { value: '1', label: 'Bo1' },
-          { value: '3', label: 'Bo3' },
-          { value: '5', label: 'Bo5' },
-          { value: '7', label: 'Bo7' },
-        ]}
-        hint="Changing this adds or removes game slots. Lowering Best of is blocked if dropped games still have scores."
-        onChange={onAdminEditBoSeriesChange}
-      />
-    </div>
+    {#if isMultiArena}
+      <input type="hidden" name="boSeries" value={adminEditBoSeriesStr} />
+    {:else}
+      <div class="mb-4">
+        <FormSelect
+          label="Best of series"
+          name="boSeries"
+          bind:value={adminEditBoSeriesStr}
+          required
+          placeholder="Select"
+          options={[
+            { value: '1', label: 'Bo1' },
+            { value: '3', label: 'Bo3' },
+            { value: '5', label: 'Bo5' },
+            { value: '7', label: 'Bo7' },
+          ]}
+          hint="Changing this adds or removes game slots. Lowering Best of is blocked if dropped games still have scores."
+          onChange={onAdminEditBoSeriesChange}
+        />
+      </div>
+    {/if}
 
     <div class="grid grid-cols-3 gap-4 items-center mb-4 pb-3 border-b border-border-input">
       <p class="text-sm font-medium text-text-label">{getHomeName()}</p>
@@ -1445,41 +1770,90 @@
       <p class="text-sm font-medium text-text-label text-right">{getAwayName()}</p>
     </div>
 
-    <div class="space-y-3 mb-4">
-      {#each editScores as entry, i}
-        <div class="grid grid-cols-3 gap-4 items-center">
-          <div>
-            <label for="adminHomeScore-{i}" class="sr-only"
-              >{getHomeName()} score, game {i + 1}</label
-            >
-            <input
-              id="adminHomeScore-{i}"
-              type="number"
-              name="homeScore_{i}"
-              min="0"
-              bind:value={entry.home}
-              placeholder="0"
-              class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-            />
+    {#if isMultiArena}
+      <div class="space-y-4 mb-4">
+        {#each adminScoreArenas() as group (group.arenaIndex)}
+          <div class="border border-border-input rounded-lg p-3">
+            <p class="text-sm font-semibold text-white mb-2">
+              Arena {group.arenaIndex + 1}{group.arena ? ` — ${group.arena.name}` : ''}
+            </p>
+            <div class="space-y-2">
+              {#each group.slotIndices as slotIndex, gameInArena (slotIndex)}
+                {#if editScores[slotIndex]}
+                  <div class="grid grid-cols-3 gap-4 items-center">
+                    <div>
+                      <label for="adminHomeScore-{slotIndex}" class="sr-only"
+                        >{getHomeName()} score, game {slotIndex + 1}</label
+                      >
+                      <input
+                        id="adminHomeScore-{slotIndex}"
+                        type="number"
+                        name="homeScore_{slotIndex}"
+                        min="0"
+                        bind:value={editScores[slotIndex].home}
+                        placeholder="0"
+                        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                      />
+                    </div>
+                    <p class="text-text-muted text-center text-sm">Game {gameInArena + 1}</p>
+                    <div>
+                      <label for="adminAwayScore-{slotIndex}" class="sr-only"
+                        >{getAwayName()} score, game {slotIndex + 1}</label
+                      >
+                      <input
+                        id="adminAwayScore-{slotIndex}"
+                        type="number"
+                        name="awayScore_{slotIndex}"
+                        min="0"
+                        bind:value={editScores[slotIndex].away}
+                        placeholder="0"
+                        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                      />
+                    </div>
+                  </div>
+                {/if}
+              {/each}
+            </div>
           </div>
-          <p class="text-text-muted text-center text-sm">Game {i + 1}</p>
-          <div>
-            <label for="adminAwayScore-{i}" class="sr-only"
-              >{getAwayName()} score, game {i + 1}</label
-            >
-            <input
-              id="adminAwayScore-{i}"
-              type="number"
-              name="awayScore_{i}"
-              min="0"
-              bind:value={entry.away}
-              placeholder="0"
-              class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-            />
+        {/each}
+      </div>
+    {:else}
+      <div class="space-y-3 mb-4">
+        {#each editScores as entry, i}
+          <div class="grid grid-cols-3 gap-4 items-center">
+            <div>
+              <label for="adminHomeScore-{i}" class="sr-only"
+                >{getHomeName()} score, game {i + 1}</label
+              >
+              <input
+                id="adminHomeScore-{i}"
+                type="number"
+                name="homeScore_{i}"
+                min="0"
+                bind:value={entry.home}
+                placeholder="0"
+                class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+              />
+            </div>
+            <p class="text-text-muted text-center text-sm">Game {i + 1}</p>
+            <div>
+              <label for="adminAwayScore-{i}" class="sr-only"
+                >{getAwayName()} score, game {i + 1}</label
+              >
+              <input
+                id="adminAwayScore-{i}"
+                type="number"
+                name="awayScore_{i}"
+                min="0"
+                bind:value={entry.away}
+                placeholder="0"
+                class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+              />
+            </div>
           </div>
-        </div>
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/if}
 
     {#if isDisputed}
       <label class="flex items-center gap-3 mb-4 cursor-pointer">

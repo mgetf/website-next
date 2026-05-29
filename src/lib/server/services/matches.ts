@@ -244,13 +244,56 @@ interface GameResult {
 }
 
 /**
- * Calculate match winner from game results
- * Returns winner team ID, scores, and points
+ * Tally how many arenas each side won for a playoff series.
+ * Games are grouped into arenas of `gamesPerArena` consecutive game numbers
+ * (arena 1 = games 1..gamesPerArena, arena 2 = next block, etc.). An arena is
+ * won by the side that wins the majority of its games.
+ */
+function tallyArenaWins(
+  gameResults: GameResult[],
+  gamesPerArena: number,
+): { homeArenaWins: number; awayArenaWins: number } {
+  const arenaTally = new Map<number, { home: number; away: number }>();
+
+  for (const game of gameResults) {
+    const arenaIndex = Math.floor((game.gameNum - 1) / gamesPerArena);
+    const tally = arenaTally.get(arenaIndex) ?? { home: 0, away: 0 };
+    if (game.homeScore > game.awayScore) {
+      tally.home++;
+    } else if (game.awayScore > game.homeScore) {
+      tally.away++;
+    }
+    arenaTally.set(arenaIndex, tally);
+  }
+
+  let homeArenaWins = 0;
+  let awayArenaWins = 0;
+  for (const tally of arenaTally.values()) {
+    if (tally.home > tally.away) {
+      homeArenaWins++;
+    } else if (tally.away > tally.home) {
+      awayArenaWins++;
+    }
+  }
+
+  return { homeArenaWins, awayArenaWins };
+}
+
+/**
+ * Calculate match winner from game results.
+ *
+ * For regular matches the winning units are individual games. For playoff
+ * matches with `boGames > 1`, each arena is a best-of-`boGames` sub-series and
+ * the winning units are arenas won. `winnerScore`/`loserScore` therefore
+ * represent arena wins for playoff series and game wins otherwise.
+ *
+ * `homePointsScored`/`awayPointsScored` always sum the raw points of every game.
  */
 export function calculateMatchWinner(
   homeTeamId: number,
   awayTeamId: number,
   gameResults: GameResult[],
+  boGames?: number | null,
 ): {
   winnerId: number | null;
   winnerScore: number;
@@ -258,34 +301,43 @@ export function calculateMatchWinner(
   homePointsScored: number;
   awayPointsScored: number;
 } {
-  let homeWins = 0;
-  let awayWins = 0;
   let homePointsScored = 0;
   let awayPointsScored = 0;
 
   for (const game of gameResults) {
-    if (game.homeScore > game.awayScore) {
-      homeWins++;
-    } else if (game.awayScore > game.homeScore) {
-      awayWins++;
-    }
-
     homePointsScored += game.homeScore;
     awayPointsScored += game.awayScore;
+  }
+
+  let homeUnits = 0;
+  let awayUnits = 0;
+
+  if (boGames && boGames > 1) {
+    const { homeArenaWins, awayArenaWins } = tallyArenaWins(gameResults, boGames);
+    homeUnits = homeArenaWins;
+    awayUnits = awayArenaWins;
+  } else {
+    for (const game of gameResults) {
+      if (game.homeScore > game.awayScore) {
+        homeUnits++;
+      } else if (game.awayScore > game.homeScore) {
+        awayUnits++;
+      }
+    }
   }
 
   let winnerId: number | null = null;
   let winnerScore = 0;
   let loserScore = 0;
 
-  if (homeWins > awayWins) {
+  if (homeUnits > awayUnits) {
     winnerId = homeTeamId;
-    winnerScore = homeWins;
-    loserScore = awayWins;
-  } else if (awayWins > homeWins) {
+    winnerScore = homeUnits;
+    loserScore = awayUnits;
+  } else if (awayUnits > homeUnits) {
     winnerId = awayTeamId;
-    winnerScore = awayWins;
-    loserScore = homeWins;
+    winnerScore = awayUnits;
+    loserScore = homeUnits;
   }
 
   return {
@@ -390,7 +442,7 @@ export async function submitMatchScores(
   }
 
   const { winnerId, winnerScore, loserScore, homePointsScored, awayPointsScored } =
-    calculateMatchWinner(match.homeTeamId, match.awayTeamId, gameResults);
+    calculateMatchWinner(match.homeTeamId, match.awayTeamId, gameResults, match.boGames);
 
   // Update games with scores
   for (const result of gameResults) {

@@ -263,28 +263,28 @@ export const actions: Actions = {
     }
 
     const boSeries = match.boSeries || 3;
-    const gamesToWin = Math.ceil(boSeries / 2); // e.g., 2 for BO3, 3 for BO5
+    // Playoff series play `boGames` games on each arena; regular matches use 1.
+    const boGames = match.boGames && match.boGames > 1 ? match.boGames : 1;
 
-    // Parse scores - only require games until match is decided
-    const gameResults = [];
+    const gameResults: {
+      gameNum: number;
+      homeScore: number;
+      awayScore: number;
+      arenaId?: number;
+    }[] = [];
     const parsedScores: Record<string, number> = {};
-    let homeWins = 0;
-    let awayWins = 0;
-    let matchDecided = false;
 
-    for (let i = 0; i < boSeries; i++) {
-      // If match already decided, skip remaining games
-      if (matchDecided) break;
+    // Reads, validates, and records a single game by its 0-based slot index.
+    // Returns the parsed scores or a `fail` response to bubble up.
+    const parseGame = (slotIndex: number, label: string) => {
+      const homeScoreRaw = formData.get(`homeScore_${slotIndex}`)?.toString() ?? '';
+      const awayScoreRaw = formData.get(`awayScore_${slotIndex}`)?.toString() ?? '';
 
-      const homeScoreRaw = formData.get(`homeScore_${i}`)?.toString() ?? '';
-      const awayScoreRaw = formData.get(`awayScore_${i}`)?.toString() ?? '';
-
-      // Only require scores if match hasn't been decided yet
       if (!homeScoreRaw || !awayScoreRaw) {
-        return fail(400, { error: `Missing scores for Game ${i + 1}` });
+        return { error: fail(400, { error: `Missing scores for ${label}` }) } as const;
       }
 
-      const arenaIdRaw = formData.get(`arenaId_${i}`)?.toString();
+      const arenaIdRaw = formData.get(`arenaId_${slotIndex}`)?.toString();
       const entry = gameScoreEntrySchema.safeParse({
         homeScore: homeScoreRaw,
         awayScore: awayScoreRaw,
@@ -293,31 +293,85 @@ export const actions: Actions = {
 
       if (!entry.success) {
         const msg = entry.error.issues[0]?.message ?? 'Invalid scores';
-        return fail(400, { error: `Game ${i + 1}: ${msg}` });
+        return { error: fail(400, { error: `${label}: ${msg}` }) } as const;
       }
 
       const { homeScore, awayScore, arenaId } = entry.data;
+      parsedScores[`homeScore_${slotIndex}`] = homeScore;
+      parsedScores[`awayScore_${slotIndex}`] = awayScore;
+      gameResults.push({ gameNum: slotIndex + 1, homeScore, awayScore, arenaId });
+      return { homeScore, awayScore } as const;
+    };
 
-      parsedScores[`homeScore_${i}`] = homeScore;
-      parsedScores[`awayScore_${i}`] = awayScore;
+    if (boGames > 1) {
+      // Playoff: best-of-`boSeries` arenas, each a best-of-`boGames` sub-series.
+      const gameWinsNeeded = Math.ceil(boGames / 2);
+      const arenaWinsNeeded = Math.ceil(boSeries / 2);
+      let homeArenaWins = 0;
+      let awayArenaWins = 0;
+      let matchDecided = false;
 
-      gameResults.push({ gameNum: i + 1, homeScore, awayScore, arenaId });
+      for (let arena = 0; arena < boSeries && !matchDecided; arena++) {
+        let homeGameWins = 0;
+        let awayGameWins = 0;
+        let arenaDecided = false;
 
-      // Track wins to determine if match is decided
-      if (homeScore > awayScore) homeWins++;
-      else if (awayScore > homeScore) awayWins++;
+        for (let game = 0; game < boGames && !arenaDecided; game++) {
+          const slotIndex = arena * boGames + game;
+          const result = parseGame(slotIndex, `Arena ${arena + 1}, Game ${game + 1}`);
+          if ('error' in result) return result.error;
 
-      // Check if match is now decided
-      if (homeWins >= gamesToWin || awayWins >= gamesToWin) {
-        matchDecided = true;
+          if (result.homeScore > result.awayScore) homeGameWins++;
+          else if (result.awayScore > result.homeScore) awayGameWins++;
+
+          if (homeGameWins >= gameWinsNeeded || awayGameWins >= gameWinsNeeded) {
+            arenaDecided = true;
+          }
+        }
+
+        if (!arenaDecided) {
+          return fail(400, {
+            error: `Arena ${arena + 1} is not decided. One team needs ${gameWinsNeeded} game wins.`,
+          });
+        }
+
+        if (homeGameWins > awayGameWins) homeArenaWins++;
+        else awayArenaWins++;
+
+        if (homeArenaWins >= arenaWinsNeeded || awayArenaWins >= arenaWinsNeeded) {
+          matchDecided = true;
+        }
       }
-    }
 
-    // Ensure match was actually decided
-    if (!matchDecided) {
-      return fail(400, {
-        error: `Match not decided. One team needs ${gamesToWin} wins in Best of ${boSeries}`,
-      });
+      if (!matchDecided) {
+        return fail(400, {
+          error: `Match not decided. One team needs ${arenaWinsNeeded} arena wins in Best of ${boSeries}.`,
+        });
+      }
+    } else {
+      // Regular: best-of-`boSeries` individual games.
+      const gamesToWin = Math.ceil(boSeries / 2);
+      let homeWins = 0;
+      let awayWins = 0;
+      let matchDecided = false;
+
+      for (let i = 0; i < boSeries && !matchDecided; i++) {
+        const result = parseGame(i, `Game ${i + 1}`);
+        if ('error' in result) return result.error;
+
+        if (result.homeScore > result.awayScore) homeWins++;
+        else if (result.awayScore > result.homeScore) awayWins++;
+
+        if (homeWins >= gamesToWin || awayWins >= gamesToWin) {
+          matchDecided = true;
+        }
+      }
+
+      if (!matchDecided) {
+        return fail(400, {
+          error: `Match not decided. One team needs ${gamesToWin} wins in Best of ${boSeries}`,
+        });
+      }
     }
 
     // Validate scores
@@ -952,9 +1006,14 @@ export const actions: Actions = {
     if (!validation.success) return validationError(validation.errors, 'Invalid form data');
     const { resolveDispute, boSeries } = validation.data;
 
+    // Playoff matches have `boGames` slots per arena; account for them so the
+    // admin form can edit every game, not just the first arena.
+    const gamesPerArena = match.boGames && match.boGames > 1 ? match.boGames : 1;
+    const totalSlots = boSeries * gamesPerArena;
+
     const gameResults = [];
 
-    for (let i = 0; i < boSeries; i++) {
+    for (let i = 0; i < totalSlots; i++) {
       const homeScoreStr = formData.get(`homeScore_${i}`)?.toString() ?? '';
       const awayScoreStr = formData.get(`awayScore_${i}`)?.toString() ?? '';
 

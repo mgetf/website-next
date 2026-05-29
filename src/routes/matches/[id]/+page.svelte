@@ -346,26 +346,42 @@
     return { homeArenas, awayArenas, decided, decidedAtArena };
   });
 
-  // A playoff game is disabled when it is not needed or earlier games are unfilled
-  const isPlayoffGameDisabled = (arenaIndex: number, gameInArena: number) => {
+  // Sequential entry guard for a playoff game. Games unlock in order so scores
+  // can't be skipped or padded after a result is already decided (which would
+  // corrupt the winner/stats math). Returns whether the field is locked and why.
+  const playoffGameState = (
+    arenaIndex: number,
+    gameInArena: number,
+  ): { disabled: boolean; reason: string | null } => {
     const progress = playoffProgress();
-    if (progress.decidedAtArena !== -1 && arenaIndex > progress.decidedAtArena) return true;
 
-    const arenaResult = arenaResultFor(arenaIndex);
-    if (arenaResult.decidedAtGame !== -1 && gameInArena > arenaResult.decidedAtGame) return true;
-
-    // Earlier arenas must be decided before this one can be filled
-    for (let a = 0; a < arenaIndex; a++) {
-      if (!arenaResultFor(a).decided) return true;
+    // Series already won before reaching this arena
+    if (progress.decidedAtArena !== -1 && arenaIndex > progress.decidedAtArena) {
+      return { disabled: true, reason: 'Not needed — series already decided' };
     }
 
-    // Earlier games in this arena must be filled first
+    // Earlier arenas must be settled before a later arena opens
+    for (let a = 0; a < arenaIndex; a++) {
+      if (!arenaResultFor(a).decided) {
+        return { disabled: true, reason: `Finish Arena ${a + 1} first` };
+      }
+    }
+
+    // Arena already won before reaching this game
+    const arenaResult = arenaResultFor(arenaIndex);
+    if (arenaResult.decidedAtGame !== -1 && gameInArena > arenaResult.decidedAtGame) {
+      return { disabled: true, reason: 'Not needed — arena already decided' };
+    }
+
+    // Earlier games in this arena must be filled in before the next opens
     for (let g = 0; g < gameInArena; g++) {
       const slot = gameScores[arenaIndex * playoffBoGames + g];
-      if (!slot || slot.home === null || slot.away === null) return true;
+      if (!slot || slot.home === null || slot.away === null) {
+        return { disabled: true, reason: 'Enter the previous game first' };
+      }
     }
 
-    return false;
+    return { disabled: false, reason: null };
   };
 
   const canSubmitScores = $derived(
@@ -879,10 +895,16 @@
                 <div class="p-4 space-y-3">
                   {#each group.games as game, gameInArena (game.id)}
                     {@const slotIndex = game.gameNum - 1}
-                    {@const disabled = isPlayoffGameDisabled(group.arenaIndex, gameInArena)}
+                    {@const gameState = playoffGameState(group.arenaIndex, gameInArena)}
+                    {@const disabled = gameState.disabled}
                     <div class={disabled ? 'opacity-50' : ''}>
                       <div class="flex items-center justify-between mb-2">
                         <h4 class="text-sm font-medium text-text-label">Game {gameInArena + 1}</h4>
+                        {#if disabled && gameState.reason}
+                          <span class="text-xs text-text-muted bg-surface-input px-2 py-1 rounded">
+                            {gameState.reason}
+                          </span>
+                        {/if}
                       </div>
                       <div class="grid grid-cols-3 gap-4 items-center">
                         <div>

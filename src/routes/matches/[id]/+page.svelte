@@ -12,6 +12,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import { toast } from '$lib/state/toast.svelte';
+  import { formatPlayoffRound } from '$lib/utils/playoffs';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -504,11 +505,7 @@
         {#if data.weekLabel}
           <span class="text-text-body">- Week {data.weekLabel}</span>
         {:else if match.playoffRound}
-          <span class="text-text-body"
-            >- {match.playoffRound > 0
-              ? `Upper Round ${match.playoffRound}`
-              : `Lower Round ${Math.abs(match.playoffRound)}`}</span
-          >
+          <span class="text-text-body">- {formatPlayoffRound(match.playoffRound)}</span>
         {/if}
       </h1>
       <Badge color={getStatusColor(match.status)} size="md" class="px-4 py-2">

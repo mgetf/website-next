@@ -14,6 +14,7 @@ import { removePlayer } from '$lib/server/services/teamManagement';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
+import { formatPlayoffRound } from '$lib/utils/playoffs';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import {
   getPendingStatusForTeam,
@@ -147,7 +148,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       const calculatedLabel = calculateWeekLabel(match, teamMatchesForThisWeek);
       weekLabel = calculatedLabel ? `Week ${calculatedLabel}` : `Week ${match.weekNo}`;
     } else if (match.playoffRound) {
-      weekLabel = `Round ${match.playoffRound}`;
+      weekLabel = formatPlayoffRound(match.playoffRound);
     }
 
     matchesBySeasonMap.get(seasonId)?.push({

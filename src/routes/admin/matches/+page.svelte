@@ -8,6 +8,7 @@
   import { toast } from '$lib/state/toast.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import { formatPlayoffRound } from '$lib/utils/playoffs';
 
   let { data }: { data: PageData } = $props();
 
@@ -102,10 +103,7 @@
 
     if (match.playoffRound) {
       const playoffName = match.playoff?.name || 'Playoffs';
-      if (match.playoffRound === 4) return `${playoffName} - Grand Finals`;
-      if (match.playoffRound === 3) return `${playoffName} - Semifinals`;
-      if (match.playoffRound === 2) return `${playoffName} - Quarterfinals`;
-      return `${playoffName} - Round ${match.playoffRound}`;
+      return `${playoffName} - ${formatPlayoffRound(match.playoffRound)}`;
     }
 
     const weekLabel = match.weekLabel || match.weekNo;

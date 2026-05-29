@@ -9,6 +9,7 @@ import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
+import { formatPlayoffRound } from '$lib/utils/playoffs';
 
 export type { ProfileMatch } from '$lib/types/match';
 
@@ -442,12 +443,7 @@ async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, Profi
 
       let week = '—';
       if (match.playoffRound !== null) {
-        week =
-          match.playoffRound === 1
-            ? 'Semifinal'
-            : match.playoffRound === 2
-              ? 'Final'
-              : `Playoff R${match.playoffRound}`;
+        week = formatPlayoffRound(match.playoffRound);
       } else if (match.weekNo !== null) {
         week = `Week ${match.weekNo}`;
       }

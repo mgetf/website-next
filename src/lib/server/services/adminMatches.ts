@@ -13,6 +13,7 @@ import {
   localDatetimeToUtc,
 } from '$lib/server/utils/matchHelpers';
 import { createNotificationForTeamOwners } from './notifications';
+import { formatPlayoffRound } from '$lib/utils/playoffs';
 
 /**
  * Sort teams by standings
@@ -426,8 +427,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
   }
 
   // Send notifications to team owners
-  const roundLabel =
-    playoffRound > 0 ? `Round ${playoffRound}` : `Lower Round ${Math.abs(playoffRound)}`;
+  const roundLabel = formatPlayoffRound(playoffRound);
   await createNotificationForTeamOwners(
     [homeTeamId, awayTeamId],
     'MATCH_CREATED',
@@ -901,7 +901,7 @@ export async function getWeekOptionsForSeason(
     if (m.playoffRound !== null) {
       options.push({
         value: `p${m.playoffRound}`,
-        label: `Playoffs Match ${m.playoffRound}`,
+        label: `Playoffs - ${formatPlayoffRound(m.playoffRound)}`,
       });
     }
   }

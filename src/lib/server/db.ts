@@ -28,16 +28,24 @@ function createPrismaClient(): PrismaClient {
     throw new Error('DATABASE_URL environment variable is not set');
   }
 
+  // Append application_name so pg_stat_activity can attribute connections to this service,
+  // enabling per-service audits against the shared connection budget.
+  const connectionStringWithApp = connectionString.includes('?')
+    ? `${connectionString}&application_name=website-next`
+    : `${connectionString}?application_name=website-next`;
+
   // Pass PoolConfig directly so @prisma/adapter-pg creates the pool using its own
   // bundled pg version. Avoids cross-package Pool instance contamination in production
   // where the adapter ships pg as a regular (non-peer) dependency.
-  // DB_POOL_MAX defaults to 20; tune based on Railway plan's max_connections.
-  // Each SSE stream polls every 15–60 s, so N concurrent users = N/15 q/s at minimum.
+  //
+  // DB_POOL_MAX budget (2 replicas): 2 × (10 pool + 1 hub listener) = 22 steady-state;
+  // × 4 at Railway deploy overlap = 44; + ~23 sibling services ≈ 67 of 97 usable connections.
+  // Do not raise DB_POOL_MAX above 10 without recalculating against max_connections.
   const adapter = new PrismaPg({
-    connectionString,
-    max: parseInt(process.env.DB_POOL_MAX ?? '20'),
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
+    connectionString: connectionStringWithApp,
+    max: parseInt(process.env.DB_POOL_MAX ?? '10'),
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 2_000,
   });
 
   return new PrismaClient({

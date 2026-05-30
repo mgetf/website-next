@@ -30,6 +30,7 @@ class NotificationState {
   private initialized = false;
   private ownerSteamId: string | null = null;
   private visibilityListener: (() => void) | null = null;
+  private realtimeEnabled = true;
 
   /**
    * Computed: Number of unread notifications
@@ -67,32 +68,35 @@ class NotificationState {
   }
 
   /**
-   * Initialize the notification state with server data and connect to SSE.
+   * Initialize the notification state with server data.
    * If called with a different userSteamId than the current owner, resets
    * state first so stale notifications from a previous user are never shown.
+   * When realtimeEnabled is false, skips SSE connect (static/kill-switch mode).
    */
-  initialize(initialNotifications: Notification[], userSteamId: string) {
+  initialize(initialNotifications: Notification[], userSteamId: string, realtimeEnabled = true) {
     if (this.initialized && this.ownerSteamId === userSteamId) return;
     if (this.initialized) this.reset();
 
     this.ownerSteamId = userSteamId;
     this.notifications = initialNotifications;
+    this.realtimeEnabled = realtimeEnabled;
     this.initialized = true;
 
-    // Only connect to SSE in browser
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && realtimeEnabled) {
       this.connect();
       this.ensureVisibilityListener();
     }
   }
 
   /**
-   * Pause SSE while tab is hidden to reduce unnecessary server polling.
+   * Pause SSE while tab is hidden, freeing the server-side stream resource.
+   * No-op when realtimeEnabled is false.
    */
   private ensureVisibilityListener() {
     if (this.visibilityListener || typeof document === 'undefined') return;
 
     this.visibilityListener = () => {
+      if (!this.realtimeEnabled) return;
       if (document.visibilityState === 'visible') {
         this.connect();
       } else {
@@ -122,10 +126,12 @@ class NotificationState {
     this.eventSource.addEventListener('notification', (event) => {
       try {
         const notification: Notification = JSON.parse(event.data);
-        // Add new notification to the beginning of the list
+
+        // Dedup: backfill and live events can overlap after a hub reconnect
+        if (this.notifications.some((n) => n.id === notification.id)) return;
+
         this.notifications = [notification, ...this.notifications];
 
-        // Trigger new notification indicator
         this.hasNewNotification = true;
         setTimeout(() => {
           this.hasNewNotification = false;

@@ -6,9 +6,14 @@
   type Props = {
     notifications: Notification[];
     userSteamId: string;
+    realtimeEnabled?: boolean;
   };
 
-  let { notifications: initialNotifications, userSteamId }: Props = $props();
+  let {
+    notifications: initialNotifications,
+    userSteamId,
+    realtimeEnabled = true,
+  }: Props = $props();
 
   let open = $state(false);
 
@@ -16,7 +21,7 @@
   // Passing userSteamId lets the singleton detect identity changes and reset
   // itself, preventing stale notifications from a previous user being shown.
   $effect(() => {
-    notificationState.initialize(initialNotifications, userSteamId);
+    notificationState.initialize(initialNotifications, userSteamId, realtimeEnabled);
   });
 
   // Track when new notifications arrive for visual feedback

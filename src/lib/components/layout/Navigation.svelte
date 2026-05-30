@@ -15,6 +15,7 @@
     signupClosed?: boolean;
     isInTeam?: boolean;
     userTeam?: { id: number; name: string } | null;
+    realtimeEnabled?: boolean;
   };
 
   let {
@@ -24,6 +25,7 @@
     signupClosed = true,
     isInTeam = false,
     userTeam = null,
+    realtimeEnabled = true,
   }: Props = $props();
 
   // Mobile menu state
@@ -179,7 +181,7 @@
         {:else}
           <div class="flex items-center gap-3">
             <UserDropdown {user} {userTeam} />
-            <NotificationDropdown {notifications} userSteamId={user.steamId} />
+            <NotificationDropdown {notifications} userSteamId={user.steamId} {realtimeEnabled} />
           </div>
         {/if}
 

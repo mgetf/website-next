@@ -37,6 +37,7 @@ const RECOMMENDED_VARS = [
   'LOG_DIR',
   'MGE_PANEL_URL',
   'PARSER_URL',
+  'REALTIME_NOTIFICATIONS_ENABLED',
 ] as const;
 
 type RequiredSecret = (typeof REQUIRED_SECRETS)[number];
@@ -157,4 +158,13 @@ export function getPanelUrl(): string {
  */
 export function getParserUrl(): string {
   return getOptionalEnv('PARSER_URL', 'http://localhost:3000').replace(/\/$/, '');
+}
+
+/**
+ * Whether real-time push notifications are enabled.
+ * When false, clients receive notifications only via initial page load (static mode).
+ * Set REALTIME_NOTIFICATIONS_ENABLED=false to disable without redeploying the hub.
+ */
+export function isRealtimeNotificationsEnabled(): boolean {
+  return getOptionalEnv('REALTIME_NOTIFICATIONS_ENABLED', 'true') !== 'false';
 }

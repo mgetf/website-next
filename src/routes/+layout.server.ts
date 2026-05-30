@@ -9,6 +9,7 @@ import { getUserActiveTeam } from '$lib/server/services/users';
 import { getNotificationsForDropdown } from '$lib/server/services/notifications';
 import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 import { getSiteSettings } from '$lib/server/services/siteSettings';
+import { isRealtimeNotificationsEnabled } from '$lib/server/utils/env';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   // If site is dev-gated (staging mode, non-admin user), return minimal data
@@ -17,6 +18,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
       user: locals.user || null,
       devGated: true,
       appEnvironment: locals.appEnvironment,
+      realtimeEnabled: isRealtimeNotificationsEnabled(),
       // Provide empty defaults for other fields
       announcements: [],
       notificationCount: 0,
@@ -64,6 +66,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     user: locals.user || null,
     devGated: false,
     appEnvironment: locals.appEnvironment,
+    realtimeEnabled: isRealtimeNotificationsEnabled(),
     announcements,
     notificationCount,
     notifications,

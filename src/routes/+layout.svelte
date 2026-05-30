@@ -96,6 +96,7 @@
           signupClosed={data.signupClosed}
           isInTeam={data.isInTeam}
           userTeam={data.userTeam}
+          realtimeEnabled={data.realtimeEnabled}
         />
 
         {#if data.announcements.length > 0 && !page.url.pathname.startsWith('/admin')}

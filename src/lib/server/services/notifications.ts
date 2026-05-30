@@ -6,6 +6,30 @@
 
 import { prisma } from '$lib/server/db';
 import type { NotificationType } from '$prisma/client.js';
+import { notificationHub, buildNotifyPayload } from '$lib/server/realtime/notificationHub';
+import type { NotificationPayload } from '$lib/server/realtime/notificationHub';
+
+const actorSelect = {
+  steamId: true,
+  steamUsername: true,
+  steamAvatar: true,
+} as const;
+
+/**
+ * Emit a pg_notify for a fully-enriched notification row.
+ * Wrapped in try/catch so a notify failure never breaks the mutation.
+ */
+async function emitNotify(notification: NotificationPayload): Promise<void> {
+  try {
+    const payload = buildNotifyPayload(notification);
+    await prisma.$executeRawUnsafe(`SELECT pg_notify('notifications', $1)`, payload);
+  } catch (err) {
+    console.error(
+      '[notificationHub] pg_notify failed (notification still saved):',
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
 
 /**
  * Get all unread notifications for a user (with actor info)
@@ -152,6 +176,53 @@ export async function deleteNotification(notificationId: number, userSteamId: st
 }
 
 /**
+ * Insert multiple notifications and emit pg_notify for each.
+ * Uses createManyAndReturn (Prisma 7) then enriches with actor data.
+ */
+async function createManyAndEmit(
+  data: {
+    userSteamId: string;
+    type: NotificationType;
+    url: string;
+    message: string;
+    actorSteamId: string | null;
+    isRead: boolean;
+  }[],
+): Promise<void> {
+  if (data.length === 0) return;
+
+  const created = await prisma.notification.createManyAndReturn({ data });
+  const ids = created.map((n) => n.id);
+
+  const enriched = await prisma.notification.findMany({
+    where: { id: { in: ids } },
+    include: { actor: { select: actorSelect } },
+  });
+
+  await Promise.all(
+    enriched.map((n) =>
+      emitNotify({
+        id: n.id,
+        userSteamId: n.userSteamId!,
+        type: n.type,
+        url: n.url,
+        message: n.message,
+        actorSteamId: n.actorSteamId,
+        actor: n.actor
+          ? {
+              steamId: n.actor.steamId,
+              steamUsername: n.actor.steamUsername,
+              steamAvatar: n.actor.steamAvatar,
+            }
+          : null,
+        isRead: n.isRead,
+        createdAt: n.createdAt.toISOString(),
+      }),
+    ),
+  );
+}
+
+/**
  * Create notifications for all players in a match (except the trigger user)
  * This notifies all players when there's match activity (comments, scores, reschedules, etc.)
  */
@@ -196,11 +267,7 @@ export async function createNotificationForMatch(
       isRead: false,
     }));
 
-  if (notificationsToInsert.length > 0) {
-    await prisma.notification.createMany({
-      data: notificationsToInsert,
-    });
-  }
+  await createManyAndEmit(notificationsToInsert);
 }
 
 /**
@@ -242,11 +309,7 @@ export async function createNotificationForTeam(
       isRead: false,
     }));
 
-  if (notificationsToInsert.length > 0) {
-    await prisma.notification.createMany({
-      data: notificationsToInsert,
-    });
-  }
+  await createManyAndEmit(notificationsToInsert);
 }
 
 /**
@@ -284,11 +347,7 @@ export async function createNotificationForTeamOwners(
       isRead: false,
     }));
 
-  if (notificationsToInsert.length > 0) {
-    await prisma.notification.createMany({
-      data: notificationsToInsert,
-    });
-  }
+  await createManyAndEmit(notificationsToInsert);
 }
 
 /**
@@ -302,7 +361,7 @@ export async function createNotificationForUser(
   message: string,
   actorSteamId?: string,
 ) {
-  await prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       userSteamId: steamId,
       type,
@@ -311,6 +370,25 @@ export async function createNotificationForUser(
       actorSteamId: actorSteamId || null,
       isRead: false,
     },
+    include: { actor: { select: actorSelect } },
+  });
+
+  await emitNotify({
+    id: notification.id,
+    userSteamId: notification.userSteamId!,
+    type: notification.type,
+    url: notification.url,
+    message: notification.message,
+    actorSteamId: notification.actorSteamId,
+    actor: notification.actor
+      ? {
+          steamId: notification.actor.steamId,
+          steamUsername: notification.actor.steamUsername,
+          steamAvatar: notification.actor.steamAvatar,
+        }
+      : null,
+    isRead: notification.isRead,
+    createdAt: notification.createdAt.toISOString(),
   });
 }
 
@@ -344,11 +422,7 @@ export async function createNotificationForAdmins(
       isRead: false,
     }));
 
-  if (notificationsToInsert.length > 0) {
-    await prisma.notification.createMany({
-      data: notificationsToInsert,
-    });
-  }
+  await createManyAndEmit(notificationsToInsert);
 }
 
 /**
@@ -365,8 +439,8 @@ export async function getLatestNotificationId(userSteamId: string): Promise<numb
 }
 
 /**
- * Get all notifications for a user with an ID greater than sinceId
- * Used for SSE polling to fetch only new notifications
+ * Get all notifications for a user with an ID greater than sinceId.
+ * Used by the SSE route for initial backfill and reconnect catch-up.
  */
 export async function getNotificationsSinceId(userSteamId: string, sinceId: number) {
   return await prisma.notification.findMany({

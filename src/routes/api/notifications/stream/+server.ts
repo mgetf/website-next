@@ -1,9 +1,20 @@
 /**
- * Notifications SSE Stream API
+ * Notifications SSE Stream
  * GET /api/notifications/stream
  *
- * Server-Sent Events endpoint for real-time notification updates.
- * Polls the database periodically and sends new notifications to connected clients.
+ * Server-Sent Events endpoint for real-time notification push.
+ *
+ * On connect:
+ *  1. Subscribe to the in-memory hub BEFORE reading the DB (avoids
+ *     subscribe-before-load race where a NOTIFY fires in the gap).
+ *  2. Backfill once: fetch all notifications since the most recent ID.
+ *  3. Stream hub-delivered events thereafter — no DB polling.
+ *  4. A lightweight heartbeat timer keeps the connection alive; it makes
+ *     no database calls.
+ *
+ * When the listener reconnects after a drop, the hub calls onResync() on
+ * every active subscriber. This triggers a fresh backfill to recover any
+ * notifications that arrived during the gap (missed NOTIFYs).
  */
 
 import type { RequestHandler } from './$types';
@@ -12,11 +23,11 @@ import {
   getLatestNotificationId,
   getNotificationsSinceId,
 } from '$lib/server/services/notifications';
+import { notificationHub } from '$lib/server/realtime/notificationHub';
+import type { HubPayload, NotificationIdOnlyPayload } from '$lib/server/realtime/notificationHub';
+import { isRealtimeNotificationsEnabled } from '$lib/server/utils/env';
 
-const BASE_POLL_INTERVAL_MS = 15000;
-const MAX_POLL_INTERVAL_MS = 60000;
-const MAX_POLL_JITTER_MS = 3000;
-const HEARTBEAT_INTERVAL_MS = 30000;
+const HEARTBEAT_INTERVAL_MS = 30_000;
 
 export const GET: RequestHandler = async ({ locals }) => {
   if (!locals.user) {
@@ -25,13 +36,32 @@ export const GET: RequestHandler = async ({ locals }) => {
 
   const userSteamId = locals.user.steamId;
 
-  let lastNotificationId = await getLatestNotificationId(userSteamId);
+  if (!isRealtimeNotificationsEnabled()) {
+    // Kill switch: acknowledge the connect request and close immediately.
+    // The client will not reconnect (it checks realtimeEnabled before opening
+    // the EventSource). This branch is a server-side safety net only.
+    const body = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(
+          encoder.encode(
+            `event: connected\ndata: ${JSON.stringify({ connected: true, realtime: false })}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+    return new Response(body, {
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    });
+  }
 
   let isActive = true;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let unsubscribe: (() => void) | null = null;
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       const encoder = new TextEncoder();
 
       const safeEnqueue = (data: string): boolean => {
@@ -48,81 +78,83 @@ export const GET: RequestHandler = async ({ locals }) => {
         }
       };
 
-      safeEnqueue(`event: connected\ndata: ${JSON.stringify({ connected: true })}\n\n`);
+      // Cursor tracks the highest notification id delivered to this stream.
+      // Initialized after the first backfill; updated as notifications arrive.
+      let cursor = 0;
 
-      let lastHeartbeat = Date.now();
-
-      let consecutiveFailures = 0;
-      // Tracks how many successive polls returned no new notifications.
-      // Drives idle backoff so quiet connections don't poll at full rate.
-      let consecutiveEmpty = 0;
-
-      const getNextPollDelay = () => {
-        // Error backoff: up to 2 doublings on DB errors (15s → 30s → 60s)
-        const errorStep = Math.min(consecutiveFailures, 2);
-        // Idle backoff: up to 2 doublings when nothing is happening (15s → 30s → 60s)
-        const idleStep = Math.min(consecutiveEmpty, 2);
-        const backoffMultiplier = 2 ** Math.max(errorStep, idleStep);
-        const baseDelay = BASE_POLL_INTERVAL_MS * backoffMultiplier;
-        const jitter = Math.floor(Math.random() * MAX_POLL_JITTER_MS);
-        return Math.min(baseDelay + jitter, MAX_POLL_INTERVAL_MS);
-      };
-
-      const poll = async () => {
+      const deliverPayload = (payload: HubPayload) => {
         if (!isActive) return;
 
+        // ID-only payload — will be caught up via the next onResync call, so skip now
+        if ((payload as NotificationIdOnlyPayload).idOnly) return;
+
+        // De-duplicate: ignore if already past this id
+        if (payload.id <= cursor) return;
+
+        cursor = payload.id;
+        safeEnqueue(`event: notification\ndata: ${JSON.stringify(payload)}\n\n`);
+      };
+
+      const resync = async () => {
+        if (!isActive) return;
         try {
-          const newNotifications = await getNotificationsSinceId(userSteamId, lastNotificationId);
-          consecutiveFailures = 0;
-
-          if (newNotifications.length === 0) {
-            consecutiveEmpty += 1;
-          } else {
-            consecutiveEmpty = 0;
+          const missed = await getNotificationsSinceId(userSteamId, cursor);
+          for (const n of missed) {
+            if (!isActive) break;
+            if (n.id <= cursor) continue;
+            cursor = n.id;
+            safeEnqueue(`event: notification\ndata: ${JSON.stringify(n)}\n\n`);
           }
-
-          for (const notification of newNotifications) {
-            if (!safeEnqueue(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`)) {
-              return;
-            }
-            lastNotificationId = notification.id;
-          }
-
-          const now = Date.now();
-          if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
-            if (!safeEnqueue(`: heartbeat\n\n`)) {
-              return;
-            }
-            lastHeartbeat = now;
-          }
-        } catch (err) {
-          consecutiveFailures += 1;
-          consecutiveEmpty = 0;
-          if (isActive) {
-            console.error('SSE poll error:', {
-              route: '/api/notifications/stream',
-              userSteamId,
-              consecutiveFailures,
-              message: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
-
-        if (isActive) {
-          timeoutId = setTimeout(poll, getNextPollDelay());
+        } catch {
+          // Resync failure is non-fatal; next heartbeat or hub reconnect will retry
         }
       };
 
-      poll();
-    },
-    cancel() {
-      isActive = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
+      // Step 1: subscribe BEFORE reading the DB to close the race window
+      unsubscribe = notificationHub.subscribe(userSteamId, {
+        onNotification: deliverPayload,
+        onResync: () => {
+          resync();
+        },
+      });
+
+      // Step 2: initial backfill
+      try {
+        cursor = await getLatestNotificationId(userSteamId);
+        // Fetch anything that arrived between the hub connecting and now
+        await resync();
+      } catch {
+        // Non-fatal — stream still works, just without historical backfill
       }
+
+      safeEnqueue(
+        `event: connected\ndata: ${JSON.stringify({ connected: true, realtime: true })}\n\n`,
+      );
+
+      // Step 3: heartbeat only — no DB calls
+      heartbeatTimer = setInterval(() => {
+        if (!safeEnqueue(`: heartbeat\n\n`)) {
+          cleanup();
+        }
+      }, HEARTBEAT_INTERVAL_MS);
+    },
+
+    cancel() {
+      cleanup();
     },
   });
+
+  function cleanup() {
+    isActive = false;
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
+  }
 
   return new Response(stream, {
     headers: {

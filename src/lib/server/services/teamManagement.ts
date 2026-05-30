@@ -451,12 +451,51 @@ export async function hardDeleteTeam(
 
   await prisma.$transaction(async (tx) => {
     if (matchCount > 0) {
-      const matchIds = (
-        await tx.match.findMany({
-          where: { OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }] },
-          select: { id: true },
-        })
-      ).map((m) => m.id);
+      const matches = await tx.match.findMany({
+        where: { OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }] },
+        include: { games: true },
+      });
+      const matchIds = matches.map((m) => m.id);
+
+      // Reverse stats on opponent teams for every played match being cascade-deleted.
+      // The deleted team's own row is about to be removed, so only the survivor needs fixing.
+      for (const match of matches) {
+        if (match.status !== 'PLAYED' || match.winnerId == null) continue;
+
+        const isHome = match.homeTeamId === teamId;
+        const opponentId = isHome ? match.awayTeamId : match.homeTeamId;
+
+        const opponentWins = match.games.filter((g) =>
+          isHome
+            ? (g.awayTeamScore ?? 0) > (g.homeTeamScore ?? 0)
+            : (g.homeTeamScore ?? 0) > (g.awayTeamScore ?? 0),
+        ).length;
+        const opponentLosses = match.games.filter((g) =>
+          isHome
+            ? (g.homeTeamScore ?? 0) > (g.awayTeamScore ?? 0)
+            : (g.awayTeamScore ?? 0) > (g.homeTeamScore ?? 0),
+        ).length;
+        const opponentPoints = match.games.reduce(
+          (sum, g) => sum + (isHome ? (g.awayTeamScore ?? 0) : (g.homeTeamScore ?? 0)),
+          0,
+        );
+        const opponentPointsAgainst = match.games.reduce(
+          (sum, g) => sum + (isHome ? (g.homeTeamScore ?? 0) : (g.awayTeamScore ?? 0)),
+          0,
+        );
+
+        await tx.team.update({
+          where: { id: opponentId },
+          data: {
+            wins: { decrement: match.winnerId === opponentId ? 1 : 0 },
+            losses: { decrement: match.winnerId === teamId ? 1 : 0 },
+            gamesWon: { decrement: opponentWins },
+            gamesLost: { decrement: opponentLosses },
+            pointsScored: { decrement: opponentPoints },
+            pointsScoredAgainst: { decrement: opponentPointsAgainst },
+          },
+        });
+      }
 
       const demoIds = (
         await tx.demo.findMany({

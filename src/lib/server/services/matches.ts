@@ -428,105 +428,116 @@ export async function submitMatchScores(
   gameResults: GameResult[],
   submittedBy: string,
 ) {
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    include: {
-      homeTeam: true,
-      awayTeam: true,
-      games: true,
-    },
-  });
+  const result = await prisma.$transaction(async (tx) => {
+    // Lock the match row for the duration of this transaction so concurrent
+    // submissions cannot both pass the UNPLAYED check simultaneously.
+    const rows = await tx.$queryRaw<{ id: number; status: string }[]>`
+      SELECT id, status FROM matches WHERE id = ${matchId} FOR UPDATE
+    `;
+    const locked = rows[0];
+    if (!locked) notFound('Match not found');
+    if (locked.status !== 'UNPLAYED') {
+      badRequest('Match scores have already been submitted');
+    }
 
-  if (!match) {
-    notFound('Match not found');
-  }
+    const match = await tx.match.findUnique({
+      where: { id: matchId },
+      include: { homeTeam: true, awayTeam: true, games: true },
+    });
 
-  const { winnerId, winnerScore, loserScore, homePointsScored, awayPointsScored } =
-    calculateMatchWinner(match.homeTeamId, match.awayTeamId, gameResults, match.boGames);
+    if (!match) notFound('Match not found');
 
-  // Update games with scores
-  for (const result of gameResults) {
-    await prisma.game.updateMany({
-      where: {
-        matchId: matchId,
-        gameNum: result.gameNum,
-      },
+    const { winnerId, winnerScore, loserScore, homePointsScored, awayPointsScored } =
+      calculateMatchWinner(match.homeTeamId, match.awayTeamId, gameResults, match.boGames);
+
+    for (const r of gameResults) {
+      await tx.game.updateMany({
+        where: { matchId, gameNum: r.gameNum },
+        data: {
+          homeTeamScore: r.homeScore,
+          awayTeamScore: r.awayScore,
+          arenaId: r.arenaId || null,
+        },
+      });
+    }
+
+    await tx.team.update({
+      where: { id: match.homeTeamId },
       data: {
-        homeTeamScore: result.homeScore,
-        awayTeamScore: result.awayScore,
-        arenaId: result.arenaId || null,
+        wins: { increment: winnerId === match.homeTeamId ? 1 : 0 },
+        losses: { increment: winnerId === match.awayTeamId ? 1 : 0 },
+        gamesWon: { increment: gameResults.filter((g) => g.homeScore > g.awayScore).length },
+        gamesLost: { increment: gameResults.filter((g) => g.awayScore > g.homeScore).length },
+        pointsScored: { increment: homePointsScored },
+        pointsScoredAgainst: { increment: awayPointsScored },
       },
     });
-  }
 
-  // Update home team stats
-  await updateTeamStats(match.homeTeamId, {
-    wins: winnerId === match.homeTeamId ? 1 : 0,
-    losses: winnerId === match.awayTeamId ? 1 : 0,
-    gamesWon: gameResults.filter((g) => g.homeScore > g.awayScore).length,
-    gamesLost: gameResults.filter((g) => g.awayScore > g.homeScore).length,
-    pointsScored: homePointsScored,
-    pointsScoredAgainst: awayPointsScored,
-  });
+    await tx.team.update({
+      where: { id: match.awayTeamId },
+      data: {
+        wins: { increment: winnerId === match.awayTeamId ? 1 : 0 },
+        losses: { increment: winnerId === match.homeTeamId ? 1 : 0 },
+        gamesWon: { increment: gameResults.filter((g) => g.awayScore > g.homeScore).length },
+        gamesLost: { increment: gameResults.filter((g) => g.homeScore > g.awayScore).length },
+        pointsScored: { increment: awayPointsScored },
+        pointsScoredAgainst: { increment: homePointsScored },
+      },
+    });
 
-  // Update away team stats
-  await updateTeamStats(match.awayTeamId, {
-    wins: winnerId === match.awayTeamId ? 1 : 0,
-    losses: winnerId === match.homeTeamId ? 1 : 0,
-    gamesWon: gameResults.filter((g) => g.awayScore > g.homeScore).length,
-    gamesLost: gameResults.filter((g) => g.homeScore > g.awayScore).length,
-    pointsScored: awayPointsScored,
-    pointsScoredAgainst: homePointsScored,
-  });
+    await tx.match.update({
+      where: { id: matchId },
+      data: {
+        winnerId,
+        winnerScore,
+        loserScore,
+        status: MatchStatus.PLAYED,
+        submittedBy,
+        submittedAt: new Date(),
+      },
+    });
 
-  // Update match status
-  await prisma.match.update({
-    where: { id: matchId },
-    data: {
+    await tx.matchComm.updateMany({
+      where: { matchId, rescheduleStatus: 0 },
+      data: { rescheduleStatus: 3 }, // Canceled
+    });
+
+    return {
       winnerId,
       winnerScore,
       loserScore,
-      status: MatchStatus.PLAYED,
-      submittedBy,
-      submittedAt: new Date(),
-    },
+      homeTeamId: match.homeTeamId,
+      awayTeamId: match.awayTeamId,
+    };
   });
 
-  // Cancel any pending reschedule requests
-  await prisma.matchComm.updateMany({
-    where: {
-      matchId: matchId,
-      rescheduleStatus: 0,
-    },
-    data: {
-      rescheduleStatus: 3, // Canceled
-    },
-  });
-
-  // Determine which team the submitter is on to notify the opposing team
+  // Notifications run outside the transaction — non-critical side effects
   const submitterTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: submittedBy,
-      teamId: { in: [match.homeTeamId, match.awayTeamId] },
+      teamId: { in: [result.homeTeamId, result.awayTeamId] },
       active: 1,
     },
   });
 
   if (submitterTeam) {
     const opposingTeamId =
-      submitterTeam.teamId === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
+      submitterTeam.teamId === result.homeTeamId ? result.awayTeamId : result.homeTeamId;
 
-    // Notify opposing team about score submission
     await createNotificationForTeamOwners(
       [opposingTeamId],
       'MATCH_COMM',
       `/matches/${matchId}`,
-      `Score submitted: ${winnerScore}-${loserScore}`,
+      `Score submitted: ${result.winnerScore}-${result.loserScore}`,
       submittedBy,
     );
   }
 
-  return { winnerId, winnerScore, loserScore };
+  return {
+    winnerId: result.winnerId,
+    winnerScore: result.winnerScore,
+    loserScore: result.loserScore,
+  };
 }
 
 /**

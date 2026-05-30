@@ -11,6 +11,11 @@ import { isStaging, isUngatedRoute, getAppEnvironment } from '$lib/server/utils/
 import { isAdmin } from '$lib/server/auth/permissions';
 import { validateEnvironment } from '$lib/server/utils/env';
 import { getSessionVersion, getSessionFields } from '$lib/server/services/users';
+import {
+  getCachedSessionVersion,
+  setCachedSessionVersion,
+  invalidateCachedSessionVersion,
+} from '$lib/server/auth/sessionCache';
 import { BanStatus, UserRole } from '$lib/types/user';
 import { logPrismaError } from '$lib/server/utils/prisma-errors';
 
@@ -20,8 +25,14 @@ export const handle: Handle = async ({ event, resolve }) => {
   let user = getSession(event.cookies);
 
   if (user) {
-    const dbVersion = await getSessionVersion(user.steamId);
+    let dbVersion = getCachedSessionVersion(user.steamId);
+    if (dbVersion === null) {
+      dbVersion = await getSessionVersion(user.steamId);
+      setCachedSessionVersion(user.steamId, dbVersion);
+    }
+
     if ((user.sessionVersion ?? 0) !== dbVersion) {
+      invalidateCachedSessionVersion(user.steamId);
       const fresh = await getSessionFields(user.steamId);
       if (!fresh || fresh.banStatus === 'BANNED' || fresh.banStatus === 'SUSPENDED') {
         clearSession(event.cookies);

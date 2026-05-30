@@ -5,6 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
@@ -50,6 +51,7 @@ export async function incrementSessionVersion(steamId: string): Promise<void> {
     where: { steamId },
     data: { sessionVersion: { increment: 1 } },
   });
+  invalidateCachedSessionVersion(steamId);
 }
 
 /**

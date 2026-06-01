@@ -37,19 +37,55 @@ export async function getRegions(): Promise<string[]> {
   }
 }
 
+export interface PlatformLeaderboardEntry {
+  steamId: string;
+  elo: number;
+  eloRank: number;
+  wins: number | null;
+  losses: number | null;
+  lastPlayed: string | null;
+}
+
+export interface PlatformLeaderboardResponse {
+  region: string;
+  total: number;
+  limit: number;
+  offset: number;
+  entries: PlatformLeaderboardEntry[];
+}
+
+export type LeaderboardSortField = 'elo' | 'wins' | 'losses' | 'games' | 'winrate' | 'lastPlayed';
+
+export type LeaderboardSortDir = 'asc' | 'desc';
+
 export async function getLeaderboard(
   region: string,
   limit: number,
-): Promise<{ steamId: string; elo: number }[]> {
+  offset = 0,
+  minElo?: number,
+  sortBy: LeaderboardSortField = 'elo',
+  sortDir: LeaderboardSortDir = 'desc',
+): Promise<PlatformLeaderboardResponse> {
+  const empty: PlatformLeaderboardResponse = { region, total: 0, limit, offset, entries: [] };
   const base = getPlatformUrl();
-  if (!base) return [];
+  if (!base) return empty;
   try {
-    const url = `${base}/api/v1/regions/${encodeURIComponent(region)}/leaderboard?limit=${limit}`;
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (minElo !== undefined) params.set('minElo', String(minElo));
+    if (sortBy !== 'elo') params.set('sortBy', sortBy);
+    if (sortDir !== 'desc') params.set('sortDir', sortDir);
+    const url = `${base}/api/v1/regions/${encodeURIComponent(region)}/leaderboard?${params}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return [];
+    if (!res.ok) return empty;
     const data = await res.json();
-    return (data.entries ?? []) as { steamId: string; elo: number }[];
+    return {
+      region: data.region ?? region,
+      total: Number(data.total ?? 0),
+      limit: Number(data.limit ?? limit),
+      offset: Number(data.offset ?? offset),
+      entries: (data.entries ?? []) as PlatformLeaderboardEntry[],
+    };
   } catch {
-    return [];
+    return empty;
   }
 }

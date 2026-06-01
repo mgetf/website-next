@@ -5,6 +5,7 @@
     align?: 'left' | 'center' | 'right';
     width?: string;
     srOnly?: boolean;
+    sortable?: boolean;
   };
 </script>
 
@@ -32,6 +33,9 @@
     compact = false,
     expandedRow,
     expandedContent,
+    sortBy,
+    sortDir,
+    onSort,
   }: {
     data: T[];
     columns: Column[];
@@ -45,6 +49,9 @@
     compact?: boolean;
     expandedRow?: (row: T) => boolean;
     expandedContent?: Snippet<[T]>;
+    sortBy?: string;
+    sortDir?: 'asc' | 'desc';
+    onSort?: (key: string) => void;
   } = $props();
 
   function getAlignClass(align?: 'left' | 'center' | 'right'): string {
@@ -95,6 +102,49 @@
               >
                 {#if col.srOnly}
                   <span class="sr-only">{col.label}</span>
+                {:else if col.sortable && onSort}
+                  <button
+                    type="button"
+                    onclick={() => onSort(col.key)}
+                    class="flex items-center gap-1 hover:text-white transition-colors {col.align ===
+                    'right'
+                      ? 'ml-auto'
+                      : col.align === 'center'
+                        ? 'mx-auto'
+                        : ''}"
+                  >
+                    {col.label}
+                    {#if sortBy === col.key}
+                      {#if sortDir === 'asc'}
+                        <svg
+                          class="w-3 h-3 shrink-0"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          aria-hidden="true"><path d="M18 15l-6-6-6 6" /></svg
+                        >
+                      {:else}
+                        <svg
+                          class="w-3 h-3 shrink-0"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg
+                        >
+                      {/if}
+                    {:else}
+                      <svg
+                        class="w-3 h-3 shrink-0 opacity-30"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        aria-hidden="true"><path d="M8 9l4-4 4 4M8 15l4 4 4-4" /></svg
+                      >
+                    {/if}
+                  </button>
                 {:else}
                   {col.label}
                 {/if}

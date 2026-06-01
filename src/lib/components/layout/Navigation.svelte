@@ -7,6 +7,7 @@
   import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
   import YoutubeIcon from '$lib/components/icons/YoutubeIcon.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
+  import NewChip from '$lib/components/ui/NewChip.svelte';
 
   type Props = {
     user: SessionUser | null;
@@ -97,6 +98,13 @@
             class="px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
           >
             Tournaments
+          </a>
+          <a
+            href="/leaderboard"
+            class="relative px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
+          >
+            Leaderboard
+            <NewChip />
           </a>
           <a
             href="/users"
@@ -234,6 +242,13 @@
           class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           Tournaments
+        </a>
+        <a
+          href="/leaderboard"
+          class="relative block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
+        >
+          Leaderboard
+          <NewChip />
         </a>
         <a
           href="/users"

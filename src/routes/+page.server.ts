@@ -60,7 +60,7 @@ export const load = async () => {
 
     if (platformRegions.length > 0) {
       const regionEntries = await Promise.all(
-        platformRegions.map((region) => getLeaderboard(region, 3)),
+        platformRegions.map((region) => getLeaderboard(region, 10)),
       );
 
       // Collect all unique Steam64 IDs to batch-lookup names/avatars
@@ -68,7 +68,7 @@ export const load = async () => {
       const regionEntryMaps: { region: string; entries: { steam32: string; elo: number }[] }[] = [];
 
       for (let i = 0; i < platformRegions.length; i++) {
-        const rawEntries = regionEntries[i];
+        const rawEntries = regionEntries[i].entries;
         const mapped = rawEntries
           .map((e) => {
             const steam64 = steamId64FromSteamId32(e.steamId);

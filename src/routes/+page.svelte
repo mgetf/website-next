@@ -138,28 +138,41 @@
             <!-- Players -->
             <div class="px-5 py-4 space-y-1">
               {#each regionData.entries as entry, i (entry.steamId64)}
-                {@const medals = ['text-warning-300', 'text-text-label', 'text-warning-700']}
                 {@const medalSymbols = ['🥇', '🥈', '🥉']}
                 {@const isFirst = i === 0}
+                {@const isMedal = i < 3 && !isFirst}
+                {@const isCompact = i >= 3}
                 <div
-                  class="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors {isFirst
-                    ? 'bg-primary-500/8 border border-primary-500/15'
-                    : 'hover:bg-surface-hover'}"
+                  class="flex items-center gap-3 rounded-lg transition-colors {isFirst
+                    ? 'px-3 py-2.5 bg-primary-500/8 border border-primary-500/15'
+                    : isMedal
+                      ? 'px-3 py-2.5 hover:bg-surface-hover'
+                      : 'px-3 py-1 hover:bg-surface-hover'}"
                 >
-                  <span class="text-base shrink-0 w-6 text-center" aria-hidden="true">
-                    {medalSymbols[i] ?? `#${i + 1}`}
+                  <span class="shrink-0 w-6 text-center" aria-hidden="true">
+                    {#if isCompact}
+                      <span class="text-xs text-text-muted font-mono">#{i + 1}</span>
+                    {:else}
+                      <span class="text-base">{medalSymbols[i]}</span>
+                    {/if}
                   </span>
                   {#if entry.avatar}
                     <img
                       src={entry.avatar}
                       alt={entry.name ?? 'Player'}
-                      class="rounded-full shrink-0 {isFirst ? 'w-9 h-9' : 'w-7 h-7'}"
+                      class="rounded-full shrink-0 {isFirst
+                        ? 'w-9 h-9'
+                        : isMedal
+                          ? 'w-7 h-7'
+                          : 'w-5 h-5'}"
                     />
                   {:else}
                     <div
                       class="rounded-full bg-surface-input shrink-0 flex items-center justify-center {isFirst
                         ? 'w-9 h-9'
-                        : 'w-7 h-7'}"
+                        : isMedal
+                          ? 'w-7 h-7'
+                          : 'w-5 h-5'}"
                     >
                       <svg
                         class="w-4 h-4 text-text-muted"
@@ -177,28 +190,34 @@
                     {#if entry.isRegistered && entry.name}
                       <a
                         href="/users/{entry.steamId64}"
-                        class="block font-semibold truncate hover:text-primary-400 transition-colors {isFirst
-                          ? 'text-white text-base'
-                          : 'text-text-label text-sm'}"
+                        class="block truncate hover:text-primary-400 transition-colors {isFirst
+                          ? 'font-semibold text-white text-base'
+                          : isMedal
+                            ? 'font-semibold text-text-label text-sm'
+                            : 'font-medium text-text-muted text-xs'}"
                       >
                         {entry.name}
                       </a>
-                    {:else if entry.name}
-                      <span
-                        class="block font-semibold truncate {isFirst
-                          ? 'text-white text-base'
-                          : 'text-text-label text-sm'}">{entry.name}</span
-                      >
                     {:else}
-                      <span class="block text-sm font-semibold text-text-muted truncate"
-                        >Unknown Player</span
+                      <a
+                        href="https://steamcommunity.com/profiles/{entry.steamId64}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="block truncate hover:text-primary-400 transition-colors {isFirst
+                          ? 'font-semibold text-white text-base'
+                          : isMedal
+                            ? 'font-semibold text-text-label text-sm'
+                            : 'font-medium text-text-muted text-xs'}"
+                      >{entry.name ?? 'Unknown Player'}</a
                       >
                     {/if}
                   </div>
                   <span
-                    class="font-black tabular-nums shrink-0 {isFirst
-                      ? 'text-primary-400 text-xl'
-                      : 'text-primary-500 text-base'}"
+                    class="tabular-nums shrink-0 {isFirst
+                      ? 'font-black text-primary-400 text-xl'
+                      : isMedal
+                        ? 'font-black text-primary-500 text-base'
+                        : 'font-semibold text-primary-600 text-sm'}"
                   >
                     {entry.elo}
                   </span>
@@ -208,10 +227,10 @@
 
             <div class="px-5 pb-4">
               <a
-                href="/users"
+                href="/leaderboard?region={regionData.region}"
                 class="text-xs text-text-muted hover:text-primary-400 transition-colors font-medium"
               >
-                View all players →
+                View full leaderboard →
               </a>
             </div>
           </div>

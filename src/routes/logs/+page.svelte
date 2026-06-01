@@ -53,6 +53,7 @@
 <PageHero
   title="Match Logs"
   subtitle="Browse recent MGE match logs from official servers."
+  maxWidth="max-w-7xl"
   border={true}
 />
 

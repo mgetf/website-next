@@ -82,6 +82,23 @@ export async function getRegisteredSteamIds(steamIds: string[]): Promise<string[
  * Bulk-fetch name and avatar for a list of Steam64 IDs.
  * Used to annotate leaderboard entries with display names.
  */
+export async function searchUsersByName(
+  query: string,
+  limit = 25,
+): Promise<{ steamId: string; name: string; avatar: string | null }[]> {
+  if (!query.trim()) return [];
+  const users = await prisma.user.findMany({
+    where: { steamUsername: { contains: query.trim(), mode: 'insensitive' } },
+    select: { steamId: true, steamUsername: true, steamAvatar: true },
+    take: limit,
+  });
+  return users.map((u) => ({
+    steamId: u.steamId,
+    name: u.steamUsername,
+    avatar: u.steamAvatar ?? null,
+  }));
+}
+
 export async function getUserDisplaysByIds(
   steamIds: string[],
 ): Promise<Record<string, { name: string; avatar: string | null }>> {

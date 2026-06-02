@@ -887,16 +887,27 @@ export async function fetchSteamNames(steamIds: string[]): Promise<Record<string
   const apiKey = getOptionalEnv('STEAM_API_KEY');
   if (!apiKey) return {};
 
+  const CHUNK_SIZE = 100;
+  const chunks: string[][] = [];
+  for (let i = 0; i < steamIds.length; i += CHUNK_SIZE) {
+    chunks.push(steamIds.slice(i, i + CHUNK_SIZE));
+  }
+
   try {
-    const res = await fetch(
-      `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${steamIds.join(',')}`,
+    const responses = await Promise.all(
+      chunks.map((chunk) =>
+        fetch(
+          `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${chunk.join(',')}`,
+        ).then((res) => (res.ok ? res.json() : { response: { players: [] } })),
+      ),
     );
-    if (!res.ok) return {};
-    const data = await res.json();
-    const players: { steamid: string; personaname: string }[] = data?.response?.players ?? [];
+
     const result: Record<string, string> = {};
-    for (const p of players) {
-      result[p.steamid] = p.personaname;
+    for (const data of responses) {
+      const players: { steamid: string; personaname: string }[] = data?.response?.players ?? [];
+      for (const p of players) {
+        result[p.steamid] = p.personaname;
+      }
     }
     return result;
   } catch {

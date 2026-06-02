@@ -13,7 +13,31 @@ import {
 } from '$lib/server/services/users';
 import { steamId64FromSteamId32 } from '$lib/utils/steamid';
 
-const MULTI_REGION_FETCH_LIMIT = 200;
+const PLATFORM_PAGE_SIZE = 100;
+
+async function fetchAllRegionEntries(
+  region: string,
+  minElo?: number,
+): Promise<{ entries: PlatformLeaderboardEntry[]; total: number }> {
+  const first = await getLeaderboard(region, PLATFORM_PAGE_SIZE, 0, minElo);
+  const total = first.total;
+
+  if (total <= PLATFORM_PAGE_SIZE) {
+    return { entries: first.entries, total };
+  }
+
+  const extraPages = Math.ceil((total - PLATFORM_PAGE_SIZE) / PLATFORM_PAGE_SIZE);
+  const rest = await Promise.all(
+    Array.from({ length: extraPages }, (_, i) =>
+      getLeaderboard(region, PLATFORM_PAGE_SIZE, (i + 1) * PLATFORM_PAGE_SIZE, minElo),
+    ),
+  );
+
+  return {
+    entries: [...first.entries, ...rest.flatMap((r) => r.entries)],
+    total,
+  };
+}
 
 function getSortKey(e: PlatformLeaderboardEntry, sortBy: LeaderboardSortField): number {
   switch (sortBy) {
@@ -94,8 +118,14 @@ export async function getEloLeaderboardPage(
       .filter((id): id is string => id !== null);
 
     const userDisplays = await getUserDisplaysByIds(steam64s);
-    const unregisteredIds = steam64s.filter((id) => !userDisplays[id]);
-    const steamNamesForUnregistered = await fetchSteamNames(unregisteredIds);
+
+    // Only call Steam API for entries that have neither a platform name nor a registered profile
+    const needsSteamLookup = steam64s.filter((id) => !userDisplays[id] && !response.entries.find(
+      (e) => steamId64FromSteamId32(e.steamId) === id && e.name,
+    ));
+    const steamNamesForUnregistered = needsSteamLookup.length > 0
+      ? await fetchSteamNames(needsSteamLookup)
+      : {};
 
     const enriched: EloLeaderboardEntry[] = [];
 
@@ -112,7 +142,7 @@ export async function getEloLeaderboardPage(
         rank: e.eloRank > 0 ? e.eloRank : offset + i + 1,
         region: regions[0],
         steamId64: steam64,
-        name: display?.name ?? steamNamesForUnregistered[steam64] ?? null,
+        name: display?.name ?? e.name ?? steamNamesForUnregistered[steam64] ?? null,
         avatar: display?.avatar ?? null,
         elo: e.elo,
         wins: e.wins,
@@ -129,31 +159,19 @@ export async function getEloLeaderboardPage(
     };
   }
 
-  // Multi-region: fetch up to MULTI_REGION_FETCH_LIMIT from each, merge, sort in JS, paginate in memory
-  const responses = await Promise.all(
-    regions.map((r) => getLeaderboard(r, MULTI_REGION_FETCH_LIMIT, 0, minElo, sortBy, sortDir)),
+  // Multi-region: fetch all entries from each region, merge, sort in JS, paginate in memory
+  const regionResults = await Promise.all(
+    regions.map((r) => fetchAllRegionEntries(r, minElo)),
   );
 
   type TaggedEntry = PlatformLeaderboardEntry & { sourceRegion: string };
-  const tagged: TaggedEntry[] = responses.flatMap((resp, i) =>
-    resp.entries.map((e) => ({ ...e, sourceRegion: regions[i] })),
+  const tagged: TaggedEntry[] = regionResults.flatMap(({ entries }, i) =>
+    entries.map((e) => ({ ...e, sourceRegion: regions[i] })),
   );
 
   if (tagged.length === 0) {
     return { entries: [], total: 0, totalPages: 0 };
   }
-
-  const allSteam64s = [
-    ...new Set(
-      tagged
-        .map((e) => steamId64FromSteamId32(e.steamId))
-        .filter((id): id is string => id !== null),
-    ),
-  ];
-
-  const userDisplays = await getUserDisplaysByIds(allSteam64s);
-  const unregisteredIds = allSteam64s.filter((id) => !userDisplays[id]);
-  const steamNamesForUnregistered = await fetchSteamNames(unregisteredIds);
 
   // Sort direction multiplier: 1 for desc (larger first), -1 for asc (smaller first)
   const dirMult = sortDir === 'asc' ? -1 : 1;
@@ -163,33 +181,87 @@ export async function getEloLeaderboardPage(
     return dirMult * diff || b.elo - a.elo;
   });
 
-  const allEnriched: EloLeaderboardEntry[] = [];
+  if (registeredOnly) {
+    // Must check all entries against DB to know who is registered before filtering
+    const allSteam64s = sortedTagged
+      .map((e) => steamId64FromSteamId32(e.steamId))
+      .filter((id): id is string => id !== null);
+    const userDisplays = await getUserDisplaysByIds(allSteam64s);
 
-  for (let i = 0; i < sortedTagged.length; i++) {
-    const e = sortedTagged[i];
+    let rank = 0;
+    const filteredRanked: Array<TaggedEntry & { rank: number; steam64: string }> = [];
+    for (const e of sortedTagged) {
+      const steam64 = steamId64FromSteamId32(e.steamId);
+      if (!steam64 || !userDisplays[steam64]) continue;
+      rank++;
+      filteredRanked.push({ ...e, rank, steam64 });
+    }
+
+    const pageSlice = filteredRanked.slice(offset, offset + pageSize);
+    const entries: EloLeaderboardEntry[] = pageSlice.map((e) => {
+      const display = userDisplays[e.steam64]!;
+      return {
+        rank: e.rank,
+        region: e.sourceRegion,
+        steamId64: e.steam64,
+        name: display.name,
+        avatar: display.avatar,
+        elo: e.elo,
+        wins: e.wins,
+        losses: e.losses,
+        lastPlayed: e.lastPlayed ? new Date(e.lastPlayed).toISOString() : null,
+        isRegistered: true,
+      };
+    });
+
+    const registeredTotal = filteredRanked.length;
+    return {
+      entries,
+      total: registeredTotal,
+      totalPages: Math.ceil(registeredTotal / pageSize) || 0,
+    };
+  }
+
+  // Common case: sort, paginate, then enrich only the current page
+  const total = sortedTagged.length;
+  const pageSlice = sortedTagged.slice(offset, offset + pageSize);
+
+  const pageSteam64s = pageSlice
+    .map((e) => steamId64FromSteamId32(e.steamId))
+    .filter((id): id is string => id !== null);
+
+  const userDisplays = await getUserDisplaysByIds(pageSteam64s);
+
+  // Only call Steam API for entries that have neither a platform name nor a registered profile
+  const needsSteamLookup = pageSteam64s.filter(
+    (id) => !userDisplays[id] && !pageSlice.find(
+      (e) => steamId64FromSteamId32(e.steamId) === id && e.name,
+    ),
+  );
+  const steamNamesForUnregistered = needsSteamLookup.length > 0
+    ? await fetchSteamNames(needsSteamLookup)
+    : {};
+
+  const entries: EloLeaderboardEntry[] = [];
+  let mergedRank = offset;
+  for (const e of pageSlice) {
     const steam64 = steamId64FromSteamId32(e.steamId);
     if (!steam64) continue;
-
+    mergedRank++;
     const display = userDisplays[steam64] ?? null;
-    const isRegistered = display !== null;
-    if (registeredOnly && !isRegistered) continue;
-
-    allEnriched.push({
-      rank: e.eloRank > 0 ? e.eloRank : i + 1,
+    entries.push({
+      rank: mergedRank,
       region: e.sourceRegion,
       steamId64: steam64,
-      name: display?.name ?? steamNamesForUnregistered[steam64] ?? null,
+      name: display?.name ?? e.name ?? steamNamesForUnregistered[steam64] ?? null,
       avatar: display?.avatar ?? null,
       elo: e.elo,
       wins: e.wins,
       losses: e.losses,
       lastPlayed: e.lastPlayed ? new Date(e.lastPlayed).toISOString() : null,
-      isRegistered,
+      isRegistered: display !== null,
     });
   }
-
-  const total = allEnriched.length;
-  const entries = allEnriched.slice(offset, offset + pageSize);
 
   return {
     entries,

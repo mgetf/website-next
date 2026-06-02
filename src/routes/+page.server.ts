@@ -65,35 +65,47 @@ export const load = async () => {
 
       // Collect all unique Steam64 IDs to batch-lookup names/avatars
       const allSteam64s: string[] = [];
-      const regionEntryMaps: { region: string; entries: { steam32: string; elo: number }[] }[] = [];
+      const regionEntryMaps: {
+        region: string;
+        entries: { steam32: string; elo: number; platformName: string | null }[];
+      }[] = [];
 
       for (let i = 0; i < platformRegions.length; i++) {
         const rawEntries = regionEntries[i].entries;
         const mapped = rawEntries
           .map((e) => {
             const steam64 = steamId64FromSteamId32(e.steamId);
-            return steam64 ? { steam32: e.steamId, steam64, elo: e.elo } : null;
+            return steam64 ? { steam32: e.steamId, steam64, elo: e.elo, platformName: e.name ?? null } : null;
           })
-          .filter((e): e is { steam32: string; steam64: string; elo: number } => e !== null);
+          .filter(
+            (e): e is { steam32: string; steam64: string; elo: number; platformName: string | null } =>
+              e !== null,
+          );
 
         for (const e of mapped) allSteam64s.push(e.steam64);
         regionEntryMaps.push({
           region: platformRegions[i],
-          entries: mapped.map((e) => ({ steam32: e.steam32, elo: e.elo })),
+          entries: mapped.map((e) => ({ steam32: e.steam32, elo: e.elo, platformName: e.platformName })),
         });
       }
 
       const userDisplays = await getUserDisplaysByIds(allSteam64s);
 
-      // For entries not in our DB, fetch their Steam display name in one bulk call
-      const unregisteredIds = allSteam64s.filter((id) => !userDisplays[id]);
-      const steamNames = await fetchSteamNames(unregisteredIds);
+      // Only call Steam API for entries that have neither a registered profile nor a platform name
+      const needsSteamLookup = allSteam64s.filter((id) => {
+        if (userDisplays[id]) return false;
+        const entry = regionEntryMaps
+          .flatMap((r) => r.entries)
+          .find((e) => steamId64FromSteamId32(e.steam32) === id);
+        return !entry?.platformName;
+      });
+      const steamNames = needsSteamLookup.length > 0 ? await fetchSteamNames(needsSteamLookup) : {};
 
       for (const { region, entries } of regionEntryMaps) {
         if (entries.length === 0) continue;
         eloLeaderboard.push({
           region,
-          entries: entries.map(({ steam32, elo }) => {
+          entries: entries.map(({ steam32, elo, platformName }) => {
             const steam64 = steamId64FromSteamId32(steam32) ?? '';
             const display = userDisplays[steam64] ?? null;
             const isRegistered = display !== null;
@@ -101,7 +113,7 @@ export const load = async () => {
               elo,
               steamId64: steam64,
               isRegistered,
-              name: display?.name ?? steamNames[steam64] ?? null,
+              name: display?.name ?? platformName ?? steamNames[steam64] ?? null,
               avatar: display?.avatar ?? null,
             };
           }),

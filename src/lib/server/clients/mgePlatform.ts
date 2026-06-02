@@ -39,6 +39,7 @@ export async function getRegions(): Promise<string[]> {
 
 export interface PlatformLeaderboardEntry {
   steamId: string;
+  name: string | null;
   elo: number;
   eloRank: number;
   wins: number | null;

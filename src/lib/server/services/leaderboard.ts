@@ -120,12 +120,13 @@ export async function getEloLeaderboardPage(
     const userDisplays = await getUserDisplaysByIds(steam64s);
 
     // Only call Steam API for entries that have neither a platform name nor a registered profile
-    const needsSteamLookup = steam64s.filter((id) => !userDisplays[id] && !response.entries.find(
-      (e) => steamId64FromSteamId32(e.steamId) === id && e.name,
-    ));
-    const steamNamesForUnregistered = needsSteamLookup.length > 0
-      ? await fetchSteamNames(needsSteamLookup)
-      : {};
+    const needsSteamLookup = steam64s.filter(
+      (id) =>
+        !userDisplays[id] &&
+        !response.entries.find((e) => steamId64FromSteamId32(e.steamId) === id && e.name),
+    );
+    const steamNamesForUnregistered =
+      needsSteamLookup.length > 0 ? await fetchSteamNames(needsSteamLookup) : {};
 
     const enriched: EloLeaderboardEntry[] = [];
 
@@ -160,9 +161,7 @@ export async function getEloLeaderboardPage(
   }
 
   // Multi-region: fetch all entries from each region, merge, sort in JS, paginate in memory
-  const regionResults = await Promise.all(
-    regions.map((r) => fetchAllRegionEntries(r, minElo)),
-  );
+  const regionResults = await Promise.all(regions.map((r) => fetchAllRegionEntries(r, minElo)));
 
   type TaggedEntry = PlatformLeaderboardEntry & { sourceRegion: string };
   const tagged: TaggedEntry[] = regionResults.flatMap(({ entries }, i) =>
@@ -234,13 +233,12 @@ export async function getEloLeaderboardPage(
 
   // Only call Steam API for entries that have neither a platform name nor a registered profile
   const needsSteamLookup = pageSteam64s.filter(
-    (id) => !userDisplays[id] && !pageSlice.find(
-      (e) => steamId64FromSteamId32(e.steamId) === id && e.name,
-    ),
+    (id) =>
+      !userDisplays[id] &&
+      !pageSlice.find((e) => steamId64FromSteamId32(e.steamId) === id && e.name),
   );
-  const steamNamesForUnregistered = needsSteamLookup.length > 0
-    ? await fetchSteamNames(needsSteamLookup)
-    : {};
+  const steamNamesForUnregistered =
+    needsSteamLookup.length > 0 ? await fetchSteamNames(needsSteamLookup) : {};
 
   const entries: EloLeaderboardEntry[] = [];
   let mergedRank = offset;

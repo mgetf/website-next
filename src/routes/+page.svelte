@@ -208,7 +208,7 @@
                           : isMedal
                             ? 'font-semibold text-text-label text-sm'
                             : 'font-medium text-text-muted text-xs'}"
-                      >{entry.name ?? 'Unknown Player'}</a
+                        >{entry.name ?? 'Unknown Player'}</a
                       >
                     {/if}
                   </div>

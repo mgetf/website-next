@@ -288,7 +288,8 @@
               target="_blank"
               rel="noopener noreferrer"
               class="font-medium text-text-label hover:text-primary-400 transition-colors truncate"
-            >{row.name ?? 'Unknown Player'}</a>
+              >{row.name ?? 'Unknown Player'}</a
+            >
           {/if}
         </div>
       {:else if col.key === 'elo'}

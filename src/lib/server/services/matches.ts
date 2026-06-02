@@ -171,6 +171,7 @@ export function canUserManageMatch(
   user: SessionUser | null,
   match: Match & {
     homeTeam: {
+      formatId: number;
       players: Array<{
         playerSteamId: string;
         permissionLevel: number;
@@ -178,6 +179,7 @@ export function canUserManageMatch(
       }>;
     };
     awayTeam: {
+      formatId: number;
       players: Array<{
         playerSteamId: string;
         permissionLevel: number;
@@ -203,20 +205,32 @@ export function canUserManageMatch(
   const isAdmin =
     user.permissionLevel === UserRole.ADMIN || user.permissionLevel === UserRole.MODERATOR;
 
-  const homeOwners = match.homeTeam.players
-    .filter((p) => p.permissionLevel === 2 && p.active === 1)
-    .map((p) => p.playerSteamId);
-
-  const awayOwners = match.awayTeam.players
-    .filter((p) => p.permissionLevel === 2 && p.active === 1)
-    .map((p) => p.playerSteamId);
-
-  const isHomeOwner = homeOwners.includes(user.steamId);
-  const isAwayOwner = awayOwners.includes(user.steamId);
+  const isHomeOwner = isTeamOwner(match.homeTeam, user.steamId);
+  const isAwayOwner = isTeamOwner(match.awayTeam, user.steamId);
 
   const canManage = isAdmin || isHomeOwner || isAwayOwner;
 
   return { canManage, isHomeOwner, isAwayOwner, isAdmin };
+}
+
+/**
+ * Determine whether a user owns a match team.
+ * For 1v1 (single-person) entries the sole active member is the owner, so a
+ * stale permission level (e.g. left over from a prior disband/leave) does not
+ * lock the player out of their own match.
+ */
+function isTeamOwner(
+  team: {
+    formatId: number;
+    players: Array<{ playerSteamId: string; permissionLevel: number; active: number }>;
+  },
+  steamId: string,
+): boolean {
+  const isSoloEntry = team.formatId === FORMAT_1V1;
+  return team.players.some(
+    (p) =>
+      p.playerSteamId === steamId && p.active === 1 && (isSoloEntry || p.permissionLevel === 2),
+  );
 }
 
 /**

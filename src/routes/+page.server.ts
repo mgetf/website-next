@@ -75,17 +75,29 @@ export const load = async () => {
         const mapped = rawEntries
           .map((e) => {
             const steam64 = steamId64FromSteamId32(e.steamId);
-            return steam64 ? { steam32: e.steamId, steam64, elo: e.elo, platformName: e.name ?? null } : null;
+            return steam64
+              ? { steam32: e.steamId, steam64, elo: e.elo, platformName: e.name ?? null }
+              : null;
           })
           .filter(
-            (e): e is { steam32: string; steam64: string; elo: number; platformName: string | null } =>
-              e !== null,
+            (
+              e,
+            ): e is {
+              steam32: string;
+              steam64: string;
+              elo: number;
+              platformName: string | null;
+            } => e !== null,
           );
 
         for (const e of mapped) allSteam64s.push(e.steam64);
         regionEntryMaps.push({
           region: platformRegions[i],
-          entries: mapped.map((e) => ({ steam32: e.steam32, elo: e.elo, platformName: e.platformName })),
+          entries: mapped.map((e) => ({
+            steam32: e.steam32,
+            elo: e.elo,
+            platformName: e.platformName,
+          })),
         });
       }
 

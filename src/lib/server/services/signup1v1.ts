@@ -589,7 +589,7 @@ export async function restore1v1Entry(teamId: number): Promise<void> {
   if (team.players.length > 0) {
     await prisma.playerInTeam.updateMany({
       where: { teamId },
-      data: { active: 1, leftAt: null },
+      data: { active: 1, permissionLevel: 2, leftAt: null },
     });
   }
 }
@@ -649,7 +649,7 @@ export async function change1v1Status(
     });
     await prisma.playerInTeam.updateMany({
       where: { teamId },
-      data: { active: 1, leftAt: null },
+      data: { active: 1, permissionLevel: 2, leftAt: null },
     });
   } else if (newStatus === TeamStatus.DEAD) {
     // Withdrawing — use disbandTeam for consistent side effects

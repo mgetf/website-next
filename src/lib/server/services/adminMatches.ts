@@ -279,7 +279,7 @@ export async function createMatchSet(
         data: {
           matchId: match.id,
           poolId: mapBanPoolId,
-          currentTurn: 0, // Starts with away team (will ban first)
+          currentTurn: 1, // Starts with away team (will ban first)
           banPhaseComplete: false,
         },
       });
@@ -420,7 +420,7 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
       data: {
         matchId: match.id,
         poolId: mapBanPoolId,
-        currentTurn: 0,
+        currentTurn: 1, // 0 = home team, 1 = away team (starts with away team ban)
         banPhaseComplete: false,
       },
     });

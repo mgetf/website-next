@@ -24,7 +24,7 @@ export async function initializeMapBanPhase(matchId: number, poolId: number) {
     data: {
       matchId,
       poolId,
-      currentTurn: 0, // 0 = home team, 1 = away team (starts with away team ban)
+      currentTurn: 1, // 0 = home team, 1 = away team (starts with away team ban)
       banPhaseComplete: false,
     },
   });

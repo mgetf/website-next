@@ -9,6 +9,12 @@
 
   let activeAddress = $derived(sdrConnect && useSdr ? sdrConnect : connect);
 
+  let connectHref = $derived(
+    sdrConnect && useSdr
+      ? `steam://connect/${connect}/dest=${sdrConnect}`
+      : `steam://connect/${connect}`,
+  );
+
   function selectMode(sdr: boolean) {
     if (useSdr === sdr) return;
     useSdr = sdr;
@@ -88,5 +94,5 @@
     {/if}
   </button>
 
-  <Button variant="primary" size="sm" href="steam://connect/{activeAddress}">Connect</Button>
+  <Button variant="primary" size="sm" href={connectHref}>Connect</Button>
 </div>

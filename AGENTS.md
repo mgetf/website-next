@@ -120,3 +120,28 @@ src/
 │   └── ...             # Feature routes
 └── hooks.server.ts     # Session, security headers, staging gate
 ```
+
+## Cursor Cloud specific instructions
+
+This section is for future cloud agents. The VM snapshot already has Bun, a local PostgreSQL, installed dependencies, an applied database, and an untracked `.env` — so you normally only need to start services, not reinstall anything. The startup update script runs `bun install` + `bun run generate`.
+
+### Services
+
+| Service | Required | How to run |
+|---|---|---|
+| PostgreSQL 16 | Yes (all DB access) | `sudo pg_ctlcluster 16 main start` (does not auto-start on boot). Verify: `pg_lsclusters`. |
+| SvelteKit dev server | Yes (the app) | `bun run dev` → serves on `http://localhost:5173` (Vite, not port 3000). |
+
+- Standard commands (dev/build/check/format/migrate/generate) are in the root `README.md` and `package.json` scripts; use those, always via `bun` (never npm/pnpm/yarn — a `preinstall` guard hard-fails otherwise).
+- Run the pre-push checks before finishing UI/server work: `bun run check`, `bun run boundary-check`, `bun run format:check` (see `.husky/pre-push`).
+
+### Environment / database
+
+- Local `.env` lives at repo root (untracked, gitignored). Local DB URL: `DATABASE_URL=postgresql://mge:mge@localhost:5432/mgetf`. `JWT_SECRET` and `SESSION_SECRET` are required (32+ chars) or `validateEnvironment()` throws at startup. If `.env` is missing, recreate it from `.env.example` with those three values set.
+- Keep `APP_ENVIRONMENT=development` locally: in `staging` the whole site is gated to admins only (`hooks.server.ts`).
+- There is no seed script; a freshly migrated DB is empty. Apply schema with `bun run migrate` (`prisma migrate deploy`).
+- Prisma client is generated to `prisma/generated` (imported via the `$prisma` alias); rerun `bun run generate` after schema changes.
+
+### Auth in local dev (no Steam key)
+
+Real login uses Steam OpenID and needs a `STEAM_API_KEY` we don't have locally, so `/auth/login` will not complete. To exercise authenticated/admin flows, the session cookie `mge_session` is just an HMAC-signed JSON blob signed with `SESSION_SECRET` (see `src/lib/server/session.ts`). Create a user row in `users` (e.g. `permission_level='ADMIN'`) and forge the cookie: `base64url(JSON)` + `.` + `base64url(HMAC_SHA256(SESSION_SECRET, JSON))`, where JSON is `{steamId,steamUsername,steamAvatar,permissionLevel,banStatus,sessionVersion}` with `sessionVersion` matching the DB row. Set it as the `mge_session` cookie (server marks it httpOnly; inject via browser DevTools → Application → Cookies for GUI testing).

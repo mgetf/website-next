@@ -95,23 +95,22 @@
 
   <!-- MGE ELO Leaderboard -->
   {#if showEloLeaderboard}
-    <section class="max-w-7xl mx-auto px-6 mb-14">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mb-10 sm:mb-14">
       <!-- Section header -->
-      <div class="mb-6 text-center">
-        <h2 class="text-3xl sm:text-4xl font-black text-white uppercase tracking-tight mb-1">
+      <div class="mb-5 sm:mb-6 text-center">
+        <h2 class="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight mb-1">
           MGE <span class="text-primary-400">ELO</span> Rankings
         </h2>
         <p class="text-text-muted text-sm">Live standings from all active regions</p>
       </div>
 
       <div
-        class="grid gap-5"
-        style="grid-template-columns: repeat({eloLeaderboard.length}, minmax(0, 1fr));"
+        class="flex sm:grid gap-4 sm:gap-5 overflow-x-auto sm:overflow-visible snap-x sm:snap-none snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:[grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))]"
       >
         {#each eloLeaderboard as regionData (regionData.region)}
           {@const fc = regionToFlagCode(regionData.region)}
           <div
-            class="relative rounded-xl border border-primary-500/20 bg-surface-card overflow-hidden shadow-xl shadow-primary-500/5"
+            class="relative snap-center shrink-0 w-[min(calc(100vw-2rem),22.5rem)] sm:w-auto sm:shrink rounded-xl border border-primary-500/20 bg-surface-card overflow-hidden shadow-xl shadow-primary-500/5"
           >
             <!-- Subtle top glow strip -->
             <div
@@ -120,7 +119,7 @@
 
             <!-- Region header -->
             <div
-              class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border-default/50"
+              class="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-border-default/50"
             >
               <div class="flex items-center gap-2">
                 {#if fc}<FlagIcon code={fc} class="w-6 h-4 rounded-sm" />{/if}
@@ -136,18 +135,18 @@
             </div>
 
             <!-- Players -->
-            <div class="px-5 py-4 space-y-1">
+            <div class="px-3 sm:px-5 py-3 sm:py-4 space-y-0.5 sm:space-y-1">
               {#each regionData.entries as entry, i (entry.steamId64)}
                 {@const medalSymbols = ['🥇', '🥈', '🥉']}
                 {@const isFirst = i === 0}
                 {@const isMedal = i < 3 && !isFirst}
                 {@const isCompact = i >= 3}
                 <div
-                  class="flex items-center gap-3 rounded-lg transition-colors {isFirst
-                    ? 'px-3 py-2.5 bg-primary-500/8 border border-primary-500/15'
+                  class="flex items-center gap-2.5 sm:gap-3 rounded-lg transition-colors {isFirst
+                    ? 'px-2.5 sm:px-3 py-2 sm:py-2.5 bg-primary-500/8 border border-primary-500/15'
                     : isMedal
-                      ? 'px-3 py-2.5 hover:bg-surface-hover'
-                      : 'px-3 py-1 hover:bg-surface-hover'}"
+                      ? 'px-2.5 sm:px-3 py-2 sm:py-2.5 hover:bg-surface-hover'
+                      : 'px-2.5 sm:px-3 py-1.5 sm:py-1 hover:bg-surface-hover'}"
                 >
                   <span class="shrink-0 w-6 text-center" aria-hidden="true">
                     {#if isCompact}
@@ -225,10 +224,10 @@
               {/each}
             </div>
 
-            <div class="px-5 pb-4">
+            <div class="px-4 sm:px-5 pb-3 sm:pb-4">
               <a
                 href="/leaderboard?region={regionData.region}"
-                class="text-xs text-text-muted hover:text-primary-400 transition-colors font-medium"
+                class="inline-flex items-center min-h-10 text-xs text-text-muted hover:text-primary-400 transition-colors font-medium"
               >
                 View full leaderboard →
               </a>

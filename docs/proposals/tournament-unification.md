@@ -266,12 +266,13 @@ The `EventStage` model sits between `Event` and `EventMatch` to support multi-st
 **Simple events get 1 stage.** Cups have a single stage (e.g., "Main Bracket" with `SINGLE_ELIM`). Fight nights have a single stage ("Card" with `CARD`). No extra complexity for simple events — just one mandatory stage per event.
 
 **World Championship stages:**
-| Stage | Name | Format | Order |
-| --- | --- | --- | --- |
-| 1 | Group A | ROUND_ROBIN | 1 |
-| 2 | Group B | ROUND_ROBIN | 2 |
-| 3 | Day 2 Play-in | SINGLE_ELIM | 3 |
-| 4 | Top 8 Bracket | DOUBLE_ELIM | 4 |
+
+| Stage | Name          | Format      | Order |
+| ----- | ------------- | ----------- | ----- |
+| 1     | Group A       | ROUND_ROBIN | 1     |
+| 2     | Group B       | ROUND_ROBIN | 2     |
+| 3     | Day 2 Play-in | SINGLE_ELIM | 3     |
+| 4     | Top 8 Bracket | DOUBLE_ELIM | 4     |
 
 Each stage is rendered independently by the bracket system. The event detail page shows all stages in `orderNum` order.
 

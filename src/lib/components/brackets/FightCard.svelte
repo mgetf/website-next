@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { BracketData } from '$lib/types/bracket';
+  import type { CardBracketData } from '$lib/types/bracket';
   import MatchCard from './MatchCard.svelte';
 
   interface Props {
-    data: BracketData;
+    data: CardBracketData;
   }
 
   let { data }: Props = $props();

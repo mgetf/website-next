@@ -8,17 +8,14 @@ import type {
   EventParticipantEntry,
   EventUser,
 } from '$lib/types/event';
-import type {
-  BracketData,
-  BracketFormat,
-  BracketGame,
-  BracketMatch,
-  BracketPlayer,
-  BracketRound,
-  BracketSide,
-  BracketStatus,
-  MatchStatus,
-} from '$lib/types/bracket';
+import type { BracketData, BracketFormat, BracketStatus } from '$lib/types/bracket';
+import {
+  buildCardBracket,
+  buildDoubleElimBracket,
+  buildRoundRobinBracket,
+  buildSingleElimBracket,
+  type BracketStageInput,
+} from '$lib/server/utils/bracketBuilders';
 import type {
   EventType as PrismaEventType,
   EventStatus as PrismaEventStatus,
@@ -138,16 +135,12 @@ export async function getEventBracketData(stageId: number): Promise<BracketData>
 
   const format = mapBracketFormat(stage.bracketFormat);
   const status = mapEventStatusToBracketStatus(stage.event.status as PrismaEventStatus);
+  const stageInput = stage as unknown as BracketStageInput;
 
-  if (format === 'card') {
-    return buildCardBracket(stage, status);
-  }
-
-  if (format === 'double_elim') {
-    return buildDoubleElimBracket(stage, status);
-  }
-
-  return buildSingleElimBracket(stage, status);
+  if (format === 'card') return buildCardBracket(stageInput, status);
+  if (format === 'round_robin') return buildRoundRobinBracket(stageInput, status);
+  if (format === 'double_elim') return buildDoubleElimBracket(stageInput, status);
+  return buildSingleElimBracket(stageInput, status);
 }
 
 export async function createEvent(data: {
@@ -225,47 +218,6 @@ export async function getRecentEvents(limit: number = 3): Promise<EventListItem[
 // Internal mapping helpers
 // ---------------------------------------------------------------------------
 
-interface MatchPlayerRow {
-  id: number;
-  matchId: number;
-  steamId: string | null;
-  displayName: string;
-  side: number;
-}
-
-interface GameRow {
-  id: number;
-  matchId: number;
-  gameNumber: number;
-  side1Score: number | null;
-  side2Score: number | null;
-  arena: { name: string } | null;
-}
-
-interface MatchRow {
-  id: number;
-  stageId: number;
-  round: number | null;
-  orderNum: number;
-  label: string | null;
-  winnerSide: number | null;
-  side1Score: number | null;
-  side2Score: number | null;
-  boSeries: number;
-  status: string;
-  players: MatchPlayerRow[];
-  games: GameRow[];
-}
-
-interface StageWithMatches {
-  id: number;
-  name: string;
-  bracketFormat: string;
-  orderNum: number;
-  event: { status: string; name: string };
-  matches: MatchRow[];
-}
-
 function mapPlacement(p: {
   placement: number;
   steamId: string;
@@ -316,7 +268,7 @@ function mapParticipant(p: {
   };
 }
 
-function mapBracketFormat(dbFormat: string): BracketFormat {
+export function mapBracketFormat(dbFormat: string): BracketFormat {
   const map: Record<string, BracketFormat> = {
     SINGLE_ELIM: 'single_elim',
     DOUBLE_ELIM: 'double_elim',
@@ -326,285 +278,8 @@ function mapBracketFormat(dbFormat: string): BracketFormat {
   return map[dbFormat] ?? 'single_elim';
 }
 
-function mapEventStatusToBracketStatus(status: PrismaEventStatus): BracketStatus {
+export function mapEventStatusToBracketStatus(status: PrismaEventStatus): BracketStatus {
   if (status === 'IN_PROGRESS' || status === 'REGISTRATION') return 'in_progress';
   if (status === 'COMPLETED') return 'completed';
   return 'upcoming';
-}
-
-function mapMatchStatus(status: string): MatchStatus {
-  if (status === 'PLAYED') return 'completed';
-  return 'upcoming';
-}
-
-// ---------------------------------------------------------------------------
-// Bracket builders
-// ---------------------------------------------------------------------------
-
-function buildSingleElimBracket(stage: StageWithMatches, status: BracketStatus): BracketData {
-  const roundGroups = groupMatchesByRound(
-    stage.matches.filter((m) => m.round !== null && m.round > 0),
-  );
-  const totalRounds = roundGroups.length;
-
-  const rounds: BracketRound[] = roundGroups.map((group, idx) => ({
-    number: group.roundNum,
-    label: singleElimRoundLabel(idx, totalRounds),
-    matches: group.matches.map((m, pos) => buildBracketMatch(m, pos + 1)),
-  }));
-
-  padRoundsWithByes(rounds);
-
-  return { format: 'single_elim', status, rounds, title: stage.name };
-}
-
-function buildDoubleElimBracket(stage: StageWithMatches, status: BracketStatus): BracketData {
-  const winnersMatches = stage.matches.filter((m) => m.round !== null && m.round > 0);
-  const losersMatches = stage.matches.filter((m) => m.round !== null && m.round < 0);
-  const grandFinalMatches = stage.matches.filter((m) => m.round === 0);
-
-  const winnersGroups = groupMatchesByRound(winnersMatches);
-  const losersGroups = groupMatchesByRound(losersMatches, true);
-
-  const totalWinners = winnersGroups.length;
-  const totalLosers = losersGroups.length;
-
-  const rounds: BracketRound[] = winnersGroups.map((group, idx) => ({
-    number: group.roundNum,
-    label: winnersRoundLabel(idx, totalWinners),
-    matches: group.matches.map((m, pos) => buildBracketMatch(m, pos + 1)),
-  }));
-
-  const loserRounds: BracketRound[] = losersGroups.map((group, idx) => ({
-    number: group.roundNum,
-    label: losersRoundLabel(idx, totalLosers),
-    matches: group.matches.map((m, pos) => buildBracketMatch(m, pos + 1)),
-  }));
-
-  padRoundsWithByes(rounds);
-
-  let grandFinal: BracketRound | undefined;
-  if (grandFinalMatches.length > 0) {
-    grandFinal = {
-      number: 0,
-      label: 'Grand Final',
-      matches: grandFinalMatches.map((m, pos) => buildBracketMatch(m, pos + 1)),
-    };
-  }
-
-  return {
-    format: 'double_elim',
-    status,
-    rounds,
-    loserRounds: loserRounds.length > 0 ? loserRounds : undefined,
-    grandFinal,
-    title: stage.name,
-  };
-}
-
-function buildCardBracket(stage: StageWithMatches, status: BracketStatus): BracketData {
-  const sorted = [...stage.matches].sort((a, b) => a.orderNum - b.orderNum);
-  const matches: BracketMatch[] = sorted.map((m, pos) => buildBracketMatch(m, pos + 1));
-
-  const round: BracketRound = {
-    number: 1,
-    label: 'Card',
-    matches,
-  };
-
-  return { format: 'card', status, rounds: [round], title: stage.name };
-}
-
-// ---------------------------------------------------------------------------
-// Match-level mapping
-// ---------------------------------------------------------------------------
-
-function buildBracketMatch(match: MatchRow, position: number): BracketMatch {
-  const side1Players = match.players.filter((p) => p.side === 1);
-  const side2Players = match.players.filter((p) => p.side === 2);
-
-  const isBye =
-    side1Players.some((p) => p.displayName === 'BYE') ||
-    side2Players.some((p) => p.displayName === 'BYE') ||
-    side1Players.length === 0 ||
-    side2Players.length === 0;
-
-  const side1 = buildSide(side1Players, match.side1Score, match.winnerSide === 1);
-  const side2 = buildSide(side2Players, match.side2Score, match.winnerSide === 2);
-
-  const games: BracketGame[] | undefined =
-    match.games.length > 0
-      ? match.games.map((g) => ({
-          gameNumber: g.gameNumber,
-          side1Score: g.side1Score ?? 0,
-          side2Score: g.side2Score ?? 0,
-          arena: g.arena?.name,
-        }))
-      : undefined;
-
-  return {
-    id: match.id,
-    round: Math.abs(match.round ?? 1),
-    position,
-    side1,
-    side2,
-    bestOf: match.boSeries && match.boSeries > 0 ? match.boSeries : undefined,
-    status: mapMatchStatus(match.status),
-    isBye,
-    label: match.label ?? undefined,
-    games,
-  };
-}
-
-function buildSide(
-  players: { displayName: string; steamId: string | null; side: number }[],
-  score: number | null,
-  isWinner: boolean,
-): BracketSide {
-  if (players.length === 0) {
-    return { label: 'TBD', score: score ?? undefined, isWinner: false };
-  }
-
-  const isByeSide = players.length === 1 && players[0].displayName === 'BYE';
-  if (isByeSide) {
-    return { label: 'BYE', score: score ?? undefined, isWinner: false };
-  }
-
-  const label =
-    players.length === 1 ? players[0].displayName : players.map((p) => p.displayName).join(' & ');
-
-  const bracketPlayers: BracketPlayer[] = players
-    .filter((p) => p.displayName !== 'BYE')
-    .map((p) => ({
-      name: p.displayName,
-      ...(p.steamId ? { steamId: p.steamId, href: `/users/${p.steamId}` } : {}),
-    }));
-
-  return {
-    label,
-    players: bracketPlayers.length > 0 ? bracketPlayers : undefined,
-    score: score ?? undefined,
-    isWinner,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// BYE padding for non-power-of-2 brackets
-// ---------------------------------------------------------------------------
-
-function padRoundsWithByes(rounds: BracketRound[]): void {
-  for (let i = 0; i < rounds.length - 1; i++) {
-    const current = rounds[i];
-    const next = rounds[i + 1];
-    const expectedCount = next.matches.length * 2;
-
-    if (current.matches.length >= expectedCount) continue;
-
-    const winnerLabels = new Set<string>();
-    for (const match of current.matches) {
-      const winner = match.side1.isWinner ? match.side1 : match.side2.isWinner ? match.side2 : null;
-      if (winner) winnerLabels.add(winner.label);
-    }
-
-    const winnerToMatch = new Map<string, BracketMatch>();
-    for (const match of current.matches) {
-      const winner = match.side1.isWinner ? match.side1 : match.side2.isWinner ? match.side2 : null;
-      if (winner) winnerToMatch.set(winner.label, match);
-    }
-
-    const padded: BracketMatch[] = [];
-    let position = 1;
-
-    for (const nextMatch of next.matches) {
-      const s1FromCurrent = winnerLabels.has(nextMatch.side1.label);
-      const s2FromCurrent = winnerLabels.has(nextMatch.side2.label);
-
-      if (s1FromCurrent && s2FromCurrent) {
-        const m1 = winnerToMatch.get(nextMatch.side1.label);
-        const m2 = winnerToMatch.get(nextMatch.side2.label);
-        if (m1) padded.push({ ...m1, position: position++ });
-        if (m2) padded.push({ ...m2, position: position++ });
-      } else if (s1FromCurrent) {
-        padded.push(syntheticByeMatch(nextMatch.side2.label, current.number, position++));
-        const m = winnerToMatch.get(nextMatch.side1.label);
-        if (m) padded.push({ ...m, position: position++ });
-      } else if (s2FromCurrent) {
-        const m = winnerToMatch.get(nextMatch.side2.label);
-        if (m) padded.push({ ...m, position: position++ });
-        padded.push(syntheticByeMatch(nextMatch.side1.label, current.number, position++));
-      } else {
-        padded.push(syntheticByeMatch(nextMatch.side1.label, current.number, position++));
-        padded.push(syntheticByeMatch(nextMatch.side2.label, current.number, position++));
-      }
-    }
-
-    current.matches = padded;
-  }
-}
-
-let byeIdCounter = 0;
-
-function syntheticByeMatch(
-  playerLabel: string,
-  roundNumber: number,
-  position: number,
-): BracketMatch {
-  return {
-    id: `bye-${roundNumber}-${++byeIdCounter}`,
-    round: roundNumber,
-    position,
-    side1: { label: playerLabel, isWinner: true },
-    side2: { label: 'BYE' },
-    status: 'completed',
-    isBye: true,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Round grouping & labeling
-// ---------------------------------------------------------------------------
-
-interface RoundGroup {
-  roundNum: number;
-  matches: MatchRow[];
-}
-
-function groupMatchesByRound(matches: MatchRow[], useAbsRound = false): RoundGroup[] {
-  const map = new Map<number, MatchRow[]>();
-
-  for (const m of matches) {
-    const key = useAbsRound ? Math.abs(m.round ?? 0) : (m.round ?? 0);
-    const arr = map.get(key) ?? [];
-    arr.push(m);
-    map.set(key, arr);
-  }
-
-  return Array.from(map.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([roundNum, roundMatches]) => ({
-      roundNum,
-      matches: roundMatches.sort((a, b) => a.orderNum - b.orderNum),
-    }));
-}
-
-function singleElimRoundLabel(index: number, total: number): string {
-  const fromEnd = total - index;
-  if (fromEnd === 1) return 'Final';
-  if (fromEnd === 2) return 'Semifinals';
-  if (fromEnd === 3) return 'Quarterfinals';
-  return `Round ${index + 1}`;
-}
-
-function winnersRoundLabel(index: number, total: number): string {
-  const fromEnd = total - index;
-  if (fromEnd === 1) return 'Winners Final';
-  if (fromEnd === 2) return 'Winners Semifinal';
-  return `Winners Round ${index + 1}`;
-}
-
-function losersRoundLabel(index: number, total: number): string {
-  const fromEnd = total - index;
-  if (fromEnd === 1) return 'Losers Final';
-  if (fromEnd === 2) return 'Losers Semifinal';
-  return `Losers Round ${index + 1}`;
 }

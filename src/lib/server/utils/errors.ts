@@ -34,6 +34,13 @@ export function badRequest(message: string = 'Invalid request'): never {
 }
 
 /**
+ * Throw a 409 Conflict error
+ */
+export function conflict(message: string = 'Resource state conflict'): never {
+  throw error(409, message);
+}
+
+/**
  * Throw a 500 Internal Server Error
  */
 export function internalError(message: string = 'Internal server error'): never {

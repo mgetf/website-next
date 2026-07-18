@@ -2,6 +2,7 @@
   import type { BracketData } from '$lib/types/bracket';
   import EliminationBracket from './EliminationBracket.svelte';
   import FightCard from './FightCard.svelte';
+  import RoundRobinGroup from './RoundRobinGroup.svelte';
   import { initBracketHover } from './bracket-hover.svelte';
 
   interface Props {
@@ -17,6 +18,6 @@
   <EliminationBracket {data} />
 {:else if data.format === 'card'}
   <FightCard {data} />
-{:else}
-  <p class="text-text-muted text-sm italic">Format not yet supported: {data.format}</p>
+{:else if data.format === 'round_robin'}
+  <RoundRobinGroup {data} />
 {/if}

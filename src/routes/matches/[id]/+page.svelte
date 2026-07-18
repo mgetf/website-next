@@ -2036,8 +2036,7 @@
           name="description"
           rows="3"
           class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
-          placeholder="Add any notes about this demo..."
-        ></textarea>
+          placeholder="Add any notes about this demo..."></textarea>
       </div>
 
       {#if demoUploadError}
@@ -2128,8 +2127,7 @@
           required
           maxlength="1000"
           class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
-          placeholder="Describe the suspicious behavior (max 1000 characters)..."
-        ></textarea>
+          placeholder="Describe the suspicious behavior (max 1000 characters)..."></textarea>
       </div>
 
       <div class="flex justify-end gap-3">

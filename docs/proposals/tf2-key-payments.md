@@ -99,11 +99,12 @@ model DivisionItemPayment {
 ```
 
 Example rows:
-| divisionId | itemName | itemAppId | itemMarketHashName | itemQuantity |
-|---|---|---|---|---|
-| 1 | Mann Co. Supply Crate Key | 440 | Mann Co. Supply Crate Key | 3 |
-| 2 | Mann Co. Supply Crate Key | 440 | Mann Co. Supply Crate Key | 5 |
-| 3 | Refined Metal | 440 | Refined Metal | 10 |
+
+| divisionId | itemName                  | itemAppId | itemMarketHashName        | itemQuantity |
+| ---------- | ------------------------- | --------- | ------------------------- | ------------ |
+| 1          | Mann Co. Supply Crate Key | 440       | Mann Co. Supply Crate Key | 3            |
+| 2          | Mann Co. Supply Crate Key | 440       | Mann Co. Supply Crate Key | 5            |
+| 3          | Refined Metal             | 440       | Refined Metal             | 10           |
 
 ### New Model: `ItemPaymentOrder`
 

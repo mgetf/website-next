@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import type { BracketData } from '$lib/types/bracket';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
@@ -46,6 +47,48 @@
     }
   }
 
+  function bracketHasContent(bracket: BracketData): boolean {
+    if (bracket.rounds.some((round) => round.matches.length > 0)) return true;
+    if (bracket.format === 'round_robin') return bracket.standings.length > 0;
+    if (bracket.format !== 'double_elim') return false;
+
+    return (
+      bracket.loserRounds?.some((round) => round.matches.length > 0) === true ||
+      (bracket.grandFinal?.matches.length ?? 0) > 0
+    );
+  }
+
+  function stageTabId(stageId: number): string {
+    return `tournament-stage-tab-${stageId}`;
+  }
+
+  function stagePanelId(stageId: number): string {
+    return `tournament-stage-panel-${stageId}`;
+  }
+
+  function selectStage(index: number, focusTab = false) {
+    const bracket = brackets[index];
+    if (!bracket) return;
+
+    activeStageIdx = index;
+    if (focusTab) {
+      requestAnimationFrame(() => document.getElementById(stageTabId(bracket.stageId))?.focus());
+    }
+  }
+
+  function onStageTabKeydown(event: KeyboardEvent, index: number) {
+    let nextIndex: number | undefined;
+
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % brackets.length;
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + brackets.length) % brackets.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = brackets.length - 1;
+    if (nextIndex === undefined) return;
+
+    event.preventDefault();
+    selectStage(nextIndex, true);
+  }
+
   const placementMedals = ['🥇', '🥈', '🥉'];
 </script>
 
@@ -65,11 +108,11 @@
           <img
             src={event.avatar}
             alt={event.name}
-            class="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+            class="w-20 h-20 rounded-lg object-cover shrink-0"
           />
         {:else}
           <div
-            class="w-20 h-20 rounded-lg bg-surface-input flex items-center justify-center text-4xl flex-shrink-0"
+            class="w-20 h-20 rounded-lg bg-surface-input flex items-center justify-center text-4xl shrink-0"
           >
             {event.type === 'FIGHT_NIGHT' ? '🥊' : event.type === 'CHAMPIONSHIP' ? '🌍' : '🏆'}
           </div>
@@ -106,7 +149,7 @@
       <Card>
         <h2 class="text-lg font-bold text-white mb-4">Results</h2>
         <div class="flex flex-wrap gap-6">
-          {#each event.placements.slice(0, 3) as placement, i}
+          {#each event.placements.slice(0, 3) as placement, i (placement.steamId)}
             <div class="flex items-center gap-3">
               <span class="text-2xl">{placementMedals[i] ?? `#${placement.placement}`}</span>
               {#if placement.user}
@@ -131,14 +174,44 @@
       </Card>
     {/if}
 
+    {#snippet bracketFallback(message: string)}
+      <Card>
+        <div class="py-8 text-center">
+          <p class="text-text-body {event.bracketLink ? 'mb-4' : ''}">{message}</p>
+          {#if event.bracketLink}
+            <Button
+              variant="primary"
+              href={event.bracketLink}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View External Bracket →
+            </Button>
+          {/if}
+        </div>
+      </Card>
+    {/snippet}
+
     <!-- Bracket(s) -->
     {#if brackets.length > 0}
       {#if brackets.length > 1}
         <div class="border-b border-border-default">
-          <nav class="flex space-x-6">
-            {#each brackets as bracket, i}
+          <div
+            class="flex space-x-6"
+            role="tablist"
+            aria-label="Tournament stages"
+            aria-orientation="horizontal"
+          >
+            {#each brackets as bracket, i (bracket.stageId)}
               <button
-                onclick={() => (activeStageIdx = i)}
+                id={stageTabId(bracket.stageId)}
+                type="button"
+                role="tab"
+                aria-selected={activeStageIdx === i}
+                aria-controls={stagePanelId(bracket.stageId)}
+                tabindex={activeStageIdx === i ? 0 : -1}
+                onclick={() => selectStage(i)}
+                onkeydown={(event) => onStageTabKeydown(event, i)}
                 class="py-3 px-1 border-b-2 font-medium text-sm transition-colors {activeStageIdx ===
                 i
                   ? 'border-primary-600 text-primary-500'
@@ -147,35 +220,42 @@
                 {bracket.stageName}
               </button>
             {/each}
-          </nav>
+          </div>
         </div>
       {/if}
 
       <div>
-        {#if brackets.length === 1}
-          <h2 class="text-lg font-bold text-white mb-4">{brackets[0].stageName}</h2>
+        {#if brackets.length > 1}
+          {#each brackets as bracket, i (bracket.stageId)}
+            <div
+              id={stagePanelId(bracket.stageId)}
+              role="tabpanel"
+              aria-labelledby={stageTabId(bracket.stageId)}
+              tabindex="0"
+              hidden={i !== activeStageIdx}
+            >
+              {#if i === activeStageIdx}
+                {#if bracketHasContent(bracket.data)}
+                  <BracketRenderer data={bracket.data} />
+                {:else}
+                  {@render bracketFallback('No matches have been published for this stage.')}
+                {/if}
+              {/if}
+            </div>
+          {/each}
+        {:else}
+          <section aria-label={brackets[0].stageName}>
+            <h2 class="text-lg font-bold text-white mb-4">{brackets[0].stageName}</h2>
+            {#if bracketHasContent(brackets[0].data)}
+              <BracketRenderer data={brackets[0].data} />
+            {:else}
+              {@render bracketFallback('No matches have been published for this stage.')}
+            {/if}
+          </section>
         {/if}
-
-        {#each brackets as bracket, i}
-          {#if i === activeStageIdx || brackets.length === 1}
-            <BracketRenderer data={bracket.data} />
-          {/if}
-        {/each}
       </div>
-    {:else if event.bracketLink}
-      <Card>
-        <div class="text-center py-8">
-          <p class="text-text-body mb-4">Bracket data is not available for this event.</p>
-          <Button
-            variant="primary"
-            href={event.bracketLink}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View External Bracket →
-          </Button>
-        </div>
-      </Card>
+    {:else}
+      {@render bracketFallback('Bracket data is not available for this event.')}
     {/if}
 
     <!-- Participants -->
@@ -185,7 +265,7 @@
           Participants ({event.participants.length})
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {#each event.participants as participant}
+          {#each event.participants as participant (participant.steamId)}
             {#if participant.user}
               <a
                 href="/users/{participant.user.steamId}"
@@ -194,7 +274,7 @@
                 <img
                   src={participant.user.steamAvatar || '/default-avatar.png'}
                   alt={participant.user.steamUsername}
-                  class="w-8 h-8 rounded-full flex-shrink-0"
+                  class="w-8 h-8 rounded-full shrink-0"
                 />
                 <div class="min-w-0">
                   <div
@@ -212,7 +292,7 @@
               </a>
             {:else}
               <div class="flex items-center gap-2 p-2 rounded-lg">
-                <div class="w-8 h-8 rounded-full bg-surface-input flex-shrink-0"></div>
+                <div class="w-8 h-8 rounded-full bg-surface-input shrink-0"></div>
                 <div class="text-sm text-text-muted truncate">{participant.steamId}</div>
               </div>
             {/if}

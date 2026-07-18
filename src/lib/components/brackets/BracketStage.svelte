@@ -1,22 +1,32 @@
 <script lang="ts">
-  import type { BracketRound } from '$lib/types/bracket';
+  import type { Attachment } from 'svelte/attachments';
+  import type { BracketMatch, BracketRound } from '$lib/types/bracket';
   import BracketRoundComponent from './BracketRound.svelte';
 
   interface Props {
     rounds: BracketRound[];
     label?: string;
-    isLosersBracket?: boolean;
   }
 
-  let { rounds, label, isLosersBracket = false }: Props = $props();
+  let { rounds, label }: Props = $props();
 
-  let stageEl: HTMLDivElement | undefined = $state();
-  let feedInPaths = $state<string[]>([]);
+  let feedInPaths = $state<FeedInPath[]>([]);
   let svgW = $state(0);
   let svgH = $state(0);
 
   interface FeedInTransition {
     roundIdx: number;
+  }
+
+  interface MatchEdge {
+    edge: 'winner' | 'loser';
+    targetMatchId: string;
+  }
+
+  interface FeedInPath extends MatchEdge {
+    key: string;
+    sourceMatchId: string;
+    d: string;
   }
 
   const feedInTransitions = $derived(
@@ -28,82 +38,95 @@
     }, []),
   );
 
-  const hasFeedIns = $derived(feedInTransitions.length > 0);
+  function getEdgesToRound(match: BracketMatch, targetIds: Set<string>): MatchEdge[] {
+    const edges: MatchEdge[] = [];
+    const winnerTarget = match.winnerNextMatchId;
+    const loserTarget = match.loserNextMatchId;
 
-  function buildWinnerMap(round: BracketRound): Map<string, number> {
-    const map = new Map<string, number>();
-    round.matches.forEach((m, idx) => {
-      const winner = m.side1.isWinner ? m.side1 : m.side2.isWinner ? m.side2 : null;
-      if (winner) map.set(winner.label, idx);
-    });
-    return map;
+    if (winnerTarget !== undefined && targetIds.has(String(winnerTarget))) {
+      edges.push({ edge: 'winner', targetMatchId: String(winnerTarget) });
+    }
+    if (loserTarget !== undefined && targetIds.has(String(loserTarget))) {
+      edges.push({ edge: 'loser', targetMatchId: String(loserTarget) });
+    }
+
+    return edges;
   }
 
-  function measure() {
-    if (!stageEl || feedInTransitions.length === 0) return;
+  function matchSlotsById(roundElement: Element): Map<string, HTMLElement> {
+    return new Map(
+      Array.from(roundElement.querySelectorAll<HTMLElement>('[data-match-id]')).map((element) => [
+        element.dataset.matchId ?? '',
+        element,
+      ]),
+    );
+  }
 
+  function measure(stageEl: HTMLDivElement) {
     const stageRect = stageEl.getBoundingClientRect();
     svgW = stageRect.width;
     svgH = stageRect.height;
 
-    const roundEls = stageEl.querySelectorAll<HTMLElement>('[data-round-idx]');
-    const paths: string[] = [];
+    const roundElements = Array.from(stageEl.querySelectorAll<HTMLElement>('[data-round-number]'));
+    const paths: FeedInPath[] = [];
 
     for (const transition of feedInTransitions) {
-      const curRoundEl = Array.from(roundEls).find(
-        (el) => el.dataset.roundIdx === String(transition.roundIdx),
-      );
-      const nextRoundEl = Array.from(roundEls).find(
-        (el) => el.dataset.roundIdx === String(transition.roundIdx + 1),
-      );
-      if (!curRoundEl || !nextRoundEl) continue;
-
-      const curSlots = curRoundEl.querySelectorAll('.match-slot');
-      const nextSlots = nextRoundEl.querySelectorAll('.match-slot');
-
-      const curRound = rounds[transition.roundIdx];
+      const currentRound = rounds[transition.roundIdx];
       const nextRound = rounds[transition.roundIdx + 1];
-      const winnerMap = buildWinnerMap(curRound);
+      const currentRoundElement = roundElements.find(
+        (element) => element.dataset.roundNumber === String(currentRound.number),
+      );
+      const nextRoundElement = roundElements.find(
+        (element) => element.dataset.roundNumber === String(nextRound.number),
+      );
+      if (!currentRoundElement || !nextRoundElement) continue;
 
-      for (let ni = 0; ni < nextRound.matches.length; ni++) {
-        const nextMatch = nextRound.matches[ni];
-        const nextSlot = nextSlots[ni];
-        if (!nextSlot) continue;
+      const currentSlots = matchSlotsById(currentRoundElement);
+      const nextSlots = matchSlotsById(nextRoundElement);
+      const targetIds = new Set(nextRound.matches.map((match) => String(match.id)));
 
-        const s1Idx = winnerMap.get(nextMatch.side1.label);
-        const s2Idx = winnerMap.get(nextMatch.side2.label);
-        const curIdx = s1Idx ?? s2Idx;
-        if (curIdx === undefined) continue;
+      for (const match of currentRound.matches) {
+        const sourceMatchId = String(match.id);
+        const sourceSlot = currentSlots.get(sourceMatchId);
+        if (!sourceSlot) continue;
 
-        const curSlot = curSlots[curIdx];
-        if (!curSlot) continue;
+        for (const edge of getEdgesToRound(match, targetIds)) {
+          const targetSlot = nextSlots.get(edge.targetMatchId);
+          if (!targetSlot) continue;
 
-        const curRect = curSlot.getBoundingClientRect();
-        const nextRect = nextSlot.getBoundingClientRect();
+          const sourceRect = sourceSlot.getBoundingClientRect();
+          const targetRect = targetSlot.getBoundingClientRect();
+          const sourceX = sourceRect.right - stageRect.left;
+          const sourceY = sourceRect.top + sourceRect.height / 2 - stageRect.top;
+          const targetX = targetRect.left - stageRect.left;
+          const targetY = targetRect.top + targetRect.height / 2 - stageRect.top;
+          const midpointX = sourceX + (targetX - sourceX) / 2;
 
-        const x1 = curRect.right - stageRect.left;
-        const y1 = curRect.top + curRect.height / 2 - stageRect.top;
-        const x2 = nextRect.left - stageRect.left;
-        const y2 = nextRect.top + nextRect.height / 2 - stageRect.top;
-
-        const midX = x1 + (x2 - x1) / 2;
-        paths.push(`M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`);
+          paths.push({
+            ...edge,
+            sourceMatchId,
+            key: `${sourceMatchId}-${edge.edge}-${edge.targetMatchId}`,
+            d: `M ${sourceX} ${sourceY} H ${midpointX} V ${targetY} H ${targetX}`,
+          });
+        }
       }
     }
 
     feedInPaths = paths;
   }
 
-  $effect(() => {
-    if (!stageEl || !hasFeedIns) return;
+  const measureStage: Attachment<HTMLDivElement> = (stageEl) => {
+    if (feedInTransitions.length === 0) return;
 
-    measure();
+    measure(stageEl);
 
-    const observer = new ResizeObserver(() => measure());
+    const observer = new ResizeObserver(() => measure(stageEl));
     observer.observe(stageEl);
 
-    return () => observer.disconnect();
-  });
+    return () => {
+      observer.disconnect();
+    };
+  };
 </script>
 
 <div class="flex flex-col">
@@ -111,14 +134,14 @@
     <div class="text-sm font-semibold text-text-label mb-3">{label}</div>
   {/if}
 
-  <div class="bracket-stage" bind:this={stageEl}>
+  <div class="bracket-stage" {@attach measureStage}>
     {#each rounds as round, i (round.number)}
       {@const nextCount = i < rounds.length - 1 ? rounds[i + 1].matches.length : 0}
       {@const prevCount = i > 0 ? rounds[i - 1].matches.length : 0}
       {@const isFeedInSource = nextCount > round.matches.length}
       {@const isFeedInTarget = prevCount > 0 && prevCount < round.matches.length}
       {@const noMerge = nextCount > 0 && nextCount >= round.matches.length && !isFeedInSource}
-      <div class="shrink-0 flex" class:bracket-gap={i > 0} data-round-idx={i}>
+      <div class="shrink-0 flex" class:bracket-gap={i > 0} data-round-number={round.number}>
         <BracketRoundComponent
           {round}
           isFirstRound={i === 0}
@@ -131,10 +154,19 @@
     {/each}
 
     {#if feedInPaths.length > 0}
-      <svg class="feed-in-overlay" width={svgW} height={svgH} viewBox="0 0 {svgW} {svgH}">
-        {#each feedInPaths as path}
+      <svg
+        class="feed-in-overlay"
+        width={svgW}
+        height={svgH}
+        viewBox="0 0 {svgW} {svgH}"
+        aria-hidden="true"
+      >
+        {#each feedInPaths as path (path.key)}
           <path
-            d={path}
+            d={path.d}
+            data-source-match-id={path.sourceMatchId}
+            data-target-match-id={path.targetMatchId}
+            data-edge={path.edge}
             stroke="var(--bracket-connector-color, var(--color-border-input))"
             stroke-width="2"
             fill="none"

@@ -102,6 +102,15 @@ enum BracketFormat {
   CARD
 }
 
+// Explicit bracket topology section for elimination matches.
+// MAIN is used for single-elimination brackets (no winners/losers split).
+enum BracketSection {
+  MAIN
+  WINNERS
+  LOSERS
+  GRAND_FINAL
+}
+
 enum ItemPaymentStatus {
   PENDING
   COMPLETED
@@ -227,6 +236,8 @@ model Event {
   participants EventParticipant[]
   placements   EventPlacement[]
   demos        Demo[]
+  draft        EventDraft?
+  revisions    EventRevision[]
 
   @@map("events")
 }
@@ -257,11 +268,24 @@ model EventMatch {
   boSeries   Int         @default(3) @map("bo_series")
   status     MatchStatus @default(UNPLAYED)
 
-  stage   EventStage         @relation(fields: [stageId], references: [id])
-  players EventMatchPlayer[]
-  games   EventGame[]
+  // Explicit topology — replaces label/round-sign inference at render time.
+  section           BracketSection? @map("section")
+  winnerNextMatchId Int?            @map("winner_next_match_id")
+  winnerNextSide    Int?            @map("winner_next_side")
+  loserNextMatchId  Int?            @map("loser_next_match_id")
+  loserNextSide     Int?            @map("loser_next_side")
+
+  stage             EventStage         @relation(fields: [stageId], references: [id])
+  players           EventMatchPlayer[]
+  games             EventGame[]
+  winnerNextMatch   EventMatch?        @relation("MatchWinnerProgression", fields: [winnerNextMatchId], references: [id], onDelete: SetNull)
+  winnerFedFrom     EventMatch[]       @relation("MatchWinnerProgression")
+  loserNextMatch    EventMatch?        @relation("MatchLoserProgression", fields: [loserNextMatchId], references: [id], onDelete: SetNull)
+  loserFedFrom      EventMatch[]       @relation("MatchLoserProgression")
 
   @@index([stageId, round, orderNum])
+  @@index([winnerNextMatchId])
+  @@index([loserNextMatchId])
   @@map("event_matches")
 }
 
@@ -321,6 +345,51 @@ model EventPlacement {
 
   @@unique([eventId, steamId])
   @@map("event_placements")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Admin Tournament Editor — drafts and published revisions
+// ═══════════════════════════════════════════════════════════════════
+
+// A working draft of an event's full structure (metadata, stages, matches,
+// participants, placements). Stored as a JSON snapshot so admins can edit
+// historical or upcoming events without mutating the public tables until
+// they explicitly publish. `eventId` is null until the draft's first publish
+// creates the underlying Event.
+model EventDraft {
+  id        Int      @id @default(autoincrement())
+  eventId   Int?     @unique @map("event_id")
+  payload   Json
+  revision  Int      @default(1)
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event   Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  creator User?  @relation("EventDraftCreatedBy", fields: [createdBy], references: [steamId])
+  updater User?  @relation("EventDraftUpdatedBy", fields: [updatedBy], references: [steamId])
+
+  @@map("event_drafts")
+}
+
+// Immutable snapshot of a published event, recorded every time a draft is
+// published. Allows admins to inspect or restore a prior historical version.
+model EventRevision {
+  id          Int      @id @default(autoincrement())
+  eventId     Int      @map("event_id")
+  revision    Int
+  payload     Json
+  summary     String?
+  publishedBy String?  @map("published_by")
+  publishedAt DateTime @default(now()) @map("published_at")
+
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  publisher User? @relation("EventRevisionPublishedBy", fields: [publishedBy], references: [steamId])
+
+  @@unique([eventId, revision])
+  @@index([eventId])
+  @@map("event_revisions")
 }
 
 model Demo {
@@ -409,6 +478,9 @@ model User {
   eventPlacements          EventPlacement[]
   itemPaymentOrders        ItemPaymentOrder[]
   mapFilesUploaded         MapFile[]
+  eventDraftsCreated       EventDraft[]              @relation("EventDraftCreatedBy")
+  eventDraftsUpdated       EventDraft[]              @relation("EventDraftUpdatedBy")
+  eventRevisionsPublished  EventRevision[]            @relation("EventRevisionPublishedBy")
 
   @@map("users")
 }

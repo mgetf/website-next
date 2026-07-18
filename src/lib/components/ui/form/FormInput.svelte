@@ -10,6 +10,7 @@
     maxlength,
     error,
     hint,
+    onInput,
     class: className = '',
   }: {
     label: string;
@@ -22,6 +23,7 @@
     maxlength?: number;
     error?: string;
     hint?: string;
+    onInput?: (value: string | null) => void;
     class?: string;
   } = $props();
 
@@ -30,6 +32,11 @@
       error ? 'border-danger-500' : 'border-border-input'
     } ${className}`,
   );
+
+  function handleInput(event: Event) {
+    value = (event.currentTarget as HTMLInputElement).value;
+    onInput?.(value);
+  }
 </script>
 
 <div class="mb-6">
@@ -48,6 +55,7 @@
     {required}
     {disabled}
     {maxlength}
+    oninput={handleInput}
     class={inputClasses}
   />
   {#if hint && !error}

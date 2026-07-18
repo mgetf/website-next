@@ -1,25 +1,71 @@
 <script lang="ts">
-  import type { BracketData } from '$lib/types/bracket';
+  import type { Attachment } from 'svelte/attachments';
+  import type { BracketRound, EliminationBracketData } from '$lib/types/bracket';
   import BracketStage from './BracketStage.svelte';
   import MatchCard from './MatchCard.svelte';
 
   interface Props {
-    data: BracketData;
+    data: EliminationBracketData;
+  }
+
+  interface GrandFinalFeed {
+    sourceMatchId: string;
+    targetMatchId: string;
+    edge: 'winner' | 'loser';
+  }
+
+  interface ConnectorPath extends GrandFinalFeed {
+    key: string;
+    d: string;
   }
 
   let { data }: Props = $props();
 
   const isDoubleElim = $derived(data.format === 'double_elim');
 
-  let wrapperEl: HTMLDivElement | undefined = $state();
-  let wfToGfPath = $state('');
-  let lfToGfPath = $state('');
+  let connectorPaths = $state<ConnectorPath[]>([]);
   let svgW = $state(0);
   let svgH = $state(0);
 
-  function measure() {
-    if (!wrapperEl) return;
+  function findGrandFinalFeed(
+    rounds: BracketRound[],
+    targetIds: Set<string>,
+  ): GrandFinalFeed | undefined {
+    for (let roundIndex = rounds.length - 1; roundIndex >= 0; roundIndex -= 1) {
+      const matches = rounds[roundIndex].matches;
+      for (let matchIndex = matches.length - 1; matchIndex >= 0; matchIndex -= 1) {
+        const match = matches[matchIndex];
+        const winnerTarget = match.winnerNextMatchId;
+        if (winnerTarget !== undefined && targetIds.has(String(winnerTarget))) {
+          return {
+            sourceMatchId: String(match.id),
+            targetMatchId: String(winnerTarget),
+            edge: 'winner',
+          };
+        }
 
+        const loserTarget = match.loserNextMatchId;
+        if (loserTarget !== undefined && targetIds.has(String(loserTarget))) {
+          return {
+            sourceMatchId: String(match.id),
+            targetMatchId: String(loserTarget),
+            edge: 'loser',
+          };
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  function findMatchSlot(root: Element, matchId: string): HTMLElement | undefined {
+    return Array.from(root.querySelectorAll<HTMLElement>('[data-match-id]')).find(
+      (element) => element.dataset.matchId === matchId,
+    );
+  }
+
+  function measure(wrapperEl: HTMLDivElement) {
+    if (!data.grandFinal) return;
     const wrapperRect = wrapperEl.getBoundingClientRect();
     svgW = wrapperRect.width;
     svgH = wrapperRect.height;
@@ -30,44 +76,65 @@
 
     if (!winnersStage || !losersStage || !gfStage) return;
 
-    const wfSlots = winnersStage.querySelectorAll('.match-slot');
-    const lfSlots = losersStage.querySelectorAll('.match-slot');
-    const gfSlot = gfStage.querySelector('.match-slot');
+    const grandFinalIds = new Set(data.grandFinal.matches.map((match) => String(match.id)));
+    const feeds = [
+      {
+        root: winnersStage,
+        feed: findGrandFinalFeed(data.rounds, grandFinalIds),
+      },
+      {
+        root: losersStage,
+        feed: findGrandFinalFeed(data.loserRounds ?? [], grandFinalIds),
+      },
+    ];
 
-    if (!wfSlots.length || !lfSlots.length || !gfSlot) return;
+    const measuredFeeds = feeds.flatMap(({ root, feed }) => {
+      if (!feed) return [];
 
-    const wfCard = wfSlots[wfSlots.length - 1];
-    const lfCard = lfSlots[lfSlots.length - 1];
+      const sourceSlot = findMatchSlot(root, feed.sourceMatchId);
+      const targetSlot = findMatchSlot(gfStage, feed.targetMatchId);
+      if (!sourceSlot || !targetSlot) return [];
 
-    const wfRect = wfCard.getBoundingClientRect();
-    const lfRect = lfCard.getBoundingClientRect();
-    const gfRect = gfSlot.getBoundingClientRect();
+      return [
+        {
+          ...feed,
+          sourceRect: sourceSlot.getBoundingClientRect(),
+          targetRect: targetSlot.getBoundingClientRect(),
+        },
+      ];
+    });
 
-    const wfRightX = wfRect.right - wrapperRect.left;
-    const wfCenterY = wfRect.top + wfRect.height / 2 - wrapperRect.top;
+    const furthestSourceX = Math.max(
+      ...measuredFeeds.map(({ sourceRect }) => sourceRect.right - wrapperRect.left),
+    );
 
-    const lfRightX = lfRect.right - wrapperRect.left;
-    const lfCenterY = lfRect.top + lfRect.height / 2 - wrapperRect.top;
+    connectorPaths = measuredFeeds.map(({ sourceRect, targetRect, ...feed }) => {
+      const sourceX = sourceRect.right - wrapperRect.left;
+      const sourceY = sourceRect.top + sourceRect.height / 2 - wrapperRect.top;
+      const targetX = targetRect.left - wrapperRect.left;
+      const targetY = targetRect.top + targetRect.height / 2 - wrapperRect.top;
+      const midpointX = furthestSourceX + (targetX - furthestSourceX) / 2;
 
-    const gfLeftX = gfRect.left - wrapperRect.left;
-    const gfCenterY = gfRect.top + gfRect.height / 2 - wrapperRect.top;
-
-    const midX = Math.max(wfRightX, lfRightX) + (gfLeftX - Math.max(wfRightX, lfRightX)) / 2;
-
-    wfToGfPath = `M ${wfRightX} ${wfCenterY} H ${midX} V ${gfCenterY} H ${gfLeftX}`;
-    lfToGfPath = `M ${lfRightX} ${lfCenterY} H ${midX} V ${gfCenterY} H ${gfLeftX}`;
+      return {
+        ...feed,
+        key: `${feed.sourceMatchId}-${feed.edge}-${feed.targetMatchId}`,
+        d: `M ${sourceX} ${sourceY} H ${midpointX} V ${targetY} H ${targetX}`,
+      };
+    });
   }
 
-  $effect(() => {
-    if (!wrapperEl || !isDoubleElim || !data.grandFinal) return;
+  const measureBracket: Attachment<HTMLDivElement> = (wrapperEl) => {
+    if (!isDoubleElim || !data.grandFinal) return;
 
-    measure();
+    measure(wrapperEl);
 
-    const observer = new ResizeObserver(() => measure());
+    const observer = new ResizeObserver(() => measure(wrapperEl));
     observer.observe(wrapperEl);
 
-    return () => observer.disconnect();
-  });
+    return () => {
+      observer.disconnect();
+    };
+  };
 </script>
 
 <div class="bracket-scroll-container">
@@ -76,7 +143,7 @@
   {/if}
 
   {#if isDoubleElim}
-    <div class="double-elim-wrapper" bind:this={wrapperEl}>
+    <div class="double-elim-wrapper" {@attach measureBracket}>
       <div class="brackets-column">
         <div data-stage="winners">
           <BracketStage rounds={data.rounds} label="Winners Bracket" />
@@ -84,7 +151,7 @@
 
         {#if data.loserRounds && data.loserRounds.length > 0}
           <div data-stage="losers">
-            <BracketStage rounds={data.loserRounds} label="Losers Bracket" isLosersBracket />
+            <BracketStage rounds={data.loserRounds} label="Losers Bracket" />
           </div>
         {/if}
       </div>
@@ -99,7 +166,11 @@
           </div>
           <div class="flex flex-col gap-3">
             {#each data.grandFinal.matches as match (match.id)}
-              <div class="match-slot" style:width="var(--bracket-match-width, 12rem)">
+              <div
+                class="match-slot"
+                data-match-id={String(match.id)}
+                style:width="var(--bracket-match-width, 12rem)"
+              >
                 <MatchCard {match} />
               </div>
             {/each}
@@ -107,14 +178,25 @@
         </div>
       {/if}
 
-      {#if data.grandFinal && (wfToGfPath || lfToGfPath)}
-        <svg class="connector-overlay" width={svgW} height={svgH} viewBox="0 0 {svgW} {svgH}">
-          {#if wfToGfPath}
-            <path d={wfToGfPath} stroke="var(--color-border-input)" stroke-width="2" fill="none" />
-          {/if}
-          {#if lfToGfPath}
-            <path d={lfToGfPath} stroke="var(--color-border-input)" stroke-width="2" fill="none" />
-          {/if}
+      {#if connectorPaths.length > 0}
+        <svg
+          class="connector-overlay"
+          width={svgW}
+          height={svgH}
+          viewBox="0 0 {svgW} {svgH}"
+          aria-hidden="true"
+        >
+          {#each connectorPaths as path (path.key)}
+            <path
+              d={path.d}
+              data-source-match-id={path.sourceMatchId}
+              data-target-match-id={path.targetMatchId}
+              data-edge={path.edge}
+              stroke="var(--color-border-input)"
+              stroke-width="2"
+              fill="none"
+            />
+          {/each}
         </svg>
       {/if}
     </div>

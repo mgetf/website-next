@@ -698,8 +698,7 @@
                 rows="30"
                 disabled={!data.isHeadAdmin}
                 class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="# Rulebook&#10;&#10;## Section 1&#10;..."
-              ></textarea>
+                placeholder="# Rulebook&#10;&#10;## Section 1&#10;..."></textarea>
             </div>
 
             <!-- Preview -->
@@ -754,8 +753,7 @@
                 rows="20"
                 disabled={!data.isHeadAdmin}
                 class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="**Match Created!** ..."
-              ></textarea>
+                placeholder="**Match Created!** ..."></textarea>
             </div>
 
             <!-- Preview -->

@@ -106,8 +106,7 @@
             maxlength="500"
             required
             class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            placeholder="Enter announcement text (max 500 characters)..."
-          ></textarea>
+            placeholder="Enter announcement text (max 500 characters)..."></textarea>
         </div>
         <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? 'Creating...' : 'Create Announcement'}
@@ -203,8 +202,7 @@
                     maxlength="500"
                     required
                     class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    value={announcement.content}
-                  ></textarea>
+                    value={announcement.content}></textarea>
                   <div class="flex gap-2">
                     <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
                       {isSubmitting ? 'Saving...' : 'Save'}

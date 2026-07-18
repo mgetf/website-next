@@ -7,9 +7,10 @@
     side: BracketSide;
     matchStatus: MatchStatus;
     isByeSide: boolean;
+    allowPlayerLinks?: boolean;
   }
 
-  let { side, matchStatus, isByeSide }: Props = $props();
+  let { side, matchStatus, isByeSide, allowPlayerLinks = true }: Props = $props();
 
   const hover = useBracketHover();
 
@@ -66,8 +67,8 @@
   {#if hasPlayers && !isByeSide}
     {#if is2v2}
       <div class="flex shrink-0">
-        {#each players as player, i}
-          {#if player.href}
+        {#each players as player, i (player)}
+          {#if player.href && allowPlayerLinks}
             <a
               href={player.href}
               class="block {i > 0 ? '-ml-2' : ''} ring-1 ring-surface-card rounded-full"
@@ -107,7 +108,7 @@
       </div>
     {:else}
       {@const player = players[0]}
-      {#if player.href}
+      {#if player.href && allowPlayerLinks}
         <a href={player.href} class="shrink-0">
           {#if player.avatarUrl}
             <img

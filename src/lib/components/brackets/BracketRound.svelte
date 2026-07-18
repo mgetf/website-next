@@ -38,6 +38,7 @@
       {@const isUnpairedLast = isOddCount && idx === round.matches.length - 1}
       <div
         class="match-slot"
+        data-match-id={String(match.id)}
         class:has-incoming={hasIncoming}
         class:has-outgoing={hasOutgoing}
         class:is-straight={hasOutgoing && (straightOutgoing || isUnpairedLast)}

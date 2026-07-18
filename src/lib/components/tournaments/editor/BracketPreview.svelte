@@ -14,7 +14,7 @@
   const preview = $derived(selectedStage ? previewDraftStage(selectedStage, draft.status) : null);
 </script>
 
-<Card class="lg:sticky lg:top-6">
+<Card>
   <div class="mb-4">
     <h2 class="text-xl font-semibold text-white">Live bracket preview</h2>
     <p class="mt-1 text-sm text-text-muted">Changes appear here before the draft is saved.</p>

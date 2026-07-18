@@ -14,6 +14,7 @@ import type {
   DraftEliminationMatch,
   ValidationIssue,
 } from '$lib/types/tournament-editor';
+import { normalizeParticipantName } from '$lib/utils/tournamentParticipantSearch';
 
 export function validateDraftStructure(payload: EventDraftPayload): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -26,12 +27,25 @@ export function validateDraftStructure(payload: EventDraftPayload): ValidationIs
     issues.push({ path: 'stages', message: 'Add at least one stage.', severity: 'warning' });
   }
 
-  const participantIds = new Set(payload.participants.map((p) => p.steamId));
-  const participantSteamIds = payload.participants.map((p) => p.steamId);
+  const participantIds = new Set(payload.participants.map((participant) => participant.id));
+  const participantSteamIds = payload.participants.flatMap((participant) =>
+    participant.steamId ? [participant.steamId] : [],
+  );
   if (new Set(participantSteamIds).size !== participantSteamIds.length) {
     issues.push({
       path: 'participants',
       message: 'Each participant can only be added once.',
+      severity: 'error',
+    });
+  }
+
+  const participantNames = payload.participants.map((participant) =>
+    normalizeParticipantName(participant.displayName),
+  );
+  if (new Set(participantNames).size !== participantNames.length) {
+    issues.push({
+      path: 'participants',
+      message: 'Participant names must be unique.',
       severity: 'error',
     });
   }
@@ -46,13 +60,13 @@ export function validateDraftStructure(payload: EventDraftPayload): ValidationIs
   }
 
   payload.stages.forEach((stage, stageIdx) => {
-    validateStage(stage, stageIdx, issues);
+    validateStage(stage, stageIdx, participantIds, issues);
   });
 
   payload.placements.forEach((placement, idx) => {
-    if (!participantIds.has(placement.steamId)) {
+    if (!participantIds.has(placement.participantId)) {
       issues.push({
-        path: `placements[${idx}].steamId`,
+        path: `placements[${idx}].participantId`,
         message: `Placement references a player who is not in the participants list.`,
         severity: 'error',
       });
@@ -76,7 +90,12 @@ export function validateDraftStructure(payload: EventDraftPayload): ValidationIs
   return issues;
 }
 
-function validateStage(stage: DraftStage, stageIdx: number, issues: ValidationIssue[]): void {
+function validateStage(
+  stage: DraftStage,
+  stageIdx: number,
+  participantIds: Set<string>,
+  issues: ValidationIssue[],
+): void {
   if (!stage.name.trim()) {
     issues.push({
       path: `stages[${stageIdx}].name`,
@@ -149,6 +168,18 @@ function validateStage(stage: DraftStage, stageIdx: number, issues: ValidationIs
       issues.push({
         path: `${path}.players`,
         message: 'Every match player must be assigned to side 1 or side 2.',
+        severity: 'error',
+      });
+    }
+
+    if (
+      match.players.some(
+        (player) => player.participantId !== null && !participantIds.has(player.participantId),
+      )
+    ) {
+      issues.push({
+        path: `${path}.players`,
+        message: 'Match references a player who is not in the participants list.',
         severity: 'error',
       });
     }

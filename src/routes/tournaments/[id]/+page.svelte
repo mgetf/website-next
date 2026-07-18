@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { BracketData } from '$lib/types/bracket';
   import Badge from '$lib/components/ui/Badge.svelte';
@@ -149,11 +150,14 @@
       <Card>
         <h2 class="text-lg font-bold text-white mb-4">Results</h2>
         <div class="flex flex-wrap gap-6">
-          {#each event.placements.slice(0, 3) as placement, i (placement.steamId)}
+          {#each event.placements.slice(0, 3) as placement, i (placement.id)}
             <div class="flex items-center gap-3">
               <span class="text-2xl">{placementMedals[i] ?? `#${placement.placement}`}</span>
               {#if placement.user}
-                <a href="/users/{placement.user.steamId}" class="flex items-center gap-2 group">
+                <a
+                  href={resolve('/users/[steamId]', { steamId: placement.user.steamId })}
+                  class="flex items-center gap-2 group"
+                >
                   <img
                     src={placement.user.steamAvatar || '/default-avatar.png'}
                     alt={placement.user.steamUsername}
@@ -166,7 +170,7 @@
                   </span>
                 </a>
               {:else}
-                <span class="text-text-muted">{placement.steamId}</span>
+                <span class="font-semibold text-white">{placement.displayName}</span>
               {/if}
             </div>
           {/each}
@@ -265,10 +269,10 @@
           Participants ({event.participants.length})
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {#each event.participants as participant (participant.steamId)}
+          {#each event.participants as participant (participant.id)}
             {#if participant.user}
               <a
-                href="/users/{participant.user.steamId}"
+                href={resolve('/users/[steamId]', { steamId: participant.user.steamId })}
                 class="flex items-center gap-2 p-2 rounded-lg hover:bg-surface-hover transition-colors group"
               >
                 <img
@@ -292,8 +296,15 @@
               </a>
             {:else}
               <div class="flex items-center gap-2 p-2 rounded-lg">
-                <div class="w-8 h-8 rounded-full bg-surface-input shrink-0"></div>
-                <div class="text-sm text-text-muted truncate">{participant.steamId}</div>
+                <div class="min-w-0">
+                  <div class="text-sm text-white font-medium truncate">
+                    {participant.displayName}
+                  </div>
+                  {#if participant.seed}
+                    <div class="text-xs text-text-muted">Seed #{participant.seed}</div>
+                  {/if}
+                </div>
+                <Badge color="zinc" size="sm">Unlinked</Badge>
               </div>
             {/if}
           {/each}

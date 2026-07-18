@@ -26,9 +26,60 @@
     }
   }
 
+  const editorTabs = [
+    {
+      id: 'event-details',
+      label: 'Event details',
+      tabId: 'tournament-editor-tab-event-details',
+      panelId: 'tournament-editor-panel-event-details',
+    },
+    {
+      id: 'participants',
+      label: 'Participants',
+      tabId: 'tournament-editor-tab-participants',
+      panelId: 'tournament-editor-panel-participants',
+    },
+    {
+      id: 'stages-matches',
+      label: 'Stages & matches',
+      tabId: 'tournament-editor-tab-stages-matches',
+      panelId: 'tournament-editor-panel-stages-matches',
+    },
+  ] as const;
+
+  type EditorTab = (typeof editorTabs)[number];
+  type EditorTabId = EditorTab['id'];
+
   const editor = $derived(new EditorState(data.draft.payload, data.draft.revision));
   const issues = $derived(validateDraftStructure(editor.draft));
   const blocking = $derived(hasBlockingErrors(issues));
+
+  let activeTab = $state<EditorTabId>('event-details');
+
+  function selectTab(tab: EditorTab, focusTab = false) {
+    activeTab = tab.id;
+    if (focusTab) {
+      requestAnimationFrame(() => document.getElementById(tab.tabId)?.focus());
+    }
+  }
+
+  function onTabKeydown(event: KeyboardEvent, index: number) {
+    let nextIndex: number | undefined;
+
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % editorTabs.length;
+    if (event.key === 'ArrowLeft') {
+      nextIndex = (index - 1 + editorTabs.length) % editorTabs.length;
+    }
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = editorTabs.length - 1;
+    if (nextIndex === undefined) return;
+
+    const nextTab = editorTabs[nextIndex];
+    if (!nextTab) return;
+
+    event.preventDefault();
+    selectTab(nextTab, true);
+  }
 </script>
 
 <svelte:head>
@@ -61,13 +112,67 @@
 
   <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]">
     <div class="space-y-6">
-      <BasicsEditor bind:draft={editor.draft} />
-      <ParticipantsEditor bind:draft={editor.draft} users={data.users} />
-      <StagesEditor bind:draft={editor.draft} arenas={data.arenas} />
-      <PlacementsEditor bind:draft={editor.draft} />
+      <div class="border-b border-border-default pb-3">
+        <div
+          class="flex flex-wrap gap-2"
+          role="tablist"
+          aria-label="Tournament editor sections"
+          aria-orientation="horizontal"
+        >
+          {#each editorTabs as tab, index (tab.id)}
+            <Button
+              id={tab.tabId}
+              type="button"
+              role="tab"
+              variant={activeTab === tab.id ? 'secondary' : 'ghost'}
+              aria-selected={activeTab === tab.id}
+              aria-controls={tab.panelId}
+              tabindex={activeTab === tab.id ? 0 : -1}
+              onclick={() => selectTab(tab)}
+              onkeydown={(event: KeyboardEvent) => onTabKeydown(event, index)}
+            >
+              {tab.label}
+            </Button>
+          {/each}
+        </div>
+      </div>
+
+      <div
+        id={editorTabs[0].panelId}
+        role="tabpanel"
+        aria-labelledby={editorTabs[0].tabId}
+        tabindex="0"
+        hidden={activeTab !== editorTabs[0].id}
+      >
+        <BasicsEditor bind:draft={editor.draft} />
+      </div>
+
+      <div
+        id={editorTabs[1].panelId}
+        role="tabpanel"
+        aria-labelledby={editorTabs[1].tabId}
+        tabindex="0"
+        hidden={activeTab !== editorTabs[1].id}
+        class="space-y-6"
+      >
+        <ParticipantsEditor bind:draft={editor.draft} />
+        <PlacementsEditor bind:draft={editor.draft} />
+      </div>
+
+      <div
+        id={editorTabs[2].panelId}
+        role="tabpanel"
+        aria-labelledby={editorTabs[2].tabId}
+        tabindex="0"
+        hidden={activeTab !== editorTabs[2].id}
+      >
+        <StagesEditor bind:draft={editor.draft} arenas={data.arenas} />
+      </div>
     </div>
 
-    <aside class="space-y-6">
+    <aside
+      class="space-y-6 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-3rem)] xl:self-start xl:overflow-y-auto"
+    >
       <BracketPreview draft={editor.draft} />
       <ValidationSummary {issues} />
       <PublishControls

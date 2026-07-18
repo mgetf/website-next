@@ -30,7 +30,7 @@
 
   const participantOptions = $derived(
     participants.map((participant) => ({
-      value: participant.steamId,
+      value: participant.id,
       label: participant.displayName,
     })),
   );
@@ -121,21 +121,26 @@
     }));
   }
 
-  function sideSteamId(match: DraftMatchBase, side: MatchSide): string {
-    return match.players.find((player) => player.side === side)?.steamId ?? '';
+  function sideParticipantId(match: DraftMatchBase, side: MatchSide): string {
+    const player = match.players.find((candidate) => candidate.side === side);
+    if (!player) return '';
+    if (player.participantId) return player.participantId;
+    if (!player.steamId) return '';
+    return participants.find((participant) => participant.steamId === player.steamId)?.id ?? '';
   }
 
   function isEliminationMatch(match: DraftMatchBase): match is DraftEliminationMatch {
     return 'section' in match;
   }
 
-  function setSide(match: DraftMatchBase, side: MatchSide, steamId: string) {
+  function setSide(match: DraftMatchBase, side: MatchSide, participantId: string) {
     match.players = match.players.filter((player) => player.side !== side);
-    if (!steamId) return;
-    const participant = participants.find((candidate) => candidate.steamId === steamId);
+    if (!participantId) return;
+    const participant = participants.find((candidate) => candidate.id === participantId);
     if (!participant) return;
     match.players.push({
       side,
+      participantId: participant.id,
       steamId: participant.steamId,
       displayName: participant.displayName,
     });
@@ -318,7 +323,7 @@
               <FormSelect
                 label="Side 1"
                 name="match-side-1-{match.id}"
-                value={sideSteamId(match, 1)}
+                value={sideParticipantId(match, 1)}
                 options={participantOptions}
                 placeholder="TBD"
                 onChange={(value) => setSide(match, 1, value)}
@@ -335,7 +340,7 @@
               <FormSelect
                 label="Side 2"
                 name="match-side-2-{match.id}"
-                value={sideSteamId(match, 2)}
+                value={sideParticipantId(match, 2)}
                 options={participantOptions}
                 placeholder="TBD"
                 onChange={(value) => setSide(match, 2, value)}

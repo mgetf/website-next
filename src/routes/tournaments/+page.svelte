@@ -201,6 +201,8 @@
                   {winner.user.steamUsername}
                 </span>
               </a>
+            {:else if winner}
+              <span class="text-sm font-semibold text-white">{winner.displayName}</span>
             {:else}
               <span class="text-sm text-text-muted">—</span>
             {/if}
@@ -307,6 +309,8 @@
                   {winner.user.steamUsername}
                 </span>
               </a>
+            {:else if winner}
+              <span class="text-sm font-semibold text-white">{winner.displayName}</span>
             {:else if event.status === 'REGISTRATION'}
               <span class="text-sm text-primary-400">Open</span>
             {:else}

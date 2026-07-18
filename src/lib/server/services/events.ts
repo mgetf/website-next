@@ -219,13 +219,17 @@ export async function getRecentEvents(limit: number = 3): Promise<EventListItem[
 // ---------------------------------------------------------------------------
 
 function mapPlacement(p: {
+  id: number;
   placement: number;
-  steamId: string;
+  steamId: string | null;
+  displayName: string;
   user: { steamId: string; steamUsername: string; steamAvatar: string | null } | null;
 }): EventPlacementEntry {
   return {
+    id: p.id,
     placement: p.placement,
     steamId: p.steamId,
+    displayName: p.displayName,
     user: p.user ? mapUser(p.user) : null,
   };
 }
@@ -255,13 +259,17 @@ function mapStage(s: {
 }
 
 function mapParticipant(p: {
-  steamId: string;
+  id: number;
+  steamId: string | null;
+  displayName: string;
   seed: number | null;
   eliminated: boolean;
   user: { steamId: string; steamUsername: string; steamAvatar: string | null } | null;
 }): EventParticipantEntry {
   return {
+    id: p.id,
     steamId: p.steamId,
+    displayName: p.displayName,
     seed: p.seed,
     eliminated: p.eliminated,
     user: p.user ? mapUser(p.user) : null,

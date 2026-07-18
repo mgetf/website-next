@@ -319,29 +319,31 @@ model EventGame {
 }
 
 model EventParticipant {
-  id         Int      @id @default(autoincrement())
-  eventId    Int      @map("event_id")
-  steamId    String   @map("steam_id")
-  seed       Int?
-  eliminated Boolean  @default(false)
-  hidden     Boolean  @default(false)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id          Int      @id @default(autoincrement())
+  eventId     Int      @map("event_id")
+  steamId     String?  @map("steam_id")
+  displayName String   @map("display_name")
+  seed        Int?
+  eliminated  Boolean  @default(false)
+  hidden      Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
 
   event Event @relation(fields: [eventId], references: [id])
-  user  User  @relation(fields: [steamId], references: [steamId])
+  user  User? @relation(fields: [steamId], references: [steamId])
 
   @@unique([eventId, steamId])
   @@map("event_participants")
 }
 
 model EventPlacement {
-  id        Int    @id @default(autoincrement())
-  eventId   Int    @map("event_id")
-  steamId   String @map("steam_id")
-  placement Int
+  id          Int     @id @default(autoincrement())
+  eventId     Int     @map("event_id")
+  steamId     String? @map("steam_id")
+  displayName String  @map("display_name")
+  placement   Int
 
   event Event @relation(fields: [eventId], references: [id])
-  user  User  @relation(fields: [steamId], references: [steamId])
+  user  User? @relation(fields: [steamId], references: [steamId])
 
   @@unique([eventId, steamId])
   @@map("event_placements")

@@ -18,6 +18,7 @@ import { mapEventStatusToBracketStatus } from '$lib/server/services/events';
 import { AuditAction, AuditCategory, logAudit } from '$lib/server/services/auditLog';
 import {
   createEmptyDraftPayload,
+  normalizeLegacyEventDraftPayload,
   type DraftEliminationMatch,
   type DraftStage,
   type EventDraftDetail,
@@ -28,6 +29,7 @@ import {
   type ValidationIssue,
 } from '$lib/types/tournament-editor';
 import type { Prisma } from '$prisma/client.js';
+import { steamId64FromAnyFormat } from '$lib/utils/steamid';
 
 export interface EventEditorActor {
   steamId: string;
@@ -70,7 +72,7 @@ function inputJson(payload: EventDraftPayload): Prisma.InputJsonValue {
 }
 
 function parseStoredPayload(payload: Prisma.JsonValue): EventDraftPayload {
-  const result = eventDraftPayloadSchema.safeParse(payload);
+  const result = eventDraftPayloadSchema.safeParse(normalizeLegacyEventDraftPayload(payload));
   if (!result.success) {
     badRequest('Stored tournament draft has an invalid payload');
   }
@@ -103,6 +105,48 @@ function clonePublishedPayload(
   event: PublishedEventGraph,
   applyKnownCorrections = true,
 ): EventDraftPayload {
+  const participants: EventDraftPayload['participants'] = event.participants.map((participant) => ({
+    id: String(participant.id),
+    steamId: participant.steamId,
+    displayName: participant.displayName,
+    seed: participant.seed,
+    eliminated: participant.eliminated,
+    hidden: participant.hidden,
+  }));
+  const participantIds = new Set(participants.map((participant) => participant.id));
+
+  function ensureParticipant(
+    steamId: string | null,
+    displayName: string,
+    preferredId: string,
+    allowBye = false,
+  ): string | null {
+    if (!allowBye && !steamId && displayName.trim().toLocaleLowerCase() === 'bye') return null;
+    const participant = participants.find((candidate) =>
+      steamId
+        ? candidate.steamId === steamId
+        : candidate.displayName.toLocaleLowerCase() === displayName.toLocaleLowerCase(),
+    );
+    if (participant) return participant.id;
+
+    let id = preferredId;
+    let suffix = 1;
+    while (participantIds.has(id)) {
+      id = `${preferredId}-${suffix}`;
+      suffix += 1;
+    }
+    participantIds.add(id);
+    participants.push({
+      id,
+      steamId,
+      displayName,
+      seed: null,
+      eliminated: false,
+      hidden: false,
+    });
+    return id;
+  }
+
   const publishedStages =
     applyKnownCorrections && event.name === '2v2 OPEN Dolphinrider Cup'
       ? event.stages.filter((stage) => stage.matches.length > 0)
@@ -133,6 +177,11 @@ function clonePublishedPayload(
       side2Score: match.side2Score,
       players: match.players.map((player) => ({
         side: player.side === 2 ? (2 as const) : (1 as const),
+        participantId: ensureParticipant(
+          player.steamId,
+          player.displayName,
+          `match-player-${player.id}`,
+        ),
         steamId: player.steamId,
         displayName: player.displayName,
       })),
@@ -198,17 +247,15 @@ function clonePublishedPayload(
     card: event.card,
     bracketLink: event.bracketLink,
     stages,
-    participants: event.participants.map((participant) => ({
-      id: String(participant.id),
-      steamId: participant.steamId,
-      displayName: participant.user.steamUsername,
-      seed: participant.seed,
-      eliminated: participant.eliminated,
-      hidden: participant.hidden,
-    })),
+    participants,
     placements: event.placements.map((placement) => ({
       id: String(placement.id),
-      steamId: placement.steamId,
+      participantId: ensureParticipant(
+        placement.steamId,
+        placement.displayName,
+        `placement-participant-${placement.id}`,
+        true,
+      )!,
       placement: placement.placement,
     })),
   };
@@ -285,12 +332,24 @@ export async function listTournamentEditorItems(): Promise<TournamentEditorListI
   return [...unpublished, ...published];
 }
 
-export async function getTournamentEditorUsers(): Promise<
-  Array<{ steamId: string; name: string; avatar: string | null }>
-> {
+export async function searchTournamentEditorUsers(
+  query: string,
+  limit = 25,
+): Promise<Array<{ steamId: string; name: string; avatar: string | null }>> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const normalizedSteamId = steamId64FromAnyFormat(trimmed);
   const users = await prisma.user.findMany({
+    where: {
+      OR: [
+        { steamUsername: { contains: trimmed, mode: 'insensitive' } },
+        { steamId: { contains: trimmed } },
+        ...(normalizedSteamId ? [{ steamId: normalizedSteamId }] : []),
+      ],
+    },
     select: { steamId: true, steamUsername: true, steamAvatar: true },
     orderBy: [{ steamUsername: 'asc' }, { steamId: 'asc' }],
+    take: Math.min(Math.max(limit, 1), 50),
   });
   return users.map((user) => ({
     steamId: user.steamId,
@@ -454,8 +513,9 @@ export async function saveEventDraft(input: {
 async function validateDatabaseReferences(payload: EventDraftPayload): Promise<ValidationIssue[]> {
   const steamIds = [
     ...new Set([
-      ...payload.participants.map((participant) => participant.steamId),
-      ...payload.placements.map((placement) => placement.steamId),
+      ...payload.participants.flatMap((participant) =>
+        participant.steamId ? [participant.steamId] : [],
+      ),
       ...payload.stages.flatMap((stage) =>
         stage.matches.flatMap((match) =>
           match.players.flatMap((player) => (player.steamId ? [player.steamId] : [])),
@@ -573,6 +633,7 @@ async function writeEventGraph(
       data: payload.participants.map((participant) => ({
         eventId,
         steamId: participant.steamId,
+        displayName: participant.displayName,
         seed: participant.seed,
         eliminated: participant.eliminated,
         hidden: participant.hidden,
@@ -582,11 +643,20 @@ async function writeEventGraph(
 
   if (payload.placements.length > 0) {
     await tx.eventPlacement.createMany({
-      data: payload.placements.map((placement) => ({
-        eventId,
-        steamId: placement.steamId,
-        placement: placement.placement,
-      })),
+      data: payload.placements.map((placement) => {
+        const participant = payload.participants.find(
+          (candidate) => candidate.id === placement.participantId,
+        );
+        if (!participant) {
+          badRequest('Placement references a missing participant');
+        }
+        return {
+          eventId,
+          steamId: participant.steamId,
+          displayName: participant.displayName,
+          placement: placement.placement,
+        };
+      }),
     });
   }
 

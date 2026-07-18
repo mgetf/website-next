@@ -30,15 +30,19 @@
     "knip": "knip"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.69.2",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/svelte": "^5.4.2",
     "@types/archiver": "^7.0.0",
     "@types/node": "^25.9.5",
     "@types/pg": "^8.20.0",
     "dotenv": "^17.4.2",
     "dotenv-cli": "^11.0.0",
     "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
     "knip": "^6.26.0",
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.5",
@@ -47,7 +51,8 @@
     "svelte": "^5.56.4",
     "svelte-check": "^4.7.2",
     "typescript": "^6.0.3",
-    "vite": "^8.1.4"
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   },
   "trustedDependencies": [
     "@prisma/client",

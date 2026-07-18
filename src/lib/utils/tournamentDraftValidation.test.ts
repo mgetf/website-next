@@ -55,7 +55,7 @@ function payload(matches: DraftEliminationMatch[]): EventDraftPayload {
         hidden: false,
       },
     ],
-    placements: [{ id: 'place-1', steamId: 'steam-1', placement: 1 }],
+    placements: [{ id: 'place-1', participantId: 'p1', placement: 1 }],
     stages: [
       {
         id: 'stage-1',
@@ -106,14 +106,14 @@ describe('validateDraftStructure', () => {
 
   it('rejects a placement for a missing participant', () => {
     const draft = payload([match('final', 1, 1)]);
-    draft.placements[0].steamId = 'missing';
+    draft.placements[0].participantId = 'missing';
 
     const issues = validateDraftStructure(draft);
 
     expect(issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          path: 'placements[0].steamId',
+          path: 'placements[0].participantId',
           severity: 'error',
         }),
       ]),

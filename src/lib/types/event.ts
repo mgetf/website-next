@@ -17,8 +17,10 @@ export interface EventUser {
 }
 
 export interface EventPlacementEntry {
+  id: number;
   placement: number;
-  steamId: string;
+  steamId: string | null;
+  displayName: string;
   user: EventUser | null;
 }
 
@@ -31,7 +33,9 @@ export interface EventStageDetail {
 }
 
 export interface EventParticipantEntry {
-  steamId: string;
+  id: number;
+  steamId: string | null;
+  displayName: string;
   seed: number | null;
   eliminated: boolean;
   user: EventUser | null;

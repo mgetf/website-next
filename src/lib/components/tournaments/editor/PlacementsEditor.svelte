@@ -9,38 +9,38 @@
 
   let { draft = $bindable() }: { draft: EventDraftPayload } = $props();
 
-  let selectedSteamId = $state('');
+  let selectedParticipantId = $state('');
 
   const availableParticipants = $derived(
     draft.participants
       .filter(
         (participant) =>
-          !draft.placements.some((placement) => placement.steamId === participant.steamId),
+          !draft.placements.some((placement) => placement.participantId === participant.id),
       )
       .map((participant) => ({
-        value: participant.steamId,
+        value: participant.id,
         label: participant.displayName,
       })),
   );
 
   function addPlacement() {
-    if (!selectedSteamId) return;
+    if (!selectedParticipantId) return;
     draft.placements.push({
       id: nextDraftId('placement'),
-      steamId: selectedSteamId,
+      participantId: selectedParticipantId,
       placement: draft.placements.length + 1,
     });
-    selectedSteamId = '';
+    selectedParticipantId = '';
   }
 
   function removePlacement(id: string) {
     draft.placements = draft.placements.filter((placement) => placement.id !== id);
   }
 
-  function participantName(steamId: string): string {
+  function participantName(participantId: string): string {
     return (
-      draft.participants.find((participant) => participant.steamId === steamId)?.displayName ??
-      steamId
+      draft.participants.find((participant) => participant.id === participantId)?.displayName ??
+      participantId
     );
   }
 
@@ -63,11 +63,11 @@
     <FormSelect
       label="Participant"
       name="placement-participant"
-      bind:value={selectedSteamId}
+      bind:value={selectedParticipantId}
       options={availableParticipants}
       placeholder="Select a participant"
     />
-    <Button type="button" class="mb-6" disabled={!selectedSteamId} onclick={addPlacement}>
+    <Button type="button" class="mb-6" disabled={!selectedParticipantId} onclick={addPlacement}>
       Add placement
     </Button>
   </div>
@@ -78,13 +78,13 @@
         <FormSelect
           label="Participant"
           name="placement-user-{placement.id}"
-          value={placement.steamId}
+          value={placement.participantId}
           options={draft.participants.map((participant) => ({
-            value: participant.steamId,
+            value: participant.id,
             label: participant.displayName,
           }))}
           required
-          onChange={(value) => (placement.steamId = value)}
+          onChange={(value) => (placement.participantId = value)}
         />
         <FormInput
           label="Place"
@@ -98,7 +98,7 @@
           variant="danger"
           size="sm"
           class="mb-6"
-          aria-label="Remove placement for {participantName(placement.steamId)}"
+          aria-label="Remove placement for {participantName(placement.participantId)}"
           onclick={() => removePlacement(placement.id)}
         >
           Remove

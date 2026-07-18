@@ -38,9 +38,31 @@ export function steamId64FromSteamId3(steamId3: string): string | null {
  * Returns null if the input does not match the expected format.
  */
 export function steamId64FromSteamId32(steamId32: string): string | null {
-  const match = steamId32.match(/^STEAM_\d:(\d):(\d+)$/);
+  const match = steamId32.match(/^STEAM_\d:(\d):(\d+)$/i);
   if (!match) return null;
   const y = BigInt(match[1]);
   const z = BigInt(match[2]);
   return String(STEAM_ID_64_BASE + z * 2n + y);
+}
+
+export function steamId64FromAnyFormat(value: string): string | null {
+  const input = value.trim();
+  if (!input) return null;
+
+  const profileMatch = input.match(/steamcommunity\.com\/profiles\/(\d{17})/i);
+  if (profileMatch) return profileMatch[1];
+
+  if (/^\d{17}$/.test(input)) {
+    try {
+      return BigInt(input) >= STEAM_ID_64_BASE ? input : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const steam3 = input.startsWith('[') ? input : `[${input}]`;
+  const fromSteam3 = steamId64FromSteamId3(steam3.toUpperCase());
+  if (fromSteam3) return fromSteam3;
+
+  return steamId64FromSteamId32(input.toUpperCase());
 }

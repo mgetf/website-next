@@ -4,7 +4,11 @@
  */
 
 import { z } from 'zod';
-import type { EventDraftPayload, ValidationIssue } from '$lib/types/tournament-editor';
+import {
+  normalizeLegacyEventDraftPayload,
+  type EventDraftPayload,
+  type ValidationIssue,
+} from '$lib/types/tournament-editor';
 import { validateDraftStructure } from '$lib/utils/tournamentDraftValidation';
 
 // ===== Common Field Schemas =====
@@ -32,6 +36,7 @@ const matchSide = z.union([z.literal(1), z.literal(2)]);
 
 const draftPlayerSchema = z.object({
   side: matchSide,
+  participantId: nullableText,
   steamId: nullableText,
   displayName: z.string().trim().min(1, 'Player display name is required'),
 });
@@ -115,7 +120,7 @@ export const eventDraftPayloadSchema = z.object({
   participants: z.array(
     z.object({
       id: z.string().min(1),
-      steamId: z.string().trim().min(1),
+      steamId: nullableText,
       displayName: z.string().trim().min(1),
       seed: z.number().int().positive().nullable(),
       eliminated: z.boolean(),
@@ -125,16 +130,16 @@ export const eventDraftPayloadSchema = z.object({
   placements: z.array(
     z.object({
       id: z.string().min(1),
-      steamId: z.string().trim().min(1),
+      participantId: z.string().trim().min(1),
       placement: z.number().int().positive(),
     }),
   ),
 });
 
 function parseJsonPayload(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
+  if (typeof value !== 'string') return normalizeLegacyEventDraftPayload(value);
   try {
-    return JSON.parse(value);
+    return normalizeLegacyEventDraftPayload(JSON.parse(value));
   } catch {
     return value;
   }
@@ -167,7 +172,7 @@ export function validateEventDraftPayload(payload: unknown): {
   payload: EventDraftPayload | null;
   issues: ValidationIssue[];
 } {
-  const parsed = eventDraftPayloadSchema.safeParse(payload);
+  const parsed = eventDraftPayloadSchema.safeParse(normalizeLegacyEventDraftPayload(payload));
   if (!parsed.success) {
     return {
       payload: null,

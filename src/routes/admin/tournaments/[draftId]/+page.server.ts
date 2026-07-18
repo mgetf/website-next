@@ -4,7 +4,6 @@ import { requireStrictAdmin } from '$lib/server/auth/permissions';
 import {
   getEventDraft,
   getEventDraftRevisions,
-  getTournamentEditorUsers,
   previewEventDraft,
   publishEventDraft,
   restoreEventRevision,
@@ -43,18 +42,16 @@ function editorActor(
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   requireStrictAdmin(locals.user);
   const draftId = draftIdFromParams(params);
-  const [draft, revisions, arenas, users] = await Promise.all([
+  const [draft, revisions, arenas] = await Promise.all([
     getEventDraft(draftId),
     getEventDraftRevisions(draftId),
     getArenas(),
-    getTournamentEditorUsers(),
   ]);
 
   return {
     draft,
     revisions,
     arenas: arenas.map((arena) => ({ id: arena.id, name: arena.name })),
-    users,
     initialIssues: validateDraftStructure(draft.payload),
     publishedRevision: url.searchParams.get('published'),
   };

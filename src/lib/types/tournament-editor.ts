@@ -21,7 +21,7 @@ export type MatchSide = 1 | 2;
 
 export interface DraftParticipant {
   id: string;
-  steamId: string;
+  steamId: string | null;
   displayName: string;
   seed: number | null;
   eliminated: boolean;
@@ -30,12 +30,13 @@ export interface DraftParticipant {
 
 export interface DraftPlacement {
   id: string;
-  steamId: string;
+  participantId: string;
   placement: number;
 }
 
 export interface DraftMatchPlayer {
   side: MatchSide;
+  participantId: string | null;
   steamId: string | null;
   displayName: string;
 }
@@ -199,4 +200,133 @@ export function createEmptyDraftPayload(): EventDraftPayload {
     participants: [],
     placements: [],
   };
+}
+
+export function normalizeLegacyEventDraftPayload(value: unknown): unknown {
+  if (!value || typeof value !== 'object') return value;
+  const payload = structuredClone(value) as Record<string, unknown>;
+  if (!Array.isArray(payload.participants)) return payload;
+
+  const participants = payload.participants
+    .filter(
+      (participant): participant is Record<string, unknown> =>
+        participant !== null && typeof participant === 'object',
+    )
+    .map((participant, index) => ({
+      ...participant,
+      id:
+        typeof participant.id === 'string' && participant.id
+          ? participant.id
+          : `legacy-participant-${index + 1}`,
+      steamId: typeof participant.steamId === 'string' ? participant.steamId : null,
+      displayName:
+        typeof participant.displayName === 'string' && participant.displayName.trim()
+          ? participant.displayName.trim()
+          : typeof participant.steamId === 'string'
+            ? participant.steamId
+            : `Participant ${index + 1}`,
+      seed: typeof participant.seed === 'number' ? participant.seed : null,
+      eliminated: participant.eliminated === true,
+      hidden: participant.hidden === true,
+    }));
+  const participantIds = new Set(participants.map((participant) => participant.id));
+  let generatedParticipantIndex = participants.length;
+
+  function ensureParticipant(
+    steamId: unknown,
+    displayName: unknown,
+    preferredId?: unknown,
+  ): string | null {
+    const normalizedSteamId = typeof steamId === 'string' && steamId.trim() ? steamId.trim() : null;
+    const normalizedDisplayName =
+      typeof displayName === 'string' && displayName.trim() ? displayName.trim() : null;
+    if (!normalizedSteamId && normalizedDisplayName?.toLocaleLowerCase() === 'bye') return null;
+    if (!normalizedSteamId && !normalizedDisplayName) return null;
+
+    const participant = participants.find((candidate) => {
+      if (normalizedSteamId) return candidate.steamId === normalizedSteamId;
+      return (
+        candidate.displayName.toLocaleLowerCase() === normalizedDisplayName?.toLocaleLowerCase()
+      );
+    });
+    if (participant) return participant.id;
+
+    generatedParticipantIndex += 1;
+    const requestedId =
+      typeof preferredId === 'string' && preferredId.trim() ? preferredId.trim() : null;
+    const id =
+      requestedId && !participantIds.has(requestedId)
+        ? requestedId
+        : `legacy-participant-${generatedParticipantIndex}`;
+    participantIds.add(id);
+    participants.push({
+      id,
+      steamId: normalizedSteamId,
+      displayName: normalizedDisplayName ?? normalizedSteamId!,
+      seed: null,
+      eliminated: false,
+      hidden: false,
+    });
+    return id;
+  }
+
+  if (Array.isArray(payload.stages)) {
+    payload.stages = payload.stages.map((stage) => {
+      if (!stage || typeof stage !== 'object') return stage;
+      const stageRecord = stage as Record<string, unknown>;
+      if (!Array.isArray(stageRecord.matches)) return stageRecord;
+      return {
+        ...stageRecord,
+        matches: stageRecord.matches.map((match) => {
+          if (!match || typeof match !== 'object') return match;
+          const matchRecord = match as Record<string, unknown>;
+          if (!Array.isArray(matchRecord.players)) return matchRecord;
+          return {
+            ...matchRecord,
+            players: matchRecord.players.map((player) => {
+              if (!player || typeof player !== 'object') return player;
+              const playerRecord = player as Record<string, unknown>;
+              if (
+                typeof playerRecord.participantId === 'string' &&
+                participantIds.has(playerRecord.participantId)
+              ) {
+                return playerRecord;
+              }
+              return {
+                ...playerRecord,
+                participantId: ensureParticipant(
+                  playerRecord.steamId,
+                  playerRecord.displayName,
+                  typeof matchRecord.id === 'string' && typeof playerRecord.side === 'number'
+                    ? `legacy-match-${matchRecord.id}-side-${playerRecord.side}`
+                    : undefined,
+                ),
+              };
+            }),
+          };
+        }),
+      };
+    });
+  }
+
+  if (Array.isArray(payload.placements)) {
+    payload.placements = payload.placements.map((placement) => {
+      if (!placement || typeof placement !== 'object') return placement;
+      const record = placement as Record<string, unknown>;
+      if (typeof record.participantId === 'string' && participantIds.has(record.participantId)) {
+        return record;
+      }
+      return {
+        ...record,
+        participantId: ensureParticipant(
+          record.steamId,
+          record.displayName,
+          typeof record.id === 'string' ? `legacy-placement-${record.id}` : undefined,
+        ),
+      };
+    });
+  }
+
+  payload.participants = participants;
+  return payload;
 }

@@ -53,17 +53,20 @@ PAYPAL_CLIENT_ID=""
 PAYPAL_CLIENT_SECRET=""
 PAYPAL_MODE="sandbox"
 
-# AWS S3 / R2 for file uploads (optional)
-AWS_ACCESS_KEY_ID=""
-AWS_SECRET_ACCESS_KEY=""
-AWS_REGION="us-east-1"
-AWS_BUCKET_NAME=""
+# Cloudflare R2 / S3-compatible storage (optional)
+S3_ENDPOINT=""
+S3_EU_ENDPOINT=""
+S3_ACCESS_KEY_ID=""
+S3_SECRET_ACCESS_KEY=""
+CLOUDFLARE_BUCKET_NAME=""
+CLOUDFLARE_PUBLIC_URL=""
 
 # PostHog Analytics (optional)
 POSTHOG_API_KEY=""
 POSTHOG_HOST="https://us.i.posthog.com"
 
-# Session
+# Session & JWT secrets (required — use 32+ random characters)
+JWT_SECRET="change-me-to-a-random-64-hex-string"
 SESSION_SECRET="generate-a-random-32-char-string"
 
 # Game server panel base URL (optional — defaults to https://panel.mge.tf)

@@ -31,11 +31,13 @@ services:
       PAYPAL_CLIENT_SECRET: # TODO: Add PayPal Client Secret
       PAYPAL_MODE: live # or 'sandbox' for testing
 
-      # AWS S3 Configuration
-      AWS_ACCESS_KEY_ID: # TODO: Add AWS Access Key ID
-      AWS_SECRET_ACCESS_KEY: # TODO: Add AWS Secret Access Key
-      AWS_REGION: us-east-1
-      AWS_BUCKET_NAME: # TODO: Add S3 Bucket Name
+      # Cloudflare R2 / S3-compatible storage
+      S3_ENDPOINT: # TODO: Add S3/R2 endpoint URL
+      S3_EU_ENDPOINT: # TODO: Add EU S3/R2 endpoint URL (optional)
+      S3_ACCESS_KEY_ID: # TODO: Add S3/R2 access key ID
+      S3_SECRET_ACCESS_KEY: # TODO: Add S3/R2 secret access key
+      CLOUDFLARE_BUCKET_NAME: # TODO: Add bucket name
+      CLOUDFLARE_PUBLIC_URL: # TODO: Add public bucket URL
 
       # PostHog Analytics
       POSTHOG_API_KEY: # TODO: Add PostHog API Key (optional)

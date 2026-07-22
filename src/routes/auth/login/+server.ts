@@ -7,8 +7,12 @@ import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createSteamAuth } from '$lib/server/auth/steam';
 import { setRedirectUrl } from '$lib/server/session';
+import { authRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
 
-export const GET: RequestHandler = async ({ cookies, url, request }) => {
+export const GET: RequestHandler = async ({ cookies, url, request, getClientAddress }) => {
+  const { allowed, response } = checkRateLimit(authRateLimiter, getClientAddress());
+  if (!allowed && response) return response;
+
   // Save the page they came from for redirect after login
   const referer = url.searchParams.get('redirect') || '/';
   setRedirectUrl(cookies, referer);

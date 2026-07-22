@@ -5,10 +5,14 @@ import { recordPayPalCapture, recordMultiTeamPayPalCapture } from '$lib/server/s
 import { logError } from '$lib/server/utils/logger';
 import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { paymentRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
 
 export const POST: RequestHandler = async ({ request, locals, getClientAddress }) => {
   try {
     requireAuth(locals.user);
+
+    const { allowed, response } = checkRateLimit(paymentRateLimiter, locals.user.steamId);
+    if (!allowed && response) return response;
 
     const body = await request.json();
     const {

@@ -4,11 +4,15 @@ import { createPayPalOrder } from '$lib/server/services/paypal';
 import { logError } from '$lib/server/utils/logger';
 import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
 import { env } from '$env/dynamic/private';
+import { paymentRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     // Require authentication
     requireAuth(locals.user);
+
+    const { allowed, response } = checkRateLimit(paymentRateLimiter, locals.user.steamId);
+    if (!allowed && response) return response;
 
     const body = await request.json();
     const { amount, currency, steamId, teams, teamId, paidForSteamIds } = body;

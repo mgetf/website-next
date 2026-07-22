@@ -15,6 +15,7 @@ import { getErrorMessage } from '$lib/server/utils/errors';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { passwordRateLimiter, checkFormActionRateLimit } from '$lib/server/utils/rateLimit';
 
 const joinTeamSchema = z.object({
   password: z.string().min(1, 'Password is required'),
@@ -153,6 +154,10 @@ export const actions: Actions = {
     if (rosterLocked) {
       return fail(400, { error: 'Rosters are currently locked' });
     }
+
+    const rateLimitKey = `${getClientAddress()}:${teamId}`;
+    const limited = checkFormActionRateLimit(passwordRateLimiter, rateLimitKey);
+    if (limited) return limited;
 
     const formData = await request.formData();
     const validation = validateForm(formData, joinTeamSchema);

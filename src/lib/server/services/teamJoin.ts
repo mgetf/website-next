@@ -94,7 +94,8 @@ export async function validateTokenAndGetTeam(
 
 /**
  * Validate join password
- * Supports both hashed passwords (new) and plaintext (legacy, for migration)
+ * Requires the stored value to be a scrypt salt:hash pair. Legacy plaintext
+ * passwords must be migrated via scripts/migrate-plaintext-join-passwords.ts.
  */
 export async function validateJoinPassword(teamId: number, password: string): Promise<boolean> {
   const team = await prisma.team.findUnique({
@@ -110,7 +111,6 @@ export async function validateJoinPassword(teamId: number, password: string): Pr
     return false;
   }
 
-  // Use secure password verification (handles both hashed and legacy plaintext)
   return verifyPassword(password, team.joinPassword);
 }
 

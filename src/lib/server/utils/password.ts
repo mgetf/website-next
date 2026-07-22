@@ -39,21 +39,39 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 /**
+ * Check whether a stored value is in the `salt:hash` format produced by
+ * hashPassword(), as opposed to a legacy plaintext value.
+ */
+export function isHashedPassword(storedValue: string): boolean {
+  const parts = storedValue.split(':');
+  if (parts.length !== 2) return false;
+
+  const [saltBase64, hashBase64] = parts;
+  if (!saltBase64 || !hashBase64) return false;
+
+  try {
+    const salt = Buffer.from(saltBase64, 'base64');
+    const hash = Buffer.from(hashBase64, 'base64');
+    return salt.length === SALT_LENGTH && hash.length === KEY_LENGTH;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Verify a password against a stored hash
  * Uses timing-safe comparison to prevent timing attacks
  */
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   try {
-    // Split stored hash into salt and hash components
-    const [saltBase64, hashBase64] = storedHash.split(':');
-
-    if (!saltBase64 || !hashBase64) {
-      // Invalid hash format - likely a plaintext password from before migration
-      // For backwards compatibility during migration, allow direct comparison
-      // TODO: Remove this fallback after all passwords are migrated
-      return password === storedHash;
+    if (!isHashedPassword(storedHash)) {
+      // Not a recognized salt:hash value. Legacy plaintext passwords must be
+      // migrated via scripts/migrate-plaintext-join-passwords.ts before this
+      // check is reached in production.
+      return false;
     }
 
+    const [saltBase64, hashBase64] = storedHash.split(':');
     const salt = Buffer.from(saltBase64, 'base64');
     const storedHashBuffer = Buffer.from(hashBase64, 'base64');
 

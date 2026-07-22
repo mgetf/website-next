@@ -11,8 +11,12 @@ import { getPermissionLevel } from '$lib/server/auth/permissions';
 import { findOrCreateSteamUser } from '$lib/server/services/users';
 import { BanStatus, UserRole } from '$lib/types/user';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { authRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
 
 export const GET: RequestHandler = async ({ cookies, request, getClientAddress }) => {
+  const { allowed, response } = checkRateLimit(authRateLimiter, getClientAddress());
+  if (!allowed && response) return response;
+
   try {
     const steam = createSteamAuth(request);
     const user = await steam.authenticate(request);

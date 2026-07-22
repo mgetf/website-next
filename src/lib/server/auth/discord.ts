@@ -26,14 +26,10 @@ export interface DiscordUser {
 
 function getRedirectUri(request: Request): string {
   if (env.DISCORD_REDIRECT_URI) {
-    const uri = env.DISCORD_REDIRECT_URI.trim().replace(/^["']|["']$/g, '');
-    console.log('[Discord OAuth] Using configured redirect URI:', uri);
-    return uri;
+    return env.DISCORD_REDIRECT_URI.trim().replace(/^["']|["']$/g, '');
   }
   const url = new URL(request.url);
-  const uri = `${url.protocol}//${url.host}/auth/discord/callback`;
-  console.log('[Discord OAuth] Using derived redirect URI:', uri);
-  return uri;
+  return `${url.protocol}//${url.host}/auth/discord/callback`;
 }
 
 /**

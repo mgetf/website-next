@@ -20,7 +20,7 @@ The migration involves:
 - Access to the old production `users.db` SQLite file
 - Both repositories cloned:
   - `website-next` (this repo)
-  - `migr` folder at `C:\Users\Maxi\Documents\Programming\migr`
+  - `migr` folder at `/path/to/migr`
 
 ### Environment Setup
 
@@ -63,7 +63,7 @@ psql -h your-host -U your-user -c "CREATE DATABASE mgetf;"
 This creates the database schema with all tables and constraints:
 
 ```bash
-cd C:\Users\Maxi\Documents\GitHub\website-next
+cd /path/to/website-next
 bunx prisma migrate deploy
 ```
 
@@ -83,7 +83,7 @@ Applying migration 20251228220643_add_match_creation_deadline
 Copy the production `users.db` file to the migrator directory, then run:
 
 ```bash
-cd C:\Users\Maxi\Documents\Programming\migr
+cd /path/to/migr
 pnpm migrate full ./users.db
 ```
 
@@ -97,7 +97,7 @@ This will:
 ### Step 4: Verify Migration
 
 ```bash
-cd C:\Users\Maxi\Documents\GitHub\website-next
+cd /path/to/website-next
 bunx prisma migrate status
 ```
 
@@ -169,7 +169,7 @@ psql -U postgres -c "DROP DATABASE mgetf; CREATE DATABASE mgetf;"
 Sequences weren't reset. The migrator should handle this automatically, but if needed:
 
 ```bash
-cd C:\Users\Maxi\Documents\Programming\migr
+cd /path/to/migr
 psql -d mgetf -f reset-sequences.sql
 ```
 
@@ -203,8 +203,8 @@ If import fails partway through, drop and recreate the database, then start over
 
 | Component     | Path                                          |
 | ------------- | --------------------------------------------- |
-| Website-next  | `C:\Users\Maxi\Documents\GitHub\website-next` |
-| Migrator      | `C:\Users\Maxi\Documents\Programming\migr`    |
+| Website-next  | `/path/to/website-next` (this repo)            |
+| Migrator      | `/path/to/migr`                                |
 | Prisma Schema | `website-next/prisma/schema.prisma`           |
 | Migrations    | `website-next/prisma/migrations/`             |
 | Old DB        | `users.db` (get from production)              |
@@ -216,14 +216,14 @@ If import fails partway through, drop and recreate the database, then start over
 ```bash
 # Full migration from scratch
 psql -U postgres -c "DROP DATABASE IF EXISTS mgetf; CREATE DATABASE mgetf;"
-cd C:\Users\Maxi\Documents\GitHub\website-next && bunx prisma migrate deploy
-cd C:\Users\Maxi\Documents\Programming\migr && pnpm migrate full ./users.db
+cd /path/to/website-next && bunx prisma migrate deploy
+cd /path/to/migr && pnpm migrate full ./users.db
 
 # Check migration status
-cd C:\Users\Maxi\Documents\GitHub\website-next && bunx prisma migrate status
+cd /path/to/website-next && bunx prisma migrate status
 
 # Start the app
-cd C:\Users\Maxi\Documents\GitHub\website-next && bun run dev
+cd /path/to/website-next && bun run dev
 ```
 
 ---
@@ -282,7 +282,7 @@ bunx prisma migrate deploy
 
 ### 2. Migrator Tool — Data Migration (One-Time)
 
-**Location:** `C:\Users\Maxi\Documents\Programming\migr`
+**Location:** `/path/to/migr`
 
 The migrator is a **one-time ETL script** for moving data from the old SQLite database to the new PostgreSQL database. It handles:
 

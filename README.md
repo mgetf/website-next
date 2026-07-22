@@ -2,6 +2,8 @@
 
 Complete rewrite of [mge.tf](https://mge.tf) from Express.js/EJS to SvelteKit with Svelte 5.
 
+Licensed under [AGPL-3.0](LICENSE).
+
 ## Tech Stack
 
 - **Framework**: SvelteKit 2 with Svelte 5

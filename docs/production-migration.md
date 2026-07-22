@@ -201,13 +201,13 @@ If import fails partway through, drop and recreate the database, then start over
 
 ## File Locations
 
-| Component     | Path                                          |
-| ------------- | --------------------------------------------- |
-| Website-next  | `/path/to/website-next` (this repo)            |
-| Migrator      | `/path/to/migr`                                |
-| Prisma Schema | `website-next/prisma/schema.prisma`           |
-| Migrations    | `website-next/prisma/migrations/`             |
-| Old DB        | `users.db` (get from production)              |
+| Component     | Path                                |
+| ------------- | ----------------------------------- |
+| Website-next  | `/path/to/website-next` (this repo) |
+| Migrator      | `/path/to/migr`                     |
+| Prisma Schema | `website-next/prisma/schema.prisma` |
+| Migrations    | `website-next/prisma/migrations/`   |
+| Old DB        | `users.db` (get from production)    |
 
 ---
 

@@ -57,6 +57,6 @@ See [AGENTS.md](AGENTS.md) for the full architecture guide, including error hand
 ## Pull Request Expectations
 
 - Keep diffs focused on one change; avoid bundling unrelated refactors.
-- Describe *why* the change is needed, not just what it does.
+- Describe _why_ the change is needed, not just what it does.
 - Never commit secrets (`.env`, credentials, API keys).
 - Make sure the required checks above pass before requesting review.

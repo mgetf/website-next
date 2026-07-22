@@ -1,12 +1,5 @@
 import { prisma } from '$lib/server/db';
 
-export async function getItemPaymentByDivisionId(divisionId: number) {
-  return await prisma.divisionItemPayment.findUnique({
-    where: { divisionId },
-    include: { steamItem: true },
-  });
-}
-
 export async function upsertDivisionItemPayment(
   divisionId: number,
   data: { steamItemId: number; itemQuantity: number },

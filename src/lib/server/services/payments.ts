@@ -6,69 +6,8 @@
 
 import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
-import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { CheckoutParticipation } from '$lib/types/checkout';
-
-/**
- * Get user's active team for checkout.
- * When teamId is provided, looks up that specific team (user must be an active member).
- * Otherwise finds the first team where any active player is unpaid.
- */
-export async function getUserActiveTeamForCheckout(steamId: string, teamId?: number) {
-  const include = {
-    team: {
-      include: {
-        division: true,
-        region: true,
-        season: true,
-        format: true,
-      },
-    },
-  } as const;
-
-  if (teamId) {
-    return await prisma.playerInTeam.findFirst({
-      where: {
-        playerSteamId: steamId,
-        active: 1,
-        teamId,
-      },
-      include,
-    });
-  }
-
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
-
-  if (currentSeasonIds.length > 0) {
-    const currentSeasonTeam = await prisma.playerInTeam.findFirst({
-      where: {
-        playerSteamId: steamId,
-        active: 1,
-        team: {
-          seasonId: { in: currentSeasonIds },
-          players: { some: { active: 1, paymentStatus: 0 } },
-        },
-      },
-      include,
-    });
-
-    if (currentSeasonTeam) {
-      return currentSeasonTeam;
-    }
-  }
-
-  return await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        players: { some: { active: 1, paymentStatus: 0 } },
-      },
-    },
-    include,
-  });
-}
 
 export interface UnpaidPlayer {
   steamId: string;
@@ -132,21 +71,6 @@ export async function getExistingPayment(steamId: string, seasonId: number) {
         seasonId,
       },
     },
-  });
-}
-
-/**
- * Update player's payment status in team roster
- */
-export async function updatePlayerPaymentStatus(steamId: string, teamId: number) {
-  return await prisma.playerInTeam.update({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId: steamId,
-        teamId,
-      },
-    },
-    data: { paymentStatus: 1 },
   });
 }
 

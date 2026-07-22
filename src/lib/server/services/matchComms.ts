@@ -116,24 +116,6 @@ export async function getPendingReschedule(matchId: number) {
 }
 
 /**
- * Get all reschedule requests for a match (for history)
- */
-export async function getAllReschedules(matchId: number) {
-  return await prisma.matchComm.findMany({
-    where: {
-      matchId,
-      rescheduleStatus: { not: null },
-    },
-    include: {
-      user: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
-}
-
-/**
  * Check if user can respond to a reschedule request
  * Only the opposing team owner or admins can respond
  * Requester can cancel their own request
@@ -384,21 +366,6 @@ export async function settleExpiredReschedules(matchId?: number): Promise<number
   }
 
   return settledCount;
-}
-
-/**
- * Get all match communications (messages and reschedules)
- */
-export async function getMatchComms(matchId: number) {
-  return await prisma.matchComm.findMany({
-    where: { matchId },
-    include: {
-      user: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
 }
 
 /**

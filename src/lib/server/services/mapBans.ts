@@ -9,30 +9,6 @@ import { MapBanActionType } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 
 /**
- * Initialize map ban phase for a match
- */
-export async function initializeMapBanPhase(matchId: number, poolId: number) {
-  const existingBan = await prisma.matchMapBan.findFirst({
-    where: { matchId },
-  });
-
-  if (existingBan) {
-    badRequest('Map ban phase already initialized for this match');
-  }
-
-  const mapBan = await prisma.matchMapBan.create({
-    data: {
-      matchId,
-      poolId,
-      currentTurn: 1, // 0 = home team, 1 = away team (starts with away team ban)
-      banPhaseComplete: false,
-    },
-  });
-
-  return mapBan;
-}
-
-/**
  * Determine next action type (ban or pick) based on action count and BO series
  * @param actionCount - Number of actions already taken
  * @param boSeries - Best of series (3, 5, or 7)

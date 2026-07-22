@@ -16,10 +16,7 @@ import {
   buildSingleElimBracket,
   type BracketStageInput,
 } from '$lib/server/utils/bracketBuilders';
-import type {
-  EventType as PrismaEventType,
-  EventStatus as PrismaEventStatus,
-} from '$prisma/client.js';
+import type { EventStatus as PrismaEventStatus } from '$prisma/client.js';
 
 const USER_SELECT = {
   steamId: true,
@@ -141,77 +138,6 @@ export async function getEventBracketData(stageId: number): Promise<BracketData>
   if (format === 'round_robin') return buildRoundRobinBracket(stageInput, status);
   if (format === 'double_elim') return buildDoubleElimBracket(stageInput, status);
   return buildSingleElimBracket(stageInput, status);
-}
-
-export async function createEvent(data: {
-  name: string;
-  type: PrismaEventType;
-  description?: string;
-  avatar?: string;
-  startedAt?: Date;
-  isTeamEvent?: boolean;
-  bracketLink?: string;
-  prizepool?: number;
-  card?: string;
-}) {
-  return await prisma.event.create({
-    data: {
-      name: data.name,
-      type: data.type,
-      description: data.description ?? null,
-      avatar: data.avatar ?? null,
-      startedAt: data.startedAt ?? null,
-      isTeamEvent: data.isTeamEvent ?? false,
-      bracketLink: data.bracketLink ?? null,
-      prizepool: data.prizepool ?? 0,
-      card: data.card ?? null,
-      status: 'UPCOMING',
-    },
-  });
-}
-
-export async function getRecentEvents(limit: number = 3): Promise<EventListItem[]> {
-  const events = await prisma.event.findMany({
-    take: limit,
-    orderBy: { startedAt: 'desc' },
-    include: {
-      placements: {
-        where: { placement: { lte: 3 } },
-        orderBy: { placement: 'asc' },
-        include: { user: { select: USER_SELECT } },
-      },
-      participants: {
-        select: { steamId: true },
-      },
-      stages: {
-        include: {
-          _count: { select: { matches: true } },
-        },
-      },
-    },
-  });
-
-  return events.map((e) => {
-    const matchCount = e.stages.reduce((sum, s) => sum + s._count.matches, 0);
-    return {
-      id: e.id,
-      name: e.name,
-      type: e.type as EventListItem['type'],
-      status: e.status as EventListItem['status'],
-      isTeamEvent: e.isTeamEvent,
-      description: e.description,
-      avatar: e.avatar,
-      startedAt: e.startedAt?.toISOString() ?? null,
-      endedAt: e.endedAt?.toISOString() ?? null,
-      prizepool: Number(e.prizepool),
-      card: e.card,
-      bracketLink: e.bracketLink,
-      placements: e.placements.map(mapPlacement),
-      matchCount,
-      participantCount: e.participants.length,
-      stageCount: e.stages.length,
-    };
-  });
 }
 
 // ---------------------------------------------------------------------------

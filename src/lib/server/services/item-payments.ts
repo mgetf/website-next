@@ -115,26 +115,6 @@ export async function createItemPaymentOrder(
   return order;
 }
 
-export async function getPendingOrderForCheckout(steamId: string, teamId: number) {
-  const order = await prisma.itemPaymentOrder.findFirst({
-    where: {
-      playerSteamId: steamId,
-      teamId,
-      status: 'PENDING',
-      expiresAt: { gt: new Date() },
-    },
-  });
-
-  if (!order) return null;
-
-  return {
-    orderNumber: order.orderNumber,
-    itemName: order.itemName,
-    itemsRequired: order.itemsRequired,
-    expiresAt: order.expiresAt.toISOString(),
-  };
-}
-
 /**
  * Find any pending item payment order for a user (used by multi-team checkout).
  */

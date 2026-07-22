@@ -67,43 +67,6 @@ export async function uploadDemo(data: UploadDemoData) {
   return demo;
 }
 
-export async function getDemoById(id: number) {
-  const demo = await prisma.demo.findUnique({
-    where: { id },
-    include: {
-      player: true,
-      submitter: true,
-      match: {
-        include: {
-          homeTeam: {
-            include: {
-              division: true,
-              region: true,
-            },
-          },
-          awayTeam: {
-            include: {
-              division: true,
-              region: true,
-            },
-          },
-        },
-      },
-      reports: {
-        include: {
-          reporter: true,
-          admin: true,
-        },
-        orderBy: {
-          reportedAt: 'desc',
-        },
-      },
-    },
-  });
-
-  return demo;
-}
-
 export async function reportDemo(demoId: number, reportedBy: string, description: string) {
   if (!description || description.length > 1000 || /<|>/.test(description)) {
     throw new Error('Invalid description. Must be 1-1000 characters without HTML tags.');
@@ -131,21 +94,6 @@ export async function reportDemo(demoId: number, reportedBy: string, description
   });
 
   return report;
-}
-
-export async function getDemoReports(demoId: number) {
-  const reports = await prisma.demoReport.findMany({
-    where: { demoId },
-    include: {
-      reporter: true,
-      admin: true,
-    },
-    orderBy: {
-      reportedAt: 'desc',
-    },
-  });
-
-  return reports;
 }
 
 export async function getUserDemoReports(demoId: number, userSteamId: string) {

@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { setActiveSignupSeason, getAllActiveSignupSeasons } from './signupSeasons';
+import { setActiveSignupSeason } from './signupSeasons';
 
 /**
  * Get global settings
@@ -13,22 +13,6 @@ import { setActiveSignupSeason, getAllActiveSignupSeasons } from './signupSeason
  */
 export async function getGlobalSettings() {
   return await prisma.global.findFirst();
-}
-
-/**
- * Get global settings with active signup seasons
- * Returns global settings plus the active signup seasons from the junction table
- */
-export async function getGlobalSettingsWithSignupSeasons() {
-  const [global, activeSignupSeasons] = await Promise.all([
-    prisma.global.findFirst(),
-    getAllActiveSignupSeasons(),
-  ]);
-
-  return {
-    ...global,
-    activeSignupSeasons,
-  };
 }
 
 /**
@@ -86,24 +70,6 @@ export interface SeasonSettings {
   paymentRequired: boolean;
   matchWeek: number | null;
   matchDeadline: Date | null;
-}
-
-/**
- * Get settings for a specific season
- */
-export async function getSeasonSettings(seasonId: number): Promise<SeasonSettings | null> {
-  const season = await prisma.season.findUnique({
-    where: { id: seasonId },
-    select: {
-      signupsOpen: true,
-      rosterLocked: true,
-      paymentRequired: true,
-      matchWeek: true,
-      matchDeadline: true,
-    },
-  });
-
-  return season;
 }
 
 /**
@@ -171,29 +137,6 @@ export async function toggleSeasonPaymentRequired(seasonId: number) {
     where: { id: seasonId },
     data: { paymentRequired: !season.paymentRequired },
   });
-}
-
-/**
- * Get season settings by team ID
- * Useful for checking roster lock when editing a team
- */
-export async function getSeasonSettingsByTeamId(teamId: number): Promise<SeasonSettings | null> {
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    select: {
-      season: {
-        select: {
-          signupsOpen: true,
-          rosterLocked: true,
-          paymentRequired: true,
-          matchWeek: true,
-          matchDeadline: true,
-        },
-      },
-    },
-  });
-
-  return team?.season ?? null;
 }
 
 /**

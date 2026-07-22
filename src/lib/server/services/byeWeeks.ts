@@ -20,19 +20,3 @@ export async function getByeWeeksForTeam(teamId: number) {
     orderBy: [{ season: { seasonNum: 'desc' } }, { weekNo: 'asc' }],
   });
 }
-
-/**
- * Get all bye weeks for a season, optionally filtered by week number.
- * Used by admin views to see which teams had byes for a given week.
- */
-export async function getByeWeeksForSeason(seasonId: number, weekNo?: number) {
-  return await prisma.byeWeek.findMany({
-    where: { seasonId, ...(weekNo !== undefined ? { weekNo } : {}) },
-    include: {
-      team: {
-        select: { id: true, name: true, acronym: true },
-      },
-    },
-    orderBy: { weekNo: 'asc' },
-  });
-}

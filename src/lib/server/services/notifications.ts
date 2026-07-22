@@ -32,31 +32,6 @@ async function emitNotify(notification: NotificationPayload): Promise<void> {
 }
 
 /**
- * Get all unread notifications for a user (with actor info)
- */
-export async function getUnreadNotifications(userSteamId: string) {
-  return await prisma.notification.findMany({
-    where: {
-      userSteamId,
-      isRead: false,
-    },
-    include: {
-      actor: {
-        select: {
-          steamId: true,
-          steamUsername: true,
-          steamAvatar: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take: 50,
-  });
-}
-
-/**
  * Get notifications for dropdown (unread + recent read, max 10)
  */
 export async function getNotificationsForDropdown(userSteamId: string) {
@@ -153,25 +128,6 @@ export async function markAllAsRead(userSteamId: string) {
     data: {
       isRead: true,
     },
-  });
-}
-
-/**
- * Delete a notification
- * Security: Verifies the notification belongs to the user
- */
-export async function deleteNotification(notificationId: number, userSteamId: string) {
-  const notification = await prisma.notification.findUnique({
-    where: { id: notificationId },
-    select: { userSteamId: true },
-  });
-
-  if (!notification || notification.userSteamId !== userSteamId) {
-    throw new Error('Notification not found or unauthorized');
-  }
-
-  await prisma.notification.delete({
-    where: { id: notificationId },
   });
 }
 

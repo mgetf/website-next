@@ -589,24 +589,6 @@ export async function toggleTeamReady(teamId: number, userSteamId: string) {
   });
 }
 
-/**
- * Reject a PENDING team back to UNREADY (admin action).
- */
-export async function unreadyTeam(teamId: number) {
-  const team = await prisma.team.findUnique({ where: { id: teamId } });
-
-  if (!team) notFound('Team not found');
-
-  if (team.status !== TeamStatus.PENDING) {
-    badRequest('Team must be in PENDING status to reject');
-  }
-
-  return await prisma.team.update({
-    where: { id: teamId },
-    data: { status: TeamStatus.UNREADY },
-  });
-}
-
 export interface ChangeTeamDivisionResult {
   oldDivision: { id: number; name: string; signupCost: number } | null;
   newDivision: { id: number; name: string; signupCost: number };

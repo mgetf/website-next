@@ -3,12 +3,7 @@
  * Handles file uploads to R2 storage
  */
 
-import {
-  S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-} from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { error } from '@sveltejs/kit';
 import fs from 'fs';
@@ -174,41 +169,6 @@ export async function uploadBufferToR2(
   } catch (err) {
     console.error('Error uploading buffer to R2:', err);
     throw error(500, 'Failed to upload file');
-  }
-}
-
-/**
- * Fetch an object from R2 and return its content as a Buffer.
- * Used for server-side zip generation.
- * @param key - Full R2 object key (e.g. "maps/mge_foo.bsp")
- */
-export async function getObjectFromR2(key: string): Promise<Buffer> {
-  if (!isR2Configured || !r2Client) {
-    throw error(500, 'R2 storage is not configured');
-  }
-
-  try {
-    const command = new GetObjectCommand({
-      Bucket: R2_BUCKET_NAME,
-      Key: key,
-    });
-
-    const response = await r2Client.send(command);
-
-    if (!response.Body) {
-      throw error(404, 'Object not found in R2');
-    }
-
-    // @aws-sdk/client-s3 returns a ReadableStream in Node.js — collect it
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
-      chunks.push(chunk);
-    }
-    return Buffer.concat(chunks);
-  } catch (err) {
-    if ((err as { status?: number }).status) throw err; // re-throw SvelteKit errors
-    console.error('Error fetching object from R2:', err);
-    throw error(500, 'Failed to fetch file from storage');
   }
 }
 

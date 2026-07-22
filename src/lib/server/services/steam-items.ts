@@ -7,10 +7,6 @@ export async function getSteamItems() {
   });
 }
 
-export async function getSteamItemById(id: number) {
-  return await prisma.steamItem.findUnique({ where: { id } });
-}
-
 export async function createSteamItem(data: {
   name: string;
   appId: number;

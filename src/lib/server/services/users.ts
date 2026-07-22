@@ -5,7 +5,6 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
@@ -41,17 +40,6 @@ export async function getSessionFields(steamId: string) {
       sessionVersion: true,
     },
   });
-}
-
-/**
- * Atomically increment a user's session version, invalidating any active sessions.
- */
-export async function incrementSessionVersion(steamId: string): Promise<void> {
-  await prisma.user.update({
-    where: { steamId },
-    data: { sessionVersion: { increment: 1 } },
-  });
-  invalidateCachedSessionVersion(steamId);
 }
 
 /**
@@ -149,33 +137,6 @@ export async function getPlayerTeams(steamId: string) {
       startedAt: 'desc',
     },
   });
-}
-
-/**
- * Check if a user is already signed up for a specific season
- * For 2v2: checks if they're on an active team in that season
- * For 1v1: checks if they have an entry (team) in that season
- */
-export async function isUserSignedUpForSeason(
-  steamId: string,
-  seasonId: number,
-  formatId: number,
-): Promise<boolean> {
-  const entry = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        seasonId,
-        formatId,
-        status: {
-          notIn: ['DEAD'],
-        },
-      },
-    },
-  });
-
-  return !!entry;
 }
 
 /**

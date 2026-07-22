@@ -123,19 +123,6 @@ export interface ValidationIssue {
   severity: ValidationSeverity;
 }
 
-export interface EventDraftSummary {
-  draftId: number;
-  eventId: number | null;
-  eventName: string;
-  eventType: EventType;
-  revision: number;
-  updatedAt: string;
-  updatedByName: string | null;
-  isPublished: boolean;
-  stageCount: number;
-  matchCount: number;
-}
-
 export interface TournamentEditorListItem {
   eventId: number | null;
   draftId: number | null;

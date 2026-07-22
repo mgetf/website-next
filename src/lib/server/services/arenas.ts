@@ -25,22 +25,6 @@ export async function getArenas() {
 }
 
 /**
- * Get a single arena by ID
- */
-export async function getArenaById(id: number) {
-  return await prisma.arena.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: {
-          games: true,
-        },
-      },
-    },
-  });
-}
-
-/**
  * Create a new arena
  *
  * Business logic validation:

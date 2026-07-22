@@ -146,14 +146,6 @@ export function getSessionSecret(): string {
 }
 
 /**
- * Get the base URL for the mge-servers-panel API
- * Defaults to the production panel if not set
- */
-export function getPanelUrl(): string {
-  return getOptionalEnv('MGE_PANEL_URL', 'https://panel.mge.tf').replace(/\/$/, '');
-}
-
-/**
  * Get the internal URL for the mge-logs-parser service
  */
 export function getParserUrl(): string {

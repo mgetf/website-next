@@ -26,15 +26,6 @@ export async function getContent(key: ContentKey): Promise<string | null> {
 }
 
 /**
- * Get content with metadata
- */
-export async function getContentWithMeta(key: ContentKey) {
-  return await prisma.siteContent.findUnique({
-    where: { key },
-  });
-}
-
-/**
  * Get all site content
  */
 export async function getAllContent() {
@@ -58,15 +49,6 @@ export async function upsertContent(key: ContentKey, content: string, updatedBy?
       content,
       updatedBy,
     },
-  });
-}
-
-/**
- * Delete content by key
- */
-export async function deleteContent(key: ContentKey) {
-  return await prisma.siteContent.delete({
-    where: { key },
   });
 }
 

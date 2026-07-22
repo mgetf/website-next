@@ -20,12 +20,6 @@ export interface PublicGameServer {
   uptime: string;
 }
 
-export interface PublicServersResponse {
-  servers: PublicGameServer[];
-  count: number;
-  generatedAt: string;
-}
-
 export interface ServersPageData {
   servers: PublicGameServer[];
   count: number;

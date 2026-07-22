@@ -73,38 +73,6 @@ export async function getDivisionsForFilter() {
 }
 
 /**
- * Get a single division by ID
- */
-export async function getDivisionById(id: number) {
-  return await prisma.division.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: {
-          teams: true,
-        },
-      },
-    },
-  });
-}
-
-/**
- * Find division by name (case-insensitive search)
- * Useful for keyword lookups like "premier"
- */
-export async function findDivisionByName(name: string, onlyVisible = true) {
-  return await prisma.division.findFirst({
-    where: {
-      name: {
-        contains: name,
-        mode: 'insensitive',
-      },
-      ...(onlyVisible ? { hidden: 0 } : {}),
-    },
-  });
-}
-
-/**
  * Find the top-ranked visible division for a specific region.
  * Uses id DESC ordering which matches the existing convention
  * (higher id = lower division tier: INVITE > PREMIER > INTERMEDIATE > OPEN > NEWCOMER).

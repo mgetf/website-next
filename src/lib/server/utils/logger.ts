@@ -5,8 +5,6 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { RequestEvent } from '@sveltejs/kit';
-import { dev } from '$app/environment';
 import { getOptionalEnv } from '$lib/server/utils/env';
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
@@ -64,79 +62,10 @@ function createLogEntry(level: LogLevel, message: string, data?: unknown): LogEn
 }
 
 /**
- * Log info message
- */
-export async function logInfo(message: string, data?: unknown): Promise<void> {
-  const entry = createLogEntry('info', message, data);
-  console.log(`[INFO] ${message}`, data ? data : '');
-  await writeLog(entry);
-}
-
-/**
- * Log warning message
- */
-export async function logWarn(message: string, data?: unknown): Promise<void> {
-  const entry = createLogEntry('warn', message, data);
-  console.warn(`[WARN] ${message}`, data ? data : '');
-  await writeLog(entry);
-}
-
-/**
  * Log error message
  */
 export async function logError(message: string, error?: unknown): Promise<void> {
   const entry = createLogEntry('error', message, error);
   console.error(`[ERROR] ${message}`, error ? error : '');
   await writeLog(entry);
-}
-
-/**
- * Log debug message (only in development)
- */
-export async function logDebug(message: string, data?: unknown): Promise<void> {
-  if (!dev) {
-    return;
-  }
-
-  const entry = createLogEntry('debug', message, data);
-  console.debug(`[DEBUG] ${message}`, data ? data : '');
-  await writeLog(entry);
-}
-
-/**
- * Log request details to file (useful for debugging)
- */
-export async function logRequest(event: RequestEvent, filename?: string): Promise<void> {
-  const reqData = {
-    method: event.request.method,
-    url: event.url.toString(),
-    pathname: event.url.pathname,
-    searchParams: Object.fromEntries(event.url.searchParams),
-    headers: Object.fromEntries(event.request.headers),
-    ip: event.getClientAddress(),
-    user: event.locals.user?.steamId || 'anonymous',
-  };
-
-  const entry = createLogEntry(
-    'info',
-    `Request: ${event.request.method} ${event.url.pathname}`,
-    reqData,
-  );
-  await writeLog(entry, filename);
-}
-
-/**
- * Log form action to file
- */
-export async function logFormAction(
-  action: string,
-  user: string | undefined,
-  data: unknown,
-  filename?: string,
-): Promise<void> {
-  const entry = createLogEntry('info', `Form Action: ${action}`, {
-    user: user || 'anonymous',
-    data,
-  });
-  await writeLog(entry, filename);
 }

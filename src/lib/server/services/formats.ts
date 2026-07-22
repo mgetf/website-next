@@ -20,21 +20,6 @@ export async function getFormats() {
   });
 }
 
-export async function getFormatById(id: number) {
-  return prisma.format.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: {
-          seasons: true,
-          teams: true,
-          activeSignupSeasons: true,
-        },
-      },
-    },
-  });
-}
-
 export async function createFormat(data: { name: string; code: string }) {
   // Check if code already exists
   const existing = await prisma.format.findUnique({

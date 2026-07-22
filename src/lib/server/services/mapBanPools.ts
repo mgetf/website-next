@@ -33,30 +33,6 @@ export async function getMapBanPools() {
 }
 
 /**
- * Get a single map ban pool by ID
- */
-export async function getMapBanPoolById(id: number) {
-  return await prisma.mapBanPool.findUnique({
-    where: { id },
-    include: {
-      mapsInPool: {
-        include: {
-          arena: true,
-        },
-        orderBy: {
-          orderNum: 'asc',
-        },
-      },
-      _count: {
-        select: {
-          matchMapBans: true,
-        },
-      },
-    },
-  });
-}
-
-/**
  * Create a new map ban pool
  */
 export async function createMapBanPool(name: string) {

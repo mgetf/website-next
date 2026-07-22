@@ -56,23 +56,6 @@ export async function getRegionsForFilter() {
 }
 
 /**
- * Get a single region by ID
- */
-export async function getRegionById(id: number) {
-  return await prisma.region.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: {
-          seasons: true,
-          teams: true,
-        },
-      },
-    },
-  });
-}
-
-/**
  * Create a new region
  *
  * Business logic validation:

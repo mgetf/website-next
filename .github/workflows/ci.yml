@@ -32,6 +32,9 @@ jobs:
       - name: Format check
         run: bun run format:check
 
+      - name: Dead code check
+        run: bun run knip
+
   boundary-check:
     name: Architecture Boundary Check
     runs-on: ubuntu-latest

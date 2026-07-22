@@ -2,6 +2,6 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
   "ignoreDependencies": ["@prisma/client"],
-  "ignoreFiles": ["src/lib/index.ts"],
+  "ignoreFiles": ["src/lib/index.ts", "scripts/**"],
   "ignoreExportsUsedInFile": true
 }

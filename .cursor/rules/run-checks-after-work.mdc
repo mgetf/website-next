@@ -5,12 +5,19 @@ alwaysApply: true
 
 # Run Checks After Making Changes
 
-After finishing work on any task, ALWAYS run these three commands:
+After finishing work on any task, ALWAYS run these four commands:
 
 ```bash
 bun run format
 bun run check
 bun run boundary-check
+bun run knip
 ```
 
 Do not skip any of them. Fix any issues they report before considering the task complete.
+
+`bun run knip` finds unused files, dependencies, and exports. If you add a new file, export, or dependency that Knip flags:
+
+- If it's genuinely unused, delete it rather than leaving it in place.
+- If it's intentionally unused for now (e.g. a utility reserved for a near-term follow-up), do NOT silently ignore the warning. Tag the export/file with `@lintignore` in its JSDoc comment so Knip skips it, and say so in your summary to the user.
+- Do NOT edit `knip.json` to broadly suppress a category of findings just to make a command pass — only use the `@lintignore` tag on the specific symbol.

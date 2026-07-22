@@ -1,6 +1,5 @@
 import {
   getLeaderboard,
-  getRegions,
   getPlayerRatings,
   type PlatformLeaderboardEntry,
   type LeaderboardSortField,
@@ -267,8 +266,6 @@ export async function getEloLeaderboardPage(
     totalPages: Math.ceil(total / pageSize) || 0,
   };
 }
-
-export { getRegions };
 
 export async function searchEloLeaderboard(params: {
   regions: string[];

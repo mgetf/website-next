@@ -76,15 +76,19 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 ## Commands
 
 ```bash
-bun run dev           # Development server
-bun run build         # Production build (runs prisma generate first)
-bun run check         # Type checking (svelte-check)
-bun run format        # Format all files with Prettier
-bun run format:check  # Check formatting without writing (used in CI)
-bun run generate      # Regenerate Prisma client
-bun run migrate       # Run migrations (dev)
-bun run migrate:prod  # Run migrations (production)
+bun run dev             # Development server
+bun run build           # Production build (runs prisma generate first)
+bun run check           # Type checking (svelte-check)
+bun run format          # Format all files with Prettier
+bun run format:check    # Check formatting without writing (used in CI)
+bun run boundary-check  # Architecture boundary checks (used in CI)
+bun run knip            # Find unused files, dependencies, and exports (used in CI)
+bun run generate        # Regenerate Prisma client
+bun run migrate         # Run migrations (dev)
+bun run migrate:prod    # Run migrations (production)
 ```
+
+After any code change, run `bun run format`, `bun run check`, `bun run boundary-check`, and `bun run knip` before considering the work done. If Knip flags something intentionally kept for later, tag it with `@lintignore` in its JSDoc rather than ignoring the warning.
 
 ## Branching Model
 

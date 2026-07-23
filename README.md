@@ -6,25 +6,26 @@ Licensed under [AGPL-3.0](LICENSE).
 
 ## Tech Stack
 
-- **Framework**: SvelteKit 2 with Svelte 5
-- **Database**: PostgreSQL with Prisma 7
+- **Framework**: SvelteKit 2 with Svelte 5 (runes)
+- **Language**: TypeScript (strict)
+- **Database**: PostgreSQL via Prisma 7 (`@prisma/adapter-pg`)
 - **Styling**: Tailwind CSS 4
+- **Package manager**: [Bun](https://bun.sh/) (required; npm/pnpm/yarn are blocked)
+- **Validation**: Zod
 - **Auth**: Steam OpenID, Discord OAuth
-- **Payments**: PayPal
-- **Storage**: AWS S3 / Cloudflare R2
-- **Analytics**: PostHog
+- **Payments**: PayPal and TF2 item payments
+- **Storage**: S3-compatible object storage (Cloudflare R2)
 
 ## Prerequisites
 
 - [Bun](https://bun.sh/)
-- PostgreSQL database
-- Steam API key
-- Discord OAuth app (optional)
-- PayPal credentials (optional)
+- PostgreSQL
+- Steam API key (required for local auth)
+- Discord OAuth app, PayPal credentials, and R2/S3 credentials (optional)
 
 ## Getting Started
 
-### 1. Clone and install dependencies
+### 1. Clone and install
 
 ```bash
 git clone git@github.com:mgetf/website-next.git
@@ -34,163 +35,156 @@ bun install
 
 ### 2. Configure environment variables
 
-Create a `.env` file in the root directory:
-
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/mge"
-
-# Steam Authentication (required)
-STEAM_API_KEY="your-steam-api-key"
-
-# Discord OAuth (optional)
-DISCORD_CLIENT_ID=""
-DISCORD_CLIENT_SECRET=""
-DISCORD_REDIRECT_URI="http://localhost:5173/auth/discord/callback"
-
-# PayPal (optional)
-PAYPAL_CLIENT_ID=""
-PAYPAL_CLIENT_SECRET=""
-PAYPAL_MODE="sandbox"
-
-# Cloudflare R2 / S3-compatible storage (optional)
-S3_ENDPOINT=""
-S3_EU_ENDPOINT=""
-S3_ACCESS_KEY_ID=""
-S3_SECRET_ACCESS_KEY=""
-CLOUDFLARE_BUCKET_NAME=""
-CLOUDFLARE_PUBLIC_URL=""
-
-# PostHog Analytics (optional)
-POSTHOG_API_KEY=""
-POSTHOG_HOST="https://us.i.posthog.com"
-
-# Public site origin (optional — used for PayPal return URLs, etc.)
-PUBLIC_URL="http://localhost:5173"
-
-# Session & JWT secrets (required — use 32+ random characters)
-JWT_SECRET="change-me-to-a-random-64-hex-string"
-SESSION_SECRET="generate-a-random-32-char-string"
-
-# Game server panel base URL (optional — defaults to https://panel.mge.tf)
-MGE_PANEL_URL="https://panel.mge.tf"
-
-# MGE platform API base URL (optional — player ratings / leaderboard)
-MGE_PLATFORM_URL=""
+```bash
+cp .env.example .env
 ```
+
+Fill in at least:
+
+| Variable         | Notes                        |
+| ---------------- | ---------------------------- |
+| `DATABASE_URL`   | PostgreSQL connection string |
+| `STEAM_API_KEY`  | Steam Web API key            |
+| `JWT_SECRET`     | 32+ random characters        |
+| `SESSION_SECRET` | 32+ random characters        |
+
+Optional variables (`APP_ENVIRONMENT`, Discord, PayPal, R2/S3, `PUBLIC_URL`, `MGE_PANEL_URL`, `MGE_PLATFORM_URL`, `DB_POOL_MAX`, `REALTIME_NOTIFICATIONS_ENABLED`, and others) are documented in [`.env.example`](.env.example).
 
 ### 3. Set up the database
 
 ```bash
-# Generate Prisma client
-bun generate
-
-# Run migrations
-bun migrate
+bun run generate   # Prisma client
+bun run migrate    # apply migrations (prisma migrate deploy)
 ```
 
-### 4. Run development server
+For creating a new migration during development:
 
 ```bash
-bun dev
+bun prisma migrate dev --name your_migration_name
 ```
 
-The app will be available at `http://localhost:5173`.
+### 4. Run the development server
+
+```bash
+bun run dev
+```
+
+The app is available at `http://localhost:5173`.
 
 ## Project Structure
 
 ```
 src/
 ├── lib/
-│   ├── assets/          # Static assets (icons, images)
-│   ├── components/      # Reusable Svelte components
-│   │   ├── charts/      # Chart.js components
-│   │   ├── layout/      # Navigation, dropdowns, etc.
-│   │   └── markdown/    # Markdown rendering
+│   ├── assets/          # Static icons/images
+│   ├── components/      # Svelte components (brackets/, charts/, layout/, markdown/, ui/, …)
+│   ├── constants/       # Client-safe constants (format IDs, etc.)
 │   ├── server/
-│   │   ├── auth/        # Steam & Discord authentication
-│   │   ├── services/    # Business logic (matches, teams, etc.)
-│   │   └── utils/       # Helper functions
-│   ├── types/           # TypeScript types
-│   └── utils/           # Client-side utilities
+│   │   ├── auth/        # Steam, Discord, permissions, API keys
+│   │   ├── services/    # Business logic and all Prisma access
+│   │   ├── utils/       # Errors, forms, validation, rate limits, uploads
+│   │   ├── realtime/    # Notification hub (SSE / LISTEN)
+│   │   ├── db.ts        # Prisma singleton
+│   │   └── session.ts   # Session cookies
+│   ├── state/           # Client reactive state (.svelte.ts)
+│   ├── types/           # Shared client/server types
+│   └── utils/           # Client-safe utilities
 ├── routes/
-│   ├── admin/           # Admin panel pages
-│   ├── api/             # API endpoints
-│   ├── auth/            # Auth routes (login, logout, callbacks)
+│   ├── admin/           # Admin panel (layout-level auth)
+│   ├── api/             # SSE, webhooks, client fetch, /api/v1 external API
+│   ├── auth/            # Login / logout / Discord / Steam verify
 │   ├── leagues/         # 1v1 and 2v2 league pages
 │   ├── matches/         # Match pages
-│   ├── signup/          # Team/player signup flows
+│   ├── signup/          # Team / player signup
 │   ├── teams/           # Team pages
-│   ├── tournaments/     # Tournament pages
-│   └── users/           # User profile pages
-└── hooks.server.ts      # Server hooks (auth middleware)
+│   ├── tournaments/     # Unified event/tournament pages
+│   ├── users/           # Profiles, notifications, payments
+│   └── …                # maps, servers, logs, leaderboard, checkout, …
+└── hooks.server.ts      # Session, security headers, staging gate, rate limits
 ```
+
+Architecture conventions live in [AGENTS.md](AGENTS.md). Contributor setup and PR expectations live in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Scripts
 
-| Command           | Description              |
-| ----------------- | ------------------------ |
-| `bun dev`         | Start development server |
-| `bun run build`   | Build for production     |
-| `bun run preview` | Preview production build |
-| `bun run check`   | Run svelte-check         |
-| `bun generate`    | Generate Prisma client   |
-| `bun migrate`     | Run database migrations  |
+| Command                  | Description                                     |
+| ------------------------ | ----------------------------------------------- |
+| `bun run dev`            | Start development server                        |
+| `bun run build`          | Generate Prisma client and build for production |
+| `bun run preview`        | Preview production build                        |
+| `bun run check`          | TypeScript / Svelte type checking               |
+| `bun run format`         | Format with Prettier                            |
+| `bun run format:check`   | Check formatting (CI)                           |
+| `bun run boundary-check` | Architecture / UI boundary checks (CI)          |
+| `bun run knip`           | Unused files, dependencies, and exports (CI)    |
+| `bun run generate`       | Generate Prisma client                          |
+| `bun run migrate`        | Apply migrations (`prisma migrate deploy`)      |
+| `bun run migrate:prod`   | Apply migrations using `.env.production`        |
+
+Before opening a PR, run: `bun run format`, `bun run check`, `bun run boundary-check`, and `bun run knip`.
 
 ## Database
 
-The schema is defined in `prisma/schema.prisma`. Key models:
+Schema: `prisma/schema.prisma`. Important models:
 
-- **User** - Steam-authenticated users
-- **Team** - 2v2 teams with players
-- **Match** - League matches with games
-- **Season** - League seasons per region/format
-- **Tournament** - 1v1 tournaments
-- **Championship** - Annual world championships
+- **User** — Steam-authenticated accounts
+- **Team** / **PlayerInTeam** — 2v2 (and 1v1 entry) rosters
+- **Match** / **Game** — League matches
+- **Season** / **Division** / **Region** — League structure
+- **Event** (+ stages, matches, participants, placements) — unified tournaments / fight nights / championships
+- **Demo** — Match demo uploads
+- **ItemPaymentOrder** — TF2 item payment flow
 
-### Migrations
+### Production migrations
 
 ```bash
-# Create a new migration
-bunx prisma migrate dev --name your_migration_name
-
-# Apply migrations to production
-bunx prisma migrate deploy
+bun prisma migrate deploy
+# or
+bun run migrate:prod
 ```
 
 ## Deployment
 
 ### Docker
 
-Build and run with Docker:
-
 ```bash
 docker build -t mge-next .
-docker-compose up -d
+docker compose up -d
 ```
 
-See `docker-compose.yml` for required environment variables.
+See `docker-compose.yml` for environment variables. Production deploys also set `APP_ENVIRONMENT` (`production` on mge.tf, `staging` on dev.mge.tf).
 
 ### Manual
 
 ```bash
 bun run build
-bun build/index.js
+bun run ./build/index.js
 ```
 
-The server runs on `PORT` (default: 3000).
+The Node/Bun adapter listens on `HOST` / `PORT` (defaults: `0.0.0.0:3000`).
+
+## Branching
+
+```
+feature/* → staging → master
+```
+
+- PRs target `staging` (`dev.mge.tf`)
+- `master` is production (`mge.tf`), promoted from `staging`
+- Never commit directly to `staging` or `master`
 
 ## Key Features
 
-- **2v2 League**: Seasonal leagues with divisions, regions, and playoffs
-- **1v1 Tournaments**: Bracket-style tournaments with prizes
-- **World Championships**: Annual 1v1 championship event
-- **Team Management**: Create/join teams, roster management
-- **Match Reporting**: Submit scores, demos, and handle disputes
-- **Admin Panel**: User management, match creation, site content CMS
-- **PayPal Integration**: League fee payments
-- **Demo System**: Upload and review match demos
-- **Servers page** (`/servers`): Live public server browser backed by the mge-servers-panel API (`panel.mge.tf`). Refreshes every 30 seconds. Panel URL is configurable via `MGE_PANEL_URL`.
+- **2v2 and 1v1 leagues** — Seasons, divisions, regions, standings, playoffs
+- **Unified events** — Tournaments, fight nights, and championships on one event schema
+- **Team management** — Create/join, invites, roster, passwords
+- **Match reporting** — Scores, demos, disputes, reschedules, map bans
+- **Payments** — PayPal league fees and TF2 item checkout
+- **Admin panel** — Users, teams, matches, maps, tournaments, site CMS, audit logs
+- **Notifications** — In-app notifications with optional realtime SSE
+- **Maps** — Public map browser and downloads
+- **Servers** (`/servers`) — Live public server browser via the mge-servers-panel API (`MGE_PANEL_URL`)
+- **Leaderboard** — Platform ratings when `MGE_PLATFORM_URL` is configured
 
 ## Contributing
 

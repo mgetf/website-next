@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ cookies, request, getClientAddress }
     const steam = createSteamAuth(request);
     const user = await steam.authenticate(request);
 
-    const steamUser = user._json as any;
+    const steamUser = user._json;
 
     await getPermissionLevel(steamUser.steamid);
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { enhance, type SubmitFunction } from '$app/forms';
+  import { enhance } from '$app/forms';
+  import type { SubmitFunction } from '@sveltejs/kit';
   import { dndzone } from 'svelte-dnd-action';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
@@ -154,7 +155,10 @@
         if (preview.isPlayoff) {
           playoffMatchups = preview.matchups || [];
         } else {
-          const items = buildDndItems(preview);
+          const items = buildDndItems({
+            matchups: preview.matchups as Array<{ home?: DndTeam; away?: DndTeam }> | undefined,
+            byeTeam: preview.byeTeam,
+          });
           dndItems = items;
           originalDndItems = [...items];
         }

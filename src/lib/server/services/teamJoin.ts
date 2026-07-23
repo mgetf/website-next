@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '$lib/server/db';
+import type { Prisma } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { validateJoinToken } from './teamSignup';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
@@ -11,9 +12,22 @@ import { isSeasonCurrentlyActive } from './settings';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 import { verifyPassword } from '$lib/server/utils/password';
 
+type TeamJoinTeam = Prisma.TeamGetPayload<{
+  include: {
+    division: true;
+    region: true;
+    season: true;
+    players: {
+      include: {
+        player: true;
+      };
+    };
+  };
+}>;
+
 interface TeamJoinInfo {
-  team: any;
-  activePlayers: any[];
+  team: TeamJoinTeam;
+  activePlayers: TeamJoinTeam['players'];
   canJoin: boolean;
   error?: string;
 }

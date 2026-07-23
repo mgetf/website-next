@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '$lib/server/db';
+import type { Prisma } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { uploadToR2, saveTempFile, deleteTempFile, validateUploadedFile } from '../utils/r2Upload';
 import path from 'path';
@@ -12,12 +13,48 @@ import { createNotificationForUser } from './notifications';
 import { hashPassword } from '../utils/password';
 import { isSeasonCurrentlyActive } from './settings';
 
+type TeamEditTeam = Prisma.TeamGetPayload<{
+  include: {
+    division: true;
+    region: true;
+    season: {
+      select: {
+        id: true;
+        seasonNum: true;
+        numWeeks: true;
+        regionId: true;
+        formatId: true;
+        signupsOpen: true;
+        rosterLocked: true;
+        paymentRequired: true;
+        matchWeek: true;
+        matchDeadline: true;
+      };
+    };
+    players: {
+      include: {
+        player: true;
+      };
+    };
+    pendingPlayers: {
+      include: {
+        player: true;
+      };
+    };
+    deniedPlayers: {
+      include: {
+        player: true;
+      };
+    };
+  };
+}>;
+
 interface TeamEditData {
-  team: any;
-  players: any[];
-  sentInvites: any[];
-  awaitingAdmin: any[];
-  deniedPlayers: any[];
+  team: TeamEditTeam;
+  players: TeamEditTeam['players'];
+  sentInvites: TeamEditTeam['pendingPlayers'];
+  awaitingAdmin: TeamEditTeam['pendingPlayers'];
+  deniedPlayers: TeamEditTeam['deniedPlayers'];
   rosterLocked: boolean;
   isOwner: boolean;
   isAdmin: boolean;
@@ -92,8 +129,8 @@ export async function getTeamForEdit(teamId: number, steamId: string): Promise<T
   return {
     team,
     players: team.players,
-    sentInvites: team.pendingPlayers.filter((p: any) => p.status === 0),
-    awaitingAdmin: team.pendingPlayers.filter((p: any) => p.status === 1),
+    sentInvites: team.pendingPlayers.filter((p) => p.status === 0),
+    awaitingAdmin: team.pendingPlayers.filter((p) => p.status === 1),
     deniedPlayers: team.deniedPlayers,
     rosterLocked,
     isOwner,

@@ -5,6 +5,7 @@
 
 import { prisma } from '$lib/server/db';
 import { TeamStatus } from '$prisma/client.js';
+import type { Prisma } from '$prisma/client.js';
 import jwt from 'jsonwebtoken';
 import { badRequest, forbidden } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
@@ -15,9 +16,23 @@ import { hashPassword } from '$lib/server/utils/password';
 // Token expiry reduced from 7d to 1h for security (shorter exposure window)
 const TOKEN_EXPIRY = '1h';
 
+type OwnedTeamMembership = Prisma.PlayerInTeamGetPayload<{
+  include: {
+    team: {
+      include: {
+        division: true;
+        region: true;
+        season: true;
+      };
+    };
+  };
+}>;
+
+type OwnedTeam = OwnedTeamMembership['team'];
+
 interface SignupContext {
   isLoggedIn: boolean;
-  ownedTeams: any[];
+  ownedTeams: OwnedTeam[];
   hasActiveTeam: boolean;
   signupClosed: boolean;
   rosterLocked: boolean;
@@ -70,11 +85,11 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
   const allRostersLocked =
     activeSignupSeasons.length > 0 && activeSignupSeasons.every((as) => as.season.rosterLocked);
 
-  let ownedTeams: any[] = [];
+  let ownedTeams: OwnedTeam[] = [];
   let hasActiveTeam = false;
 
   if (steamId) {
-    ownedTeams = await prisma.playerInTeam.findMany({
+    const ownedMemberships = await prisma.playerInTeam.findMany({
       where: {
         playerSteamId: steamId,
         permissionLevel: 2,
@@ -93,6 +108,7 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
         },
       },
     });
+    ownedTeams = ownedMemberships.map((membership) => membership.team);
 
     // Check if user is in any active 2v2 team that's ALREADY in a current signup season
     // This allows users to re-register teams from previous seasons
@@ -137,7 +153,7 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
 
   return {
     isLoggedIn: !!steamId,
-    ownedTeams: ownedTeams.map((pt) => pt.team),
+    ownedTeams,
     hasActiveTeam,
     signupClosed: !anySignupsOpen, // Inverted: signupsOpen=false means signupClosed=true
     rosterLocked: allRostersLocked,
@@ -402,21 +418,36 @@ export function validateJoinToken(token: string): {
   teamId: number;
   invitedBy: string;
 } {
+  let decoded: string | jwt.JwtPayload;
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as any;
-
-    if (decoded.type !== 'team-invite') {
-      badRequest('Invalid token type');
-    }
-
-    return {
-      teamId: decoded.teamId,
-      invitedBy: decoded.invitedBy,
-    };
+    decoded = jwt.verify(token, getJwtSecret());
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
       badRequest('Invitation link has expired');
     }
     badRequest('Invalid invitation link');
   }
+
+  if (typeof decoded !== 'object' || decoded === null) {
+    badRequest('Invalid invitation link');
+  }
+
+  const payload = decoded as {
+    type?: unknown;
+    teamId?: unknown;
+    invitedBy?: unknown;
+  };
+
+  if (payload.type !== 'team-invite') {
+    badRequest('Invalid token type');
+  }
+
+  if (typeof payload.teamId !== 'number' || typeof payload.invitedBy !== 'string') {
+    badRequest('Invalid invitation link');
+  }
+
+  return {
+    teamId: payload.teamId,
+    invitedBy: payload.invitedBy,
+  };
 }

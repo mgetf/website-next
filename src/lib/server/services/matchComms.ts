@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { User, Match, MatchComm } from '$prisma/client.js';
+import type { User, Match, MatchComm, Prisma } from '$prisma/client.js';
 import { MatchStatus, UserRole } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -70,7 +70,7 @@ export async function createMatchComm(
     notFound('Match not found');
   }
 
-  const commData: any = {
+  const commData: Prisma.MatchCommUncheckedCreateInput = {
     matchId,
     owner: userId,
     content,

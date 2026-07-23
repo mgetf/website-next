@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // For re-registration, the user keeps whichever owned team they select.
   // Warn only about other old-season memberships (non-owned) that will be auto-removed.
-  const ownedTeamIds = new Set(context.ownedTeams.map((t: { id: number }) => t.id));
+  const ownedTeamIds = new Set(context.ownedTeams.map((t) => t.id));
   const previousSeasonNonOwnedTeams = context.previousSeasonTeams.filter(
     (t) => !ownedTeamIds.has(t.id),
   );

@@ -29,7 +29,7 @@ services:
       # PayPal Configuration
       PAYPAL_CLIENT_ID: # TODO: Add PayPal Client ID
       PAYPAL_CLIENT_SECRET: # TODO: Add PayPal Client Secret
-      PAYPAL_MODE: live # or 'sandbox' for testing
+      PAYPAL_MODE: sandbox # use 'live' only in production
 
       # Cloudflare R2 / S3-compatible storage
       S3_ENDPOINT: # TODO: Add S3/R2 endpoint URL
@@ -43,7 +43,8 @@ services:
       POSTHOG_API_KEY: # TODO: Add PostHog API Key (optional)
       POSTHOG_HOST: https://us.i.posthog.com
 
-      # Session Secret
+      # Session & JWT secrets (required — use 32+ random characters)
+      JWT_SECRET: # TODO: Add random secure string (minimum 32 characters)
       SESSION_SECRET: # TODO: Add random secure string (minimum 32 characters)
 
     ports:

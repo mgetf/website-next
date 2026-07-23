@@ -97,19 +97,12 @@
   let newKeyName = $state('');
   let isCreatingKey = $state(false);
   let createdKey = $state<string | null>(null);
-  let copiedKeyId = $state<number | null>(null);
 
   // Confirm dialog state
   let showRemoveBgConfirm = $state(false);
   let removeBgFormEl: HTMLFormElement | null = $state(null);
   let deletingApiKey: { id: number; name: string } | null = $state(null);
   let deleteApiKeyFormEl: HTMLFormElement | null = $state(null);
-
-  function copyKey(key: string, id: number) {
-    navigator.clipboard.writeText(key);
-    copiedKeyId = id;
-    setTimeout(() => (copiedKeyId = null), 2000);
-  }
 
   function handleApiKeyEnhance(actionName: string) {
     return () => {
@@ -511,7 +504,7 @@
           <h3 class="text-lg font-semibold text-white mb-1">API Keys</h3>
           <p class="text-sm text-text-body">
             Service-to-service keys used by external integrations (e.g. the Discord verification
-            bot). Keys are stored in plaintext — treat them like passwords.
+            bot). The full key is shown only once at creation — treat it like a password.
           </p>
         </div>
 
@@ -519,8 +512,7 @@
         {#if createdKey}
           <div class="bg-success-500/10 border border-success-500/30 rounded-lg p-4 space-y-2">
             <p class="text-success-400 text-sm font-medium">
-              API key created. Copy it now — it will not be shown again in a special way, but
-              remains viewable in the table below.
+              API key created. Copy it now — it will not be shown again.
             </p>
             <div class="flex items-center gap-3">
               <code
@@ -595,19 +587,7 @@
                   <tr class="text-text-label">
                     <td class="py-3 pr-4 font-medium text-white">{apiKey.name}</td>
                     <td class="py-3 pr-4">
-                      <div class="flex items-center gap-2">
-                        <code class="font-mono text-xs text-text-body max-w-48 truncate"
-                          >{apiKey.key}</code
-                        >
-                        <button
-                          type="button"
-                          onclick={() => copyKey(apiKey.key, apiKey.id)}
-                          class="shrink-0 text-xs text-text-muted hover:text-text-label transition"
-                          title="Copy key"
-                        >
-                          {copiedKeyId === apiKey.id ? '✓' : 'Copy'}
-                        </button>
-                      </div>
+                      <code class="font-mono text-xs text-text-body">{apiKey.keyPreview}</code>
                     </td>
                     <td class="py-3 pr-4">
                       {#if apiKey.active}

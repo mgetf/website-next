@@ -18,6 +18,26 @@ export type ApiKeyRecord = {
   creator: { steamUsername: string };
 };
 
+/** List shape for admin UI — never includes the full secret. */
+export type ApiKeyListItem = {
+  id: number;
+  name: string;
+  keyPreview: string;
+  active: boolean;
+  createdAt: Date;
+  lastUsedAt: Date | null;
+  createdBy: string;
+  creator: { steamUsername: string };
+};
+
+function maskApiKey(key: string): string {
+  if (key.startsWith('mge_') && key.length > 12) {
+    const body = key.slice(4);
+    return `mge_${body.slice(0, 4)}…${body.slice(-4)}`;
+  }
+  return 'mge_••••••••';
+}
+
 /**
  * Generate and store a new API key.
  * Keys use the format: mge_<64 random hex chars>
@@ -31,13 +51,19 @@ export async function createApiKey(name: string, createdBy: string): Promise<Api
 }
 
 /**
- * List all API keys, newest first.
+ * List all API keys for admin display, newest first.
+ * Full key values are never returned — only a short preview.
  */
-export async function getApiKeys(): Promise<ApiKeyRecord[]> {
-  return await prisma.apiKey.findMany({
+export async function getApiKeys(): Promise<ApiKeyListItem[]> {
+  const keys = await prisma.apiKey.findMany({
     orderBy: { createdAt: 'desc' },
     include: { creator: { select: { steamUsername: true } } },
   });
+
+  return keys.map(({ key, ...rest }) => ({
+    ...rest,
+    keyPreview: maskApiKey(key),
+  }));
 }
 
 /**

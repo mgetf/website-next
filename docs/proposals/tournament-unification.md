@@ -182,7 +182,7 @@ Reading: P1 scored 0, P2 scored 2, P2 won. The migration must map `winner_score 
 
 **Championship status is stale.** Championship #1 has `status = 'REGISTRATION'` despite having 146 played matches. The migration should set the unified Event status based on actual match data, not the stale column value.
 
-**Placeholder user in Fight Night I.** Matchup #2 references `76561198040409232` ("Not logged in") — a placeholder user who needs to be resolved or flagged.
+**Placeholder user in Fight Night I.** Matchup #2 references a placeholder Steam ID ("Not logged in") — a placeholder user who needs to be resolved or flagged.
 
 ---
 
@@ -555,7 +555,7 @@ After this step, every historical event has the data needed for the bracket rend
 
 - **Fight Night I**: Add name ("Fight Night I"), description, prizepool. Verify Bo3 anomaly on the main event (matchup #1, order 4: `winner_score = 3` in a `bo_series = 3` — likely was Bo5).
 - **Fight Night II**: Add name ("Fight Night II"), description, prizepool (120 keys). Match data is handled in Step 3.
-- **Resolve placeholder user** `76561198040409232` ("Not logged in") in Fight Night I matchup #2.
+- **Resolve placeholder user** (placeholder Steam ID, "Not logged in") in Fight Night I matchup #2.
 - **Championship status**: set the merged Event to `COMPLETED` (all data is historical).
 
 ### Step 5: Update Application Code
@@ -642,7 +642,7 @@ The work proceeds incrementally:
 9. [x] Write data migration script (executed and deleted — data is live in unified tables)
 10. [x] Import external bracket data from BracketHQ and Challonge (one-time historical import — complete)
 11. [x] Backfill Fight Night I and II missing data (names, prizepool, 2v2 matchups)
-12. [x] Resolve placeholder user `76561198040409232` in Fight Night I (preserved as display_name only in event_match_players)
+12. [x] Resolve placeholder user (placeholder Steam ID) in Fight Night I (preserved as display_name only in event_match_players)
 
 ### Application Code
 

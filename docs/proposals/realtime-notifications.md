@@ -194,19 +194,19 @@ Each phase is independently shippable and has a concrete, measurable validation 
 
 **Goal:** Remove unknowns before writing code.
 
-**Findings (May 30, 2026, live from Railway `mge.tf` / `production`):**
+**Findings (May 30, 2026, live production topology):**
 
-| Fact                         | Value                                                                                                                                                                                                          |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `website-next` replicas      | **1** (`numReplicas` unset = default)                                                                                                                                                                          |
-| Pooler in front of Postgres? | **No** — `DATABASE_URL` → `postgres.railway.internal:5432` (direct)                                                                                                                                            |
-| `DB_POOL_MAX`                | **Unset** → defaults to **20** per process (`src/lib/server/db.ts`)                                                                                                                                            |
-| Postgres `max_connections`   | **100** (`superuser_reserved_connections` = 3 → ~**97** usable)                                                                                                                                                |
-| Connections at idle (Sat)    | **24** on this DB / 29 server-wide; **23 idle, 1 active**                                                                                                                                                      |
-| Connection holders           | Two private IPs hold **13** and **10** connections — i.e. multiple services keep pools open even at rest                                                                                                       |
-| Shared cluster               | `postgres-website` is also reachable by sibling services (`mge-platform`, `discord-bot`, `steam-bot`, `Backup CRON`, `mge-expire-*`) — the 97-connection budget is **shared**, not exclusive to `website-next` |
+| Fact                         | Value                                                                                                                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `website-next` replicas      | **1** (`numReplicas` unset = default)                                                                                                                                                                |
+| Pooler in front of Postgres? | **No** — direct connection, no pgbouncer/proxy in front of Postgres                                                                                                                                   |
+| `DB_POOL_MAX`                | **Unset** → defaults to **20** per process (`src/lib/server/db.ts`)                                                                                                                                  |
+| Postgres `max_connections`   | **100** (`superuser_reserved_connections` = 3 → ~**97** usable)                                                                                                                                      |
+| Connections at idle (Sat)    | **24** on this DB / 29 server-wide; **23 idle, 1 active**                                                                                                                                            |
+| Connection holders           | Two other processes hold **13** and **10** connections at rest — i.e. multiple services keep pools open even when idle                                                                              |
+| Shared cluster               | The Postgres instance is also reachable by several other internal services — the 97-connection budget is **shared** across the deployment, not exclusive to `website-next`                          |
 
-**Critical implication — the real ceiling is ~97 shared connections, not 20.** `"timeout exceeded when trying to connect"` is node-postgres failing to **establish a new physical connection**. This happens when Postgres is at/near `max_connections`: the combined pools of `website-next` (up to 20) + sibling services + the deploy-overlap window (Railway runs old + new instance simultaneously, briefly doubling `website-next` to ~40) push the server past 97. At that point _every_ service's new-connection attempts stall and time out — which is exactly why the outage is global and self-sustaining. **23 idle connections are already held at near-zero traffic**, so the headroom is thinner than it looks.
+**Critical implication — the real ceiling is ~97 shared connections, not 20.** `"timeout exceeded when trying to connect"` is node-postgres failing to **establish a new physical connection**. This happens when Postgres is at/near `max_connections`: the combined pools of `website-next` (up to 20) + other internal services + the deploy-overlap window (the platform runs old + new instance simultaneously, briefly doubling `website-next` to ~40) push the server past 97. At that point _every_ service's new-connection attempts stall and time out — which is exactly why the outage is global and self-sustaining. **23 idle connections are already held at near-zero traffic**, so the headroom is thinner than it looks.
 
 **Forks resolved:**
 
@@ -246,7 +246,7 @@ Each phase is independently shippable and has a concrete, measurable validation 
 **Goal:** Bound physical connections and make spikes degrade gracefully.
 
 - Set an explicit, conservative `DB_POOL_MAX` against the shared `replicas × max ≤ ~97` budget; lower `connectionTimeoutMillis` (e.g. 5000 → ~2000); set a per-service `application_name` for observability.
-- Audit sibling services (`mge-platform`, bots, CRONs) pool sizes against the shared 97-connection ceiling.
+- Audit other internal services' pool sizes against the shared 97-connection ceiling.
 - Introduce PgBouncer / Railway pooler only if the shared budget proves too tight after the audit.
   **Gate:** Connection count stays under the Postgres ceiling under stress; an induced overload returns fast errors and **recovers automatically** instead of cascading.
 

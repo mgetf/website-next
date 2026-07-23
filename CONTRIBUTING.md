@@ -21,13 +21,13 @@ bun run dev                # start the dev server
 ## Branching Model
 
 ```
-feature/* → staging → main
+feature/* → staging → master
 ```
 
 - Branch off `staging` for new work, using a `feature/*` branch name.
 - Open pull requests against `staging`. `staging` deploys to `dev.mge.tf`.
-- `main` is promoted from `staging` and deploys to production (`mge.tf`).
-- Never commit directly to `staging` or `main`.
+- `master` is promoted from `staging` and deploys to production (`mge.tf`).
+- Never commit directly to `staging` or `master`.
 
 ## Required Checks Before Opening a PR
 

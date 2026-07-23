@@ -188,7 +188,8 @@ The server runs on `PORT` (default: 3000).
 
 ## Contributing
 
-1. Create a feature branch from `development`
-2. Make your changes
-3. Test locally
-4. Submit a PR to `development`
+See [CONTRIBUTING.md](CONTRIBUTING.md). Short version:
+
+1. Branch off `staging` as `feature/*`
+2. Make your changes and run `bun run format`, `bun run check`, `bun run boundary-check`, `bun run knip`
+3. Open a PR against `staging` (never against `master` directly)

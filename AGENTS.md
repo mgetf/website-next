@@ -93,12 +93,12 @@ After any code change, run `bun run format`, `bun run check`, `bun run boundary-
 ## Branching Model
 
 ```
-feature/* → staging → main
+feature/* → staging → master
 ```
 
 - **`staging`** deploys to `dev.mge.tf` (test environment) — all PRs target this branch
-- **`main`** deploys to `mge.tf` (production) — only promoted from `staging`
-- Never commit directly to `staging` or `main`; always use a feature branch and PR
+- **`master`** deploys to `mge.tf` (production) — only promoted from `staging`
+- Never commit directly to `staging` or `master`; always use a feature branch and PR
 
 ## File Organization
 

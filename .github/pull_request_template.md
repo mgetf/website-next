@@ -12,4 +12,4 @@
 - [ ] `bun run check`
 - [ ] `bun run boundary-check`
 - [ ] `bun run knip`
-- [ ] PR targets `staging` (never `main` directly)
+- [ ] PR targets `staging` (never `master` directly)

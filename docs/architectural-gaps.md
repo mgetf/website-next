@@ -599,7 +599,7 @@ The created CI workflow includes:
 **Next steps**:
 
 1. Push the workflow file and verify it runs on GitHub Actions.
-2. Add branch protection rules on `main` requiring CI to pass.
+2. Add branch protection rules on `master` requiring CI to pass.
 3. Once ESLint is configured, add a lint step.
 4. Once tests exist, add a test step.
 

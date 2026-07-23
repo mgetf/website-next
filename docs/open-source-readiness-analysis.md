@@ -1,5 +1,9 @@
 # Open-Source Readiness Analysis: website-next (mge.tf)
 
+> **Historical document (March 2, 2026).** Kept for audit trail. Do not treat checklists below as current work.
+>
+> **Status as of July 2026:** Phase 1 and Phase 2 items are largely complete (AGPL-3.0 `LICENSE`, `CONTRIBUTING.md`, `.env.example`, GitHub issue/PR templates, CI, open-redirect fix, plaintext password fallback removed, rate limiters wired, Discord OAuth CSRF hardened, API key masking, and related hardening). Remaining follow-ups live in contributor docs (`CONTRIBUTING.md`, `AGENTS.md`) and any open pre-release batches (tests, low-priority cleanup). Prefer those over this file.
+
 **Date:** March 2, 2026
 **Repository:** `mgetf/website-next`
 **Commits:** 128 (single primary contributor + 1 external)
@@ -340,22 +344,22 @@ However, open-source contributions don't happen automatically. Active community 
 
 ### Phase 1: Must-Do Before Open-Sourcing (Critical)
 
-- [ ] **Fix open redirect vulnerability** — Validate redirect URLs in auth flow
-- [ ] **Remove plaintext password fallback** — Migrate any remaining plaintext passwords, then remove the fallback code
-- [ ] **Apply rate limiting** — Wire up the existing rate limiters to auth, payment, and API routes
-- [ ] **Add LICENSE file** — Choose and add a license (recommend AGPL-3.0)
-- [ ] **Create `.env.example`** — Document all required and optional environment variables with placeholder values
-- [ ] **Remove internal file paths** — Clean up `docs/production-migration.md` and other docs that reference `C:\Users\Maxi\...`
-- [ ] **Move system Steam ID to env var** — Replace hardcoded `76561199005229176` with `SYSTEM_USER_STEAM_ID`
+- [x] **Fix open redirect vulnerability** — Validate redirect URLs in auth flow
+- [x] **Remove plaintext password fallback** — Migrate any remaining plaintext passwords, then remove the fallback code
+- [x] **Apply rate limiting** — Wire up the existing rate limiters to auth, payment, and API routes
+- [x] **Add LICENSE file** — Choose and add a license (recommend AGPL-3.0)
+- [x] **Create `.env.example`** — Document all required and optional environment variables with placeholder values
+- [x] **Remove internal file paths** — Clean up `docs/production-migration.md` and other docs that reference `C:\Users\Maxi\...`
+- [x] **Move system Steam ID to env var** — Replace hardcoded `76561199005229176` with `SYSTEM_USER_STEAM_ID`
 
 ### Phase 2: Should-Do Before Open-Sourcing (Important)
 
-- [ ] **Add CONTRIBUTING.md** — Setup instructions, code style, PR process, code of conduct
-- [ ] **Add GitHub issue/PR templates** — Bug report, feature request, PR template
-- [ ] **Call `validateEnvironment()` at startup** — Fail fast with clear errors
-- [ ] **Add basic CI pipeline** — GitHub Actions for `bun run check` on PRs
-- [ ] **Remove console.log of Discord redirect URI** — In `discord.ts`
-- [ ] **Unify env var naming** — R2 vs S3 variable name inconsistency
+- [x] **Add CONTRIBUTING.md** — Setup instructions, code style, PR process, code of conduct
+- [x] **Add GitHub issue/PR templates** — Bug report, feature request, PR template
+- [x] **Call `validateEnvironment()` at startup** — Fail fast with clear errors
+- [x] **Add basic CI pipeline** — GitHub Actions for `bun run check` on PRs
+- [x] **Remove console.log of Discord redirect URI** — In `discord.ts`
+- [x] **Unify env var naming** — R2 vs S3 variable name inconsistency
 - [ ] **Clean up `any` types in critical paths** — At minimum, admin and auth routes
 
 ### Phase 3: Nice-to-Have (Post-Launch)

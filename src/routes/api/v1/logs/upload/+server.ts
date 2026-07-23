@@ -1,12 +1,13 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { requireApiKey } from '$lib/server/auth/apiKey';
+import { requireRateLimitedApiKey } from '$lib/server/auth/apiKey';
 import { uploadMatchLog, getLogPublicUrl, ParseError } from '$lib/server/services/matchLogs';
 
 const MAX_BODY_BYTES = 600 * 1024;
 
 export const POST: RequestHandler = async ({ request }) => {
-  await requireApiKey(request);
+  const auth = await requireRateLimitedApiKey(request);
+  if (auth instanceof Response) return auth;
 
   let body: { matchid?: unknown; log?: unknown; hostname?: unknown };
 

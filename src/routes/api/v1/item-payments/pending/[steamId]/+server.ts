@@ -1,10 +1,11 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { requireApiKey } from '$lib/server/auth/apiKey';
+import { requireRateLimitedApiKey } from '$lib/server/auth/apiKey';
 import { getPendingOrderBySteamId, expireOverdueOrders } from '$lib/server/services/item-payments';
 
 export const GET: RequestHandler = async ({ params, request }) => {
-  await requireApiKey(request);
+  const auth = await requireRateLimitedApiKey(request);
+  if (auth instanceof Response) return auth;
 
   const { steamId } = params;
 

@@ -146,8 +146,7 @@ export const passwordRateLimiter = new RateLimiter({
 
 /**
  * Rate limiter for general API requests
- * 100 requests per minute per IP
- * @lintignore not yet wired to a route; reserved for a future blanket API pass
+ * 100 requests per minute per API key (or IP for non-key callers)
  */
 export const apiRateLimiter = new RateLimiter({
   maxRequests: 100,
@@ -157,10 +156,18 @@ export const apiRateLimiter = new RateLimiter({
 /**
  * Rate limiter for admin actions
  * 30 actions per minute per user
- * @lintignore not yet wired to a route; reserved for a future admin-routes pass
  */
 export const adminRateLimiter = new RateLimiter({
   maxRequests: 30,
+  windowMs: 60 * 1000, // 1 minute
+});
+
+/**
+ * Rate limiter for public map zip downloads
+ * 10 downloads per minute per IP (endpoint is expensive)
+ */
+export const mapDownloadRateLimiter = new RateLimiter({
+  maxRequests: 10,
   windowMs: 60 * 1000, // 1 minute
 });
 

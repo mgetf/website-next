@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit';
 import archiver from 'archiver';
 import { Readable } from 'stream';
 import { getMapFilesByIds } from '$lib/server/services/mapFiles';
+import { mapDownloadRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
 
 type FileEntry = { type: 'bsp' | 'cfg'; name: string; buffer: Buffer };
 
@@ -12,7 +13,10 @@ interface MapRequest {
   cfg: boolean;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+  const { allowed, response } = checkRateLimit(mapDownloadRateLimiter, getClientAddress());
+  if (!allowed) return response!;
+
   let body: { maps?: unknown };
 
   try {

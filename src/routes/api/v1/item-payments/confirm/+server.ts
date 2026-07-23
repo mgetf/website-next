@@ -1,11 +1,12 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { requireApiKey } from '$lib/server/auth/apiKey';
+import { requireRateLimitedApiKey } from '$lib/server/auth/apiKey';
 import { confirmItemPayment } from '$lib/server/services/item-payments';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 export const POST: RequestHandler = async ({ request }) => {
-  await requireApiKey(request);
+  const auth = await requireRateLimitedApiKey(request);
+  if (auth instanceof Response) return auth;
 
   let body: {
     orderNumber: string;

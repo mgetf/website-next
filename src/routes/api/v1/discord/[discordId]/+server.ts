@@ -12,11 +12,12 @@
 
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { requireApiKey } from '$lib/server/auth/apiKey';
+import { requireRateLimitedApiKey } from '$lib/server/auth/apiKey';
 import { getUserByDiscordId } from '$lib/server/services/users';
 
 export const GET: RequestHandler = async ({ params, request }) => {
-  await requireApiKey(request);
+  const auth = await requireRateLimitedApiKey(request);
+  if (auth instanceof Response) return auth;
 
   const { discordId } = params;
 

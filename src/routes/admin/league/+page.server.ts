@@ -28,6 +28,7 @@ import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/se
 import {
   uploadToR2,
   validateUploadedFile,
+  extensionForImageMime,
   saveTempFile,
   deleteTempFile,
 } from '$lib/server/utils/r2Upload';
@@ -476,6 +477,16 @@ export const actions: Actions = {
 
     try {
       const division = await toggleDivisionVisibility(divisionId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_TOGGLED,
+        targetType: 'Division',
+        targetId: String(divisionId),
+        metadata: { hidden: division.hidden },
+        ipAddress: getClientAddress(),
+      });
       return {
         success: true,
         message: `Division ${division.hidden === 0 ? 'shown' : 'hidden'} successfully!`,
@@ -508,7 +519,7 @@ export const actions: Actions = {
         const tempPath = await saveTempFile(avatarFile);
 
         try {
-          const fileExtension = avatarFile.name.substring(avatarFile.name.lastIndexOf('.'));
+          const fileExtension = extensionForImageMime(avatarFile.type);
           const remotePath = `arena-avatars/${Date.now()}${fileExtension}`;
           const uploadedUrl = await uploadToR2(tempPath, remotePath);
 
@@ -557,7 +568,7 @@ export const actions: Actions = {
         const tempPath = await saveTempFile(avatarFile);
 
         try {
-          const fileExtension = avatarFile.name.substring(avatarFile.name.lastIndexOf('.'));
+          const fileExtension = extensionForImageMime(avatarFile.type);
           const remotePath = `arena-avatars/${Date.now()}${fileExtension}`;
           const uploadedUrl = await uploadToR2(tempPath, remotePath);
 
@@ -645,7 +656,7 @@ export const actions: Actions = {
     }
   },
 
-  updateMapBanPool: async ({ request, locals }) => {
+  updateMapBanPool: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -655,6 +666,16 @@ export const actions: Actions = {
 
     try {
       await updateMapBanPool(poolId, name);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MAP_BAN,
+        action: AuditAction.MAP_POOL_UPDATED,
+        targetType: 'MapBanPool',
+        targetId: String(poolId),
+        metadata: { name },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Map ban pool updated successfully!' };
     } catch (error) {
       console.error('Error updating map ban pool:', error);
@@ -664,7 +685,7 @@ export const actions: Actions = {
     }
   },
 
-  toggleMapBanPoolStatus: async ({ request, locals }) => {
+  toggleMapBanPoolStatus: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -674,6 +695,16 @@ export const actions: Actions = {
 
     try {
       const pool = await toggleMapBanPoolStatus(poolId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MAP_BAN,
+        action: AuditAction.MAP_POOL_UPDATED,
+        targetType: 'MapBanPool',
+        targetId: String(poolId),
+        metadata: { isActive: pool.isActive },
+        ipAddress: getClientAddress(),
+      });
       return {
         success: true,
         message: `Pool ${pool.isActive ? 'activated' : 'deactivated'} successfully!`,
@@ -686,7 +717,7 @@ export const actions: Actions = {
     }
   },
 
-  addMapsToPool: async ({ request, locals }) => {
+  addMapsToPool: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -696,6 +727,16 @@ export const actions: Actions = {
 
     try {
       await addMapsToPool(poolId, arenaIds);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MAP_BAN,
+        action: AuditAction.MAP_POOL_UPDATED,
+        targetType: 'MapBanPool',
+        targetId: String(poolId),
+        metadata: { addedArenaIds: arenaIds },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Maps added to pool successfully!' };
     } catch (error) {
       console.error('Error adding maps to pool:', error);
@@ -705,7 +746,7 @@ export const actions: Actions = {
     }
   },
 
-  removeMapFromPool: async ({ request, locals }) => {
+  removeMapFromPool: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -715,6 +756,16 @@ export const actions: Actions = {
 
     try {
       await removeMapFromPool(poolId, arenaId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.MAP_BAN,
+        action: AuditAction.MAP_POOL_UPDATED,
+        targetType: 'MapBanPool',
+        targetId: String(poolId),
+        metadata: { removedArenaId: arenaId },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Map removed from pool successfully!' };
     } catch (error) {
       console.error('Error removing map from pool:', error);

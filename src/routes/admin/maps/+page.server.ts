@@ -126,7 +126,7 @@ export const actions: Actions = {
     }
   },
 
-  updateDescription: async ({ request, locals }) => {
+  updateDescription: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
@@ -137,6 +137,16 @@ export const actions: Actions = {
 
     try {
       await updateMapFileDescription(mapId, description || null);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.MAP_FILE_UPDATED,
+        targetType: 'MapFile',
+        targetId: String(mapId),
+        metadata: { description: description || null },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Description updated' };
     } catch (err) {
       console.error('Error updating map description:', err);

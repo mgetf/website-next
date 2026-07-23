@@ -295,7 +295,7 @@ export const actions: Actions = {
   },
 
   // Per-season toggle actions
-  toggleSeasonSignups: async ({ request, locals }) => {
+  toggleSeasonSignups: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
@@ -306,6 +306,16 @@ export const actions: Actions = {
 
     try {
       await toggleSeasonSignupsOpen(seasonId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.SEASON_UPDATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { field: 'signupsOpen' },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Season signups status updated' };
     } catch (error) {
       console.error('Error toggling season signups:', error);
@@ -313,7 +323,7 @@ export const actions: Actions = {
     }
   },
 
-  toggleSeasonRoster: async ({ request, locals }) => {
+  toggleSeasonRoster: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
@@ -324,6 +334,16 @@ export const actions: Actions = {
 
     try {
       await toggleSeasonRosterLocked(seasonId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.SEASON_UPDATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { field: 'rosterLocked' },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Season roster lock status updated' };
     } catch (error) {
       console.error('Error toggling season roster lock:', error);
@@ -331,7 +351,7 @@ export const actions: Actions = {
     }
   },
 
-  toggleSeasonPayment: async ({ request, locals }) => {
+  toggleSeasonPayment: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
@@ -342,6 +362,16 @@ export const actions: Actions = {
 
     try {
       await toggleSeasonPaymentRequired(seasonId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.SEASON_UPDATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { field: 'paymentRequired' },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Season payment requirement updated' };
     } catch (error) {
       console.error('Error toggling season payment requirement:', error);
@@ -351,7 +381,7 @@ export const actions: Actions = {
     }
   },
 
-  updateSeasonMatchSettings: async ({ request, locals }) => {
+  updateSeasonMatchSettings: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
@@ -369,6 +399,16 @@ export const actions: Actions = {
 
     try {
       await updateSeasonSettings(seasonId, { matchWeek, matchDeadline });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.SEASON_UPDATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { matchWeek, matchDeadline: matchDeadline?.toISOString() ?? null },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Season match settings updated' };
     } catch (error) {
       console.error('Error updating season match settings:', error);

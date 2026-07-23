@@ -311,7 +311,7 @@ export const actions: Actions = {
     }
   },
 
-  updateStatus: async ({ request, params, locals }) => {
+  updateStatus: async ({ request, params, locals, getClientAddress }) => {
     if (!locals.user) {
       return fail(401, { error: 'You must be logged in' });
     }
@@ -330,6 +330,16 @@ export const actions: Actions = {
 
     try {
       await adminSetTeamStatus(teamId, status as any);
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_STATUS_CHANGED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { status },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Team status updated successfully' };
     } catch (err) {
       return fail('status' in (err as any) ? (err as any).status : 500, {

@@ -7,7 +7,7 @@ type PrismaLikeError = {
   stack?: string;
 };
 
-function isPrismaLikeError(value: unknown): value is PrismaLikeError {
+export function isPrismaLikeError(value: unknown): value is PrismaLikeError {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as PrismaLikeError;
   return (

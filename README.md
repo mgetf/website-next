@@ -65,12 +65,18 @@ CLOUDFLARE_PUBLIC_URL=""
 POSTHOG_API_KEY=""
 POSTHOG_HOST="https://us.i.posthog.com"
 
+# Public site origin (optional — used for PayPal return URLs, etc.)
+PUBLIC_URL="http://localhost:5173"
+
 # Session & JWT secrets (required — use 32+ random characters)
 JWT_SECRET="change-me-to-a-random-64-hex-string"
 SESSION_SECRET="generate-a-random-32-char-string"
 
 # Game server panel base URL (optional — defaults to https://panel.mge.tf)
 MGE_PANEL_URL="https://panel.mge.tf"
+
+# MGE platform API base URL (optional — player ratings / leaderboard)
+MGE_PLATFORM_URL=""
 ```
 
 ### 3. Set up the database

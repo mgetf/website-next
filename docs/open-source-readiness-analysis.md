@@ -360,7 +360,7 @@ However, open-source contributions don't happen automatically. Active community 
 - [x] **Add basic CI pipeline** — GitHub Actions for `bun run check` on PRs
 - [x] **Remove console.log of Discord redirect URI** — In `discord.ts`
 - [x] **Unify env var naming** — R2 vs S3 variable name inconsistency
-- [ ] **Clean up `any` types in critical paths** — At minimum, admin and auth routes
+- [x] **Clean up `any` types in critical paths** — At minimum, admin and auth routes
 
 ### Phase 3: Nice-to-Have (Post-Launch)
 

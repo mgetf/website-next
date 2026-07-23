@@ -5,6 +5,7 @@
  */
 
 import type { Handle, HandleServerError } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { getSession, setSession, clearSession } from '$lib/server/session';
 import { dev } from '$app/environment';
 import { isStaging, isUngatedRoute, getAppEnvironment } from '$lib/server/utils/environment';
@@ -18,6 +19,7 @@ import {
 } from '$lib/server/auth/sessionCache';
 import { BanStatus, UserRole } from '$lib/types/user';
 import { logPrismaError } from '$lib/server/utils/prisma-errors';
+import { adminRateLimiter } from '$lib/server/utils/rateLimit';
 
 validateEnvironment();
 
@@ -64,6 +66,36 @@ export const handle: Handle = async ({ event, resolve }) => {
       // Return early with a minimal response that will be handled by the layout
       // The layout will show the DevGate component
       event.locals.devGated = true;
+    }
+  }
+
+  // Rate-limit admin form mutations (POST to /admin/*) per authenticated user.
+  // Covers every admin action without wiring each handler individually.
+  if (event.request.method === 'POST' && event.url.pathname.startsWith('/admin') && user) {
+    const limit = adminRateLimiter.check(user.steamId);
+    if (!limit.allowed) {
+      const message = 'Too many attempts. Please try again later.';
+      const isFormAction = event.url.search.startsWith('?/');
+
+      if (isFormAction) {
+        // Match SvelteKit fail() shape so use:enhance handlers see type: 'failure'
+        return new Response(
+          JSON.stringify({
+            type: 'failure',
+            status: 429,
+            data: { error: message },
+          }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'Retry-After': String(Math.ceil(limit.resetIn / 1000)),
+            },
+          },
+        );
+      }
+
+      error(429, message);
     }
   }
 

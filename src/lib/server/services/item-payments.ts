@@ -84,10 +84,24 @@ export async function createItemPaymentOrder(
   }
 
   const targets = paidForSteamIds.length > 0 ? paidForSteamIds : [steamId];
+  const uniqueTargets = [...new Set(targets)];
+
+  const rosterMembers = await prisma.playerInTeam.findMany({
+    where: {
+      teamId,
+      active: 1,
+      playerSteamId: { in: uniqueTargets },
+    },
+    select: { playerSteamId: true },
+  });
+
+  if (rosterMembers.length !== uniqueTargets.length) {
+    badRequest('One or more selected players are not active members of this team');
+  }
 
   const { steamItem } = division.itemPayment;
   const itemQuantityPerPlayer = division.itemPayment.itemQuantity;
-  const totalItemsRequired = itemQuantityPerPlayer * targets.length;
+  const totalItemsRequired = itemQuantityPerPlayer * uniqueTargets.length;
   const expiresAt = new Date(Date.now() + ITEM_ORDER_EXPIRY_MS);
 
   const order = await prisma.$transaction(async (tx) => {
@@ -101,7 +115,7 @@ export async function createItemPaymentOrder(
         itemAppId: steamItem.appId,
         itemMarketHashName: steamItem.marketHashName,
         itemsRequired: totalItemsRequired,
-        paidForSteamIds: targets,
+        paidForSteamIds: uniqueTargets,
         expiresAt,
       },
     });
@@ -204,11 +218,43 @@ export async function createMultiTeamItemOrder(steamId: string, teams: CheckoutT
     badRequest('You already have a pending item payment order');
   }
 
+  const allPaidForIds = [
+    ...new Set(
+      teams.flatMap((t) => (t.paidForSteamIds.length > 0 ? t.paidForSteamIds : [steamId])),
+    ),
+  ];
+
+  const rosterAcrossTeams = await prisma.playerInTeam.findMany({
+    where: {
+      teamId: { in: teams.map((t) => t.teamId) },
+      active: 1,
+      playerSteamId: { in: allPaidForIds },
+    },
+    select: { teamId: true, playerSteamId: true },
+  });
+
+  const rosterByTeam = new Map<number, Set<string>>();
+  for (const row of rosterAcrossTeams) {
+    const set = rosterByTeam.get(row.teamId) ?? new Set<string>();
+    set.add(row.playerSteamId);
+    rosterByTeam.set(row.teamId, set);
+  }
+
+  for (const teamSel of teams) {
+    const targets =
+      teamSel.paidForSteamIds.length > 0 ? [...new Set(teamSel.paidForSteamIds)] : [steamId];
+    const roster = rosterByTeam.get(teamSel.teamId) ?? new Set();
+    if (targets.some((id) => !roster.has(id))) {
+      badRequest('One or more selected players are not active members of the selected team(s)');
+    }
+  }
+
   let totalItemsRequired = 0;
   for (const teamSel of teams) {
     const record = teamRecords.find((r) => r.teamId === teamSel.teamId)!;
     const itemQuantity = record.team.division!.itemPayment!.itemQuantity;
-    const targets = teamSel.paidForSteamIds.length > 0 ? teamSel.paidForSteamIds : [steamId];
+    const targets =
+      teamSel.paidForSteamIds.length > 0 ? [...new Set(teamSel.paidForSteamIds)] : [steamId];
     totalItemsRequired += itemQuantity * targets.length;
   }
 
@@ -216,9 +262,12 @@ export async function createMultiTeamItemOrder(steamId: string, teams: CheckoutT
   const checkoutTeamsJson = JSON.stringify(
     teams.map((t) => ({
       teamId: t.teamId,
-      paidForSteamIds: t.paidForSteamIds.length > 0 ? t.paidForSteamIds : [steamId],
+      paidForSteamIds: t.paidForSteamIds.length > 0 ? [...new Set(t.paidForSteamIds)] : [steamId],
     })),
   );
+
+  const firstTargets =
+    firstTeam.paidForSteamIds.length > 0 ? [...new Set(firstTeam.paidForSteamIds)] : [steamId];
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.itemPaymentOrder.create({
@@ -231,8 +280,7 @@ export async function createMultiTeamItemOrder(steamId: string, teams: CheckoutT
         itemAppId: referenceItem.appId,
         itemMarketHashName: referenceItem.marketHashName,
         itemsRequired: totalItemsRequired,
-        paidForSteamIds:
-          firstTeam.paidForSteamIds.length > 0 ? firstTeam.paidForSteamIds : [steamId],
+        paidForSteamIds: firstTargets,
         checkoutTeams: checkoutTeamsJson,
         expiresAt,
       },

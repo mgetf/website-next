@@ -179,19 +179,7 @@ export const actions: Actions = {
         let weekLabel = null;
         let existingCount = 0;
 
-        console.log('Week label calculation check:', {
-          weekNo,
-          isPlayoff,
-          shouldCalculate: weekNo && !isPlayoff,
-        });
-
         if (weekNo && !isPlayoff) {
-          console.log('Calculating week label for:', {
-            regionId,
-            divisionId,
-            seasonId,
-            weekNo,
-          });
           const weekLabelData = await calculateWeekLabelService(
             regionId,
             divisionId,
@@ -200,7 +188,6 @@ export const actions: Actions = {
           );
           weekLabel = weekLabelData.weekLabel;
           existingCount = weekLabelData.existingCount;
-          console.log('Week label calculated:', { weekLabel, existingCount });
         }
 
         return {
@@ -246,20 +233,6 @@ export const actions: Actions = {
       awayTeamIds,
     } = validation.data;
 
-    console.log('Create match set params:', {
-      regionId,
-      divisionId,
-      seasonId,
-      weekNo,
-      boSeries,
-      arenaId,
-      matchDateTime,
-      mapBanPoolId,
-      isPlayoff,
-      playoffRound,
-      boGames,
-    });
-
     // Additional validation for playoff matches
     if (isPlayoff) {
       if (!playoffRound) {
@@ -302,17 +275,6 @@ export const actions: Actions = {
           });
         }
 
-        console.log('Creating playoff matches with params:', {
-          regionId,
-          divisionId,
-          seasonId,
-          seasonNo: season.seasonNum,
-          playoffRound,
-          boSeries,
-          boGames,
-          mapBanPoolId,
-        });
-
         if (homeTeamIds.length === 0 || awayTeamIds.length === 0) {
           return fail(400, {
             error: 'Please select teams for all playoff matchups',
@@ -351,20 +313,7 @@ export const actions: Actions = {
         }
 
         matches = createdMatches;
-        console.log('Successfully created playoff matches:', matches.length);
       } else {
-        console.log('Creating regular season matches with params:', {
-          regionId,
-          divisionId,
-          seasonId,
-          seasonNo: season.seasonNum,
-          weekNo,
-          boSeries,
-          arenaId,
-          matchDateTime,
-          mapBanPoolId,
-        });
-
         const result = await createMatchSet(regionId, divisionId, {
           seasonId,
           seasonNo: season.seasonNum,
@@ -382,13 +331,6 @@ export const actions: Actions = {
 
         matches = result.matches;
         byeTeamIds = result.byeTeams.map((t) => t.id);
-
-        console.log(
-          'Successfully created regular season matches:',
-          matches.length,
-          'bye teams:',
-          byeTeamIds,
-        );
       }
 
       await logAudit({

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { enhance } from '$app/forms';
+  import { enhance, type SubmitFunction } from '$app/forms';
   import { dndzone } from 'svelte-dnd-action';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
@@ -46,7 +46,7 @@
 
   let dndItems = $state<DndTeam[]>([]);
   let originalDndItems: DndTeam[] = [];
-  let playoffMatchups = $state<any[]>([]);
+  let playoffMatchups = $state<unknown[]>([]);
 
   let weekLabel = $state<string | null>(null);
   let existingMatchSetsCount = $state(0);
@@ -118,9 +118,12 @@
     return rounds;
   });
 
-  let previewTeams = $state<any[]>([]);
+  let previewTeams = $state<DndTeam[]>([]);
 
-  function buildDndItems(preview: any): DndTeam[] {
+  function buildDndItems(preview: {
+    matchups?: Array<{ home?: DndTeam; away?: DndTeam }>;
+    byeTeam?: DndTeam | null;
+  }): DndTeam[] {
     const items: DndTeam[] = [];
     for (const matchup of preview.matchups || []) {
       if (matchup.home) items.push(matchup.home);
@@ -130,12 +133,19 @@
     return items;
   }
 
-  const handlePreviewEnhance = () => {
+  const handlePreviewEnhance: SubmitFunction = () => {
     isPreviewing = true;
 
-    return async ({ result, update }: any) => {
+    return async ({ result }) => {
       if (result.type === 'success' && result.data && 'preview' in result.data) {
-        const preview = (result.data as any).preview;
+        const preview = result.data.preview as {
+          teams?: DndTeam[];
+          weekLabel?: string | null;
+          existingCount?: number;
+          isPlayoff?: boolean;
+          matchups?: unknown[];
+          byeTeam?: DndTeam | null;
+        };
         previewTeams = preview.teams || [];
         weekLabel = preview.weekLabel || null;
         existingMatchSetsCount = preview.existingCount || 0;
@@ -149,23 +159,28 @@
           originalDndItems = [...items];
         }
       } else if (result.type === 'failure') {
-        alert(`Error: ${result.data?.error || 'Failed to preview matches'}`);
+        const error =
+          result.data && typeof result.data === 'object' && 'error' in result.data
+            ? String(result.data.error)
+            : 'Failed to preview matches';
+        alert(`Error: ${error}`);
       }
 
       isPreviewing = false;
     };
   };
 
-  const handleCreateEnhance = () => {
+  const handleCreateEnhance: SubmitFunction = () => {
     isCreating = true;
 
-    return async ({ result, update }: any) => {
-      console.log('Create form result:', result);
-
+    return async ({ result, update }) => {
       if (result.type === 'failure') {
-        console.error('Form submission failed:', result);
         isCreating = false;
-        alert(`Error: ${result.data?.error || 'Failed to create matches'}`);
+        const error =
+          result.data && typeof result.data === 'object' && 'error' in result.data
+            ? String(result.data.error)
+            : 'Failed to create matches';
+        alert(`Error: ${error}`);
       }
 
       if (result.type === 'redirect') {

@@ -688,17 +688,11 @@ export const actions: Actions = {
     requireAuth(locals.user);
     const matchId = parseInt(params.id);
 
-    console.log(
-      `[Demo Upload] Starting upload for match ${matchId} by user ${locals.user.steamId}`,
-    );
-
     try {
-      console.log(`[Demo Upload] Parsing form data...`);
       const formData = await request.formData();
       const file = formData.get('file');
 
       if (!(file instanceof File) || file.size === 0) {
-        console.log(`[Demo Upload] Error: No file provided`);
         return fail(400, { error: 'File is required' });
       }
 
@@ -707,13 +701,8 @@ export const actions: Actions = {
 
       const { playerSteamId, description } = fieldValidation.data;
 
-      console.log(
-        `[Demo Upload] File: ${file.name}, Size: ${file.size} bytes, Player: ${playerSteamId}`,
-      );
-
       // Validate file extension
       if (!file.name.toLowerCase().endsWith('.dem')) {
-        console.log(`[Demo Upload] Error: Invalid file type: ${file.name}`);
         return fail(400, {
           error: 'Invalid file type. Only .dem files are allowed.',
         });
@@ -722,7 +711,6 @@ export const actions: Actions = {
       // Validate file size (200MB max)
       const maxSize = 200 * 1024 * 1024;
       if (file.size > maxSize) {
-        console.log(`[Demo Upload] Error: File too large: ${file.size} bytes`);
         return fail(400, { error: 'File too large. Maximum size is 200MB.' });
       }
 
@@ -759,7 +747,6 @@ export const actions: Actions = {
       const arrayBuffer = await file.arrayBuffer();
       await writeFile(tempPath, Buffer.from(arrayBuffer));
 
-      console.log(`[Demo Upload] Uploading to R2 storage...`);
       await uploadDemo({
         file: {
           filepath: tempPath,
@@ -771,8 +758,6 @@ export const actions: Actions = {
         matchId,
         description: description || undefined,
       });
-
-      console.log(`[Demo Upload] Success! Demo uploaded for match ${matchId}`);
 
       await logAudit({
         actorId: locals.user.steamId,

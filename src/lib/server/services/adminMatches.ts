@@ -48,8 +48,6 @@ export async function pairTeamsForMatches(teams: Team[], seasonId: number): Prom
   const sortedTeams = sortTeamsByStandings(teams);
   const finalTeams: Team[] = [];
 
-  console.log(`\n=== Pairing ${sortedTeams.length} teams for matches ===`);
-
   for (let i = 0; i < sortedTeams.length; i++) {
     const currentTeam = sortedTeams[i];
 
@@ -67,7 +65,6 @@ export async function pairTeamsForMatches(teams: Team[], seasonId: number): Prom
         playedAll++;
 
         if (playedAll > 100) {
-          console.log(`Team ${currentTeam.name} has played everyone multiple times`);
           break;
         }
         continue;
@@ -107,7 +104,6 @@ export async function pairTeamsForMatches(teams: Team[], seasonId: number): Prom
     }
   }
 
-  console.log(`\n=== Paired ${finalTeams.length / 2} matches ===`);
   return finalTeams;
 }
 
@@ -500,8 +496,6 @@ export async function calculateWeekLabel(
     orderBy: { id: 'asc' },
   });
 
-  console.log('Found existing matches:', existingMatches.length);
-
   // Group matches into sets by checking for gaps in IDs
   // Matches created together have sequential IDs
   let matchSetCount = 0;
@@ -524,8 +518,6 @@ export async function calculateWeekLabel(
     const suffixChar = String.fromCharCode('a'.charCodeAt(0) + matchSetCount);
     weekLabel = `${weekNo}${suffixChar}`;
   }
-
-  console.log('Week label:', weekLabel, 'Match sets:', matchSetCount);
 
   return { weekLabel, existingCount: matchSetCount };
 }

@@ -1,13 +1,17 @@
 import { redirect, error, type RequestHandler } from '@sveltejs/kit';
 import {
-  handleDiscordCallback,
+  exchangeDiscordCode,
+  verifyDiscordOAuthState,
   formatDiscordUsername,
   getDiscordAvatarUrl,
 } from '$lib/server/auth/discord';
+import { requireAuth } from '$lib/server/auth/permissions';
 import { linkDiscordAccount } from '$lib/server/services/users';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
-export const GET: RequestHandler = async ({ url, request, getClientAddress }) => {
+export const GET: RequestHandler = async ({ url, request, cookies, locals, getClientAddress }) => {
+  requireAuth(locals.user);
+
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
 
@@ -25,7 +29,8 @@ export const GET: RequestHandler = async ({ url, request, getClientAddress }) =>
   let steamId: string;
 
   try {
-    ({ user: discordUser, steamId } = await handleDiscordCallback(code, state, request));
+    ({ steamId } = verifyDiscordOAuthState(state, cookies, locals.user.steamId));
+    discordUser = await exchangeDiscordCode(code, request);
   } catch (err) {
     console.error('[Discord OAuth] Callback failed:', err);
     redirect(302, '/?error=discord_link_failed');

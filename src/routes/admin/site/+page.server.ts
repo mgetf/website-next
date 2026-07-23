@@ -25,6 +25,7 @@ import {
   saveTempFile,
   deleteTempFile,
   validateUploadedFile,
+  extensionForImageMime,
   isR2Available,
 } from '$lib/server/utils/r2Upload';
 import { fail } from '@sveltejs/kit';
@@ -257,7 +258,7 @@ export const actions: Actions = {
         }
 
         tempPath = await saveTempFile(file);
-        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const ext = extensionForImageMime(file.type).replace(/^\./, '');
         const remotePath = `site/background-${Date.now()}.${ext}`;
         const publicUrl = await uploadToR2(tempPath, remotePath);
 
@@ -423,7 +424,7 @@ export const actions: Actions = {
       tempPath = await saveTempFile(file);
 
       // Upload to R2
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const ext = extensionForImageMime(file.type).replace(/^\./, '');
       const remotePath = `site/favicon-${Date.now()}.${ext}`;
       const publicUrl = await uploadToR2(tempPath, remotePath);
 

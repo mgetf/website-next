@@ -256,6 +256,21 @@ export function validateUploadedFile(
   }
 }
 
+const IMAGE_MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+};
+
+/**
+ * Derive a safe file extension from the validated MIME type.
+ * Never trust client-supplied filenames for storage keys.
+ */
+export function extensionForImageMime(mimeType: string): string {
+  return IMAGE_MIME_TO_EXT[mimeType] ?? '.jpg';
+}
+
 /**
  * Save uploaded file temporarily
  * @param file - File from form data

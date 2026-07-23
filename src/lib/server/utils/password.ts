@@ -17,45 +17,86 @@ const scryptAsync = promisify(crypto.scrypt) as (
 // Configuration
 const SALT_LENGTH = 32;
 const KEY_LENGTH = 64;
+
+/** Current hashing cost (2^15). Stored in the hash so params can change over time. */
 const SCRYPT_PARAMS = {
-  N: 16384, // CPU/memory cost parameter (2^14)
-  r: 8, // Block size
-  p: 1, // Parallelization parameter
+  N: 32768,
+  r: 8,
+  p: 1,
 };
 
+/** Legacy salt:hash values were produced with N=16384 before params were embedded. */
+const LEGACY_SCRYPT_PARAMS = {
+  N: 16384,
+  r: 8,
+  p: 1,
+};
+
+type ScryptParams = { N: number; r: number; p: number };
+
 /**
- * Hash a password using scrypt
- * Returns a string in format: salt:hash
+ * Hash a password using scrypt.
+ * Returns: scrypt$N$r$p$salt$hash (base64 salt/hash)
  */
 export async function hashPassword(password: string): Promise<string> {
-  // Generate a random salt
   const salt = crypto.randomBytes(SALT_LENGTH);
-
-  // Hash the password with the salt
   const hash = (await scryptAsync(password, salt, KEY_LENGTH, SCRYPT_PARAMS)) as Buffer;
 
-  // Return salt and hash as base64 strings, separated by colon
-  return `${salt.toString('base64')}:${hash.toString('base64')}`;
+  return `scrypt$${SCRYPT_PARAMS.N}$${SCRYPT_PARAMS.r}$${SCRYPT_PARAMS.p}$${salt.toString('base64')}$${hash.toString('base64')}`;
 }
 
-/**
- * Check whether a stored value is in the `salt:hash` format produced by
- * hashPassword(), as opposed to a legacy plaintext value.
- */
-export function isHashedPassword(storedValue: string): boolean {
+function parseLegacyHash(
+  storedValue: string,
+): { salt: Buffer; hash: Buffer; params: ScryptParams } | null {
   const parts = storedValue.split(':');
-  if (parts.length !== 2) return false;
+  if (parts.length !== 2) return null;
 
   const [saltBase64, hashBase64] = parts;
-  if (!saltBase64 || !hashBase64) return false;
+  if (!saltBase64 || !hashBase64) return null;
 
   try {
     const salt = Buffer.from(saltBase64, 'base64');
     const hash = Buffer.from(hashBase64, 'base64');
-    return salt.length === SALT_LENGTH && hash.length === KEY_LENGTH;
+    if (salt.length !== SALT_LENGTH || hash.length !== KEY_LENGTH) return null;
+    return { salt, hash, params: LEGACY_SCRYPT_PARAMS };
   } catch {
-    return false;
+    return null;
   }
+}
+
+function parseVersionedHash(
+  storedValue: string,
+): { salt: Buffer; hash: Buffer; params: ScryptParams } | null {
+  const parts = storedValue.split('$');
+  if (parts.length !== 6 || parts[0] !== 'scrypt') return null;
+
+  const N = Number(parts[1]);
+  const r = Number(parts[2]);
+  const p = Number(parts[3]);
+  const saltBase64 = parts[4];
+  const hashBase64 = parts[5];
+
+  if (!Number.isInteger(N) || !Number.isInteger(r) || !Number.isInteger(p)) return null;
+  if (N < 2 || (N & (N - 1)) !== 0) return null;
+  if (!saltBase64 || !hashBase64) return null;
+
+  try {
+    const salt = Buffer.from(saltBase64, 'base64');
+    const hash = Buffer.from(hashBase64, 'base64');
+    if (salt.length !== SALT_LENGTH || hash.length !== KEY_LENGTH) return null;
+    return { salt, hash, params: { N, r, p } };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check whether a stored value is a recognized scrypt hash (versioned or legacy),
+ * as opposed to a legacy plaintext value.
+ * @lintignore used by scripts/migrate-plaintext-join-passwords.ts
+ */
+export function isHashedPassword(storedValue: string): boolean {
+  return parseVersionedHash(storedValue) !== null || parseLegacyHash(storedValue) !== null;
 }
 
 /**
@@ -64,22 +105,15 @@ export function isHashedPassword(storedValue: string): boolean {
  */
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   try {
-    if (!isHashedPassword(storedHash)) {
-      // Not a recognized salt:hash value. Legacy plaintext passwords must be
-      // migrated via scripts/migrate-plaintext-join-passwords.ts before this
-      // check is reached in production.
+    const parsed = parseVersionedHash(storedHash) ?? parseLegacyHash(storedHash);
+    if (!parsed) {
+      // Not a recognized hash. Legacy plaintext passwords must be migrated via
+      // scripts/migrate-plaintext-join-passwords.ts before this check is reached.
       return false;
     }
 
-    const [saltBase64, hashBase64] = storedHash.split(':');
-    const salt = Buffer.from(saltBase64, 'base64');
-    const storedHashBuffer = Buffer.from(hashBase64, 'base64');
-
-    // Hash the provided password with the same salt
-    const hash = (await scryptAsync(password, salt, KEY_LENGTH, SCRYPT_PARAMS)) as Buffer;
-
-    // Use timing-safe comparison to prevent timing attacks
-    return crypto.timingSafeEqual(hash, storedHashBuffer);
+    const hash = (await scryptAsync(password, parsed.salt, KEY_LENGTH, parsed.params)) as Buffer;
+    return crypto.timingSafeEqual(hash, parsed.hash);
   } catch {
     return false;
   }

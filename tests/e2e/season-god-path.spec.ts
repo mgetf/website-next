@@ -375,7 +375,7 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
 
   // --- 1v1 lifecycle ---
   await solo1v1.page.goto('/signup/1v1');
-  await expect(solo1v1.page.getByRole('heading', { name: /1v1/i })).toBeVisible();
+  await expect(solo1v1.page.getByRole('heading', { name: '1v1 League Signup' })).toBeVisible();
   await solo1v1.page.locator('#regionId').selectOption(String(league.regionId));
   await expect(solo1v1.page.locator('#divisionId option').filter({ hasText: 'Invite' })).toHaveCount(
     1,

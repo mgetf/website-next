@@ -7,9 +7,12 @@ import type { Cookies } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import crypto from 'crypto';
 import { getSessionSecret } from '$lib/server/utils/env';
+import { sanitizeRedirectUrl } from '$lib/server/utils/redirect';
 // Import shared types that work on both client and server
 export type { SessionUser } from '$lib/types/user';
 import type { SessionUser } from '$lib/types/user';
+
+export { sanitizeRedirectUrl };
 
 const SESSION_COOKIE_NAME = 'mge_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -118,35 +121,6 @@ export function clearSession(cookies: Cookies): void {
   cookies.delete(SESSION_COOKIE_NAME, {
     path: '/',
   });
-}
-
-/**
- * Restrict post-login redirects to same-origin relative paths.
- * Rejects absolute URLs, protocol-relative URLs, backslash tricks, and
- * embedded control characters that could be used for an open redirect.
- * Falls back to '/' for anything that doesn't look like a safe relative path.
- */
-export function sanitizeRedirectUrl(raw: string | null | undefined): string {
-  if (!raw) return '/';
-
-  // Reject control characters (including newlines, which can smuggle headers)
-  if (/[\x00-\x1f]/.test(raw)) return '/';
-
-  // Must start with a single '/' and not be protocol-relative ('//...')
-  // or use a backslash to trick browsers into treating it as protocol-relative.
-  if (!raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) {
-    return '/';
-  }
-
-  // Belt-and-suspenders: reject if it parses as an absolute URL with a different origin.
-  try {
-    const parsed = new URL(raw, 'https://mge.tf');
-    if (parsed.origin !== 'https://mge.tf') return '/';
-  } catch {
-    return '/';
-  }
-
-  return raw;
 }
 
 /**

@@ -38,12 +38,14 @@ bun run format
 bun run check
 bun run boundary-check
 bun run knip
+bun run test
 ```
 
 - `format` — Prettier formatting
 - `check` — TypeScript / Svelte type checking
 - `boundary-check` — enforces the architectural boundaries described below
 - `knip` — flags unused files, dependencies, and exports
+- `test` — Vitest unit tests for pure helpers and critical business logic
 
 ## Architecture Must-Knows
 

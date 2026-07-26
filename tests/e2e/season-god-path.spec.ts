@@ -241,11 +241,12 @@ test('join approve ready, invite third, promote/demote/remove, notifications', a
     homeCaptain.page.getByRole('button', { name: 'Demote' }).first().click(),
   ]);
 
-  const inviteeRow = homeCaptain.page
-    .locator('div')
+  await homeCaptain.page
+    .locator('.bg-surface-input.rounded-lg')
     .filter({ hasText: E2E_USERS.homeInvitee.username })
-    .filter({ has: homeCaptain.page.getByRole('button', { name: 'Remove' }) });
-  await inviteeRow.getByRole('button', { name: 'Remove' }).click();
+    .getByRole('button', { name: 'Remove' })
+    .click();
+  await expect(homeCaptain.page.getByText(/Remove Home Invitee from the team/i)).toBeVisible();
   await Promise.all([
     homeCaptain.page.waitForLoadState('networkidle'),
     homeCaptain.page.getByRole('button', { name: 'Remove', exact: true }).last().click(),

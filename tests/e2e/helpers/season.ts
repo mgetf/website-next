@@ -297,13 +297,15 @@ export async function createPlayoffFinal(params: {
   seasonId: number;
   seasonNum: number;
   playoffId: number;
-  arenaId: number;
+  arenaId?: number | null;
   mapBanPoolId?: number;
   boSeries?: number;
 }): Promise<number> {
   const prisma = createPrisma();
   try {
     const boSeries = params.boSeries ?? 1;
+    // When map bans drive arena assignment, leave game arenas null until picks.
+    const arenaId = params.mapBanPoolId ? null : (params.arenaId ?? null);
     const match = await prisma.match.create({
       data: {
         homeTeamId: params.homeTeamId,
@@ -320,7 +322,7 @@ export async function createPlayoffFinal(params: {
         games: {
           create: Array.from({ length: boSeries }, (_, i) => ({
             gameNum: i + 1,
-            arenaId: params.arenaId,
+            arenaId,
           })),
         },
       },
@@ -331,7 +333,7 @@ export async function createPlayoffFinal(params: {
         data: {
           matchId: match.id,
           poolId: params.mapBanPoolId,
-          currentTurn: 1,
+          currentTurn: 1, // Away bans first
           banPhaseComplete: false,
         },
       });
@@ -351,6 +353,45 @@ export async function getMatchStatus(matchId: number): Promise<string> {
       select: { status: true },
     });
     return match.status;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function getTeamByName(name: string): Promise<{ id: number; status: string }> {
+  const prisma = createPrisma();
+  try {
+    const team = await prisma.team.findFirstOrThrow({
+      where: { name },
+      select: { id: true, status: true },
+    });
+    return team;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function getTeamStatus(teamId: number): Promise<string> {
+  const prisma = createPrisma();
+  try {
+    const team = await prisma.team.findUniqueOrThrow({
+      where: { id: teamId },
+      select: { status: true },
+    });
+    return team.status;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function getMapBanComplete(matchId: number): Promise<boolean> {
+  const prisma = createPrisma();
+  try {
+    const ban = await prisma.matchMapBan.findUnique({
+      where: { matchId },
+      select: { banPhaseComplete: true },
+    });
+    return ban?.banPhaseComplete ?? false;
   } finally {
     await prisma.$disconnect();
   }

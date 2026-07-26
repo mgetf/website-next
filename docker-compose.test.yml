@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: mgetf
+      POSTGRES_PASSWORD: mgetf
+      POSTGRES_DB: mgetf_test
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mgetf -d mgetf_test']
+      interval: 2s
+      timeout: 5s
+      retries: 10

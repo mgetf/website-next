@@ -116,7 +116,9 @@ test.afterAll(async () => {
   await closeAll();
 });
 
-test('seed league, create home team, seed away + paid teams, open sessions', async ({ browser }) => {
+test('seed league, create home team, seed away + paid teams, open sessions', async ({
+  browser,
+}) => {
   test.setTimeout(300_000);
   process.env.DATABASE_URL ??= 'postgresql://mgetf:mgetf@localhost:5432/mgetf_test';
 
@@ -256,7 +258,11 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
     homeDeclined.page.getByRole('button', { name: 'Request to Join' }).click(),
   ]);
   await admin.page.goto('/admin/pending-players');
-  await adminDeclinePendingPlayer(admin.page, E2E_USERS.homeDeclined.username, 'E2E decline reason');
+  await adminDeclinePendingPlayer(
+    admin.page,
+    E2E_USERS.homeDeclined.username,
+    'E2E decline reason',
+  );
   await expect(admin.page.getByText('No pending player requests')).toBeVisible({
     timeout: 15_000,
   });

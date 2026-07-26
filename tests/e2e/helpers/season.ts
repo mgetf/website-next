@@ -339,10 +339,7 @@ export async function seedDemo(params: {
   }
 }
 
-export async function getPlayerPaymentStatus(
-  teamId: number,
-  steamId: string,
-): Promise<number> {
+export async function getPlayerPaymentStatus(teamId: number, steamId: string): Promise<number> {
   const prisma = createPrisma();
   try {
     const row = await prisma.playerInTeam.findUniqueOrThrow({

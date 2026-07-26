@@ -285,7 +285,11 @@ export async function captainRemovePlayer(page: Page, playerName: string): Promi
   await expect(page.getByRole('heading', { name: 'Remove Player' })).toBeVisible();
   await Promise.all([
     page.waitForLoadState('networkidle'),
-    page.locator('button').filter({ hasText: /^Remove$/ }).last().click(),
+    page
+      .locator('button')
+      .filter({ hasText: /^Remove$/ })
+      .last()
+      .click(),
   ]);
 }
 
@@ -329,16 +333,17 @@ export async function cancelPendingInvite(page: Page, username: string): Promise
 
 export async function adminMarkPlayerPaid(page: Page, playerName: string): Promise<void> {
   const row = page
-    .locator('div')
+    .locator('div.flex.items-center.justify-between')
     .filter({ hasText: playerName })
-    .filter({ hasText: 'Mark as Paid' })
-    .first();
+    .filter({ has: page.getByRole('button', { name: 'Mark as Paid' }) });
   await row.getByRole('button', { name: 'Mark as Paid' }).click();
-  await expect(page.getByRole('heading', { name: 'Mark as Paid' })).toBeVisible();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Mark Player as Paid' })).toBeVisible();
   await Promise.all([
     page.waitForLoadState('networkidle'),
-    page.getByRole('button', { name: 'Mark as Paid' }).last().click(),
+    dialog.getByRole('button', { name: 'Mark as Paid' }).click(),
   ]);
+  await expect(dialog).toHaveCount(0, { timeout: 15_000 });
 }
 
 export async function reportDemoOnMatch(page: Page, reason: string): Promise<void> {

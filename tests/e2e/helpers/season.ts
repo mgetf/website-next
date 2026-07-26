@@ -45,11 +45,37 @@ export const E2E_USERS = {
     username: 'Solo OneVOne',
     role: 'GUEST' as const,
   },
+  homeDeclined: {
+    steamId: '76561198000000014',
+    username: 'Home Declined',
+    role: 'GUEST' as const,
+  },
+  homeLinkJoiner: {
+    steamId: '76561198000000015',
+    username: 'Home Link Joiner',
+    role: 'GUEST' as const,
+  },
+  homeInviteDecliner: {
+    steamId: '76561198000000016',
+    username: 'Home Invite Decliner',
+    role: 'GUEST' as const,
+  },
+  paidCaptain: {
+    steamId: '76561198000000041',
+    username: 'Paid Captain',
+    role: 'GUEST' as const,
+  },
+  paidTeammate: {
+    steamId: '76561198000000042',
+    username: 'Paid Teammate',
+    role: 'GUEST' as const,
+  },
 } as const;
 
 export type SeasonSeed = {
   regionId: number;
   divisionId: number;
+  paidDivisionId: number;
   seasonId: number;
   seasonNum: number;
   season1v1Id: number;
@@ -108,6 +134,14 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
       data: {
         name: 'Invite',
         signupCost: 0,
+        regionId: region.id,
+      },
+    });
+
+    const paidDivision = await prisma.division.create({
+      data: {
+        name: 'Paid',
+        signupCost: 10,
         regionId: region.id,
       },
     });
@@ -186,6 +220,7 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
     return {
       regionId: region.id,
       divisionId: division.id,
+      paidDivisionId: paidDivision.id,
       seasonId: season.id,
       seasonNum: season.seasonNum,
       season1v1Id: season1v1.id,
@@ -236,10 +271,14 @@ export async function seedReadyTeam(params: {
   divisionId: number;
   seasonId: number;
   joinPassword?: string;
+  /** 0 = unpaid, 1 = paid, 2 = free/exempt. Defaults to free/exempt. */
+  paymentStatus?: number;
+  status?: 'UNREADY' | 'PENDING' | 'READY';
 }): Promise<number> {
   const prisma = createPrisma();
   try {
     const hashed = await hashPassword(params.joinPassword ?? 'join-pass-123');
+    const paymentStatus = params.paymentStatus ?? 2;
     const team = await prisma.team.create({
       data: {
         name: params.name,
@@ -248,21 +287,21 @@ export async function seedReadyTeam(params: {
         divisionId: params.divisionId,
         seasonId: params.seasonId,
         formatId: FORMAT_2V2,
-        status: 'READY',
-        paymentStatus: 2,
+        status: params.status ?? 'READY',
+        paymentStatus,
         joinPassword: hashed,
         players: {
           create: [
             {
               playerSteamId: params.captainSteamId,
               permissionLevel: 2,
-              paymentStatus: 2,
+              paymentStatus,
               active: 1,
             },
             {
               playerSteamId: params.teammateSteamId,
               permissionLevel: 0,
-              paymentStatus: 2,
+              paymentStatus,
               active: 1,
             },
           ],
@@ -270,6 +309,60 @@ export async function seedReadyTeam(params: {
       },
     });
     return team.id;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+/** Seed a demo record without R2 upload (report/admin triage still exercise UI). */
+export async function seedDemo(params: {
+  matchId: number;
+  playerSteamId: string;
+  submittedBy: string;
+  title?: string;
+}): Promise<number> {
+  const prisma = createPrisma();
+  try {
+    const demo = await prisma.demo.create({
+      data: {
+        file: 'https://example.com/e2e/fake-demo.dem',
+        playerSteamId: params.playerSteamId,
+        submittedBy: params.submittedBy,
+        matchId: params.matchId,
+        title: params.title ?? 'E2E seeded demo',
+        description: 'Seeded for report/admin triage coverage',
+      },
+    });
+    return demo.id;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function getPlayerPaymentStatus(
+  teamId: number,
+  steamId: string,
+): Promise<number> {
+  const prisma = createPrisma();
+  try {
+    const row = await prisma.playerInTeam.findUniqueOrThrow({
+      where: {
+        playerSteamId_teamId: { playerSteamId: steamId, teamId },
+      },
+      select: { paymentStatus: true },
+    });
+    return row.paymentStatus;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function countDemoReports(status?: string): Promise<number> {
+  const prisma = createPrisma();
+  try {
+    return await prisma.demoReport.count({
+      where: status ? { status: status as 'REVIEW' | 'ACTION' | 'CLEAR' } : undefined,
+    });
   } finally {
     await prisma.$disconnect();
   }

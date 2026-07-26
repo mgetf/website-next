@@ -14,6 +14,19 @@ import {
   adminCreatePlayoffMatch,
   adminEditSchedule,
   adminEditArenas,
+  adminDeclinePendingPlayer,
+  captainRemovePlayer,
+  readInviteLink,
+  acceptInviteLink,
+  declineSteamInvitation,
+  cancelPendingInvite,
+  adminMarkPlayerPaid,
+  reportDemoOnMatch,
+  adminResolveDemoReport,
+  adminCreateLeagueRegion,
+  adminCreateLeagueDivision,
+  adminCreateLeagueArena,
+  adminCreateLeagueSeason,
 } from './helpers/auth';
 import {
   E2E_USERS,
@@ -21,6 +34,7 @@ import {
   seedLeagueInfrastructure,
   seedUsers,
   seedReadyTeam,
+  seedDemo,
   getMatchStatus,
   getLatestMatchId,
   getTeamByName,
@@ -30,19 +44,23 @@ import {
   getMatchTeams,
   getUserBanStatus,
   countNotifications,
+  getPlayerPaymentStatus,
+  countDemoReports,
   type SeasonSeed,
 } from './helpers/season';
 
 /**
  * Full-platform 2v2 (+ adjacent) season god path.
  *
- * Covers signup/roster, admin match creation, match ops (comms/reschedule/
- * schedule/arenas/scores/dispute), playoff map bans, standings, notifications,
- * invite/promote/remove, 1v1 signup/ready/withdraw, ban/clear, announcements,
+ * Covers signup/roster (password join, decline, invite link, steam invite
+ * accept/decline/cancel, promote/demote/remove), admin match creation, match
+ * ops (comms/reschedule/schedule/arenas/scores/dispute), demo report triage,
+ * playoff map bans, standings, notifications, paid-division mark-paid, 1v1
+ * signup/ready/withdraw, ban/clear, announcements, admin league CMS creates,
  * and browse-surface smoke — in one serial suite.
  *
  * External/HARD paths (Steam OAuth, Discord, PayPal, R2 uploads) stay out;
- * auth uses /auth/test-login.
+ * auth uses /auth/test-login. Demo upload is seeded (no R2) then reported in UI.
  */
 test.describe.configure({ mode: 'serial' });
 
@@ -51,6 +69,7 @@ type Session = { context: BrowserContext; page: Page };
 let league: SeasonSeed;
 let homeTeamId: number;
 let awayTeamId: number;
+let paidTeamId: number;
 let weekMatchId: number;
 let playoffMatchId: number;
 
@@ -58,6 +77,9 @@ let admin: Session;
 let homeCaptain: Session;
 let homeTeammate: Session;
 let homeInvitee: Session;
+let homeDeclined: Session;
+let homeLinkJoiner: Session;
+let homeInviteDecliner: Session;
 let awayCaptain: Session;
 let awayTeammate: Session;
 let solo1v1: Session;
@@ -65,11 +87,26 @@ let solo1v1: Session;
 const JOIN_PASSWORD = 'join-pass-123';
 const HOME_TEAM_NAME = 'Alpha Force';
 const AWAY_TEAM_NAME = 'Bravo Unit';
+const PAID_TEAM_NAME = 'Charlie Cash';
 const ANNOUNCEMENT = 'E2E announcement: season god path live';
+const UI_REGION = 'E2E UI Region';
+const UI_DIVISION = 'E2E UI Division';
+const UI_ARENA = 'E2E UI Arena';
 
 async function closeAll() {
   await Promise.all(
-    [admin, homeCaptain, homeTeammate, homeInvitee, awayCaptain, awayTeammate, solo1v1]
+    [
+      admin,
+      homeCaptain,
+      homeTeammate,
+      homeInvitee,
+      homeDeclined,
+      homeLinkJoiner,
+      homeInviteDecliner,
+      awayCaptain,
+      awayTeammate,
+      solo1v1,
+    ]
       .filter(Boolean)
       .map((s) => s.context.close()),
   );
@@ -79,7 +116,7 @@ test.afterAll(async () => {
   await closeAll();
 });
 
-test('seed league, create home team, seed away READY, open sessions', async ({ browser }) => {
+test('seed league, create home team, seed away + paid teams, open sessions', async ({ browser }) => {
   test.setTimeout(300_000);
   process.env.DATABASE_URL ??= 'postgresql://mgetf:mgetf@localhost:5432/mgetf_test';
 
@@ -96,6 +133,19 @@ test('seed league, create home team, seed away READY, open sessions', async ({ b
     divisionId: league.divisionId,
     seasonId: league.seasonId,
     joinPassword: JOIN_PASSWORD,
+  });
+
+  paidTeamId = await seedReadyTeam({
+    name: PAID_TEAM_NAME,
+    acronym: 'CHC',
+    captainSteamId: E2E_USERS.paidCaptain.steamId,
+    teammateSteamId: E2E_USERS.paidTeammate.steamId,
+    regionId: league.regionId,
+    divisionId: league.paidDivisionId,
+    seasonId: league.seasonId,
+    joinPassword: JOIN_PASSWORD,
+    paymentStatus: 0,
+    status: 'UNREADY',
   });
 
   admin = await loginAs(browser, {
@@ -116,6 +166,18 @@ test('seed league, create home team, seed away READY, open sessions', async ({ b
   homeInvitee = await loginAs(browser, {
     steamId: E2E_USERS.homeInvitee.steamId,
     username: E2E_USERS.homeInvitee.username,
+  });
+  homeDeclined = await loginAs(browser, {
+    steamId: E2E_USERS.homeDeclined.steamId,
+    username: E2E_USERS.homeDeclined.username,
+  });
+  homeLinkJoiner = await loginAs(browser, {
+    steamId: E2E_USERS.homeLinkJoiner.steamId,
+    username: E2E_USERS.homeLinkJoiner.username,
+  });
+  homeInviteDecliner = await loginAs(browser, {
+    steamId: E2E_USERS.homeInviteDecliner.steamId,
+    username: E2E_USERS.homeInviteDecliner.username,
   });
   awayCaptain = await loginAs(browser, {
     steamId: E2E_USERS.awayCaptain.steamId,
@@ -156,8 +218,8 @@ test('seed league, create home team, seed away READY, open sessions', async ({ b
   expect(created.status).toBe('UNREADY');
 });
 
-test('join approve ready, invite third, promote/demote/remove, notifications', async () => {
-  test.setTimeout(240_000);
+test('join approve ready; decline pending; invite/promote/remove; link join; decline/cancel invite', async () => {
+  test.setTimeout(300_000);
 
   // Password join
   await homeTeammate.page.goto(`/teams/${homeTeamId}/join`);
@@ -171,13 +233,30 @@ test('join approve ready, invite third, promote/demote/remove, notifications', a
     homeTeammate.page.getByRole('button', { name: 'Request to Join' }).click(),
   ]);
 
-  // Admin approves
+  // Admin approves teammate
   await admin.page.goto('/admin/pending-players');
   await expect(admin.page.getByText(E2E_USERS.homeTeammate.username)).toBeVisible();
   await Promise.all([
     admin.page.waitForLoadState('networkidle'),
     admin.page.getByRole('button', { name: '✓ Approve' }).click(),
   ]);
+  await expect(admin.page.getByText('No pending player requests')).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // Decline path: password join → admin declines with reason
+  await homeDeclined.page.goto(`/teams/${homeTeamId}/join`);
+  await homeDeclined.page.locator('#password').fill(JOIN_PASSWORD);
+  await Promise.all([
+    homeDeclined.page.waitForURL(
+      (url) =>
+        url.pathname === `/teams/${homeTeamId}` &&
+        url.searchParams.get('joined') === 'awaiting-admin',
+    ),
+    homeDeclined.page.getByRole('button', { name: 'Request to Join' }).click(),
+  ]);
+  await admin.page.goto('/admin/pending-players');
+  await adminDeclinePendingPlayer(admin.page, E2E_USERS.homeDeclined.username, 'E2E decline reason');
   await expect(admin.page.getByText('No pending player requests')).toBeVisible({
     timeout: 15_000,
   });
@@ -230,7 +309,7 @@ test('join approve ready, invite third, promote/demote/remove, notifications', a
     timeout: 15_000,
   });
 
-  // Promote teammate → Demote → Remove invitee
+  // Promote teammate → Demote → Captain Remove invitee
   await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
   await homeCaptain.page.getByRole('button', { name: /Roster/ }).click();
   await Promise.all([
@@ -241,15 +320,47 @@ test('join approve ready, invite third, promote/demote/remove, notifications', a
     homeCaptain.page.waitForLoadState('networkidle'),
     homeCaptain.page.getByRole('button', { name: 'Demote' }).first().click(),
   ]);
+  await captainRemovePlayer(homeCaptain.page, E2E_USERS.homeInvitee.username);
 
-  // Invitee leaves (covers leave-team; promote/demote already exercised above)
-  await homeInvitee.page.goto(`/teams/${homeTeamId}`);
-  await homeInvitee.page.getByRole('button', { name: 'Leave Team' }).click();
-  await expect(homeInvitee.page.getByRole('heading', { name: 'Leave Team' })).toBeVisible();
+  // Invite-link join
+  await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
+  const inviteUrl = await readInviteLink(homeCaptain.page);
+  await acceptInviteLink(homeLinkJoiner.page, inviteUrl);
+  await admin.page.goto('/admin/pending-players');
+  await expect(admin.page.getByText(E2E_USERS.homeLinkJoiner.username)).toBeVisible({
+    timeout: 15_000,
+  });
   await Promise.all([
-    homeInvitee.page.waitForLoadState('networkidle'),
-    homeInvitee.page.getByRole('button', { name: 'Leave Team' }).nth(1).click(),
+    admin.page.waitForLoadState('networkidle'),
+    admin.page.getByRole('button', { name: '✓ Approve' }).click(),
   ]);
+  await expect(admin.page.getByText('No pending player requests')).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // Free a roster slot (captain removes link joiner) then steam-invite decline + cancel
+  await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
+  await homeCaptain.page.getByRole('button', { name: /Roster/ }).click();
+  await captainRemovePlayer(homeCaptain.page, E2E_USERS.homeLinkJoiner.username);
+
+  await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
+  await homeCaptain.page.getByRole('button', { name: 'Invite Players' }).click();
+  await homeCaptain.page.locator('#steamId').fill(E2E_USERS.homeInviteDecliner.steamId);
+  await Promise.all([
+    homeCaptain.page.waitForLoadState('networkidle'),
+    homeCaptain.page.getByRole('button', { name: 'Send Invitation' }).click(),
+  ]);
+  await declineSteamInvitation(homeInviteDecliner.page, HOME_TEAM_NAME);
+
+  // Invite declined user for cancel-invite coverage
+  await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
+  await homeCaptain.page.getByRole('button', { name: 'Invite Players' }).click();
+  await homeCaptain.page.locator('#steamId').fill(E2E_USERS.homeDeclined.steamId);
+  await Promise.all([
+    homeCaptain.page.waitForLoadState('networkidle'),
+    homeCaptain.page.getByRole('button', { name: 'Send Invitation' }).click(),
+  ]);
+  await cancelPendingInvite(homeCaptain.page, E2E_USERS.homeDeclined.username);
 
   // Captain has notifications from join/ready activity
   expect(await countNotifications(E2E_USERS.homeCaptain.steamId)).toBeGreaterThan(0);
@@ -261,7 +372,7 @@ test('join approve ready, invite third, promote/demote/remove, notifications', a
   ]);
 });
 
-test('admin creates week match; chat, deny/accept reschedule, edit schedule/arenas, scores, dispute', async () => {
+test('admin creates week match; chat, deny/accept reschedule, edit schedule/arenas, scores, dispute, demo report', async () => {
   test.setTimeout(300_000);
 
   await adminCreateWeekMatch(admin.page, league, {
@@ -311,6 +422,18 @@ test('admin creates week match; chat, deny/accept reschedule, edit schedule/aren
   await adminResolveDisputePanel(admin.page);
   await expect(admin.page.getByText('No Disputed Matches')).toBeVisible({ timeout: 15_000 });
   expect(await getMatchStatus(weekMatchId)).toBe('PLAYED');
+
+  // Seed demo (skips R2), report via UI, admin triage
+  await seedDemo({
+    matchId: weekMatchId,
+    playerSteamId: E2E_USERS.homeCaptain.steamId,
+    submittedBy: E2E_USERS.homeCaptain.steamId,
+  });
+  await awayCaptain.page.goto(`/matches/${weekMatchId}`);
+  await reportDemoOnMatch(awayCaptain.page, 'E2E: suspicious movement, please review');
+  expect(await countDemoReports('REVIEW')).toBeGreaterThanOrEqual(1);
+  await adminResolveDemoReport(admin.page, 'ACTION', 'E2E reviewed — no action needed beyond note');
+  expect(await countDemoReports('ACTION')).toBeGreaterThanOrEqual(1);
 
   // Standings reflect a decided week match (pairing may swap home/away)
   const homeWins = await getTeamWins(homeTeamId);
@@ -368,8 +491,19 @@ test('admin creates playoff; map bans; Bo3 scores', async () => {
   await expect(awayTeammate.page.getByText('Played', { exact: true })).toBeVisible();
 });
 
-test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async () => {
-  test.setTimeout(300_000);
+test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke', async () => {
+  test.setTimeout(360_000);
+
+  // --- Paid division: admin marks unpaid players as paid ---
+  expect(await getPlayerPaymentStatus(paidTeamId, E2E_USERS.paidCaptain.steamId)).toBe(0);
+  await admin.page.goto(`/teams/${paidTeamId}`);
+  await expect(admin.page.getByText(PAID_TEAM_NAME)).toBeVisible();
+  await expect(admin.page.getByText('Mark Player as Paid')).toBeVisible();
+  await adminMarkPlayerPaid(admin.page, E2E_USERS.paidCaptain.username);
+  expect(await getPlayerPaymentStatus(paidTeamId, E2E_USERS.paidCaptain.steamId)).toBe(1);
+  await admin.page.goto(`/teams/${paidTeamId}`);
+  await adminMarkPlayerPaid(admin.page, E2E_USERS.paidTeammate.username);
+  expect(await getPlayerPaymentStatus(paidTeamId, E2E_USERS.paidTeammate.steamId)).toBe(1);
 
   // --- 1v1 lifecycle ---
   await solo1v1.page.goto('/signup/1v1');
@@ -452,6 +586,21 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
   await homeCaptain.page.goto('/');
   await expect(homeCaptain.page.getByText(ANNOUNCEMENT)).toBeVisible();
 
+  // --- Admin league CMS creates (region / division / arena / season) ---
+  await adminCreateLeagueRegion(admin.page, UI_REGION);
+  await adminCreateLeagueDivision(admin.page, {
+    name: UI_DIVISION,
+    regionLabel: UI_REGION,
+    signupCost: '5',
+  });
+  await adminCreateLeagueArena(admin.page, UI_ARENA);
+  await adminCreateLeagueSeason(admin.page, {
+    seasonNum: 2,
+    regionLabel: 'E2E Region',
+    formatLabel: '2v2',
+    numWeeks: 4,
+  });
+
   // --- Browse smoke ---
   for (const [session, path, check] of [
     [homeCaptain, '/signup', 'League Signups'],
@@ -467,6 +616,8 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
     [admin, '/admin/matches', 'Matches'],
     [admin, '/admin/teams', 'Teams'],
     [admin, '/admin/league', 'League'],
+    [admin, '/admin/demos', 'Demo'],
+    [admin, '/admin/disputes', 'Dispute'],
   ] as const) {
     await session.page.goto(path);
     await expect(session.page.getByText(new RegExp(check, 'i')).first()).toBeVisible({
@@ -476,5 +627,5 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
 
   // Audit log should show recent mutations
   await admin.page.goto('/admin/audit-logs');
-  await expect(admin.page.getByText(/MATCH|TEAM|ROSTER|ADMIN/i).first()).toBeVisible();
+  await expect(admin.page.getByText(/MATCH|TEAM|ROSTER|ADMIN|PAYMENT/i).first()).toBeVisible();
 });

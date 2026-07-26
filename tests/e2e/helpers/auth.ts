@@ -143,7 +143,7 @@ export async function banOrPickMap(
     page.getByRole('button', { name: confirmLabel }).click(),
   ]);
 
-  await expect(page.getByText(new RegExp(`${action === 'ban' ? 'banned' : 'picked'}.*${mapName}`, 'i'))).toBeVisible({
-    timeout: 15_000,
-  });
+  // Tile leaves Available Maps after the action. On the final pick the whole
+  // map-ban section unmounts (banPhaseComplete), so history text is gone too.
+  await expect(tile).toHaveCount(0, { timeout: 15_000 });
 }

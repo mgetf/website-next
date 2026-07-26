@@ -1,7 +1,7 @@
 /**
  * E2E season seed helpers.
- * Uses Prisma against the test database — keeps admin SPA setup out of the
- * fragile browser path while still exercising player-facing UI flows.
+ * Uses Prisma against the test database — seeds league infrastructure while
+ * player/admin mutations stay in the browser.
  */
 
 import { PrismaClient } from '../../../prisma/generated/client.js';
@@ -25,6 +25,11 @@ export const E2E_USERS = {
     username: 'Home Teammate',
     role: 'GUEST' as const,
   },
+  homeInvitee: {
+    steamId: '76561198000000013',
+    username: 'Home Invitee',
+    role: 'GUEST' as const,
+  },
   awayCaptain: {
     steamId: '76561198000000021',
     username: 'Away Captain',
@@ -35,6 +40,11 @@ export const E2E_USERS = {
     username: 'Away Teammate',
     role: 'GUEST' as const,
   },
+  solo1v1: {
+    steamId: '76561198000000031',
+    username: 'Solo OneVOne',
+    role: 'GUEST' as const,
+  },
 } as const;
 
 export type SeasonSeed = {
@@ -42,6 +52,7 @@ export type SeasonSeed = {
   divisionId: number;
   seasonId: number;
   seasonNum: number;
+  season1v1Id: number;
   arenaIds: number[];
   mapBanPoolId: number;
   playoffId: number;
@@ -71,7 +82,7 @@ export async function resetDatabase(): Promise<void> {
   }
 }
 
-/** Seed formats, region, free division, open 2v2 season, arenas, map pool, playoff config. */
+/** Seed formats, region, free division, open 2v2+1v1 seasons, arenas, map pool, playoff. */
 export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
   const prisma = createPrisma();
   try {
@@ -81,7 +92,6 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
         { id: FORMAT_2V2, name: '2v2', code: '2v2' },
       ],
     });
-    // Keep sequences in sync after explicit IDs
     await prisma.$executeRawUnsafe(
       `SELECT setval(pg_get_serial_sequence('formats', 'id'), (SELECT MAX(id) FROM formats))`,
     );
@@ -114,12 +124,23 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
       },
     });
 
-    await prisma.activeSignupSeason.create({
+    const season1v1 = await prisma.season.create({
       data: {
+        seasonNum: 1,
+        numWeeks: 1,
         regionId: region.id,
-        formatId: FORMAT_2V2,
-        seasonId: season.id,
+        formatId: FORMAT_1V1,
+        signupsOpen: true,
+        rosterLocked: false,
+        paymentRequired: false,
       },
+    });
+
+    await prisma.activeSignupSeason.createMany({
+      data: [
+        { regionId: region.id, formatId: FORMAT_2V2, seasonId: season.id },
+        { regionId: region.id, formatId: FORMAT_1V1, seasonId: season1v1.id },
+      ],
     });
 
     const arenaNames = [
@@ -167,6 +188,7 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
       divisionId: division.id,
       seasonId: season.id,
       seasonNum: season.seasonNum,
+      season1v1Id: season1v1.id,
       arenaIds: arenas.map((a) => a.id),
       mapBanPoolId: pool.id,
       playoffId: playoff.id,
@@ -204,7 +226,6 @@ export async function seedUsers(): Promise<void> {
 
 /**
  * Create a READY 2v2 team with captain + teammate already on the roster.
- * Used when the test wants to focus on match play rather than join approval.
  */
 export async function seedReadyTeam(params: {
   name: string;
@@ -254,97 +275,6 @@ export async function seedReadyTeam(params: {
   }
 }
 
-export async function createRegularMatch(params: {
-  homeTeamId: number;
-  awayTeamId: number;
-  seasonId: number;
-  seasonNum: number;
-  weekNo: number;
-  arenaId: number;
-  boSeries?: number;
-}): Promise<number> {
-  const prisma = createPrisma();
-  try {
-    const boSeries = params.boSeries ?? 1;
-    const match = await prisma.match.create({
-      data: {
-        homeTeamId: params.homeTeamId,
-        awayTeamId: params.awayTeamId,
-        seasonId: params.seasonId,
-        seasonNo: params.seasonNum,
-        weekNo: params.weekNo,
-        boSeries,
-        status: 'UNPLAYED',
-        matchTimezone: 'UTC',
-        matchDateTime: new Date(),
-        games: {
-          create: Array.from({ length: boSeries }, (_, i) => ({
-            gameNum: i + 1,
-            arenaId: params.arenaId,
-          })),
-        },
-      },
-    });
-    return match.id;
-  } finally {
-    await prisma.$disconnect();
-  }
-}
-
-export async function createPlayoffFinal(params: {
-  homeTeamId: number;
-  awayTeamId: number;
-  seasonId: number;
-  seasonNum: number;
-  playoffId: number;
-  arenaId?: number | null;
-  mapBanPoolId?: number;
-  boSeries?: number;
-}): Promise<number> {
-  const prisma = createPrisma();
-  try {
-    const boSeries = params.boSeries ?? 1;
-    // When map bans drive arena assignment, leave game arenas null until picks.
-    const arenaId = params.mapBanPoolId ? null : (params.arenaId ?? null);
-    const match = await prisma.match.create({
-      data: {
-        homeTeamId: params.homeTeamId,
-        awayTeamId: params.awayTeamId,
-        seasonId: params.seasonId,
-        seasonNo: params.seasonNum,
-        playoffId: params.playoffId,
-        playoffRound: 1,
-        weekNo: null,
-        boSeries,
-        status: 'UNPLAYED',
-        matchTimezone: 'UTC',
-        matchDateTime: new Date(),
-        games: {
-          create: Array.from({ length: boSeries }, (_, i) => ({
-            gameNum: i + 1,
-            arenaId,
-          })),
-        },
-      },
-    });
-
-    if (params.mapBanPoolId) {
-      await prisma.matchMapBan.create({
-        data: {
-          matchId: match.id,
-          poolId: params.mapBanPoolId,
-          currentTurn: 1, // Away bans first
-          banPhaseComplete: false,
-        },
-      });
-    }
-
-    return match.id;
-  } finally {
-    await prisma.$disconnect();
-  }
-}
-
 export async function getMatchStatus(matchId: number): Promise<string> {
   const prisma = createPrisma();
   try {
@@ -353,6 +283,26 @@ export async function getMatchStatus(matchId: number): Promise<string> {
       select: { status: true },
     });
     return match.status;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function getLatestMatchId(opts?: {
+  weekNo?: number | null;
+  playoff?: boolean;
+}): Promise<number> {
+  const prisma = createPrisma();
+  try {
+    const match = await prisma.match.findFirstOrThrow({
+      where: {
+        ...(opts?.weekNo !== undefined ? { weekNo: opts.weekNo } : {}),
+        ...(opts?.playoff ? { playoffId: { not: null } } : {}),
+      },
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    });
+    return match.id;
   } finally {
     await prisma.$disconnect();
   }
@@ -392,6 +342,41 @@ export async function getMapBanComplete(matchId: number): Promise<boolean> {
       select: { banPhaseComplete: true },
     });
     return ban?.banPhaseComplete ?? false;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function getTeamWins(teamId: number): Promise<number> {
+  const prisma = createPrisma();
+  try {
+    const team = await prisma.team.findUniqueOrThrow({
+      where: { id: teamId },
+      select: { wins: true },
+    });
+    return team.wins;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function getUserBanStatus(steamId: string): Promise<string> {
+  const prisma = createPrisma();
+  try {
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { steamId },
+      select: { banStatus: true },
+    });
+    return user.banStatus;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+export async function countNotifications(steamId: string): Promise<number> {
+  const prisma = createPrisma();
+  try {
+    return await prisma.notification.count({ where: { userSteamId: steamId } });
   } finally {
     await prisma.$disconnect();
   }

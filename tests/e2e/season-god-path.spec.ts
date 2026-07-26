@@ -118,7 +118,13 @@ test('seed league, create home team via UI, seed away READY', async ({ browser }
   await homeCaptain.page.locator('#name').fill(HOME_TEAM_NAME);
   await homeCaptain.page.locator('#acronym').fill('ALP');
   await homeCaptain.page.locator('#regionId').selectOption({ label: 'E2E Region' });
-  await homeCaptain.page.locator('#divisionId').selectOption({ label: 'Invite' });
+  // Division labels include cost suffix, e.g. "Invite - FREE". Region change
+  // also auto-selects the first division; wait for options then pick explicitly.
+  await expect(homeCaptain.page.locator('#divisionId option').filter({ hasText: 'Invite' })).toHaveCount(
+    1,
+    { timeout: 10_000 },
+  );
+  await homeCaptain.page.locator('#divisionId').selectOption({ label: /Invite/ });
   await homeCaptain.page.locator('#joinPassword').fill(JOIN_PASSWORD);
   await homeCaptain.page.locator('input[name="rules"]').check();
 
@@ -147,12 +153,9 @@ test('teammate joins, admin approves, captain ready-up, admin sets READY', async
   // Admin approves pending player
   await admin.page.goto('/admin/pending-players');
   await expect(admin.page.getByText(E2E_USERS.homeTeammate.username)).toBeVisible();
-  const approveRow = admin.page.locator('div').filter({
-    has: admin.page.getByText(E2E_USERS.homeTeammate.username),
-  });
   await Promise.all([
     admin.page.waitForLoadState('networkidle'),
-    approveRow.getByRole('button', { name: '✓ Approve' }).first().click(),
+    admin.page.getByRole('button', { name: '✓ Approve' }).click(),
   ]);
   await expect(admin.page.getByText('No pending player requests')).toBeVisible({
     timeout: 15_000,

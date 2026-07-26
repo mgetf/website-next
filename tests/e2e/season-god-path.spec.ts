@@ -27,6 +27,7 @@ import {
   getTeamStatus,
   getMapBanComplete,
   getTeamWins,
+  getMatchTeams,
   getUserBanStatus,
   countNotifications,
   type SeasonSeed,
@@ -330,14 +331,20 @@ test('admin creates playoff; map bans; Bo3 scores', async () => {
     boSeries: 3,
   });
   playoffMatchId = await getLatestMatchId({ playoff: true });
+  const playoffTeams = await getMatchTeams(playoffMatchId);
+  const matchHomeCaptain =
+    playoffTeams.homeTeamId === homeTeamId ? homeCaptain : awayCaptain;
+  const matchAwayCaptain =
+    playoffTeams.awayTeamId === awayTeamId ? awayCaptain : homeCaptain;
 
+  // Bo3: Away ban, Home ban, Home pick, Away pick, Away ban, Home pick
   const actions: { who: Session; map: string; action: 'ban' | 'pick' }[] = [
-    { who: awayCaptain, map: 'Process', action: 'ban' },
-    { who: homeCaptain, map: 'Product', action: 'ban' },
-    { who: homeCaptain, map: 'Playoff', action: 'pick' },
-    { who: awayCaptain, map: 'Clearing', action: 'pick' },
-    { who: awayCaptain, map: 'Sunshine', action: 'ban' },
-    { who: homeCaptain, map: 'Snakewater', action: 'pick' },
+    { who: matchAwayCaptain, map: 'Process', action: 'ban' },
+    { who: matchHomeCaptain, map: 'Product', action: 'ban' },
+    { who: matchHomeCaptain, map: 'Playoff', action: 'pick' },
+    { who: matchAwayCaptain, map: 'Clearing', action: 'pick' },
+    { who: matchAwayCaptain, map: 'Sunshine', action: 'ban' },
+    { who: matchHomeCaptain, map: 'Snakewater', action: 'pick' },
   ];
 
   for (const step of actions) {

@@ -347,18 +347,21 @@ export async function getMapBanComplete(matchId: number): Promise<boolean> {
   }
 }
 
-export async function getTeamWins(teamId: number): Promise<number> {
+export async function getMatchTeams(
+  matchId: number,
+): Promise<{ homeTeamId: number; awayTeamId: number }> {
   const prisma = createPrisma();
   try {
-    const team = await prisma.team.findUniqueOrThrow({
-      where: { id: teamId },
-      select: { wins: true },
+    const match = await prisma.match.findUniqueOrThrow({
+      where: { id: matchId },
+      select: { homeTeamId: true, awayTeamId: true },
     });
-    return team.wins;
+    return { homeTeamId: match.homeTeamId!, awayTeamId: match.awayTeamId! };
   } finally {
     await prisma.$disconnect();
   }
 }
+
 
 export async function getUserBanStatus(steamId: string): Promise<string> {
   const prisma = createPrisma();

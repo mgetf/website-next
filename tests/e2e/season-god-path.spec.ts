@@ -242,10 +242,11 @@ test('join approve ready, invite third, promote/demote/remove, notifications', a
   ]);
 
   await homeCaptain.page
-    .locator('.bg-surface-input.rounded-lg')
+    .locator('div.flex.items-center.justify-between')
     .filter({ hasText: E2E_USERS.homeInvitee.username })
     .getByRole('button', { name: 'Remove' })
     .click();
+  await expect(homeCaptain.page.getByRole('heading', { name: 'Remove Player' })).toBeVisible();
   await expect(homeCaptain.page.getByText(/Remove Home Invitee from the team/i)).toBeVisible();
   await Promise.all([
     homeCaptain.page.waitForLoadState('networkidle'),

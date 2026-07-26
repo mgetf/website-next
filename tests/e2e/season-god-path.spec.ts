@@ -406,9 +406,10 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
 
   await solo1v1.page.goto(`/users/${E2E_USERS.solo1v1.steamId}`);
   await solo1v1.page.getByRole('button', { name: 'Withdraw from League' }).click();
+  await expect(solo1v1.page.getByRole('heading', { name: 'Withdraw from 1v1 League' })).toBeVisible();
   await Promise.all([
     solo1v1.page.waitForLoadState('networkidle'),
-    solo1v1.page.getByRole('button', { name: 'Withdraw' }).click(),
+    solo1v1.page.getByRole('button', { name: 'Withdraw', exact: true }).click(),
   ]);
 
   await solo1v1.page.goto('/leagues/1v1');

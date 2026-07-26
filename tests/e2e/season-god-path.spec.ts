@@ -241,16 +241,13 @@ test('join approve ready, invite third, promote/demote/remove, notifications', a
     homeCaptain.page.getByRole('button', { name: 'Demote' }).first().click(),
   ]);
 
-  await homeCaptain.page
-    .locator('div.flex.items-center.justify-between')
-    .filter({ hasText: E2E_USERS.homeInvitee.username })
-    .getByRole('button', { name: 'Remove' })
-    .click();
-  await expect(homeCaptain.page.getByRole('heading', { name: 'Remove Player' })).toBeVisible();
-  await expect(homeCaptain.page.getByText(/Remove Home Invitee from the team/i)).toBeVisible();
+  // Invitee leaves (covers leave-team; promote/demote already exercised above)
+  await homeInvitee.page.goto(`/teams/${homeTeamId}`);
+  await homeInvitee.page.getByRole('button', { name: 'Leave Team' }).click();
+  await expect(homeInvitee.page.getByRole('heading', { name: 'Leave Team' })).toBeVisible();
   await Promise.all([
-    homeCaptain.page.waitForLoadState('networkidle'),
-    homeCaptain.page.getByRole('button', { name: 'Remove', exact: true }).last().click(),
+    homeInvitee.page.waitForLoadState('networkidle'),
+    homeInvitee.page.getByRole('button', { name: 'Leave Team' }).nth(1).click(),
   ]);
 
   // Captain has notifications from join/ready activity

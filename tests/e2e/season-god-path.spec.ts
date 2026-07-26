@@ -118,13 +118,11 @@ test('seed league, create home team via UI, seed away READY', async ({ browser }
   await homeCaptain.page.locator('#name').fill(HOME_TEAM_NAME);
   await homeCaptain.page.locator('#acronym').fill('ALP');
   await homeCaptain.page.locator('#regionId').selectOption({ label: 'E2E Region' });
-  // Division labels include cost suffix, e.g. "Invite - FREE". Region change
-  // also auto-selects the first division; wait for options then pick explicitly.
-  await expect(homeCaptain.page.locator('#divisionId option').filter({ hasText: 'Invite' })).toHaveCount(
-    1,
-    { timeout: 10_000 },
-  );
-  await homeCaptain.page.locator('#divisionId').selectOption({ label: /Invite/ });
+  // Division labels include cost suffix, e.g. "Invite - FREE".
+  await expect(
+    homeCaptain.page.locator('#divisionId option').filter({ hasText: 'Invite' }),
+  ).toHaveCount(1, { timeout: 10_000 });
+  await homeCaptain.page.locator('#divisionId').selectOption(String(league.divisionId));
   await homeCaptain.page.locator('#joinPassword').fill(JOIN_PASSWORD);
   await homeCaptain.page.locator('input[name="rules"]').check();
 
@@ -146,7 +144,11 @@ test('teammate joins, admin approves, captain ready-up, admin sets READY', async
   await homeTeammate.page.goto(`/teams/${homeTeamId}/join`);
   await homeTeammate.page.locator('#password').fill(JOIN_PASSWORD);
   await Promise.all([
-    homeTeammate.page.waitForURL(new RegExp(`/teams/${homeTeamId}`)),
+    homeTeammate.page.waitForURL(
+      (url) =>
+        url.pathname === `/teams/${homeTeamId}` &&
+        url.searchParams.get('joined') === 'awaiting-admin',
+    ),
     homeTeammate.page.getByRole('button', { name: 'Request to Join' }).click(),
   ]);
 

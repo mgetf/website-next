@@ -436,7 +436,7 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
   ]);
   expect(await getUserBanStatus(E2E_USERS.homeInvitee.steamId)).toBe('NONE');
 
-  // --- Announcement ---
+  // --- Announcement (created hidden; Show makes it public) ---
   await admin.page.goto('/admin/global');
   await admin.page.locator('#content').fill(ANNOUNCEMENT);
   await Promise.all([
@@ -444,6 +444,11 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
     admin.page.getByRole('button', { name: 'Create Announcement' }).click(),
   ]);
   await expect(admin.page.getByText(ANNOUNCEMENT)).toBeVisible();
+  await Promise.all([
+    admin.page.waitForLoadState('networkidle'),
+    admin.page.getByRole('button', { name: 'Show' }).click(),
+  ]);
+  await expect(admin.page.getByRole('button', { name: 'Hide' })).toBeVisible({ timeout: 15_000 });
 
   await homeCaptain.page.goto('/');
   await expect(homeCaptain.page.getByText(ANNOUNCEMENT)).toBeVisible();

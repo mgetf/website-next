@@ -375,7 +375,6 @@ export async function getMatchTeams(
   }
 }
 
-
 export async function getUserBanStatus(steamId: string): Promise<string> {
   const prisma = createPrisma();
   try {

@@ -332,10 +332,8 @@ test('admin creates playoff; map bans; Bo3 scores', async () => {
   });
   playoffMatchId = await getLatestMatchId({ playoff: true });
   const playoffTeams = await getMatchTeams(playoffMatchId);
-  const matchHomeCaptain =
-    playoffTeams.homeTeamId === homeTeamId ? homeCaptain : awayCaptain;
-  const matchAwayCaptain =
-    playoffTeams.awayTeamId === awayTeamId ? awayCaptain : homeCaptain;
+  const matchHomeCaptain = playoffTeams.homeTeamId === homeTeamId ? homeCaptain : awayCaptain;
+  const matchAwayCaptain = playoffTeams.awayTeamId === awayTeamId ? awayCaptain : homeCaptain;
 
   // Bo3: Away ban, Home ban, Home pick, Away pick, Away ban, Home pick
   const actions: { who: Session; map: string; action: 'ban' | 'pick' }[] = [
@@ -377,10 +375,9 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
   await solo1v1.page.goto('/signup/1v1');
   await expect(solo1v1.page.getByRole('heading', { name: '1v1 League Signup' })).toBeVisible();
   await solo1v1.page.locator('#regionId').selectOption(String(league.regionId));
-  await expect(solo1v1.page.locator('#divisionId option').filter({ hasText: 'Invite' })).toHaveCount(
-    1,
-    { timeout: 10_000 },
-  );
+  await expect(
+    solo1v1.page.locator('#divisionId option').filter({ hasText: 'Invite' }),
+  ).toHaveCount(1, { timeout: 10_000 });
   await solo1v1.page.locator('#divisionId').selectOption(String(league.divisionId));
   await solo1v1.page.locator('input[name="rules"]').check();
   await Promise.all([
@@ -406,7 +403,9 @@ test('1v1 signup ready withdraw; ban/clear; announcement; browse smoke', async (
 
   await solo1v1.page.goto(`/users/${E2E_USERS.solo1v1.steamId}`);
   await solo1v1.page.getByRole('button', { name: 'Withdraw from League' }).click();
-  await expect(solo1v1.page.getByRole('heading', { name: 'Withdraw from 1v1 League' })).toBeVisible();
+  await expect(
+    solo1v1.page.getByRole('heading', { name: 'Withdraw from 1v1 League' }),
+  ).toBeVisible();
   await Promise.all([
     solo1v1.page.waitForLoadState('networkidle'),
     solo1v1.page.getByRole('button', { name: 'Withdraw', exact: true }).click(),

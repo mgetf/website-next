@@ -311,11 +311,14 @@ test('admin creates week match; chat, deny/accept reschedule, edit schedule/aren
   await expect(admin.page.getByText('No Disputed Matches')).toBeVisible({ timeout: 15_000 });
   expect(await getMatchStatus(weekMatchId)).toBe('PLAYED');
 
-  // Standings reflect home win
-  expect(await getTeamWins(homeTeamId)).toBeGreaterThanOrEqual(1);
+  // Standings reflect a decided week match (pairing may swap home/away)
+  const homeWins = await getTeamWins(homeTeamId);
+  const awayWins = await getTeamWins(awayTeamId);
+  expect(homeWins + awayWins).toBeGreaterThanOrEqual(1);
   await homeCaptain.page.goto('/leagues/2v2');
   await homeCaptain.page.getByRole('button', { name: 'Standings' }).click();
   await expect(homeCaptain.page.getByText(HOME_TEAM_NAME)).toBeVisible();
+  await expect(homeCaptain.page.getByText(AWAY_TEAM_NAME)).toBeVisible();
 });
 
 test('admin creates playoff; map bans; Bo3 scores', async () => {

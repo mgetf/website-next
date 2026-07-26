@@ -387,7 +387,7 @@ export async function getTeamStatus(teamId: number): Promise<string> {
 export async function getMapBanComplete(matchId: number): Promise<boolean> {
   const prisma = createPrisma();
   try {
-    const ban = await prisma.matchMapBan.findUnique({
+    const ban = await prisma.matchMapBan.findFirst({
       where: { matchId },
       select: { banPhaseComplete: true },
     });

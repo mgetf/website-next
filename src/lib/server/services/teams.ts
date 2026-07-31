@@ -422,27 +422,51 @@ export async function findRecentSeasonWithTeams(statuses: string[], formatId?: n
     const { createSeasonsClient, getSeasonIds, getSeason } =
       await import('$lib/server/rama/seasons');
     const { createTeamsClient, getTeamIdsBySeason } = await import('$lib/server/rama/teams');
+    const { createCatalogClient, getActiveSignupSeason, getRegionIds } =
+      await import('$lib/server/rama/catalog');
     const opts = ramaClientOpts();
     const seasonsClient = createSeasonsClient(opts);
     const teamsClient = createTeamsClient(opts);
+    const catalog = createCatalogClient(opts);
     const statusSet = new Set(statuses);
-    const seasonIds = (await getSeasonIds(seasonsClient))
-      .map(Number)
-      .filter((n) => Number.isFinite(n))
-      .sort((a, b) => b - a);
-    for (const seasonId of seasonIds) {
+
+    type Candidate = { seasonId: number; regionId: number; seasonNum: number };
+    const candidates: Candidate[] = [];
+
+    const consider = async (seasonId: number) => {
       const season = await getSeason(seasonsClient, String(seasonId));
-      if (!season) continue;
-      if (formatId !== undefined && Number(season.formatId) !== formatId) continue;
+      if (!season) return;
+      if (formatId !== undefined && Number(season.formatId) !== formatId) return;
       const idsByStatus = await getTeamIdsBySeason(teamsClient, String(seasonId));
       const hasVisible = Object.values(idsByStatus).some((s) => statusSet.has(s));
-      if (!hasVisible) continue;
-      return {
+      if (!hasVisible) return;
+      candidates.push({
         seasonId,
         regionId: Number(season.regionId),
-      };
+        seasonNum: Number(season.seasonNum) || seasonId,
+      });
+    };
+
+    // Prefer active signup seasons for this format (current league), then fall back.
+    if (formatId !== undefined) {
+      for (const regionId of await getRegionIds(catalog)) {
+        const sid = await getActiveSignupSeason(catalog, regionId, String(formatId));
+        if (sid != null) await consider(Number(sid));
+      }
     }
-    return null;
+
+    if (candidates.length === 0) {
+      const seasonIds = (await getSeasonIds(seasonsClient))
+        .map(Number)
+        .filter((n) => Number.isFinite(n));
+      for (const seasonId of seasonIds) {
+        await consider(seasonId);
+      }
+    }
+
+    candidates.sort((a, b) => b.seasonNum - a.seasonNum || b.seasonId - a.seasonId);
+    const best = candidates[0];
+    return best ? { seasonId: best.seasonId, regionId: best.regionId } : null;
   }
   throw new Error('findRecentSeasonWithTeams requires DATA_BACKEND=rama');
 }

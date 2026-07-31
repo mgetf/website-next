@@ -168,12 +168,13 @@ export async function seedUsers(): Promise<void> {
 }
 
 export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
-  const run = Date.now() % 1_000_000;
+  // Monotonic ids — avoid Date.now() % N wrap so "newest" season sorts correctly.
+  const run = Date.now();
   const regionId = 1;
   const divisionId = 1;
   const paidDivisionId = 2;
-  const seasonId = 1000 + run;
-  const season1v1Id = 2000 + run;
+  const seasonId = run;
+  const season1v1Id = run + 1;
   // unique per run — $$season-index enforces (region, format, seasonNum)
   const seasonNum = run;
   const mapBanPoolId = 1;

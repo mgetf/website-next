@@ -1,7 +1,7 @@
 /**
- * Smoke-exercise the MatchModule via Rama REST JSON.
+ * Smoke-exercise MatchModule + UsersModule via Rama REST JSON.
  *
- * Requires a running Rama cluster with MatchModule launched, and:
+ * Requires a running Rama cluster with modules launched, and:
  *   RAMA_CONDUCTOR_URL=http://localhost:8888
  *   RAMA_SUPERVISOR_URL=http://localhost:2000   # optional override
  *
@@ -19,7 +19,16 @@ import {
   getTeamWins,
   submitScore,
 } from '../src/lib/server/rama/match';
-import { createUsersClient, getSessionVersion, upsertProfile } from '../src/lib/server/rama/users';
+import {
+  bumpSession,
+  createUsersClient,
+  getSessionVersion,
+  getUser,
+  linkDiscord,
+  setBan,
+  setPermission,
+  upsertProfile,
+} from '../src/lib/server/rama/users';
 
 const conductorUrl = process.env.RAMA_CONDUCTOR_URL ?? 'http://localhost:8888';
 const supervisorBaseUrl = process.env.RAMA_SUPERVISOR_URL;
@@ -35,6 +44,11 @@ async function main() {
       avatarUrl: 'http://example/a.png',
     }),
   );
+  console.log('setPermission', await setPermission(users, { steamId, permissionLevel: 'GUEST' }));
+  console.log('setBan', await setBan(users, { steamId, banStatus: 'NONE' }));
+  console.log('bumpSession', await bumpSession(users, steamId));
+  console.log('linkDiscord', await linkDiscord(users, { steamId, discordId: `d-${steamId}` }));
+  console.log('user', await getUser(users, steamId));
   console.log('sessionVersion', await getSessionVersion(users, steamId));
 
   const client = createMatchClient({ conductorUrl, supervisorBaseUrl });

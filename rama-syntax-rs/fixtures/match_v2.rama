@@ -28,10 +28,10 @@ struct TeamStats {
   :points Long
 }
 
-pstate matches:       Map<String, Match>
-pstate mapBans:       Map<String, MapBan>
-pstate teamStats:     Map<String, TeamStats>
-pstate matchesByTeam: Map<String, Map<String, String>> @subindexed
+pstate $$matches:       Map<String, Match>
+pstate $$mapBans:       Map<String, MapBan>
+pstate $$teamStats:     Map<String, TeamStats>
+pstate $$matchesByTeam: Map<String, Map<String, String>> @subindexed
 
 depot matchDepot keyed-by matchId
 

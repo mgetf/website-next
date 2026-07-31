@@ -21,6 +21,7 @@ like Rust. Topologies stay tiny. The Rust program owns lowering.
 | Fixed-keys field names | **keywords** (normal Rama); REST modules may still choose strings |
 | Partition hop | bare `\|hash k` for now (open) |
 | Deep `if` | must work; Clojure SO is an emitter problem |
+| `$$` on pstates | **keep** — marks distributed state; decls + use sites |
 
 ## Schemas (Rust-shaped)
 
@@ -59,16 +60,15 @@ struct TeamStats {
   :points Long
 }
 
-pstate matches:        Map<String, Match>
-pstate mapBans:        Map<String, MapBan>
-pstate teamStats:      Map<String, TeamStats>
-pstate matchesByTeam:  Map<String, Map<String, String>> @subindexed
+pstate $$matches:       Map<String, Match>
+pstate $$mapBans:       Map<String, MapBan>
+pstate $$teamStats:     Map<String, TeamStats>
+pstate $$matchesByTeam: Map<String, Map<String, String>> @subindexed
 ```
 
 Lowering: `Map<K, Struct>` → `{K (fixed-keys-schema {…})}`; nested
 `Map<K, Map<K2, V>> @subindexed` → `(map-schema K2 V {:subindex? true})`.
-The `$$` prefix on use sites is still open; decls above omit it, path sites
-may keep `$$matches` until we decide.
+`$$` is part of the name — decls and `-->` / `!<--` use sites both keep it.
 
 ## Fixed-keys write = set the map
 
@@ -113,8 +113,7 @@ return {"ok" true "matchId" matchId "banned" arenaId}
 
 ## Open
 
-1. `$$` on pstate use sites — keep for “distributed state” readability?
-2. Bare `|hash k` vs block — lean bare until a meatier module decides
-3. REST string-key modules — same syntax with `"homeTeamId"` instead of `:homeTeamId`, or a schema attribute?
+1. Bare `|hash k` vs block — lean bare until a meatier module decides
+2. REST string-key modules — same syntax with `"homeTeamId"` instead of `:homeTeamId`, or a schema attribute?
 
 See `fixtures/match_v2.rama`.

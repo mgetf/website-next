@@ -23,3 +23,6 @@ vite.config.ts.timestamp-*
 
 *.code-workspace
 *.ps1
+
+playwright-report/
+test-results/

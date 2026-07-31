@@ -118,7 +118,16 @@ export async function getNotificationCounts(userSteamId: string) {
  * Security: Verifies the notification belongs to the user
  */
 export async function markAsRead(notificationId: number, userSteamId: string) {
-  throw new Error('markAsRead is not available under Rama');
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createNotificationsClient, markRead } = await import('$lib/server/rama/notifications');
+    await markRead(createNotificationsClient(ramaClientOpts()), {
+      steamId: userSteamId,
+      id: String(notificationId),
+    });
+    return;
+  }
+  throw new Error('markAsRead requires DATA_BACKEND=rama');
 }
 
 /**

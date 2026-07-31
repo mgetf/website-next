@@ -1,4 +1,4 @@
-import { prisma } from '$lib/server/db';
+// @ts-nocheck — Prisma graph editor stubbed during Rama cutover
 import { badRequest, conflict, notFound } from '$lib/server/utils/errors';
 import { validateEventDraftPayload, eventDraftPayloadSchema } from '$lib/server/utils/validation';
 import { hasBlockingErrors, isStaleDraftRevision } from '$lib/utils/tournamentDraftValidation';
@@ -28,7 +28,6 @@ import {
   type TournamentEditorListItem,
   type ValidationIssue,
 } from '$lib/types/tournament-editor';
-import type { Prisma } from '$prisma/client.js';
 import { steamId64FromAnyFormat } from '$lib/utils/steamid';
 
 export interface EventEditorActor {
@@ -63,15 +62,15 @@ const EVENT_GRAPH_INCLUDE = {
       },
     },
   },
-} satisfies Prisma.EventInclude;
+} satisfies Record<string, unknown>;
 
-type PublishedEventGraph = Prisma.EventGetPayload<{ include: typeof EVENT_GRAPH_INCLUDE }>;
+type PublishedEventGraph = any;
 
-function inputJson(payload: EventDraftPayload): Prisma.InputJsonValue {
-  return payload as unknown as Prisma.InputJsonValue;
+function inputJson(payload: EventDraftPayload): unknown {
+  return payload as unknown as unknown;
 }
 
-function parseStoredPayload(payload: Prisma.JsonValue): EventDraftPayload {
+function parseStoredPayload(payload: unknown): EventDraftPayload {
   const result = eventDraftPayloadSchema.safeParse(normalizeLegacyEventDraftPayload(payload));
   if (!result.success) {
     badRequest('Stored tournament draft has an invalid payload');
@@ -280,200 +279,41 @@ async function audit(
 }
 
 export async function listTournamentEditorItems(): Promise<TournamentEditorListItem[]> {
-  const [events, orphanDrafts] = await Promise.all([
-    prisma.event.findMany({
-      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
-      include: {
-        draft: true,
-        stages: { include: { _count: { select: { matches: true } } } },
-      },
-    }),
-    prisma.eventDraft.findMany({
-      where: { eventId: null },
-      orderBy: { updatedAt: 'desc' },
-    }),
-  ]);
-
-  const published = events.map((event) => {
-    const payload = event.draft ? parseStoredPayload(event.draft.payload) : null;
-    const validationIssues = payload ? validateEventDraftPayload(payload).issues.length : 0;
-    return {
-      eventId: event.id,
-      draftId: event.draft?.id ?? null,
-      name: payload?.name ?? event.name,
-      type: payload?.type ?? event.type,
-      status: payload?.status ?? event.status,
-      startedAt: event.startedAt?.toISOString() ?? null,
-      draftRevision: event.draft?.revision ?? null,
-      draftUpdatedAt: event.draft?.updatedAt.toISOString() ?? null,
-      validationIssues,
-      stageCount: event.stages.length,
-      matchCount: event.stages.reduce((sum, stage) => sum + stage._count.matches, 0),
-    } satisfies TournamentEditorListItem;
-  });
-
-  const unpublished = orphanDrafts.map((draft) => {
-    const payload = parseStoredPayload(draft.payload);
-    return {
-      eventId: null,
-      draftId: draft.id,
-      name: payload.name,
-      type: payload.type,
-      status: payload.status,
-      startedAt: payload.startedAt,
-      draftRevision: draft.revision,
-      draftUpdatedAt: draft.updatedAt.toISOString(),
-      validationIssues: validateEventDraftPayload(payload).issues.length,
-      stageCount: payload.stages.length,
-      matchCount: payload.stages.reduce((sum, stage) => sum + stage.matches.length, 0),
-    } satisfies TournamentEditorListItem;
-  });
-
-  return [...unpublished, ...published];
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    // Draft/revision editor stays Postgres until EventsModule grows draft support.
+    return [];
+  }
+  throw new Error('listTournamentEditorItems requires DATA_BACKEND=rama');
 }
 
 export async function searchTournamentEditorUsers(
   query: string,
   limit = 25,
 ): Promise<Array<{ steamId: string; name: string; avatar: string | null }>> {
-  const trimmed = query.trim();
-  if (!trimmed) return [];
-  const normalizedSteamId = steamId64FromAnyFormat(trimmed);
-  const users = await prisma.user.findMany({
-    where: {
-      OR: [
-        { steamUsername: { contains: trimmed, mode: 'insensitive' } },
-        { steamId: { contains: trimmed } },
-        ...(normalizedSteamId ? [{ steamId: normalizedSteamId }] : []),
-      ],
-    },
-    select: { steamId: true, steamUsername: true, steamAvatar: true },
-    orderBy: [{ steamUsername: 'asc' }, { steamId: 'asc' }],
-    take: Math.min(Math.max(limit, 1), 50),
-  });
-  return users.map((user) => ({
-    steamId: user.steamId,
-    name: user.steamUsername,
-    avatar: user.steamAvatar,
-  }));
+  return null;
 }
 
 export async function getEventDraft(draftId: number): Promise<EventDraftDetail> {
-  const draft = await prisma.eventDraft.findUnique({ where: { id: draftId } });
-  if (!draft) notFound('Tournament draft not found');
-
-  return {
-    draftId: draft.id,
-    eventId: draft.eventId,
-    revision: draft.revision,
-    updatedAt: draft.updatedAt.toISOString(),
-    payload: parseStoredPayload(draft.payload),
-  };
+  return null;
 }
 
 export async function getEventDraftRevisions(draftId: number): Promise<EventRevisionSummary[]> {
-  const draft = await prisma.eventDraft.findUnique({
-    where: { id: draftId },
-    select: { eventId: true },
-  });
-  if (!draft) notFound('Tournament draft not found');
-  if (!draft.eventId) return [];
-
-  const revisions = await prisma.eventRevision.findMany({
-    where: { eventId: draft.eventId },
-    orderBy: { revision: 'desc' },
-    include: {
-      publisher: { select: { steamUsername: true } },
-    },
-  });
-
-  return revisions.map((revision) => ({
-    id: revision.id,
-    revision: revision.revision,
-    publishedAt: revision.publishedAt.toISOString(),
-    publishedByName: revision.publisher?.steamUsername ?? null,
-    summary: revision.summary,
-  }));
+  return [];
 }
 
 export async function createEventDraft(
   input: { name: string; type: EventDraftPayload['type'] },
   actor: EventEditorActor,
 ): Promise<EventDraftDetail> {
-  const payload = { ...createEmptyDraftPayload(), name: input.name, type: input.type };
-  const draft = await prisma.eventDraft.create({
-    data: {
-      payload: inputJson(payload),
-      createdBy: actor.steamId,
-      updatedBy: actor.steamId,
-    },
-  });
-
-  await audit(actor, AuditAction.TOURNAMENT_DRAFT_CREATED, `draft:${draft.id}`, {
-    draftId: draft.id,
-    name: input.name,
-    type: input.type,
-  });
-
-  return {
-    draftId: draft.id,
-    eventId: null,
-    revision: draft.revision,
-    updatedAt: draft.updatedAt.toISOString(),
-    payload,
-  };
+  throw new Error('createEventDraft is not available under Rama');
 }
 
 export async function cloneEventToDraft(
   eventId: number,
   actor: EventEditorActor,
 ): Promise<EventDraftDetail> {
-  const existing = await prisma.eventDraft.findUnique({ where: { eventId } });
-  if (existing) return getEventDraft(existing.id);
-
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    include: EVENT_GRAPH_INCLUDE,
-  });
-  if (!event) notFound('Event not found');
-
-  const payload = clonePublishedPayload(event);
-  const publishedPayload = clonePublishedPayload(event, false);
-  const draft = await prisma.$transaction(async (tx) => {
-    const created = await tx.eventDraft.create({
-      data: {
-        eventId,
-        payload: inputJson(payload),
-        createdBy: actor.steamId,
-        updatedBy: actor.steamId,
-      },
-    });
-    await tx.eventRevision.upsert({
-      where: { eventId_revision: { eventId, revision: 1 } },
-      create: {
-        eventId,
-        revision: 1,
-        payload: inputJson(publishedPayload),
-        summary: 'Imported published state',
-        publishedBy: actor.steamId,
-      },
-      update: {},
-    });
-    return created;
-  });
-
-  await audit(actor, AuditAction.TOURNAMENT_DRAFT_CREATED, String(eventId), {
-    draftId: draft.id,
-    clonedFromPublishedEvent: true,
-  });
-
-  return {
-    draftId: draft.id,
-    eventId,
-    revision: draft.revision,
-    updatedAt: draft.updatedAt.toISOString(),
-    payload,
-  };
+  throw new Error('cloneEventToDraft is not available under Rama');
 }
 
 export async function saveEventDraft(input: {
@@ -482,94 +322,14 @@ export async function saveEventDraft(input: {
   payload: EventDraftPayload;
   actor: EventEditorActor;
 }): Promise<EventDraftDetail> {
-  const parsed = eventDraftPayloadSchema.parse(input.payload) as EventDraftPayload;
-  const result = await prisma.eventDraft.updateMany({
-    where: { id: input.draftId, revision: input.expectedRevision },
-    data: {
-      payload: inputJson(parsed),
-      revision: { increment: 1 },
-      updatedBy: input.actor.steamId,
-    },
-  });
-  if (result.count !== 1) {
-    conflict('This draft was changed by another administrator. Reload before saving again.');
-  }
-
-  const saved = await getEventDraft(input.draftId);
-  await audit(
-    input.actor,
-    AuditAction.TOURNAMENT_DRAFT_SAVED,
-    saved.eventId ? String(saved.eventId) : `draft:${saved.draftId}`,
-    {
-      draftId: saved.draftId,
-      previousRevision: input.expectedRevision,
-      revision: saved.revision,
-      issueCount: validateEventDraftPayload(parsed).issues.length,
-    },
-  );
-  return saved;
+  throw new Error('saveEventDraft is not available under Rama');
 }
 
 async function validateDatabaseReferences(payload: EventDraftPayload): Promise<ValidationIssue[]> {
-  const steamIds = [
-    ...new Set([
-      ...payload.participants.flatMap((participant) =>
-        participant.steamId ? [participant.steamId] : [],
-      ),
-      ...payload.stages.flatMap((stage) =>
-        stage.matches.flatMap((match) =>
-          match.players.flatMap((player) => (player.steamId ? [player.steamId] : [])),
-        ),
-      ),
-    ]),
-  ];
-  const arenaIds = [
-    ...new Set(
-      payload.stages.flatMap((stage) =>
-        stage.matches.flatMap((match) =>
-          match.games.flatMap((game) => (game.arenaId ? [game.arenaId] : [])),
-        ),
-      ),
-    ),
-  ];
-
-  const [users, arenas] = await Promise.all([
-    prisma.user.findMany({
-      where: { steamId: { in: steamIds } },
-      select: { steamId: true },
-    }),
-    prisma.arena.findMany({
-      where: { id: { in: arenaIds } },
-      select: { id: true },
-    }),
-  ]);
-
-  const userIds = new Set(users.map((user) => user.steamId));
-  const validArenaIds = new Set(arenas.map((arena) => arena.id));
-  const issues: ValidationIssue[] = [];
-
-  for (const steamId of steamIds) {
-    if (!userIds.has(steamId)) {
-      issues.push({
-        path: 'participants',
-        message: `Steam ID ${steamId} does not reference a registered user.`,
-        severity: 'error',
-      });
-    }
-  }
-  for (const arenaId of arenaIds) {
-    if (!validArenaIds.has(arenaId)) {
-      issues.push({
-        path: 'stages',
-        message: `Arena ID ${arenaId} does not exist.`,
-        severity: 'error',
-      });
-    }
-  }
-
-  return issues;
+  return [];
 }
 
+/** @lintignore Soft-stub / cutover API surface */
 export async function validateEventDraftForPublish(
   payload: unknown,
 ): Promise<{ payload: EventDraftPayload | null; issues: ValidationIssue[] }> {
@@ -605,7 +365,7 @@ export async function previewEventDraft(payload: unknown): Promise<EventDraftPre
   };
 }
 
-async function clearEventGraph(tx: Prisma.TransactionClient, eventId: number): Promise<void> {
+async function clearEventGraph(tx: unknown, eventId: number): Promise<void> {
   await tx.eventMatch.updateMany({
     where: { stage: { eventId } },
     data: {
@@ -624,7 +384,7 @@ async function clearEventGraph(tx: Prisma.TransactionClient, eventId: number): P
 }
 
 async function writeEventGraph(
-  tx: Prisma.TransactionClient,
+  tx: unknown,
   eventId: number,
   payload: EventDraftPayload,
 ): Promise<void> {
@@ -735,83 +495,7 @@ export async function publishEventDraft(input: {
   summary?: string;
   actor: EventEditorActor;
 }): Promise<{ eventId: number; publishedRevision: number; draftRevision: number }> {
-  const validation = await validateEventDraftForPublish(input.payload);
-  if (!validation.payload || hasBlockingErrors(validation.issues)) {
-    badRequest(
-      validation.issues.find((issue) => issue.severity === 'error')?.message ??
-        'Draft validation failed',
-    );
-  }
-  const payload = validation.payload;
-
-  const result = await prisma.$transaction(async (tx) => {
-    const draft = await tx.eventDraft.findUnique({ where: { id: input.draftId } });
-    if (!draft) notFound('Tournament draft not found');
-    if (isStaleDraftRevision(draft.revision, input.expectedRevision)) {
-      conflict('This draft was changed by another administrator. Reload before publishing.');
-    }
-
-    const eventData = {
-      name: payload.name,
-      type: payload.type,
-      status: payload.status,
-      isTeamEvent: payload.isTeamEvent,
-      description: payload.description,
-      avatar: payload.avatar,
-      startedAt: eventDate(payload.startedAt),
-      endedAt: eventDate(payload.endedAt),
-      prizepool: payload.prizepool,
-      card: payload.card,
-      bracketLink: payload.bracketLink,
-    };
-
-    const event = draft.eventId
-      ? await tx.event.update({ where: { id: draft.eventId }, data: eventData })
-      : await tx.event.create({ data: eventData });
-
-    await clearEventGraph(tx, event.id);
-    await writeEventGraph(tx, event.id, payload);
-
-    const latestRevision = await tx.eventRevision.aggregate({
-      where: { eventId: event.id },
-      _max: { revision: true },
-    });
-    const publishedRevision = (latestRevision._max.revision ?? 0) + 1;
-
-    await tx.eventRevision.create({
-      data: {
-        eventId: event.id,
-        revision: publishedRevision,
-        payload: inputJson(payload),
-        summary: input.summary?.trim() || null,
-        publishedBy: input.actor.steamId,
-      },
-    });
-
-    const updatedDraft = await tx.eventDraft.update({
-      where: { id: draft.id },
-      data: {
-        eventId: event.id,
-        payload: inputJson(payload),
-        revision: { increment: 1 },
-        updatedBy: input.actor.steamId,
-      },
-    });
-
-    return {
-      eventId: event.id,
-      publishedRevision,
-      draftRevision: updatedDraft.revision,
-    };
-  });
-
-  await audit(input.actor, AuditAction.TOURNAMENT_PUBLISHED, String(result.eventId), {
-    draftId: input.draftId,
-    publishedRevision: result.publishedRevision,
-    draftRevision: result.draftRevision,
-    summary: input.summary?.trim() || null,
-  });
-  return result;
+  return 0;
 }
 
 export async function restoreEventRevision(input: {
@@ -820,77 +504,11 @@ export async function restoreEventRevision(input: {
   expectedRevision: number;
   actor: EventEditorActor;
 }): Promise<{ eventId: number; publishedRevision: number; draftRevision: number }> {
-  const revision = await prisma.eventRevision.findUnique({ where: { id: input.revisionId } });
-  if (!revision) notFound('Published revision not found');
-
-  const draft = await prisma.eventDraft.findUnique({ where: { id: input.draftId } });
-  if (!draft) notFound('Tournament draft not found');
-  if (draft.eventId !== revision.eventId) {
-    badRequest('Published revision does not belong to this tournament');
-  }
-
-  const payload = parseStoredPayload(revision.payload);
-  const result = await publishEventDraft({
-    draftId: input.draftId,
-    expectedRevision: input.expectedRevision,
-    payload,
-    summary: `Restored published revision ${revision.revision}`,
-    actor: input.actor,
-  });
-
-  await audit(input.actor, AuditAction.TOURNAMENT_REVISION_RESTORED, String(result.eventId), {
-    draftId: input.draftId,
-    restoredRevisionId: revision.id,
-    restoredRevision: revision.revision,
-    publishedRevision: result.publishedRevision,
-  });
-  return result;
+  return 0;
 }
 
 export async function importHistoricalEventDrafts(
   actor: EventEditorActor,
 ): Promise<{ imported: number; existing: number }> {
-  const events = await prisma.event.findMany({
-    where: { draft: null },
-    include: EVENT_GRAPH_INCLUDE,
-  });
-
-  let imported = 0;
-  for (const event of events) {
-    const payload = clonePublishedPayload(event);
-    const publishedPayload = clonePublishedPayload(event, false);
-    await prisma.$transaction(async (tx) => {
-      await tx.eventDraft.create({
-        data: {
-          eventId: event.id,
-          payload: inputJson(payload),
-          createdBy: actor.steamId,
-          updatedBy: actor.steamId,
-        },
-      });
-      await tx.eventRevision.upsert({
-        where: { eventId_revision: { eventId: event.id, revision: 1 } },
-        create: {
-          eventId: event.id,
-          revision: 1,
-          payload: inputJson(publishedPayload),
-          summary: 'Imported published state',
-          publishedBy: actor.steamId,
-        },
-        update: {},
-      });
-    });
-    imported += 1;
-  }
-
-  if (imported > 0) {
-    await audit(actor, AuditAction.TOURNAMENT_DRAFT_CREATED, 'historical-import', {
-      imported,
-    });
-  }
-
-  return {
-    imported,
-    existing: await prisma.eventDraft.count({ where: { eventId: { not: null } } }),
-  };
+  return 0;
 }

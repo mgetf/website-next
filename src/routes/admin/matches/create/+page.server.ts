@@ -350,7 +350,13 @@ export const actions: Actions = {
         ipAddress: getClientAddress(),
       });
 
-      throw redirect(303, `/admin/matches?created=${matches.length}`);
+      const firstMatchId = matches[0]?.id;
+      throw redirect(
+        303,
+        firstMatchId
+          ? `/admin/matches?created=${matches.length}&matchId=${firstMatchId}`
+          : `/admin/matches?created=${matches.length}`,
+      );
     } catch (err) {
       if (isRedirect(err)) throw err;
       console.error('Error creating match set:', err);

@@ -142,6 +142,25 @@ export class RamaClient {
     return this.post(path, pathNavigators);
   }
 
+  /**
+   * Read a subindexed map under `partitionKey` as a plain object.
+   *
+   * `selectOne(pstate, [partitionKey])` hangs/timeouts on subindexed maps —
+   * use sortedMapRangeFrom (or ALL) to page the index instead.
+   */
+  async selectSubindexedMap(
+    pstateName: string,
+    partitionKey: string,
+    maxAmt = 500,
+  ): Promise<Record<string, unknown>> {
+    const v = await this.selectOne(pstateName, [
+      partitionKey,
+      ['sortedMapRangeFrom', '', { 'max-amt': maxAmt }],
+    ]);
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+    return v as Record<string, unknown>;
+  }
+
   /** Invoke a query topology with JSON argument list. */
   async invokeQuery(queryName: string, args: unknown[]): Promise<unknown> {
     const path = `/rest/${encodeModule(this.moduleName)}/query/${encodeURIComponent(queryName)}/invoke`;

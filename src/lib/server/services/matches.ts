@@ -3,123 +3,278 @@
  * Core business logic for league matches (2v2 and 1v1)
  */
 
-import { prisma } from '$lib/server/db';
-import type { Match, Game, Team } from '$prisma/client.js';
-import { MatchStatus } from '$prisma/client.js';
 import { UserRole, type SessionUser } from '$lib/types/user';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { createNotificationForTeamOwners, createNotificationForAdmins } from './notifications';
+import { MatchStatus, NotificationType } from '$lib/types/enums';
 
-/**
- * Get complete match details with all relations
- */
-export async function getMatchDetails(matchId: number) {
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    include: {
-      homeTeam: {
-        include: {
-          division: true,
-          region: true,
-          players: {
-            where: { active: 1 },
-            include: {
-              player: true,
-            },
-          },
-        },
-      },
-      awayTeam: {
-        include: {
-          division: true,
-          region: true,
-          players: {
-            where: { active: 1 },
-            include: {
-              player: true,
-            },
-          },
-        },
-      },
-      season: {
-        include: {
-          region: true,
-        },
-      },
-      playoff: true,
-      games: {
-        include: {
-          arena: true,
-        },
-        orderBy: { gameNum: 'asc' },
-      },
-      matchComms: {
-        include: {
-          user: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-      matchMapBans: {
-        include: {
-          pool: {
-            include: {
-              mapsInPool: {
-                include: {
-                  arena: true,
-                },
-                orderBy: { orderNum: 'asc' },
-              },
-            },
-          },
-          actions: {
-            include: {
-              team: true,
-              player: true,
-              arena: true,
-            },
-            orderBy: { actionOrder: 'asc' },
-          },
-        },
-      },
-      demos: {
-        include: {
-          player: true,
-          submitter: true,
-        },
-        orderBy: { submittedAt: 'desc' },
-      },
-      submitter: true,
-    },
-  });
+type Match = {
+  id: number;
+  status: string;
+  weekNo?: number | null;
+  submittedAt?: Date | null;
+  seasonId?: number;
+  homeTeamId?: number;
+  [key: string]: unknown;
+};
 
-  if (!match) {
-    notFound('Match not found');
+async function getMatchDetailsRama(matchId: number) {
+  const { ramaClientOpts } = await import('$lib/server/rama/config');
+  const { createMatchClient, getMatch, getMatchComms } = await import('$lib/server/rama/match');
+  const { createUsersClient, getUser } = await import('$lib/server/rama/users');
+  const { getTeamById } = await import('$lib/server/services/teams');
+  const { getSeasonById } = await import('$lib/server/services/seasons');
+  const { createMapPoolsClient, getArena } = await import('$lib/server/rama/mapPools');
+  const { createDemosClient, getDemoIdsForMatch, getDemo } = await import('$lib/server/rama/demos');
+
+  const opts = ramaClientOpts();
+  const matchClient = createMatchClient(opts);
+  const row = await getMatch(matchClient, String(matchId));
+  if (!row) notFound('Match not found');
+
+  const homeTeamId = Number(row.homeTeamId);
+  const awayTeamId = Number(row.awayTeamId);
+  const seasonId = Number(row.seasonId);
+  const [homeTeam, awayTeam, season, commsMap] = await Promise.all([
+    getTeamById(homeTeamId),
+    getTeamById(awayTeamId),
+    getSeasonById(seasonId),
+    getMatchComms(matchClient, String(matchId)),
+  ]);
+  if (!homeTeam || !awayTeam) notFound('Match teams not found');
+
+  const boGames = Number(row.boGames ?? 1) || 1;
+  const arenaIdRaw = row.arenaId ? String(row.arenaId) : '';
+  const arenaId = arenaIdRaw ? Number(arenaIdRaw) : null;
+  let arena: {
+    id: number;
+    name: string;
+    avatar: string | null;
+    playoffMap: number;
+  } | null = null;
+  if (arenaId != null && Number.isFinite(arenaId)) {
+    const arenaRow = await getArena(createMapPoolsClient(opts), String(arenaId));
+    if (arenaRow) {
+      arena = {
+        id: arenaId,
+        name: arenaRow.name,
+        avatar: arenaRow.avatar || null,
+        playoffMap: Number(arenaRow.playoffMap ?? 0),
+      };
+    }
   }
 
-  // Check if this is a 1v1 match and add player info
-  const is1v1 = match.homeTeam.formatId === FORMAT_1V1;
+  const status = String(row.status ?? 'UNPLAYED') as MatchStatus;
+  const played = status === MatchStatus.PLAYED || status === MatchStatus.DISPUTE;
+  const homeScore = played ? Number(row.homeScore ?? 0) : null;
+  const awayScore = played ? Number(row.awayScore ?? 0) : null;
 
+  const games = Array.from({ length: boGames }, (_, i) => ({
+    id: matchId * 100 + i + 1,
+    matchId,
+    gameNum: i + 1,
+    arenaId,
+    homeTeamScore: i === 0 ? homeScore : null,
+    awayTeamScore: i === 0 ? awayScore : null,
+    arena,
+  }));
+
+  const matchDateTime =
+    row.matchDateTime && String(row.matchDateTime).length > 0
+      ? new Date(String(row.matchDateTime))
+      : null;
+
+  const homeActive = homeTeam.players.filter((p) => p.active === 1);
+  const awayActive = awayTeam.players.filter((p) => p.active === 1);
+
+  if (!season) notFound('Match season not found');
+
+  const winnerIdRaw = row.winnerId ? Number(row.winnerId) : null;
+  const winnerId =
+    winnerIdRaw != null && Number.isFinite(winnerIdRaw) && winnerIdRaw > 0 ? winnerIdRaw : null;
+  const winnerScore =
+    played && winnerId != null ? (winnerId === homeTeamId ? homeScore : awayScore) : null;
+  const loserScore =
+    played && winnerId != null ? (winnerId === homeTeamId ? awayScore : homeScore) : null;
+
+  const submittedByRaw = row.submittedBy ? String(row.submittedBy) : '';
+  const submittedAtRaw = row.submittedAt ? String(row.submittedAt) : '';
+  const submittedBy = submittedByRaw.length > 0 ? submittedByRaw : null;
+  const submittedAt =
+    submittedAtRaw.length > 0 && !Number.isNaN(new Date(submittedAtRaw).getTime())
+      ? new Date(submittedAtRaw)
+      : null;
+
+  const usersClient = createUsersClient(opts);
+  const matchComms = [];
+  for (const [commId, comm] of Object.entries(commsMap)) {
+    const user = comm.owner ? await getUser(usersClient, comm.owner) : null;
+    const numericId = Number.parseInt(commId, 10);
+    matchComms.push({
+      id: Number.isFinite(numericId) ? numericId : Date.now(),
+      matchId,
+      owner: comm.owner || null,
+      content: comm.content,
+      createdAt: comm.createdAt ? new Date(comm.createdAt) : new Date(),
+      reschedule: comm.reschedule || null,
+      rescheduleStatus:
+        comm.rescheduleStatus == null || Number(comm.rescheduleStatus) < 0
+          ? null
+          : Number(comm.rescheduleStatus),
+      user: user
+        ? {
+            steamId: comm.owner,
+            steamUsername: String(user.username ?? comm.owner),
+            steamAvatar: String(user.avatarUrl ?? ''),
+          }
+        : null,
+    });
+  }
+  matchComms.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  let submitter = null;
+  if (submittedBy) {
+    const submitterUser = await getUser(usersClient, submittedBy);
+    submitter = submitterUser
+      ? {
+          steamId: submittedBy,
+          steamUsername: String(submitterUser.username ?? submittedBy),
+          steamAvatar: String(submitterUser.avatarUrl ?? ''),
+        }
+      : { steamId: submittedBy, steamUsername: submittedBy, steamAvatar: '' };
+  }
+
+  const demosClient = createDemosClient(opts);
+  const demoIds = await getDemoIdsForMatch(demosClient, String(matchId));
+  const demos = [];
+  for (const demoId of demoIds) {
+    const demo = await getDemo(demosClient, demoId);
+    if (!demo) continue;
+    const [player, demoSubmitter] = await Promise.all([
+      getUser(usersClient, demo.playerSteamId),
+      getUser(usersClient, demo.submittedBy),
+    ]);
+    demos.push({
+      id: Number(demoId),
+      file: demo.file,
+      playerSteamId: demo.playerSteamId,
+      submittedBy: demo.submittedBy,
+      matchId,
+      title: demo.title || null,
+      description: demo.description || null,
+      submittedAt: demo.createdAt ? new Date(demo.createdAt) : new Date(),
+      player: player
+        ? {
+            steamId: demo.playerSteamId,
+            steamUsername: String(player.username ?? demo.playerSteamId),
+            steamAvatar: String(player.avatarUrl ?? ''),
+          }
+        : null,
+      submitter: demoSubmitter
+        ? {
+            steamId: demo.submittedBy,
+            steamUsername: String(demoSubmitter.username ?? demo.submittedBy),
+            steamAvatar: String(demoSubmitter.avatarUrl ?? ''),
+          }
+        : null,
+    });
+  }
+
+  const weekNoRaw = Number(row.weekNo ?? 0);
+  const isPlayoff = weekNoRaw === 0;
+
+  const match = {
+    id: matchId,
+    homeTeamId,
+    awayTeamId,
+    seasonId,
+    seasonNo: Number(row.seasonNo ?? season.seasonNum ?? 0),
+    weekNo: isPlayoff ? null : weekNoRaw || null,
+    playoffId: isPlayoff ? seasonId : (null as number | null),
+    playoffRound: isPlayoff ? 1 : (null as number | null),
+    boSeries: boGames,
+    boGames: null as number | null,
+    status,
+    matchDateTime,
+    matchTimezone: row.matchTimezone ? String(row.matchTimezone) : null,
+    homeTeamScore: homeScore,
+    awayTeamScore: awayScore,
+    winnerScore,
+    loserScore,
+    submittedBy,
+    submittedAt,
+    winnerId,
+    homeTeam: { ...homeTeam, players: homeActive },
+    awayTeam: { ...awayTeam, players: awayActive },
+    season: {
+      ...season,
+      region: season.region ?? {
+        id: season.regionId,
+        name: String(season.regionId),
+        hidden: 0,
+        currencySymbol: '',
+        currencyCode: '',
+      },
+    },
+    playoff: null,
+    games,
+    matchComms,
+    matchMapBans: [] as Array<{
+      id: number;
+      matchId: number;
+      currentTurn: number;
+      pool: {
+        id: number;
+        name: string;
+        mapsInPool: Array<{
+          orderNum: number;
+          arena: { id: number; name: string; avatar: string | null };
+        }>;
+      };
+      actions: Array<{
+        id: number;
+        actionOrder: number;
+        actionType: string;
+        team: { id: number; name: string } | null;
+        player: { steamId: string; steamUsername: string } | null;
+        arena: { id: number; name: string } | null;
+      }>;
+    }>,
+    demos,
+    submitter,
+  };
+
+  const is1v1 = homeTeam.formatId === FORMAT_1V1;
   if (is1v1) {
-    // Get the active player from each "team" (there should only be one)
-    const homePlayer = match.homeTeam.players[0]?.player || null;
-    const awayPlayer = match.awayTeam.players[0]?.player || null;
-
     return {
       ...match,
-      is1v1: true,
-      homePlayer,
-      awayPlayer,
+      is1v1: true as const,
+      homePlayer: homeActive[0]?.player || null,
+      awayPlayer: awayActive[0]?.player || null,
     };
   }
 
   return {
     ...match,
-    is1v1: false,
+    is1v1: false as const,
     homePlayer: null,
     awayPlayer: null,
   };
+}
+
+export type MatchDetails = Awaited<ReturnType<typeof getMatchDetailsRama>>;
+
+/**
+ * Get complete match details with all relations
+ */
+export async function getMatchDetails(matchId: number): Promise<MatchDetails> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    return getMatchDetailsRama(matchId);
+  }
+  notFound('Match not found');
 }
 
 /**
@@ -132,31 +287,38 @@ export async function getMatchWeekLabel(match: Match): Promise<string | null> {
     return null;
   }
 
-  // Get all matches for the HOME team in this week
-  // This ensures consistent labeling from one team's perspective
-  const homeTeamMatchesForThisWeek = await prisma.match.findMany({
-    where: {
-      seasonId: match.seasonId,
-      weekNo: match.weekNo,
-      playoffId: null,
-      OR: [{ homeTeamId: match.homeTeamId }, { awayTeamId: match.homeTeamId }],
-    },
-    select: { id: true },
-    orderBy: { id: 'asc' },
-  });
-
-  return calculateWeekLabel(match, homeTeamMatchesForThisWeek);
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatchIdsForTeam, getMatchIdsForWeek } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const weekIds = await getMatchIdsForWeek(client, String(match.seasonId), match.weekNo);
+    const teamIds = new Set(await getMatchIdsForTeam(client, String(match.homeTeamId)));
+    const homeTeamMatchesForThisWeek = weekIds
+      .filter((id) => teamIds.has(id))
+      .map((id) => ({ id: Number(id) }))
+      .sort((a, b) => a.id - b.id);
+    return calculateWeekLabel(match, homeTeamMatchesForThisWeek);
+  }
+  throw new Error('getMatchWeekLabel requires DATA_BACKEND=rama');
 }
 
 /**
  * Calculate week labels for multiple matches
  * More efficient than calling getMatchWeekLabel multiple times
  */
-export async function getMatchWeekLabels(matches: Match[]): Promise<Map<number, string | null>> {
+export async function getMatchWeekLabels(
+  matches: Array<{
+    id: number;
+    weekNo?: number | null;
+    seasonId?: number;
+    homeTeamId?: number;
+  }>,
+): Promise<Map<number, string | null>> {
   const labels = new Map<number, string | null>();
 
   for (const match of matches) {
-    const label = await getMatchWeekLabel(match);
+    const label = await getMatchWeekLabel(match as Match);
     labels.set(match.id, label);
   }
 
@@ -371,116 +533,64 @@ export async function submitMatchScores(
   gameResults: GameResult[],
   submittedBy: string,
 ) {
-  const result = await prisma.$transaction(async (tx) => {
-    // Lock the match row for the duration of this transaction so concurrent
-    // submissions cannot both pass the UNPLAYED check simultaneously.
-    const rows = await tx.$queryRaw<{ id: number; status: string }[]>`
-      SELECT id, status FROM matches WHERE id = ${matchId} FOR UPDATE
-    `;
-    const locked = rows[0];
-    if (!locked) notFound('Match not found');
-    if (locked.status !== 'UNPLAYED') {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, submitScore } = await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const match = await getMatch(client, String(matchId));
+    if (!match) notFound('Match not found');
+    if (String(match.status) !== 'UNPLAYED') {
       badRequest('Match scores have already been submitted');
     }
 
-    const match = await tx.match.findUnique({
-      where: { id: matchId },
-      include: { homeTeam: true, awayTeam: true, games: true },
+    const homeTeamId = Number(match.homeTeamId);
+    const awayTeamId = Number(match.awayTeamId);
+    const { winnerId, winnerScore, loserScore } = calculateMatchWinner(
+      homeTeamId,
+      awayTeamId,
+      gameResults,
+      match.boGames != null ? Number(match.boGames) : null,
+    );
+
+    // MatchModule score-error treats scores as series wins vs boGames; Bo1 frag
+    // totals (e.g. 8–2) still satisfy (>= boGames && > opponent).
+    const homeScore = gameResults.reduce((s, g) => s + g.homeScore, 0);
+    const awayScore = gameResults.reduce((s, g) => s + g.awayScore, 0);
+    const ack = await submitScore(client, {
+      matchId: String(matchId),
+      homeScore,
+      awayScore,
+      submittedBy,
+      submittedAt: new Date().toISOString(),
     });
+    if (!ack.ok) badRequest(ack.error || 'Failed to submit scores');
 
-    if (!match) notFound('Match not found');
+    const opposingTeamId =
+      (await (async () => {
+        const { createTeamsClient, getRoster } = await import('$lib/server/rama/teams');
+        const teams = createTeamsClient(ramaClientOpts());
+        for (const teamId of [homeTeamId, awayTeamId]) {
+          const roster = await getRoster(teams, String(teamId));
+          if (roster[submittedBy]?.active) {
+            return teamId === homeTeamId ? awayTeamId : homeTeamId;
+          }
+        }
+        return null;
+      })()) ?? null;
 
-    const { winnerId, winnerScore, loserScore, homePointsScored, awayPointsScored } =
-      calculateMatchWinner(match.homeTeamId, match.awayTeamId, gameResults, match.boGames);
-
-    for (const r of gameResults) {
-      await tx.game.updateMany({
-        where: { matchId, gameNum: r.gameNum },
-        data: {
-          homeTeamScore: r.homeScore,
-          awayTeamScore: r.awayScore,
-          arenaId: r.arenaId || null,
-        },
-      });
+    if (opposingTeamId != null) {
+      await createNotificationForTeamOwners(
+        [opposingTeamId],
+        NotificationType.MATCH_COMM,
+        `/matches/${matchId}`,
+        `Score submitted: ${winnerScore}-${loserScore}`,
+        submittedBy,
+      );
     }
 
-    await tx.team.update({
-      where: { id: match.homeTeamId },
-      data: {
-        wins: { increment: winnerId === match.homeTeamId ? 1 : 0 },
-        losses: { increment: winnerId === match.awayTeamId ? 1 : 0 },
-        gamesWon: { increment: gameResults.filter((g) => g.homeScore > g.awayScore).length },
-        gamesLost: { increment: gameResults.filter((g) => g.awayScore > g.homeScore).length },
-        pointsScored: { increment: homePointsScored },
-        pointsScoredAgainst: { increment: awayPointsScored },
-      },
-    });
-
-    await tx.team.update({
-      where: { id: match.awayTeamId },
-      data: {
-        wins: { increment: winnerId === match.awayTeamId ? 1 : 0 },
-        losses: { increment: winnerId === match.homeTeamId ? 1 : 0 },
-        gamesWon: { increment: gameResults.filter((g) => g.awayScore > g.homeScore).length },
-        gamesLost: { increment: gameResults.filter((g) => g.homeScore > g.awayScore).length },
-        pointsScored: { increment: awayPointsScored },
-        pointsScoredAgainst: { increment: homePointsScored },
-      },
-    });
-
-    await tx.match.update({
-      where: { id: matchId },
-      data: {
-        winnerId,
-        winnerScore,
-        loserScore,
-        status: MatchStatus.PLAYED,
-        submittedBy,
-        submittedAt: new Date(),
-      },
-    });
-
-    await tx.matchComm.updateMany({
-      where: { matchId, rescheduleStatus: 0 },
-      data: { rescheduleStatus: 3 }, // Canceled
-    });
-
-    return {
-      winnerId,
-      winnerScore,
-      loserScore,
-      homeTeamId: match.homeTeamId,
-      awayTeamId: match.awayTeamId,
-    };
-  });
-
-  // Notifications run outside the transaction — non-critical side effects
-  const submitterTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: submittedBy,
-      teamId: { in: [result.homeTeamId, result.awayTeamId] },
-      active: 1,
-    },
-  });
-
-  if (submitterTeam) {
-    const opposingTeamId =
-      submitterTeam.teamId === result.homeTeamId ? result.awayTeamId : result.homeTeamId;
-
-    await createNotificationForTeamOwners(
-      [opposingTeamId],
-      'MATCH_COMM',
-      `/matches/${matchId}`,
-      `Score submitted: ${result.winnerScore}-${result.loserScore}`,
-      submittedBy,
-    );
+    return { winnerId, winnerScore, loserScore };
   }
-
-  return {
-    winnerId: result.winnerId,
-    winnerScore: result.winnerScore,
-    loserScore: result.loserScore,
-  };
+  throw new Error('submitMatchScores requires DATA_BACKEND=rama');
 }
 
 /**
@@ -488,76 +598,66 @@ export async function submitMatchScores(
  * Must be within 24 hours of submission
  */
 export async function disputeMatch(matchId: number, reason: string, disputedBy: string) {
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-  });
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, nextCommId, postComm, setMatchStatus } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const match = await getMatch(client, String(matchId));
+    if (!match) notFound('Match not found');
+    if (String(match.status) !== 'PLAYED') badRequest('Can only dispute played matches');
 
-  if (!match) {
-    notFound('Match not found');
-  }
+    const submittedAtRaw = match.submittedAt ? String(match.submittedAt) : '';
+    if (!submittedAtRaw) badRequest('No submission timestamp found');
+    const submittedTime = new Date(submittedAtRaw).getTime();
+    if (Number.isNaN(submittedTime)) badRequest('No submission timestamp found');
+    if ((Date.now() - submittedTime) / (1000 * 3600) > 24) {
+      badRequest('Dispute period has passed (24 hours)');
+    }
 
-  if (match.status !== MatchStatus.PLAYED) {
-    badRequest('Can only dispute played matches');
-  }
+    const statusAck = await setMatchStatus(client, {
+      matchId: String(matchId),
+      status: 'DISPUTE',
+    });
+    if (!statusAck.ok) badRequest(statusAck.error || 'Failed to dispute match');
 
-  if (!match.submittedAt) {
-    badRequest('No submission timestamp found');
-  }
-
-  const now = Date.now();
-  const submittedTime = match.submittedAt.getTime();
-  const hoursSinceSubmission = (now - submittedTime) / (1000 * 3600);
-
-  if (hoursSinceSubmission > 24) {
-    badRequest('Dispute period has passed (24 hours)');
-  }
-
-  // Update match status to DISPUTE
-  await prisma.match.update({
-    where: { id: matchId },
-    data: {
-      status: MatchStatus.DISPUTE,
-    },
-  });
-
-  // Create dispute message
-  await prisma.matchComm.create({
-    data: {
-      matchId,
+    const commAck = await postComm(client, {
+      matchId: String(matchId),
+      commId: nextCommId(),
       owner: disputedBy,
       content: `MATCH DISPUTED: ${reason}`,
-      createdAt: new Date(),
-    },
-  });
+    });
+    if (!commAck.ok) badRequest(commAck.error || 'Failed to post dispute message');
 
-  // Notify admins about the dispute
-  await createNotificationForAdmins(
-    'MATCH_COMM',
-    `/matches/${matchId}`,
-    `Match disputed: ${reason.substring(0, 50)}${reason.length > 50 ? '...' : ''}`,
-    disputedBy,
-  );
-
-  // Determine which team the disputer is on to notify the opposing team
-  const disputerTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: disputedBy,
-      teamId: { in: [match.homeTeamId, match.awayTeamId] },
-      active: 1,
-    },
-  });
-
-  if (disputerTeam) {
-    const opposingTeamId =
-      disputerTeam.teamId === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
-
-    // Notify opposing team about the dispute
-    await createNotificationForTeamOwners(
-      [opposingTeamId],
-      'MATCH_COMM',
+    await createNotificationForAdmins(
+      NotificationType.MATCH_COMM,
       `/matches/${matchId}`,
-      'Match has been disputed',
+      `Match disputed: ${reason.substring(0, 50)}${reason.length > 50 ? '...' : ''}`,
       disputedBy,
     );
+
+    const homeTeamId = Number(match.homeTeamId);
+    const awayTeamId = Number(match.awayTeamId);
+    const { createTeamsClient, getRoster } = await import('$lib/server/rama/teams');
+    const teams = createTeamsClient(ramaClientOpts());
+    let opposingTeamId: number | null = null;
+    for (const teamId of [homeTeamId, awayTeamId]) {
+      const roster = await getRoster(teams, String(teamId));
+      if (roster[disputedBy]?.active) {
+        opposingTeamId = teamId === homeTeamId ? awayTeamId : homeTeamId;
+        break;
+      }
+    }
+    if (opposingTeamId != null) {
+      await createNotificationForTeamOwners(
+        [opposingTeamId],
+        NotificationType.MATCH_COMM,
+        `/matches/${matchId}`,
+        'Match has been disputed',
+        disputedBy,
+      );
+    }
+    return;
   }
+  throw new Error('disputeMatch requires DATA_BACKEND=rama');
 }

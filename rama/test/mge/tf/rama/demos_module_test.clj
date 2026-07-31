@@ -1,0 +1,65 @@
+(ns mge.tf.rama.demos-module-test
+  (:use [com.rpl.rama]
+        [com.rpl.rama.path])
+  (:require
+   [clojure.test :refer [deftest is testing]]
+   [com.rpl.rama.test :as rtest]
+   [mge.tf.rama.demos-module :as dm]))
+
+(def MODULE-NAME "mge.tf.rama.demos-module/DemosModule")
+
+(defn append-event!
+  [depot event]
+  (get (foreign-append! depot event) "demos"))
+
+(deftest demos-lifecycle-test
+  (with-open [ipc (rtest/create-ipc)]
+    (rtest/launch-module! ipc dm/DemosModule {:tasks 4 :threads 2})
+    (let [depot (foreign-depot ipc MODULE-NAME "*demo-depot")
+          demos (foreign-pstate ipc MODULE-NAME "$$demos")
+          by-match (foreign-pstate ipc MODULE-NAME "$$demos-by-match")
+          reports (foreign-pstate ipc MODULE-NAME "$$demo-reports")
+          by-status (foreign-pstate ipc MODULE-NAME "$$reports-by-status")]
+
+      (testing "create-demo"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "create-demo"
+                      "demoId" "d1"
+                      "matchId" "m1"
+                      "playerSteamId" "p1"
+                      "submittedBy" "p1"
+                      "file" "https://example.test/d1.dem"
+                      "title" "clip"
+                      "description" ""
+                      "createdAt" "2026-07-31T00:00:00.000Z"})
+                    "ok")))
+        (is (= "m1" (foreign-select-one (keypath "d1" "matchId") demos)))
+        (is (= true (foreign-select-one (keypath "m1" "d1") by-match))))
+
+      (testing "report + resolve"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "report-demo"
+                      "reportId" "r1"
+                      "demoId" "d1"
+                      "reportedBy" "p2"
+                      "description" "sus"
+                      "reportedAt" "2026-07-31T01:00:00.000Z"})
+                    "ok")))
+        (is (= "REVIEW" (foreign-select-one (keypath "r1" "status") reports)))
+        (is (= true (foreign-select-one (keypath "REVIEW" "r1") by-status)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "resolve-report"
+                      "reportId" "r1"
+                      "status" "ACTION"
+                      "adminComments" "noted"
+                      "adminId" "admin"})
+                    "ok")))
+        (is (= "ACTION" (foreign-select-one (keypath "r1" "status") reports)))
+        (is (= true (foreign-select-one (keypath "ACTION" "r1") by-status)))
+        (is (nil? (foreign-select-one (keypath "REVIEW" "r1") by-status)))))))

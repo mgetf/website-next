@@ -1,37 +1,94 @@
+import type { DivisionRecord } from '$lib/types/service-models';
 /**
  * Division Service
  *
  * All division-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import { createCatalogClient, getRegion, getRegionIds } from '$lib/server/rama/catalog';
+import {
+  createDivisionsClient,
+  getDivision,
+  getDivisionIdsByRegion,
+  upsertDivision,
+} from '$lib/server/rama/divisions';
+
+// ─── Rama helpers ──────────────────────────────────────────────────────────────
+
+async function getVisibleDivisionsRama(): Promise<
+  { id: number; name: string; signupCost: number; regionId: number }[]
+> {
+  const catalogOpts = ramaClientOpts();
+  const catalog = createCatalogClient(catalogOpts);
+  const divisions = createDivisionsClient(catalogOpts);
+
+  const regionIds = await getRegionIds(catalog);
+  const results: { id: number; name: string; signupCost: number; regionId: number }[] = [];
+
+  for (const rid of regionIds) {
+    const divIds = await getDivisionIdsByRegion(divisions, rid);
+    for (const did of divIds) {
+      const d = await getDivision(divisions, did);
+      if (d) {
+        results.push({
+          id: Number(did),
+          name: d.name,
+          signupCost: Number(d.signupCost),
+          regionId: Number(d.regionId),
+        });
+      }
+    }
+  }
+  // Match Postgres ordering: id DESC (higher id = lower tier)
+  results.sort((a, b) => b.id - a.id);
+  return results;
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────────
 
 /**
  * Get all divisions with their team counts
  * Includes hidden divisions (for admin use)
  */
 export async function getDivisions() {
-  return await prisma.division.findMany({
-    include: {
-      region: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      itemPayment: {
-        include: { steamItem: true },
-      },
-      _count: {
-        select: {
-          teams: true,
-        },
-      },
-    },
-    orderBy: {
-      id: 'asc',
-    },
-  });
+  if (isRamaBackend()) {
+    const catalogOpts = ramaClientOpts();
+    const catalog = createCatalogClient(catalogOpts);
+    const divisions = createDivisionsClient(catalogOpts);
+    const regionIds = await getRegionIds(catalog);
+    const rows = [];
+    for (const rid of regionIds) {
+      const region = await getRegion(catalog, rid);
+      const divIds = await getDivisionIdsByRegion(divisions, rid);
+      for (const did of divIds) {
+        const d = await getDivision(divisions, did);
+        if (!d) continue;
+        rows.push({
+          id: Number(did),
+          name: d.name,
+          regionId: Number(d.regionId),
+          signupCost: Number(d.signupCost ?? 0),
+          sortOrder: Number(d.sortOrder ?? 0),
+          hidden: 0,
+          itemPaymentId: null as number | null,
+          region: {
+            id: Number(rid),
+            name: region?.name ?? String(rid),
+          },
+          itemPayment: null as {
+            steamItemId: number;
+            itemQuantity: number;
+            steamItem: { id: number; name: string };
+          } | null,
+          _count: { teams: 0 },
+        });
+      }
+    }
+    rows.sort((a, b) => a.id - b.id);
+    return rows;
+  }
+  throw new Error('getDivisions requires DATA_BACKEND=rama');
 }
 
 /**
@@ -41,16 +98,8 @@ export async function getDivisions() {
  * Includes regionId for filtering by region
  */
 export async function getVisibleDivisions() {
-  return await prisma.division.findMany({
-    where: { hidden: 0 },
-    select: {
-      id: true,
-      name: true,
-      signupCost: true,
-      regionId: true,
-    },
-    orderBy: { id: 'desc' },
-  });
+  if (isRamaBackend()) return getVisibleDivisionsRama();
+  throw new Error('getVisibleDivisions requires DATA_BACKEND=rama');
 }
 
 /**
@@ -58,18 +107,17 @@ export async function getVisibleDivisions() {
  * Returns only id and name for visible divisions
  */
 export async function getDivisionsForFilter() {
-  return await prisma.division.findMany({
-    where: { hidden: 0 },
-    select: {
-      id: true,
-      name: true,
-      regionId: true,
-      region: {
-        select: { name: true },
-      },
-    },
-    orderBy: { id: 'asc' },
-  });
+  if (isRamaBackend()) {
+    const divs = await getVisibleDivisionsRama();
+    // Region name is not populated under Rama (no callers need it in the E2E path)
+    return divs.map((d) => ({
+      id: d.id,
+      name: d.name,
+      regionId: d.regionId,
+      region: { name: String(d.regionId) },
+    }));
+  }
+  throw new Error('getDivisionsForFilter requires DATA_BACKEND=rama');
 }
 
 /**
@@ -78,11 +126,9 @@ export async function getDivisionsForFilter() {
  * (higher id = lower division tier: INVITE > PREMIER > INTERMEDIATE > OPEN > NEWCOMER).
  * This avoids hardcoding a division name like "Premier" that may differ per region.
  */
-export async function findTopDivisionByRegion(regionId: number) {
-  return await prisma.division.findFirst({
-    where: { regionId, hidden: 0 },
-    orderBy: { id: 'desc' },
-  });
+export async function findTopDivisionByRegion(regionId: number): Promise<DivisionRecord | null> {
+  void regionId;
+  return null;
 }
 
 /**
@@ -92,37 +138,50 @@ export async function findTopDivisionByRegion(regionId: number) {
  * - Division name must be unique within its region (case-insensitive)
  * - regionId is required
  */
-export async function createDivision(data: { name: string; signupCost: number; regionId: number }) {
-  const trimmedName = data.name.trim();
+export async function createDivision(data: {
+  name: string;
+  signupCost: number;
+  regionId: number;
+}): Promise<DivisionRecord> {
+  if (isRamaBackend()) {
+    const trimmedName = data.name.trim();
+    if (!trimmedName) throw new Error('Division name is required');
+    if (!data.regionId) throw new Error('Region is required');
 
-  if (!trimmedName) {
-    throw new Error('Division name is required');
-  }
+    const opts = ramaClientOpts();
+    const catalog = createCatalogClient(opts);
+    const region = await getRegion(catalog, String(data.regionId));
+    if (!region) throw new Error('Region not found');
 
-  if (!data.regionId) {
-    throw new Error('Region is required');
-  }
+    const divisions = createDivisionsClient(opts);
+    const existingIds = await getDivisionIdsByRegion(divisions, String(data.regionId));
+    for (const did of existingIds) {
+      const d = await getDivision(divisions, did);
+      if (d && d.name.toLowerCase() === trimmedName.toLowerCase()) {
+        throw new Error('Division with this name already exists in this region');
+      }
+    }
 
-  // Check if division already exists in this region (case-insensitive)
-  const existingDivision = await prisma.division.findFirst({
-    where: {
-      name: { equals: trimmedName, mode: 'insensitive' },
-      regionId: data.regionId,
-    },
-  });
+    const divisionId = String(Date.now() % 2_000_000_000);
+    const ack = await upsertDivision(divisions, {
+      divisionId,
+      name: trimmedName,
+      regionId: String(data.regionId),
+      signupCost: data.signupCost,
+      sortOrder: 0,
+    });
+    if (!ack.ok) throw new Error(ack.error ?? 'Failed to create division');
 
-  if (existingDivision) {
-    throw new Error('Division with this name already exists in this region');
-  }
-
-  return await prisma.division.create({
-    data: {
+    return {
+      id: Number(divisionId),
       name: trimmedName,
       signupCost: data.signupCost,
-      regionId: data.regionId,
       hidden: 0,
-    },
-  });
+      regionId: data.regionId,
+      sortOrder: 0,
+    };
+  }
+  throw new Error('createDivision requires DATA_BACKEND=rama');
 }
 
 /**
@@ -141,43 +200,7 @@ export async function updateDivision(
     regionId: number;
   },
 ) {
-  const trimmedName = data.name.trim();
-
-  if (!trimmedName) {
-    throw new Error('Division name is required');
-  }
-
-  if (!data.regionId) {
-    throw new Error('Region is required');
-  }
-
-  // Check if division exists
-  const division = await prisma.division.findUnique({ where: { id } });
-  if (!division) {
-    throw new Error('Division not found');
-  }
-
-  // Check for name conflicts within the target region (case-insensitive)
-  const conflictingDivision = await prisma.division.findFirst({
-    where: {
-      name: { equals: trimmedName, mode: 'insensitive' },
-      regionId: data.regionId,
-      NOT: { id },
-    },
-  });
-
-  if (conflictingDivision) {
-    throw new Error('Division with this name already exists in this region');
-  }
-
-  return await prisma.division.update({
-    where: { id },
-    data: {
-      name: trimmedName,
-      signupCost: data.signupCost,
-      regionId: data.regionId,
-    },
-  });
+  throw new Error('updateDivision is not available under Rama');
 }
 
 /**
@@ -188,49 +211,13 @@ export async function updateDivision(
  * - Cannot delete if any teams are assigned to it or any staff members are assigned to it
  */
 export async function deleteDivision(id: number) {
-  const division = await prisma.division.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: {
-          teams: true,
-          staffMembers: true,
-        },
-      },
-    },
-  });
-
-  if (!division) {
-    throw new Error('Division not found');
-  }
-
-  const blockers: string[] = [];
-  if (division._count.teams > 0)
-    blockers.push(`${division._count.teams} team${division._count.teams !== 1 ? 's' : ''}`);
-  if (division._count.staffMembers > 0)
-    blockers.push(
-      `${division._count.staffMembers} staff member${division._count.staffMembers !== 1 ? 's' : ''} assigned to it`,
-    );
-
-  if (blockers.length > 0) {
-    throw new Error(`Cannot delete division: it has ${blockers.join(', ')}.`);
-  }
-
-  return await prisma.division.delete({ where: { id } });
+  throw new Error('deleteDivision is not available under Rama');
 }
 
 /**
  * Toggle division visibility (hidden/visible)
  */
-export async function toggleDivisionVisibility(id: number) {
-  const division = await prisma.division.findUnique({ where: { id } });
-
-  if (!division) {
-    throw new Error('Division not found');
-  }
-
-  return await prisma.division.update({
-    where: { id },
-    data: { hidden: division.hidden === 0 ? 1 : 0 },
-  });
+export async function toggleDivisionVisibility(id: number): Promise<DivisionRecord> {
+  void id;
+  throw new Error('toggleDivisionVisibility is not available under Rama');
 }

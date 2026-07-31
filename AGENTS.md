@@ -8,7 +8,7 @@ This file is for AI assistants (Claude, Cursor, Copilot) and human contributors.
 
 - **Framework**: SvelteKit 2 with Svelte 5 (runes only, no legacy stores)
 - **Language**: TypeScript (strict mode)
-- **Database**: PostgreSQL via Prisma 7 (with `@prisma/adapter-pg` for direct TCP)
+- **Data store**: Rama modules (Clojure) via built-in REST JSON — no Prisma/Postgres app path
 - **Styling**: Tailwind CSS 4 via Vite plugin
 - **Package Manager**: Bun (never npm/pnpm/yarn)
 - **Validation**: Zod
@@ -22,24 +22,26 @@ This file is for AI assistants (Claude, Cursor, Copilot) and human contributors.
 ```
 Routes (+page.server.ts, +server.ts)    ← Auth checks, input validation, response shaping
     ↓
-Services (src/lib/server/services/*.ts)  ← Business logic, all database access
+Services (src/lib/server/services/*.ts)  ← Business logic, all durable-state access
     ↓
-Prisma Client (src/lib/server/db.ts)     ← Singleton connection
+Rama REST clients (src/lib/server/rama/*) ← Depot append / PState select
+    ↓
+Rama modules (rama/src/mge/tf/rama/*_module.clj)
 ```
 
 **Rules:**
 
-- Route handlers are thin orchestrators — no Prisma imports
-- Services own ALL database queries and business logic
+- Route handlers are thin orchestrators — no direct Rama client imports when a service exists
+- Services own ALL durable-state access and business logic
 - Services use named exports only (no default exports)
-- Services import Prisma from `$lib/server/db`, types from `$prisma/client.js`
-- Load functions map Prisma objects to plain serializable shapes before returning
+- Services talk to Rama via `$lib/server/rama/*` helpers only (no custom Clojure HTTP)
+- Shared enums/types live in `$lib/types/` — never reintroduce Prisma
+- Load functions map domain objects to plain serializable shapes before returning
 
 ### Client/Server Boundary
 
 - `$lib/server/` is server-only — client code must never import from it (not even `import type`)
 - Shared types live in `$lib/types/` (e.g., `SessionUser`, `UserRole`, `ProfileMatch`)
-- Prisma types stay server-side; mirror needed types in `$lib/types/`
 - Client state uses `.svelte.ts` files with `$state` class singletons (see `$lib/state/`)
 
 ### Auth
@@ -67,7 +69,7 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 
 - Security secrets: `getRequiredEnv()` from `$lib/server/utils/env`
 - Service credentials: `$env/dynamic/private` or named getters in `env.ts`
-- Raw `process.env` only in `db.ts` for `DATABASE_URL`
+- Prefer named getters in `env.ts` / `$env/dynamic/private` over scattered `process.env`
 
 ### Constants
 
@@ -77,15 +79,14 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 
 ```bash
 bun run dev             # Development server
-bun run build           # Production build (runs prisma generate first)
+bun run build           # Production build
 bun run check           # Type checking (svelte-check)
 bun run format          # Format all files with Prettier
 bun run format:check    # Check formatting without writing (used in CI)
 bun run boundary-check  # Architecture boundary checks (used in CI)
 bun run knip            # Find unused files, dependencies, and exports (used in CI)
-bun run generate        # Regenerate Prisma client
-bun run migrate         # Run migrations (dev)
-bun run migrate:prod    # Run migrations (production)
+bun run test:e2e        # Playwright god-path against DATA_BACKEND=rama
+bun run rama:cluster:up-deploy  # Local Rama cluster + module deploy
 ```
 
 After any code change, run `bun run format`, `bun run check`, `bun run boundary-check`, and `bun run knip` before considering the work done. If Knip flags something intentionally kept for later, tag it with `@lintignore` in its JSDoc rather than ignoring the warning.

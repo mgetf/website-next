@@ -18,7 +18,6 @@ import {
   invalidateCachedSessionVersion,
 } from '$lib/server/auth/sessionCache';
 import { BanStatus, UserRole } from '$lib/types/user';
-import { logPrismaError } from '$lib/server/utils/prisma-errors';
 import { adminRateLimiter } from '$lib/server/utils/rateLimit';
 
 validateEnvironment();
@@ -164,7 +163,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 export const handleError: HandleServerError = async ({ error, status, message }) => {
   const errorId = crypto.randomUUID();
-  logPrismaError('hooks.handleError', error, { errorId, status });
 
   if (dev) {
     console.error(`[${errorId}] ${status}:`, error);

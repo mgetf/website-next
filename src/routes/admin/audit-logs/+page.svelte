@@ -10,7 +10,7 @@
   let { data }: { data: PageData } = $props();
 
   type LogEntry = {
-    id: number;
+    id: string;
     timestamp: string;
     actorId: string | null;
     actorRole: string | null;
@@ -26,7 +26,7 @@
     ipAddress: string | null;
   };
 
-  let expandedRow = $state<number | null>(null);
+  let expandedRow = $state<string | null>(null);
 
   let filterCategory = $state('');
   let filterAction = $state('');

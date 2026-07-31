@@ -12,9 +12,6 @@ const config = {
       out: 'build',
       bodySize: 250 * 1024 * 1024, // 250 MB — needed for map BSP uploads (up to 200 MB)
     }),
-    alias: {
-      $prisma: './prisma/generated',
-    },
   },
 };
 

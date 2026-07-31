@@ -1,11 +1,17 @@
 /**
- * Audit Log Service
- *
- * Centralized audit trail for all significant actions in the system.
+ * Audit Log Service — Rama GlobalsModule (no Prisma).
  * logAudit() is fire-and-forget — failures never propagate to callers.
  */
 
-import { prisma } from '$lib/server/db';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import {
+  appendAudit,
+  createGlobalsClient,
+  getAudit,
+  getAuditIdMap,
+} from '$lib/server/rama/globals';
+import { createUsersClient, getUser } from '$lib/server/rama/users';
+import type { AuditLogStatsRow, AuditLogsResult } from '$lib/types/service-models';
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
@@ -29,13 +35,10 @@ export type AuditCategory = (typeof AuditCategory)[keyof typeof AuditCategory];
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
 export const AuditAction = {
-  // AUTH
   AUTH_LOGIN: 'AUTH_LOGIN',
   AUTH_LOGOUT: 'AUTH_LOGOUT',
   AUTH_DISCORD_LINKED: 'AUTH_DISCORD_LINKED',
   AUTH_DISCORD_UNLINKED: 'AUTH_DISCORD_UNLINKED',
-
-  // USER
   USER_ROLE_CHANGED: 'USER_ROLE_CHANGED',
   USER_BANNED: 'USER_BANNED',
   USER_UNBANNED: 'USER_UNBANNED',
@@ -44,8 +47,6 @@ export const AuditAction = {
   USER_AVATAR_LOCKED: 'USER_AVATAR_LOCKED',
   USER_AVATAR_UNLOCKED: 'USER_AVATAR_UNLOCKED',
   USER_DISCORD_UNLINKED: 'USER_DISCORD_UNLINKED',
-
-  // TEAM
   TEAM_CREATED: 'TEAM_CREATED',
   TEAM_UPDATED: 'TEAM_UPDATED',
   TEAM_AVATAR_CHANGED: 'TEAM_AVATAR_CHANGED',
@@ -53,8 +54,6 @@ export const AuditAction = {
   TEAM_DELETED: 'TEAM_DELETED',
   TEAM_STATUS_CHANGED: 'TEAM_STATUS_CHANGED',
   TEAM_DIVISION_CHANGED: 'TEAM_DIVISION_CHANGED',
-
-  // ROSTER
   PLAYER_JOINED: 'PLAYER_JOINED',
   PLAYER_REMOVED: 'PLAYER_REMOVED',
   PLAYER_PROMOTED: 'PLAYER_PROMOTED',
@@ -62,8 +61,6 @@ export const AuditAction = {
   PLAYER_INVITED: 'PLAYER_INVITED',
   PLAYER_APPROVED: 'PLAYER_APPROVED',
   PLAYER_DENIED: 'PLAYER_DENIED',
-
-  // MATCH
   MATCH_CREATED: 'MATCH_CREATED',
   MATCH_SCORES_SUBMITTED: 'MATCH_SCORES_SUBMITTED',
   MATCH_DISPUTED: 'MATCH_DISPUTED',
@@ -73,25 +70,17 @@ export const AuditAction = {
   MATCH_SCHEDULE_UPDATED: 'MATCH_SCHEDULE_UPDATED',
   MATCH_ARENAS_UPDATED: 'MATCH_ARENAS_UPDATED',
   MATCH_DELETED: 'MATCH_DELETED',
-
-  // MAP_BAN
   MAP_BAN_INITIALIZED: 'MAP_BAN_INITIALIZED',
   MAP_BANNED: 'MAP_BANNED',
   MAP_PICKED: 'MAP_PICKED',
   MAP_POOL_CREATED: 'MAP_POOL_CREATED',
   MAP_POOL_UPDATED: 'MAP_POOL_UPDATED',
-
-  // MAP_FILES
   MAP_FILE_UPLOADED: 'MAP_FILE_UPLOADED',
   MAP_FILE_UPDATED: 'MAP_FILE_UPDATED',
   MAP_FILE_DELETED: 'MAP_FILE_DELETED',
-
-  // SIGNUP
   SIGNUP_1V1_CREATED: 'SIGNUP_1V1_CREATED',
   SIGNUP_1V1_WITHDRAWN: 'SIGNUP_1V1_WITHDRAWN',
   SIGNUP_SEASON_CHANGED: 'SIGNUP_SEASON_CHANGED',
-
-  // PAYMENT
   PAYMENT_CAPTURED: 'PAYMENT_CAPTURED',
   PAYMENT_FAILED: 'PAYMENT_FAILED',
   PAYMENT_MARKED_MANUALLY: 'PAYMENT_MARKED_MANUALLY',
@@ -100,13 +89,9 @@ export const AuditAction = {
   ITEM_ORDER_EXPIRED: 'ITEM_ORDER_EXPIRED',
   ITEM_PAYMENT_CONFIRMED: 'ITEM_PAYMENT_CONFIRMED',
   ITEM_PAYMENT_DECLINED: 'ITEM_PAYMENT_DECLINED',
-
-  // DEMO
   DEMO_UPLOADED: 'DEMO_UPLOADED',
   DEMO_REPORTED: 'DEMO_REPORTED',
   DEMO_REPORT_REVIEWED: 'DEMO_REPORT_REVIEWED',
-
-  // LEAGUE_CONFIG
   SEASON_CREATED: 'SEASON_CREATED',
   SEASON_UPDATED: 'SEASON_UPDATED',
   SEASON_DELETED: 'SEASON_DELETED',
@@ -124,8 +109,6 @@ export const AuditAction = {
   ARENA_UPDATED: 'ARENA_UPDATED',
   ARENA_DELETED: 'ARENA_DELETED',
   PLAYOFF_UPDATED: 'PLAYOFF_UPDATED',
-
-  // TOURNAMENT
   TOURNAMENT_CREATED: 'TOURNAMENT_CREATED',
   TOURNAMENT_UPDATED: 'TOURNAMENT_UPDATED',
   TOURNAMENT_DRAFT_CREATED: 'TOURNAMENT_DRAFT_CREATED',
@@ -134,8 +117,6 @@ export const AuditAction = {
   TOURNAMENT_REVISION_RESTORED: 'TOURNAMENT_REVISION_RESTORED',
   CHAMPIONSHIP_CREATED: 'CHAMPIONSHIP_CREATED',
   CHAMPIONSHIP_UPDATED: 'CHAMPIONSHIP_UPDATED',
-
-  // SITE
   CONTENT_UPDATED: 'CONTENT_UPDATED',
   SITE_SETTINGS_UPDATED: 'SITE_SETTINGS_UPDATED',
   API_KEY_CREATED: 'API_KEY_CREATED',
@@ -149,8 +130,6 @@ export const AuditAction = {
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
-
-// ─── Core types ───────────────────────────────────────────────────────────────
 
 export interface AuditLogParams {
   actorId?: string | null;
@@ -175,7 +154,18 @@ export interface AuditLogFilters {
   pageSize?: number;
 }
 
-// ─── Write ────────────────────────────────────────────────────────────────────
+function nextAuditId(): string {
+  return `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+}
+
+function parseMetadata(raw: string): unknown {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
 
 /**
  * Fire-and-forget audit log write.
@@ -183,30 +173,35 @@ export interface AuditLogFilters {
  */
 export async function logAudit(params: AuditLogParams): Promise<void> {
   try {
-    await prisma.auditLog.create({
-      data: {
-        actorId: params.actorId ?? null,
-        actorRole: params.actorRole ?? null,
-        category: params.category,
-        action: params.action,
-        targetType: params.targetType ?? null,
-        targetId: params.targetId ?? null,
-        metadata:
-          (params.metadata as Record<string, string | number | boolean | null>) ?? undefined,
-        ipAddress: params.ipAddress ?? null,
-      },
+    if (!isRamaBackend()) {
+      console.error('[AuditLog] DATA_BACKEND must be rama');
+      return;
+    }
+    const client = createGlobalsClient(ramaClientOpts());
+    const ack = await appendAudit(client, {
+      auditId: nextAuditId(),
+      actorId: params.actorId ?? null,
+      actorRole: params.actorRole ?? null,
+      category: params.category,
+      action: params.action,
+      targetType: params.targetType ?? null,
+      targetId: params.targetId ?? null,
+      metadata: params.metadata != null ? JSON.stringify(params.metadata) : null,
+      ipAddress: params.ipAddress ?? null,
+      createdAt: new Date().toISOString(),
     });
+    if (!ack.ok) {
+      console.error('[AuditLog] Rama append-audit failed:', ack.error);
+    }
   } catch (err) {
     console.error('[AuditLog] Failed to write audit log entry:', err);
   }
 }
 
-// ─── Read ─────────────────────────────────────────────────────────────────────
-
 /**
  * Paginated query for the admin audit log viewer.
  */
-export async function getAuditLogs(filters: AuditLogFilters = {}) {
+export async function getAuditLogs(filters: AuditLogFilters = {}): Promise<AuditLogsResult> {
   const {
     category,
     actorId,
@@ -219,76 +214,100 @@ export async function getAuditLogs(filters: AuditLogFilters = {}) {
     pageSize = 50,
   } = filters;
 
-  const where: Record<string, unknown> = {};
-
-  if (category) where.category = category;
-  if (action) where.action = action;
-  if (targetType) where.targetType = targetType;
-  if (targetId) where.targetId = targetId;
-
-  if (actorId) {
-    where.actorId = { contains: actorId };
-  }
-
-  if (dateFrom || dateTo) {
-    where.timestamp = {
-      ...(dateFrom ? { gte: dateFrom } : {}),
-      ...(dateTo ? { lte: dateTo } : {}),
+  if (!isRamaBackend()) {
+    return {
+      logs: [],
+      pagination: {
+        page,
+        pageSize,
+        totalCount: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
     };
   }
 
-  const [logs, totalCount] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      include: {
-        actor: {
-          select: {
-            steamId: true,
-            steamUsername: true,
-            steamAvatar: true,
-          },
-        },
-      },
-      orderBy: [{ timestamp: 'desc' }, { id: 'asc' }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+  const opts = ramaClientOpts();
+  const globals = createGlobalsClient(opts);
+  const users = createUsersClient(opts);
+  const idMap = await getAuditIdMap(globals);
+
+  let entries = Object.entries(idMap).sort((a, b) => {
+    const ta = a[1] || '';
+    const tb = b[1] || '';
+    return tb.localeCompare(ta) || b[0].localeCompare(a[0]);
+  });
+
+  if (category) entries = entries.filter(([id]) => id); // filter after load
+  const rows = await Promise.all(
+    entries.map(async ([id, createdAt]) => {
+      const row = await getAudit(globals, id);
+      if (!row) return null;
+      return { id, createdAt, row };
     }),
-    prisma.auditLog.count({ where }),
-  ]);
+  );
 
-  const targetUserIds = [
-    ...new Set(logs.filter((l) => l.targetType === 'User' && l.targetId).map((l) => l.targetId!)),
-  ];
-
-  const targetUsersMap = new Map<
-    string,
-    { steamUsername: string | null; steamAvatar: string | null }
-  >();
-
-  if (targetUserIds.length > 0) {
-    const targetUsers = await prisma.user.findMany({
-      where: { steamId: { in: targetUserIds } },
-      select: { steamId: true, steamUsername: true, steamAvatar: true },
-    });
-    for (const u of targetUsers) {
-      targetUsersMap.set(u.steamId, { steamUsername: u.steamUsername, steamAvatar: u.steamAvatar });
-    }
+  let filtered = rows.filter((r): r is NonNullable<typeof r> => r != null);
+  if (category) filtered = filtered.filter((r) => r.row.category === category);
+  if (action) filtered = filtered.filter((r) => r.row.action === action);
+  if (targetType) filtered = filtered.filter((r) => r.row.targetType === targetType);
+  if (targetId) filtered = filtered.filter((r) => r.row.targetId === targetId);
+  if (actorId) {
+    filtered = filtered.filter((r) => (r.row.actorId || '').includes(actorId));
+  }
+  if (dateFrom) {
+    filtered = filtered.filter((r) => new Date(r.row.createdAt || r.createdAt) >= dateFrom);
+  }
+  if (dateTo) {
+    filtered = filtered.filter((r) => new Date(r.row.createdAt || r.createdAt) <= dateTo);
   }
 
-  const logsWithTargetUsers = logs.map((log) => ({
-    ...log,
-    targetUser:
-      log.targetType === 'User' && log.targetId ? (targetUsersMap.get(log.targetId) ?? null) : null,
-  }));
+  const totalCount = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  const logs = await Promise.all(
+    pageRows.map(async ({ id, createdAt, row }) => {
+      const actor = row.actorId ? await getUser(users, row.actorId) : null;
+      const targetUser =
+        row.targetType === 'User' && row.targetId ? await getUser(users, row.targetId) : null;
+      return {
+        id,
+        actorId: row.actorId || null,
+        actorRole: row.actorRole || null,
+        category: row.category,
+        action: row.action,
+        targetType: row.targetType || null,
+        targetId: row.targetId || null,
+        metadata: parseMetadata(row.metadata),
+        ipAddress: row.ipAddress || null,
+        timestamp: new Date(row.createdAt || createdAt),
+        actor: actor
+          ? {
+              steamId: row.actorId,
+              steamUsername: String(actor.username ?? null),
+              steamAvatar: String(actor.avatarUrl ?? null),
+            }
+          : null,
+        targetUser: targetUser
+          ? {
+              steamUsername: String(targetUser.username ?? null),
+              steamAvatar: String(targetUser.avatarUrl ?? null),
+            }
+          : null,
+      };
+    }),
+  );
 
   return {
-    logs: logsWithTargetUsers,
+    logs,
     pagination: {
       page,
       pageSize,
       totalCount,
-      totalPages: Math.ceil(totalCount / pageSize),
-      hasNextPage: page < Math.ceil(totalCount / pageSize),
+      totalPages,
+      hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
     },
   };
@@ -297,15 +316,14 @@ export async function getAuditLogs(filters: AuditLogFilters = {}) {
 /**
  * Count of logs per category for the admin dashboard.
  */
-export async function getAuditLogStats() {
-  const rows = await prisma.auditLog.groupBy({
-    by: ['category'],
-    _count: { id: true },
-    orderBy: { _count: { id: 'desc' } },
-  });
-
-  return rows.map((r) => ({
-    category: r.category,
-    count: r._count.id,
-  }));
+export async function getAuditLogStats(): Promise<AuditLogStatsRow[]> {
+  if (!isRamaBackend()) return [];
+  const { logs } = await getAuditLogs({ page: 1, pageSize: 10_000 });
+  const counts = new Map<string, number>();
+  for (const log of logs) {
+    counts.set(log.category, (counts.get(log.category) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count);
 }

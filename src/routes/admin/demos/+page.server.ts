@@ -9,7 +9,7 @@ import { getAllDemoReports, updateDemoReport } from '$lib/server/services/demoRe
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
-import type { DemoStatus } from '$prisma/client.js';
+import { DemoStatus } from '$lib/types/enums';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 const updateReportSchema = z.object({

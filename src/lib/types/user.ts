@@ -3,20 +3,8 @@
  * Can be safely imported by both client and server code
  */
 
-// Mirror of Prisma's UserRole enum for client-side use
-export enum UserRole {
-  GUEST = 'GUEST',
-  MODERATOR = 'MODERATOR',
-  ADMIN = 'ADMIN',
-}
-
-// Mirror of Prisma's BanStatus enum for client-side use
-export enum BanStatus {
-  NONE = 'NONE',
-  WARNING = 'WARNING',
-  SUSPENDED = 'SUSPENDED',
-  BANNED = 'BANNED',
-}
+export { UserRole, BanStatus } from './enums';
+import type { UserRole, BanStatus } from './enums';
 
 /**
  * Session user data (client-safe version)

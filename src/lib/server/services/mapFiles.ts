@@ -5,7 +5,6 @@
  * Each entry bundles a .bsp map file with its .cfg spawn config.
  */
 
-import { prisma } from '$lib/server/db';
 import {
   uploadBufferToR2,
   deleteFromR2,
@@ -62,111 +61,55 @@ function cfgKey(name: string) {
  * Used by the presign endpoint to validate before issuing a URL.
  */
 export async function isMapNameTaken(name: string): Promise<boolean> {
-  const existing = await prisma.mapFile.findUnique({ where: { name } });
-  return existing !== null;
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void name;
+    return false;
+  }
+  throw new Error('isMapNameTaken requires DATA_BACKEND=rama');
 }
 
 export async function getMapFiles(): Promise<MapFileRow[]> {
-  const maps = await prisma.mapFile.findMany({
-    include: { uploader: { select: { steamUsername: true } } },
-    orderBy: { name: 'asc' },
-  });
-
-  return maps.map((m) => ({
-    id: m.id,
-    name: m.name,
-    bspUrl: m.bspUrl,
-    bspSize: m.bspSize,
-    cfgUrl: m.cfgUrl,
-    cfgSize: m.cfgSize,
-    description: m.description,
-    uploadedBy: m.uploadedBy,
-    uploaderName: m.uploader.steamUsername,
-    createdAt: m.createdAt,
-    updatedAt: m.updatedAt,
-  }));
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) return [];
+  throw new Error('getMapFiles requires DATA_BACKEND=rama');
 }
 
-export async function getMapFileById(id: number) {
-  const m = await prisma.mapFile.findUnique({
-    where: { id },
-    include: { uploader: { select: { steamUsername: true } } },
-  });
-  if (!m) notFound('Map not found');
-  return m!;
+export async function getMapFileById(id: number): Promise<MapFileRow> {
+  void id;
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) notFound('Map not found');
+  throw new Error('getMapFileById requires DATA_BACKEND=rama');
 }
 
-export async function getMapFilesByIds(ids: number[]) {
-  return await prisma.mapFile.findMany({
-    where: { id: { in: ids } },
-    select: {
-      id: true,
-      name: true,
-      bspUrl: true,
-      cfgUrl: true,
-    },
-  });
+export async function getMapFilesByIds(
+  ids: number[],
+): Promise<Array<{ id: number; name: string; bspUrl: string; cfgUrl: string }>> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void ids;
+    return [];
+  }
+  throw new Error('getMapFilesByIds requires DATA_BACKEND=rama');
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
+
+async function assertMapsWritable() {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    throw new Error('Map file mutations are not available under DATA_BACKEND=rama yet');
+  }
+}
 
 export async function createMapFile(params: {
   bspFile: File;
   cfgFile: File;
   description?: string | null;
   uploadedBy: string;
-}) {
-  const { bspFile, cfgFile, description, uploadedBy } = params;
-
-  // Validate files
-  validateUploadedFile(bspFile, 'bsp');
-  validateUploadedFile(cfgFile, 'cfg');
-
-  // Derive the canonical map name from the BSP filename (strip extension)
-  const rawName = path.basename(bspFile.name, '.bsp').toLowerCase().trim();
-  if (!rawName) badRequest('Could not derive map name from BSP filename');
-
-  // Enforce mge_ prefix convention
-  if (!rawName.startsWith('mge_')) {
-    badRequest('Map filename must start with mge_ (e.g. mge_chillypunch_final4.bsp)');
-  }
-
-  // Check for duplicate name
-  const existing = await prisma.mapFile.findUnique({ where: { name: rawName } });
-  if (existing) badRequest(`A map named "${rawName}" already exists`);
-
-  // Save temp files and read buffers
-  const bspTempPath = await saveTempFile(bspFile);
-  const cfgTempPath = await saveTempFile(cfgFile);
-
-  try {
-    const bspBuffer = fs.readFileSync(bspTempPath);
-    const cfgBuffer = fs.readFileSync(cfgTempPath);
-
-    // Upload BSP
-    const bspUrl = await uploadBufferToR2(bspBuffer, bspKey(rawName), 'application/octet-stream');
-    if (!bspUrl) badRequest('R2 storage is not configured — cannot upload map files');
-
-    // Upload CFG
-    const cfgUrl = await uploadBufferToR2(cfgBuffer, cfgKey(rawName), 'text/plain');
-    if (!cfgUrl) badRequest('R2 storage is not configured — cannot upload config files');
-
-    // bspUrl and cfgUrl are guaranteed non-null here: badRequest throws above
-    return await prisma.mapFile.create({
-      data: {
-        name: rawName,
-        bspUrl: bspUrl as string,
-        bspSize: BigInt(bspFile.size),
-        cfgUrl: cfgUrl as string,
-        cfgSize: BigInt(cfgFile.size),
-        description: description?.trim() || null,
-        uploadedBy,
-      },
-    });
-  } finally {
-    deleteTempFile(bspTempPath);
-    deleteTempFile(cfgTempPath);
-  }
+}): Promise<MapFileRow> {
+  void params;
+  throw new Error('createMapFile is not available under Rama');
 }
 
 /**
@@ -180,69 +123,18 @@ export async function createMapFileFromPresigned(params: {
   cfgFile: File;
   description?: string | null;
   uploadedBy: string;
-}) {
-  const { bspKey: bspR2Key, bspSize, cfgFile, description, uploadedBy } = params;
-
-  // Derive canonical map name from the BSP key (e.g. "maps/mge_foo.bsp" → "mge_foo")
-  const keyBasename = path.basename(bspR2Key, '.bsp'); // "mge_foo"
-  const rawName = keyBasename.toLowerCase().trim();
-  if (!rawName) badRequest('Could not derive map name from bspKey');
-
-  // Validate CFG (BSP was already validated at presign time)
-  validateUploadedFile(cfgFile, 'cfg');
-
-  // Verify the map name was not claimed between presign and finalize
-  const existing = await prisma.mapFile.findUnique({ where: { name: rawName } });
-  if (existing) badRequest(`A map named "${rawName}" already exists`);
-
-  // Build the public BSP URL from the key
-  const bspUrl = getPublicUrl(bspR2Key);
-  if (!bspUrl) badRequest('R2 storage is not configured — cannot create map record');
-
-  // Upload CFG through server
-  const cfgTempPath = await saveTempFile(cfgFile);
-
-  try {
-    const cfgBuffer = fs.readFileSync(cfgTempPath);
-    const cfgUrl = await uploadBufferToR2(cfgBuffer, cfgKey(rawName), 'text/plain');
-    if (!cfgUrl) badRequest('R2 storage is not configured — cannot upload config file');
-
-    return await prisma.mapFile.create({
-      data: {
-        name: rawName,
-        bspUrl: bspUrl as string,
-        bspSize: BigInt(bspSize),
-        cfgUrl: cfgUrl as string,
-        cfgSize: BigInt(cfgFile.size),
-        description: description?.trim() || null,
-        uploadedBy,
-      },
-    });
-  } finally {
-    deleteTempFile(cfgTempPath);
-  }
+}): Promise<MapFileRow> {
+  void params;
+  throw new Error('createMapFileFromPresigned is not available under Rama');
 }
 
 export async function updateMapFileDescription(
   id: number,
   description: string | null,
 ): Promise<void> {
-  const m = await prisma.mapFile.findUnique({ where: { id } });
-  if (!m) notFound('Map not found');
-
-  await prisma.mapFile.update({
-    where: { id },
-    data: { description: description?.trim() || null },
-  });
+  throw new Error('updateMapFileDescription is not available under Rama');
 }
 
 export async function deleteMapFile(id: number): Promise<void> {
-  const m = await prisma.mapFile.findUnique({ where: { id } });
-  if (!m) notFound('Map not found');
-
-  // Remove files from R2 (best-effort — don't fail if already gone)
-  await deleteFromR2(bspKey(m.name));
-  await deleteFromR2(cfgKey(m.name));
-
-  await prisma.mapFile.delete({ where: { id } });
+  throw new Error('deleteMapFile is not available under Rama');
 }

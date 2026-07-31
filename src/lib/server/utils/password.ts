@@ -23,6 +23,8 @@ const SCRYPT_PARAMS = {
   N: 32768,
   r: 8,
   p: 1,
+  // OpenSSL default maxmem (32 MiB) is just under 128*r*N for N=32768; raise the ceiling.
+  maxmem: 64 * 1024 * 1024,
 };
 
 /** Legacy salt:hash values were produced with N=16384 before params were embedded. */
@@ -30,9 +32,10 @@ const LEGACY_SCRYPT_PARAMS = {
   N: 16384,
   r: 8,
   p: 1,
+  maxmem: 64 * 1024 * 1024,
 };
 
-type ScryptParams = { N: number; r: number; p: number };
+type ScryptParams = { N: number; r: number; p: number; maxmem: number };
 
 /**
  * Hash a password using scrypt.
@@ -84,7 +87,7 @@ function parseVersionedHash(
     const salt = Buffer.from(saltBase64, 'base64');
     const hash = Buffer.from(hashBase64, 'base64');
     if (salt.length !== SALT_LENGTH || hash.length !== KEY_LENGTH) return null;
-    return { salt, hash, params: { N, r, p } };
+    return { salt, hash, params: { N, r, p, maxmem: 64 * 1024 * 1024 } };
   } catch {
     return null;
   }

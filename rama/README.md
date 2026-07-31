@@ -24,24 +24,29 @@ Encoding notes from Rama:
 
 ```
 rama/                          Clojure-only module project (Leiningen)
-  src/mge/tf/rama/match_module.clj
-  test/mge/tf/rama/match_module_test.clj
+  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications / Seasons / MapPools / Events
+  test/mge/tf/rama/*_test.clj
   project.clj
 
 src/lib/server/rama/           TypeScript REST client (no business HTTP server)
-  client.ts                    generic append / select / selectOne / invokeQuery
-  match.ts                     MatchModule helpers
-  index.ts
+  client.ts + domain helpers (match, users, teams, payments, notifications, seasons, mapPools, events)
 
 scripts/rama-smoke.ts          end-to-end against a live cluster
 ```
 
 ## Modules
 
-| Module        | Depot          | Owns                                                   |
-| ------------- | -------------- | ------------------------------------------------------ |
-| `MatchModule` | `*match-depot` | create/ban/score + standings mirrors                   |
-| `UsersModule` | `*user-depot`  | profile, ban, permission, sessionVersion, discord link |
+| Module                | Depot                 | Owns                                                          |
+| --------------------- | --------------------- | ------------------------------------------------------------- |
+| `MatchModule`         | `*match-depot`        | create/ban/score + standings mirrors                          |
+| `UsersModule`         | `*user-depot`         | profile, ban, permission, sessionVersion, discord link        |
+| `TeamsModule`         | `*team-depot`         | create/join/leave, roster cap, season uniqueness              |
+| `PaymentsModule`      | `*payment-depot`      | mark-paid, item order create/confirm/expire, team paid counts |
+| `NotificationsModule` | `*notification-depot` | notify, mark-read, mark-all-read, unread count                |
+| `SeasonsModule`       | `*season-depot`       | create, flags, schedule, info; unique (region, format, num)   |
+| `MapPoolsModule`      | `*map-pool-depot`     | arenas, pool CRUD, ordered arena list for bans                |
+| `EventsModule`        | `*event-depot`        | event metadata, participants, placements, opaque bracket JSON |
+| `CatalogModule`       | `*catalog-depot`      | regions, formats (unique code), active signup season pointers |
 
 Agent skill (knots + how to write Rama here): `.cursor/skills/rama-clojure/`
 
@@ -109,12 +114,99 @@ RAMA_CONDUCTOR_URL=http://<conductor>:8888 bun run rama:smoke
 2. Set `RAMA_CONDUCTOR_URL` (optional `RAMA_SUPERVISOR_URL` to skip discovery).
 3. Run the smoke script above.
 
-## Ripping Postgres out (next steps, not in this spike)
+## PaymentsModule
 
-1. Expand modules: users, teams, payments, notifications (same REST-only rule).
-2. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services.
+**Depot** `*payment-depot` — `hash-by` `orderId|steamId`
+
+| `type`               | Fields                                                                          |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `mark-paid`          | steamId, seasonId, teamId, status (`PAID`/`EXEMPT`), amount, source, paymentId? |
+| `create-item-order`  | orderId, steamId, teamId, seasonId, amount                                      |
+| `confirm-item-order` | orderId                                                                         |
+| `expire-item-order`  | orderId                                                                         |
+
+**PStates:** `$$player-season-payment`, `$$team-paid-count`, `$$item-orders`, `$$payments`  
+Topology ack key: `payments`.
+
+## NotificationsModule
+
+**Depot** `*notification-depot` — `hash-by` `steamId`
+
+| `type`          | Fields                                         |
+| --------------- | ---------------------------------------------- |
+| `notify`        | steamId, id, notifType, body, href?, createdAt |
+| `mark-read`     | steamId, id                                    |
+| `mark-all-read` | steamId                                        |
+
+**PStates:** `$$notifications`, `$$unread-count`  
+Topology ack key: `notifications`.
+
+## SeasonsModule
+
+**Depot** `*season-depot` — `hash-by` `seasonId`
+
+| `type`          | Fields                                                    |
+| --------------- | --------------------------------------------------------- |
+| `create-season` | seasonId, seasonNum, numWeeks, regionId, formatId         |
+| `set-flags`     | seasonId, signupsOpen, rosterLocked, paymentRequired      |
+| `set-schedule`  | seasonId, matchWeek, matchDeadline?                       |
+| `set-info`      | seasonId, info                                            |
+| `update-season` | seasonId, numWeeks (identity keys immutable after create) |
+
+**PStates:** `$$seasons`, `$$season-index` `{regionId → {formatId → {seasonNumStr → seasonId}}}`  
+Topology ack key: `seasons`.
+
+## MapPoolsModule
+
+**Depot** `*map-pool-depot` — `hash-by` `poolId|arenaId`
+
+| `type`            | Fields                                         |
+| ----------------- | ---------------------------------------------- |
+| `upsert-arena`    | arenaId, name, avatar?, playoffMap?            |
+| `create-pool`     | poolId, name                                   |
+| `rename-pool`     | poolId, name                                   |
+| `set-pool-active` | poolId, isActive                               |
+| `set-pool-maps`   | poolId, arenaIds[] (wholesale ordered replace) |
+
+**PStates:** `$$arenas`, `$$pools`, `$$pool-maps`  
+Topology ack key: `map-pools`.
+
+## EventsModule
+
+**Depot** `*event-depot` — `hash-by` `eventId`
+
+| `type`             | Fields                                                                  |
+| ------------------ | ----------------------------------------------------------------------- |
+| `create-event`     | eventId, name, eventType (`CUP`/`CHAMPIONSHIP`/`FIGHT_NIGHT`), …        |
+| `update-event`     | eventId, name, description, avatar, dates, prizepool, bracketLink, card |
+| `set-status`       | eventId, status (`UPCOMING`/`REGISTRATION`/`IN_PROGRESS`/`COMPLETED`)   |
+| `set-participants` | eventId, participants[] (wholesale)                                     |
+| `set-placements`   | eventId, placements[] (wholesale)                                       |
+| `set-snapshot`     | eventId, snapshot (opaque stages/matches JSON)                          |
+
+**PStates:** `$$events`, `$$event-participants`, `$$event-placements`, `$$event-snapshot`  
+Topology ack key: `events`.
+
+## CatalogModule
+
+**Depot** `*catalog-depot` — `hash-by` `regionId|formatId|code`
+
+| `type`              | Fields                                                  |
+| ------------------- | ------------------------------------------------------- |
+| `upsert-region`     | regionId, name, hidden?, currencySymbol?, currencyCode? |
+| `set-region-hidden` | regionId, hidden                                        |
+| `upsert-format`     | formatId, name, code (unique via `$$format-by-code`)    |
+| `set-active-signup` | regionId, formatId, seasonId                            |
+
+**PStates:** `$$regions`, `$$formats`, `$$format-by-code`, `$$active-signup`  
+Topology ack key: `catalog`.
+
+## Ripping Postgres out (next steps)
+
+1. ~~Expand core domain modules~~ (matches → users → teams → payments → notifications → seasons → map pools → events → catalog).
+2. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services (vertical slices).
 3. Keep Steam/Discord OAuth + R2 blobs at the edge; store only indexes in PStates.
 4. Replace `pg_notify` SSE with notification PState polling or a tiny bridge once Rama exposes reactivity over REST.
 5. Delete Prisma when every read/write path has a PState/depot equivalent.
 
-This spike proves the hard interactive path (create → ban turns → score → standings) without a second HTTP stack.
+This spike proves the hard interactive paths without a second HTTP stack.

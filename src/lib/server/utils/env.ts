@@ -39,6 +39,7 @@ const RECOMMENDED_VARS = [
   'MGE_PLATFORM_URL',
   'PARSER_URL',
   'REALTIME_NOTIFICATIONS_ENABLED',
+  'RAMA_API_KEY',
 ] as const;
 
 type RequiredSecret = (typeof REQUIRED_SECRETS)[number];

@@ -5,8 +5,6 @@
  */
 
 import { randomBytes } from 'crypto';
-import { prisma } from '$lib/server/db';
-
 export type ApiKeyRecord = {
   id: number;
   name: string;
@@ -43,11 +41,11 @@ function maskApiKey(key: string): string {
  * Keys use the format: mge_<64 random hex chars>
  */
 export async function createApiKey(name: string, createdBy: string): Promise<ApiKeyRecord> {
-  const key = `mge_${randomBytes(32).toString('hex')}`;
-  return await prisma.apiKey.create({
-    data: { name, key, createdBy },
-    include: { creator: { select: { steamUsername: true } } },
-  });
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    throw new Error('API keys are not available under DATA_BACKEND=rama yet');
+  }
+  throw new Error('createApiKey requires DATA_BACKEND=rama');
 }
 
 /**
@@ -55,29 +53,31 @@ export async function createApiKey(name: string, createdBy: string): Promise<Api
  * Full key values are never returned — only a short preview.
  */
 export async function getApiKeys(): Promise<ApiKeyListItem[]> {
-  const keys = await prisma.apiKey.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { creator: { select: { steamUsername: true } } },
-  });
-
-  return keys.map(({ key, ...rest }) => ({
-    ...rest,
-    keyPreview: maskApiKey(key),
-  }));
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) return [];
+  throw new Error('getApiKeys requires DATA_BACKEND=rama');
 }
 
 /**
  * Enable or disable an API key without deleting it.
  */
 export async function toggleApiKey(id: number, active: boolean): Promise<void> {
-  await prisma.apiKey.update({ where: { id }, data: { active } });
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    throw new Error('API keys are not available under DATA_BACKEND=rama yet');
+  }
+  throw new Error('toggleApiKey requires DATA_BACKEND=rama');
 }
 
 /**
  * Permanently delete an API key.
  */
 export async function deleteApiKey(id: number): Promise<void> {
-  await prisma.apiKey.delete({ where: { id } });
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    throw new Error('API keys are not available under DATA_BACKEND=rama yet');
+  }
+  throw new Error('deleteApiKey requires DATA_BACKEND=rama');
 }
 
 /**
@@ -86,17 +86,22 @@ export async function deleteApiKey(id: number): Promise<void> {
  * Returns null if the key does not exist or is inactive.
  */
 export async function validateApiKey(key: string): Promise<ApiKeyRecord | null> {
-  const record = await prisma.apiKey.findUnique({
-    where: { key },
-    include: { creator: { select: { steamUsername: true } } },
-  });
-
-  if (!record || !record.active) return null;
-
-  // Fire-and-forget lastUsedAt update — never block the request
-  prisma.apiKey
-    .update({ where: { id: record.id }, data: { lastUsedAt: new Date() } })
-    .catch(() => {});
-
-  return record;
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    // Env-backed emergency key for Rama cutover until ApiKeysModule exists.
+    const { getOptionalEnv } = await import('$lib/server/utils/env');
+    const envKey = getOptionalEnv('RAMA_API_KEY');
+    if (!envKey || key !== envKey) return null;
+    return {
+      id: 0,
+      name: 'rama-env',
+      key,
+      active: true,
+      createdAt: new Date(0),
+      lastUsedAt: new Date(),
+      createdBy: 'system',
+      creator: { steamUsername: 'system' },
+    };
+  }
+  throw new Error('validateApiKey requires DATA_BACKEND=rama');
 }

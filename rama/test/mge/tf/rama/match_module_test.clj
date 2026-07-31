@@ -20,6 +20,10 @@
           map-bans (foreign-pstate ipc MODULE-NAME "$$map-bans")
           team-stats (foreign-pstate ipc MODULE-NAME "$$team-stats")
           by-team (foreign-pstate ipc MODULE-NAME "$$matches-by-team")
+          by-week (foreign-pstate ipc MODULE-NAME "$$matches-by-week")
+          by-status (foreign-pstate ipc MODULE-NAME "$$matches-by-status")
+          comms (foreign-pstate ipc MODULE-NAME "$$match-comms")
+          pending (foreign-pstate ipc MODULE-NAME "$$pending-reschedule")
           pool ["process" "discard" "viggle" "asa" "product"]
           create-ack (append-event!
                       depot
@@ -29,17 +33,26 @@
                        "awayTeamId" "away"
                        "seasonId" "s1"
                        "boGames" 2
+                       "weekNo" 1
+                       "seasonNo" 5
+                       "arenaId" "process"
                        "pool" pool})]
 
       (testing "create-match"
         (is (= true (get create-ack "ok")))
         (is (= "UNPLAYED" (foreign-select-one (keypath "m1" "status") matches)))
         (is (= "home" (foreign-select-one (keypath "m1" "homeTeamId") matches)))
-        (is (= 0 (foreign-select-one (keypath "m1" "turn") map-bans)))
+        (is (= 1 (foreign-select-one (keypath "m1" "weekNo") matches)))
+        (is (= "process" (foreign-select-one (keypath "m1" "arenaId") matches)))
+        (is (= "" (foreign-select-one (keypath "m1" "submittedAt") matches)))
+        (is (= 1 (foreign-select-one (keypath "m1" "turn") map-bans)))
+        (is (= false (foreign-select-one (keypath "m1" "banPhaseComplete") map-bans)))
         (is (= (set pool)
                (foreign-select-one (keypath "m1" "remaining") map-bans)))
         (is (= "s1" (foreign-select-one (keypath "home" "m1") by-team)))
         (is (= "s1" (foreign-select-one (keypath "away" "m1") by-team)))
+        (is (= true (foreign-select-one (keypath "s1:1" "m1") by-week)))
+        (is (= true (foreign-select-one (keypath "UNPLAYED" "m1") by-status)))
         (is (= "match-exists"
                (get (append-event!
                      depot
@@ -52,55 +65,213 @@
                       "pool" pool})
                     "error"))))
 
-      (testing "map bans"
+      (testing "schedule + arena + chat"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-schedule"
+                      "matchId" "m1"
+                      "matchDateTime" "2026-08-01T18:00:00.000Z"
+                      "matchTimezone" "UTC"})
+                    "ok")))
+        (is (= "2026-08-01T18:00:00.000Z"
+               (foreign-select-one (keypath "m1" "matchDateTime") matches)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-arena"
+                      "matchId" "m1"
+                      "arenaId" "product"})
+                    "ok")))
+        (is (= "product" (foreign-select-one (keypath "m1" "arenaId") matches)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "post-comm"
+                      "matchId" "m1"
+                      "commId" "c1"
+                      "owner" "home-cap"
+                      "content" "hello"
+                      "createdAt" "2026-07-31T00:00:00.000Z"})
+                    "ok")))
+        (is (= "hello" (foreign-select-one (keypath "m1" "c1" "content") comms))))
+
+      (testing "reschedule deny then accept"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "request-reschedule"
+                      "matchId" "m1"
+                      "commId" "r1"
+                      "owner" "home-cap"
+                      "content" "RESCHEDULE REQUESTED: soon"
+                      "createdAt" "2026-07-31T01:00:00.000Z"
+                      "reschedule" "2026-08-02T18:00:00.000Z"})
+                    "ok")))
+        (is (= "r1" (foreign-select-one (keypath "m1") pending)))
+        (is (= "pending-exists"
+               (get (append-event!
+                     depot
+                     {"type" "request-reschedule"
+                      "matchId" "m1"
+                      "commId" "r2"
+                      "owner" "home-cap"
+                      "content" "again"
+                      "createdAt" "2026-07-31T01:01:00.000Z"
+                      "reschedule" "2026-08-03T18:00:00.000Z"})
+                    "error")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "respond-reschedule"
+                      "matchId" "m1"
+                      "commId" "r1"
+                      "response" "deny"
+                      "respondedBy" "away-cap"
+                      "responseCommId" "rd1"
+                      "responseContent" "MATCH RESPONSE: Reschedule request denied."
+                      "createdAt" "2026-07-31T01:02:00.000Z"})
+                    "ok")))
+        (is (= "" (foreign-select-one (keypath "m1") pending)))
+        (is (= 2 (foreign-select-one (keypath "m1" "r1" "rescheduleStatus") comms)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "request-reschedule"
+                      "matchId" "m1"
+                      "commId" "r3"
+                      "owner" "home-cap"
+                      "content" "RESCHEDULE REQUESTED: later"
+                      "createdAt" "2026-07-31T01:03:00.000Z"
+                      "reschedule" "2026-08-04T18:00:00.000Z"})
+                    "ok")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "respond-reschedule"
+                      "matchId" "m1"
+                      "commId" "r3"
+                      "response" "accept"
+                      "respondedBy" "away-cap"
+                      "responseCommId" "ra1"
+                      "responseContent" "MATCH RESPONSE: Reschedule request accepted."
+                      "createdAt" "2026-07-31T01:04:00.000Z"})
+                    "ok")))
+        (is (= "2026-08-04T18:00:00.000Z"
+               (foreign-select-one (keypath "m1" "matchDateTime") matches))))
+
+      (testing "map bans (Bo3 turn pattern)"
+        ;; Create a Bo3 match with a full pool for the ban sequence
+        (append-event!
+         depot
+         {"type" "create-match"
+          "matchId" "m-bo3"
+          "homeTeamId" "h2"
+          "awayTeamId" "a2"
+          "seasonId" "s1"
+          "boGames" 3
+          "weekNo" 0
+          "pool" ["Process" "Product" "Playoff" "Clearing" "Sunshine" "Snakewater" "Gullywash"]})
         (is (= "not-your-turn"
                (get (append-event!
                      depot
                      {"type" "ban-map"
-                      "matchId" "m1"
-                      "teamId" "home"
-                      "arenaId" "process"})
+                      "matchId" "m-bo3"
+                      "teamId" "h2"
+                      "arenaId" "Process"
+                      "actionType" "ban"})
                     "error")))
         (is (= true
                (get (append-event!
                      depot
                      {"type" "ban-map"
-                      "matchId" "m1"
-                      "teamId" "away"
-                      "arenaId" "process"})
+                      "matchId" "m-bo3"
+                      "teamId" "a2"
+                      "arenaId" "Process"
+                      "actionType" "ban"})
                     "ok")))
+        (is (= 0 (foreign-select-one (keypath "m-bo3" "turn") map-bans)))
         (is (= true
                (get (append-event!
                      depot
                      {"type" "ban-map"
-                      "matchId" "m1"
-                      "teamId" "home"
-                      "arenaId" "discard"})
+                      "matchId" "m-bo3"
+                      "teamId" "h2"
+                      "arenaId" "Product"
+                      "actionType" "ban"})
                     "ok")))
-        (is (= 2 (foreign-select-one (keypath "m1" "turn") map-bans)))
-        (is (= [{"teamId" "away" "arenaId" "process"}
-                {"teamId" "home" "arenaId" "discard"}]
-               (foreign-select-one (keypath "m1" "actions") map-bans))))
+        ;; After home ban, stay on home for pick
+        (is (= 0 (foreign-select-one (keypath "m-bo3" "turn") map-bans)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "ban-map"
+                      "matchId" "m-bo3"
+                      "teamId" "h2"
+                      "arenaId" "Playoff"
+                      "actionType" "pick"})
+                    "ok")))
+        (is (= 1 (foreign-select-one (keypath "m-bo3" "turn") map-bans)))
+        (doseq [[team arena atype] [["a2" "Clearing" "pick"]
+                                    ["a2" "Sunshine" "ban"]
+                                    ["h2" "Snakewater" "pick"]]]
+          (is (= true
+                 (get (append-event!
+                       depot
+                       {"type" "ban-map"
+                        "matchId" "m-bo3"
+                        "teamId" team
+                        "arenaId" arena
+                        "actionType" atype})
+                      "ok"))))
+        (is (= true (foreign-select-one (keypath "m-bo3" "banPhaseComplete") map-bans)))
+        (is (= 6 (count (foreign-select-one (keypath "m-bo3" "actions") map-bans)))))
 
-      (testing "submit-score"
+      (testing "submit-score + dispute resolve"
         (is (= true
                (get (append-event!
                      depot
                      {"type" "submit-score"
                       "matchId" "m1"
                       "homeScore" 2
-                      "awayScore" 0})
+                      "awayScore" 0
+                      "submittedBy" "home-cap"
+                      "submittedAt" "2026-07-31T02:00:00.000Z"})
                     "ok")))
         (is (= "PLAYED" (foreign-select-one (keypath "m1" "status") matches)))
+        (is (= "home-cap" (foreign-select-one (keypath "m1" "submittedBy") matches)))
+        (is (= "2026-07-31T02:00:00.000Z"
+               (foreign-select-one (keypath "m1" "submittedAt") matches)))
         (is (= "home" (foreign-select-one (keypath "m1" "winnerId") matches)))
         (is (= 1 (foreign-select-one (keypath "home" "wins") team-stats)))
-        (is (= 1 (foreign-select-one (keypath "home" "points") team-stats)))
         (is (= 1 (foreign-select-one (keypath "away" "losses") team-stats)))
+        (is (= true (foreign-select-one (keypath "PLAYED" "m1") by-status)))
+        (is (nil? (foreign-select-one (keypath "UNPLAYED" "m1") by-status)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-match-status"
+                      "matchId" "m1"
+                      "status" "DISPUTE"})
+                    "ok")))
+        (is (= "DISPUTE" (foreign-select-one (keypath "m1" "status") matches)))
+        (is (= true (foreign-select-one (keypath "DISPUTE" "m1") by-status)))
+        (is (nil? (foreign-select-one (keypath "PLAYED" "m1") by-status)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-match-status"
+                      "matchId" "m1"
+                      "status" "PLAYED"})
+                    "ok")))
+        (is (= "PLAYED" (foreign-select-one (keypath "m1" "status") matches)))
         (is (= "already-played"
                (get (append-event!
                      depot
                      {"type" "submit-score"
                       "matchId" "m1"
                       "homeScore" 2
-                      "awayScore" 1})
+                      "awayScore" 1
+                      "submittedBy" "x"
+                      "submittedAt" "y"})
                     "error")))))))

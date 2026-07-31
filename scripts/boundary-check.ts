@@ -44,10 +44,10 @@ const COMPONENT_SVELTE = 'src/lib/components/**/*.svelte';
 
 const architectureChecks: Check[] = [
   {
-    name: 'No direct Prisma in routes',
+    name: 'No Prisma / legacy db imports in routes',
     globs: ROUTE_SERVER_TS,
-    pattern: /from '\$lib\/server\/db'/,
-    message: 'Use service functions instead.',
+    pattern: /from '\$lib\/server\/db'|from '@prisma\/|from '\$prisma\//,
+    message: 'Use service functions / Rama helpers — Prisma is removed.',
     severity: 'error',
   },
   {
@@ -58,10 +58,10 @@ const architectureChecks: Check[] = [
     severity: 'error',
   },
   {
-    name: 'No raw @prisma/client imports',
+    name: 'No Prisma imports anywhere in src',
     globs: ['src/**/*.ts', ALL_SVELTE],
-    pattern: /from '@prisma\/client'/,
-    message: 'Use $prisma/client.js alias.',
+    pattern: /from '@prisma\/|from '\$prisma\/|from '\$lib\/server\/db'/,
+    message: 'Prisma is removed — use $lib/server/rama/* and $lib/types/.',
     severity: 'error',
   },
   {

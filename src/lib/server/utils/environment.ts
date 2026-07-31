@@ -41,7 +41,12 @@ export function isStaging(): boolean {
  * Routes that should be accessible even when the site is gated
  * (needed for login flow to work)
  */
-export const UNGATED_ROUTES = ['/auth/login', '/auth/verify', '/auth/logout'] as const;
+export const UNGATED_ROUTES = [
+  '/auth/login',
+  '/auth/verify',
+  '/auth/logout',
+  '/auth/test-login',
+] as const;
 
 /**
  * Check if a route should bypass the dev gate

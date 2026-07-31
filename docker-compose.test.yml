@@ -1,0 +1,5 @@
+# Postgres is not used for E2E anymore.
+# Start Rama instead:
+#   bun run rama:cluster:up-deploy
+# (requires RAMA_HOME pointing at an unpacked Rama 1.9.0 release)
+services: {}

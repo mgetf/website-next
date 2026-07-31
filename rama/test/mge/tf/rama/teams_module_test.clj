@@ -1,0 +1,178 @@
+(ns mge.tf.rama.teams-module-test
+  (:use [com.rpl.rama]
+        [com.rpl.rama.path])
+  (:require
+   [clojure.test :refer [deftest is testing]]
+   [com.rpl.rama.test :as rtest]
+   [mge.tf.rama.teams-module :as tm]))
+
+(def MODULE-NAME "mge.tf.rama.teams-module/TeamsModule")
+
+(defn append-event!
+  [depot event]
+  (get (foreign-append! depot event) "teams"))
+
+(defn create!
+  ([depot team-id steam-id]
+   (create! depot team-id steam-id ""))
+  ([depot team-id steam-id join-password]
+   (append-event!
+    depot
+    {"type" "create-team"
+     "teamId" team-id
+     "steamId" steam-id
+     "name" "Alpha"
+     "acronym" "ALF"
+     "formatId" "2"
+     "seasonId" "s1"
+     "divisionId" "d1"
+     "regionId" "r1"
+     "joinPassword" join-password})))
+
+(deftest teams-lifecycle-test
+  (with-open [ipc (rtest/create-ipc)]
+    (rtest/launch-module! ipc tm/TeamsModule {:tasks 4 :threads 2})
+    (let [depot (foreign-depot ipc MODULE-NAME "*team-depot")
+          teams (foreign-pstate ipc MODULE-NAME "$$teams")
+          roster (foreign-pstate ipc MODULE-NAME "$$roster")
+          player-season (foreign-pstate ipc MODULE-NAME "$$player-season")
+          pending (foreign-pstate ipc MODULE-NAME "$$pending")
+          pending-by-player (foreign-pstate ipc MODULE-NAME "$$pending-by-player")
+          pending-awaiting (foreign-pstate ipc MODULE-NAME "$$pending-awaiting")]
+
+      (testing "create-team"
+        (is (= true (get (create! depot "t1" "p1" "hashed-pw") "ok")))
+        (is (= "UNREADY" (foreign-select-one (keypath "t1" "status") teams)))
+        (is (= "Alpha" (foreign-select-one (keypath "t1" "name") teams)))
+        (is (= "hashed-pw" (foreign-select-one (keypath "t1" "joinPassword") teams)))
+        (is (= true (foreign-select-one (keypath "t1" "p1" "active") roster)))
+        (is (= "STATUS" (foreign-select-one (keypath "t1" "p1" "permissionLevel") roster)))
+        (is (= "t1" (foreign-select-one (keypath "p1" "s1") player-season))))
+
+      (testing "duplicate team / player season blocked"
+        (is (= "team-exists" (get (create! depot "t1" "p9") "error")))
+        (is (= "player-already-on-team" (get (create! depot "t2" "p1") "error"))))
+
+      (testing "join + roster cap"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "join-team" "teamId" "t1" "steamId" "p2"})
+                    "ok")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "join-team" "teamId" "t1" "steamId" "p3"})
+                    "ok")))
+        (is (= "roster-full"
+               (get (append-event!
+                     depot
+                     {"type" "join-team" "teamId" "t1" "steamId" "p4"})
+                    "error")))
+        (is (= "t1" (foreign-select-one (keypath "p2" "s1") player-season))))
+
+      (testing "leave frees season slot"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "leave-team" "teamId" "t1" "steamId" "p3"})
+                    "ok")))
+        (is (nil? (foreign-select-one (keypath "t1" "p3") roster)))
+        (is (nil? (foreign-select-one (keypath "p3" "s1") player-season)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "join-team" "teamId" "t1" "steamId" "p4"})
+                    "ok"))))
+
+      (testing "status + member permission"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-status" "teamId" "t1" "status" "PENDING"})
+                    "ok")))
+        (is (= "PENDING" (foreign-select-one (keypath "t1" "status") teams)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-member-permission"
+                      "teamId" "t1"
+                      "steamId" "p2"
+                      "permissionLevel" "ADMIN"})
+                    "ok")))
+        (is (= "ADMIN"
+               (foreign-select-one (keypath "t1" "p2" "permissionLevel") roster))))
+
+      (testing "request-join → approve-pending"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "leave-team" "teamId" "t1" "steamId" "p4"})
+                    "ok")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "request-join" "teamId" "t1" "steamId" "p5"})
+                    "ok")))
+        (is (= 1 (foreign-select-one (keypath "t1" "p5" "status") pending)))
+        (is (= 1 (foreign-select-one (keypath "p5" "t1") pending-by-player)))
+        (is (= true (foreign-select-one (keypath "all" "t1:p5") pending-awaiting)))
+        (is (nil? (foreign-select-one (keypath "p5" "s1") player-season)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "approve-pending" "teamId" "t1" "steamId" "p5"})
+                    "ok")))
+        (is (= true (foreign-select-one (keypath "t1" "p5" "active") roster)))
+        (is (= "t1" (foreign-select-one (keypath "p5" "s1") player-season)))
+        (is (nil? (foreign-select-one (keypath "t1" "p5") pending)))
+        (is (nil? (foreign-select-one (keypath "all" "t1:p5") pending-awaiting))))
+
+      (testing "request-join → decline-pending"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "leave-team" "teamId" "t1" "steamId" "p5"})
+                    "ok")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "request-join" "teamId" "t1" "steamId" "p6"})
+                    "ok")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "decline-pending" "teamId" "t1" "steamId" "p6"})
+                    "ok")))
+        (is (nil? (foreign-select-one (keypath "t1" "p6") pending)))
+        (is (nil? (foreign-select-one (keypath "p6" "t1") pending-by-player)))
+        (is (nil? (foreign-select-one (keypath "all" "t1:p6") pending-awaiting)))
+        (is (nil? (foreign-select-one (keypath "t1" "p6") roster))))
+
+      (testing "create-invite → accept-invite → approve"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "create-invite" "teamId" "t1" "steamId" "p7"})
+                    "ok")))
+        (is (= 0 (foreign-select-one (keypath "t1" "p7" "status") pending)))
+        (is (= 0 (foreign-select-one (keypath "p7" "t1") pending-by-player)))
+        (is (nil? (foreign-select-one (keypath "all" "t1:p7") pending-awaiting)))
+        (is (= "pending-exists"
+               (get (append-event!
+                     depot
+                     {"type" "create-invite" "teamId" "t1" "steamId" "p7"})
+                    "error")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "accept-invite" "teamId" "t1" "steamId" "p7"})
+                    "ok")))
+        (is (= 1 (foreign-select-one (keypath "t1" "p7" "status") pending)))
+        (is (= true (foreign-select-one (keypath "all" "t1:p7") pending-awaiting)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "approve-pending" "teamId" "t1" "steamId" "p7"})
+                    "ok")))
+        (is (= true (foreign-select-one (keypath "t1" "p7" "active") roster)))))))

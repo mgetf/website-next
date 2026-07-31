@@ -1,0 +1,43 @@
+(ns mge.tf.rama.divisions-module-test
+  (:use [com.rpl.rama]
+        [com.rpl.rama.path])
+  (:require
+   [clojure.test :refer [deftest is testing]]
+   [com.rpl.rama.test :as rtest]
+   [mge.tf.rama.divisions-module :as dm]))
+
+(def MODULE-NAME "mge.tf.rama.divisions-module/DivisionsModule")
+
+(defn append-event!
+  [depot event]
+  (get (foreign-append! depot event) "divisions"))
+
+(deftest divisions-upsert-test
+  (with-open [ipc (rtest/create-ipc)]
+    (rtest/launch-module! ipc dm/DivisionsModule {:tasks 4 :threads 2})
+    (let [depot (foreign-depot ipc MODULE-NAME "*division-depot")
+          divisions (foreign-pstate ipc MODULE-NAME "$$divisions")
+          by-region (foreign-pstate ipc MODULE-NAME "$$division-ids-by-region")]
+      (testing "upsert-division"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "upsert-division"
+                      "divisionId" "d1"
+                      "name" "Invite"
+                      "regionId" "na"
+                      "signupCost" 0
+                      "sortOrder" 1})
+                    "ok")))
+        (is (= "Invite" (foreign-select-one (keypath "d1" "name") divisions)))
+        (is (= 0 (foreign-select-one (keypath "d1" "signupCost") divisions)))
+        (is (= true (foreign-select-one (keypath "na" "d1") by-region))
+            "division-ids-by-region index should have the upserted division")
+        (is (= "missing-division-name"
+               (get (append-event!
+                     depot
+                     {"type" "upsert-division"
+                      "divisionId" "d2"
+                      "name" ""
+                      "regionId" "na"})
+                    "error")))))))

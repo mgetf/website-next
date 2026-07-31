@@ -4,7 +4,6 @@
  */
 
 import { error, isHttpError } from '@sveltejs/kit';
-import { isPrismaLikeError } from './prisma-errors';
 
 /**
  * Throw a 404 Not Found error
@@ -51,11 +50,9 @@ export function internalError(message: string = 'Internal server error'): never 
 /**
  * Extract a human-readable message from an unknown caught value.
  * Handles SvelteKit HttpError (body.message), standard Error, and arbitrary throws.
- * Prisma/database errors are never forwarded to clients.
  */
 export function getErrorMessage(err: unknown, fallback = 'An unexpected error occurred'): string {
   if (isHttpError(err)) return err.body.message;
-  if (isPrismaLikeError(err)) return fallback;
   if (err instanceof Error) return err.message;
   return fallback;
 }

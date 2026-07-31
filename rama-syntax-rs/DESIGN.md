@@ -12,24 +12,28 @@ string construction exists only in the final serializer.
 
 ## Resolved
 
-| Topic                                       | Decision                                                                       |
-| ------------------------------------------- | ------------------------------------------------------------------------------ |
-| Naming (`*var`, `%fn`, trailing `>` on ops) | gone                                                                           |
-| `ramaop` / `ramafn`                         | one keyword: `op`                                                              |
-| Destructuring                               | `let {a, b} = event` — keep                                                    |
-| Select bind                                 | `$$p --> keypath(id) > { a, b }` — beauty, keep                                |
-| Path writes                                 | Specter; navigators as siblings — keep                                         |
-| Fixed-keys write                            | **whole-map `termval({…})`**, not N transforms / required `multi-path`         |
-| Validation                                  | `fail "msg" if cond` — prefer over nested ifs (deep `if` still legal)          |
-| Ack                                         | **`return`** (emits `ack-return>`)                                             |
-| Map literals                                | Clojure style `{"ok" true}` / `{:status "UNPLAYED"}`                           |
-| PState types                                | **Rust-like**: `struct` + `pstate name: Map<K, V>` — not `String -> fixed`     |
-| Fixed-keys field names                      | `:field` in surface syntax; lower to **string keys** for the REST-first target |
-| Partition hop                               | bare `\|hash k` for now (open)                                                 |
-| Deep `if`                                   | must work; Clojure SO is an emitter problem                                    |
-| `$$` on pstates                             | **keep** — marks distributed state; decls + use sites                          |
+| Topic                                       | Decision                                                                          |
+| ------------------------------------------- | --------------------------------------------------------------------------------- |
+| Naming (`*var`, `%fn`, trailing `>` on ops) | gone                                                                              |
+| `ramaop` / `ramafn`                         | one keyword: `op`                                                                 |
+| Destructuring                               | `let {a, b} = event` — keep                                                       |
+| Select bind                                 | `$$p --> keypath(id) > { a, b }` — beauty, keep                                   |
+| Path writes                                 | Specter; navigators as siblings — keep                                            |
+| Fixed-keys write                            | **whole-map `termval({…})`**, not N transforms / required `multi-path`            |
+| Validation                                  | `fail "msg" if cond` — prefer over nested ifs (deep `if` still legal)             |
+| Ack                                         | **`return`** (emits `ack-return>`)                                                |
+| Map literals                                | Clojure style `{"ok" true}` / `{:status "UNPLAYED"}`                              |
+| PState schemas                              | explicit `PStruct`, `PMap`, `PSet`, `PVector`; ordinary collections are JVM types |
+| Fixed-keys field names                      | `:field` in surface syntax; lower to **string keys** for the REST-first target    |
+| Partition hop                               | bare `\|hash k` for now (open)                                                    |
+| Deep `if`                                   | must work; Clojure SO is an emitter problem                                       |
+| `$$` on pstates                             | **keep** — marks distributed state; decls + use sites                             |
 
-## Schemas (Rust-shaped)
+## PState schemas
+
+This is the target surface. The current parser fixture still uses `struct` /
+`Map` while the schema/value split is implemented; lexer, parser, AST, fixture,
+and emitter should move together in one change.
 
 Alien (rejected):
 
@@ -41,7 +45,7 @@ pstate $$matches-by-team { String -> map String }   // meaningless
 Target:
 
 ```rama
-struct Match {
+schema Match = PStruct {
   :homeTeamId String
   :awayTeamId String
   :seasonId   String
@@ -52,7 +56,7 @@ struct Match {
   :boGames    Long
 }
 
-struct MapBan {
+schema MapBan = PStruct {
   :turn       Long
   :homeTeamId String
   :awayTeamId String
@@ -60,21 +64,25 @@ struct MapBan {
   :actions    Object
 }
 
-struct TeamStats {
+schema TeamStats = PStruct {
   :wins   Long
   :losses Long
   :points Long
 }
 
-pstate $$matches:       Map<String, Match>
-pstate $$mapBans:       Map<String, MapBan>
-pstate $$teamStats:     Map<String, TeamStats>
-pstate $$matchesByTeam: Map<String, Map<String, String>> @subindexed
+pstate $$matches:       PMap<String, Match>
+pstate $$mapBans:       PMap<String, MapBan>
+pstate $$teamStats:     PMap<String, TeamStats>
+pstate $$matchesByTeam: PMap<String, PMap<String, String> @subindexed>
 ```
 
-Lowering: `Map<K, Struct>` → `{K (fixed-keys-schema {…})}`; nested
-`Map<K, Map<K2, V>> @subindexed` → `(map-schema K2 V {:subindex? true})`.
+Lowering: `PMap<K, PStruct>` → `{K (fixed-keys-schema {…})}`; nested
+`PMap<K, PMap<K2, V> @subindexed>` →
+`(map-schema K2 V {:subindex? true})`.
 `$$` is part of the name — decls and `-->` / `!<--` use sites both keep it.
+
+`java.util.Map<K,V>` and `java.util.Set<T>` remain ordinary in-memory JVM
+types. They do not imply PState indexing or path semantics.
 
 ## Fixed-keys write = set the map
 

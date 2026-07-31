@@ -24,13 +24,13 @@ Encoding notes from Rama:
 
 ```
 rama/                          Clojure-only module project (Leiningen)
-  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications / Seasons
+  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications / Seasons / MapPools
   test/mge/tf/rama/*_test.clj
   project.clj
 
 src/lib/server/rama/           TypeScript REST client (no business HTTP server)
   client.ts                    generic append / select / selectOne / invokeQuery
-  match.ts | users.ts | teams.ts | payments.ts | notifications.ts | seasons.ts
+  match.ts | users.ts | teams.ts | payments.ts | notifications.ts | seasons.ts | mapPools.ts
 
 scripts/rama-smoke.ts          end-to-end against a live cluster
 ```
@@ -45,6 +45,7 @@ scripts/rama-smoke.ts          end-to-end against a live cluster
 | `PaymentsModule`      | `*payment-depot`      | mark-paid, item order create/confirm/expire, team paid counts |
 | `NotificationsModule` | `*notification-depot` | notify, mark-read, mark-all-read, unread count                |
 | `SeasonsModule`       | `*season-depot`       | create, flags, schedule, info; unique (region, format, num)   |
+| `MapPoolsModule`      | `*map-pool-depot`     | arenas, pool CRUD, ordered arena list for bans                |
 
 Agent skill (knots + how to write Rama here): `.cursor/skills/rama-clojure/`
 
@@ -154,10 +155,25 @@ Topology ack key: `notifications`.
 **PStates:** `$$seasons`, `$$season-index` `{regionId → {formatId → {seasonNumStr → seasonId}}}`  
 Topology ack key: `seasons`.
 
+## MapPoolsModule
+
+**Depot** `*map-pool-depot` — `hash-by` `poolId|arenaId`
+
+| `type`            | Fields                                         |
+| ----------------- | ---------------------------------------------- |
+| `upsert-arena`    | arenaId, name, avatar?, playoffMap?            |
+| `create-pool`     | poolId, name                                   |
+| `rename-pool`     | poolId, name                                   |
+| `set-pool-active` | poolId, isActive                               |
+| `set-pool-maps`   | poolId, arenaIds[] (wholesale ordered replace) |
+
+**PStates:** `$$arenas`, `$$pools`, `$$pool-maps`  
+Topology ack key: `map-pools`.
+
 ## Ripping Postgres out (next steps)
 
-1. ~~Expand modules: users, teams, payments, notifications, seasons~~ (done in this spike).
-2. Add events/brackets + map-ban-pool config modules.
+1. ~~Expand modules: users, teams, payments, notifications, seasons, map pools~~ (done in this spike).
+2. Add events/brackets modules.
 3. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services.
 4. Keep Steam/Discord OAuth + R2 blobs at the edge; store only indexes in PStates.
 5. Replace `pg_notify` SSE with notification PState polling or a tiny bridge once Rama exposes reactivity over REST.

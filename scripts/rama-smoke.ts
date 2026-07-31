@@ -9,6 +9,17 @@
  *   bun run scripts/rama-smoke.ts
  */
 import {
+  createMapPoolsClient,
+  createPool,
+  getArenaName,
+  getPool,
+  getPoolMaps,
+  renamePool,
+  setPoolActive,
+  setPoolMaps,
+  upsertArena,
+} from '../src/lib/server/rama/mapPools';
+import {
   banMap,
   createMatch,
   createMatchClient,
@@ -281,6 +292,27 @@ async function main() {
   );
   console.log('updateSeason', await updateSeason(seasons, { seasonId: seasonKey, numWeeks: 10 }));
   console.log('season', await getSeason(seasons, seasonKey));
+
+  const mapPools = createMapPoolsClient({ conductorUrl, supervisorBaseUrl });
+  console.log(
+    'upsertArena',
+    await upsertArena(mapPools, { arenaId: 'process', name: 'Process', playoffMap: 0 }),
+  );
+  console.log(
+    'upsertArena',
+    await upsertArena(mapPools, { arenaId: 'discard', name: 'Discard', playoffMap: 1 }),
+  );
+  console.log('arenaName', await getArenaName(mapPools, 'process'));
+  const poolId = `pool-${Date.now()}`;
+  console.log('createPool', await createPool(mapPools, { poolId, name: 'Smoke Pool' }));
+  console.log('renamePool', await renamePool(mapPools, { poolId, name: 'Smoke Pool v2' }));
+  console.log('setPoolActive', await setPoolActive(mapPools, { poolId, isActive: true }));
+  console.log(
+    'setPoolMaps',
+    await setPoolMaps(mapPools, { poolId, arenaIds: ['process', 'discard'] }),
+  );
+  console.log('pool', await getPool(mapPools, poolId));
+  console.log('poolMaps', await getPoolMaps(mapPools, poolId));
 }
 
 main().catch((err) => {

@@ -1,0 +1,77 @@
+// ASPIRATIONAL v2 syntax — see DESIGN.md. The parser does not accept this yet.
+// Same module as match_create.rama: zero sigils, record writes, guard clauses.
+
+module Match
+
+pstate matches: map[string] {
+  homeTeamId: string, awayTeamId: string, seasonId: string,
+  status: string, homeScore: long, awayScore: long,
+  winnerId: string, boGames: long,
+}
+
+pstate mapBans: map[string] {
+  turn: long, homeTeamId: string, awayTeamId: string,
+  remaining: set[string], actions: list[{ teamId: string, arenaId: string }],
+}
+
+pstate teamStats: map[string] { wins: long, losses: long, points: long }
+
+pstate matchesByTeam: map[string] map[string] string subindexed
+
+depot matchEvents keyed by matchId
+
+on matchEvents "create-match" { matchId, homeTeamId, awayTeamId, seasonId, boGames, pool } {
+  fail "match-exists" if matches[matchId] exists
+
+  matches[matchId] = {
+    homeTeamId, awayTeamId, seasonId,
+    status: "UNPLAYED", homeScore: 0, awayScore: 0,
+    boGames: long(boGames ?? 0),
+  }
+
+  mapBans[matchId] = { turn: 0, homeTeamId, awayTeamId, remaining: set(pool), actions: [] }
+
+  at partition(homeTeamId) { matchesByTeam[homeTeamId][matchId] = seasonId }
+  at partition(awayTeamId) { matchesByTeam[awayTeamId][matchId] = seasonId }
+
+  ack { ok: true, matchId }
+}
+
+on matchEvents "ban-map" { matchId, teamId, arenaId } {
+  let { turn, homeTeamId, awayTeamId, remaining } = mapBans[matchId]
+
+  fail "no-ban-state"      if turn == nil
+  fail "not-your-turn"     if teamId != (turn % 2 == 0 ? awayTeamId : homeTeamId)
+  fail "arena-not-in-pool" if arenaId not in remaining
+
+  mapBans[matchId] <- { remaining: remaining - arenaId, turn: turn + 1 }
+  mapBans[matchId].actions push { teamId, arenaId }
+
+  ack { ok: true, matchId, banned: arenaId, turn: turn + 1 }
+}
+
+on matchEvents "submit-score" { matchId, homeScore, awayScore } {
+  let { status, homeTeamId, awayTeamId, boGames } = matches[matchId]
+
+  fail "match-not-found" if status == nil
+  fail "already-played"  if status != "UNPLAYED"
+
+  let hs = long(homeScore ?? 0)
+  let as = long(awayScore ?? 0)
+  fail "incomplete-or-invalid-score" if !((hs >= boGames && hs > as) || (as >= boGames && as > hs))
+
+  let winnerId = hs > as ? homeTeamId : awayTeamId
+  let loserId  = winnerId == homeTeamId ? awayTeamId : homeTeamId
+
+  matches[matchId] <- { status: "PLAYED", homeScore: hs, awayScore: as, winnerId }
+
+  at partition(winnerId) {
+    teamStats[winnerId].wins += 1
+    teamStats[winnerId].points += 1
+  }
+  at partition(loserId) {
+    teamStats[loserId].losses += 1
+  }
+
+  ack { ok: true, matchId, winnerId, homeScore: hs, awayScore: as }
+}

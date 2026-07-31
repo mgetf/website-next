@@ -1,0 +1,7 @@
+# Leiningen / Rama local build
+/target/
+/.lein-failures
+/pom.xml
+/.nrepl-port
+/.clj-kondo/.cache/
+/.cpcache/

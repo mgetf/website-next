@@ -22,19 +22,22 @@ fn parses_match_v2() {
         .iter()
         .filter(|i| matches!(i, Item::Op(_)))
         .count();
-    assert_eq!(ops, 3, "create-match, ban-map, submit-score");
+    assert_eq!(
+        ops, 9,
+        "create-match, ban-map, submit-score, schedule, status, comms, reschedules"
+    );
     let structs = file
         .items
         .iter()
         .filter(|i| matches!(i, Item::Struct(_)))
         .count();
-    assert_eq!(structs, 6, "3 pstate schemas + 3 event structs");
+    assert_eq!(structs, 13, "4 pstate schemas + 9 event structs");
     let pstates = file
         .items
         .iter()
         .filter(|i| matches!(i, Item::PState(_)))
         .count();
-    assert_eq!(pstates, 4);
+    assert_eq!(pstates, 8);
 }
 
 #[test]
@@ -97,8 +100,10 @@ fn emits_match_v2_clojure() {
         clj.contains("__ban-map-event-error"),
         "typed event should generate a validator"
     );
+    // Optional JSON numbers are Object + long-or-zero in ops (tests omit
+    // fields); required String fields still get an event validator.
     assert!(
-        clj.contains("__rama_coerce_longs"),
-        "Long event fields should generate coercion"
+        clj.contains("long-or-zero"),
+        "optional numeric event fields should coerce via long-or-zero"
     );
 }

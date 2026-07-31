@@ -139,10 +139,7 @@ pub fn compile_program(program: &Program<'_>) -> Document {
             [
                 clj::sym(partitioner_name(depot)),
                 clj::vector([clj::sym("event")]),
-                clj::call(
-                    "get",
-                    [clj::sym("event"), clj::string(depot.keyed_by.node.clone())],
-                ),
+                depot_key_form(depot),
             ],
         ));
     }
@@ -536,6 +533,14 @@ fn predicate_form(ty: TypeId, value: Form, table: &TypeTable) -> Form {
                         ],
                     )
                 }
+                // clojure.core/count and friends return Integer for small values.
+                ("java.lang.Long", []) => clj::call(
+                    "or",
+                    [
+                        clj::call("instance?", [clj::sym("java.lang.Long"), value.clone()]),
+                        clj::call("instance?", [clj::sym("java.lang.Integer"), value]),
+                    ],
+                ),
                 _ => base,
             }
         }
@@ -703,6 +708,24 @@ fn partitioner_name(depot: &DepotDecl) -> String {
     format!("{}-partition-key", depot.name.node)
 }
 
+fn depot_key_form(depot: &DepotDecl) -> Form {
+    let choices = depot
+        .keyed_by
+        .iter()
+        .map(|key| match &key.node {
+            DepotKey::Field(field) => {
+                clj::call("get", [clj::sym("event"), clj::string(field.clone())])
+            }
+            DepotKey::Literal(value) => clj::string(value.clone()),
+        })
+        .collect::<Vec<_>>();
+
+    match choices.as_slice() {
+        [only] => only.clone(),
+        _ => clj::call("or", choices),
+    }
+}
+
 struct OpCompiler<'a> {
     op_name: &'a str,
     helpers: Vec<Form>,
@@ -857,6 +880,11 @@ fn event_validator_form(name: &str, event: &EventSpec) -> Form {
         clj::string("event must be a map"),
     ];
     for (field, check) in &event.fields {
+        // Object / untyped fields are optional at the JSON boundary — missing
+        // keys arrive as nil and ops coerce with long-or-zero / bool-or / etc.
+        if *check == FieldCheck::Any {
+            continue;
+        }
         arms.push(clj::call("nil?", [value(field)]));
         arms.push(clj::string(format!("missing field `{field}`")));
         let (predicate, description): (Option<Form>, &str) = match check {
@@ -1474,6 +1502,7 @@ fn ident_name(name: &str) -> String {
                 | "true"
                 | "false"
                 | "inc"
+                | "identity"
                 | "long"
                 | "set"
                 | "disj"
@@ -1490,6 +1519,7 @@ fn ident_name(name: &str) -> String {
                 | "multi-path"
                 | "nil->val"
                 | "AFTER-ELEM"
+                | "NONE>"
         )
     {
         format!("*{name}")

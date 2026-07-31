@@ -1,0 +1,191 @@
+// GlobalsModule ported from /tmp/rama-modules/globals_module.clj.
+// Site announcements and audit logs use "all" fanout indexes for REST reads.
+
+module mge.tf.rama.globals-module/GlobalsModule topology globals
+
+struct Announcement {
+  :content   String
+  :visible   Boolean
+  :createdAt String
+}
+
+struct AuditLog {
+  :actorId    String
+  :actorRole  String
+  :category   String
+  :action     String
+  :targetType String
+  :targetId   String
+  :metadata   String
+  :ipAddress  String
+  :createdAt  String
+}
+
+pstate $$announcements: Map<String, Announcement>
+pstate $$announcement-ids: Map<String, Map<String, Boolean>>
+pstate $$visible-announcement-ids: Map<String, Map<String, Boolean>>
+pstate $$audit-logs: Map<String, AuditLog>
+pstate $$audit-ids: Map<String, Map<String, String>>
+
+depot globals-depot keyed-by announcementId | auditId | "all"
+
+struct CreateAnnouncementEvent {
+  :announcementId String
+  :content        String
+  :createdAt      Object
+}
+
+struct UpdateAnnouncementEvent {
+  :announcementId String
+  :content        String
+}
+
+struct SetAnnouncementVisibleEvent {
+  :announcementId String
+  :visible        Object
+}
+
+struct DeleteAnnouncementEvent {
+  :announcementId String
+}
+
+struct AppendAuditEvent {
+  :auditId    String
+  :actorId    Object
+  :actorRole  Object
+  :category   String
+  :action     String
+  :targetType Object
+  :targetId   Object
+  :metadata   Object
+  :ipAddress  Object
+  :createdAt  Object
+}
+
+fn create-announcement-error(id: String, content: String, existing: Dynamic) -> String? {
+  if (or(nil?(id), id == "")) { return "missing-announcement-id" }
+  if (or(nil?(content), content == "")) { return "missing-content" }
+  if (some?(existing)) { return "announcement-exists" }
+  return nil
+}
+
+fn missing-announcement-error(row: Dynamic) -> String? {
+  if (nil?(row)) { return "announcement-not-found" }
+  return nil
+}
+
+fn audit-error(id: String, category: String, action: String) -> String? {
+  if (or(nil?(id), id == "")) { return "missing-audit-id" }
+  if (or(nil?(category), category == "")) { return "missing-category" }
+  if (or(nil?(action), action == "")) { return "missing-action" }
+  return nil
+}
+
+fn str-or-empty(value: Dynamic) -> String {
+  if (nil?(value)) { return "" }
+  return str(value)
+}
+
+fn bool-or(value: Dynamic, defaultValue: Boolean) -> Boolean {
+  if (nil?(value)) { return defaultValue }
+  return boolean(value)
+}
+
+op create-announcement(event: CreateAnnouncementEvent) {
+  let { announcementId, content, createdAt } = event
+
+  $$announcements --> keypath(announcementId) > existing
+  let err = create-announcement-error(announcementId, content, existing)
+  fail err if some?(err)
+
+  let created = str-or-empty(createdAt)
+  $$announcements !<-- keypath(announcementId), multi-path(
+    [:content termval(content)]
+    [:visible termval(false)]
+    [:createdAt termval(created)]
+  )
+
+  |hash "all"
+  $$announcement-ids !<-- keypath("all", announcementId), termval(true)
+
+  return {"ok" true "announcementId" announcementId "visible" false}
+}
+
+op update-announcement(event: UpdateAnnouncementEvent) {
+  let { announcementId, content } = event
+
+  $$announcements --> keypath(announcementId) > row
+  let err = missing-announcement-error(row)
+  fail err if some?(err)
+
+  $$announcements !<-- keypath(announcementId, :content), termval(content)
+
+  return {"ok" true "announcementId" announcementId}
+}
+
+op set-announcement-visible(event: SetAnnouncementVisibleEvent) {
+  let { announcementId, visible } = event
+  let visibleValue = bool-or(visible, false)
+
+  $$announcements --> keypath(announcementId) > row
+  let err = missing-announcement-error(row)
+  fail err if some?(err)
+
+  $$announcements !<-- keypath(announcementId, :visible), termval(visibleValue)
+
+  |hash "all"
+  if (visibleValue) {
+    $$visible-announcement-ids !<-- keypath("all", announcementId), termval(true)
+  } else {
+    $$visible-announcement-ids !<-- keypath("all", announcementId), NONE>
+  }
+
+  return {"ok" true "announcementId" announcementId "visible" visibleValue}
+}
+
+op delete-announcement(event: DeleteAnnouncementEvent) {
+  let { announcementId } = event
+
+  $$announcements --> keypath(announcementId) > row
+  let err = missing-announcement-error(row)
+  fail err if some?(err)
+
+  $$announcements !<-- keypath(announcementId), NONE>
+
+  |hash "all"
+  $$announcement-ids !<-- keypath("all", announcementId), NONE>
+  $$visible-announcement-ids !<-- keypath("all", announcementId), NONE>
+
+  return {"ok" true "announcementId" announcementId}
+}
+
+op append-audit(event: AppendAuditEvent) {
+  let { auditId, actorId, actorRole, category, action, targetType, targetId, metadata, ipAddress, createdAt } = event
+  let err = audit-error(auditId, category, action)
+  fail err if some?(err)
+
+  let actor = str-or-empty(actorId)
+  let role = str-or-empty(actorRole)
+  let targetTypeValue = str-or-empty(targetType)
+  let targetIdValue = str-or-empty(targetId)
+  let metadataValue = str-or-empty(metadata)
+  let ip = str-or-empty(ipAddress)
+  let created = str-or-empty(createdAt)
+
+  $$audit-logs !<-- keypath(auditId), multi-path(
+    [:actorId termval(actor)]
+    [:actorRole termval(role)]
+    [:category termval(category)]
+    [:action termval(action)]
+    [:targetType termval(targetTypeValue)]
+    [:targetId termval(targetIdValue)]
+    [:metadata termval(metadataValue)]
+    [:ipAddress termval(ip)]
+    [:createdAt termval(created)]
+  )
+
+  |hash "all"
+  $$audit-ids !<-- keypath("all", auditId), termval(created)
+
+  return {"ok" true "auditId" auditId}
+}

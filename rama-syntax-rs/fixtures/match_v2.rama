@@ -1,25 +1,34 @@
-// .rama v2 — see DESIGN.md
-// Specter paths + --> / !<--. Rust-like structs. fail / return. $$ pstates.
+// MatchModule ported from /tmp/rama-modules/match_module.clj.
+// Full godpath fixture: matches, map bans, scores, scheduling, comms, and reschedules.
 
 module mge.tf.rama.match-module/MatchModule topology matches
 
 struct Match {
-  :homeTeamId String
-  :awayTeamId String
-  :seasonId   String
-  :status     String
-  :homeScore  Long
-  :awayScore  Long
-  :winnerId   String
-  :boGames    Long
+  :homeTeamId     String
+  :awayTeamId     String
+  :seasonId       String
+  :status         String
+  :homeScore      Long
+  :awayScore      Long
+  :winnerId       String
+  :boGames        Long
+  :weekNo         Long
+  :seasonNo       Long
+  :arenaId        String
+  :matchDateTime  String
+  :matchTimezone  String
+  :submittedAt    String
+  :submittedBy    String
 }
 
 struct MapBan {
-  :turn       Long
-  :homeTeamId String
-  :awayTeamId String
-  :remaining  Object
-  :actions    Object
+  :turn             Long
+  :homeTeamId       String
+  :awayTeamId       String
+  :remaining        Object
+  :actions          Object
+  :banPhaseComplete Boolean
+  :boSeries         Long
 }
 
 struct TeamStats {
@@ -28,115 +37,517 @@ struct TeamStats {
   :points Long
 }
 
+struct MatchComm {
+  :owner            String
+  :content          String
+  :createdAt        String
+  :reschedule       String
+  :rescheduleStatus Long
+}
+
 pstate $$matches:       Map<String, Match>
 pstate $$map-bans:       Map<String, MapBan>
 pstate $$team-stats:     Map<String, TeamStats>
 pstate $$matches-by-team: Map<String, Map<String, String>> @subindexed
+pstate $$matches-by-week: Map<String, Map<String, Boolean>>
+pstate $$matches-by-status: Map<String, Map<String, Boolean>>
+pstate $$match-comms: Map<String, Map<String, MatchComm>> @subindexed
+pstate $$pending-reschedule: Map<String, String>
 
 depot match-depot keyed-by matchId
 
-// Event structs: the compiler generates a boundary validator per op and
-// coerces JSON Integer payloads into the declared Long fields.
+extern true? = clojure.core/true?(value: Any) -> Boolean
+extern dec = clojure.core/dec(value: Long) -> Long
+extern str3 = clojure.core/str(first: Any, second: Any, third: Any) -> String
+
 struct CreateMatchEvent {
-  :matchId    String
-  :homeTeamId String
-  :awayTeamId String
-  :seasonId   String
-  :boGames    Long
-  :pool       Object
+  :matchId       String
+  :homeTeamId    String
+  :awayTeamId    String
+  :seasonId      String
+  :boGames       Object
+  :pool          Object
+  :weekNo        Object
+  :seasonNo      Object
+  :arenaId       Object
+  :matchDateTime Object
+  :matchTimezone Object
 }
 
 struct BanMapEvent {
-  :matchId String
-  :teamId  String
-  :arenaId String
+  :matchId    String
+  :teamId     String
+  :arenaId    String
+  :actionType Object
 }
 
 struct SubmitScoreEvent {
+  :matchId     String
+  :homeScore   Object
+  :awayScore   Object
+  :submittedBy Object
+  :submittedAt Object
+}
+
+struct SetScheduleEvent {
+  :matchId       String
+  :matchDateTime Object
+  :matchTimezone Object
+}
+
+struct SetArenaEvent {
+  :matchId String
+  :arenaId Object
+}
+
+struct SetMatchStatusEvent {
+  :matchId String
+  :status  String
+}
+
+struct PostCommEvent {
   :matchId   String
-  :homeScore Long
-  :awayScore Long
+  :commId    String
+  :owner     Object
+  :content   Object
+  :createdAt Object
+}
+
+struct RequestRescheduleEvent {
+  :matchId    String
+  :commId     String
+  :owner      Object
+  :content    Object
+  :createdAt  Object
+  :reschedule Object
+}
+
+struct RespondRescheduleEvent {
+  :matchId         String
+  :commId          String
+  :response        String
+  :respondedBy     Object
+  :responseCommId  String
+  :responseContent Object
+  :createdAt       Object
+}
+
+fn long-or-zero(value: Dynamic) -> Long {
+  if (nil?(value)) { return 0 }
+  return long(value)
+}
+
+fn str-or-empty(value: Dynamic) -> String {
+  if (nil?(value)) { return "" }
+  return value
+}
+
+fn pool-to-set(pool: Dynamic) -> Dynamic {
+  if (nil?(pool)) { return set([]) }
+  return set(pool)
+}
+
+fn week-key(seasonId: String, weekNo: Long) -> String {
+  return str3(seasonId, ":", weekNo)
+}
+
+fn expected-team(currentTurn: Long, home: String, away: String) -> String {
+  if (long(currentTurn) == 0) { return home }
+  return away
+}
+
+fn ban-error(
+  currentTurn: Dynamic,
+  home: String,
+  away: String,
+  teamId: String,
+  remaining: Dynamic,
+  arenaId: String,
+  complete: Boolean,
+) -> String? {
+  if (nil?(currentTurn)) { return "no-ban-state" }
+  if (true?(complete)) { return "ban-complete" }
+  if (teamId != expected-team(currentTurn, home, away)) { return "not-your-turn" }
+  if (not(contains?(remaining, arenaId))) { return "arena-not-in-pool" }
+  return nil
+}
+
+fn should-switch-turn(actionCount: Long, boSeries: Long) -> Boolean {
+  let n = long(actionCount)
+  let bo = long(boSeries)
+  if (bo == 3) { return contains?(set([0 2 4]), n) }
+  if (bo == 5) { return contains?(set([0 2 4 5 6]), n) }
+  if (bo == 7) { return contains?(set([0 2 4 5 6 7 8]), n) }
+  return contains?(set([0 2 4]), n)
+}
+
+fn next-turn(currentTurn: Long, switchTurn: Boolean) -> Long {
+  if (switchTurn) {
+    if (long(currentTurn) == 0) { return 1 }
+    return 0
+  }
+  return long(currentTurn)
+}
+
+fn total-ban-actions(boSeries: Long) -> Long {
+  if (long(boSeries) == 3) { return 6 }
+  if (long(boSeries) == 5) { return 8 }
+  if (long(boSeries) == 7) { return 10 }
+  return 6
+}
+
+fn action-type-or-ban(value: Dynamic) -> String {
+  if (or(nil?(value), value == "")) { return "ban" }
+  return value
+}
+
+fn actions-count(actions: Dynamic) -> Long {
+  if (nil?(actions)) { return count([]) }
+  return count(actions)
+}
+
+fn ban-now-complete?(nextCount: Long, boSeries: Long) -> Boolean {
+  return >=(long(nextCount), total-ban-actions(boSeries))
+}
+
+fn score-error(status: String?, homeScore: Long, awayScore: Long, boGames: Long) -> String? {
+  if (nil?(status)) { return "match-not-found" }
+  if (status != "UNPLAYED") { return "already-played" }
+  if (not(or(and(>=(homeScore, boGames), >(homeScore, awayScore)), and(>=(awayScore, boGames), >(awayScore, homeScore))))) {
+    return "incomplete-or-invalid-score"
+  }
+  return nil
+}
+
+fn match-status-error(status: String) -> String? {
+  if (not(contains?(set(["UNPLAYED" "PLAYED" "DISPUTE"]), status))) {
+    return "invalid-match-status"
+  }
+  return nil
+}
+
+fn missing-match-error(fieldErr: String?, match: Dynamic) -> String? {
+  if (some?(fieldErr)) { return fieldErr }
+  if (nil?(match)) { return "match-not-found" }
+  return nil
+}
+
+fn pick-winner(homeId: String, awayId: String, homeScore: Long, awayScore: Long) -> String {
+  if (>(homeScore, awayScore)) { return homeId }
+  return awayId
+}
+
+fn pick-loser(homeId: String, awayId: String, winnerId: String) -> String {
+  if (winnerId == homeId) { return awayId }
+  return homeId
+}
+
+fn pending-present?(pendingId: String?) -> Boolean {
+  return and(some?(pendingId), pendingId != "")
+}
+
+fn request-reschedule-error(match: Dynamic, pendingId: String?) -> String? {
+  if (nil?(match)) { return "match-not-found" }
+  if (get(match, "status") != "UNPLAYED") { return "match-not-unplayed" }
+  if (pending-present?(pendingId)) { return "pending-exists" }
+  return nil
+}
+
+fn respond-reschedule-error(match: Dynamic, pendingId: String?, commId: String, response: String) -> String? {
+  if (nil?(match)) { return "match-not-found" }
+  if (not(pending-present?(pendingId))) { return "no-pending" }
+  if (pendingId != commId) { return "comm-mismatch" }
+  if (not(contains?(set(["accept" "deny" "cancel"]), response))) { return "invalid-response" }
+  return nil
+}
+
+fn response-status(response: String) -> Long {
+  if (response == "accept") { return 1 }
+  if (response == "deny") { return 2 }
+  if (response == "cancel") { return 3 }
+  return 3
 }
 
 op create-match(event: CreateMatchEvent) {
-  let { matchId, homeTeamId, awayTeamId, seasonId, boGames, pool } = event
-  let pool-set = set(pool)
+  let {
+    matchId,
+    homeTeamId,
+    awayTeamId,
+    seasonId,
+    boGames,
+    pool,
+    weekNo,
+    seasonNo,
+    arenaId,
+    matchDateTime,
+    matchTimezone
+  } = event
+  let boGamesValue = long-or-zero(boGames)
+  let weekNoValue = long-or-zero(weekNo)
+  let seasonNoValue = long-or-zero(seasonNo)
+  let arenaValue = str-or-empty(arenaId)
+  let matchDateTimeValue = str-or-empty(matchDateTime)
+  let matchTimezoneValue = str-or-empty(matchTimezone)
+  let poolSet = pool-to-set(pool)
+  let wkey = week-key(seasonId, weekNoValue)
 
   $$matches --> keypath(matchId) > existing
-  fail "match-exists" if not(nil?(existing))
+  fail "match-exists" if some?(existing)
 
-  $$matches !<-- keypath(matchId), termval({
-    :homeTeamId homeTeamId
-    :awayTeamId awayTeamId
-    :seasonId   seasonId
-    :status     "UNPLAYED"
-    :homeScore  0
-    :awayScore  0
-    :boGames    boGames
-  })
+  $$matches !<-- keypath(matchId), multi-path(
+    [:homeTeamId termval(homeTeamId)]
+    [:awayTeamId termval(awayTeamId)]
+    [:seasonId termval(seasonId)]
+    [:status termval("UNPLAYED")]
+    [:homeScore termval(0)]
+    [:awayScore termval(0)]
+    [:winnerId termval("")]
+    [:boGames termval(boGamesValue)]
+    [:weekNo termval(weekNoValue)]
+    [:seasonNo termval(seasonNoValue)]
+    [:arenaId termval(arenaValue)]
+    [:matchDateTime termval(matchDateTimeValue)]
+    [:matchTimezone termval(matchTimezoneValue)]
+    [:submittedAt termval("")]
+    [:submittedBy termval("")]
+  )
 
-  $$map-bans !<-- keypath(matchId), termval({
-    :turn       0
-    :homeTeamId homeTeamId
-    :awayTeamId awayTeamId
-    :remaining  pool-set
-    :actions    []
-  })
+  $$map-bans !<-- keypath(matchId), multi-path(
+    [:turn termval(1)]
+    [:homeTeamId termval(homeTeamId)]
+    [:awayTeamId termval(awayTeamId)]
+    [:remaining termval(poolSet)]
+    [:actions termval([])]
+    [:banPhaseComplete termval(false)]
+    [:boSeries termval(boGamesValue)]
+  )
+  $$pending-reschedule !<-- keypath(matchId), termval("")
 
   |hash homeTeamId
   $$matches-by-team !<-- keypath(homeTeamId, matchId), termval(seasonId)
+
   |hash awayTeamId
   $$matches-by-team !<-- keypath(awayTeamId, matchId), termval(seasonId)
+
+  |hash wkey
+  $$matches-by-week !<-- keypath(wkey, matchId), termval(true)
+
+  |hash "UNPLAYED"
+  $$matches-by-status !<-- keypath("UNPLAYED", matchId), termval(true)
 
   return {"ok" true "matchId" matchId}
 }
 
 op ban-map(event: BanMapEvent) {
-  let { matchId, teamId, arenaId } = event
+  let { matchId, teamId, arenaId, actionType } = event
+  let actionTypeValue = action-type-or-ban(actionType)
 
-  $$map-bans --> keypath(matchId) > { turn, homeTeamId, awayTeamId, remaining }
+  $$map-bans --> keypath(matchId, :turn) > turn
+  $$map-bans --> keypath(matchId, :homeTeamId) > banHome
+  $$map-bans --> keypath(matchId, :awayTeamId) > banAway
+  $$map-bans --> keypath(matchId, :remaining) > remaining
+  $$map-bans --> keypath(matchId, :banPhaseComplete) > complete
+  $$map-bans --> keypath(matchId, :boSeries) > boSeries
+  $$map-bans --> keypath(matchId, :actions) > actions
 
-  fail "no-ban-state" if turn == nil
-  fail "not-your-turn" if teamId != (even?(turn) ? awayTeamId : homeTeamId)
-  fail "arena-not-in-pool" if not(contains?(remaining, arenaId))
+  let err = ban-error(turn, banHome, banAway, teamId, remaining, arenaId, complete)
+  fail err if some?(err)
 
+  let actionCount = actions-count(actions)
+  let nextRemaining = disj(remaining, arenaId)
+  let switchTurn = should-switch-turn(actionCount, boSeries)
+  let nextTurn = next-turn(turn, switchTurn)
+  let nextCount = inc(actionCount)
+  let nowComplete = ban-now-complete?(nextCount, boSeries)
+
+  $$map-bans !<-- keypath(matchId, :remaining), termval(nextRemaining)
+  $$map-bans !<-- keypath(matchId, :actions), AFTER-ELEM, termval({
+    "teamId" teamId
+    "arenaId" arenaId
+    "actionType" actionTypeValue
+  })
   $$map-bans !<-- keypath(matchId), multi-path(
-    [:remaining termval(disj(remaining, arenaId))]
-    [:turn termval(inc(turn))]
+    [:turn termval(nextTurn)]
+    [:banPhaseComplete termval(nowComplete)]
   )
-  $$map-bans !<-- keypath(matchId, :actions), AFTER-ELEM, termval({:teamId teamId :arenaId arenaId})
 
-  return {"ok" true "matchId" matchId "banned" arenaId "turn" inc(turn)}
+  return {"ok" true "matchId" matchId "banned" arenaId "turn" nextTurn "type" actionTypeValue}
 }
 
 op submit-score(event: SubmitScoreEvent) {
-  let { matchId, homeScore, awayScore } = event
-  let hs = homeScore
-  let as = awayScore
+  let { matchId, homeScore, awayScore, submittedBy, submittedAt } = event
+  let homeScoreValue = long-or-zero(homeScore)
+  let awayScoreValue = long-or-zero(awayScore)
+  let submittedByValue = str-or-empty(submittedBy)
+  let submittedAtValue = str-or-empty(submittedAt)
 
-  $$matches --> keypath(matchId) > { status, homeTeamId, awayTeamId, boGames }
+  $$matches --> keypath(matchId, :status) > status
+  $$matches --> keypath(matchId, :homeTeamId) > homeTeamId
+  $$matches --> keypath(matchId, :awayTeamId) > awayTeamId
+  $$matches --> keypath(matchId, :boGames) > boGames
+  $$pending-reschedule --> keypath(matchId) > pendingId
 
-  fail "match-not-found" if status == nil
-  fail "already-played" if status != "UNPLAYED"
-  fail "incomplete-or-invalid-score" if not(
-    or(and(>=(hs, boGames), >(hs, as)), and(>=(as, boGames), >(as, hs)))
-  )
+  let err = score-error(status, homeScoreValue, awayScoreValue, boGames)
+  fail err if some?(err)
 
-  let winnerId = >(hs, as) ? homeTeamId : awayTeamId
-  let loserId = =(winnerId, homeTeamId) ? awayTeamId : homeTeamId
+  let winnerId = pick-winner(homeTeamId, awayTeamId, homeScoreValue, awayScoreValue)
+  let loserId = pick-loser(homeTeamId, awayTeamId, winnerId)
 
   $$matches !<-- keypath(matchId), multi-path(
     [:status termval("PLAYED")]
-    [:homeScore termval(hs)]
-    [:awayScore termval(as)]
+    [:homeScore termval(homeScoreValue)]
+    [:awayScore termval(awayScoreValue)]
     [:winnerId termval(winnerId)]
+    [:submittedAt termval(submittedAtValue)]
+    [:submittedBy termval(submittedByValue)]
   )
+
+  |hash "UNPLAYED"
+  $$matches-by-status !<-- keypath("UNPLAYED", matchId), NONE>
+
+  |hash "PLAYED"
+  $$matches-by-status !<-- keypath("PLAYED", matchId), termval(true)
 
   |hash winnerId
   $$team-stats !<-- keypath(winnerId, :wins), nil->val(0), term(inc)
   $$team-stats !<-- keypath(winnerId, :points), nil->val(0), term(inc)
+  $$team-stats !<-- keypath(winnerId, :losses), nil->val(0), term(identity)
+
   |hash loserId
   $$team-stats !<-- keypath(loserId, :losses), nil->val(0), term(inc)
+  $$team-stats !<-- keypath(loserId, :wins), nil->val(0), term(identity)
+  $$team-stats !<-- keypath(loserId, :points), nil->val(0), term(identity)
 
-  return {"ok" true "matchId" matchId "winnerId" winnerId "homeScore" hs "awayScore" as}
+  if (pending-present?(pendingId)) {
+    $$match-comms !<-- keypath(matchId, pendingId, :rescheduleStatus), termval(3)
+  } else {
+    $$pending-reschedule !<-- keypath(matchId), termval("")
+  }
+
+  return {"ok" true "matchId" matchId "winnerId" winnerId "homeScore" homeScoreValue "awayScore" awayScoreValue}
+}
+
+op set-schedule(event: SetScheduleEvent) {
+  let { matchId, matchDateTime, matchTimezone } = event
+  let matchDateTimeValue = str-or-empty(matchDateTime)
+  let matchTimezoneValue = str-or-empty(matchTimezone)
+
+  $$matches --> keypath(matchId) > match
+  let err = missing-match-error(nil, match)
+  fail err if some?(err)
+
+  $$matches !<-- keypath(matchId), multi-path(
+    [:matchDateTime termval(matchDateTimeValue)]
+    [:matchTimezone termval(matchTimezoneValue)]
+  )
+
+  return {"ok" true "matchId" matchId}
+}
+
+op set-arena(event: SetArenaEvent) {
+  let { matchId, arenaId } = event
+  let arenaValue = str-or-empty(arenaId)
+
+  $$matches --> keypath(matchId) > match
+  let err = missing-match-error(nil, match)
+  fail err if some?(err)
+
+  $$matches !<-- keypath(matchId, :arenaId), termval(arenaValue)
+
+  return {"ok" true "matchId" matchId}
+}
+
+op set-match-status(event: SetMatchStatusEvent) {
+  let { matchId, status } = event
+
+  let fieldErr = match-status-error(status)
+  $$matches --> keypath(matchId) > match
+  $$matches --> keypath(matchId, :status) > oldStatus
+  let err = missing-match-error(fieldErr, match)
+  fail err if some?(err)
+
+  $$matches !<-- keypath(matchId, :status), termval(status)
+
+  |hash oldStatus
+  $$matches-by-status !<-- keypath(oldStatus, matchId), NONE>
+
+  |hash status
+  $$matches-by-status !<-- keypath(status, matchId), termval(true)
+
+  return {"ok" true "matchId" matchId "status" status}
+}
+
+op post-comm(event: PostCommEvent) {
+  let { matchId, commId, owner, content, createdAt } = event
+  let ownerValue = str-or-empty(owner)
+  let contentValue = str-or-empty(content)
+  let createdAtValue = str-or-empty(createdAt)
+
+  $$matches --> keypath(matchId) > match
+  let err = missing-match-error(nil, match)
+  fail err if some?(err)
+
+  $$match-comms !<-- keypath(matchId, commId), multi-path(
+    [:owner termval(ownerValue)]
+    [:content termval(contentValue)]
+    [:createdAt termval(createdAtValue)]
+    [:reschedule termval("")]
+    [:rescheduleStatus termval(dec(0))]
+  )
+
+  return {"ok" true "matchId" matchId "commId" commId}
+}
+
+op request-reschedule(event: RequestRescheduleEvent) {
+  let { matchId, commId, owner, content, createdAt, reschedule } = event
+  let ownerValue = str-or-empty(owner)
+  let contentValue = str-or-empty(content)
+  let createdAtValue = str-or-empty(createdAt)
+  let rescheduleValue = str-or-empty(reschedule)
+
+  $$matches --> keypath(matchId) > match
+  $$pending-reschedule --> keypath(matchId) > pendingId
+  let err = request-reschedule-error(match, pendingId)
+  fail err if some?(err)
+
+  $$match-comms !<-- keypath(matchId, commId), multi-path(
+    [:owner termval(ownerValue)]
+    [:content termval(contentValue)]
+    [:createdAt termval(createdAtValue)]
+    [:reschedule termval(rescheduleValue)]
+    [:rescheduleStatus termval(0)]
+  )
+  $$pending-reschedule !<-- keypath(matchId), termval(commId)
+
+  return {"ok" true "matchId" matchId "commId" commId}
+}
+
+op respond-reschedule(event: RespondRescheduleEvent) {
+  let { matchId, commId, response, respondedBy, responseCommId, responseContent, createdAt } = event
+  let respondedByValue = str-or-empty(respondedBy)
+  let responseContentValue = str-or-empty(responseContent)
+  let createdAtValue = str-or-empty(createdAt)
+
+  $$matches --> keypath(matchId) > match
+  $$pending-reschedule --> keypath(matchId) > pendingId
+  let err = respond-reschedule-error(match, pendingId, commId, response)
+  fail err if some?(err)
+
+  let newStatus = response-status(response)
+  $$match-comms --> keypath(matchId, commId, :reschedule) > proposed
+  $$match-comms !<-- keypath(matchId, commId, :rescheduleStatus), termval(newStatus)
+  $$pending-reschedule !<-- keypath(matchId), termval("")
+  $$match-comms !<-- keypath(matchId, responseCommId), multi-path(
+    [:owner termval(respondedByValue)]
+    [:content termval(responseContentValue)]
+    [:createdAt termval(createdAtValue)]
+    [:reschedule termval("")]
+    [:rescheduleStatus termval(dec(0))]
+  )
+
+  if (response == "accept") {
+    $$matches !<-- keypath(matchId, :matchDateTime), termval(proposed)
+  }
+
+  return {"ok" true "matchId" matchId "commId" commId "status" response}
 }

@@ -1,0 +1,56 @@
+// DivisionsModule ported from /tmp/rama-modules/divisions_module.clj.
+
+module mge.tf.rama.divisions-module/DivisionsModule topology divisions
+
+struct Division {
+  :name       String
+  :regionId   String
+  :signupCost Long
+  :sortOrder  Long
+}
+
+pstate $$divisions: Map<String, Division>
+pstate $$division-ids-by-region: Map<String, Map<String, Boolean>>
+
+depot division-depot keyed-by divisionId
+
+struct UpsertDivisionEvent {
+  :divisionId String
+  :name       String
+  :regionId   String
+  :signupCost Object
+  :sortOrder  Object
+}
+
+fn upsert-error(divisionId: String, name: String, regionId: String) -> String? {
+  if (or(nil?(divisionId), divisionId == "")) { return "missing-division-id" }
+  if (or(nil?(name), name == "")) { return "missing-division-name" }
+  if (or(nil?(regionId), regionId == "")) { return "missing-region-id" }
+  return nil
+}
+
+fn long-or-zero(v: Dynamic) -> Long {
+  if (nil?(v)) { return 0 }
+  return long(v)
+}
+
+op upsert-division(event: UpsertDivisionEvent) {
+  let { divisionId, name, regionId, signupCost, sortOrder } = event
+  let err = upsert-error(divisionId, name, regionId)
+  fail err if some?(err)
+
+  let cost = long-or-zero(signupCost)
+  let sort = long-or-zero(sortOrder)
+
+  $$divisions !<-- keypath(divisionId), multi-path(
+    [:name termval(name)]
+    [:regionId termval(regionId)]
+    [:signupCost termval(cost)]
+    [:sortOrder termval(sort)]
+  )
+
+  |hash regionId
+  $$division-ids-by-region !<-- keypath(regionId, divisionId), termval(true)
+
+  return {"ok" true "divisionId" divisionId}
+}

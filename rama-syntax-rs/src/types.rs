@@ -467,21 +467,25 @@ impl<'a> Checker<'a> {
                 if let (PathMode::Transform, Some(Expr::Ident(function)), SchemaFocus::Leaf(t)) =
                     (mode, call.args.first(), &focus)
                 {
-                    let callable = self.infer_function_value(&function.node, function.span);
-                    if let Type::Function { params, ret } = self.typing.table.get(callable).clone()
-                    {
-                        if params.len() == 1
-                            && (!self.assignable(*t, params[0]) || !self.assignable(ret, *t))
+                    // `identity` is polymorphic Fn<(T)->T>; treat as always compatible.
+                    if function.node != "identity" {
+                        let callable = self.infer_function_value(&function.node, function.span);
+                        if let Type::Function { params, ret } =
+                            self.typing.table.get(callable).clone()
                         {
-                            self.typing.diagnostics.push(Diagnostic::type_error(
-                                function.span,
-                                format!(
-                                    "term function `{}` has type `{}`, incompatible with this position's `{}`",
-                                    function.node,
-                                    self.typing.table.display(callable),
-                                    self.typing.table.display(*t)
-                                ),
-                            ));
+                            if params.len() == 1
+                                && (!self.assignable(*t, params[0]) || !self.assignable(ret, *t))
+                            {
+                                self.typing.diagnostics.push(Diagnostic::type_error(
+                                    function.span,
+                                    format!(
+                                        "term function `{}` has type `{}`, incompatible with this position's `{}`",
+                                        function.node,
+                                        self.typing.table.display(callable),
+                                        self.typing.table.display(*t)
+                                    ),
+                                ));
+                            }
                         }
                     }
                 }

@@ -15,6 +15,7 @@ struct User {
 
 pstate $$users:       Map<String, User>
 pstate $$discord-by-id: Map<String, String>
+pstate $$user-ids: Map<String, Map<String, Boolean>>
 
 depot user-depot keyed-by steamId
 
@@ -89,6 +90,9 @@ op upsert-profile(event: UpsertProfileEvent) {
     $$users !<-- keypath(steamId, :permissionLevel), termval("GUEST")
     $$users !<-- keypath(steamId, :banStatus), termval("NONE")
   }
+
+  |hash "all"
+  $$user-ids !<-- keypath("all", steamId), termval(true)
 
   return {"ok" true "steamId" steamId}
 }

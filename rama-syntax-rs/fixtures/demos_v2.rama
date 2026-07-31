@@ -1,0 +1,166 @@
+// DemosModule ported from /tmp/rama-modules/demos_module.clj.
+
+module mge.tf.rama.demos-module/DemosModule topology demos
+
+struct Demo {
+  :matchId       String
+  :playerSteamId String
+  :submittedBy   String
+  :file          String
+  :title         String
+  :description   String
+  :createdAt     String
+}
+
+struct DemoReport {
+  :demoId        String
+  :reportedBy    String
+  :status        String
+  :description   String
+  :adminComments String
+  :adminId       String
+  :reportedAt    String
+}
+
+pstate $$demos: Map<String, Demo>
+pstate $$demos-by-match: Map<String, Map<String, Boolean>>
+pstate $$demo-reports: Map<String, DemoReport>
+pstate $$reports-by-status: Map<String, Map<String, Boolean>>
+pstate $$reports-by-demo: Map<String, Map<String, Boolean>>
+
+depot demo-depot keyed-by reportId | demoId
+
+struct CreateDemoEvent {
+  :demoId        String
+  :matchId       String
+  :playerSteamId String
+  :submittedBy   String
+  :file          Object
+  :title         Object
+  :description   Object
+  :createdAt     Object
+}
+
+struct ReportDemoEvent {
+  :reportId    String
+  :demoId      String
+  :reportedBy  String
+  :description Object
+  :reportedAt  Object
+}
+
+struct ResolveReportEvent {
+  :reportId      String
+  :status        String
+  :adminComments Object
+  :adminId       Object
+}
+
+fn demo-id(reportId: String?, demoId: String?) -> String? {
+  if (some?(reportId)) { return reportId }
+  return demoId
+}
+
+fn str-or-empty(v: Dynamic) -> String {
+  if (nil?(v)) { return "" }
+  return v
+}
+
+fn create-demo-error(existing: Dynamic, demoId: String, matchId: String) -> String? {
+  if (or(nil?(demoId), demoId == "")) { return "missing-demo-id" }
+  if (or(nil?(matchId), matchId == "")) { return "missing-match-id" }
+  if (some?(existing)) { return "demo-exists" }
+  return nil
+}
+
+fn report-error(existing: Dynamic, reportId: String, demoId: String) -> String? {
+  if (or(nil?(reportId), reportId == "")) { return "missing-report-id" }
+  if (or(nil?(demoId), demoId == "")) { return "missing-demo-id" }
+  if (some?(existing)) { return "report-exists" }
+  return nil
+}
+
+fn resolve-error(report: Dynamic) -> String? {
+  if (nil?(report)) { return "report-not-found" }
+  return nil
+}
+
+op create-demo(event: CreateDemoEvent) {
+  let { demoId, matchId, playerSteamId, submittedBy, file, title, description, createdAt } = event
+  let fileValue = str-or-empty(file)
+  let titleValue = str-or-empty(title)
+  let descriptionValue = str-or-empty(description)
+  let createdAtValue = str-or-empty(createdAt)
+
+  $$demos --> keypath(demoId) > existing
+  let err = create-demo-error(existing, demoId, matchId)
+  fail err if some?(err)
+
+  $$demos !<-- keypath(demoId), multi-path(
+    [:matchId termval(matchId)]
+    [:playerSteamId termval(playerSteamId)]
+    [:submittedBy termval(submittedBy)]
+    [:file termval(fileValue)]
+    [:title termval(titleValue)]
+    [:description termval(descriptionValue)]
+    [:createdAt termval(createdAtValue)]
+  )
+
+  |hash matchId
+  $$demos-by-match !<-- keypath(matchId, demoId), termval(true)
+
+  return {"ok" true "demoId" demoId}
+}
+
+op report-demo(event: ReportDemoEvent) {
+  let { reportId, demoId, reportedBy, description, reportedAt } = event
+  let descriptionValue = str-or-empty(description)
+  let reportedAtValue = str-or-empty(reportedAt)
+
+  $$demo-reports --> keypath(reportId) > existing
+  let err = report-error(existing, reportId, demoId)
+  fail err if some?(err)
+
+  $$demo-reports !<-- keypath(reportId), multi-path(
+    [:demoId termval(demoId)]
+    [:reportedBy termval(reportedBy)]
+    [:status termval("REVIEW")]
+    [:description termval(descriptionValue)]
+    [:adminComments termval("")]
+    [:adminId termval("")]
+    [:reportedAt termval(reportedAtValue)]
+  )
+
+  |hash "REVIEW"
+  $$reports-by-status !<-- keypath("REVIEW", reportId), termval(true)
+
+  |hash demoId
+  $$reports-by-demo !<-- keypath(demoId, reportId), termval(true)
+
+  return {"ok" true "reportId" reportId "status" "REVIEW"}
+}
+
+op resolve-report(event: ResolveReportEvent) {
+  let { reportId, status, adminComments, adminId } = event
+  let comments = str-or-empty(adminComments)
+  let admin = str-or-empty(adminId)
+
+  $$demo-reports --> keypath(reportId) > report
+  let err = resolve-error(report)
+  fail err if some?(err)
+
+  $$demo-reports --> keypath(reportId, :status) > oldStatus
+  $$demo-reports !<-- keypath(reportId), multi-path(
+    [:status termval(status)]
+    [:adminComments termval(comments)]
+    [:adminId termval(admin)]
+  )
+
+  |hash oldStatus
+  $$reports-by-status !<-- keypath(oldStatus, reportId), NONE>
+
+  |hash status
+  $$reports-by-status !<-- keypath(status, reportId), termval(true)
+
+  return {"ok" true "reportId" reportId "status" status}
+}

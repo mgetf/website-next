@@ -4,15 +4,15 @@ Hard failures we hit while cutting `rama/src/mge/tf/rama/*_module.clj` and the T
 
 ## Compile-time
 
-| Symptom                                          | Cause                                                                | Fix                                                   |
-| ------------------------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------- |
-| `Unable to resolve symbol: let* in this context` | Used Clojure `and`/`or`/`if-let`/`when-let` in dataflow              | Use `and>` / `or>` / `<<if`, or move logic to `defn`  |
-| Same `let*` error from `(or *x "")` in a transform | Clojure `or`/`and` expand to `let*` even outside `<<if` predicates | `(defn str-or-empty [v] …)` then call it in dataflow  |
-| `StackOverflowError` in `clojure.algo.monads`    | Deep nested `<<if` / `<<switch` / `<<cond`                           | ≤2 levels of dataflow branching; helpers for the rest |
+| Symptom                                            | Cause                                                                | Fix                                                   |
+| -------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------- |
+| `Unable to resolve symbol: let* in this context`   | Used Clojure `and`/`or`/`if-let`/`when-let` in dataflow              | Use `and>` / `or>` / `<<if`, or move logic to `defn`  |
+| Same `let*` error from `(or *x "")` in a transform | Clojure `or`/`and` expand to `let*` even outside `<<if` predicates   | `(defn str-or-empty [v] …)` then call it in dataflow  |
+| `StackOverflowError` in `clojure.algo.monads`      | Deep nested `<<if` / `<<switch` / `<<cond`                           | ≤2 levels of dataflow branching; helpers for the rest |
 | StackOverflow during **AOT** / uberjar             | Same nesting + large `multi-path` trees                              | `-Xss8m` in `project.clj`; compact helpers            |
-| Nested `(count (or …))` / `(>= …)` inside `<<if`   | Treated as dataflow forms; expands badly                             | Pure `defn` helpers: `(eds-count *a :> *n)`       |
-| `EOF while reading`                              | Unbalanced parens after editing `<<if` trees                         | Count closers carefully; prefer flatter code          |
-| Minimal module works, big one doesn't            | Almost always `and` or nesting — bisect by commenting event handlers | Add one `<<if (= *type …)` handler at a time          |
+| Nested `(count (or …))` / `(>= …)` inside `<<if`   | Treated as dataflow forms; expands badly                             | Pure `defn` helpers: `(eds-count *a :> *n)`           |
+| `EOF while reading`                                | Unbalanced parens after editing `<<if` trees                         | Count closers carefully; prefer flatter code          |
+| Minimal module works, big one doesn't              | Almost always `and` or nesting — bisect by commenting event handlers | Add one `<<if (= *type …)` handler at a time          |
 
 ## Runtime / worker death
 
@@ -25,8 +25,8 @@ Hard failures we hit while cutting `rama/src/mge/tf/rama/*_module.clj` and the T
 | Uniqueness check always passes / never sees existing                                                            | `local-select>` on wrong partition (still on depot key)                                                                 | `\|hash` the index key **before** reading that PState                                                                        |
 | Write after `\|hash` inside a `deframaop` vanishes (ack ok, in-op readback sees it, nothing committed anywhere) | PState passed as a **deframaop parameter**, accessed after a partitioner hop — the parameter reference is not hop-aware | Inline the hopping code in the topology (or `<<with-substitutions`); PState params are fine only when no partitioner follows |
 | `StackOverflowError` in `rpl.rama.util.parse` at module launch                                                  | Many sequential `<<if` dispatch branches with nested guards compile as nested continuations                             | Dispatch on one discriminator with flat `<<switch` + `(case> …)`                                                             |
-| `ok: false` / `report-not-found` after successful report | Resolve hashed by `reportId`, report hashed by `demoId` | Prefer shared key in `hash-by` (`reportId` first); include that id on every event     |
-| Create works, later op can't see row                     | Same partition mismatch                                 | Log `(hash-by)` keys for each `type`; they must agree for shared PState writes        |
+| `ok: false` / `report-not-found` after successful report                                                        | Resolve hashed by `reportId`, report hashed by `demoId`                                                                 | Prefer shared key in `hash-by` (`reportId` first); include that id on every event                                            |
+| Create works, later op can't see row                                                                            | Same partition mismatch                                                                                                 | Log `(hash-by)` keys for each `type`; they must agree for shared PState writes                                               |
 | Giant `and>` of many `not=` for unknown-type                                                                    | Parser / compile pain                                                                                                   | `(defn known-type? [t] (contains? #{…} t))` then `(<<if (not (known-type? *type)) …)`                                        |
 
 ## Schema / path

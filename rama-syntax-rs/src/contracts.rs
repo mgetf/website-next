@@ -168,6 +168,14 @@ fn predicate(ty: &ValueTypeExpr, value: Form) -> Form {
                         ],
                     )
                 }
+                // Clojure's count / arithmetic often return Integer; treat as Long.
+                ("java.lang.Long", []) => clj::call(
+                    "or",
+                    [
+                        clj::call("instance?", [clj::sym("java.lang.Long"), value.clone()]),
+                        clj::call("instance?", [clj::sym("java.lang.Integer"), value]),
+                    ],
+                ),
                 _ => base,
             }
         }

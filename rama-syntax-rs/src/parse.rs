@@ -123,11 +123,19 @@ fn depot_item() -> impl Parser<Tok, Item, Error = Err> {
     just(Tok::Depot)
         .ignore_then(ident())
         .then_ignore(just(Tok::KeyedBy))
-        .then(ident())
+        .then(
+            choice((
+                ident().map(DepotKey::Field),
+                select! { Tok::String(s) => DepotKey::Literal(s) },
+            ))
+            .map_with_span(|key, span| Spanned::new(key, sp(span)))
+            .separated_by(just(Tok::Union))
+            .at_least(1),
+        )
         .map_with_span(|(name, keyed), span| {
             Item::Depot(DepotDecl {
                 name: Spanned::new(name, Span::default()),
-                keyed_by: Spanned::new(keyed, Span::default()),
+                keyed_by: keyed,
                 span: sp(span),
             })
         })

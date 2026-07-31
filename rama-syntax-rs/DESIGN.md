@@ -222,6 +222,12 @@ for the typed Flow-IR instrumentation idea.
    unsoundness: bindings are non-nullable until flow refinement lands).
 4. **Typed depot events, learning loop, live nREPL oracle** — see
    `LIVE_ORACLE.md`, `RULES.md`, `CLOJURE_BOUNDARY.md`.
+5. **God-path module ports** — every handwritten module under
+   `rama/src/mge/tf/rama/*_module.clj` has a `fixtures/*_v2.rama` port.
+   `rama-check check` / `transpile` covers them; lein suites pass for
+   divisions, notifications, catalog, demos, seasons, map_pools, payments,
+   events, users, teams, and match (globals has no dedicated test ns).
+   Multi-field depot keys: `depot d keyed-by a | b | "all"`.
 
 ## Next work (priority)
 
@@ -232,4 +238,4 @@ for the typed Flow-IR instrumentation idea.
 3. **Split `types.rs`** — table/prelude/infer/paths/ops modules.
 4. **Cardinality** — `ALL`/`subselect` navigators emit-many semantics.
 
-See `fixtures/match_v2.rama`.
+See `fixtures/*_v2.rama` and `tests/godpath_ports.rs`.

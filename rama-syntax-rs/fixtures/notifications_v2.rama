@@ -1,0 +1,94 @@
+// NotificationsModule ported from /tmp/rama-modules/notifications_module.clj.
+
+module mge.tf.rama.notifications-module/NotificationsModule topology notifications
+
+extern dec = clojure.core/dec(value: Long) -> Long
+
+struct Notification {
+  :type      String
+  :body      String
+  :href      String
+  :read      Boolean
+  :createdAt String
+}
+
+pstate $$notifications: Map<String, Map<String, Notification> @subindexed>
+pstate $$unread-count: Map<String, Long>
+
+depot notification-depot keyed-by steamId
+
+struct NotifyEvent {
+  :steamId   String
+  :id        String
+  :notifType String
+  :body      String
+  :href      String
+  :createdAt String
+}
+
+struct MarkReadEvent {
+  :steamId String
+  :id      String
+}
+
+struct MarkAllReadEvent {
+  :steamId String
+}
+
+fn notify-error(steamId: String, notifId: String, existing: Dynamic) -> String? {
+  if (or(nil?(steamId), steamId == "")) { return "missing-steam-id" }
+  if (or(nil?(notifId), notifId == "")) { return "missing-notification-id" }
+  if (some?(existing)) { return "notification-exists" }
+  return nil
+}
+
+fn mark-read-error(read: Boolean?) -> String? {
+  if (nil?(read)) { return "notification-not-found" }
+  if (read == true) { return "already-read" }
+  return nil
+}
+
+op notify(event: NotifyEvent) {
+  let { steamId, id, notifType, body, href, createdAt } = event
+
+  $$notifications --> keypath(steamId, id) > existing
+  let err = notify-error(steamId, id, existing)
+  fail err if some?(err)
+
+  $$notifications !<-- keypath(steamId, id), multi-path(
+    [:type termval(notifType)]
+    [:body termval(body)]
+    [:href termval(href)]
+    [:read termval(false)]
+    [:createdAt termval(createdAt)]
+  )
+  $$unread-count !<-- keypath(steamId), nil->val(0), term(inc)
+
+  return {"ok" true "steamId" steamId "id" id}
+}
+
+op mark-read(event: MarkReadEvent) {
+  let { steamId, id } = event
+
+  $$notifications --> keypath(steamId, id, :read) > read
+  let err = mark-read-error(read)
+  fail err if some?(err)
+
+  $$notifications !<-- keypath(steamId, id, :read), termval(true)
+  $$unread-count --> keypath(steamId), nil->val(0) > count
+
+  if (>(count, 0)) {
+    let next = dec(count)
+    $$unread-count !<-- keypath(steamId), termval(next)
+  }
+
+  return {"ok" true "steamId" steamId "id" id}
+}
+
+op mark-all-read(event: MarkAllReadEvent) {
+  let { steamId } = event
+
+  $$unread-count !<-- keypath(steamId), termval(0)
+
+  return {"ok" true "steamId" steamId "unread" 0}
+}

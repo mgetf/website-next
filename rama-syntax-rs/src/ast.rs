@@ -54,8 +54,14 @@ pub struct PStateDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DepotDecl {
     pub name: Spanned<String>,
-    pub keyed_by: Spanned<String>,
+    pub keyed_by: Vec<Spanned<DepotKey>>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepotKey {
+    Field(String),
+    Literal(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]

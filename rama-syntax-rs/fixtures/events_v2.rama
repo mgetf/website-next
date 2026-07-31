@@ -1,0 +1,242 @@
+// EventsModule ported from /tmp/rama-modules/events_module.clj.
+// Tournament metadata plus wholesale participant, placement, and snapshot writes.
+
+module mge.tf.rama.events-module/EventsModule topology events
+
+struct Event {
+  :name        String
+  :type        String
+  :status      String
+  :isTeamEvent Boolean
+  :description String
+  :avatar      String
+  :startedAt   String
+  :endedAt     String
+  :prizepool   String
+  :bracketLink String
+  :card        String
+}
+
+pstate $$events: Map<String, Event>
+pstate $$event-ids: Map<String, Map<String, Boolean>>
+pstate $$event-participants: Map<String, Object>
+pstate $$event-placements: Map<String, Object>
+pstate $$event-snapshot: Map<String, Object>
+
+depot event-depot keyed-by eventId
+
+extern vector? = clojure.core/vector?(value: Any) -> Boolean
+extern sequential? = clojure.core/sequential?(value: Any) -> Boolean
+
+struct CreateEventEvent {
+  :eventId     String
+  :name        String
+  :eventType   String
+  :isTeamEvent Object
+  :description Object
+  :avatar      Object
+  :prizepool   Object
+}
+
+struct UpdateEventEvent {
+  :eventId     String
+  :name        String
+  :description Object
+  :avatar      Object
+  :startedAt   Object
+  :endedAt     Object
+  :prizepool   Object
+  :bracketLink Object
+  :card        Object
+}
+
+struct SetStatusEvent {
+  :eventId String
+  :status  String
+}
+
+struct SetParticipantsEvent {
+  :eventId      String
+  :participants Object
+}
+
+struct SetPlacementsEvent {
+  :eventId    String
+  :placements Object
+}
+
+struct SetSnapshotEvent {
+  :eventId  String
+  :snapshot Object
+}
+
+fn valid-status?(status: String) -> Boolean {
+  return contains?(set(["UPCOMING" "REGISTRATION" "IN_PROGRESS" "COMPLETED"]), status)
+}
+
+fn valid-type?(eventType: String) -> Boolean {
+  return contains?(set(["CUP" "CHAMPIONSHIP" "FIGHT_NIGHT"]), eventType)
+}
+
+fn create-error(existing: Dynamic, eventId: String, name: String, eventType: String) -> String? {
+  if (or(nil?(eventId), eventId == "")) { return "missing-event-id" }
+  if (or(nil?(name), name == "")) { return "missing-event-name" }
+  if (not(valid-type?(eventType))) { return "invalid-event-type" }
+  if (some?(existing)) { return "event-exists" }
+  return nil
+}
+
+fn missing-event-error(event: Dynamic) -> String? {
+  if (nil?(event)) { return "event-not-found" }
+  return nil
+}
+
+fn status-error(event: Dynamic, status: String) -> String? {
+  let missing = missing-event-error(event)
+  if (some?(missing)) { return missing }
+  if (not(valid-status?(status))) { return "invalid-event-status" }
+  return nil
+}
+
+fn update-error(event: Dynamic, name: String) -> String? {
+  let missing = missing-event-error(event)
+  if (some?(missing)) { return missing }
+  if (or(nil?(name), name == "")) { return "missing-event-name" }
+  return nil
+}
+
+fn list-error(event: Dynamic, items: Dynamic) -> String? {
+  let missing = missing-event-error(event)
+  if (some?(missing)) { return missing }
+  if (not(vector?(items))) { return "invalid-list" }
+  return nil
+}
+
+fn str-or-empty(value: Dynamic) -> String {
+  if (nil?(value)) { return "" }
+  return value
+}
+
+fn bool-or(value: Dynamic, defaultValue: Boolean) -> Boolean {
+  if (nil?(value)) { return defaultValue }
+  return boolean(value)
+}
+
+fn as-vector(value: Dynamic) -> Dynamic {
+  if (vector?(value)) { return value }
+  if (sequential?(value)) { return vec(value) }
+  return nil
+}
+
+op create-event(event: CreateEventEvent) {
+  let { eventId, name, eventType, isTeamEvent, description, avatar, prizepool } = event
+
+  $$events --> keypath(eventId) > existing
+  let err = create-error(existing, eventId, name, eventType)
+  fail err if some?(err)
+
+  let isTeam = bool-or(isTeamEvent, false)
+  let descriptionValue = str-or-empty(description)
+  let avatarValue = str-or-empty(avatar)
+  let prizepoolValue = str-or-empty(prizepool)
+
+  $$events !<-- keypath(eventId), multi-path(
+    [:name termval(name)]
+    [:type termval(eventType)]
+    [:status termval("UPCOMING")]
+    [:isTeamEvent termval(isTeam)]
+    [:description termval(descriptionValue)]
+    [:avatar termval(avatarValue)]
+    [:startedAt termval("")]
+    [:endedAt termval("")]
+    [:prizepool termval(prizepoolValue)]
+    [:bracketLink termval("")]
+    [:card termval("")]
+  )
+  $$event-participants !<-- keypath(eventId), termval([])
+  $$event-placements !<-- keypath(eventId), termval([])
+
+  |hash "all"
+  $$event-ids !<-- keypath("all", eventId), termval(true)
+
+  return {"ok" true "eventId" eventId "status" "UPCOMING"}
+}
+
+op update-event(event: UpdateEventEvent) {
+  let { eventId, name, description, avatar, startedAt, endedAt, prizepool, bracketLink, card } = event
+
+  $$events --> keypath(eventId) > existing
+  let err = update-error(existing, name)
+  fail err if some?(err)
+
+  let descriptionValue = str-or-empty(description)
+  let avatarValue = str-or-empty(avatar)
+  let startedValue = str-or-empty(startedAt)
+  let endedValue = str-or-empty(endedAt)
+  let prizepoolValue = str-or-empty(prizepool)
+  let bracketValue = str-or-empty(bracketLink)
+  let cardValue = str-or-empty(card)
+
+  $$events !<-- keypath(eventId), multi-path(
+    [:name termval(name)]
+    [:description termval(descriptionValue)]
+    [:avatar termval(avatarValue)]
+    [:startedAt termval(startedValue)]
+    [:endedAt termval(endedValue)]
+    [:prizepool termval(prizepoolValue)]
+    [:bracketLink termval(bracketValue)]
+    [:card termval(cardValue)]
+  )
+
+  return {"ok" true "eventId" eventId}
+}
+
+op set-status(event: SetStatusEvent) {
+  let { eventId, status } = event
+
+  $$events --> keypath(eventId) > existing
+  let err = status-error(existing, status)
+  fail err if some?(err)
+
+  $$events !<-- keypath(eventId, :status), termval(status)
+
+  return {"ok" true "eventId" eventId "status" status}
+}
+
+op set-participants(event: SetParticipantsEvent) {
+  let { eventId, participants } = event
+  let items = as-vector(participants)
+
+  $$events --> keypath(eventId) > existing
+  let err = list-error(existing, items)
+  fail err if some?(err)
+
+  $$event-participants !<-- keypath(eventId), termval(items)
+
+  return {"ok" true "eventId" eventId}
+}
+
+op set-placements(event: SetPlacementsEvent) {
+  let { eventId, placements } = event
+  let items = as-vector(placements)
+
+  $$events --> keypath(eventId) > existing
+  let err = list-error(existing, items)
+  fail err if some?(err)
+
+  $$event-placements !<-- keypath(eventId), termval(items)
+
+  return {"ok" true "eventId" eventId}
+}
+
+op set-snapshot(event: SetSnapshotEvent) {
+  let { eventId, snapshot } = event
+
+  $$events --> keypath(eventId) > existing
+  let err = missing-event-error(existing)
+  fail err if some?(err)
+
+  $$event-snapshot !<-- keypath(eventId), termval(snapshot)
+
+  return {"ok" true "eventId" eventId}
+}

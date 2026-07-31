@@ -1,0 +1,154 @@
+// CatalogModule ported from /tmp/rama-modules/catalog_module.clj.
+
+module mge.tf.rama.catalog-module/CatalogModule topology catalog
+
+struct Region {
+  :name           String
+  :hidden         Boolean
+  :currencySymbol String
+  :currencyCode   String
+}
+
+struct Format {
+  :name String
+  :code String
+}
+
+pstate $$regions: Map<String, Region>
+pstate $$region-ids: Map<String, Map<String, Boolean>>
+pstate $$formats: Map<String, Format>
+pstate $$format-by-code: Map<String, String>
+pstate $$format-ids: Map<String, Map<String, Boolean>>
+pstate $$active-signup: Map<String, Map<String, String> @subindexed>
+
+depot catalog-depot keyed-by regionId | formatId | code
+
+struct UpsertRegionEvent {
+  :regionId       String
+  :name           String
+  :hidden         Object
+  :currencySymbol Object
+  :currencyCode   Object
+}
+
+struct SetRegionHiddenEvent {
+  :regionId String
+  :hidden   Object
+}
+
+struct UpsertFormatEvent {
+  :formatId String
+  :name     String
+  :code     String
+}
+
+struct SetActiveSignupEvent {
+  :regionId String
+  :formatId String
+  :seasonId String
+}
+
+fn region-error(regionId: String, name: String) -> String? {
+  if (or(nil?(regionId), regionId == "")) { return "missing-region-id" }
+  if (or(nil?(name), name == "")) { return "missing-region-name" }
+  return nil
+}
+
+fn format-error(formatId: String, name: String, code: String) -> String? {
+  if (or(nil?(formatId), formatId == "")) { return "missing-format-id" }
+  if (or(nil?(name), name == "")) { return "missing-format-name" }
+  if (or(nil?(code), code == "")) { return "missing-format-code" }
+  return nil
+}
+
+fn format-code-taken-error(takenBy: String?, formatId: String) -> String? {
+  if (and(some?(takenBy), takenBy != formatId)) { return "format-code-taken" }
+  return nil
+}
+
+fn active-signup-error(regionId: String, formatId: String, seasonId: String) -> String? {
+  if (or(nil?(regionId), regionId == "")) { return "missing-region-id" }
+  if (or(nil?(formatId), formatId == "")) { return "missing-format-id" }
+  if (or(nil?(seasonId), seasonId == "")) { return "missing-season-id" }
+  return nil
+}
+
+fn str-or-empty(v: Dynamic) -> String {
+  if (nil?(v)) { return "" }
+  return v
+}
+
+fn bool-or(v: Dynamic, default: Boolean) -> Boolean {
+  if (nil?(v)) { return default }
+  return boolean(v)
+}
+
+op upsert-region(event: UpsertRegionEvent) {
+  let { regionId, name, hidden, currencySymbol, currencyCode } = event
+  let err = region-error(regionId, name)
+  fail err if some?(err)
+
+  let hiddenValue = bool-or(hidden, false)
+  let symbol = str-or-empty(currencySymbol)
+  let code = str-or-empty(currencyCode)
+
+  $$regions !<-- keypath(regionId), multi-path(
+    [:name termval(name)]
+    [:hidden termval(hiddenValue)]
+    [:currencySymbol termval(symbol)]
+    [:currencyCode termval(code)]
+  )
+
+  |hash "all"
+  let allKey = "all"
+  $$region-ids !<-- keypath(allKey, regionId), termval(true)
+
+  return {"ok" true "regionId" regionId}
+}
+
+op set-region-hidden(event: SetRegionHiddenEvent) {
+  let { regionId, hidden } = event
+
+  $$regions --> keypath(regionId) > region
+  fail "region-not-found" if nil?(region)
+
+  let hiddenValue = bool-or(hidden, false)
+  $$regions !<-- keypath(regionId, :hidden), termval(hiddenValue)
+
+  return {"ok" true "regionId" regionId "hidden" hiddenValue}
+}
+
+op upsert-format(event: UpsertFormatEvent) {
+  let { formatId, name, code } = event
+  let err = format-error(formatId, name, code)
+  fail err if some?(err)
+
+  |hash code
+  $$format-by-code --> keypath(code) > takenBy
+  let codeErr = format-code-taken-error(takenBy, formatId)
+  fail codeErr if some?(codeErr)
+
+  $$format-by-code !<-- keypath(code), termval(formatId)
+
+  |hash formatId
+  $$formats !<-- keypath(formatId), multi-path(
+    [:name termval(name)]
+    [:code termval(code)]
+  )
+
+  |hash "all"
+  let allKey = "all"
+  $$format-ids !<-- keypath(allKey, formatId), termval(true)
+
+  return {"ok" true "formatId" formatId "code" code}
+}
+
+op set-active-signup(event: SetActiveSignupEvent) {
+  let { regionId, formatId, seasonId } = event
+  let err = active-signup-error(regionId, formatId, seasonId)
+  fail err if some?(err)
+
+  $$active-signup !<-- keypath(regionId, formatId), termval(seasonId)
+
+  return {"ok" true "regionId" regionId "formatId" formatId "seasonId" seasonId}
+}

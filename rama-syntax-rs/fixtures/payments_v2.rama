@@ -1,0 +1,201 @@
+// PaymentsModule ported from /tmp/rama-modules/payments_module.clj.
+// JSON-map events only; payment orders share a multi-field depot key.
+
+module mge.tf.rama.payments-module/PaymentsModule topology payments
+
+struct PlayerSeasonPayment {
+  :status     String
+  :amountPaid Long
+  :source     String
+  :teamId     String
+}
+
+struct ItemOrder {
+  :steamId  String
+  :teamId   String
+  :seasonId String
+  :status   String
+  :amount   Long
+}
+
+struct Payment {
+  :steamId  String
+  :seasonId String
+  :teamId   String
+  :amount   Long
+  :source   String
+  :status   String
+}
+
+pstate $$player-season-payment: Map<String, Map<String, PlayerSeasonPayment>> @subindexed
+pstate $$team-paid-count: Map<String, Long>
+pstate $$item-orders: Map<String, ItemOrder>
+pstate $$payments: Map<String, Payment>
+
+depot payment-depot keyed-by orderId | steamId
+
+struct MarkPaidEvent {
+  :steamId   String
+  :seasonId  String
+  :teamId    Object
+  :status    String
+  :amount    Object
+  :source    Object
+  :paymentId Object
+}
+
+struct CreateItemOrderEvent {
+  :orderId  String
+  :steamId  String
+  :teamId   Object
+  :seasonId Object
+  :amount   Object
+}
+
+struct ConfirmItemOrderEvent {
+  :orderId String
+}
+
+struct ExpireItemOrderEvent {
+  :orderId String
+}
+
+fn paid-status?(status: Dynamic) -> Boolean {
+  return contains?(set(["PAID" "EXEMPT"]), status)
+}
+
+fn should-bump-paid-count?(status: String, prevStatus: Dynamic, teamId: Dynamic) -> Boolean {
+  if (not(paid-status?(status))) { return false }
+  if (paid-status?(prevStatus)) { return false }
+  if (nil?(teamId)) { return false }
+  if (teamId == "") { return false }
+  return true
+}
+
+fn mark-paid-error(steamId: String, seasonId: String, status: String) -> String? {
+  if (or(nil?(steamId), steamId == "")) { return "missing-steam-id" }
+  if (or(nil?(seasonId), seasonId == "")) { return "missing-season-id" }
+  if (not(paid-status?(status))) { return "invalid-payment-status" }
+  return nil
+}
+
+fn create-order-error(existing: Dynamic, steamId: String) -> String? {
+  if (some?(existing)) { return "order-exists" }
+  if (or(nil?(steamId), steamId == "")) { return "missing-steam-id" }
+  return nil
+}
+
+fn order-action-error(order: Dynamic, expectedStatus: String) -> String? {
+  if (nil?(order)) { return "order-not-found" }
+  if (get(order, "status") != expectedStatus) { return "invalid-order-status" }
+  return nil
+}
+
+fn long-or-zero(value: Dynamic) -> Long {
+  return long(or(value, 0))
+}
+
+fn order-string-field(order: Dynamic, field: String) -> String {
+  return get(order, field) as String
+}
+
+fn order-long-field(order: Dynamic, field: String) -> Long {
+  return get(order, field) as Long
+}
+
+op mark-paid(event: MarkPaidEvent) {
+  let { steamId, seasonId, teamId, status, amount, source, paymentId } = event
+  let amountValue = long-or-zero(amount)
+  let err = mark-paid-error(steamId, seasonId, status)
+  fail err if some?(err)
+
+  $$player-season-payment --> keypath(steamId, seasonId, :status) > prevStatus
+  $$player-season-payment !<-- keypath(steamId, seasonId), multi-path(
+    [:status termval(status)]
+    [:amountPaid termval(amountValue)]
+    [:source termval(source)]
+    [:teamId termval(teamId)]
+  )
+
+  if (some?(paymentId)) {
+    |hash paymentId
+    $$payments !<-- keypath(paymentId), multi-path(
+      [:steamId termval(steamId)]
+      [:seasonId termval(seasonId)]
+      [:teamId termval(teamId)]
+      [:amount termval(amountValue)]
+      [:source termval(source)]
+      [:status termval(status)]
+    )
+  }
+
+  // bump team paid count only on transition into paid
+  if (should-bump-paid-count?(status, prevStatus, teamId)) {
+    |hash teamId
+    $$team-paid-count !<-- keypath(teamId), nil->val(0), term(inc)
+  }
+
+  return {"ok" true "steamId" steamId "seasonId" seasonId "status" status}
+}
+
+op create-item-order(event: CreateItemOrderEvent) {
+  let { orderId, steamId, teamId, seasonId, amount } = event
+  let amountValue = long-or-zero(amount)
+
+  $$item-orders --> keypath(orderId) > existing
+  let err = create-order-error(existing, steamId)
+  fail err if some?(err)
+
+  $$item-orders !<-- keypath(orderId), multi-path(
+    [:steamId termval(steamId)]
+    [:teamId termval(teamId)]
+    [:seasonId termval(seasonId)]
+    [:status termval("PENDING")]
+    [:amount termval(amountValue)]
+  )
+
+  return {"ok" true "orderId" orderId "status" "PENDING"}
+}
+
+op confirm-item-order(event: ConfirmItemOrderEvent) {
+  let { orderId } = event
+
+  $$item-orders --> keypath(orderId) > order
+  let err = order-action-error(order, "PENDING")
+  fail err if some?(err)
+
+  let steamId = order-string-field(order, "steamId")
+  let seasonId = order-string-field(order, "seasonId")
+  let teamId = order-string-field(order, "teamId")
+  let amount = order-long-field(order, "amount")
+
+  $$item-orders !<-- keypath(orderId, :status), termval("COMPLETED")
+
+  |hash steamId
+  $$player-season-payment --> keypath(steamId, seasonId, :status) > prevStatus
+  $$player-season-payment !<-- keypath(steamId, seasonId), multi-path(
+    [:status termval("PAID")]
+    [:amountPaid termval(amount)]
+    [:source termval("ITEM")]
+    [:teamId termval(teamId)]
+  )
+
+  if (should-bump-paid-count?("PAID", prevStatus, teamId)) {
+    |hash teamId
+    $$team-paid-count !<-- keypath(teamId), nil->val(0), term(inc)
+  }
+
+  return {"ok" true "orderId" orderId "steamId" steamId "status" "COMPLETED"}
+}
+
+op expire-item-order(event: ExpireItemOrderEvent) {
+  let { orderId } = event
+
+  $$item-orders --> keypath(orderId) > order
+  let err = order-action-error(order, "PENDING")
+  fail err if some?(err)
+
+  $$item-orders !<-- keypath(orderId, :status), termval("EXPIRED")
+
+  return {"ok" true "orderId" orderId "status" "EXPIRED"}
+}

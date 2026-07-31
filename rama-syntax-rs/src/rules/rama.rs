@@ -368,7 +368,7 @@ fn navigator(expr: &Expr) -> Option<(&str, Span)> {
     };
     if matches!(
         name,
-        "AFTER-ELEM" | "NONE-ELEM" | "NONE>" | "ALL" | "MAP-VALS" | "MAP-KEYS" | "all"
+        "AFTER-ELEM" | "NONE-ELEM" | "NONE>" | "ALL" | "MAP-VALS" | "MAP-KEYS"
     ) {
         Some((name, span))
     } else {
@@ -413,6 +413,21 @@ op nope(id) {
         assert!(found
             .iter()
             .any(|v| v.rule_id == "rama/navigator-outside-keypath"));
+    }
+
+    #[test]
+    fn allows_string_all_as_index_key() {
+        let found = violations(
+            r#"
+module M
+pstate $$p: Map<String, Map<String, Boolean>>
+op ok(id) {
+  $$p !<-- keypath("all", id), termval(true)
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(found.is_empty(), "unexpected violations: {found:#?}");
     }
 
     #[test]

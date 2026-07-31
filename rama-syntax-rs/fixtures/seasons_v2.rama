@@ -1,0 +1,194 @@
+// SeasonsModule ported from /tmp/rama-modules/seasons_module.clj.
+
+module mge.tf.rama.seasons-module/SeasonsModule topology seasons
+
+struct Season {
+  :seasonNum       Long
+  :numWeeks        Long
+  :regionId        String
+  :formatId        String
+  :signupsOpen     Boolean
+  :rosterLocked    Boolean
+  :paymentRequired Boolean
+  :matchWeek       Long
+  :matchDeadline   String
+  :info            String
+}
+
+pstate $$seasons: Map<String, Season>
+pstate $$season-index: Map<String, Map<String, Map<String, String> @subindexed> @subindexed>
+pstate $$season-ids: Map<String, Map<String, Boolean>>
+
+depot season-depot keyed-by seasonId
+
+struct CreateSeasonEvent {
+  :seasonId  String
+  :seasonNum Object
+  :numWeeks  Object
+  :regionId  String
+  :formatId  String
+}
+
+struct SetFlagsEvent {
+  :seasonId        String
+  :signupsOpen     Object
+  :rosterLocked    Object
+  :paymentRequired Object
+}
+
+struct SetScheduleEvent {
+  :seasonId      String
+  :matchWeek     Object
+  :matchDeadline Object
+}
+
+struct SetInfoEvent {
+  :seasonId String
+  :info     Object
+}
+
+struct UpdateSeasonEvent {
+  :seasonId String
+  :numWeeks Object
+}
+
+fn season-id(seasonId: String) -> String {
+  return seasonId
+}
+
+fn create-error(existing: Dynamic, seasonId: String, regionId: String, formatId: String, seasonNumRaw: Dynamic) -> String? {
+  if (or(nil?(seasonId), seasonId == "")) { return "missing-season-id" }
+  if (or(nil?(regionId), regionId == "")) { return "missing-region-id" }
+  if (or(nil?(formatId), formatId == "")) { return "missing-format-id" }
+  if (nil?(seasonNumRaw)) { return "missing-season-num" }
+  if (some?(existing)) { return "season-exists" }
+  return nil
+}
+
+fn uniqueness-error(takenBy: String?, seasonId: String) -> String? {
+  if (and(some?(takenBy), takenBy != seasonId)) { return "season-num-taken" }
+  return nil
+}
+
+fn missing-season-error(season: Dynamic) -> String? {
+  if (nil?(season)) { return "season-not-found" }
+  return nil
+}
+
+fn bool-or(v: Dynamic, default: Boolean) -> Boolean {
+  if (nil?(v)) { return default }
+  return boolean(v)
+}
+
+fn long-or-zero(v: Dynamic) -> Long {
+  if (nil?(v)) { return 0 }
+  return long(v)
+}
+
+fn str-or-empty(v: Dynamic) -> String {
+  if (nil?(v)) { return "" }
+  return v
+}
+
+op create-season(event: CreateSeasonEvent) {
+  let { seasonId, seasonNum, numWeeks, regionId, formatId } = event
+
+  $$seasons --> keypath(seasonId) > existing
+  let err = create-error(existing, seasonId, regionId, formatId, seasonNum)
+  fail err if some?(err)
+
+  let seasonNumValue = long-or-zero(seasonNum)
+  let numWeeksValue = long-or-zero(numWeeks)
+  let seasonNumString = str(seasonNumValue)
+
+  |hash regionId
+  $$season-index --> keypath(regionId, formatId, seasonNumString) > takenBy
+  let uniquenessErr = uniqueness-error(takenBy, seasonId)
+  fail uniquenessErr if some?(uniquenessErr)
+
+  $$season-index !<-- keypath(regionId, formatId, seasonNumString), termval(seasonId)
+
+  |hash seasonId
+  $$seasons !<-- keypath(seasonId), multi-path(
+    [:seasonNum termval(seasonNumValue)]
+    [:numWeeks termval(numWeeksValue)]
+    [:regionId termval(regionId)]
+    [:formatId termval(formatId)]
+    [:signupsOpen termval(false)]
+    [:rosterLocked termval(false)]
+    [:paymentRequired termval(false)]
+    [:matchWeek termval(0)]
+    [:matchDeadline termval("")]
+    [:info termval("")]
+  )
+
+  |hash "all"
+  let allKey = "all"
+  $$season-ids !<-- keypath(allKey, seasonId), termval(true)
+
+  return {"ok" true "seasonId" seasonId}
+}
+
+op set-flags(event: SetFlagsEvent) {
+  let { seasonId, signupsOpen, rosterLocked, paymentRequired } = event
+
+  $$seasons --> keypath(seasonId) > season
+  let err = missing-season-error(season)
+  fail err if some?(err)
+
+  let signups = bool-or(signupsOpen, false)
+  let locked = bool-or(rosterLocked, false)
+  let payReq = bool-or(paymentRequired, false)
+
+  $$seasons !<-- keypath(seasonId), multi-path(
+    [:signupsOpen termval(signups)]
+    [:rosterLocked termval(locked)]
+    [:paymentRequired termval(payReq)]
+  )
+
+  return {"ok" true "seasonId" seasonId}
+}
+
+op set-schedule(event: SetScheduleEvent) {
+  let { seasonId, matchWeek, matchDeadline } = event
+
+  $$seasons --> keypath(seasonId) > season
+  let err = missing-season-error(season)
+  fail err if some?(err)
+
+  let week = long-or-zero(matchWeek)
+  let deadline = str-or-empty(matchDeadline)
+
+  $$seasons !<-- keypath(seasonId), multi-path(
+    [:matchWeek termval(week)]
+    [:matchDeadline termval(deadline)]
+  )
+
+  return {"ok" true "seasonId" seasonId}
+}
+
+op set-info(event: SetInfoEvent) {
+  let { seasonId, info } = event
+
+  $$seasons --> keypath(seasonId) > season
+  let err = missing-season-error(season)
+  fail err if some?(err)
+
+  let infoValue = str-or-empty(info)
+  $$seasons !<-- keypath(seasonId, :info), termval(infoValue)
+
+  return {"ok" true "seasonId" seasonId}
+}
+
+op update-season(event: UpdateSeasonEvent) {
+  let { seasonId, numWeeks } = event
+
+  $$seasons --> keypath(seasonId) > season
+  let err = missing-season-error(season)
+  fail err if some?(err)
+
+  let numWeeksValue = long-or-zero(numWeeks)
+  $$seasons !<-- keypath(seasonId, :numWeeks), termval(numWeeksValue)
+
+  return {"ok" true "seasonId" seasonId}
+}

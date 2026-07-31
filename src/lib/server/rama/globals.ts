@@ -100,7 +100,6 @@ export async function deleteAnnouncement(
   );
 }
 
-/** @lintignore Rama helper reserved for follow-up */
 export async function appendAudit(
   client: RamaClient,
   event: {
@@ -171,7 +170,6 @@ export async function getVisibleAnnouncementIds(client: RamaClient): Promise<str
   }
 }
 
-/** @lintignore Rama helper reserved for follow-up */
 export async function getAudit(client: RamaClient, auditId: string): Promise<AuditRecord | null> {
   try {
     const v = await client.selectOne('$$audit-logs', [auditId]);
@@ -183,7 +181,6 @@ export async function getAudit(client: RamaClient, auditId: string): Promise<Aud
 }
 
 /** Returns auditId → createdAt map from $$audit-ids. */
-/** @lintignore Rama helper reserved for follow-up */
 export async function getAuditIdMap(client: RamaClient): Promise<Record<string, string>> {
   try {
     const v = await client.selectOne('$$audit-ids', ['all']);

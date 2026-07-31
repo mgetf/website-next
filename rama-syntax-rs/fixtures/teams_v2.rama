@@ -1,0 +1,478 @@
+// TeamsModule ported from /tmp/rama-modules/teams_module.clj.
+// Team roster state, player-season uniqueness, pending requests, and invites.
+
+module mge.tf.rama.teams-module/TeamsModule topology teams
+
+struct Team {
+  :name         String
+  :acronym      String
+  :formatId     String
+  :seasonId     String
+  :divisionId   String
+  :regionId     String
+  :status       String
+  :createdBy    String
+  :joinPassword String
+}
+
+struct Member {
+  :active          Boolean
+  :permissionLevel String
+  :paymentStatus   String
+}
+
+struct PendingMember {
+  :status Long
+}
+
+pstate $$teams: Map<String, Team>
+pstate $$roster: Map<String, Map<String, Member>> @subindexed
+pstate $$player-season: Map<String, Map<String, String>> @subindexed
+pstate $$pending: Map<String, Map<String, PendingMember>> @subindexed
+pstate $$pending-by-player: Map<String, Map<String, Long>> @subindexed
+pstate $$pending-awaiting: Map<String, Map<String, Boolean>>
+pstate $$team-ids-by-season: Map<String, Map<String, String>>
+
+depot team-depot keyed-by teamId
+
+extern true? = clojure.core/true?(value: Any) -> Boolean
+extern str3 = clojure.core/str(first: Any, second: Any, third: Any) -> String
+// clojure.core/count returns Integer for small collections; coerce at the call site.
+extern count-any = clojure.core/count(value: Any) -> Dynamic
+
+struct CreateTeamEvent {
+  :teamId       String
+  :steamId      String
+  :name         String
+  :acronym      String
+  :formatId     String
+  :seasonId     String
+  :divisionId   String
+  :regionId     String
+  :joinPassword Object
+}
+
+struct JoinTeamEvent {
+  :teamId  String
+  :steamId String
+}
+
+struct RequestJoinEvent {
+  :teamId  String
+  :steamId String
+}
+
+struct ApprovePendingEvent {
+  :teamId  String
+  :steamId String
+}
+
+struct DeclinePendingEvent {
+  :teamId  String
+  :steamId String
+}
+
+struct CreateInviteEvent {
+  :teamId  String
+  :steamId String
+}
+
+struct AcceptInviteEvent {
+  :teamId  String
+  :steamId String
+}
+
+struct LeaveTeamEvent {
+  :teamId  String
+  :steamId String
+}
+
+struct SetStatusEvent {
+  :teamId String
+  :status String
+}
+
+struct SetMemberPermissionEvent {
+  :teamId          String
+  :steamId         String
+  :permissionLevel String
+}
+
+struct SetMemberPaymentEvent {
+  :teamId        String
+  :steamId       String
+  :paymentStatus String
+}
+
+fn payment-status-error(status: String) -> String? {
+  if (not(contains?(set(["UNPAID" "PAID" "EXEMPT"]), status))) {
+    return "invalid-payment-status"
+  }
+  return nil
+}
+
+fn status-error(status: String) -> String? {
+  if (not(contains?(set(["UNREADY" "PENDING" "READY" "DEAD" "PLACEMENT"]), status))) {
+    return "invalid-status"
+  }
+  return nil
+}
+
+fn max-roster(formatId: String) -> Long {
+  if (formatId == "1") { return 1 }
+  return 3
+}
+
+fn dynamic-get(row: Dynamic, key: Dynamic) -> Dynamic {
+  return get(row, key) as Dynamic
+}
+
+fn active-member?(entry: Dynamic) -> Boolean {
+  let member = dynamic-get(entry, 1)
+  return true?(dynamic-get(member, "active"))
+}
+
+fn active-count(roster: Dynamic) -> Long {
+  if (nil?(roster)) { return 0 }
+  return long(count-any(filter(active-member?, seq(roster))))
+}
+
+fn pending-key(teamId: String, steamId: String) -> String {
+  return str3(teamId, ":", steamId)
+}
+
+fn awaiting-status() -> Long {
+  return long(1)
+}
+
+fn invite-status() -> Long {
+  return long(0)
+}
+
+fn join-password-or-empty(value: Dynamic) -> String {
+  if (nil?(value)) { return "" }
+  return value
+}
+
+fn roster-active?(roster: Dynamic, steamId: String) -> Boolean {
+  let member = dynamic-get(roster, steamId)
+  if (nil?(member)) { return false }
+  return true?(dynamic-get(member, "active"))
+}
+
+fn create-invite-error(team: Dynamic, roster: Dynamic, steamId: String, pendingRow: Dynamic) -> String? {
+  if (nil?(team)) { return "team-not-found" }
+  if (get(team, "status") == "DEAD") { return "team-dead" }
+  if (roster-active?(roster, steamId)) {
+    return "already-on-roster"
+  }
+  if (some?(pendingRow)) { return "pending-exists" }
+  return nil
+}
+
+fn accept-invite-error(pendingRow: Dynamic) -> String? {
+  if (nil?(pendingRow)) { return "pending-not-found" }
+  if (long(get(pendingRow, "status")) != 0) { return "pending-not-invite" }
+  return nil
+}
+
+fn create-error(existing: Dynamic, creatorSlot: Dynamic) -> String? {
+  if (some?(existing)) { return "team-exists" }
+  if (some?(creatorSlot)) { return "player-already-on-team" }
+  return nil
+}
+
+fn join-error(team: Dynamic, roster: Dynamic, steamId: String, playerSlot: Dynamic, formatId: String) -> String? {
+  if (nil?(team)) { return "team-not-found" }
+  if (get(team, "status") == "DEAD") { return "team-dead" }
+  if (some?(playerSlot)) { return "player-already-on-team" }
+  if (some?(get(roster, steamId))) { return "already-on-roster" }
+  if (>=(active-count(roster), max-roster(formatId))) { return "roster-full" }
+  return nil
+}
+
+fn request-join-error(team: Dynamic, roster: Dynamic, steamId: String, playerSlot: Dynamic, formatId: String) -> String? {
+  return join-error(team, roster, steamId, playerSlot, formatId)
+}
+
+fn approve-error(
+  team: Dynamic,
+  roster: Dynamic,
+  steamId: String,
+  playerSlot: Dynamic,
+  formatId: String,
+  pendingRow: Dynamic,
+) -> String? {
+  if (nil?(pendingRow)) { return "pending-not-found" }
+  if (long(get(pendingRow, "status")) != 1) { return "pending-not-awaiting" }
+  return join-error(team, roster, steamId, playerSlot, formatId)
+}
+
+fn decline-error(pendingRow: Dynamic) -> String? {
+  if (nil?(pendingRow)) { return "pending-not-found" }
+  return nil
+}
+
+fn leave-error(team: Dynamic, roster: Dynamic, steamId: String) -> String? {
+  if (nil?(team)) { return "team-not-found" }
+  if (nil?(get(roster, steamId))) { return "not-on-roster" }
+  return nil
+}
+
+fn member-perm-error(level: String) -> String? {
+  if (not(contains?(set(["MEMBER" "ADMIN" "STATUS"]), level))) {
+    return "invalid-member-permission"
+  }
+  return nil
+}
+
+fn missing-team-error(fieldErr: String?, team: Dynamic) -> String? {
+  if (some?(fieldErr)) { return fieldErr }
+  if (nil?(team)) { return "team-not-found" }
+  return nil
+}
+
+fn missing-member-error(fieldErr: String?, member: Dynamic) -> String? {
+  if (some?(fieldErr)) { return fieldErr }
+  if (nil?(member)) { return "not-on-roster" }
+  return nil
+}
+
+op create-team(event: CreateTeamEvent) {
+  let { teamId, steamId, name, acronym, formatId, seasonId, divisionId, regionId, joinPassword } = event
+  let joinPasswordValue = join-password-or-empty(joinPassword)
+
+  $$teams --> keypath(teamId) > existing
+  // uniqueness lives on steamId partition
+  |hash steamId
+  $$player-season --> keypath(steamId, seasonId) > creatorSlot
+  let err = create-error(existing, creatorSlot)
+  fail err if some?(err)
+
+  $$player-season !<-- keypath(steamId, seasonId), termval(teamId)
+
+  |hash teamId
+  $$teams !<-- keypath(teamId), multi-path(
+    [:name termval(name)]
+    [:acronym termval(acronym)]
+    [:formatId termval(formatId)]
+    [:seasonId termval(seasonId)]
+    [:divisionId termval(divisionId)]
+    [:regionId termval(regionId)]
+    [:status termval("UNREADY")]
+    [:createdBy termval(steamId)]
+    [:joinPassword termval(joinPasswordValue)]
+  )
+  $$roster !<-- keypath(teamId, steamId), multi-path(
+    [:active termval(true)]
+    [:permissionLevel termval("STATUS")]
+    [:paymentStatus termval("UNPAID")]
+  )
+
+  |hash seasonId
+  $$team-ids-by-season !<-- keypath(seasonId, teamId), termval("UNREADY")
+
+  return {"ok" true "teamId" teamId "steamId" steamId}
+}
+
+op join-team(event: JoinTeamEvent) {
+  let { teamId, steamId } = event
+
+  $$teams --> keypath(teamId) > team
+  $$roster --> keypath(teamId) > roster
+  let seasonId = dynamic-get(team, "seasonId")
+  let formatId = dynamic-get(team, "formatId")
+
+  |hash steamId
+  $$player-season --> keypath(steamId, seasonId) > playerSlot
+  let err = join-error(team, roster, steamId, playerSlot, formatId)
+  fail err if some?(err)
+
+  $$player-season !<-- keypath(steamId, seasonId), termval(teamId)
+
+  |hash teamId
+  $$roster !<-- keypath(teamId, steamId), multi-path(
+    [:active termval(true)]
+    [:permissionLevel termval("MEMBER")]
+    [:paymentStatus termval("UNPAID")]
+  )
+
+  return {"ok" true "teamId" teamId "steamId" steamId}
+}
+
+op request-join(event: RequestJoinEvent) {
+  let { teamId, steamId } = event
+
+  $$teams --> keypath(teamId) > team
+  $$roster --> keypath(teamId) > roster
+  let seasonId = dynamic-get(team, "seasonId")
+  let formatId = dynamic-get(team, "formatId")
+
+  |hash steamId
+  $$player-season --> keypath(steamId, seasonId) > playerSlot
+  let err = request-join-error(team, roster, steamId, playerSlot, formatId)
+  fail err if some?(err)
+
+  let pkey = pending-key(teamId, steamId)
+  let st = awaiting-status()
+
+  |hash teamId
+  $$pending !<-- keypath(teamId, steamId, :status), termval(st)
+
+  |hash steamId
+  $$pending-by-player !<-- keypath(steamId, teamId), termval(st)
+
+  |hash "all"
+  $$pending-awaiting !<-- keypath("all", pkey), termval(true)
+
+  return {"ok" true "teamId" teamId "steamId" steamId}
+}
+
+op approve-pending(event: ApprovePendingEvent) {
+  let { teamId, steamId } = event
+
+  $$teams --> keypath(teamId) > team
+  $$roster --> keypath(teamId) > roster
+  $$pending --> keypath(teamId, steamId) > pendingRow
+  let seasonId = dynamic-get(team, "seasonId")
+  let formatId = dynamic-get(team, "formatId")
+
+  |hash steamId
+  $$player-season --> keypath(steamId, seasonId) > playerSlot
+  let err = approve-error(team, roster, steamId, playerSlot, formatId, pendingRow)
+  fail err if some?(err)
+
+  let pkey = pending-key(teamId, steamId)
+  $$player-season !<-- keypath(steamId, seasonId), termval(teamId)
+  $$pending-by-player !<-- keypath(steamId, teamId), NONE>
+
+  |hash teamId
+  $$roster !<-- keypath(teamId, steamId), multi-path(
+    [:active termval(true)]
+    [:permissionLevel termval("MEMBER")]
+    [:paymentStatus termval("UNPAID")]
+  )
+  $$pending !<-- keypath(teamId, steamId), NONE>
+
+  |hash "all"
+  $$pending-awaiting !<-- keypath("all", pkey), NONE>
+
+  return {"ok" true "teamId" teamId "steamId" steamId}
+}
+
+op decline-pending(event: DeclinePendingEvent) {
+  let { teamId, steamId } = event
+
+  $$pending --> keypath(teamId, steamId) > pendingRow
+  let err = decline-error(pendingRow)
+  fail err if some?(err)
+
+  let pkey = pending-key(teamId, steamId)
+  $$pending !<-- keypath(teamId, steamId), NONE>
+
+  |hash steamId
+  $$pending-by-player !<-- keypath(steamId, teamId), NONE>
+
+  |hash "all"
+  $$pending-awaiting !<-- keypath("all", pkey), NONE>
+
+  return {"ok" true "teamId" teamId "steamId" steamId}
+}
+
+op create-invite(event: CreateInviteEvent) {
+  let { teamId, steamId } = event
+
+  $$teams --> keypath(teamId) > team
+  $$roster --> keypath(teamId) > roster
+  $$pending --> keypath(teamId, steamId) > pendingRow
+  let err = create-invite-error(team, roster, steamId, pendingRow)
+  fail err if some?(err)
+
+  let st = invite-status()
+  $$pending !<-- keypath(teamId, steamId, :status), termval(st)
+
+  |hash steamId
+  $$pending-by-player !<-- keypath(steamId, teamId), termval(st)
+
+  return {"ok" true "teamId" teamId "steamId" steamId}
+}
+
+op accept-invite(event: AcceptInviteEvent) {
+  let { teamId, steamId } = event
+
+  $$pending --> keypath(teamId, steamId) > pendingRow
+  let err = accept-invite-error(pendingRow)
+  fail err if some?(err)
+
+  let pkey = pending-key(teamId, steamId)
+  let st = awaiting-status()
+  $$pending !<-- keypath(teamId, steamId, :status), termval(st)
+
+  |hash steamId
+  $$pending-by-player !<-- keypath(steamId, teamId), termval(st)
+
+  |hash "all"
+  $$pending-awaiting !<-- keypath("all", pkey), termval(true)
+
+  return {"ok" true "teamId" teamId "steamId" steamId}
+}
+
+op leave-team(event: LeaveTeamEvent) {
+  let { teamId, steamId } = event
+
+  $$teams --> keypath(teamId) > team
+  $$roster --> keypath(teamId) > roster
+  let err = leave-error(team, roster, steamId)
+  fail err if some?(err)
+
+  let seasonId = dynamic-get(team, "seasonId")
+  $$roster !<-- keypath(teamId, steamId), NONE>
+
+  |hash steamId
+  $$player-season !<-- keypath(steamId, seasonId), NONE>
+
+  return {"ok" true "teamId" teamId "steamId" steamId}
+}
+
+op set-status(event: SetStatusEvent) {
+  let { teamId, status } = event
+
+  let fieldErr = status-error(status)
+  $$teams --> keypath(teamId) > team
+  let err = missing-team-error(fieldErr, team)
+  fail err if some?(err)
+
+  let seasonId = dynamic-get(team, "seasonId")
+  $$teams !<-- keypath(teamId, :status), termval(status)
+
+  |hash seasonId
+  $$team-ids-by-season !<-- keypath(seasonId, teamId), termval(status)
+
+  return {"ok" true "teamId" teamId "status" status}
+}
+
+op set-member-permission(event: SetMemberPermissionEvent) {
+  let { teamId, steamId, permissionLevel } = event
+
+  let fieldErr = member-perm-error(permissionLevel)
+  $$roster --> keypath(teamId, steamId) > member
+  let err = missing-member-error(fieldErr, member)
+  fail err if some?(err)
+
+  $$roster !<-- keypath(teamId, steamId, :permissionLevel), termval(permissionLevel)
+
+  return {"ok" true "teamId" teamId "steamId" steamId "permissionLevel" permissionLevel}
+}
+
+op set-member-payment(event: SetMemberPaymentEvent) {
+  let { teamId, steamId, paymentStatus } = event
+
+  let fieldErr = payment-status-error(paymentStatus)
+  $$roster --> keypath(teamId, steamId) > member
+  let err = missing-member-error(fieldErr, member)
+  fail err if some?(err)
+
+  $$roster !<-- keypath(teamId, steamId, :paymentStatus), termval(paymentStatus)
+
+  return {"ok" true "teamId" teamId "steamId" steamId "paymentStatus" paymentStatus}
+}

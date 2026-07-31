@@ -1,0 +1,185 @@
+// MapPoolsModule ported from /tmp/rama-modules/map_pools_module.clj.
+
+module mge.tf.rama.map-pools-module/MapPoolsModule topology map-pools
+
+extern vector? = clojure.core/vector?(value: Dynamic) -> Boolean
+extern sequential? = clojure.core/sequential?(value: Dynamic) -> Boolean
+extern vec = clojure.core/vec(value: Dynamic) -> Dynamic
+
+struct Arena {
+  :name       String
+  :avatar     String
+  :playoffMap Long
+}
+
+struct Pool {
+  :name     String
+  :isActive Boolean
+}
+
+pstate $$arenas: Map<String, Arena>
+pstate $$pools: Map<String, Pool>
+pstate $$pool-maps: Map<String, Object>
+pstate $$arena-ids: Map<String, Map<String, Boolean>>
+pstate $$pool-ids: Map<String, Map<String, Boolean>>
+
+depot map-pool-depot keyed-by poolId | arenaId
+
+struct UpsertArenaEvent {
+  :arenaId    String
+  :name       String
+  :avatar     Object
+  :playoffMap Object
+}
+
+struct CreatePoolEvent {
+  :poolId String
+  :name   String
+}
+
+struct RenamePoolEvent {
+  :poolId String
+  :name   String
+}
+
+struct SetPoolActiveEvent {
+  :poolId   String
+  :isActive Object
+}
+
+struct SetPoolMapsEvent {
+  :poolId   String
+  :arenaIds Object
+}
+
+fn arena-error(arenaId: String, name: String) -> String? {
+  if (or(nil?(arenaId), arenaId == "")) { return "missing-arena-id" }
+  if (or(nil?(name), name == "")) { return "missing-arena-name" }
+  return nil
+}
+
+fn create-pool-error(existing: Dynamic, poolId: String, name: String) -> String? {
+  if (or(nil?(poolId), poolId == "")) { return "missing-pool-id" }
+  if (or(nil?(name), name == "")) { return "missing-pool-name" }
+  if (some?(existing)) { return "pool-exists" }
+  return nil
+}
+
+fn missing-pool-error(pool: Dynamic) -> String? {
+  if (nil?(pool)) { return "pool-not-found" }
+  return nil
+}
+
+fn rename-error(pool: Dynamic, name: String) -> String? {
+  let missingErr = missing-pool-error(pool)
+  if (some?(missingErr)) { return missingErr }
+  if (or(nil?(name), name == "")) { return "missing-pool-name" }
+  return nil
+}
+
+fn maps-error(pool: Dynamic, arenaIds: Dynamic) -> String? {
+  let missingErr = missing-pool-error(pool)
+  if (some?(missingErr)) { return missingErr }
+  if (nil?(arenaIds)) { return "invalid-arena-ids" }
+  return nil
+}
+
+fn str-or-empty(v: Dynamic) -> String {
+  if (nil?(v)) { return "" }
+  return v
+}
+
+fn bool-or(v: Dynamic, default: Boolean) -> Boolean {
+  if (nil?(v)) { return default }
+  return boolean(v)
+}
+
+fn long-or-zero(v: Dynamic) -> Long {
+  if (nil?(v)) { return 0 }
+  return long(v)
+}
+
+fn as-vector(v: Dynamic) -> Dynamic {
+  if (vector?(v)) { return v }
+  if (sequential?(v)) { return vec(v) }
+  return nil
+}
+
+op upsert-arena(event: UpsertArenaEvent) {
+  let { arenaId, name, avatar, playoffMap } = event
+  let err = arena-error(arenaId, name)
+  fail err if some?(err)
+
+  let avatarValue = str-or-empty(avatar)
+  let playoffValue = long-or-zero(playoffMap)
+
+  $$arenas !<-- keypath(arenaId), multi-path(
+    [:name termval(name)]
+    [:avatar termval(avatarValue)]
+    [:playoffMap termval(playoffValue)]
+  )
+
+  |hash "all"
+  let allKey = "all"
+  $$arena-ids !<-- keypath(allKey, arenaId), termval(true)
+
+  return {"ok" true "arenaId" arenaId}
+}
+
+op create-pool(event: CreatePoolEvent) {
+  let { poolId, name } = event
+
+  $$pools --> keypath(poolId) > existing
+  let err = create-pool-error(existing, poolId, name)
+  fail err if some?(err)
+
+  $$pools !<-- keypath(poolId), multi-path(
+    [:name termval(name)]
+    [:isActive termval(false)]
+  )
+  $$pool-maps !<-- keypath(poolId), termval([])
+
+  |hash "all"
+  let allKey = "all"
+  $$pool-ids !<-- keypath(allKey, poolId), termval(true)
+
+  return {"ok" true "poolId" poolId}
+}
+
+op rename-pool(event: RenamePoolEvent) {
+  let { poolId, name } = event
+
+  $$pools --> keypath(poolId) > pool
+  let err = rename-error(pool, name)
+  fail err if some?(err)
+
+  $$pools !<-- keypath(poolId, :name), termval(name)
+
+  return {"ok" true "poolId" poolId}
+}
+
+op set-pool-active(event: SetPoolActiveEvent) {
+  let { poolId, isActive } = event
+
+  $$pools --> keypath(poolId) > pool
+  let err = missing-pool-error(pool)
+  fail err if some?(err)
+
+  let active = bool-or(isActive, false)
+  $$pools !<-- keypath(poolId, :isActive), termval(active)
+
+  return {"ok" true "poolId" poolId "isActive" active}
+}
+
+op set-pool-maps(event: SetPoolMapsEvent) {
+  let { poolId, arenaIds } = event
+  let arenaIdsValue = as-vector(arenaIds)
+
+  $$pools --> keypath(poolId) > pool
+  let err = maps-error(pool, arenaIdsValue)
+  fail err if some?(err)
+
+  $$pool-maps !<-- keypath(poolId), termval(arenaIdsValue)
+
+  return {"ok" true "poolId" poolId}
+}

@@ -269,6 +269,19 @@ Use `InProcessCluster` + `foreign-append!` / `foreign-select-one` with the **sam
 - Soft-stub missing modules; do not dual-write forever — flip the route, then delete the Prisma path
 - After TS changes: `bun run format && bun run check && bun run boundary-check && bun run knip`
 
+### Soft-stub vs real wire (ripout path)
+
+Under `DATA_BACKEND=rama`, **every** service entrypoint that still used Prisma must either:
+
+1. **Wire** to an existing module (`selectOne` / `append`), or
+2. **Soft-stub** safe empties / defaults / explicit `badRequest` for mutations
+
+Layout/auth landmines that must not hit Prisma: `getSiteSettings`, `getVisibleAnnouncements`, `hasAnySignupsOpen`, `getNotificationsForDropdown`, `getUserActiveTeam`, `findOrCreateSteamUser`.
+
+Add list indexes when a domain needs REST scans (`$$format-ids`, `$$event-ids`, `$$region-ids`, `$$season-ids`). Prefer `"all" → {id → true}` like Catalog regions.
+
+Prisma ripout is blocked until dual-path else-branches and `$prisma` enums are gone — soft stubs are progress, not the finish line.
+
 ## More knots
 
 See [reference.md](reference.md) for the full scar list and REST path cheat sheet.

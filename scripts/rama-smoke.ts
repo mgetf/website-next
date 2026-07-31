@@ -1,5 +1,5 @@
 /**
- * Smoke-exercise MatchModule + UsersModule via Rama REST JSON.
+ * Smoke-exercise MatchModule + UsersModule + TeamsModule via Rama REST JSON.
  *
  * Requires a running Rama cluster with modules launched, and:
  *   RAMA_CONDUCTOR_URL=http://localhost:8888
@@ -19,6 +19,16 @@ import {
   getTeamWins,
   submitScore,
 } from '../src/lib/server/rama/match';
+import {
+  createTeam,
+  createTeamsClient,
+  getPlayerSeasonTeam,
+  getTeam,
+  joinTeam,
+  leaveTeam,
+  setMemberPermission,
+  setTeamStatus,
+} from '../src/lib/server/rama/teams';
 import {
   bumpSession,
   createUsersClient,
@@ -50,6 +60,36 @@ async function main() {
   console.log('linkDiscord', await linkDiscord(users, { steamId, discordId: `d-${steamId}` }));
   console.log('user', await getUser(users, steamId));
   console.log('sessionVersion', await getSessionVersion(users, steamId));
+
+  const teams = createTeamsClient({ conductorUrl, supervisorBaseUrl });
+  const teamId = `team-${Date.now()}`;
+  const mateId = `${steamId}-mate`;
+  console.log(
+    'createTeam',
+    await createTeam(teams, {
+      teamId,
+      steamId,
+      name: 'Smoke',
+      acronym: 'SMK',
+      formatId: '2',
+      seasonId: 'season-spike',
+      divisionId: 'div-1',
+      regionId: 'reg-1',
+    }),
+  );
+  console.log('joinTeam', await joinTeam(teams, { teamId, steamId: mateId }));
+  console.log(
+    'setMemberPermission',
+    await setMemberPermission(teams, {
+      teamId,
+      steamId: mateId,
+      permissionLevel: 'ADMIN',
+    }),
+  );
+  console.log('setTeamStatus', await setTeamStatus(teams, { teamId, status: 'PENDING' }));
+  console.log('team', await getTeam(teams, teamId));
+  console.log('playerSeason', await getPlayerSeasonTeam(teams, steamId, 'season-spike'));
+  console.log('leaveTeam', await leaveTeam(teams, { teamId, steamId: mateId }));
 
   const client = createMatchClient({ conductorUrl, supervisorBaseUrl });
   const matchId = `smoke-${Date.now()}`;

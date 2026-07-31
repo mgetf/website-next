@@ -5,6 +5,7 @@ pub mod check;
 pub mod emit_clj;
 pub mod error;
 pub mod lex;
+pub mod lower;
 pub mod parse;
 pub mod span;
 

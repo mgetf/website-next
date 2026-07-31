@@ -192,11 +192,13 @@ to erase `return`. Cond/if nesting is enough for the MatchModule helper style.
 
 ## Next work (priority)
 
-1. **Clojure seam** — locked above; keep `clojure { }` minimal.
-2. **v2 parse + emit** — accept `match_v2.rama`, emit real MatchModule Clojure.
+1. **Clojure seam** — `fn` statement→expression lowering lives in `src/lower.rs`
+   (`return`/`let`/`if` → nested `let`/`if`/`cond`). Keep `clojure { }` minimal.
+2. **`op` emit polish** — flat `fail` chains (not nested `<<if`); `struct` →
+   `fixed-keys-schema` in `declare-pstate`.
 3. **Topology tests** — transpile → drop into `rama/` test harness /
    `InProcessCluster` (the proof, not unit-snapshots of strings alone).
-4. **Typechecker** — deepen against `struct` / `Map<…>` / Specter paths once
-   v2 parse exists (navigator-in-keypath, fixed-keys fields, `fail` expr type).
+4. **Typechecker** — deepen against `struct` / `Map<…>` / Specter paths
+   (navigator-in-keypath, fixed-keys fields, `fail` expr type).
 
 See `fixtures/match_v2.rama`.

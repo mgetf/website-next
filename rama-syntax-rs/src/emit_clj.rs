@@ -1,6 +1,7 @@
 //! Emit v2 AST as Clojure Rama source (transpiler).
 
 use crate::ast::*;
+use crate::lower;
 
 pub fn emit_clojure(file: &SourceFile) -> String {
     let mut out = String::from(";; Generated from .rama v2 — edit the .rama source.\n\n");
@@ -44,12 +45,13 @@ fn emit_item(item: &Item) -> String {
             )
         }
         Item::Fn(func) => {
+            // Plain Clojure: statement→expression lowering erases `return`.
             let params: Vec<_> = func.params.iter().map(|p| p.node.clone()).collect();
             format!(
                 "(defn {}\n  [{}]\n{})",
                 func.name.node,
                 params.join(" "),
-                emit_block(&func.body, 2)
+                lower::lower_fn_body(&func.body, 2)
             )
         }
     }

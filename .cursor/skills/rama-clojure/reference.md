@@ -1,6 +1,6 @@
 # Rama knots (scar tissue from MatchModule / DemosModule / god-path)
 
-Hard failures we hit while cutting `rama/src/mge/tf/rama/*_module.clj` and the TypeScript services. Read when something weird breaks.
+Hard failures we hit while cutting `rama/src/mge/tf/rama/*_module.rama` and the TypeScript services. Read when something weird breaks.
 
 ## Compile-time
 

@@ -64,7 +64,7 @@ cmd_deploy() {
   local force="${FORCE_REDEPLOY:-0}"
   [[ -f "$JAR" ]] || {
     echo "building module jar..."
-    (cd /workspace/rama && lein uberjar-modules)
+    (cd /workspace/rama && bash scripts/transpile-rama.sh && lein uberjar-modules)
   }
   [[ -f "$JAR" ]] || die "missing $JAR"
   for mod in "${MODULES[@]}"; do

@@ -15,6 +15,7 @@ pub enum DiagnosticKind {
     Lex,
     Parse,
     Type,
+    Rule,
 }
 
 impl Diagnostic {
@@ -39,6 +40,14 @@ impl Diagnostic {
             message: message.into(),
             span,
             kind: DiagnosticKind::Type,
+        }
+    }
+
+    pub fn rule(span: Span, message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            span,
+            kind: DiagnosticKind::Rule,
         }
     }
 
@@ -75,6 +84,7 @@ fn kind_label(kind: DiagnosticKind) -> &'static str {
         DiagnosticKind::Lex => "lex",
         DiagnosticKind::Parse => "parse",
         DiagnosticKind::Type => "type",
+        DiagnosticKind::Rule => "rule",
     }
 }
 

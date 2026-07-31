@@ -341,14 +341,12 @@ fn expr() -> impl Parser<Tok, Expr, Error = Err> + Clone {
             Tok::Ge => ">=".into(),
             Tok::Gt => ">".into(),
             Tok::Eq => "=".into(),
-            Tok::Keyword(s) => format!(":{s}"),
         }
         .map_with_span(|s, span| Spanned::new(s, sp(span)));
 
         let call = callee
             .then(
-                expr
-                    .clone()
+                expr.clone()
                     .separated_by(just(Tok::Comma).or_not())
                     .allow_trailing()
                     .delimited_by(just(Tok::LParen), just(Tok::RParen))
@@ -391,7 +389,8 @@ fn expr() -> impl Parser<Tok, Expr, Error = Err> + Clone {
             .boxed();
 
         let atom = choice((
-            expr.clone().delimited_by(just(Tok::LParen), just(Tok::RParen)),
+            expr.clone()
+                .delimited_by(just(Tok::LParen), just(Tok::RParen)),
             call,
             list,
             map,

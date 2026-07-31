@@ -5,28 +5,29 @@ sigils in source. Strip naming conventions in the **emitter**; keep Specter as
 the user-facing path API (`-->` / `!<--`, navigators, `keypath`, `termval`, …).
 Schemas look like Rust. Topologies stay tiny.
 
-Stack: **logos** lexer + **chumsky** parser → rama AST → **Clojure IR**
-(`clj::Form`) → pretty-printed source / path check. Compilation is between IRs;
-string paste is only the final serializer.
+Stack: **logos** lexer + **chumsky** parser → syntax AST → semantic **Rama IR**
+(`rama_ir::Program`) → Rama rules → **Clojure IR** (`clj::Form`) → compiler
+invariant verification → pretty-printed source. Compilation is between IRs;
+string construction exists only in the final serializer.
 
 ## Resolved
 
-| Topic | Decision |
-|-------|----------|
-| Naming (`*var`, `%fn`, trailing `>` on ops) | gone |
-| `ramaop` / `ramafn` | one keyword: `op` |
-| Destructuring | `let {a, b} = event` — keep |
-| Select bind | `$$p --> keypath(id) > { a, b }` — beauty, keep |
-| Path writes | Specter; navigators as siblings — keep |
-| Fixed-keys write | **whole-map `termval({…})`**, not N transforms / required `multi-path` |
-| Validation | `fail "msg" if cond` — prefer over nested ifs (deep `if` still legal) |
-| Ack | **`return`** (emits `ack-return>`) |
-| Map literals | Clojure style `{"ok" true}` / `{:status "UNPLAYED"}` |
-| PState types | **Rust-like**: `struct` + `pstate name: Map<K, V>` — not `String -> fixed` |
-| Fixed-keys field names | **keywords** (normal Rama); REST modules may still choose strings |
-| Partition hop | bare `\|hash k` for now (open) |
-| Deep `if` | must work; Clojure SO is an emitter problem |
-| `$$` on pstates | **keep** — marks distributed state; decls + use sites |
+| Topic                                       | Decision                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------ |
+| Naming (`*var`, `%fn`, trailing `>` on ops) | gone                                                                           |
+| `ramaop` / `ramafn`                         | one keyword: `op`                                                              |
+| Destructuring                               | `let {a, b} = event` — keep                                                    |
+| Select bind                                 | `$$p --> keypath(id) > { a, b }` — beauty, keep                                |
+| Path writes                                 | Specter; navigators as siblings — keep                                         |
+| Fixed-keys write                            | **whole-map `termval({…})`**, not N transforms / required `multi-path`         |
+| Validation                                  | `fail "msg" if cond` — prefer over nested ifs (deep `if` still legal)          |
+| Ack                                         | **`return`** (emits `ack-return>`)                                             |
+| Map literals                                | Clojure style `{"ok" true}` / `{:status "UNPLAYED"}`                           |
+| PState types                                | **Rust-like**: `struct` + `pstate name: Map<K, V>` — not `String -> fixed`     |
+| Fixed-keys field names                      | `:field` in surface syntax; lower to **string keys** for the REST-first target |
+| Partition hop                               | bare `\|hash k` for now (open)                                                 |
+| Deep `if`                                   | must work; Clojure SO is an emitter problem                                    |
+| `$$` on pstates                             | **keep** — marks distributed state; decls + use sites                          |
 
 ## Schemas (Rust-shaped)
 
@@ -124,10 +125,10 @@ are normal Clojure expressions. That is a **compiler pass**, not ANF-by-default.
 
 ### `return` is context-sensitive
 
-| Enclosing form | Surface `return x` becomes |
-|----------------|----------------------------|
-| `fn` | the **value** of that control-flow path — never a `return` symbol |
-| `op` | `(ack-return> x)` — dataflow effect |
+| Enclosing form | Surface `return x` becomes                                        |
+| -------------- | ----------------------------------------------------------------- |
+| `fn`           | the **value** of that control-flow path — never a `return` symbol |
+| `op`           | `(ack-return> x)` — dataflow effect                               |
 
 Same keyword; different lowering. User does not think about it.
 
@@ -168,13 +169,13 @@ to erase `return`. Cond/if nesting is enough for the MatchModule helper style.
 
 ### Layers (one file, one language)
 
-| Form | Meaning | Emits |
-|------|---------|-------|
-| `struct` / `pstate` / `depot` | decls | `declare-pstate` / `declare-depot` |
-| `op name(…) {…}` | dataflow | `deframaop`; `return` → `ack-return>`; `and>` where needed |
-| `fn name(…) {…}` | plain Clojure | `defn`; statement→expression pass; `and`/`or`/`if` |
-| call `foo(a, b)` | opaque | `(foo a b)` — reader/resolve decides |
-| `clojure { … }` | escape hatch only | splice raw forms |
+| Form                          | Meaning           | Emits                                                      |
+| ----------------------------- | ----------------- | ---------------------------------------------------------- |
+| `struct` / `pstate` / `depot` | decls             | `declare-pstate` / `declare-depot`                         |
+| `op name(…) {…}`              | dataflow          | `deframaop`; `return` → `ack-return>`; `and>` where needed |
+| `fn name(…) {…}`              | plain Clojure     | `defn`; statement→expression pass; `and`/`or`/`if`         |
+| call `foo(a, b)`              | opaque            | `(foo a b)` — reader/resolve decides                       |
+| `clojure { … }`               | escape hatch only | splice raw forms                                           |
 
 `fail <expr>` in `op` — if expr is non-nil, `return {"ok" false "error" expr}`
 (dataflow). In `fn`, prefer ordinary `if`/`return` — `fail` is an `op`-level sugar.
@@ -187,20 +188,26 @@ to erase `return`. Cond/if nesting is enough for the MatchModule helper style.
 3. Unknown calls stay unresolved names; Clojure resolves them.
 4. Proof: `fn ban-error` + `op ban-map` that calls it → `lein test-rama` green.
 
+## Validation layers
+
+- `rules/`: source-spanned user diagnostics over semantic Rama IR.
+- `clj_verify.rs`: compiler assertions over generated Clojure IR.
+- `tests/rama_smoke.rs`: ignored-by-default real Rama/InProcessCluster proof.
+
+See `RULES.md` for the classification and current rule inventory.
+
 ## Open
 
 1. Bare `|hash k` vs block — lean bare until a meatier module decides
-2. REST string-key modules — `:field` vs `"field"` (mge.tf REST wants strings)
 
 ## Next work (priority)
 
-1. **Clojure seam** — done (`src/lower.rs`).
-2. **`op` emit polish** — done: consecutive `fail` → `(identity (cond …) :> *__err)`
-   + one `<<if`/`else>`; `struct` → `fixed-keys-schema` in pstate decls.
-3. **Module skeleton emit** — wrap depot/pstates/`<<sources` in `defmodule`
-   (today’s bare `(declare-pstate s …)` is not loadable).
-4. **Topology tests** — transpile → drop into `rama/` /
-   `InProcessCluster` (the proof).
-5. **Typechecker** — deepen against `struct` / `Map<…>` / Specter paths.
+1. **Generated lifecycle proof** — create/ban/score is green via
+   `cargo test --test rama_smoke -- --ignored`.
+2. **Typechecker** — deepen against `struct` / `Map<…>` / Specter paths.
+3. **Module identity** — separate Clojure namespace, module class, and topology
+   name instead of deriving all three from `module Match`.
+4. **Cross-partition analysis** — track partition key flow so missing `|hash`
+   before local reads/writes becomes a Rama IR diagnostic.
 
 See `fixtures/match_v2.rama`.

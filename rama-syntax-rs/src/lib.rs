@@ -5,11 +5,14 @@
 pub mod ast;
 pub mod check;
 pub mod clj;
+pub mod clj_verify;
 pub mod emit_clj;
 pub mod error;
 pub mod lex;
 pub mod lower;
 pub mod parse;
+pub mod rama_ir;
+pub mod rules;
 pub mod span;
 
 pub use ast::SourceFile;
@@ -19,6 +22,8 @@ pub use emit_clj::{compile as compile_clj, emit_clojure};
 pub use error::{Diagnostic, DiagnosticKind, ParseError};
 pub use lex::{lex, SpannedToken, TokenKind};
 pub use parse::parse;
+pub use rama_ir::Program as RamaProgram;
+pub use rules::Violation as RuleViolation;
 
 pub fn analyze(src: &str) -> Result<(SourceFile, CheckResult), ParseError> {
     let file = parse(src)?;

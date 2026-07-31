@@ -20,6 +20,11 @@ pub fn lower_fn_body(block: &Block) -> Form {
     lower_stmts(&block.stmts, Mode::Fn)
 }
 
+/// Lower one expression for ordinary Clojure (used by generated helper defns).
+pub(crate) fn lower_fn_expr(expr: &Expr) -> Form {
+    self::expr(expr, Mode::Fn)
+}
+
 fn lower_stmts(stmts: &[Stmt], mode: Mode) -> Form {
     if stmts.is_empty() {
         return clj::nil();
@@ -68,10 +73,7 @@ fn lower_stmts(stmts: &[Stmt], mode: Mode) -> Form {
             if stmts.len() == 1 {
                 expr(value, mode)
             } else {
-                clj::call(
-                    "do",
-                    [expr(value, mode), lower_stmts(&stmts[1..], mode)],
-                )
+                clj::call("do", [expr(value, mode), lower_stmts(&stmts[1..], mode)])
             }
         }
 
@@ -192,10 +194,7 @@ fn let_binding(pattern: &LetPattern, value: &Expr, mode: Mode) -> Vec<Form> {
         LetPattern::Name(n) => vec![local(n.node.as_str(), mode), rhs],
         LetPattern::Destructure(names) => {
             let keys: Vec<Form> = names.iter().map(|n| clj::sym(n.node.clone())).collect();
-            vec![
-                clj::map([(clj::kw("keys"), clj::vector(keys))]),
-                rhs,
-            ]
+            vec![clj::map([(clj::kw("keys"), clj::vector(keys))]), rhs]
         }
     }
 }
@@ -270,7 +269,8 @@ fn looks_like_local(name: &str) -> bool {
         .is_some_and(|c| c.is_lowercase() || c == '_')
         && !matches!(
             name,
-            "nil" | "true"
+            "nil"
+                | "true"
                 | "false"
                 | "inc"
                 | "long"

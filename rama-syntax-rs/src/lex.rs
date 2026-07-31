@@ -161,17 +161,19 @@ mod tests {
 
     #[test]
     fn lexes_v2_surface() {
-        let tokens = lex(
-            r#"pstate $$matches: Map<String, Match>
+        let tokens = lex(r#"pstate $$matches: Map<String, Match>
                $$mapBans --> keypath(matchId) > { turn }
                fail "x" if turn == nil
-               |hash homeTeamId"#,
-        )
+               |hash homeTeamId"#)
         .unwrap();
         assert!(tokens.iter().any(|(t, _)| matches!(t, TokenKind::Map)));
-        assert!(tokens.iter().any(|(t, _)| matches!(t, TokenKind::ArrowSelect)));
+        assert!(tokens
+            .iter()
+            .any(|(t, _)| matches!(t, TokenKind::ArrowSelect)));
         assert!(tokens.iter().any(|(t, _)| matches!(t, TokenKind::Fail)));
         assert!(tokens.iter().any(|(t, _)| matches!(t, TokenKind::EqEq)));
-        assert!(tokens.iter().any(|(t, _)| matches!(t, TokenKind::Pipe(p) if p == "hash")));
+        assert!(tokens
+            .iter()
+            .any(|(t, _)| matches!(t, TokenKind::Pipe(p) if p == "hash")));
     }
 }

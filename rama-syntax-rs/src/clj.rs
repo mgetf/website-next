@@ -186,8 +186,10 @@ fn should_block_list(xs: &[Form]) -> bool {
             | "fixed-keys-schema"
             | "map-schema"
     ) || xs.len() > 4
-        || xs.iter().skip(1).any(|x| matches!(x, Form::List(_) | Form::Map(_))
-            && !x.is_atom())
+        || xs
+            .iter()
+            .skip(1)
+            .any(|x| matches!(x, Form::List(_) | Form::Map(_)) && !x.is_atom())
 }
 
 fn render_block_list(xs: &[Form], indent: usize) -> String {
@@ -314,10 +316,7 @@ mod tests {
     fn renders_let_cond_shape() {
         let form = call(
             "let",
-            [
-                vector([sym("y"), call("inc", [sym("x")])]),
-                sym("y"),
-            ],
+            [vector([sym("y"), call("inc", [sym("x")])]), sym("y")],
         );
         let s = render(&form);
         assert!(s.contains("let"), "{s}");

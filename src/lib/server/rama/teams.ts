@@ -197,9 +197,7 @@ export async function getRoster(
   teamId: string,
 ): Promise<Record<string, RosterMember>> {
   try {
-    const v = await client.selectOne('$$roster', [teamId]);
-    if (!v || typeof v !== 'object') return {};
-    return v as Record<string, RosterMember>;
+    return (await client.selectSubindexedMap('$$roster', teamId)) as Record<string, RosterMember>;
   } catch {
     return {};
   }
@@ -251,9 +249,10 @@ export async function getPendingForTeam(
   teamId: string,
 ): Promise<Record<string, { status: number }>> {
   try {
-    const v = await client.selectOne('$$pending', [teamId]);
-    if (!v || typeof v !== 'object') return {};
-    return v as Record<string, { status: number }>;
+    return (await client.selectSubindexedMap('$$pending', teamId)) as Record<
+      string,
+      { status: number }
+    >;
   } catch {
     return {};
   }
@@ -265,9 +264,10 @@ export async function getPendingByPlayer(
   steamId: string,
 ): Promise<Record<string, number>> {
   try {
-    const v = await client.selectOne('$$pending-by-player', [steamId]);
-    if (!v || typeof v !== 'object') return {};
-    return v as Record<string, number>;
+    return (await client.selectSubindexedMap('$$pending-by-player', steamId)) as Record<
+      string,
+      number
+    >;
   } catch {
     return {};
   }
@@ -307,9 +307,7 @@ export async function getPlayerSeasonMap(
   steamId: string,
 ): Promise<Record<string, string>> {
   try {
-    const v = await client.selectOne('$$player-season', [steamId]);
-    if (!v || typeof v !== 'object') return {};
-    return v as Record<string, string>;
+    return (await client.selectSubindexedMap('$$player-season', steamId)) as Record<string, string>;
   } catch {
     return {};
   }

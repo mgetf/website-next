@@ -91,9 +91,10 @@ export async function getNotifications(
   steamId: string,
 ): Promise<Record<string, RamaNotification>> {
   try {
-    const v = await client.selectOne('$$notifications', [steamId]);
-    if (!v || typeof v !== 'object') return {};
-    return v as Record<string, RamaNotification>;
+    return (await client.selectSubindexedMap('$$notifications', steamId)) as Record<
+      string,
+      RamaNotification
+    >;
   } catch {
     return {};
   }

@@ -120,10 +120,15 @@ export async function getNotificationCounts(userSteamId: string) {
 export async function markAsRead(notificationId: number, userSteamId: string) {
   const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
   if (isRamaBackend()) {
-    const { createNotificationsClient, markRead } = await import('$lib/server/rama/notifications');
-    await markRead(createNotificationsClient(ramaClientOpts()), {
+    const { createNotificationsClient, getNotifications, markRead } =
+      await import('$lib/server/rama/notifications');
+    const client = createNotificationsClient(ramaClientOpts());
+    const map = await getNotifications(client, userSteamId);
+    const ramaId = Object.keys(map).find((id) => stableNotifNumericId(id) === notificationId);
+    if (!ramaId) return;
+    await markRead(client, {
       steamId: userSteamId,
-      id: String(notificationId),
+      id: ramaId,
     });
     return;
   }

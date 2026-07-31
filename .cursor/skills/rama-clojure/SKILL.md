@@ -106,6 +106,21 @@ Same idea for `NONE-ELEM`, `NONE>`, `ALL`, etc. — they are path steps, not key
 
 Keywords work for record/keyword maps; we use `defn` + string keys for REST.
 
+### Subindexed maps: never `selectOne([partitionKey])` from TypeScript
+
+`selectOne($$pstate, [partitionKey])` on a `{:subindex? true}` inner map **hangs / times out** over REST. The data is there — the navigator is wrong.
+
+```typescript
+// ❌ hangs on $$roster / $$notifications / $$match-comms / …
+await client.selectOne('$$roster', [teamId]);
+
+// ✅ page the subindex
+await client.selectSubindexedMap('$$roster', teamId);
+// → selectOne(['teamId', ['sortedMapRangeFrom', '', { 'max-amt': 500 }]])
+```
+
+Leaf keys still work: `selectOne('$$roster', [teamId, steamId])`.
+
 ### Depot `hash-by` must match every event that shares a PState row
 
 Silent `*-not-found` after a successful create/write almost always means **wrong partition**.

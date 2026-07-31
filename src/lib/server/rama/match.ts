@@ -392,9 +392,8 @@ export async function getMatchIdsForWeek(
 /** Match ids for a team from $$matches-by-team. */
 export async function getMatchIdsForTeam(client: RamaClient, teamId: string): Promise<string[]> {
   try {
-    const v = await client.selectOne('$$matches-by-team', [teamId]);
-    if (!v || typeof v !== 'object') return [];
-    return Object.keys(v as Record<string, string>);
+    const v = await client.selectSubindexedMap('$$matches-by-team', teamId);
+    return Object.keys(v);
   } catch {
     return [];
   }
@@ -419,9 +418,10 @@ export async function getMatchComms(
   matchId: string,
 ): Promise<Record<string, MatchCommRecord>> {
   try {
-    const v = await client.selectOne('$$match-comms', [matchId]);
-    if (!v || typeof v !== 'object') return {};
-    return v as Record<string, MatchCommRecord>;
+    return (await client.selectSubindexedMap('$$match-comms', matchId)) as Record<
+      string,
+      MatchCommRecord
+    >;
   } catch {
     return {};
   }

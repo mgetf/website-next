@@ -3,8 +3,10 @@
 
   Depot *match-depot (hash-by matchId):
     create-match | ban-map | submit-score | set-schedule | set-match-status
+    set-arena | post-comm | request-reschedule | respond-reschedule
 
-  PStates: $$matches $$map-bans $$team-stats $$matches-by-team $$matches-by-week"
+  PStates: $$matches $$map-bans $$team-stats $$matches-by-team
+           $$matches-by-week $$matches-by-status $$match-comms $$pending-reschedule"
   (:use [com.rpl.rama]
         [com.rpl.rama.path]))
 
@@ -25,7 +27,8 @@
 
 (defn known-type? [t]
   (contains? #{"create-match" "ban-map" "submit-score"
-               "set-schedule" "set-match-status"}
+               "set-schedule" "set-match-status" "set-arena"
+               "post-comm" "request-reschedule" "respond-reschedule"}
              t))
 
 (defn ban-error [turn home away team-id remaining arena-id]
@@ -57,6 +60,31 @@
 (defn pick-loser [home-id away-id winner-id]
   (if (= winner-id home-id) away-id home-id))
 
+(defn pending-present? [pending-id]
+  (and (some? pending-id) (not= pending-id "")))
+
+(defn request-reschedule-error [match pending-id]
+  (cond
+    (nil? match) "match-not-found"
+    (not= (get match "status") "UNPLAYED") "match-not-unplayed"
+    (pending-present? pending-id) "pending-exists"
+    :else nil))
+
+(defn respond-reschedule-error [match pending-id comm-id response]
+  (cond
+    (nil? match) "match-not-found"
+    (not (pending-present? pending-id)) "no-pending"
+    (not= pending-id comm-id) "comm-mismatch"
+    (not (contains? #{"accept" "deny" "cancel"} response)) "invalid-response"
+    :else nil))
+
+(defn response-status [response]
+  (case response
+    "accept" (long 1)
+    "deny" (long 2)
+    "cancel" (long 3)
+    (long 3)))
+
 (defmodule MatchModule
   [setup topologies]
   (declare-depot setup *match-depot (hash-by match-id))
@@ -77,7 +105,9 @@
                "seasonNo" Long
                "arenaId" String
                "matchDateTime" String
-               "matchTimezone" String})})
+               "matchTimezone" String
+               "submittedAt" String
+               "submittedBy" String})})
 
     (declare-pstate
      s $$map-bans
@@ -85,8 +115,8 @@
               {"turn" Long
                "homeTeamId" String
                "awayTeamId" String
-               "remaining" Object  ;; small set of arena ids
-               "actions" Object})})  ;; vector of {teamId, arenaId}
+               "remaining" Object
+               "actions" Object})})
 
     (declare-pstate
      s $$team-stats
@@ -101,9 +131,27 @@
 
     (declare-pstate
      s $$matches-by-week
-     {String ;; "seasonId:weekNo"
-      (map-schema String ;; matchId
-                  Boolean)})
+     {String (map-schema String Boolean)})
+
+    (declare-pstate
+     s $$matches-by-status
+     {String (map-schema String Boolean)})
+
+    (declare-pstate
+     s $$match-comms
+     {String ;; matchId
+      (map-schema String ;; commId
+                  (fixed-keys-schema
+                   {"owner" String
+                    "content" String
+                    "createdAt" String
+                    "reschedule" String
+                    "rescheduleStatus" Long})
+                  {:subindex? true})})
+
+    (declare-pstate
+     s $$pending-reschedule
+     {String String}) ;; matchId -> commId ("" when none)
 
     (<<sources s
       (source> *match-depot :> *event)
@@ -146,7 +194,9 @@
              [(keypath "seasonNo") (termval *season-no)]
              [(keypath "arenaId") (termval *arena-id)]
              [(keypath "matchDateTime") (termval *match-dt)]
-             [(keypath "matchTimezone") (termval *match-tz)])]
+             [(keypath "matchTimezone") (termval *match-tz)]
+             [(keypath "submittedAt") (termval "")]
+             [(keypath "submittedBy") (termval "")])]
            $$matches)
           (local-transform>
            [(keypath *match-id)
@@ -157,12 +207,15 @@
              [(keypath "remaining") (termval *pool-set)]
              [(keypath "actions") (termval [])])]
            $$map-bans)
+          (local-transform> [(keypath *match-id) (termval "")] $$pending-reschedule)
           (|hash *home-id)
           (local-transform> [(keypath *home-id *match-id) (termval *season-id)] $$matches-by-team)
           (|hash *away-id)
           (local-transform> [(keypath *away-id *match-id) (termval *season-id)] $$matches-by-team)
           (|hash *wkey)
           (local-transform> [(keypath *wkey *match-id) (termval true)] $$matches-by-week)
+          (|hash "UNPLAYED")
+          (local-transform> [(keypath "UNPLAYED" *match-id) (termval true)] $$matches-by-status)
           (ack-return> {"ok" true "matchId" *match-id})
          (else>)
           (ack-return> {"ok" false "error" "match-exists"})))
@@ -191,12 +244,17 @@
       (<<if (= *type "submit-score")
         (get *event "homeScore" :> *hs-raw)
         (get *event "awayScore" :> *as-raw)
+        (get *event "submittedBy" :> *submitted-by-raw)
+        (get *event "submittedAt" :> *submitted-at-raw)
         (long-or-zero *hs-raw :> *home-score)
         (long-or-zero *as-raw :> *away-score)
+        (str-or-empty *submitted-by-raw :> *submitted-by)
+        (str-or-empty *submitted-at-raw :> *submitted-at)
         (local-select> (keypath *match-id "status") $$matches :> *status)
         (local-select> (keypath *match-id "homeTeamId") $$matches :> *home-id)
         (local-select> (keypath *match-id "awayTeamId") $$matches :> *away-id)
         (local-select> (keypath *match-id "boGames") $$matches :> *bo-games)
+        (local-select> (keypath *match-id) $$pending-reschedule :> *pending-id)
         (score-error *status *home-score *away-score *bo-games :> *err)
         (<<if (some? *err)
           (ack-return> {"ok" false "error" *err})
@@ -209,8 +267,14 @@
              [(keypath "status") (termval "PLAYED")]
              [(keypath "homeScore") (termval *home-score)]
              [(keypath "awayScore") (termval *away-score)]
-             [(keypath "winnerId") (termval *winner-id)])]
+             [(keypath "winnerId") (termval *winner-id)]
+             [(keypath "submittedAt") (termval *submitted-at)]
+             [(keypath "submittedBy") (termval *submitted-by)])]
            $$matches)
+          (|hash "UNPLAYED")
+          (local-transform> [(keypath "UNPLAYED" *match-id) NONE>] $$matches-by-status)
+          (|hash "PLAYED")
+          (local-transform> [(keypath "PLAYED" *match-id) (termval true)] $$matches-by-status)
           (|hash *winner-id)
           (local-transform> [(keypath *winner-id "wins") (nil->val 0) (term inc)] $$team-stats)
           (local-transform> [(keypath *winner-id "points") (nil->val 0) (term inc)] $$team-stats)
@@ -219,6 +283,11 @@
           (local-transform> [(keypath *loser-id "losses") (nil->val 0) (term inc)] $$team-stats)
           (local-transform> [(keypath *loser-id "wins") (nil->val 0) (term identity)] $$team-stats)
           (local-transform> [(keypath *loser-id "points") (nil->val 0) (term identity)] $$team-stats)
+          (<<if (pending-present? *pending-id)
+            (local-transform>
+             [(keypath *match-id *pending-id "rescheduleStatus") (termval (long 3))]
+             $$match-comms)
+            (local-transform> [(keypath *match-id) (termval "")] $$pending-reschedule))
           (ack-return> {"ok" true
                        "matchId" *match-id
                        "winnerId" *winner-id
@@ -243,6 +312,19 @@
            $$matches)
           (ack-return> {"ok" true "matchId" *match-id})))
 
+      (<<if (= *type "set-arena")
+        (get *event "arenaId" :> *arena-raw)
+        (str-or-empty *arena-raw :> *arena-id)
+        (local-select> (keypath *match-id) $$matches :> *match)
+        (missing-match-error nil *match :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (local-transform>
+           [(keypath *match-id "arenaId") (termval *arena-id)]
+           $$matches)
+          (ack-return> {"ok" true "matchId" *match-id})))
+
       (<<if (= *type "set-match-status")
         (get *event "status" :> *status)
         (match-status-error *status :> *field-err)
@@ -251,10 +333,105 @@
         (<<if (some? *err)
           (ack-return> {"ok" false "error" *err})
          (else>)
+          (get *match "status" :> *old-status)
           (local-transform>
            [(keypath *match-id "status") (termval *status)]
            $$matches)
+          (|hash *old-status)
+          (local-transform> [(keypath *old-status *match-id) NONE>] $$matches-by-status)
+          (|hash *status)
+          (local-transform> [(keypath *status *match-id) (termval true)] $$matches-by-status)
           (ack-return> {"ok" true "matchId" *match-id "status" *status})))
+
+      (<<if (= *type "post-comm")
+        (get *event "commId" :> *comm-id)
+        (get *event "owner" :> *owner-raw)
+        (get *event "content" :> *content-raw)
+        (get *event "createdAt" :> *created-raw)
+        (str-or-empty *owner-raw :> *owner)
+        (str-or-empty *content-raw :> *content)
+        (str-or-empty *created-raw :> *created-at)
+        (local-select> (keypath *match-id) $$matches :> *match)
+        (missing-match-error nil *match :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (local-transform>
+           [(keypath *match-id *comm-id)
+            (multi-path
+             [(keypath "owner") (termval *owner)]
+             [(keypath "content") (termval *content)]
+             [(keypath "createdAt") (termval *created-at)]
+             [(keypath "reschedule") (termval "")]
+             [(keypath "rescheduleStatus") (termval (long -1))])]
+           $$match-comms)
+          (ack-return> {"ok" true "matchId" *match-id "commId" *comm-id})))
+
+      (<<if (= *type "request-reschedule")
+        (get *event "commId" :> *comm-id)
+        (get *event "owner" :> *owner-raw)
+        (get *event "content" :> *content-raw)
+        (get *event "createdAt" :> *created-raw)
+        (get *event "reschedule" :> *reschedule-raw)
+        (str-or-empty *owner-raw :> *owner)
+        (str-or-empty *content-raw :> *content)
+        (str-or-empty *created-raw :> *created-at)
+        (str-or-empty *reschedule-raw :> *reschedule)
+        (local-select> (keypath *match-id) $$matches :> *match)
+        (local-select> (keypath *match-id) $$pending-reschedule :> *pending-id)
+        (request-reschedule-error *match *pending-id :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (local-transform>
+           [(keypath *match-id *comm-id)
+            (multi-path
+             [(keypath "owner") (termval *owner)]
+             [(keypath "content") (termval *content)]
+             [(keypath "createdAt") (termval *created-at)]
+             [(keypath "reschedule") (termval *reschedule)]
+             [(keypath "rescheduleStatus") (termval (long 0))])]
+           $$match-comms)
+          (local-transform> [(keypath *match-id) (termval *comm-id)] $$pending-reschedule)
+          (ack-return> {"ok" true "matchId" *match-id "commId" *comm-id})))
+
+      (<<if (= *type "respond-reschedule")
+        (get *event "commId" :> *comm-id)
+        (get *event "response" :> *response)
+        (get *event "respondedBy" :> *responded-by-raw)
+        (get *event "responseCommId" :> *resp-comm-id)
+        (get *event "responseContent" :> *resp-content-raw)
+        (get *event "createdAt" :> *created-raw)
+        (str-or-empty *responded-by-raw :> *responded-by)
+        (str-or-empty *resp-content-raw :> *resp-content)
+        (str-or-empty *created-raw :> *created-at)
+        (local-select> (keypath *match-id) $$matches :> *match)
+        (local-select> (keypath *match-id) $$pending-reschedule :> *pending-id)
+        (respond-reschedule-error *match *pending-id *comm-id *response :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (response-status *response :> *new-status)
+          (local-select>
+           (keypath *match-id *comm-id "reschedule") $$match-comms :> *proposed)
+          (local-transform>
+           [(keypath *match-id *comm-id "rescheduleStatus") (termval *new-status)]
+           $$match-comms)
+          (local-transform> [(keypath *match-id) (termval "")] $$pending-reschedule)
+          (local-transform>
+           [(keypath *match-id *resp-comm-id)
+            (multi-path
+             [(keypath "owner") (termval *responded-by)]
+             [(keypath "content") (termval *resp-content)]
+             [(keypath "createdAt") (termval *created-at)]
+             [(keypath "reschedule") (termval "")]
+             [(keypath "rescheduleStatus") (termval (long -1))])]
+           $$match-comms)
+          (<<if (= *response "accept")
+            (local-transform>
+             [(keypath *match-id "matchDateTime") (termval *proposed)]
+             $$matches))
+          (ack-return> {"ok" true "matchId" *match-id "commId" *comm-id "status" *response})))
 
       (<<if (not (known-type? *type))
         (ack-return> {"ok" false "error" "unknown-type" "type" *type})))))

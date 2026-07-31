@@ -13,6 +13,7 @@ export type MatchAck = {
   ok: boolean;
   error?: string;
   matchId?: string;
+  commId?: string;
   winnerId?: string;
   homeScore?: number;
   awayScore?: number;
@@ -22,6 +23,14 @@ export type MatchAck = {
   type?: string;
   boGames?: number;
   status?: string;
+};
+
+export type MatchCommRecord = {
+  owner: string;
+  content: string;
+  createdAt: string;
+  reschedule: string;
+  rescheduleStatus: number;
 };
 
 export type CreateMatchEvent = {
@@ -47,10 +56,11 @@ export type BanMapEvent = {
 };
 
 export type SubmitScoreEvent = {
-  type: 'submit-score';
   matchId: string;
   homeScore: number;
   awayScore: number;
+  submittedBy?: string;
+  submittedAt?: string;
 };
 
 function asAck(topologyReturns: Record<string, unknown>): MatchAck {
@@ -121,11 +131,24 @@ export async function submitScore(
   ackLevel: AckLevel = 'ack',
 ): Promise<MatchAck> {
   return asAck(
-    await client.append(MATCH_DEPOT, withLongs(event, ['homeScore', 'awayScore']), ackLevel),
+    await client.append(
+      MATCH_DEPOT,
+      withLongs(
+        {
+          type: 'submit-score',
+          matchId: event.matchId,
+          homeScore: event.homeScore,
+          awayScore: event.awayScore,
+          submittedBy: event.submittedBy ?? '',
+          submittedAt: event.submittedAt ?? new Date().toISOString(),
+        },
+        ['homeScore', 'awayScore'],
+      ),
+      ackLevel,
+    ),
   );
 }
 
-/** @lintignore Used by upcoming admin schedule-edit cutover */
 export async function setMatchSchedule(
   client: RamaClient,
   event: { matchId: string; matchDateTime?: string; matchTimezone?: string },
@@ -145,13 +168,113 @@ export async function setMatchSchedule(
   );
 }
 
-/** @lintignore Used by upcoming dispute/status cutover */
+export async function setMatchArena(
+  client: RamaClient,
+  event: { matchId: string; arenaId: string },
+  ackLevel: AckLevel = 'ack',
+): Promise<MatchAck> {
+  return asAck(
+    await client.append(
+      MATCH_DEPOT,
+      { type: 'set-arena', matchId: event.matchId, arenaId: event.arenaId },
+      ackLevel,
+    ),
+  );
+}
+
 export async function setMatchStatus(
   client: RamaClient,
   event: { matchId: string; status: 'UNPLAYED' | 'PLAYED' | 'DISPUTE' },
   ackLevel: AckLevel = 'ack',
 ): Promise<MatchAck> {
   return asAck(await client.append(MATCH_DEPOT, { type: 'set-match-status', ...event }, ackLevel));
+}
+
+export async function postComm(
+  client: RamaClient,
+  event: {
+    matchId: string;
+    commId: string;
+    owner: string;
+    content: string;
+    createdAt?: string;
+  },
+  ackLevel: AckLevel = 'ack',
+): Promise<MatchAck> {
+  return asAck(
+    await client.append(
+      MATCH_DEPOT,
+      {
+        type: 'post-comm',
+        matchId: event.matchId,
+        commId: event.commId,
+        owner: event.owner,
+        content: event.content,
+        createdAt: event.createdAt ?? new Date().toISOString(),
+      },
+      ackLevel,
+    ),
+  );
+}
+
+export async function requestReschedule(
+  client: RamaClient,
+  event: {
+    matchId: string;
+    commId: string;
+    owner: string;
+    content: string;
+    reschedule: string;
+    createdAt?: string;
+  },
+  ackLevel: AckLevel = 'ack',
+): Promise<MatchAck> {
+  return asAck(
+    await client.append(
+      MATCH_DEPOT,
+      {
+        type: 'request-reschedule',
+        matchId: event.matchId,
+        commId: event.commId,
+        owner: event.owner,
+        content: event.content,
+        reschedule: event.reschedule,
+        createdAt: event.createdAt ?? new Date().toISOString(),
+      },
+      ackLevel,
+    ),
+  );
+}
+
+export async function respondReschedule(
+  client: RamaClient,
+  event: {
+    matchId: string;
+    commId: string;
+    response: 'accept' | 'deny' | 'cancel';
+    respondedBy: string;
+    responseCommId: string;
+    responseContent: string;
+    createdAt?: string;
+  },
+  ackLevel: AckLevel = 'ack',
+): Promise<MatchAck> {
+  return asAck(
+    await client.append(
+      MATCH_DEPOT,
+      {
+        type: 'respond-reschedule',
+        matchId: event.matchId,
+        commId: event.commId,
+        response: event.response,
+        respondedBy: event.respondedBy,
+        responseCommId: event.responseCommId,
+        responseContent: event.responseContent,
+        createdAt: event.createdAt ?? new Date().toISOString(),
+      },
+      ackLevel,
+    ),
+  );
 }
 
 export async function getMatch(
@@ -223,4 +346,62 @@ export async function getMatchIdsForTeam(client: RamaClient, teamId: string): Pr
   } catch {
     return [];
   }
+}
+
+/** Match ids for a status from $$matches-by-status. */
+export async function getMatchIdsByStatus(
+  client: RamaClient,
+  status: 'UNPLAYED' | 'PLAYED' | 'DISPUTE',
+): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$matches-by-status', [status]);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}
+
+export async function getMatchComms(
+  client: RamaClient,
+  matchId: string,
+): Promise<Record<string, MatchCommRecord>> {
+  try {
+    const v = await client.selectOne('$$match-comms', [matchId]);
+    if (!v || typeof v !== 'object') return {};
+    return v as Record<string, MatchCommRecord>;
+  } catch {
+    return {};
+  }
+}
+
+export async function getMatchComm(
+  client: RamaClient,
+  matchId: string,
+  commId: string,
+): Promise<MatchCommRecord | null> {
+  try {
+    const v = await client.selectOne('$$match-comms', [matchId, commId]);
+    if (!v || typeof v !== 'object') return null;
+    return v as MatchCommRecord;
+  } catch {
+    return null;
+  }
+}
+
+export async function getPendingRescheduleCommId(
+  client: RamaClient,
+  matchId: string,
+): Promise<string | null> {
+  try {
+    const v = await client.selectOne('$$pending-reschedule', [matchId]);
+    if (typeof v !== 'string' || v.length === 0) return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+export function nextCommId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }

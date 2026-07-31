@@ -14,21 +14,25 @@ import { createNotificationForTeamOwners, createNotificationForAdmins } from './
 
 async function getMatchDetailsRama(matchId: number) {
   const { ramaClientOpts } = await import('$lib/server/rama/config');
-  const { createMatchClient, getMatch } = await import('$lib/server/rama/match');
+  const { createMatchClient, getMatch, getMatchComms } = await import('$lib/server/rama/match');
+  const { createUsersClient, getUser } = await import('$lib/server/rama/users');
   const { getTeamById } = await import('$lib/server/services/teams');
   const { getSeasonById } = await import('$lib/server/services/seasons');
   const { createMapPoolsClient, getArena } = await import('$lib/server/rama/mapPools');
 
-  const row = await getMatch(createMatchClient(ramaClientOpts()), String(matchId));
+  const opts = ramaClientOpts();
+  const matchClient = createMatchClient(opts);
+  const row = await getMatch(matchClient, String(matchId));
   if (!row) notFound('Match not found');
 
   const homeTeamId = Number(row.homeTeamId);
   const awayTeamId = Number(row.awayTeamId);
   const seasonId = Number(row.seasonId);
-  const [homeTeam, awayTeam, season] = await Promise.all([
+  const [homeTeam, awayTeam, season, commsMap] = await Promise.all([
     getTeamById(homeTeamId),
     getTeamById(awayTeamId),
     getSeasonById(seasonId),
+    getMatchComms(matchClient, String(matchId)),
   ]);
   if (!homeTeam || !awayTeam) notFound('Match teams not found');
 
@@ -42,7 +46,7 @@ async function getMatchDetailsRama(matchId: number) {
     playoffMap: number;
   } | null = null;
   if (arenaId != null && Number.isFinite(arenaId)) {
-    const arenaRow = await getArena(createMapPoolsClient(ramaClientOpts()), String(arenaId));
+    const arenaRow = await getArena(createMapPoolsClient(opts), String(arenaId));
     if (arenaRow) {
       arena = {
         id: arenaId,
@@ -86,6 +90,53 @@ async function getMatchDetailsRama(matchId: number) {
   const loserScore =
     played && winnerId != null ? (winnerId === homeTeamId ? awayScore : homeScore) : null;
 
+  const submittedByRaw = row.submittedBy ? String(row.submittedBy) : '';
+  const submittedAtRaw = row.submittedAt ? String(row.submittedAt) : '';
+  const submittedBy = submittedByRaw.length > 0 ? submittedByRaw : null;
+  const submittedAt =
+    submittedAtRaw.length > 0 && !Number.isNaN(new Date(submittedAtRaw).getTime())
+      ? new Date(submittedAtRaw)
+      : null;
+
+  const usersClient = createUsersClient(opts);
+  const matchComms = [];
+  for (const [commId, comm] of Object.entries(commsMap)) {
+    const user = comm.owner ? await getUser(usersClient, comm.owner) : null;
+    const numericId = Number.parseInt(commId, 10);
+    matchComms.push({
+      id: Number.isFinite(numericId) ? numericId : Date.now(),
+      matchId,
+      owner: comm.owner || null,
+      content: comm.content,
+      createdAt: comm.createdAt ? new Date(comm.createdAt) : new Date(),
+      reschedule: comm.reschedule || null,
+      rescheduleStatus:
+        comm.rescheduleStatus == null || Number(comm.rescheduleStatus) < 0
+          ? null
+          : Number(comm.rescheduleStatus),
+      user: user
+        ? {
+            steamId: comm.owner,
+            steamUsername: String(user.username ?? comm.owner),
+            steamAvatar: String(user.avatarUrl ?? ''),
+          }
+        : null,
+    });
+  }
+  matchComms.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  let submitter = null;
+  if (submittedBy) {
+    const submitterUser = await getUser(usersClient, submittedBy);
+    submitter = submitterUser
+      ? {
+          steamId: submittedBy,
+          steamUsername: String(submitterUser.username ?? submittedBy),
+          steamAvatar: String(submitterUser.avatarUrl ?? ''),
+        }
+      : { steamId: submittedBy, steamUsername: submittedBy, steamAvatar: '' };
+  }
+
   const match = {
     id: matchId,
     homeTeamId,
@@ -104,8 +155,8 @@ async function getMatchDetailsRama(matchId: number) {
     awayTeamScore: awayScore,
     winnerScore,
     loserScore,
-    submittedBy: null as string | null,
-    submittedAt: null as Date | null,
+    submittedBy,
+    submittedAt,
     winnerId,
     homeTeam: { ...homeTeam, players: homeActive },
     awayTeam: { ...awayTeam, players: awayActive },
@@ -121,10 +172,10 @@ async function getMatchDetailsRama(matchId: number) {
     },
     playoff: null,
     games,
-    matchComms: [] as never[],
+    matchComms,
     matchMapBans: [] as never[],
     demos: [] as never[],
-    submitter: null,
+    submitter,
   };
 
   const is1v1 = homeTeam.formatId === FORMAT_1V1;
@@ -529,6 +580,64 @@ export async function submitMatchScores(
   gameResults: GameResult[],
   submittedBy: string,
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, submitScore } = await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const match = await getMatch(client, String(matchId));
+    if (!match) notFound('Match not found');
+    if (String(match.status) !== 'UNPLAYED') {
+      badRequest('Match scores have already been submitted');
+    }
+
+    const homeTeamId = Number(match.homeTeamId);
+    const awayTeamId = Number(match.awayTeamId);
+    const { winnerId, winnerScore, loserScore } = calculateMatchWinner(
+      homeTeamId,
+      awayTeamId,
+      gameResults,
+      match.boGames != null ? Number(match.boGames) : null,
+    );
+
+    // MatchModule score-error treats scores as series wins vs boGames; Bo1 frag
+    // totals (e.g. 8–2) still satisfy (>= boGames && > opponent).
+    const homeScore = gameResults.reduce((s, g) => s + g.homeScore, 0);
+    const awayScore = gameResults.reduce((s, g) => s + g.awayScore, 0);
+    const ack = await submitScore(client, {
+      matchId: String(matchId),
+      homeScore,
+      awayScore,
+      submittedBy,
+      submittedAt: new Date().toISOString(),
+    });
+    if (!ack.ok) badRequest(ack.error || 'Failed to submit scores');
+
+    const opposingTeamId =
+      (await (async () => {
+        const { createTeamsClient, getRoster } = await import('$lib/server/rama/teams');
+        const teams = createTeamsClient(ramaClientOpts());
+        for (const teamId of [homeTeamId, awayTeamId]) {
+          const roster = await getRoster(teams, String(teamId));
+          if (roster[submittedBy]?.active) {
+            return teamId === homeTeamId ? awayTeamId : homeTeamId;
+          }
+        }
+        return null;
+      })()) ?? null;
+
+    if (opposingTeamId != null) {
+      await createNotificationForTeamOwners(
+        [opposingTeamId],
+        'MATCH_COMM',
+        `/matches/${matchId}`,
+        `Score submitted: ${winnerScore}-${loserScore}`,
+        submittedBy,
+      );
+    }
+
+    return { winnerId, winnerScore, loserScore };
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     // Lock the match row for the duration of this transaction so concurrent
     // submissions cannot both pass the UNPLAYED check simultaneously.
@@ -646,6 +755,68 @@ export async function submitMatchScores(
  * Must be within 24 hours of submission
  */
 export async function disputeMatch(matchId: number, reason: string, disputedBy: string) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, nextCommId, postComm, setMatchStatus } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const match = await getMatch(client, String(matchId));
+    if (!match) notFound('Match not found');
+    if (String(match.status) !== 'PLAYED') badRequest('Can only dispute played matches');
+
+    const submittedAtRaw = match.submittedAt ? String(match.submittedAt) : '';
+    if (!submittedAtRaw) badRequest('No submission timestamp found');
+    const submittedTime = new Date(submittedAtRaw).getTime();
+    if (Number.isNaN(submittedTime)) badRequest('No submission timestamp found');
+    if ((Date.now() - submittedTime) / (1000 * 3600) > 24) {
+      badRequest('Dispute period has passed (24 hours)');
+    }
+
+    const statusAck = await setMatchStatus(client, {
+      matchId: String(matchId),
+      status: 'DISPUTE',
+    });
+    if (!statusAck.ok) badRequest(statusAck.error || 'Failed to dispute match');
+
+    const commAck = await postComm(client, {
+      matchId: String(matchId),
+      commId: nextCommId(),
+      owner: disputedBy,
+      content: `MATCH DISPUTED: ${reason}`,
+    });
+    if (!commAck.ok) badRequest(commAck.error || 'Failed to post dispute message');
+
+    await createNotificationForAdmins(
+      'MATCH_COMM',
+      `/matches/${matchId}`,
+      `Match disputed: ${reason.substring(0, 50)}${reason.length > 50 ? '...' : ''}`,
+      disputedBy,
+    );
+
+    const homeTeamId = Number(match.homeTeamId);
+    const awayTeamId = Number(match.awayTeamId);
+    const { createTeamsClient, getRoster } = await import('$lib/server/rama/teams');
+    const teams = createTeamsClient(ramaClientOpts());
+    let opposingTeamId: number | null = null;
+    for (const teamId of [homeTeamId, awayTeamId]) {
+      const roster = await getRoster(teams, String(teamId));
+      if (roster[disputedBy]?.active) {
+        opposingTeamId = teamId === homeTeamId ? awayTeamId : homeTeamId;
+        break;
+      }
+    }
+    if (opposingTeamId != null) {
+      await createNotificationForTeamOwners(
+        [opposingTeamId],
+        'MATCH_COMM',
+        `/matches/${matchId}`,
+        'Match has been disputed',
+        disputedBy,
+      );
+    }
+    return;
+  }
+
   const match = await prisma.match.findUnique({
     where: { id: matchId },
   });

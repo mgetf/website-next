@@ -233,6 +233,27 @@ export async function createNotificationForMatch(
   message: string,
   actorSteamId?: string,
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch } = await import('$lib/server/rama/match');
+    const { createTeamsClient, getRoster } = await import('$lib/server/rama/teams');
+    const match = await getMatch(createMatchClient(ramaClientOpts()), String(matchId));
+    if (!match) return;
+    const teams = createTeamsClient(ramaClientOpts());
+    const steamIds = new Set<string>();
+    for (const teamId of [String(match.homeTeamId), String(match.awayTeamId)]) {
+      const roster = await getRoster(teams, teamId);
+      for (const [steamId, member] of Object.entries(roster)) {
+        if (!member.active || steamId === actorSteamId) continue;
+        steamIds.add(steamId);
+      }
+    }
+    for (const steamId of steamIds) {
+      await notifyRama(steamId, 'MATCH_COMM', `/matches/${matchId}`, message);
+    }
+    return;
+  }
+
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     select: {
@@ -460,6 +481,16 @@ export async function createNotificationForAdmins(
   message: string,
   actorSteamId?: string,
 ) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    // UsersModule has no admin index yet — soft no-op under Rama cutover.
+    void type;
+    void url;
+    void message;
+    void actorSteamId;
+    return;
+  }
+
   const admins = await prisma.user.findMany({
     where: {
       permissionLevel: 'ADMIN',

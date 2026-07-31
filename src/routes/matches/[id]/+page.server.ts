@@ -579,7 +579,7 @@ export const actions: Actions = {
     await settleExpiredReschedules(matchId);
 
     const match = await getMatchDetails(matchId);
-    const comm = await getMatchCommById(commId);
+    const comm = await getMatchCommById(commId, matchId);
 
     if (!comm) {
       return fail(404, { error: 'Reschedule request not found' });
@@ -590,7 +590,7 @@ export const actions: Actions = {
     }
 
     try {
-      await updateRescheduleStatus(commId, response, locals.user.steamId);
+      await updateRescheduleStatus(commId, response, locals.user.steamId, matchId);
 
       const responseText = response === 'deny' ? 'denied' : `${response}ed`;
       await createNotificationForMatch(matchId, `Reschedule ${responseText}`, locals.user.steamId);

@@ -19,6 +19,12 @@ export type ContentKey = (typeof CONTENT_KEYS)[keyof typeof CONTENT_KEYS];
  * Get content by key
  */
 export async function getContent(key: ContentKey): Promise<string | null> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void key;
+    return null;
+  }
+
   const content = await prisma.siteContent.findUnique({
     where: { key },
   });

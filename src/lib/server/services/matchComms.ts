@@ -62,6 +62,65 @@ export async function createMatchComm(
     proposedTimezone?: string;
   },
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, nextCommId, postComm, requestReschedule } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const match = await getMatch(client, String(matchId));
+    if (!match) notFound('Match not found');
+
+    const commId = nextCommId();
+    const createdAt = new Date();
+    if (rescheduleData) {
+      const display =
+        formatRescheduleDateTime(
+          rescheduleData.proposedDateTime,
+          rescheduleData.proposedTimezone,
+        ) ?? rescheduleData.proposedDateTime;
+      const body = `${RESCHEDULE_REQUEST_PREFIX} ${display}`;
+      const proposedUtc = new Date(rescheduleData.proposedDateTime);
+      const ack = await requestReschedule(client, {
+        matchId: String(matchId),
+        commId,
+        owner: userId,
+        content: body,
+        reschedule: Number.isNaN(proposedUtc.getTime())
+          ? rescheduleData.proposedDateTime
+          : proposedUtc.toISOString(),
+        createdAt: createdAt.toISOString(),
+      });
+      if (!ack.ok) badRequest(ack.error || 'Failed to request reschedule');
+      return {
+        id: Number.parseInt(commId, 10) || Date.now(),
+        matchId,
+        owner: userId,
+        content: body,
+        createdAt,
+        reschedule: rescheduleData.proposedDateTime,
+        rescheduleStatus: RESCHEDULE_STATUS_PENDING,
+      };
+    }
+
+    const ack = await postComm(client, {
+      matchId: String(matchId),
+      commId,
+      owner: userId,
+      content,
+      createdAt: createdAt.toISOString(),
+    });
+    if (!ack.ok) badRequest(ack.error || 'Failed to post message');
+    return {
+      id: Number.parseInt(commId, 10) || Date.now(),
+      matchId,
+      owner: userId,
+      content,
+      createdAt,
+      reschedule: null,
+      rescheduleStatus: null,
+    };
+  }
+
   const match = await prisma.match.findUnique({
     where: { id: matchId },
   });
@@ -99,10 +158,34 @@ export async function createMatchComm(
  * Get pending reschedule request for a match
  */
 export async function getPendingReschedule(matchId: number) {
-  const { isRamaBackend } = await import('$lib/server/rama/config');
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
   if (isRamaBackend()) {
-    void matchId;
-    return null;
+    const { createMatchClient, getMatchComm, getPendingRescheduleCommId } =
+      await import('$lib/server/rama/match');
+    const { createUsersClient, getUser } = await import('$lib/server/rama/users');
+    const client = createMatchClient(ramaClientOpts());
+    const commId = await getPendingRescheduleCommId(client, String(matchId));
+    if (!commId) return null;
+    const row = await getMatchComm(client, String(matchId), commId);
+    if (!row) return null;
+    const user = await getUser(createUsersClient(ramaClientOpts()), row.owner);
+    const numericId = Number.parseInt(commId, 10);
+    return {
+      id: Number.isFinite(numericId) ? numericId : Date.now(),
+      matchId,
+      owner: row.owner || null,
+      content: row.content,
+      createdAt: row.createdAt ? new Date(row.createdAt) : new Date(),
+      reschedule: row.reschedule || null,
+      rescheduleStatus: Number(row.rescheduleStatus ?? 0),
+      user: user
+        ? {
+            steamId: row.owner,
+            steamUsername: String(user.username ?? row.owner),
+            steamAvatar: String(user.avatarUrl ?? ''),
+          }
+        : null,
+    };
   }
 
   const reschedule = await prisma.matchComm.findFirst({
@@ -186,7 +269,43 @@ export async function updateRescheduleStatus(
   commId: number,
   status: 'accept' | 'deny' | 'cancel',
   respondedBy: string,
+  matchIdHint?: number,
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    if (matchIdHint == null) badRequest('Match id required for Rama reschedule response');
+    const { createMatchClient, getPendingRescheduleCommId, nextCommId, respondReschedule } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const pendingId = await getPendingRescheduleCommId(client, String(matchIdHint));
+    if (!pendingId) notFound('Reschedule request not found');
+
+    let responseMessage: string;
+    let newStatus: number;
+    if (status === 'accept') {
+      newStatus = RESCHEDULE_STATUS_ACCEPTED;
+      responseMessage = 'MATCH RESPONSE: Reschedule request accepted.';
+    } else if (status === 'deny') {
+      newStatus = 2;
+      responseMessage = 'MATCH RESPONSE: Reschedule request denied.';
+    } else {
+      newStatus = 3;
+      responseMessage = 'MATCH RESPONSE: Reschedule request canceled.';
+    }
+
+    const ack = await respondReschedule(client, {
+      matchId: String(matchIdHint),
+      commId: pendingId,
+      response: status,
+      respondedBy,
+      responseCommId: nextCommId(),
+      responseContent: responseMessage,
+    });
+    if (!ack.ok) badRequest(ack.error || 'Failed to respond to reschedule');
+    void commId;
+    return { newStatus, responseMessage };
+  }
+
   const comm = await prisma.matchComm.findUnique({
     where: { id: commId },
     include: {
@@ -389,6 +508,30 @@ export async function createAdminActionComm(
   actorSteamId: string,
   content: string,
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, nextCommId, postComm } = await import('$lib/server/rama/match');
+    const createdAt = new Date();
+    const commId = nextCommId();
+    const ack = await postComm(createMatchClient(ramaClientOpts()), {
+      matchId: String(matchId),
+      commId,
+      owner: actorSteamId,
+      content,
+      createdAt: createdAt.toISOString(),
+    });
+    if (!ack.ok) badRequest(ack.error || 'Failed to post admin note');
+    return {
+      id: Number.parseInt(commId, 10) || Date.now(),
+      matchId,
+      owner: actorSteamId,
+      content,
+      createdAt,
+      reschedule: null,
+      rescheduleStatus: null,
+    };
+  }
+
   return await prisma.matchComm.create({
     data: {
       matchId,
@@ -402,7 +545,32 @@ export async function createAdminActionComm(
 /**
  * Get a single match communication by ID
  */
-export async function getMatchCommById(commId: number) {
+export async function getMatchCommById(commId: number, matchIdHint?: number) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    if (matchIdHint == null) notFound('Match communication not found');
+    const { createMatchClient, getMatchComm, getPendingRescheduleCommId } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const pendingId = await getPendingRescheduleCommId(client, String(matchIdHint));
+    const key = pendingId ?? String(commId);
+    const row = await getMatchComm(client, String(matchIdHint), key);
+    if (!row) notFound('Match communication not found');
+    const numericId = Number.parseInt(key, 10);
+    return {
+      id: Number.isFinite(numericId) ? numericId : commId,
+      matchId: matchIdHint,
+      owner: row.owner || null,
+      content: row.content,
+      createdAt: row.createdAt ? new Date(row.createdAt) : new Date(),
+      reschedule: row.reschedule || null,
+      rescheduleStatus:
+        row.rescheduleStatus == null || Number(row.rescheduleStatus) < 0
+          ? null
+          : Number(row.rescheduleStatus),
+    };
+  }
+
   const comm = await prisma.matchComm.findUnique({
     where: { id: commId },
   });

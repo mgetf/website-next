@@ -1110,6 +1110,26 @@ export async function adminUpdateMatchSchedule(
   matchDateTimeUtc: string | null,
   matchTimezone: string | null,
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, setMatchSchedule } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const match = await getMatch(client, String(matchId));
+    if (!match) notFound('Match not found');
+    const ack = await setMatchSchedule(client, {
+      matchId: String(matchId),
+      matchDateTime: matchDateTimeUtc ?? '',
+      matchTimezone: matchTimezone || '',
+    });
+    if (!ack.ok) badRequest(ack.error || 'Failed to update schedule');
+    return {
+      id: matchId,
+      matchDateTime: matchDateTimeUtc ? new Date(matchDateTimeUtc) : null,
+      matchTimezone: matchTimezone || null,
+    };
+  }
+
   const match = await prisma.match.findUnique({ where: { id: matchId }, select: { id: true } });
   if (!match) notFound('Match not found');
 
@@ -1130,6 +1150,22 @@ export async function adminUpdateMatchArenas(
   matchId: number,
   arenaAssignments: { gameId: number; arenaId: number | null }[],
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, setMatchArena } = await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const match = await getMatch(client, String(matchId));
+    if (!match) notFound('Match not found');
+    const first = arenaAssignments.find((a) => a.arenaId != null);
+    if (!first?.arenaId) return;
+    const ack = await setMatchArena(client, {
+      matchId: String(matchId),
+      arenaId: String(first.arenaId),
+    });
+    if (!ack.ok) badRequest(ack.error || 'Failed to update arenas');
+    return;
+  }
+
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     select: { id: true, games: { select: { id: true } } },

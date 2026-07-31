@@ -116,26 +116,28 @@ return {"ok" true "matchId" matchId "banned" arenaId}
 
 ## Clojure seam (invisible by default)
 
-Because we **transpile to Clojure source**, most of the seam is already gone:
-`(inc turn)`, `(contains? remaining arenaId)`, and a user helper are all just
-Clojure lists in the output. Dataflow ops (`local-select>`, `<<if`, `|hash`)
-are also Clojure. The surface only special-cases what Rama macros need
-(`-->` / `!<--` / `fail` / `return` / bind `>`).
+Clojure is **expression-only** — no `return`. .rama surface is statement-shaped
+(`let`, `if`, `return`, `fail`). The seam must not leak: emitted `defn` bodies
+are normal Clojure expressions. That is a **compiler pass**, not ANF-by-default.
 
-### Layers (one file, one language)
+### `return` is context-sensitive
 
-| Form | Meaning | Emits |
-|------|---------|-------|
-| `struct` / `pstate` / `depot` | decls | `declare-pstate` / `declare-depot` |
-| `op name(…) {…}` | dataflow fragment | `deframaop` / body in `<<sources` |
-| `fn name(…) {…}` | plain Clojure function | `defn` — callable from `op` with zero ceremony |
-| expression call `foo(a, b)` | opaque | `(foo a b)` — Rama op, Clojure fn, or Java interop; reader decides |
-| `clojure { … }` | **escape hatch only** | splice raw Clojure forms verbatim (macros, weird reader tricks) |
+| Enclosing form | Surface `return x` becomes |
+|----------------|----------------------------|
+| `fn` | the **value** of that control-flow path — never a `return` symbol |
+| `op` | `(ack-return> x)` — dataflow effect |
 
-No ghetto: you should almost never need `clojure { }`. Prefer `fn` for helpers
-(`ban-error`, `score-error`) written in `.rama` control flow that lowers to
-normal Clojure (`if`/`cond`/`and`/`or` — not `and>`), and call them from `op`
-exactly like today's MatchModule.
+Same keyword; different lowering. User does not think about it.
+
+### Statement → expression pass (for `fn`)
+
+Not full A-normal form unless we need it later. The pass is **block
+elaboration** / **tailification**:
+
+1. `let a = e1; …; rest` → `(let [a e1] …rest…)`
+2. `if (c) { … return a } else { … return b }` → `(if c …a… …b…)`
+3. Early `return` mid-block → nest the remainder under `if` / use `cond`
+4. Final expression (or final `return`) is the block’s value
 
 ```rama
 fn ban-error(turn, home, away, teamId, remaining, arenaId) {
@@ -144,35 +146,44 @@ fn ban-error(turn, home, away, teamId, remaining, arenaId) {
   if (not(contains?(remaining, arenaId))) { return "arena-not-in-pool" }
   return nil
 }
-
-op ban-map(event) {
-  let { matchId, teamId, arenaId } = event
-  $$mapBans --> keypath(matchId) > { turn, homeTeamId, awayTeamId, remaining }
-  fail ban-error(turn, homeTeamId, awayTeamId, teamId, remaining, arenaId)
-  // …
-}
 ```
 
-`fail <expr>` — if expr is non-nil string, `return {"ok" false "error" expr}`.
-Same idea as today's `ban-error :> *err` + `<<if (some? *err)`.
+→
 
-Escape hatch when the grammar can't say it:
-
-```rama
-fn half-uuid(id) {
-  clojure { (h/half-uuid id) }
-}
+```clojure
+(defn ban-error [turn home away teamId remaining arenaId]
+  (cond
+    (nil? turn) "no-ban-state"
+    (not= teamId (if (even? turn) away home)) "not-your-turn"
+    (not (contains? remaining arenaId)) "arena-not-in-pool"
+    :else nil))
 ```
 
-### What “invisible” means for the compiler
+No `return` in the output. Invisible.
 
-1. **Don't classify callees** in the typechecker unless declared — unknown
-   `foo(…)` emits `(foo …)` and Clojure resolves it.
-2. **`fn` vs `op`** is the only intentional seam: stack/CPS/`and>` rules apply
-   inside `op`; normal Clojure evaluation inside `fn`.
-3. **Hole-punch is textual** in v1 of the emitter (transpiler). No bytecode.
-4. Extensibility test: a `.rama` file can grow a plain `fn` + `op` that calls
-   it, transpile, and `lein test-rama` green — without `clojure { }`.
+ANF (`let` every subexpression) is optional later for analysis; **not** required
+to erase `return`. Cond/if nesting is enough for the MatchModule helper style.
+
+### Layers (one file, one language)
+
+| Form | Meaning | Emits |
+|------|---------|-------|
+| `struct` / `pstate` / `depot` | decls | `declare-pstate` / `declare-depot` |
+| `op name(…) {…}` | dataflow | `deframaop`; `return` → `ack-return>`; `and>` where needed |
+| `fn name(…) {…}` | plain Clojure | `defn`; statement→expression pass; `and`/`or`/`if` |
+| call `foo(a, b)` | opaque | `(foo a b)` — reader/resolve decides |
+| `clojure { … }` | escape hatch only | splice raw forms |
+
+`fail <expr>` in `op` — if expr is non-nil, `return {"ok" false "error" expr}`
+(dataflow). In `fn`, prefer ordinary `if`/`return` — `fail` is an `op`-level sugar.
+
+### What “invisible” means
+
+1. Emitted `fn` bodies are idiomatic Clojure — no fake `return`, no dataflow ops.
+2. **`fn` vs `op`** is the only intentional seam (evaluation model), and even that
+   is one keyword difference in source.
+3. Unknown calls stay unresolved names; Clojure resolves them.
+4. Proof: `fn ban-error` + `op ban-map` that calls it → `lein test-rama` green.
 
 ## Open
 

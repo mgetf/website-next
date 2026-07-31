@@ -55,7 +55,22 @@ export async function getPlayoffBySeason(seasonId: number): Promise<PlayoffRecor
  * Get all playoffs with season information
  */
 export async function getAllPlayoffs(): Promise<PlayoffRecord[]> {
-  return [];
+  const { getSeasons } = await import('$lib/server/services/seasons');
+  const seasons = await getSeasons();
+  const rows: PlayoffRecord[] = [];
+  for (const season of seasons) {
+    const playoff = await syntheticPlayoffForSeason(season.id);
+    if (playoff) {
+      rows.push({
+        id: playoff.id,
+        seasonId: playoff.seasonId,
+        numRounds: playoff.numRounds,
+        doubleElim: playoff.doubleElim,
+        isTournament: playoff.isTournament,
+      });
+    }
+  }
+  return rows;
 }
 
 /**

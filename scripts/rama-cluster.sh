@@ -19,6 +19,7 @@ MODULES=(
   "mge.tf.rama.map-pools-module/MapPoolsModule"
   "mge.tf.rama.events-module/EventsModule"
   "mge.tf.rama.demos-module/DemosModule"
+  "mge.tf.rama.globals-module/GlobalsModule"
 )
 
 die() { echo "error: $*" >&2; exit 1; }

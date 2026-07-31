@@ -1,4 +1,3 @@
-import { prisma } from '$lib/server/db';
 import { notFound } from '$lib/server/utils/errors';
 import type {
   EventListItem,
@@ -16,7 +15,7 @@ import {
   buildSingleElimBracket,
   type BracketStageInput,
 } from '$lib/server/utils/bracketBuilders';
-import type { EventStatus as PrismaEventStatus } from '$prisma/client.js';
+import type { EventStatus } from '$lib/types/event';
 
 const USER_SELECT = {
   steamId: true,
@@ -106,47 +105,7 @@ export async function getAllEvents(): Promise<EventListItem[]> {
     });
     return rows;
   }
-
-  const events = await prisma.event.findMany({
-    orderBy: { startedAt: 'desc' },
-    include: {
-      placements: {
-        where: { placement: { lte: 3 } },
-        orderBy: { placement: 'asc' },
-        include: { user: { select: USER_SELECT } },
-      },
-      participants: {
-        include: { user: { select: USER_SELECT } },
-      },
-      stages: {
-        include: {
-          _count: { select: { matches: true } },
-        },
-      },
-    },
-  });
-
-  return events.map((e) => {
-    const matchCount = e.stages.reduce((sum, s) => sum + s._count.matches, 0);
-    return {
-      id: e.id,
-      name: e.name,
-      type: e.type as EventListItem['type'],
-      status: e.status as EventListItem['status'],
-      isTeamEvent: e.isTeamEvent,
-      description: e.description,
-      avatar: e.avatar,
-      startedAt: e.startedAt?.toISOString() ?? null,
-      endedAt: e.endedAt?.toISOString() ?? null,
-      prizepool: Number(e.prizepool),
-      card: e.card,
-      bracketLink: e.bracketLink,
-      placements: e.placements.map(mapPlacement),
-      matchCount,
-      participantCount: e.participants.length,
-      stageCount: e.stages.length,
-    };
-  });
+  throw new Error('getAllEvents requires DATA_BACKEND=rama');
 }
 
 export async function getEventById(id: number): Promise<EventDetail> {
@@ -209,47 +168,7 @@ export async function getEventById(id: number): Promise<EventDetail> {
       })),
     };
   }
-
-  const event = await prisma.event.findUnique({
-    where: { id },
-    include: {
-      placements: {
-        orderBy: { placement: 'asc' },
-        include: { user: { select: USER_SELECT } },
-      },
-      participants: {
-        orderBy: { seed: 'asc' },
-        include: { user: { select: USER_SELECT } },
-      },
-      stages: {
-        orderBy: { orderNum: 'asc' },
-        include: {
-          _count: { select: { matches: true } },
-        },
-      },
-    },
-  });
-
-  if (!event) notFound('Event not found');
-
-  return {
-    id: event.id,
-    name: event.name,
-    type: event.type as EventDetail['type'],
-    status: event.status as EventDetail['status'],
-    isTeamEvent: event.isTeamEvent,
-    description: event.description,
-    avatar: event.avatar,
-    startedAt: event.startedAt?.toISOString() ?? null,
-    endedAt: event.endedAt?.toISOString() ?? null,
-    prizepool: Number(event.prizepool),
-    card: event.card,
-    bracketLink: event.bracketLink,
-    placements: event.placements.map(mapPlacement),
-    participantCount: event.participants.length,
-    stages: event.stages.map(mapStage),
-    participants: event.participants.map(mapParticipant),
-  };
+  throw new Error('getEventById requires DATA_BACKEND=rama');
 }
 
 export async function getEventBracketData(stageId: number): Promise<BracketData> {
@@ -257,34 +176,7 @@ export async function getEventBracketData(stageId: number): Promise<BracketData>
   if (isRamaBackend()) {
     notFound('Event stage not found');
   }
-
-  const stage = await prisma.eventStage.findUnique({
-    where: { id: stageId },
-    include: {
-      event: { select: { status: true, name: true } },
-      matches: {
-        orderBy: [{ round: 'asc' }, { orderNum: 'asc' }],
-        include: {
-          players: { orderBy: { side: 'asc' } },
-          games: {
-            orderBy: { gameNumber: 'asc' },
-            include: { arena: { select: { name: true } } },
-          },
-        },
-      },
-    },
-  });
-
-  if (!stage) notFound('Event stage not found');
-
-  const format = mapBracketFormat(stage.bracketFormat);
-  const status = mapEventStatusToBracketStatus(stage.event.status as PrismaEventStatus);
-  const stageInput = stage as unknown as BracketStageInput;
-
-  if (format === 'card') return buildCardBracket(stageInput, status);
-  if (format === 'round_robin') return buildRoundRobinBracket(stageInput, status);
-  if (format === 'double_elim') return buildDoubleElimBracket(stageInput, status);
-  return buildSingleElimBracket(stageInput, status);
+  throw new Error('getEventBracketData requires DATA_BACKEND=rama');
 }
 
 // ---------------------------------------------------------------------------
@@ -359,7 +251,7 @@ export function mapBracketFormat(dbFormat: string): BracketFormat {
   return map[dbFormat] ?? 'single_elim';
 }
 
-export function mapEventStatusToBracketStatus(status: PrismaEventStatus): BracketStatus {
+export function mapEventStatusToBracketStatus(status: EventStatus): BracketStatus {
   if (status === 'IN_PROGRESS' || status === 'REGISTRATION') return 'in_progress';
   if (status === 'COMPLETED') return 'completed';
   return 'upcoming';

@@ -4,7 +4,6 @@
  * All map ban pool-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
 import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
 import {
   createMapPoolsClient,
@@ -17,7 +16,21 @@ import {
 /**
  * Get all map ban pools with their maps and match counts
  */
-export async function getMapBanPools() {
+export type MapBanPoolRow = {
+  id: number;
+  name: string;
+  isActive: number | boolean;
+  createdAt: Date;
+  mapsInPool: Array<{
+    poolId: number;
+    arenaId: number;
+    orderNum: number;
+    arena: { id: number; name: string; avatar: string | null; playoffMap: number };
+  }>;
+  _count: { matchMapBans: number };
+};
+
+export async function getMapBanPools(): Promise<MapBanPoolRow[]> {
   if (isRamaBackend()) {
     const client = createMapPoolsClient(ramaClientOpts());
     const ids = await getPoolIds(client);
@@ -51,48 +64,19 @@ export async function getMapBanPools() {
         _count: { matchMapBans: 0 },
       });
     }
-    return rows as unknown as Awaited<ReturnType<typeof getMapBanPoolsFromPrisma>>;
+    return rows;
   }
 
-  return getMapBanPoolsFromPrisma();
-}
-
-async function getMapBanPoolsFromPrisma() {
-  return await prisma.mapBanPool.findMany({
-    include: {
-      mapsInPool: {
-        include: {
-          arena: true,
-        },
-        orderBy: {
-          orderNum: 'asc',
-        },
-      },
-      _count: {
-        select: {
-          matchMapBans: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  return [];
 }
 
 /**
  * Create a new map ban pool
  */
-export async function createMapBanPool(name: string) {
-  const trimmedName = name.trim();
-
-  if (!trimmedName) {
-    throw new Error('Map ban pool name is required');
-  }
-
-  return await prisma.mapBanPool.create({
-    data: { name: trimmedName, isActive: false },
-  });
+export async function createMapBanPool(
+  name: string,
+): Promise<{ id: number; name: string; isActive: boolean }> {
+  throw new Error('createMapBanPool is not available under Rama');
 }
 
 /**
@@ -102,22 +86,7 @@ export async function createMapBanPool(name: string) {
  * - Pool must exist
  */
 export async function updateMapBanPool(id: number, name: string) {
-  const trimmedName = name.trim();
-
-  if (!trimmedName) {
-    throw new Error('Pool name is required');
-  }
-
-  // Check if pool exists
-  const pool = await prisma.mapBanPool.findUnique({ where: { id } });
-  if (!pool) {
-    throw new Error('Map ban pool not found');
-  }
-
-  return await prisma.mapBanPool.update({
-    where: { id },
-    data: { name: trimmedName },
-  });
+  throw new Error('updateMapBanPool is not available under Rama');
 }
 
 /**
@@ -126,17 +95,10 @@ export async function updateMapBanPool(id: number, name: string) {
  * Business logic validation:
  * - Pool must exist
  */
-export async function toggleMapBanPoolStatus(id: number) {
-  const pool = await prisma.mapBanPool.findUnique({ where: { id } });
-
-  if (!pool) {
-    throw new Error('Map ban pool not found');
-  }
-
-  return await prisma.mapBanPool.update({
-    where: { id },
-    data: { isActive: !pool.isActive },
-  });
+export async function toggleMapBanPoolStatus(
+  id: number,
+): Promise<{ id: number; name: string; isActive: boolean }> {
+  throw new Error('toggleMapBanPoolStatus is not available under Rama');
 }
 
 /**
@@ -147,49 +109,14 @@ export async function toggleMapBanPoolStatus(id: number) {
  * - Skips arenas that are already in the pool
  */
 export async function addMapsToPool(poolId: number, arenaIds: number[]) {
-  if (!arenaIds || arenaIds.length === 0) {
-    throw new Error('Please select at least one map');
-  }
-
-  // Get current max order number
-  const existingMaps = await prisma.mapInPool.findMany({
-    where: { poolId },
-    orderBy: { orderNum: 'desc' },
-    take: 1,
-  });
-
-  let nextOrderNum = existingMaps.length > 0 ? existingMaps[0].orderNum + 1 : 0;
-
-  // Add each arena to the pool
-  for (const arenaId of arenaIds) {
-    // Check if already exists
-    const existing = await prisma.mapInPool.findUnique({
-      where: {
-        poolId_arenaId: { poolId, arenaId },
-      },
-    });
-
-    if (!existing) {
-      await prisma.mapInPool.create({
-        data: {
-          poolId,
-          arenaId,
-          orderNum: nextOrderNum++,
-        },
-      });
-    }
-  }
+  throw new Error('addMapsToPool is not available under Rama');
 }
 
 /**
  * Remove a map from a pool
  */
 export async function removeMapFromPool(poolId: number, arenaId: number) {
-  await prisma.mapInPool.delete({
-    where: {
-      poolId_arenaId: { poolId, arenaId },
-    },
-  });
+  throw new Error('removeMapFromPool is not available under Rama');
 }
 
 /**
@@ -201,30 +128,5 @@ export async function removeMapFromPool(poolId: number, arenaId: number) {
  * - Deletes all associated maps in pool first
  */
 export async function deleteMapBanPool(id: number) {
-  // Check if pool exists
-  const pool = await prisma.mapBanPool.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: { matchMapBans: true },
-      },
-    },
-  });
-
-  if (!pool) {
-    throw new Error('Map ban pool not found');
-  }
-
-  // Check if pool is used by any matches
-  if (pool._count.matchMapBans > 0) {
-    throw new Error(`Cannot delete pool with ${pool._count.matchMapBans} matches using it.`);
-  }
-
-  // Delete associated maps first
-  await prisma.mapInPool.deleteMany({
-    where: { poolId: id },
-  });
-
-  // Then delete the pool
-  return await prisma.mapBanPool.delete({ where: { id } });
+  throw new Error('deleteMapBanPool is not available under Rama');
 }

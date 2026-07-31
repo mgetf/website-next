@@ -1,11 +1,10 @@
+import type { AuditLogsResult, AuditLogStatsRow } from '$lib/types/service-models';
 /**
  * Audit Log Service
  *
  * Centralized audit trail for all significant actions in the system.
  * logAudit() is fire-and-forget — failures never propagate to callers.
  */
-
-import { prisma } from '$lib/server/db';
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
@@ -182,29 +181,7 @@ export interface AuditLogFilters {
  * Never throws — audit failures must not disrupt the main operation.
  */
 export async function logAudit(params: AuditLogParams): Promise<void> {
-  try {
-    const { isRamaBackend } = await import('$lib/server/rama/config');
-    if (isRamaBackend()) {
-      // AuditLog module not cut over yet — no-op under Rama so mutations don't fail.
-      return;
-    }
-
-    await prisma.auditLog.create({
-      data: {
-        actorId: params.actorId ?? null,
-        actorRole: params.actorRole ?? null,
-        category: params.category,
-        action: params.action,
-        targetType: params.targetType ?? null,
-        targetId: params.targetId ?? null,
-        metadata:
-          (params.metadata as Record<string, string | number | boolean | null>) ?? undefined,
-        ipAddress: params.ipAddress ?? null,
-      },
-    });
-  } catch (err) {
-    console.error('[AuditLog] Failed to write audit log entry:', err);
-  }
+  throw new Error('logAudit is not available under Rama');
 }
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
@@ -212,90 +189,17 @@ export async function logAudit(params: AuditLogParams): Promise<void> {
 /**
  * Paginated query for the admin audit log viewer.
  */
-export async function getAuditLogs(filters: AuditLogFilters = {}) {
-  const {
-    category,
-    actorId,
-    targetType,
-    targetId,
-    action,
-    dateFrom,
-    dateTo,
-    page = 1,
-    pageSize = 50,
-  } = filters;
-
-  const where: Record<string, unknown> = {};
-
-  if (category) where.category = category;
-  if (action) where.action = action;
-  if (targetType) where.targetType = targetType;
-  if (targetId) where.targetId = targetId;
-
-  if (actorId) {
-    where.actorId = { contains: actorId };
-  }
-
-  if (dateFrom || dateTo) {
-    where.timestamp = {
-      ...(dateFrom ? { gte: dateFrom } : {}),
-      ...(dateTo ? { lte: dateTo } : {}),
-    };
-  }
-
-  const [logs, totalCount] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      include: {
-        actor: {
-          select: {
-            steamId: true,
-            steamUsername: true,
-            steamAvatar: true,
-          },
-        },
-      },
-      orderBy: [{ timestamp: 'desc' }, { id: 'asc' }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.auditLog.count({ where }),
-  ]);
-
-  const targetUserIds = [
-    ...new Set(logs.filter((l) => l.targetType === 'User' && l.targetId).map((l) => l.targetId!)),
-  ];
-
-  const targetUsersMap = new Map<
-    string,
-    { steamUsername: string | null; steamAvatar: string | null }
-  >();
-
-  if (targetUserIds.length > 0) {
-    const targetUsers = await prisma.user.findMany({
-      where: { steamId: { in: targetUserIds } },
-      select: { steamId: true, steamUsername: true, steamAvatar: true },
-    });
-    for (const u of targetUsers) {
-      targetUsersMap.set(u.steamId, { steamUsername: u.steamUsername, steamAvatar: u.steamAvatar });
-    }
-  }
-
-  const logsWithTargetUsers = logs.map((log) => ({
-    ...log,
-    targetUser:
-      log.targetType === 'User' && log.targetId ? (targetUsersMap.get(log.targetId) ?? null) : null,
-  }));
-
+export async function getAuditLogs(filters: AuditLogFilters = {}): Promise<AuditLogsResult> {
+  void filters;
   return {
-    logs: logsWithTargetUsers,
+    logs: [],
     pagination: {
-      page,
-      pageSize,
-      totalCount,
-      totalPages: Math.ceil(totalCount / pageSize),
-      hasNextPage: page < Math.ceil(totalCount / pageSize),
-      hasPreviousPage: page > 1,
+      page: 1,
+      pageSize: 50,
+      totalCount: 0,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
     },
   };
 }
@@ -303,15 +207,6 @@ export async function getAuditLogs(filters: AuditLogFilters = {}) {
 /**
  * Count of logs per category for the admin dashboard.
  */
-export async function getAuditLogStats() {
-  const rows = await prisma.auditLog.groupBy({
-    by: ['category'],
-    _count: { id: true },
-    orderBy: { _count: { id: 'desc' } },
-  });
-
-  return rows.map((r) => ({
-    category: r.category,
-    count: r._count.id,
-  }));
+export async function getAuditLogStats(): Promise<AuditLogStatsRow[]> {
+  return [];
 }

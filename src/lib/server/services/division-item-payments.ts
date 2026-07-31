@@ -1,5 +1,3 @@
-import { prisma } from '$lib/server/db';
-
 export async function upsertDivisionItemPayment(
   divisionId: number,
   data: { steamItemId: number; itemQuantity: number },
@@ -8,18 +6,7 @@ export async function upsertDivisionItemPayment(
   if (isRamaBackend()) {
     throw new Error('Division item payments are not available under DATA_BACKEND=rama yet');
   }
-  return await prisma.divisionItemPayment.upsert({
-    where: { divisionId },
-    create: {
-      divisionId,
-      steamItemId: data.steamItemId,
-      itemQuantity: data.itemQuantity,
-    },
-    update: {
-      steamItemId: data.steamItemId,
-      itemQuantity: data.itemQuantity,
-    },
-  });
+  throw new Error('upsertDivisionItemPayment requires DATA_BACKEND=rama');
 }
 
 export async function deleteDivisionItemPayment(divisionId: number) {
@@ -28,7 +15,5 @@ export async function deleteDivisionItemPayment(divisionId: number) {
     void divisionId;
     return { count: 0 };
   }
-  return await prisma.divisionItemPayment.deleteMany({
-    where: { divisionId },
-  });
+  throw new Error('deleteDivisionItemPayment requires DATA_BACKEND=rama');
 }

@@ -4,7 +4,6 @@
  * All global settings and configuration business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
 import { setActiveSignupSeason } from './signupSeasons';
 import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
 import { createCatalogClient, getRegionIds, getActiveSignupSeason } from '$lib/server/rama/catalog';
@@ -27,7 +26,7 @@ export async function getGlobalSettings() {
       standingsVisibleStatuses: ['READY', 'PENDING'],
     };
   }
-  return await prisma.global.findFirst();
+  throw new Error('getGlobalSettings requires DATA_BACKEND=rama');
 }
 
 /**
@@ -40,23 +39,7 @@ export async function updateGlobalSettings(data: {
   botSteamId?: string | null;
   standingsVisibleStatuses?: string[];
 }) {
-  const existingSettings = await prisma.global.findFirst();
-
-  if (existingSettings) {
-    return await prisma.global.update({
-      where: { id: existingSettings.id },
-      data,
-    });
-  } else {
-    return await prisma.global.create({
-      data: {
-        leagueFees: data.leagueFees ?? 0,
-        botTradeOfferUrl: data.botTradeOfferUrl ?? null,
-        botSteamId: data.botSteamId ?? null,
-        standingsVisibleStatuses: data.standingsVisibleStatuses ?? ['READY', 'PENDING'],
-      },
-    });
-  }
+  throw new Error('updateGlobalSettings is not available under Rama');
 }
 
 /**
@@ -91,67 +74,28 @@ export interface SeasonSettings {
  * Update settings for a specific season
  */
 export async function updateSeasonSettings(seasonId: number, data: Partial<SeasonSettings>) {
-  return await prisma.season.update({
-    where: { id: seasonId },
-    data,
-  });
+  throw new Error('updateSeasonSettings is not available under Rama');
 }
 
 /**
  * Toggle signups open status for a season
  */
 export async function toggleSeasonSignupsOpen(seasonId: number) {
-  const season = await prisma.season.findUnique({
-    where: { id: seasonId },
-    select: { signupsOpen: true },
-  });
-
-  if (!season) {
-    throw new Error('Season not found');
-  }
-
-  return await prisma.season.update({
-    where: { id: seasonId },
-    data: { signupsOpen: !season.signupsOpen },
-  });
+  throw new Error('toggleSeasonSignupsOpen is not available under Rama');
 }
 
 /**
  * Toggle roster locked status for a season
  */
 export async function toggleSeasonRosterLocked(seasonId: number) {
-  const season = await prisma.season.findUnique({
-    where: { id: seasonId },
-    select: { rosterLocked: true },
-  });
-
-  if (!season) {
-    throw new Error('Season not found');
-  }
-
-  return await prisma.season.update({
-    where: { id: seasonId },
-    data: { rosterLocked: !season.rosterLocked },
-  });
+  throw new Error('toggleSeasonRosterLocked is not available under Rama');
 }
 
 /**
  * Toggle payment required status for a season
  */
 export async function toggleSeasonPaymentRequired(seasonId: number) {
-  const season = await prisma.season.findUnique({
-    where: { id: seasonId },
-    select: { paymentRequired: true },
-  });
-
-  if (!season) {
-    throw new Error('Season not found');
-  }
-
-  return await prisma.season.update({
-    where: { id: seasonId },
-    data: { paymentRequired: !season.paymentRequired },
-  });
+  throw new Error('toggleSeasonPaymentRequired is not available under Rama');
 }
 
 /**
@@ -171,11 +115,7 @@ export async function isSeasonCurrentlyActive(seasonId: number): Promise<boolean
     }
     return false;
   }
-
-  const entry = await prisma.activeSignupSeason.findFirst({
-    where: { seasonId },
-  });
-  return entry !== null;
+  throw new Error('isSeasonCurrentlyActive requires DATA_BACKEND=rama');
 }
 
 /**
@@ -183,12 +123,7 @@ export async function isSeasonCurrentlyActive(seasonId: number): Promise<boolean
  * Returns false for teams with no season or whose season has ended.
  */
 export async function isTeamSeasonActive(teamId: number): Promise<boolean> {
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    select: { seasonId: true },
-  });
-  if (!team?.seasonId) return false;
-  return isSeasonCurrentlyActive(team.seasonId);
+  return false;
 }
 
 /**
@@ -206,21 +141,7 @@ export async function getEffectiveRosterLock(teamId: number): Promise<boolean> {
     if (!season?.rosterLocked) return false;
     return isSeasonCurrentlyActive(Number(seasonId));
   }
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    select: {
-      season: {
-        select: {
-          id: true,
-          rosterLocked: true,
-        },
-      },
-    },
-  });
-
-  if (!team?.season?.rosterLocked) return false;
-  return isSeasonCurrentlyActive(team.season.id);
+  throw new Error('getEffectiveRosterLock requires DATA_BACKEND=rama');
 }
 
 /**
@@ -232,14 +153,5 @@ export async function hasAnySignupsOpen(): Promise<boolean> {
     const { hasAnyOpenSignup } = await import('$lib/server/services/signupSeasons');
     return hasAnyOpenSignup();
   }
-
-  const activeSeasons = await prisma.activeSignupSeason.findMany({
-    include: {
-      season: {
-        select: { signupsOpen: true },
-      },
-    },
-  });
-
-  return activeSeasons.some((as) => as.season.signupsOpen);
+  throw new Error('hasAnySignupsOpen requires DATA_BACKEND=rama');
 }

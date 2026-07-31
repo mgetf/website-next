@@ -3,8 +3,6 @@
  * Manage site-wide settings like title, favicon, background image, etc.
  */
 
-import { prisma } from '$lib/server/db';
-
 export interface SiteSettingsData {
   id: number;
   siteTitle: string;
@@ -33,18 +31,7 @@ const RAMA_DEFAULTS: SiteSettingsData = {
 export async function getSiteSettings(): Promise<SiteSettingsData> {
   const { isRamaBackend } = await import('$lib/server/rama/config');
   if (isRamaBackend()) return { ...RAMA_DEFAULTS };
-
-  let settings = await prisma.siteSettings.findFirst();
-
-  if (!settings) {
-    settings = await prisma.siteSettings.create({
-      data: {
-        siteTitle: 'MGE.tf',
-      },
-    });
-  }
-
-  return settings;
+  throw new Error('getSiteSettings requires DATA_BACKEND=rama');
 }
 
 /**
@@ -58,12 +45,7 @@ export async function updateSiteSettings(data: {
   if (isRamaBackend()) {
     throw new Error('Site settings mutations are not available under DATA_BACKEND=rama yet');
   }
-  const current = await getSiteSettings();
-
-  return await prisma.siteSettings.update({
-    where: { id: current.id },
-    data,
-  });
+  throw new Error('updateSiteSettings requires DATA_BACKEND=rama');
 }
 
 /**
@@ -74,12 +56,7 @@ export async function updateFavicon(faviconPath: string) {
   if (isRamaBackend()) {
     throw new Error('Site settings mutations are not available under DATA_BACKEND=rama yet');
   }
-  const current = await getSiteSettings();
-
-  return await prisma.siteSettings.update({
-    where: { id: current.id },
-    data: { faviconPath },
-  });
+  throw new Error('updateFavicon requires DATA_BACKEND=rama');
 }
 
 /**
@@ -95,17 +72,7 @@ export async function updateBackgroundImage(
   if (isRamaBackend()) {
     throw new Error('Site settings mutations are not available under DATA_BACKEND=rama yet');
   }
-  const current = await getSiteSettings();
-
-  return await prisma.siteSettings.update({
-    where: { id: current.id },
-    data: {
-      backgroundImagePath,
-      backgroundBlur,
-      backgroundBrightness,
-      backgroundOverlay,
-    },
-  });
+  throw new Error('updateBackgroundImage requires DATA_BACKEND=rama');
 }
 
 /**
@@ -120,16 +87,7 @@ export async function updateBackgroundSettings(
   if (isRamaBackend()) {
     throw new Error('Site settings mutations are not available under DATA_BACKEND=rama yet');
   }
-  const current = await getSiteSettings();
-
-  return await prisma.siteSettings.update({
-    where: { id: current.id },
-    data: {
-      backgroundBlur,
-      backgroundBrightness,
-      backgroundOverlay,
-    },
-  });
+  throw new Error('updateBackgroundSettings requires DATA_BACKEND=rama');
 }
 
 /**
@@ -140,15 +98,5 @@ export async function removeBackgroundImage() {
   if (isRamaBackend()) {
     throw new Error('Site settings mutations are not available under DATA_BACKEND=rama yet');
   }
-  const current = await getSiteSettings();
-
-  return await prisma.siteSettings.update({
-    where: { id: current.id },
-    data: {
-      backgroundImagePath: null,
-      backgroundBlur: 0,
-      backgroundBrightness: 1,
-      backgroundOverlay: 0.85,
-    },
-  });
+  throw new Error('removeBackgroundImage requires DATA_BACKEND=rama');
 }

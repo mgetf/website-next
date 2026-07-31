@@ -1,11 +1,9 @@
+import type { DemoStatus } from '$lib/types/enums';
 /**
  * Demo Reports Service
  *
  * All demo report-related business logic and database operations.
  */
-
-import { prisma } from '$lib/server/db';
-import type { DemoStatus } from '$prisma/client.js';
 
 /**
  * Get all demo reports with related data (demo, reporter, player, match)
@@ -117,40 +115,7 @@ export async function getAllDemoReports() {
     });
     return rows;
   }
-
-  return await prisma.demoReport.findMany({
-    include: {
-      demo: {
-        include: {
-          player: {
-            select: { steamId: true, steamUsername: true, steamAvatar: true },
-          },
-          submitter: {
-            select: { steamId: true, steamUsername: true, steamAvatar: true },
-          },
-          match: {
-            select: {
-              id: true,
-              seasonNo: true,
-              weekNo: true,
-              homeTeam: { select: { id: true, name: true } },
-              awayTeam: { select: { id: true, name: true } },
-            },
-          },
-        },
-      },
-      reporter: {
-        select: { steamId: true, steamUsername: true, steamAvatar: true },
-      },
-      admin: {
-        select: { steamId: true, steamUsername: true },
-      },
-    },
-    orderBy: [
-      { status: 'asc' }, // Pending first
-      { reportedAt: 'desc' },
-    ],
-  });
+  throw new Error('getAllDemoReports requires DATA_BACKEND=rama');
 }
 
 /**
@@ -188,13 +153,5 @@ export async function updateDemoReport(
       reportedAt: report?.reportedAt ? new Date(report.reportedAt) : new Date(),
     };
   }
-
-  return await prisma.demoReport.update({
-    where: { id: reportId },
-    data: {
-      status,
-      adminComments,
-      adminId: adminSteamId,
-    },
-  });
+  throw new Error('updateDemoReport requires DATA_BACKEND=rama');
 }

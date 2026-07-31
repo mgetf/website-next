@@ -1,16 +1,31 @@
+import { MatchStatus } from '$lib/types/enums';
 /**
  * Disputes Service
  *
  * All dispute-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import { MatchStatus } from '$prisma/client.js';
-
 /**
  * Get all disputed matches with team and season info
  */
-export async function getDisputedMatches() {
+export async function getDisputedMatches(): Promise<
+  Array<{
+    id: number;
+    status: MatchStatus;
+    seasonId: number;
+    seasonNo: number;
+    weekNo: number | null;
+    winnerScore: number | null;
+    loserScore: number | null;
+    homeTeamId: number;
+    awayTeamId: number;
+    winnerId: number | null;
+    homeTeam: { id: number; name: string };
+    awayTeam: { id: number; name: string };
+    season: { id: number; seasonNum: number; region: { name: string } };
+    winner: { id: number; name: string } | null;
+  }>
+> {
   const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
   if (isRamaBackend()) {
     const { createMatchClient, getMatch, getMatchIdsByStatus } =
@@ -38,6 +53,9 @@ export async function getDisputedMatches() {
         status: MatchStatus.DISPUTE,
         seasonId,
         seasonNo: Number(match.seasonNo ?? season?.seasonNum ?? 0),
+        weekNo: match.weekNo != null ? Number(match.weekNo) : null,
+        winnerScore: match.winnerScore != null ? Number(match.winnerScore) : null,
+        loserScore: match.loserScore != null ? Number(match.loserScore) : null,
         homeTeamId,
         awayTeamId,
         winnerId: winnerIdRaw && Number.isFinite(winnerIdRaw) ? winnerIdRaw : null,
@@ -60,41 +78,10 @@ export async function getDisputedMatches() {
       });
     }
     rows.sort((a, b) => b.id - a.id);
-    return rows as unknown as Awaited<ReturnType<typeof getDisputedMatchesFromPrisma>>;
+    return rows;
   }
 
-  return getDisputedMatchesFromPrisma();
-}
-
-async function getDisputedMatchesFromPrisma() {
-  return await prisma.match.findMany({
-    where: {
-      status: MatchStatus.DISPUTE,
-    },
-    include: {
-      homeTeam: {
-        select: { id: true, name: true },
-      },
-      awayTeam: {
-        select: { id: true, name: true },
-      },
-      season: {
-        select: {
-          id: true,
-          seasonNum: true,
-          region: {
-            select: { name: true },
-          },
-        },
-      },
-      winner: {
-        select: { id: true, name: true },
-      },
-    },
-    orderBy: {
-      id: 'desc',
-    },
-  });
+  return [];
 }
 
 /**
@@ -118,9 +105,5 @@ export async function resolveDispute(matchId: number, newStatus: MatchStatus) {
     if (!ack.ok) throw new Error(ack.error || 'Failed to resolve dispute');
     return { id: matchId, status: newStatus };
   }
-
-  return await prisma.match.update({
-    where: { id: matchId },
-    data: { status: newStatus },
-  });
+  throw new Error('resolveDispute requires DATA_BACKEND=rama');
 }

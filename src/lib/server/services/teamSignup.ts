@@ -3,9 +3,6 @@
  * Handles team creation, re-registration, and join token generation
  */
 
-import { prisma } from '$lib/server/db';
-import { TeamStatus } from '$prisma/client.js';
-import type { Prisma } from '$prisma/client.js';
 import jwt from 'jsonwebtoken';
 import { badRequest, forbidden } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
@@ -25,17 +22,7 @@ import { createDivisionsClient, getDivision } from '$lib/server/rama/divisions';
 // Token expiry reduced from 7d to 1h for security (shorter exposure window)
 const TOKEN_EXPIRY = '1h';
 
-type OwnedTeamMembership = Prisma.PlayerInTeamGetPayload<{
-  include: {
-    team: {
-      include: {
-        division: true;
-        region: true;
-        season: true;
-      };
-    };
-  };
-}>;
+type OwnedTeamMembership = any;
 
 type OwnedTeam = OwnedTeamMembership['team'];
 
@@ -192,162 +179,19 @@ async function createTeamRama(data: TeamCreationData): Promise<number> {
  */
 export async function getSignupContext(steamId: string | null): Promise<SignupContext> {
   if (isRamaBackend()) return getSignupContextRama(steamId);
-
-  // Get current signup season IDs for 2v2 format
-  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
-
-  // Get active signup seasons with their settings
-  const activeSignupSeasons = await prisma.activeSignupSeason.findMany({
-    where: {
-      formatId: FORMAT_2V2,
-    },
-    include: {
-      season: {
-        select: {
-          signupsOpen: true,
-          rosterLocked: true,
-        },
-      },
-    },
-  });
-
-  // Check if ANY active signup season has signups open
-  const anySignupsOpen = activeSignupSeasons.some((as) => as.season.signupsOpen);
-  // Check if ALL active signup seasons have rosters locked (conservative approach)
-  const allRostersLocked =
-    activeSignupSeasons.length > 0 && activeSignupSeasons.every((as) => as.season.rosterLocked);
-
-  let ownedTeams: OwnedTeam[] = [];
-  let hasActiveTeam = false;
-
-  if (steamId) {
-    const ownedMemberships = await prisma.playerInTeam.findMany({
-      where: {
-        playerSteamId: steamId,
-        permissionLevel: 2,
-        active: 1,
-        team: {
-          formatId: FORMAT_2V2,
-        },
-      },
-      include: {
-        team: {
-          include: {
-            division: true,
-            region: true,
-            season: true,
-          },
-        },
-      },
-    });
-    ownedTeams = ownedMemberships.map((membership) => membership.team);
-
-    // Check if user is in any active 2v2 team that's ALREADY in a current signup season
-    // This allows users to re-register teams from previous seasons
-    const activeTeamMembership = await prisma.playerInTeam.findFirst({
-      where: {
-        playerSteamId: steamId,
-        active: 1,
-        team: {
-          formatId: FORMAT_2V2,
-          seasonId: {
-            in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1], // Use -1 as fallback to match nothing
-          },
-        },
-      },
-    });
-
-    hasActiveTeam = !!activeTeamMembership;
-  }
-
-  // Find active memberships on old-season teams that would be auto-removed on signup.
-  // Only relevant when the user can actually proceed (no current-season team blocking them).
-  let previousSeasonTeams: { id: number; name: string }[] = [];
-  if (steamId && !hasActiveTeam) {
-    const oldMemberships = await prisma.playerInTeam.findMany({
-      where: {
-        playerSteamId: steamId,
-        active: 1,
-        team: {
-          formatId: FORMAT_2V2,
-          seasonId: {
-            notIn: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
-          },
-        },
-      },
-      include: { team: { select: { id: true, name: true } } },
-    });
-    previousSeasonTeams = oldMemberships.map((m) => ({
-      id: m.team.id,
-      name: m.team.name,
-    }));
-  }
-
-  return {
-    isLoggedIn: !!steamId,
-    ownedTeams,
-    hasActiveTeam,
-    signupClosed: !anySignupsOpen, // Inverted: signupsOpen=false means signupClosed=true
-    rosterLocked: allRostersLocked,
-    previousSeasonTeams,
-  };
+  throw new Error('getSignupContext requires DATA_BACKEND=rama');
 }
 
 /**
  * Validate team creation data
  */
+/** @lintignore Soft-stub / cutover API surface */
 export async function validateTeamCreation(data: TeamCreationData): Promise<void> {
   if (isRamaBackend()) {
     await validateTeamCreationRama(data);
     return;
   }
-
-  // Get current signup season IDs for 2v2 format
-  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
-
-  // Check if user is already in an active 2v2 team for a CURRENT signup season
-  // Users can create new teams if their old team is from a previous season
-  const existingTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: data.ownerSteamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-        seasonId: {
-          in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
-        },
-      },
-    },
-  });
-
-  if (existingTeam) {
-    badRequest('You are already in an active 2v2 team for this season');
-  }
-
-  // Validate team name
-  if (!data.name || data.name.length > 25) {
-    badRequest('Team name must be between 1 and 25 characters');
-  }
-
-  if (/<|>/.test(data.name)) {
-    badRequest('Team name cannot contain < or > characters');
-  }
-
-  // Check for duplicate team name
-  const duplicateTeam = await prisma.team.findFirst({
-    where: {
-      name: data.name,
-    },
-  });
-
-  if (duplicateTeam) {
-    badRequest('A team with this name already exists');
-  }
-
-  // Validate acronym if provided
-  if (data.acronym && data.acronym.length > 4) {
-    badRequest('Team acronym must be 4 characters or less');
-  }
+  throw new Error('validateTeamCreation requires DATA_BACKEND=rama');
 }
 
 /**
@@ -355,184 +199,14 @@ export async function validateTeamCreation(data: TeamCreationData): Promise<void
  */
 export async function createTeam(data: TeamCreationData): Promise<number> {
   if (isRamaBackend()) return createTeamRama(data);
-
-  // Validate first
-  await validateTeamCreation(data);
-
-  // Get division to determine status
-  const division = await prisma.division.findUnique({
-    where: { id: data.divisionId },
-  });
-
-  if (!division) {
-    badRequest('Invalid division selected');
-  }
-
-  // Get the signup season for the region (2v2 format)
-  const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
-
-  if (!seasonId) {
-    badRequest('No active signup season for this region');
-  }
-
-  const initialStatus = TeamStatus.UNREADY;
-
-  // Hash the join password for secure storage
-  const hashedPassword = await hashPassword(data.joinPassword);
-
-  // Create team
-  const team = await prisma.team.create({
-    data: {
-      name: data.name,
-      acronym: data.acronym,
-      avatar: data.avatar,
-      divisionId: data.divisionId,
-      regionId: data.regionId,
-      seasonId: seasonId,
-      formatId: FORMAT_2V2,
-      status: initialStatus,
-      joinPassword: hashedPassword,
-      paymentStatus: division.signupCost === 0 ? 2 : 0,
-    },
-  });
-
-  // Check if user has already paid
-  const existingPayment = await prisma.paymentTracker.findUnique({
-    where: {
-      playerSteamId_seasonId: {
-        playerSteamId: data.ownerSteamId,
-        seasonId: seasonId,
-      },
-    },
-  });
-
-  const amountPaid = existingPayment?.amount || 0;
-  const playerPaymentStatus =
-    division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
-
-  // Deactivate any stale memberships on other 2v2 teams from previous seasons
-  // before adding the owner to the new team
-  await prisma.playerInTeam.updateMany({
-    where: {
-      playerSteamId: data.ownerSteamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-        seasonId: { not: seasonId },
-      },
-    },
-    data: {
-      active: 0,
-      leftAt: new Date(),
-    },
-  });
-
-  // Add owner as player with permissionLevel = 2 (Owner)
-  await prisma.playerInTeam.create({
-    data: {
-      playerSteamId: data.ownerSteamId,
-      teamId: team.id,
-      permissionLevel: 2,
-      paymentStatus: playerPaymentStatus,
-      active: 1,
-    },
-  });
-
-  // Note: We don't create a teamNameHistory record on initial creation
-  // History records are only created when a team name is CHANGED
-
-  return team.id;
+  throw new Error('createTeam requires DATA_BACKEND=rama');
 }
 
 /**
  * Re-register an existing team for a new season
  */
 export async function reregisterTeam(data: TeamReregistrationData): Promise<void> {
-  const ownership = await prisma.playerInTeam.findUnique({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId: data.ownerSteamId,
-        teamId: data.teamId,
-      },
-    },
-    include: {
-      team: {
-        select: { formatId: true },
-      },
-    },
-  });
-
-  if (!ownership || ownership.permissionLevel !== 2) {
-    forbidden('You must be the team owner to re-register');
-  }
-
-  if (ownership.team.formatId !== FORMAT_2V2) {
-    badRequest('Only 2v2 teams can be re-registered on this page');
-  }
-
-  const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
-
-  if (!seasonId) {
-    badRequest('No active signup season for this region');
-  }
-
-  // Get division info
-  const division = await prisma.division.findUnique({
-    where: { id: data.divisionId },
-  });
-
-  if (!division) {
-    badRequest('Invalid division selected');
-  }
-
-  const initialPaymentStatus = division.signupCost === 0 ? 2 : 0;
-  const initialStatus = TeamStatus.UNREADY;
-
-  // Deactivate any stale memberships on other 2v2 teams from previous seasons
-  await prisma.playerInTeam.updateMany({
-    where: {
-      playerSteamId: data.ownerSteamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-        id: { not: data.teamId },
-        seasonId: { not: seasonId },
-      },
-    },
-    data: {
-      active: 0,
-      leftAt: new Date(),
-    },
-  });
-
-  // Update team with new season/division/region and reset stats
-  await prisma.team.update({
-    where: { id: data.teamId },
-    data: {
-      seasonId: seasonId,
-      regionId: data.regionId,
-      divisionId: data.divisionId,
-      status: initialStatus,
-      paymentStatus: initialPaymentStatus,
-      wins: 0,
-      losses: 0,
-      gamesWon: 0,
-      gamesLost: 0,
-      pointsScored: 0,
-      pointsScoredAgainst: 0,
-    },
-  });
-
-  // Update payment status for all active players
-  await prisma.playerInTeam.updateMany({
-    where: {
-      teamId: data.teamId,
-      active: 1,
-    },
-    data: {
-      paymentStatus: initialPaymentStatus,
-    },
-  });
+  throw new Error('reregisterTeam is not available under Rama');
 }
 
 /**

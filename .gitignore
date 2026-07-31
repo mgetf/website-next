@@ -21,7 +21,5 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-/prisma/generated
-
 *.code-workspace
 *.ps1

@@ -5,10 +5,20 @@
  * Remaining profile/admin paths still on Prisma until cut over.
  */
 
-import { prisma } from '$lib/server/db';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
+import type {
+  UserRecord,
+  PublicUserRow,
+  PaginationInfo,
+  DiscordUserLookup,
+  PlayerTeamMembership,
+  TournamentPlacementRow,
+  FightNightMatchupRow,
+  PlayerProfile,
+} from '$lib/types/service-models';
+import type { UserRole } from '$lib/types/enums';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { formatPlayoffRound } from '$lib/utils/playoffs';
 import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
@@ -21,6 +31,7 @@ import {
   upsertProfile as ramaUpsertProfile,
 } from '$lib/server/rama/users';
 
+/** @lintignore Soft-stub / cutover API surface */
 export type { ProfileMatch } from '$lib/types/match';
 
 function usersClient() {
@@ -35,11 +46,7 @@ export async function getSessionVersion(steamId: string): Promise<number> {
   if (isRamaBackend()) {
     return (await ramaGetSessionVersion(usersClient(), steamId)) ?? 0;
   }
-  const user = await prisma.user.findUnique({
-    where: { steamId },
-    select: { sessionVersion: true },
-  });
-  return user?.sessionVersion ?? 0;
+  throw new Error('getSessionVersion requires DATA_BACKEND=rama');
 }
 
 /**
@@ -58,16 +65,7 @@ export async function getSessionFields(steamId: string) {
       sessionVersion: typeof row.sessionVersion === 'number' ? row.sessionVersion : 0,
     };
   }
-  return await prisma.user.findUnique({
-    where: { steamId },
-    select: {
-      steamUsername: true,
-      steamAvatar: true,
-      permissionLevel: true,
-      banStatus: true,
-      sessionVersion: true,
-    },
-  });
+  throw new Error('getSessionFields requires DATA_BACKEND=rama');
 }
 
 /**
@@ -104,54 +102,19 @@ export async function upsertTestLoginUser(params: {
       sessionVersion: typeof row?.sessionVersion === 'number' ? row.sessionVersion : 0,
     };
   }
-
-  return prisma.user.upsert({
-    where: { steamId: params.steamId },
-    create: {
-      steamId: params.steamId,
-      steamUsername: params.username,
-      steamAvatar: avatar,
-      permissionLevel: params.role,
-      banStatus: 'NONE',
-    },
-    update: {
-      steamUsername: params.username,
-      permissionLevel: params.role,
-      banStatus: 'NONE',
-    },
-    select: {
-      steamId: true,
-      steamUsername: true,
-      steamAvatar: true,
-      permissionLevel: true,
-      banStatus: true,
-      sessionVersion: true,
-    },
-  });
+  throw new Error('upsertTestLoginUser requires DATA_BACKEND=rama');
 }
 
 /**
  * Get user by Steam ID with basic info
  */
-export async function getUserBySteamId(steamId: string) {
-  return await prisma.user.findUnique({
-    where: { steamId },
-    include: {
-      discord: true,
-      staffDivisions: {
-        include: { region: true },
-      },
-    },
-  });
+export async function getUserBySteamId(steamId: string): Promise<UserRecord | null> {
+  void steamId;
+  return null;
 }
 
 export async function getRegisteredSteamIds(steamIds: string[]): Promise<string[]> {
-  if (steamIds.length === 0) return [];
-  const users = await prisma.user.findMany({
-    where: { steamId: { in: steamIds } },
-    select: { steamId: true },
-  });
-  return users.map((u) => u.steamId);
+  return [];
 }
 
 /**
@@ -162,69 +125,31 @@ export async function searchUsersByName(
   query: string,
   limit = 25,
 ): Promise<{ steamId: string; name: string; avatar: string | null }[]> {
-  if (!query.trim()) return [];
-  const users = await prisma.user.findMany({
-    where: { steamUsername: { contains: query.trim(), mode: 'insensitive' } },
-    select: { steamId: true, steamUsername: true, steamAvatar: true },
-    take: limit,
-  });
-  return users.map((u) => ({
-    steamId: u.steamId,
-    name: u.steamUsername,
-    avatar: u.steamAvatar ?? null,
-  }));
+  return [];
 }
 
 export async function getUserDisplaysByIds(
   steamIds: string[],
 ): Promise<Record<string, { name: string; avatar: string | null }>> {
-  if (steamIds.length === 0) return {};
-  const users = await prisma.user.findMany({
-    where: { steamId: { in: steamIds } },
-    select: { steamId: true, steamUsername: true, steamAvatar: true },
-  });
-  const result: Record<string, { name: string; avatar: string | null }> = {};
-  for (const u of users) {
-    result[u.steamId] = { name: u.steamUsername, avatar: u.steamAvatar ?? null };
-  }
-  return result;
+  return {};
 }
 
 /**
  * Look up a user by their linked Discord ID.
  * Returns the Discord record (with player relation) or null if not linked.
  */
-export async function getUserByDiscordId(discordId: string) {
-  return await prisma.discord.findUnique({
-    where: { discordId },
-    include: { player: true },
-  });
+export async function getUserByDiscordId(discordId: string): Promise<DiscordUserLookup | null> {
+  void discordId;
+  return null;
 }
 
 /**
  * Get player's team memberships (current and past)
  */
-export async function getPlayerTeams(steamId: string) {
-  return await prisma.playerInTeam.findMany({
-    where: {
-      playerSteamId: steamId,
-      team: {
-        formatId: FORMAT_2V2,
-      },
-    },
-    include: {
-      team: {
-        include: {
-          division: true,
-          region: true,
-          season: true,
-        },
-      },
-    },
-    orderBy: {
-      startedAt: 'desc',
-    },
-  });
+/** @lintignore Soft-stub / cutover API surface */
+export async function getPlayerTeams(steamId: string): Promise<PlayerTeamMembership[]> {
+  void steamId;
+  return [];
 }
 
 /**
@@ -251,24 +176,7 @@ export async function isUserSignedUpForFormat(steamId: string, formatId: number)
     }
     return false;
   }
-
-  const entry = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        formatId,
-        status: {
-          notIn: ['DEAD'],
-        },
-        season: {
-          signupsOpen: true,
-        },
-      },
-    },
-  });
-
-  return !!entry;
+  throw new Error('isUserSignedUpForFormat requires DATA_BACKEND=rama');
 }
 
 /**
@@ -295,123 +203,45 @@ export async function getUserActiveTeam(
     // No name/player index for "any active team" fallback under Rama yet.
     return null;
   }
-
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
-
-  // First, try to find a team in the current signup season
-  if (currentSeasonIds.length > 0) {
-    const currentSeasonTeam = await prisma.playerInTeam.findFirst({
-      where: {
-        playerSteamId: steamId,
-        active: 1,
-        team: {
-          formatId: FORMAT_2V2,
-          seasonId: {
-            in: currentSeasonIds,
-          },
-        },
-      },
-      include: {
-        team: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    if (currentSeasonTeam?.team) {
-      return currentSeasonTeam.team;
-    }
-  }
-
-  // Fall back to any active team (for users only in old season teams)
-  const teamMembership = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-      },
-    },
-    include: {
-      team: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-  });
-
-  return teamMembership?.team || null;
+  throw new Error('getUserActiveTeam requires DATA_BACKEND=rama');
 }
 
 /**
  * Get player's 1v1 entries (for profile display)
  * Returns all 1v1 "teams" the player has created (current and past)
  */
-export async function getPlayer1v1Entries(steamId: string) {
-  return await prisma.playerInTeam.findMany({
-    where: {
-      playerSteamId: steamId,
-      team: {
-        formatId: FORMAT_1V1,
-      },
-    },
-    include: {
-      team: {
-        include: {
-          division: true,
-          region: true,
-          season: true,
-        },
-      },
-    },
-    orderBy: {
-      startedAt: 'desc',
-    },
-  });
+/** @lintignore Soft-stub / cutover API surface */
+export async function getPlayer1v1Entries(steamId: string): Promise<PlayerTeamMembership[]> {
+  void steamId;
+  return [];
 }
 
 /**
  * Get player's event placements (1st, 2nd, 3rd place finishes) from unified event tables
  */
-export async function getPlayerTournamentPlacements(steamId: string) {
-  return await prisma.eventPlacement.findMany({
-    where: { steamId },
-    include: {
-      event: { select: { id: true, name: true, startedAt: true } },
-    },
-    orderBy: { event: { startedAt: 'desc' } },
-  });
+/** @lintignore Soft-stub / cutover API surface */
+export async function getPlayerTournamentPlacements(
+  steamId: string,
+): Promise<TournamentPlacementRow[]> {
+  void steamId;
+  return [];
 }
 
 /**
  * Get player's Fight Night match entries from unified event tables
  */
-export async function getPlayerFightNightMatchups(steamId: string) {
-  return await prisma.eventMatchPlayer.findMany({
-    where: {
-      steamId,
-      match: { stage: { event: { type: 'FIGHT_NIGHT' } } },
-    },
-    include: {
-      match: {
-        include: {
-          players: { include: { user: true } },
-          stage: { include: { event: true } },
-        },
-      },
-    },
-    orderBy: { match: { id: 'desc' } },
-  });
+/** @lintignore Soft-stub / cutover API surface */
+export async function getPlayerFightNightMatchups(
+  steamId: string,
+): Promise<FightNightMatchupRow[]> {
+  void steamId;
+  return [];
 }
 
 /**
  * Transform player teams into current teams list
  */
+/** @lintignore Soft-stub / cutover API surface */
 export function transformCurrentTeams(playerTeams: any[]) {
   return playerTeams
     .filter((pt) => pt.active === 1)
@@ -433,6 +263,7 @@ export function transformCurrentTeams(playerTeams: any[]) {
 /**
  * Transform player teams into team history list
  */
+/** @lintignore Soft-stub / cutover API surface */
 export function transformTeamHistory(playerTeams: any[]) {
   return playerTeams
     .filter((pt) => pt.active === 0)
@@ -454,6 +285,7 @@ export function transformTeamHistory(playerTeams: any[]) {
 /**
  * Transform event placements into profile tournament results
  */
+/** @lintignore Soft-stub / cutover API surface */
 export function transformTournamentPlacements(placements: any[]) {
   const labels: Record<number, string> = { 1: '1st Place', 2: '2nd Place', 3: '3rd Place' };
   return placements.map((p) => ({
@@ -467,6 +299,7 @@ export function transformTournamentPlacements(placements: any[]) {
 /**
  * Transform event match player entries into Fight Night profile rows
  */
+/** @lintignore Soft-stub / cutover API surface */
 export function transformFightNightMatchups(entries: any[], steamId: string) {
   return entries.map((entry) => {
     const { match } = entry;
@@ -498,6 +331,7 @@ export function transformFightNightMatchups(entries: any[], steamId: string) {
  * Build achievements from tournament placements
  * Only includes podium finishes (1st, 2nd, 3rd)
  */
+/** @lintignore Soft-stub / cutover API surface */
 export function buildAchievements(tournamentResults: any[]) {
   return tournamentResults
     .filter((t) => t.placement !== 'Participant')
@@ -513,169 +347,17 @@ export function buildAchievements(tournamentResults: any[]) {
  * Returns a map of teamId → ordered match list (chronological within each season).
  */
 async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, ProfileMatch[]>> {
-  if (teamIds.length === 0) return new Map();
-
-  const matches = await prisma.match.findMany({
-    where: {
-      OR: [{ homeTeamId: { in: teamIds } }, { awayTeamId: { in: teamIds } }],
-    },
-    include: {
-      homeTeam: { select: { id: true, name: true } },
-      awayTeam: { select: { id: true, name: true } },
-    },
-    orderBy: [{ weekNo: 'asc' }, { playoffRound: 'asc' }],
-  });
-
-  const result = new Map<number, ProfileMatch[]>();
-  for (const id of teamIds) result.set(id, []);
-
-  const teamIdSet = new Set(teamIds);
-
-  for (const match of matches) {
-    const processForTeam = (teamId: number, isHome: boolean) => {
-      if (!teamIdSet.has(teamId)) return;
-
-      const opponent = isHome ? match.awayTeam : match.homeTeam;
-      const won = match.winnerId === teamId;
-      const matchResult: 'W' | 'L' | 'TBD' = match.winnerId ? (won ? 'W' : 'L') : 'TBD';
-
-      let score = 'TBD';
-      if (match.winnerScore !== null && match.loserScore !== null) {
-        score = won
-          ? `${match.winnerScore}-${match.loserScore}`
-          : `${match.loserScore}-${match.winnerScore}`;
-      }
-
-      let week = '—';
-      if (match.playoffRound !== null) {
-        week = formatPlayoffRound(match.playoffRound);
-      } else if (match.weekNo !== null) {
-        week = `Week ${match.weekNo}`;
-      }
-
-      result.get(teamId)!.push({
-        matchId: match.id,
-        week,
-        opponentName: opponent.name,
-        opponentId: opponent.id,
-        result: matchResult,
-        score,
-      });
-    };
-
-    processForTeam(match.homeTeamId, true);
-    processForTeam(match.awayTeamId, false);
-  }
-
-  return result;
+  void teamIds;
+  return new Map();
 }
 
 /**
  * Get complete player profile data
  * Used by player/[steamId] page
  */
-export async function getPlayerProfile(steamId: string) {
-  // Fetch user basic info
-  const user = await getUserBySteamId(steamId);
-
-  if (!user) {
-    return null;
-  }
-
-  // Fetch all related data in parallel
-  const [playerTeams, tournaments, fightNightMatchups, player1v1Entries, punishmentCount] =
-    await Promise.all([
-      getPlayerTeams(steamId),
-      getPlayerTournamentPlacements(steamId),
-      getPlayerFightNightMatchups(steamId),
-      getPlayer1v1Entries(steamId),
-      prisma.punishment.count({ where: { playerSteamId: steamId } }),
-    ]);
-
-  // Transform data
-  const currentTeams = transformCurrentTeams(playerTeams);
-  const teamHistory = transformTeamHistory(playerTeams);
-  const tournamentResults = transformTournamentPlacements(tournaments);
-  const fightNights = transformFightNightMatchups(fightNightMatchups, steamId);
-  const achievements = buildAchievements(tournamentResults);
-
-  const current1v1Entry = player1v1Entries.find((e) => e.team.status !== 'DEAD');
-  const entries1v1Base = player1v1Entries.map((entry) => ({
-    id: entry.team.id,
-    active: entry.team.status !== 'DEAD',
-    status: entry.team.status,
-    division: entry.team.division?.name || 'Unknown',
-    divisionId: entry.team.division?.id ?? null,
-    regionId: entry.team.regionId ?? null,
-    region: entry.team.region?.name || 'Unknown',
-    seasonNum: entry.team.season?.seasonNum || 0,
-    wins: entry.team.wins,
-    losses: entry.team.losses,
-    startedAt: entry.startedAt,
-    leftAt: entry.leftAt,
-    isPaid: entry.paymentStatus !== 0,
-    signupCost: entry.team.division?.signupCost ?? 0,
-  }));
-
-  // Batch-fetch all league matches for 2v2 teams and 1v1 entries
-  const allTeamIds = [
-    ...currentTeams.map((t) => t.teamId),
-    ...teamHistory.map((t) => t.teamId),
-    ...entries1v1Base.map((e) => e.id),
-  ];
-  const matchesMap = await getMatchesByTeamIds(allTeamIds);
-
-  // Attach matches to each team and entry
-  const currentTeamsWithMatches = currentTeams.map((t) => ({
-    ...t,
-    matches: matchesMap.get(t.teamId) ?? [],
-  }));
-  const teamHistoryWithMatches = teamHistory.map((t) => ({
-    ...t,
-    matches: matchesMap.get(t.teamId) ?? [],
-  }));
-  const entries1v1 = entries1v1Base.map((e) => ({
-    ...e,
-    matches: matchesMap.get(e.id) ?? [],
-  }));
-
-  return {
-    player: {
-      steamId: user.steamId,
-      name: user.steamUsername,
-      avatar: user.steamAvatar,
-      discordLinked: !!user.discord,
-      discordUsername: user.discord?.discordUsername || null,
-      permissionLevel: user.permissionLevel,
-      banStatus: user.banStatus,
-      punishmentCount,
-      nameOverride: user.nameOverride,
-      avatarOverride: user.avatarOverride,
-      staffDivisions: user.staffDivisions.map((d) => ({
-        name: d.name,
-        region: d.region.name,
-      })),
-    },
-    currentTeams: currentTeamsWithMatches,
-    teamHistory: teamHistoryWithMatches,
-    tournaments: tournamentResults,
-    fightNights,
-    achievements,
-    // 1v1 League data
-    current1v1Entry: current1v1Entry
-      ? {
-          id: current1v1Entry.team.id,
-          division: current1v1Entry.team.division?.name || 'Unknown',
-          divisionId: current1v1Entry.team.division?.id ?? null,
-          region: current1v1Entry.team.region?.name || 'Unknown',
-          regionId: current1v1Entry.team.regionId ?? null,
-          seasonNum: current1v1Entry.team.season?.seasonNum || 0,
-          wins: current1v1Entry.team.wins,
-          losses: current1v1Entry.team.losses,
-        }
-      : null,
-    entries1v1,
-  };
+export async function getPlayerProfile(steamId: string): Promise<PlayerProfile | null> {
+  void steamId;
+  return null;
 }
 
 /**
@@ -688,41 +370,9 @@ export async function getUsers(options: {
   banStatus?: string;
   page?: number;
   pageSize?: number;
-}) {
-  const { search, permissionLevel, banStatus, page = 1, pageSize = 20 } = options;
-
-  const where: any = {};
-
-  // Search filter
-  if (search && search.trim().length > 0) {
-    where.OR = [
-      { steamUsername: { contains: search, mode: 'insensitive' } },
-      { steamId: { contains: search } },
-    ];
-  }
-
-  // Permission level filter
-  if (permissionLevel && permissionLevel !== 'all') {
-    where.permissionLevel = permissionLevel;
-  }
-
-  // Ban status filter
-  if (banStatus && banStatus !== 'all') {
-    where.banStatus = banStatus;
-  }
-
-  return await prisma.user.findMany({
-    where,
-    include: {
-      discord: true,
-      staffDivisions: {
-        include: { region: true },
-      },
-    },
-    orderBy: [{ steamUsername: 'asc' }, { steamId: 'asc' }],
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
+}): Promise<UserRecord[]> {
+  void options;
+  return [];
 }
 
 /**
@@ -733,29 +383,7 @@ export async function countUsers(options: {
   permissionLevel?: string;
   banStatus?: string;
 }) {
-  const { search, permissionLevel, banStatus } = options;
-
-  const where: any = {};
-
-  // Search filter
-  if (search && search.trim().length > 0) {
-    where.OR = [
-      { steamUsername: { contains: search, mode: 'insensitive' } },
-      { steamId: { contains: search } },
-    ];
-  }
-
-  // Permission level filter
-  if (permissionLevel && permissionLevel !== 'all') {
-    where.permissionLevel = permissionLevel;
-  }
-
-  // Ban status filter
-  if (banStatus && banStatus !== 'all') {
-    where.banStatus = banStatus;
-  }
-
-  return await prisma.user.count({ where });
+  return 0;
 }
 
 /**
@@ -771,77 +399,27 @@ export async function updateUser(
     staffDivisionIds?: number[];
   },
 ) {
-  const user = await prisma.user.findUnique({
-    where: { steamId },
-  });
-
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  const updateData: any = {};
-
-  if (data.permissionLevel !== undefined) {
-    updateData.permissionLevel = data.permissionLevel;
-  }
-
-  if (data.banStatus !== undefined) {
-    updateData.banStatus = data.banStatus;
-  }
-
-  if (data.nameOverride !== undefined) {
-    updateData.nameOverride = data.nameOverride;
-  }
-
-  if (data.staffDivisionIds !== undefined) {
-    updateData.staffDivisions = {
-      set: data.staffDivisionIds.map((id) => ({ id })),
-    };
-  }
-
-  const permissionChanged =
-    data.permissionLevel !== undefined && data.permissionLevel !== user.permissionLevel;
-  const banChanged = data.banStatus !== undefined && data.banStatus !== user.banStatus;
-  if (permissionChanged || banChanged) {
-    updateData.sessionVersion = { increment: 1 };
-  }
-
-  return await prisma.user.update({
-    where: { steamId },
-    data: updateData,
-  });
+  throw new Error('updateUser is not available under Rama');
 }
 
 /**
  * Get all staff members (users with MODERATOR or ADMIN permission level)
  * Used for staff lists on league pages
  */
-export async function getStaffMembers() {
+export async function getStaffMembers(): Promise<
+  Array<{
+    steamId: string;
+    steamUsername: string;
+    steamAvatar: string | null;
+    permissionLevel: UserRole | string;
+    staffDivisions: Array<{ id: number; name: string }>;
+  }>
+> {
   if (isRamaBackend()) {
     // No staff-division index in UsersModule yet — standings page tolerates empty staff.
     return [];
   }
-
-  return await prisma.user.findMany({
-    where: {
-      permissionLevel: {
-        in: ['MODERATOR', 'ADMIN'],
-      },
-    },
-    select: {
-      steamId: true,
-      steamUsername: true,
-      steamAvatar: true,
-      permissionLevel: true,
-      staffDivisions: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: [{ steamUsername: 'asc' }],
-  });
+  throw new Error('getStaffMembers requires DATA_BACKEND=rama');
 }
 
 /**
@@ -851,22 +429,7 @@ export async function getStaffMembers() {
  * Clear a user's punishment status and deactivate active punishment records
  */
 export async function clearPunishment(steamId: string, clearedBy: string) {
-  const user = await prisma.user.findUnique({ where: { steamId } });
-  if (!user) throw new Error('User not found');
-
-  await prisma.user.update({
-    where: { steamId },
-    data: {
-      banStatus: 'NONE',
-      sessionVersion: { increment: 1 },
-    },
-  });
-
-  // Deactivate all active punishment records
-  await prisma.punishment.updateMany({
-    where: { playerSteamId: steamId, status: 1 },
-    data: { status: 0 },
-  });
+  throw new Error('clearPunishment is not available under Rama');
 }
 
 export async function banUser(
@@ -876,68 +439,29 @@ export async function banUser(
   reason: string,
   duration?: number,
 ) {
-  await prisma.user.update({
-    where: { steamId },
-    data: {
-      banStatus: severity,
-      sessionVersion: { increment: 1 },
-    },
-  });
-
-  // Create punishment record
-  return await prisma.punishment.create({
-    data: {
-      playerSteamId: steamId,
-      punishedBy: bannedBy,
-      severity,
-      reason,
-      duration,
-      startDateTime: new Date(),
-      status: 1, // Active
-    },
-  });
+  throw new Error('banUser is not available under Rama');
 }
 
 /**
  * Admin: set a custom display name and lock it (prevents Steam auto-sync)
  */
-export async function lockUserName(steamId: string, newName: string) {
-  const user = await prisma.user.findUnique({ where: { steamId } });
-  if (!user) throw new Error('User not found');
-
-  const trimmed = newName.trim();
-  if (!trimmed || trimmed.length > 64) {
-    throw new Error('Name must be between 1 and 64 characters');
-  }
-
-  return await prisma.user.update({
-    where: { steamId },
-    data: {
-      steamUsername: trimmed,
-      nameOverride: 1,
-    },
-  });
+export async function lockUserName(
+  steamId: string,
+  newName: string,
+): Promise<{ steamId: string; steamUsername: string; steamAvatar: string | null }> {
+  void steamId;
+  void newName;
+  throw new Error('lockUserName is not available under Rama');
 }
 
 /**
  * Admin: unlock a user's name and immediately sync from Steam
  */
-export async function unlockUserName(steamId: string) {
-  const user = await prisma.user.findUnique({ where: { steamId } });
-  if (!user) throw new Error('User not found');
-
-  const steamProfile = await fetchSteamProfile(steamId);
-
-  return await prisma.user.update({
-    where: { steamId },
-    data: {
-      nameOverride: 0,
-      ...(steamProfile && {
-        steamUsername: steamProfile.personaname,
-        steamAvatar: steamProfile.avatarfull,
-      }),
-    },
-  });
+export async function unlockUserName(
+  steamId: string,
+): Promise<{ steamId: string; steamUsername: string; steamAvatar: string | null }> {
+  void steamId;
+  throw new Error('unlockUserName is not available under Rama');
 }
 
 /**
@@ -1009,48 +533,23 @@ export async function fetchSteamNames(steamIds: string[]): Promise<Record<string
 /**
  * Admin: set a custom avatar URL and lock it (prevents Steam auto-sync)
  */
-export async function lockUserAvatar(steamId: string, avatarUrl: string) {
-  const user = await prisma.user.findUnique({ where: { steamId } });
-  if (!user) throw new Error('User not found');
-
-  const trimmed = avatarUrl.trim();
-  if (!trimmed) {
-    throw new Error('Avatar URL is required');
-  }
-
-  try {
-    new URL(trimmed);
-  } catch {
-    throw new Error('Invalid URL format');
-  }
-
-  return await prisma.user.update({
-    where: { steamId },
-    data: {
-      steamAvatar: trimmed,
-      avatarOverride: 1,
-    },
-  });
+export async function lockUserAvatar(
+  steamId: string,
+  avatarUrl: string,
+): Promise<{ steamId: string; steamUsername: string; steamAvatar: string | null }> {
+  void steamId;
+  void avatarUrl;
+  throw new Error('lockUserAvatar is not available under Rama');
 }
 
 /**
  * Admin: unlock a user's avatar and immediately sync from Steam
  */
-export async function unlockUserAvatar(steamId: string) {
-  const user = await prisma.user.findUnique({ where: { steamId } });
-  if (!user) throw new Error('User not found');
-
-  const steamProfile = await fetchSteamProfile(steamId);
-
-  return await prisma.user.update({
-    where: { steamId },
-    data: {
-      avatarOverride: 0,
-      ...(steamProfile && {
-        steamAvatar: steamProfile.avatarfull,
-      }),
-    },
-  });
+export async function unlockUserAvatar(
+  steamId: string,
+): Promise<{ steamId: string; steamUsername: string; steamAvatar: string | null }> {
+  void steamId;
+  throw new Error('unlockUserAvatar is not available under Rama');
 }
 
 /**
@@ -1058,85 +557,29 @@ export async function unlockUserAvatar(steamId: string) {
  * Can be used by the user themselves or by an admin
  */
 export async function unlinkDiscord(steamId: string) {
-  const user = await prisma.user.findUnique({
-    where: { steamId },
-    include: { discord: true },
-  });
-
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  if (!user.discord) {
-    throw new Error('No Discord account linked');
-  }
-
-  await prisma.discord.delete({
-    where: { discordId: user.discord.discordId },
-  });
-
-  return { success: true };
+  throw new Error('unlinkDiscord is not available under Rama');
 }
 
 /**
  * Get all users for public listing with pagination
  * Used by /users page
  */
-export async function getUsersPublic(page: number = 1, search?: string, role?: string) {
-  const USERS_PER_PAGE = 50;
-  const skip = (page - 1) * USERS_PER_PAGE;
-
-  const where: any = {};
-
-  if (search && search.trim().length > 0) {
-    where.OR = [
-      { steamUsername: { contains: search, mode: 'insensitive' } },
-      { steamId: { contains: search, mode: 'insensitive' } },
-      {
-        discord: { discordUsername: { contains: search, mode: 'insensitive' } },
-      },
-    ];
-  }
-
-  if (role && role !== 'all' && role !== '') {
-    where.permissionLevel = role;
-  }
-
-  const [users, totalCount] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      select: {
-        steamId: true,
-        steamUsername: true,
-        steamAvatar: true,
-        permissionLevel: true,
-        banStatus: true,
-        discord: {
-          select: {
-            discordUsername: true,
-          },
-        },
-      },
-      orderBy: {
-        steamUsername: 'asc',
-      },
-      skip,
-      take: USERS_PER_PAGE,
-    }),
-    prisma.user.count({ where }),
-  ]);
-
-  const totalPages = Math.ceil(totalCount / USERS_PER_PAGE);
-
+export async function getUsersPublic(
+  page: number = 1,
+  search?: string,
+  role?: string,
+): Promise<{ users: PublicUserRow[]; pagination: PaginationInfo }> {
+  void search;
+  void role;
   return {
-    users,
+    users: [],
     pagination: {
       currentPage: page,
-      totalPages,
-      totalCount,
-      perPage: USERS_PER_PAGE,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
+      totalPages: 0,
+      totalCount: 0,
+      perPage: 50,
+      hasNextPage: false,
+      hasPreviousPage: false,
     },
   };
 }
@@ -1182,91 +625,7 @@ export async function findOrCreateSteamUser(steamUserJson: {
       isNewUser,
     };
   }
-
-  const existingUser = await prisma.user.findUnique({
-    where: { steamId: steamid },
-    select: {
-      steamId: true,
-      steamUsername: true,
-      steamAvatar: true,
-      permissionLevel: true,
-      banStatus: true,
-      sessionVersion: true,
-      nameOverride: true,
-      avatarOverride: true,
-    },
-  });
-
-  if (!existingUser) {
-    const created = await prisma.user.upsert({
-      where: { steamId: steamid },
-      create: {
-        steamId: steamid,
-        steamUsername: personaname,
-        steamAvatar: avatarfull,
-        permissionLevel: 'GUEST',
-      },
-      update: {},
-      select: {
-        steamUsername: true,
-        steamAvatar: true,
-        permissionLevel: true,
-        banStatus: true,
-        sessionVersion: true,
-        nameOverride: true,
-        avatarOverride: true,
-      },
-    });
-
-    const wasRace = created.permissionLevel !== 'GUEST' || created.nameOverride === 1;
-    if (wasRace) {
-      const username = created.nameOverride ? created.steamUsername : personaname;
-      const avatar = created.avatarOverride ? (created.steamAvatar ?? avatarfull) : avatarfull;
-      return {
-        username,
-        avatar,
-        permissionLevel: created.permissionLevel as string,
-        banStatus: created.banStatus as string,
-        sessionVersion: created.sessionVersion,
-        isNewUser: false,
-      };
-    }
-
-    return {
-      username: personaname,
-      avatar: avatarfull,
-      permissionLevel: 'GUEST',
-      banStatus: 'NONE',
-      sessionVersion: 0,
-      isNewUser: true,
-    };
-  }
-
-  const username = existingUser.nameOverride ? existingUser.steamUsername : personaname;
-  const avatar = existingUser.avatarOverride
-    ? (existingUser.steamAvatar ?? avatarfull)
-    : avatarfull;
-
-  const updateData: Record<string, string> = {};
-  if (!existingUser.nameOverride && existingUser.steamUsername !== username) {
-    updateData.steamUsername = username;
-  }
-  if (!existingUser.avatarOverride && existingUser.steamAvatar !== avatar) {
-    updateData.steamAvatar = avatar;
-  }
-
-  if (Object.keys(updateData).length > 0) {
-    await prisma.user.update({ where: { steamId: steamid }, data: updateData });
-  }
-
-  return {
-    username,
-    avatar,
-    permissionLevel: existingUser.permissionLevel as string,
-    banStatus: existingUser.banStatus as string,
-    sessionVersion: existingUser.sessionVersion,
-    isNewUser: false,
-  };
+  throw new Error('findOrCreateSteamUser requires DATA_BACKEND=rama');
 }
 
 /**
@@ -1278,9 +637,9 @@ export async function linkDiscordAccount(
   discordAvatar: string | null,
   steamId: string,
 ): Promise<void> {
-  await prisma.discord.upsert({
-    where: { discordId },
-    create: { discordId, discordUsername, discordAvatar, playerSteamId: steamId },
-    update: { discordUsername, discordAvatar, playerSteamId: steamId },
-  });
+  void discordId;
+  void discordUsername;
+  void discordAvatar;
+  void steamId;
+  throw new Error('linkDiscordAccount is not available under Rama');
 }

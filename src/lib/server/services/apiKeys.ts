@@ -5,8 +5,6 @@
  */
 
 import { randomBytes } from 'crypto';
-import { prisma } from '$lib/server/db';
-
 export type ApiKeyRecord = {
   id: number;
   name: string;
@@ -47,11 +45,7 @@ export async function createApiKey(name: string, createdBy: string): Promise<Api
   if (isRamaBackend()) {
     throw new Error('API keys are not available under DATA_BACKEND=rama yet');
   }
-  const key = `mge_${randomBytes(32).toString('hex')}`;
-  return await prisma.apiKey.create({
-    data: { name, key, createdBy },
-    include: { creator: { select: { steamUsername: true } } },
-  });
+  throw new Error('createApiKey requires DATA_BACKEND=rama');
 }
 
 /**
@@ -61,16 +55,7 @@ export async function createApiKey(name: string, createdBy: string): Promise<Api
 export async function getApiKeys(): Promise<ApiKeyListItem[]> {
   const { isRamaBackend } = await import('$lib/server/rama/config');
   if (isRamaBackend()) return [];
-
-  const keys = await prisma.apiKey.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { creator: { select: { steamUsername: true } } },
-  });
-
-  return keys.map(({ key, ...rest }) => ({
-    ...rest,
-    keyPreview: maskApiKey(key),
-  }));
+  throw new Error('getApiKeys requires DATA_BACKEND=rama');
 }
 
 /**
@@ -81,7 +66,7 @@ export async function toggleApiKey(id: number, active: boolean): Promise<void> {
   if (isRamaBackend()) {
     throw new Error('API keys are not available under DATA_BACKEND=rama yet');
   }
-  await prisma.apiKey.update({ where: { id }, data: { active } });
+  throw new Error('toggleApiKey requires DATA_BACKEND=rama');
 }
 
 /**
@@ -92,7 +77,7 @@ export async function deleteApiKey(id: number): Promise<void> {
   if (isRamaBackend()) {
     throw new Error('API keys are not available under DATA_BACKEND=rama yet');
   }
-  await prisma.apiKey.delete({ where: { id } });
+  throw new Error('deleteApiKey requires DATA_BACKEND=rama');
 }
 
 /**
@@ -118,18 +103,5 @@ export async function validateApiKey(key: string): Promise<ApiKeyRecord | null> 
       creator: { steamUsername: 'system' },
     };
   }
-
-  const record = await prisma.apiKey.findUnique({
-    where: { key },
-    include: { creator: { select: { steamUsername: true } } },
-  });
-
-  if (!record || !record.active) return null;
-
-  // Fire-and-forget lastUsedAt update — never block the request
-  prisma.apiKey
-    .update({ where: { id: record.id }, data: { lastUsedAt: new Date() } })
-    .catch(() => {});
-
-  return record;
+  throw new Error('validateApiKey requires DATA_BACKEND=rama');
 }

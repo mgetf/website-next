@@ -6,7 +6,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin } from '$lib/server/auth/permissions';
 import { getDisputedMatches, resolveDispute } from '$lib/server/services/disputes';
-import { MatchStatus } from '$prisma/client.js';
+import { MatchStatus } from '$lib/types/enums';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';

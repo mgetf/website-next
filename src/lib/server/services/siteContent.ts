@@ -1,9 +1,8 @@
+import type { SiteContentRow } from '$lib/types/service-models';
 /**
  * Site Content Service
  * CRUD operations for static site content (rulebook, homepage text, etc.)
  */
-
-import { prisma } from '$lib/server/db';
 
 // Content keys used throughout the site
 export const CONTENT_KEYS = {
@@ -24,38 +23,21 @@ export async function getContent(key: ContentKey): Promise<string | null> {
     void key;
     return null;
   }
-
-  const content = await prisma.siteContent.findUnique({
-    where: { key },
-  });
-  return content?.content ?? null;
+  throw new Error('getContent requires DATA_BACKEND=rama');
 }
 
 /**
  * Get all site content
  */
-export async function getAllContent() {
-  return await prisma.siteContent.findMany({
-    orderBy: { key: 'asc' },
-  });
+export async function getAllContent(): Promise<SiteContentRow[]> {
+  return [];
 }
 
 /**
  * Update or create content
  */
 export async function upsertContent(key: ContentKey, content: string, updatedBy?: string) {
-  return await prisma.siteContent.upsert({
-    where: { key },
-    update: {
-      content,
-      updatedBy,
-    },
-    create: {
-      key,
-      content,
-      updatedBy,
-    },
-  });
+  throw new Error('upsertContent is not available under Rama');
 }
 
 /**

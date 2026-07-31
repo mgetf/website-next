@@ -3,11 +3,27 @@
  * Handles match messages and reschedule requests
  */
 
-import { prisma } from '$lib/server/db';
-import type { User, Match, MatchComm, Prisma } from '$prisma/client.js';
-import { MatchStatus, UserRole } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { MatchStatus, UserRole } from '$lib/types/enums';
+
+type MatchComm = {
+  id: number;
+  matchId: number;
+  content: string;
+  owner?: string | null;
+  reschedule?: string | number | null;
+  rescheduleStatus?: number | null;
+  rescheduleTime?: Date | null;
+  rescheduleTz?: string | null;
+  createdAt?: Date;
+};
+
+type Match = {
+  id: number;
+  status: string;
+  [key: string]: unknown;
+};
 
 const RESCHEDULE_RESPONSE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const RESCHEDULE_STATUS_PENDING = 0;
@@ -47,7 +63,10 @@ export function getRescheduleDisplay(comm: MatchComm, fallbackTimeZone = 'UTC'):
     }
   }
 
-  return formatRescheduleDateTime(comm.reschedule, fallbackTimeZone) ?? comm.reschedule ?? '';
+  return (
+    formatRescheduleDateTime(comm.rescheduleTime, fallbackTimeZone) ??
+    (comm.rescheduleTime ? String(comm.rescheduleTime) : '')
+  );
 }
 
 /**
@@ -120,38 +139,7 @@ export async function createMatchComm(
       rescheduleStatus: null,
     };
   }
-
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-  });
-
-  if (!match) {
-    notFound('Match not found');
-  }
-
-  const commData: Prisma.MatchCommUncheckedCreateInput = {
-    matchId,
-    owner: userId,
-    content,
-    createdAt: new Date(),
-  };
-
-  if (rescheduleData) {
-    commData.reschedule = rescheduleData.proposedDateTime;
-    commData.rescheduleStatus = RESCHEDULE_STATUS_PENDING; // Pending
-    commData.content = `${RESCHEDULE_REQUEST_PREFIX} ${
-      formatRescheduleDateTime(rescheduleData.proposedDateTime, rescheduleData.proposedTimezone) ??
-      rescheduleData.proposedDateTime
-    }`;
-  }
-
-  const comm = await prisma.matchComm.create({
-    data: commData,
-  });
-
-  // TODO: Create notifications for team owners/admins (excluding sender) (F19)
-
-  return comm;
+  throw new Error('createMatchComm requires DATA_BACKEND=rama');
 }
 
 /**
@@ -187,21 +175,7 @@ export async function getPendingReschedule(matchId: number) {
         : null,
     };
   }
-
-  const reschedule = await prisma.matchComm.findFirst({
-    where: {
-      matchId,
-      rescheduleStatus: RESCHEDULE_STATUS_PENDING, // Pending
-    },
-    include: {
-      user: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
-
-  return reschedule;
+  throw new Error('getPendingReschedule requires DATA_BACKEND=rama');
 }
 
 /**
@@ -305,68 +279,7 @@ export async function updateRescheduleStatus(
     void commId;
     return { newStatus, responseMessage };
   }
-
-  const comm = await prisma.matchComm.findUnique({
-    where: { id: commId },
-    include: {
-      match: true,
-    },
-  });
-
-  if (!comm) {
-    notFound('Reschedule request not found');
-  }
-
-  if (comm.rescheduleStatus !== RESCHEDULE_STATUS_PENDING) {
-    badRequest('Reschedule request already processed');
-  }
-
-  let newStatus: number;
-  let responseMessage: string;
-
-  if (status === 'accept') {
-    newStatus = RESCHEDULE_STATUS_ACCEPTED; // Accepted
-    responseMessage = 'MATCH RESPONSE: Reschedule request accepted.';
-
-    // Update match date/time
-    if (comm.reschedule) {
-      await prisma.match.update({
-        where: { id: comm.matchId },
-        data: {
-          matchDateTime: new Date(comm.reschedule),
-        },
-      });
-    }
-  } else if (status === 'deny') {
-    newStatus = 2; // Denied
-    responseMessage = 'MATCH RESPONSE: Reschedule request denied.';
-  } else {
-    // cancel
-    newStatus = 3; // Canceled
-    responseMessage = 'MATCH RESPONSE: Reschedule request canceled.';
-  }
-
-  // Update reschedule status
-  await prisma.matchComm.update({
-    where: { id: commId },
-    data: {
-      rescheduleStatus: newStatus,
-    },
-  });
-
-  // Create response message
-  await prisma.matchComm.create({
-    data: {
-      matchId: comm.matchId,
-      owner: respondedBy,
-      content: responseMessage,
-      createdAt: new Date(),
-    },
-  });
-
-  // TODO: Notify relevant parties of reschedule response (F19)
-
-  return { newStatus, responseMessage };
+  throw new Error('updateRescheduleStatus requires DATA_BACKEND=rama');
 }
 
 /**
@@ -413,90 +326,7 @@ export async function settleExpiredReschedules(matchId?: number): Promise<number
     void matchId;
     return 0;
   }
-
-  const cutoff = new Date(Date.now() - RESCHEDULE_RESPONSE_WINDOW_MS);
-  const expiredReschedules = await prisma.matchComm.findMany({
-    where: {
-      ...(matchId ? { matchId } : {}),
-      rescheduleStatus: RESCHEDULE_STATUS_PENDING,
-      createdAt: { lte: cutoff },
-      reschedule: { not: null },
-    },
-    include: {
-      match: {
-        select: {
-          id: true,
-          status: true,
-          matchDateTime: true,
-          matchTimezone: true,
-        },
-      },
-    },
-  });
-
-  let settledCount = 0;
-
-  for (const comm of expiredReschedules) {
-    if (comm.match.status !== MatchStatus.UNPLAYED || !comm.reschedule) continue;
-
-    const requestedDate = new Date(comm.reschedule);
-    if (Number.isNaN(requestedDate.getTime())) continue;
-
-    const settled = await prisma.$transaction(async (tx) => {
-      const updatedComm = await tx.matchComm.updateMany({
-        where: {
-          id: comm.id,
-          rescheduleStatus: RESCHEDULE_STATUS_PENDING,
-        },
-        data: {
-          rescheduleStatus: RESCHEDULE_STATUS_ACCEPTED,
-        },
-      });
-
-      if (updatedComm.count === 0) {
-        return false;
-      }
-
-      await tx.match.update({
-        where: { id: comm.matchId },
-        data: {
-          matchDateTime: requestedDate,
-        },
-      });
-
-      await tx.matchComm.create({
-        data: {
-          matchId: comm.matchId,
-          owner: null,
-          content: 'MATCH RESPONSE: Reschedule request automatically accepted after 24 hours.',
-          createdAt: new Date(),
-        },
-      });
-
-      return true;
-    });
-
-    if (!settled) continue;
-
-    settledCount++;
-    await logAudit({
-      actorId: null,
-      actorRole: null,
-      category: AuditCategory.MATCH,
-      action: AuditAction.MATCH_SCHEDULE_UPDATED,
-      targetType: 'Match',
-      targetId: String(comm.matchId),
-      metadata: {
-        rescheduleCommId: comm.id,
-        matchDateTimeUtc: requestedDate.toISOString(),
-        previousMatchDateTimeUtc: comm.match.matchDateTime?.toISOString() ?? null,
-        matchTimezone: comm.match.matchTimezone,
-        reason: 'reschedule_request_auto_accepted',
-      },
-    });
-  }
-
-  return settledCount;
+  throw new Error('settleExpiredReschedules requires DATA_BACKEND=rama');
 }
 
 /**
@@ -531,15 +361,7 @@ export async function createAdminActionComm(
       rescheduleStatus: null,
     };
   }
-
-  return await prisma.matchComm.create({
-    data: {
-      matchId,
-      owner: actorSteamId,
-      content,
-      createdAt: new Date(),
-    },
-  });
+  throw new Error('createAdminActionComm requires DATA_BACKEND=rama');
 }
 
 /**
@@ -570,14 +392,5 @@ export async function getMatchCommById(commId: number, matchIdHint?: number) {
           : Number(row.rescheduleStatus),
     };
   }
-
-  const comm = await prisma.matchComm.findUnique({
-    where: { id: commId },
-  });
-
-  if (!comm) {
-    notFound('Match communication not found');
-  }
-
-  return comm;
+  throw new Error('getMatchCommById requires DATA_BACKEND=rama');
 }

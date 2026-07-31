@@ -102,3 +102,15 @@ export async function getSessionVersion(
     return null;
   }
 }
+
+/** All known steamIds from $$user-ids["all"]. */
+/** @lintignore Rama helper reserved for follow-up */
+export async function getUserIds(client: RamaClient): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$user-ids', ['all']);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}

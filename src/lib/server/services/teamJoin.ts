@@ -3,8 +3,6 @@
  * Handles team joining via token and password
  */
 
-import { prisma } from '$lib/server/db';
-import type { Prisma } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { validateJoinToken } from './teamSignup';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
@@ -28,18 +26,7 @@ import { createDivisionsClient, getDivision } from '$lib/server/rama/divisions';
 import { createCatalogClient, getRegion } from '$lib/server/rama/catalog';
 import { createSeasonsClient, getSeason } from '$lib/server/rama/seasons';
 
-type TeamJoinTeam = Prisma.TeamGetPayload<{
-  include: {
-    division: true;
-    region: true;
-    season: true;
-    players: {
-      include: {
-        player: true;
-      };
-    };
-  };
-}>;
+type TeamJoinTeam = any;
 
 interface TeamJoinInfo {
   team: TeamJoinTeam;
@@ -143,72 +130,9 @@ export async function validateTokenAndGetTeam(
   token: string,
   steamId?: string,
 ): Promise<TeamJoinInfo> {
-  // Decode and validate token
-  const { teamId } = validateJoinToken(token);
-
-  const team = isRamaBackend()
-    ? await loadTeamJoinTeamRama(teamId)
-    : await prisma.team.findUnique({
-        where: { id: teamId },
-        include: {
-          division: true,
-          region: true,
-          season: true,
-          players: {
-            where: { active: 1 },
-            include: {
-              player: true,
-            },
-          },
-        },
-      });
-
-  if (!team) {
-    notFound('Team not found');
-  }
-
-  // Block joining 1v1 "teams" - they're individual entries, not actual teams
-  if (team.formatId === FORMAT_1V1) {
-    return {
-      team,
-      activePlayers: team.players,
-      canJoin: false,
-      error: '1v1 entries cannot be joined - they are individual player entries',
-    };
-  }
-
-  const activePlayers = team.players;
-
-  // Check if user is trying to join their own team
-  if (steamId) {
-    const isTeamMember = activePlayers.some(
-      (p) => p.playerSteamId === steamId && p.permissionLevel >= 0,
-    );
-    if (isTeamMember) {
-      return {
-        team,
-        activePlayers,
-        canJoin: false,
-        error: 'You cannot invite yourself to your own team',
-      };
-    }
-  }
-
-  // Check if team is full
-  if (activePlayers.length >= 3) {
-    return {
-      team,
-      activePlayers,
-      canJoin: false,
-      error: 'Team is full (maximum 3 players)',
-    };
-  }
-
-  return {
-    team,
-    activePlayers,
-    canJoin: true,
-  };
+  void token;
+  void steamId;
+  throw new Error('validateTokenAndGetTeam is not available under Rama');
 }
 
 /**
@@ -224,21 +148,7 @@ export async function validateJoinPassword(teamId: number, password: string): Pr
     if (!stored) return false;
     return verifyPassword(password, stored);
   }
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    select: { joinPassword: true },
-  });
-
-  if (!team) {
-    notFound('Team not found');
-  }
-
-  if (!team.joinPassword) {
-    return false;
-  }
-
-  return verifyPassword(password, team.joinPassword);
+  throw new Error('validateJoinPassword requires DATA_BACKEND=rama');
 }
 
 /**
@@ -292,61 +202,7 @@ export async function joinByPassword(
     if (!ack.ok) badRequest(ack.error ?? 'Failed to request join');
     return;
   }
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    include: {
-      players: { where: { active: 1 } },
-    },
-  });
-
-  if (!team) {
-    notFound('Team not found');
-  }
-
-  if (team.formatId === FORMAT_1V1) {
-    badRequest('Cannot join 1v1 teams');
-  }
-
-  if (team.seasonId) {
-    const seasonActive = await isSeasonCurrentlyActive(team.seasonId);
-    if (!seasonActive) {
-      badRequest("This team's season has ended. Joining is no longer available.");
-    }
-  }
-
-  if (team.players.length >= 3) {
-    badRequest('Team is full (maximum 3 players)');
-  }
-
-  const isTeamMember = team.players.some(
-    (p) => p.playerSteamId === steamId && p.permissionLevel >= 0,
-  );
-  if (isTeamMember) {
-    badRequest('You are already on this team');
-  }
-
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
-  const playerInOtherTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-        seasonId: { in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1] },
-      },
-    },
-  });
-
-  if (playerInOtherTeam) {
-    badRequest('You are already in another 2v2 team for this season');
-  }
-
-  await prisma.pendingPlayer.upsert({
-    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
-    create: { playerSteamId: steamId, teamId, status: 1 },
-    update: { status: 1 },
-  });
+  throw new Error('joinByPassword requires DATA_BACKEND=rama');
 }
 
 /**
@@ -384,63 +240,7 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
     if (!ack.ok) badRequest(ack.error ?? 'Failed to accept invite');
     return teamId;
   }
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    include: {
-      players: { where: { active: 1 } },
-    },
-  });
-
-  if (!team) {
-    notFound('Team not found');
-  }
-
-  if (team.formatId === FORMAT_1V1) {
-    badRequest('Cannot join 1v1 teams');
-  }
-
-  if (team.seasonId) {
-    const seasonActive = await isSeasonCurrentlyActive(team.seasonId);
-    if (!seasonActive) {
-      badRequest("This team's season has ended. Joining is no longer available.");
-    }
-  }
-
-  const isTeamMember = team.players.some(
-    (p) => p.playerSteamId === steamId && p.permissionLevel >= 0,
-  );
-  if (isTeamMember) {
-    badRequest('You cannot invite yourself to your own team');
-  }
-
-  if (team.players.length >= 3) {
-    badRequest('Team is full (maximum 3 players)');
-  }
-
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
-  const playerInOtherTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-        seasonId: { in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1] },
-      },
-    },
-  });
-
-  if (playerInOtherTeam) {
-    badRequest('You are already in another 2v2 team for this season');
-  }
-
-  await prisma.pendingPlayer.upsert({
-    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
-    create: { playerSteamId: steamId, teamId, status: 1 },
-    update: { status: 1 },
-  });
-
-  return teamId;
+  throw new Error('acceptInviteByToken requires DATA_BACKEND=rama');
 }
 
 /**
@@ -468,31 +268,7 @@ export async function acceptTeamInvite(steamId: string, teamId: number): Promise
     }
     return;
   }
-
-  const pending = await prisma.pendingPlayer.findUnique({
-    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
-  });
-
-  if (!pending || pending.status !== 0) {
-    badRequest('No pending invitation found for this team');
-  }
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    select: { seasonId: true },
-  });
-
-  if (team?.seasonId) {
-    const seasonActive = await isSeasonCurrentlyActive(team.seasonId);
-    if (!seasonActive) {
-      badRequest("This team's season has ended. Joining is no longer available.");
-    }
-  }
-
-  await prisma.pendingPlayer.update({
-    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
-    data: { status: 1 },
-  });
+  throw new Error('acceptTeamInvite requires DATA_BACKEND=rama');
 }
 
 /**
@@ -517,21 +293,7 @@ export async function getUserPendingInvites(steamId: string) {
     }
     return rows;
   }
-
-  return await prisma.pendingPlayer.findMany({
-    where: { playerSteamId: steamId },
-    include: {
-      team: {
-        include: {
-          division: true,
-          region: true,
-          season: true,
-          players: { where: { active: 1 } },
-        },
-      },
-    },
-    orderBy: { teamId: 'asc' },
-  });
+  throw new Error('getUserPendingInvites requires DATA_BACKEND=rama');
 }
 
 /**
@@ -546,19 +308,7 @@ export async function isPlayerInTeam(steamId: string, teamId: number): Promise<b
     );
     return Boolean(member?.active);
   }
-
-  const playerInTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: steamId,
-      teamId,
-      active: 1,
-      permissionLevel: {
-        gte: 0,
-      },
-    },
-  });
-
-  return !!playerInTeam;
+  throw new Error('isPlayerInTeam requires DATA_BACKEND=rama');
 }
 
 /**
@@ -575,22 +325,7 @@ export async function isPlayerInAnyActiveTeam(steamId: string): Promise<boolean>
     }
     return false;
   }
-
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
-  const playerInOtherTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        formatId: FORMAT_2V2,
-        seasonId: {
-          in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
-        },
-      },
-    },
-  });
-
-  return !!playerInOtherTeam;
+  throw new Error('isPlayerInAnyActiveTeam requires DATA_BACKEND=rama');
 }
 
 /**
@@ -606,12 +341,7 @@ export async function getPendingStatusForTeam(
   if (isRamaBackend()) {
     return getPendingStatus(createTeamsClient(ramaClientOpts()), String(teamId), steamId);
   }
-
-  const pending = await prisma.pendingPlayer.findUnique({
-    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
-    select: { status: true },
-  });
-  return pending?.status ?? null;
+  throw new Error('getPendingStatusForTeam requires DATA_BACKEND=rama');
 }
 
 /**
@@ -623,12 +353,7 @@ export async function hasAnyPendingRequest(steamId: string): Promise<boolean> {
     const byTeam = await getPendingByPlayer(createTeamsClient(ramaClientOpts()), steamId);
     return Object.values(byTeam).some((status) => status === 1);
   }
-
-  const pending = await prisma.pendingPlayer.findFirst({
-    where: { playerSteamId: steamId, status: 1 },
-    select: { teamId: true },
-  });
-  return !!pending;
+  throw new Error('hasAnyPendingRequest requires DATA_BACKEND=rama');
 }
 
 /**
@@ -643,11 +368,5 @@ export async function declineInvitation(steamId: string, teamId: number): Promis
     });
     return;
   }
-
-  await prisma.pendingPlayer.deleteMany({
-    where: {
-      playerSteamId: steamId,
-      teamId,
-    },
-  });
+  throw new Error('declineInvitation requires DATA_BACKEND=rama');
 }

@@ -21,6 +21,7 @@ import {
 import {
   getPlayerPaymentStatus as ramaGetPlayerPaymentStatus,
   createPaymentsClient,
+  markPaid,
 } from '../../../src/lib/server/rama/payments';
 import {
   createSeasonsClient,
@@ -32,6 +33,7 @@ import {
   createTeamsClient,
   getTeam,
   joinTeam,
+  setMemberPayment,
   setTeamStatus,
 } from '../../../src/lib/server/rama/teams';
 import {
@@ -321,7 +323,29 @@ export async function seedReadyTeam(params: {
     teamId: String(teamId),
     status: (params.status as 'READY' | 'UNREADY' | 'PENDING') ?? 'READY',
   });
-  void params.paymentStatus;
+
+  // Default / explicit 0 → leave roster UNPAID (create-team default).
+  if (params.paymentStatus === 1) {
+    const payments = createPaymentsClient(conductor());
+    for (const steamId of [params.captainSteamId, params.teammateSteamId]) {
+      const payAck = await setMemberPayment(teams, {
+        teamId: String(teamId),
+        steamId,
+        paymentStatus: 'PAID',
+      });
+      if (!payAck.ok) throw new Error(`setMemberPayment failed: ${payAck.error}`);
+      const markAck = await markPaid(payments, {
+        steamId,
+        seasonId: String(params.seasonId),
+        teamId: String(teamId),
+        status: 'PAID',
+        amount: 0,
+        source: 'e2e-seed',
+      });
+      if (!markAck.ok) throw new Error(`markPaid failed: ${markAck.error}`);
+    }
+  }
+
   return teamId;
 }
 
@@ -347,12 +371,21 @@ export async function seedDemo(params: {
 }
 
 export async function getPlayerPaymentStatus(
-  _teamId: number,
+  teamId: number,
   steamId: string,
   seasonId?: number,
 ): Promise<number> {
+  let resolvedSeasonId = seasonId;
+  if (resolvedSeasonId == null) {
+    const team = await getTeam(createTeamsClient(conductor()), String(teamId));
+    resolvedSeasonId = Number(team?.seasonId);
+  }
   const payments = createPaymentsClient(conductor());
-  const status = await ramaGetPlayerPaymentStatus(payments, steamId, String(seasonId ?? '0'));
+  const status = await ramaGetPlayerPaymentStatus(
+    payments,
+    steamId,
+    String(resolvedSeasonId ?? '0'),
+  );
   return status === 'PAID' || status === 'EXEMPT' ? 1 : 0;
 }
 

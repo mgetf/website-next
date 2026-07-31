@@ -169,6 +169,18 @@ export async function setMemberPermission(
   );
 }
 
+export async function setMemberPayment(
+  client: RamaClient,
+  event: {
+    teamId: string;
+    steamId: string;
+    paymentStatus: 'UNPAID' | 'PAID' | 'EXEMPT';
+  },
+  ackLevel: AckLevel = 'ack',
+): Promise<TeamAck> {
+  return asAck(await client.append(TEAM_DEPOT, { type: 'set-member-payment', ...event }, ackLevel));
+}
+
 export async function getTeam(
   client: RamaClient,
   teamId: string,
@@ -282,6 +294,20 @@ export async function getTeamIdsBySeason(
 ): Promise<Record<string, string>> {
   try {
     const v = await client.selectOne('$$team-ids-by-season', [seasonId]);
+    if (!v || typeof v !== 'object') return {};
+    return v as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+/** seasonId → teamId for a player from $$player-season. */
+export async function getPlayerSeasonMap(
+  client: RamaClient,
+  steamId: string,
+): Promise<Record<string, string>> {
+  try {
+    const v = await client.selectOne('$$player-season', [steamId]);
     if (!v || typeof v !== 'object') return {};
     return v as Record<string, string>;
   } catch {

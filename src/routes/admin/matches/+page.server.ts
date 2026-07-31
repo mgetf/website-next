@@ -7,7 +7,7 @@ import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { getErrorMessage } from '$lib/server/utils/errors';
-import { MatchStatus } from '$prisma/client.js';
+import { MatchStatus } from '$lib/types/enums';
 import {
   createMatchSet,
   createPlayoffMatch,

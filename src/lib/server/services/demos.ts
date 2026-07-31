@@ -3,10 +3,9 @@
  * Handles demo upload, retrieval, and reporting operations
  */
 
-import { prisma } from '$lib/server/db';
 import { uploadToR2 } from '$lib/server/utils/r2Upload';
-import { DemoStatus } from '$prisma/client.js';
 import fs from 'fs';
+import { DemoStatus } from '$lib/types/enums';
 
 interface UploadDemoData {
   file: {
@@ -74,25 +73,7 @@ export async function uploadDemo(data: UploadDemoData) {
       submittedAt: new Date(),
     };
   }
-
-  await prisma.user.upsert({
-    where: { steamId: playerSteamId },
-    create: { steamId: playerSteamId, steamUsername: 'Unknown', steamAvatar: '' },
-    update: {},
-  });
-
-  const demo = await prisma.demo.create({
-    data: {
-      file: demoUrl,
-      playerSteamId,
-      submittedBy,
-      matchId,
-      description: description || null,
-      title: title || null,
-    },
-  });
-
-  return demo;
+  throw new Error('uploadDemo requires DATA_BACKEND=rama');
 }
 
 export async function reportDemo(demoId: number, reportedBy: string, description: string) {
@@ -136,29 +117,7 @@ export async function reportDemo(demoId: number, reportedBy: string, description
       reportedAt: new Date(),
     };
   }
-
-  const existingReport = await prisma.demoReport.findFirst({
-    where: {
-      demoId,
-      reportedBy,
-      status: DemoStatus.REVIEW,
-    },
-  });
-
-  if (existingReport) {
-    throw new Error('You have already submitted a pending report for this demo.');
-  }
-
-  const report = await prisma.demoReport.create({
-    data: {
-      demoId,
-      reportedBy,
-      status: DemoStatus.REVIEW,
-      description,
-    },
-  });
-
-  return report;
+  throw new Error('reportDemo requires DATA_BACKEND=rama');
 }
 
 export async function getUserDemoReports(demoId: number, userSteamId: string) {
@@ -186,16 +145,5 @@ export async function getUserDemoReports(demoId: number, userSteamId: string) {
     reports.sort((a, b) => b.reportedAt.getTime() - a.reportedAt.getTime());
     return reports;
   }
-
-  const reports = await prisma.demoReport.findMany({
-    where: {
-      demoId,
-      reportedBy: userSteamId,
-    },
-    orderBy: {
-      reportedAt: 'desc',
-    },
-  });
-
-  return reports;
+  throw new Error('getUserDemoReports requires DATA_BACKEND=rama');
 }

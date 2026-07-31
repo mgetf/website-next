@@ -21,7 +21,8 @@
                              mge.tf.rama.events-module
                              mge.tf.rama.catalog-module
                              mge.tf.rama.divisions-module
-                             mge.tf.rama.demos-module]
+                             mge.tf.rama.demos-module
+                             mge.tf.rama.globals-module]
                        :uberjar-name "mge-rama.jar"}}
   :aliases {"test-rama" ["with-profile" "+provided" "test"]
             "uberjar-modules" ["with-profile" "+provided,+uberjar" "uberjar"]})

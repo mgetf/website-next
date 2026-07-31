@@ -5,8 +5,6 @@
 
 import type { SessionUser } from '$lib/types/user';
 import { UserRole, BanStatus } from '$lib/types/user';
-import { UserRole as PrismaUserRole } from '$prisma/client.js';
-import { prisma } from '../db';
 import { unauthorized, forbidden } from '../utils/errors';
 
 /**
@@ -61,22 +59,7 @@ export async function isTeamAdmin(user: SessionUser | null, teamId: number): Pro
     if (!member?.active) return false;
     return member.permissionLevel === 'ADMIN' || member.permissionLevel === 'STATUS';
   }
-
-  // Check team membership
-  const membership = await prisma.playerInTeam.findUnique({
-    where: {
-      playerSteamId_teamId: {
-        playerSteamId: user.steamId,
-        teamId: teamId,
-      },
-    },
-  });
-
-  // Permission level ADMIN (1) or STATUS (2) means admin/owner (not just MEMBER which is 0)
-  return (
-    membership?.active === 1 &&
-    (membership.permissionLevel === 1 || membership.permissionLevel === 2)
-  );
+  throw new Error('isTeamAdmin requires DATA_BACKEND=rama');
 }
 
 /**
@@ -90,14 +73,7 @@ export async function getPermissionLevel(steamId: string): Promise<UserRole> {
     const row = await getUser(createUsersClient(ramaClientOpts()), steamId);
     return (row?.permissionLevel as UserRole) ?? UserRole.GUEST;
   }
-
-  const user = await prisma.user.findUnique({
-    where: { steamId },
-    select: { permissionLevel: true },
-  });
-
-  // Convert Prisma enum to shared enum
-  return (user?.permissionLevel as unknown as UserRole) ?? UserRole.GUEST;
+  throw new Error('getPermissionLevel requires DATA_BACKEND=rama');
 }
 
 // ===== Assertion Functions (Throw Errors) =====

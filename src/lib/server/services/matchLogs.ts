@@ -1,5 +1,3 @@
-import { prisma } from '$lib/server/db';
-import { Prisma } from '$prisma/client.js';
 import { steamId3FromSteamId64 } from '$lib/utils/steamid';
 import { uploadBufferToR2, getPublicUrl } from '$lib/server/utils/r2Upload';
 import { getParserUrl } from '$lib/server/utils/env';
@@ -107,43 +105,7 @@ export async function uploadMatchLog({
   if (isRamaBackend()) {
     throw new Error('Match log upload is not available under DATA_BACKEND=rama yet');
   }
-
-  const existing = await prisma.matchLog.findUnique({ where: { mgeMatchId } });
-  if (existing) {
-    const existingPreview =
-      (existing.preview as MatchPreview | null) ??
-      buildPreview(existing.parsedData as unknown as ParsedMatch);
-    return toSummary(existing, existingPreview);
-  }
-
-  const parsed = await callParser(logText);
-
-  const rawLogKey = `logs/${mgeMatchId}.log`;
-  await uploadBufferToR2(Buffer.from(logText, 'utf-8'), rawLogKey, 'text/plain');
-
-  const playerNames = parsed.players.map((p) => p.name);
-  const preview = buildPreview(parsed);
-
-  const row = await prisma.matchLog.create({
-    data: {
-      mgeMatchId,
-      rawLogKey,
-      parsedData: parsed as object,
-      players: playerNames,
-      preview: preview === null ? Prisma.DbNull : (preview as unknown as Prisma.InputJsonValue),
-      hostname: hostname ?? null,
-      map: parsed.meta.map,
-      arena: parsed.meta.arena ?? null,
-      gamemode: parsed.meta.gamemode,
-      format: parsed.meta.format,
-      aborted: parsed.meta.aborted,
-      startedAt: parsed.meta.startedAt ? new Date(parsed.meta.startedAt) : null,
-      endedAt: parsed.meta.endedAt ? new Date(parsed.meta.endedAt) : null,
-      durationSec: parsed.meta.durationSeconds ?? null,
-    },
-  });
-
-  return toSummary(row, preview);
+  throw new Error('uploadMatchLog requires DATA_BACKEND=rama');
 }
 
 export async function getMatchLog(id: number): Promise<MatchLogDetail> {
@@ -152,17 +114,7 @@ export async function getMatchLog(id: number): Promise<MatchLogDetail> {
     void id;
     notFound('Match log not found');
   }
-
-  const row = await prisma.matchLog.findUnique({ where: { id } });
-  if (!row) notFound('Match log not found');
-
-  const parsed = row.parsedData as unknown as ParsedMatch;
-  const preview = (row.preview as MatchPreview | null) ?? buildPreview(parsed);
-  return {
-    ...toSummary(row, preview),
-    parsedData: parsed,
-    rawLogKey: row.rawLogKey,
-  };
+  throw new Error('getMatchLog requires DATA_BACKEND=rama');
 }
 
 export async function listMatchLogsByPlayer(
@@ -179,63 +131,7 @@ export async function listMatchLogsByPlayer(
     void page;
     return { logs: [], total: 0, totalPages: 0 };
   }
-
-  const skip = (page - 1) * LOGS_PER_PAGE;
-
-  const steamId3 = steamId3FromSteamId64(steamId);
-  const jsonbFilter = JSON.stringify({ players: [{ steamId: steamId3 }] });
-
-  // Prisma's path+array_contains JSON filter generates incorrect SQL for nested array object matching.
-  // Raw SQL with PostgreSQL's @> (JSONB containment) operator is required here.
-  const [idRows, totalRows] = await Promise.all([
-    prisma.$queryRaw<{ id: number }[]>`
-      SELECT id FROM match_logs
-      WHERE parsed_data @> ${jsonbFilter}::jsonb
-      ORDER BY uploaded_at DESC
-      LIMIT ${LOGS_PER_PAGE} OFFSET ${skip}
-    `,
-    prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*) as count FROM match_logs
-      WHERE parsed_data @> ${jsonbFilter}::jsonb
-    `,
-  ]);
-
-  const total = Number(totalRows[0]?.count ?? 0n);
-  const ids = idRows.map((r) => r.id);
-
-  if (ids.length === 0) {
-    return { logs: [], total, totalPages: Math.ceil(total / LOGS_PER_PAGE) };
-  }
-
-  const rows = await prisma.matchLog.findMany({
-    where: { id: { in: ids } },
-    select: {
-      id: true,
-      mgeMatchId: true,
-      hostname: true,
-      map: true,
-      arena: true,
-      gamemode: true,
-      format: true,
-      aborted: true,
-      players: true,
-      durationSec: true,
-      startedAt: true,
-      endedAt: true,
-      uploadedAt: true,
-      preview: true,
-    },
-  });
-
-  // Restore the order from the raw SQL query (uploaded_at DESC)
-  const idOrder = new Map(ids.map((id, i) => [id, i]));
-  rows.sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
-
-  return {
-    logs: rows.map((row) => toSummary(row, row.preview as MatchPreview | null)),
-    total,
-    totalPages: Math.ceil(total / LOGS_PER_PAGE),
-  };
+  throw new Error('listMatchLogsByPlayer requires DATA_BACKEND=rama');
 }
 
 export async function listMatchLogs(page: number = 1): Promise<{
@@ -248,39 +144,7 @@ export async function listMatchLogs(page: number = 1): Promise<{
     void page;
     return { logs: [], total: 0, totalPages: 0 };
   }
-
-  const skip = (page - 1) * LOGS_PER_PAGE;
-
-  const [rows, total] = await Promise.all([
-    prisma.matchLog.findMany({
-      orderBy: { uploadedAt: 'desc' },
-      skip,
-      take: LOGS_PER_PAGE,
-      select: {
-        id: true,
-        mgeMatchId: true,
-        hostname: true,
-        map: true,
-        arena: true,
-        gamemode: true,
-        format: true,
-        aborted: true,
-        players: true,
-        durationSec: true,
-        startedAt: true,
-        endedAt: true,
-        uploadedAt: true,
-        preview: true,
-      },
-    }),
-    prisma.matchLog.count(),
-  ]);
-
-  return {
-    logs: rows.map((row) => toSummary(row, row.preview as MatchPreview | null)),
-    total,
-    totalPages: Math.ceil(total / LOGS_PER_PAGE),
-  };
+  throw new Error('listMatchLogs requires DATA_BACKEND=rama');
 }
 
 export function getLogPublicUrl(id: number): string {

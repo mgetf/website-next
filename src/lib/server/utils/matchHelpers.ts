@@ -3,7 +3,12 @@
  * Utility functions for match management
  */
 
-import type { Match } from '$prisma/client.js';
+type MatchLike = {
+  id: number;
+  weekNo?: number | null;
+  status?: string;
+  submittedAt?: Date | null;
+};
 
 /**
  * Calculate week label with suffix for multi-match weeks (e.g., "1a", "1b")
@@ -11,7 +16,10 @@ import type { Match } from '$prisma/client.js';
  * @param siblingsInWeek - All matches in the same week (MUST be filtered by division/region already)
  * @returns Week label with suffix if multiple matches, null if no week
  */
-export function calculateWeekLabel(match: Match, siblingsInWeek: { id: number }[]): string | null {
+export function calculateWeekLabel(
+  match: MatchLike,
+  siblingsInWeek: { id: number }[],
+): string | null {
   if (match.weekNo === null || match.weekNo === undefined) {
     return null;
   }
@@ -69,7 +77,7 @@ export function localDatetimeToUtc(naiveDatetime: string, ianaTimezone: string):
  * @param match - Match to check
  * @returns True if dispute is allowed
  */
-export function canDisputeMatch(match: Match): boolean {
+export function canDisputeMatch(match: MatchLike): boolean {
   if (match.status !== 'PLAYED') return false;
   if (!match.submittedAt) return false;
 

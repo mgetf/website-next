@@ -11,7 +11,7 @@ import { getUserDisplaysByIds, fetchSteamNames } from '$lib/server/services/user
 import { getRegions, getLeaderboard } from '$lib/server/clients/mgePlatform';
 import { steamId64FromSteamId32 } from '$lib/utils/steamid';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
-import { TeamStatus } from '$prisma/client.js';
+import { TeamStatus } from '$lib/types/enums';
 
 const REGION_ORDER: Record<string, number> = {
   na: 0,

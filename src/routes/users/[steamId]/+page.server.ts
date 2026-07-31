@@ -11,7 +11,7 @@ import {
   clearPunishment,
 } from '$lib/server/services/users';
 import { withdraw1v1Entry, toggle1v1Ready, change1v1Status } from '$lib/server/services/signup1v1';
-import { TeamStatus } from '$prisma/client.js';
+import { TeamStatus } from '$lib/types/enums';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';

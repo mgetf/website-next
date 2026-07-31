@@ -49,6 +49,10 @@
                "sessionVersion" Long
                "discordId" String})})
     (declare-pstate s $$discord-by-id {String String})
+    (declare-pstate
+     s $$user-ids
+     {String ;; "all"
+      (map-schema String Boolean)})
 
     (<<sources s
       (source> *user-depot :> *event)
@@ -65,6 +69,10 @@
           (local-transform> [(keypath *steam-id "sessionVersion") (termval 0)] $$users)
           (local-transform> [(keypath *steam-id "permissionLevel") (termval "GUEST")] $$users)
           (local-transform> [(keypath *steam-id "banStatus") (termval "NONE")] $$users))
+        (|hash "all")
+        (local-transform>
+         [(keypath "all" *steam-id) (termval true)]
+         $$user-ids)
         (ack-return> {"ok" true "steamId" *steam-id}))
 
       (<<if (= *type "set-permission")

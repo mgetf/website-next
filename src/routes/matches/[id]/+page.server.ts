@@ -11,7 +11,7 @@ import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/audit
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
 
-import { MatchStatus } from '$prisma/client.js';
+import { MatchStatus } from '$lib/types/enums';
 import {
   getMatchDetails,
   canUserManageMatch,

@@ -3,14 +3,22 @@
  * Core business logic for league matches (2v2 and 1v1)
  */
 
-import { prisma } from '$lib/server/db';
-import type { Match, Game, Team } from '$prisma/client.js';
-import { MatchStatus } from '$prisma/client.js';
 import { UserRole, type SessionUser } from '$lib/types/user';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { createNotificationForTeamOwners, createNotificationForAdmins } from './notifications';
+import { MatchStatus, NotificationType } from '$lib/types/enums';
+
+type Match = {
+  id: number;
+  status: string;
+  weekNo?: number | null;
+  submittedAt?: Date | null;
+  seasonId?: number;
+  homeTeamId?: number;
+  [key: string]: unknown;
+};
 
 async function getMatchDetailsRama(matchId: number) {
   const { ramaClientOpts } = await import('$lib/server/rama/config');
@@ -213,7 +221,27 @@ async function getMatchDetailsRama(matchId: number) {
     playoff: null,
     games,
     matchComms,
-    matchMapBans: [] as never[],
+    matchMapBans: [] as Array<{
+      id: number;
+      matchId: number;
+      currentTurn: number;
+      pool: {
+        id: number;
+        name: string;
+        mapsInPool: Array<{
+          orderNum: number;
+          arena: { id: number; name: string; avatar: string | null };
+        }>;
+      };
+      actions: Array<{
+        id: number;
+        actionOrder: number;
+        actionType: string;
+        team: { id: number; name: string } | null;
+        player: { steamId: string; steamUsername: string } | null;
+        arena: { id: number; name: string } | null;
+      }>;
+    }>,
     demos,
     submitter,
   };
@@ -236,125 +264,17 @@ async function getMatchDetailsRama(matchId: number) {
   };
 }
 
+export type MatchDetails = Awaited<ReturnType<typeof getMatchDetailsRama>>;
+
 /**
  * Get complete match details with all relations
  */
-export async function getMatchDetails(matchId: number) {
+export async function getMatchDetails(matchId: number): Promise<MatchDetails> {
   const { isRamaBackend } = await import('$lib/server/rama/config');
   if (isRamaBackend()) {
-    return (await getMatchDetailsRama(matchId)) as unknown as Awaited<
-      ReturnType<typeof getMatchDetailsFromPrisma>
-    >;
+    return getMatchDetailsRama(matchId);
   }
-
-  return getMatchDetailsFromPrisma(matchId);
-}
-
-async function getMatchDetailsFromPrisma(matchId: number) {
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    include: {
-      homeTeam: {
-        include: {
-          division: true,
-          region: true,
-          players: {
-            where: { active: 1 },
-            include: {
-              player: true,
-            },
-          },
-        },
-      },
-      awayTeam: {
-        include: {
-          division: true,
-          region: true,
-          players: {
-            where: { active: 1 },
-            include: {
-              player: true,
-            },
-          },
-        },
-      },
-      season: {
-        include: {
-          region: true,
-        },
-      },
-      playoff: true,
-      games: {
-        include: {
-          arena: true,
-        },
-        orderBy: { gameNum: 'asc' },
-      },
-      matchComms: {
-        include: {
-          user: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-      matchMapBans: {
-        include: {
-          pool: {
-            include: {
-              mapsInPool: {
-                include: {
-                  arena: true,
-                },
-                orderBy: { orderNum: 'asc' },
-              },
-            },
-          },
-          actions: {
-            include: {
-              team: true,
-              player: true,
-              arena: true,
-            },
-            orderBy: { actionOrder: 'asc' },
-          },
-        },
-      },
-      demos: {
-        include: {
-          player: true,
-          submitter: true,
-        },
-        orderBy: { submittedAt: 'desc' },
-      },
-      submitter: true,
-    },
-  });
-
-  if (!match) {
-    notFound('Match not found');
-  }
-
-  // Check if this is a 1v1 match and add player info
-  const is1v1 = match.homeTeam.formatId === FORMAT_1V1;
-
-  if (is1v1) {
-    // Get the active player from each "team" (there should only be one)
-    const homePlayer = match.homeTeam.players[0]?.player || null;
-    const awayPlayer = match.awayTeam.players[0]?.player || null;
-
-    return {
-      ...match,
-      is1v1: true,
-      homePlayer,
-      awayPlayer,
-    };
-  }
-
-  return {
-    ...match,
-    is1v1: false,
-    homePlayer: null,
-    awayPlayer: null,
-  };
+  notFound('Match not found');
 }
 
 /**
@@ -380,32 +300,25 @@ export async function getMatchWeekLabel(match: Match): Promise<string | null> {
       .sort((a, b) => a.id - b.id);
     return calculateWeekLabel(match, homeTeamMatchesForThisWeek);
   }
-
-  // Get all matches for the HOME team in this week
-  // This ensures consistent labeling from one team's perspective
-  const homeTeamMatchesForThisWeek = await prisma.match.findMany({
-    where: {
-      seasonId: match.seasonId,
-      weekNo: match.weekNo,
-      playoffId: null,
-      OR: [{ homeTeamId: match.homeTeamId }, { awayTeamId: match.homeTeamId }],
-    },
-    select: { id: true },
-    orderBy: { id: 'asc' },
-  });
-
-  return calculateWeekLabel(match, homeTeamMatchesForThisWeek);
+  throw new Error('getMatchWeekLabel requires DATA_BACKEND=rama');
 }
 
 /**
  * Calculate week labels for multiple matches
  * More efficient than calling getMatchWeekLabel multiple times
  */
-export async function getMatchWeekLabels(matches: Match[]): Promise<Map<number, string | null>> {
+export async function getMatchWeekLabels(
+  matches: Array<{
+    id: number;
+    weekNo?: number | null;
+    seasonId?: number;
+    homeTeamId?: number;
+  }>,
+): Promise<Map<number, string | null>> {
   const labels = new Map<number, string | null>();
 
   for (const match of matches) {
-    const label = await getMatchWeekLabel(match);
+    const label = await getMatchWeekLabel(match as Match);
     labels.set(match.id, label);
   }
 
@@ -668,7 +581,7 @@ export async function submitMatchScores(
     if (opposingTeamId != null) {
       await createNotificationForTeamOwners(
         [opposingTeamId],
-        'MATCH_COMM',
+        NotificationType.MATCH_COMM,
         `/matches/${matchId}`,
         `Score submitted: ${winnerScore}-${loserScore}`,
         submittedBy,
@@ -677,117 +590,7 @@ export async function submitMatchScores(
 
     return { winnerId, winnerScore, loserScore };
   }
-
-  const result = await prisma.$transaction(async (tx) => {
-    // Lock the match row for the duration of this transaction so concurrent
-    // submissions cannot both pass the UNPLAYED check simultaneously.
-    const rows = await tx.$queryRaw<{ id: number; status: string }[]>`
-      SELECT id, status FROM matches WHERE id = ${matchId} FOR UPDATE
-    `;
-    const locked = rows[0];
-    if (!locked) notFound('Match not found');
-    if (locked.status !== 'UNPLAYED') {
-      badRequest('Match scores have already been submitted');
-    }
-
-    const match = await tx.match.findUnique({
-      where: { id: matchId },
-      include: { homeTeam: true, awayTeam: true, games: true },
-    });
-
-    if (!match) notFound('Match not found');
-
-    const { winnerId, winnerScore, loserScore, homePointsScored, awayPointsScored } =
-      calculateMatchWinner(match.homeTeamId, match.awayTeamId, gameResults, match.boGames);
-
-    for (const r of gameResults) {
-      await tx.game.updateMany({
-        where: { matchId, gameNum: r.gameNum },
-        data: {
-          homeTeamScore: r.homeScore,
-          awayTeamScore: r.awayScore,
-          arenaId: r.arenaId || null,
-        },
-      });
-    }
-
-    await tx.team.update({
-      where: { id: match.homeTeamId },
-      data: {
-        wins: { increment: winnerId === match.homeTeamId ? 1 : 0 },
-        losses: { increment: winnerId === match.awayTeamId ? 1 : 0 },
-        gamesWon: { increment: gameResults.filter((g) => g.homeScore > g.awayScore).length },
-        gamesLost: { increment: gameResults.filter((g) => g.awayScore > g.homeScore).length },
-        pointsScored: { increment: homePointsScored },
-        pointsScoredAgainst: { increment: awayPointsScored },
-      },
-    });
-
-    await tx.team.update({
-      where: { id: match.awayTeamId },
-      data: {
-        wins: { increment: winnerId === match.awayTeamId ? 1 : 0 },
-        losses: { increment: winnerId === match.homeTeamId ? 1 : 0 },
-        gamesWon: { increment: gameResults.filter((g) => g.awayScore > g.homeScore).length },
-        gamesLost: { increment: gameResults.filter((g) => g.homeScore > g.awayScore).length },
-        pointsScored: { increment: awayPointsScored },
-        pointsScoredAgainst: { increment: homePointsScored },
-      },
-    });
-
-    await tx.match.update({
-      where: { id: matchId },
-      data: {
-        winnerId,
-        winnerScore,
-        loserScore,
-        status: MatchStatus.PLAYED,
-        submittedBy,
-        submittedAt: new Date(),
-      },
-    });
-
-    await tx.matchComm.updateMany({
-      where: { matchId, rescheduleStatus: 0 },
-      data: { rescheduleStatus: 3 }, // Canceled
-    });
-
-    return {
-      winnerId,
-      winnerScore,
-      loserScore,
-      homeTeamId: match.homeTeamId,
-      awayTeamId: match.awayTeamId,
-    };
-  });
-
-  // Notifications run outside the transaction — non-critical side effects
-  const submitterTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: submittedBy,
-      teamId: { in: [result.homeTeamId, result.awayTeamId] },
-      active: 1,
-    },
-  });
-
-  if (submitterTeam) {
-    const opposingTeamId =
-      submitterTeam.teamId === result.homeTeamId ? result.awayTeamId : result.homeTeamId;
-
-    await createNotificationForTeamOwners(
-      [opposingTeamId],
-      'MATCH_COMM',
-      `/matches/${matchId}`,
-      `Score submitted: ${result.winnerScore}-${result.loserScore}`,
-      submittedBy,
-    );
-  }
-
-  return {
-    winnerId: result.winnerId,
-    winnerScore: result.winnerScore,
-    loserScore: result.loserScore,
-  };
+  throw new Error('submitMatchScores requires DATA_BACKEND=rama');
 }
 
 /**
@@ -827,7 +630,7 @@ export async function disputeMatch(matchId: number, reason: string, disputedBy: 
     if (!commAck.ok) badRequest(commAck.error || 'Failed to post dispute message');
 
     await createNotificationForAdmins(
-      'MATCH_COMM',
+      NotificationType.MATCH_COMM,
       `/matches/${matchId}`,
       `Match disputed: ${reason.substring(0, 50)}${reason.length > 50 ? '...' : ''}`,
       disputedBy,
@@ -848,7 +651,7 @@ export async function disputeMatch(matchId: number, reason: string, disputedBy: 
     if (opposingTeamId != null) {
       await createNotificationForTeamOwners(
         [opposingTeamId],
-        'MATCH_COMM',
+        NotificationType.MATCH_COMM,
         `/matches/${matchId}`,
         'Match has been disputed',
         disputedBy,
@@ -856,77 +659,5 @@ export async function disputeMatch(matchId: number, reason: string, disputedBy: 
     }
     return;
   }
-
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-  });
-
-  if (!match) {
-    notFound('Match not found');
-  }
-
-  if (match.status !== MatchStatus.PLAYED) {
-    badRequest('Can only dispute played matches');
-  }
-
-  if (!match.submittedAt) {
-    badRequest('No submission timestamp found');
-  }
-
-  const now = Date.now();
-  const submittedTime = match.submittedAt.getTime();
-  const hoursSinceSubmission = (now - submittedTime) / (1000 * 3600);
-
-  if (hoursSinceSubmission > 24) {
-    badRequest('Dispute period has passed (24 hours)');
-  }
-
-  // Update match status to DISPUTE
-  await prisma.match.update({
-    where: { id: matchId },
-    data: {
-      status: MatchStatus.DISPUTE,
-    },
-  });
-
-  // Create dispute message
-  await prisma.matchComm.create({
-    data: {
-      matchId,
-      owner: disputedBy,
-      content: `MATCH DISPUTED: ${reason}`,
-      createdAt: new Date(),
-    },
-  });
-
-  // Notify admins about the dispute
-  await createNotificationForAdmins(
-    'MATCH_COMM',
-    `/matches/${matchId}`,
-    `Match disputed: ${reason.substring(0, 50)}${reason.length > 50 ? '...' : ''}`,
-    disputedBy,
-  );
-
-  // Determine which team the disputer is on to notify the opposing team
-  const disputerTeam = await prisma.playerInTeam.findFirst({
-    where: {
-      playerSteamId: disputedBy,
-      teamId: { in: [match.homeTeamId, match.awayTeamId] },
-      active: 1,
-    },
-  });
-
-  if (disputerTeam) {
-    const opposingTeamId =
-      disputerTeam.teamId === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
-
-    // Notify opposing team about the dispute
-    await createNotificationForTeamOwners(
-      [opposingTeamId],
-      'MATCH_COMM',
-      `/matches/${matchId}`,
-      'Match has been disputed',
-      disputedBy,
-    );
-  }
+  throw new Error('disputeMatch requires DATA_BACKEND=rama');
 }

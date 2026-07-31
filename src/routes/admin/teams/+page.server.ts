@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
-import { TeamStatus } from '$prisma/client.js';
+import { TeamStatus } from '$lib/types/enums';
 import { fail } from '@sveltejs/kit';
 import { getSeasonsForFilter } from '$lib/server/services/seasons';
 import { getRegionsForFilter } from '$lib/server/services/regions';

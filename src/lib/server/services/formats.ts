@@ -3,7 +3,6 @@
  * Manages game formats (1v1, 2v2, etc.)
  */
 
-import { prisma } from '$lib/server/db';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/constants/formats';
 
 async function getFormatsRama() {
@@ -33,19 +32,7 @@ async function getFormatsRama() {
 export async function getFormats() {
   const { isRamaBackend } = await import('$lib/server/rama/config');
   if (isRamaBackend()) return getFormatsRama();
-
-  return prisma.format.findMany({
-    orderBy: { id: 'asc' },
-    include: {
-      _count: {
-        select: {
-          seasons: true,
-          teams: true,
-          activeSignupSeasons: true,
-        },
-      },
-    },
-  });
+  throw new Error('getFormats requires DATA_BACKEND=rama');
 }
 
 export async function createFormat(data: { name: string; code: string }) {
@@ -68,22 +55,7 @@ export async function createFormat(data: { name: string; code: string }) {
     if (!ack.ok) throw new Error(ack.error || 'Failed to create format');
     return { id: Number(formatId), name: data.name.trim(), code };
   }
-
-  // Check if code already exists
-  const existing = await prisma.format.findUnique({
-    where: { code: data.code },
-  });
-
-  if (existing) {
-    throw new Error(`Format with code "${data.code}" already exists`);
-  }
-
-  return prisma.format.create({
-    data: {
-      name: data.name.trim(),
-      code: data.code.trim(),
-    },
-  });
+  throw new Error('createFormat requires DATA_BACKEND=rama');
 }
 
 export async function deleteFormat(id: number) {
@@ -91,41 +63,7 @@ export async function deleteFormat(id: number) {
   if (isRamaBackend()) {
     throw new Error('Format delete is not available under DATA_BACKEND=rama yet');
   }
-
-  const format = await prisma.format.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: {
-          seasons: true,
-          teams: true,
-          teamHistory: true,
-          activeSignupSeasons: true,
-        },
-      },
-    },
-  });
-
-  if (!format) {
-    throw new Error('Format not found');
-  }
-
-  const blockers: string[] = [];
-  if (format._count.seasons > 0)
-    blockers.push(`${format._count.seasons} season${format._count.seasons !== 1 ? 's' : ''}`);
-  if (format._count.teams > 0)
-    blockers.push(`${format._count.teams} team${format._count.teams !== 1 ? 's' : ''}`);
-  if (format._count.teamHistory > 0)
-    blockers.push(
-      `${format._count.teamHistory} team history record${format._count.teamHistory !== 1 ? 's' : ''}`,
-    );
-  if (format._count.activeSignupSeasons > 0) blockers.push('active signup configuration');
-
-  if (blockers.length > 0) {
-    throw new Error(`Cannot delete format: it has ${blockers.join(', ')}.`);
-  }
-
-  return await prisma.format.delete({ where: { id } });
+  throw new Error('deleteFormat requires DATA_BACKEND=rama');
 }
 
 /**
@@ -137,11 +75,7 @@ export async function getFormatsForFilter(): Promise<{ id: number; name: string;
     const rows = await getFormatsRama();
     return rows.map(({ id, name, code }) => ({ id, name, code }));
   }
-
-  return prisma.format.findMany({
-    select: { id: true, name: true, code: true },
-    orderBy: { id: 'asc' },
-  });
+  throw new Error('getFormatsForFilter requires DATA_BACKEND=rama');
 }
 
 export async function updateFormat(id: number, data: { name: string; code: string }) {
@@ -163,24 +97,5 @@ export async function updateFormat(id: number, data: { name: string; code: strin
     if (!ack.ok) throw new Error(ack.error || 'Failed to update format');
     return { id, name: data.name.trim(), code };
   }
-
-  // Check if we're changing the code to one that already exists
-  const existing = await prisma.format.findFirst({
-    where: {
-      code: data.code,
-      NOT: { id },
-    },
-  });
-
-  if (existing) {
-    throw new Error(`Format with code "${data.code}" already exists`);
-  }
-
-  return prisma.format.update({
-    where: { id },
-    data: {
-      name: data.name.trim(),
-      code: data.code.trim(),
-    },
-  });
+  throw new Error('updateFormat requires DATA_BACKEND=rama');
 }

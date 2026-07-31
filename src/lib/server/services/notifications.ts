@@ -4,10 +4,9 @@
  * All notification-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import type { NotificationType } from '$prisma/client.js';
 import { notificationHub, buildNotifyPayload } from '$lib/server/realtime/notificationHub';
 import type { NotificationPayload } from '$lib/server/realtime/notificationHub';
+import { NotificationType } from '$lib/types/enums';
 
 const actorSelect = {
   steamId: true,
@@ -20,15 +19,7 @@ const actorSelect = {
  * Wrapped in try/catch so a notify failure never breaks the mutation.
  */
 async function emitNotify(notification: NotificationPayload): Promise<void> {
-  try {
-    const payload = buildNotifyPayload(notification);
-    await prisma.$executeRawUnsafe(`SELECT pg_notify('notifications', $1)`, payload);
-  } catch (err) {
-    console.error(
-      '[notificationHub] pg_notify failed (notification still saved):',
-      err instanceof Error ? err.message : err,
-    );
-  }
+  throw new Error('emitNotify is not available under Rama');
 }
 
 function stableNotifNumericId(id: string): number {
@@ -69,26 +60,7 @@ export async function getNotificationsForDropdown(userSteamId: string) {
       })
       .slice(0, 10);
   }
-
-  return await prisma.notification.findMany({
-    where: {
-      userSteamId,
-    },
-    include: {
-      actor: {
-        select: {
-          steamId: true,
-          steamUsername: true,
-          steamAvatar: true,
-        },
-      },
-    },
-    orderBy: [
-      { isRead: 'asc' }, // Unread first
-      { createdAt: 'desc' },
-    ],
-    take: 10,
-  });
+  throw new Error('getNotificationsForDropdown requires DATA_BACKEND=rama');
 }
 
 /**
@@ -113,29 +85,16 @@ export async function getAllNotifications(userSteamId: string, limit = 50, offse
         actorSteamId: null as string | null,
         isRead: Boolean(n.read),
         createdAt: new Date(n.createdAt || 0),
-        actor: null,
+        actor: null as {
+          steamId: string;
+          steamUsername: string;
+          steamAvatar: string;
+        } | null,
       }))
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return rows.slice(offset, offset + limit);
   }
-
-  return await prisma.notification.findMany({
-    where: {
-      userSteamId,
-    },
-    include: {
-      actor: {
-        select: {
-          steamId: true,
-          steamUsername: true,
-          steamAvatar: true,
-        },
-      },
-    },
-    orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-    skip: offset,
-    take: limit,
-  });
+  throw new Error('getAllNotifications requires DATA_BACKEND=rama');
 }
 
 /**
@@ -151,17 +110,7 @@ export async function getNotificationCounts(userSteamId: string) {
     const unreadCount = await getUnreadCount(client, userSteamId);
     return { unreadCount, totalCount: Object.keys(map).length };
   }
-
-  const [unreadCount, totalCount] = await Promise.all([
-    prisma.notification.count({
-      where: { userSteamId, isRead: false },
-    }),
-    prisma.notification.count({
-      where: { userSteamId },
-    }),
-  ]);
-
-  return { unreadCount, totalCount };
+  throw new Error('getNotificationCounts requires DATA_BACKEND=rama');
 }
 
 /**
@@ -169,19 +118,7 @@ export async function getNotificationCounts(userSteamId: string) {
  * Security: Verifies the notification belongs to the user
  */
 export async function markAsRead(notificationId: number, userSteamId: string) {
-  const notification = await prisma.notification.findUnique({
-    where: { id: notificationId },
-    select: { userSteamId: true },
-  });
-
-  if (!notification || notification.userSteamId !== userSteamId) {
-    throw new Error('Notification not found or unauthorized');
-  }
-
-  await prisma.notification.update({
-    where: { id: notificationId },
-    data: { isRead: true },
-  });
+  throw new Error('markAsRead is not available under Rama');
 }
 
 /**
@@ -195,16 +132,7 @@ export async function markAllAsRead(userSteamId: string) {
     await markAllRead(createNotificationsClient(ramaClientOpts()), userSteamId);
     return;
   }
-
-  await prisma.notification.updateMany({
-    where: {
-      userSteamId,
-      isRead: false,
-    },
-    data: {
-      isRead: true,
-    },
-  });
+  throw new Error('markAllAsRead requires DATA_BACKEND=rama');
 }
 
 /**
@@ -221,37 +149,7 @@ async function createManyAndEmit(
     isRead: boolean;
   }[],
 ): Promise<void> {
-  if (data.length === 0) return;
-
-  const created = await prisma.notification.createManyAndReturn({ data });
-  const ids = created.map((n) => n.id);
-
-  const enriched = await prisma.notification.findMany({
-    where: { id: { in: ids } },
-    include: { actor: { select: actorSelect } },
-  });
-
-  await Promise.all(
-    enriched.map((n) =>
-      emitNotify({
-        id: n.id,
-        userSteamId: n.userSteamId!,
-        type: n.type,
-        url: n.url,
-        message: n.message,
-        actorSteamId: n.actorSteamId,
-        actor: n.actor
-          ? {
-              steamId: n.actor.steamId,
-              steamUsername: n.actor.steamUsername,
-              steamAvatar: n.actor.steamAvatar,
-            }
-          : null,
-        isRead: n.isRead,
-        createdAt: n.createdAt.toISOString(),
-      }),
-    ),
-  );
+  throw new Error('createManyAndEmit is not available under Rama');
 }
 
 /**
@@ -283,44 +181,7 @@ export async function createNotificationForMatch(
     }
     return;
   }
-
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    select: {
-      id: true,
-      homeTeamId: true,
-      awayTeamId: true,
-    },
-  });
-
-  if (!match || !match.homeTeamId || !match.awayTeamId) {
-    return;
-  }
-
-  const teamPlayers = await prisma.playerInTeam.findMany({
-    where: {
-      teamId: {
-        in: [match.homeTeamId, match.awayTeamId],
-      },
-      active: 1,
-    },
-    select: {
-      playerSteamId: true,
-    },
-  });
-
-  const notificationsToInsert = teamPlayers
-    .filter((player) => player.playerSteamId !== actorSteamId)
-    .map((player) => ({
-      userSteamId: player.playerSteamId,
-      type: 'MATCH_COMM' as NotificationType,
-      url: `/matches/${matchId}`,
-      message,
-      actorSteamId: actorSteamId || null,
-      isRead: false,
-    }));
-
-  await createManyAndEmit(notificationsToInsert);
+  throw new Error('createNotificationForMatch requires DATA_BACKEND=rama');
 }
 
 /**
@@ -361,38 +222,7 @@ export async function createNotificationForTeam(
     }
     return;
   }
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    select: { id: true },
-  });
-
-  if (!team) {
-    return;
-  }
-
-  const teamPlayers = await prisma.playerInTeam.findMany({
-    where: {
-      teamId,
-      active: 1,
-    },
-    select: {
-      playerSteamId: true,
-    },
-  });
-
-  const notificationsToInsert = teamPlayers
-    .filter((player) => player.playerSteamId !== actorSteamId)
-    .map((player) => ({
-      userSteamId: player.playerSteamId,
-      type: 'PENDING_PLAYER' as NotificationType,
-      url: `/teams/${teamId}`,
-      message,
-      actorSteamId: actorSteamId || null,
-      isRead: false,
-    }));
-
-  await createManyAndEmit(notificationsToInsert);
+  throw new Error('createNotificationForTeam requires DATA_BACKEND=rama');
 }
 
 /**
@@ -424,32 +254,7 @@ export async function createNotificationForTeamOwners(
     }
     return;
   }
-
-  const teamOwners = await prisma.playerInTeam.findMany({
-    where: {
-      teamId: { in: teamIds },
-      active: 1,
-      permissionLevel: { gte: 1 }, // 1 = Admin, 2 = Owner
-    },
-    select: {
-      playerSteamId: true,
-    },
-  });
-
-  const uniqueSteamIds = [...new Set(teamOwners.map((p) => p.playerSteamId))];
-
-  const notificationsToInsert = uniqueSteamIds
-    .filter((steamId) => steamId !== actorSteamId)
-    .map((steamId) => ({
-      userSteamId: steamId,
-      type,
-      url,
-      message,
-      actorSteamId: actorSteamId || null,
-      isRead: false,
-    }));
-
-  await createManyAndEmit(notificationsToInsert);
+  throw new Error('createNotificationForTeamOwners requires DATA_BACKEND=rama');
 }
 
 /**
@@ -469,36 +274,7 @@ export async function createNotificationForUser(
     await notifyRama(steamId, type, url, message);
     return;
   }
-
-  const notification = await prisma.notification.create({
-    data: {
-      userSteamId: steamId,
-      type,
-      url,
-      message,
-      actorSteamId: actorSteamId || null,
-      isRead: false,
-    },
-    include: { actor: { select: actorSelect } },
-  });
-
-  await emitNotify({
-    id: notification.id,
-    userSteamId: notification.userSteamId!,
-    type: notification.type,
-    url: notification.url,
-    message: notification.message,
-    actorSteamId: notification.actorSteamId,
-    actor: notification.actor
-      ? {
-          steamId: notification.actor.steamId,
-          steamUsername: notification.actor.steamUsername,
-          steamAvatar: notification.actor.steamAvatar,
-        }
-      : null,
-    isRead: notification.isRead,
-    createdAt: notification.createdAt.toISOString(),
-  });
+  throw new Error('createNotificationForUser requires DATA_BACKEND=rama');
 }
 
 /**
@@ -520,28 +296,7 @@ export async function createNotificationForAdmins(
     void actorSteamId;
     return;
   }
-
-  const admins = await prisma.user.findMany({
-    where: {
-      permissionLevel: 'ADMIN',
-    },
-    select: {
-      steamId: true,
-    },
-  });
-
-  const notificationsToInsert = admins
-    .filter((admin) => admin.steamId !== actorSteamId)
-    .map((admin) => ({
-      userSteamId: admin.steamId,
-      type,
-      url,
-      message,
-      actorSteamId: actorSteamId || null,
-      isRead: false,
-    }));
-
-  await createManyAndEmit(notificationsToInsert);
+  throw new Error('createNotificationForAdmins requires DATA_BACKEND=rama');
 }
 
 /**
@@ -549,34 +304,35 @@ export async function createNotificationForAdmins(
  * Returns 0 if no notifications exist
  */
 export async function getLatestNotificationId(userSteamId: string): Promise<number> {
-  const latest = await prisma.notification.findFirst({
-    where: { userSteamId },
-    orderBy: { id: 'desc' },
-    select: { id: true },
-  });
-  return latest?.id ?? 0;
+  return 0;
 }
 
 /**
  * Get all notifications for a user with an ID greater than sinceId.
  * Used by the SSE route for initial backfill and reconnect catch-up.
  */
-export async function getNotificationsSinceId(userSteamId: string, sinceId: number) {
-  return await prisma.notification.findMany({
-    where: {
-      userSteamId,
-      id: { gt: sinceId },
-    },
-    include: {
-      actor: {
-        select: {
-          steamId: true,
-          steamUsername: true,
-          steamAvatar: true,
-        },
-      },
-    },
-    orderBy: { id: 'asc' },
-    take: 50,
-  });
+export async function getNotificationsSinceId(
+  userSteamId: string,
+  sinceId: number,
+): Promise<
+  Array<{
+    id: number;
+    ramaId?: string;
+    userSteamId: string;
+    type: NotificationType | string;
+    url: string;
+    message: string;
+    actorSteamId: string | null;
+    isRead: boolean;
+    createdAt: Date;
+    actor: {
+      steamId: string;
+      steamUsername: string;
+      steamAvatar: string;
+    } | null;
+  }>
+> {
+  void userSteamId;
+  void sinceId;
+  return [];
 }

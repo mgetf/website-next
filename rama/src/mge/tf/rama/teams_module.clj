@@ -16,10 +16,14 @@
 
 (defn known-type? [t]
   (contains? #{"create-team" "join-team" "leave-team"
-               "set-status" "set-member-permission"
+               "set-status" "set-member-permission" "set-member-payment"
                "request-join" "approve-pending" "decline-pending"
                "create-invite" "accept-invite"}
              t))
+
+(defn payment-status-error [status]
+  (when-not (contains? #{"UNPAID" "PAID" "EXEMPT"} status)
+    "invalid-payment-status"))
 
 (defn status-error [status]
   (when-not (contains? #{"UNREADY" "PENDING" "READY" "DEAD" "PLACEMENT"} status)
@@ -432,6 +436,24 @@
                        "teamId" *team-id
                        "steamId" *steam-id
                        "permissionLevel" *level})))
+
+      ;; ── set-member-payment ──────────────────────────────────────────
+      (<<if (= *type "set-member-payment")
+        (get *event "steamId" :> *steam-id)
+        (get *event "paymentStatus" :> *pay-status)
+        (payment-status-error *pay-status :> *field-err)
+        (local-select> (keypath *team-id *steam-id) $$roster :> *member)
+        (missing-member-error *field-err *member :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (local-transform>
+           [(keypath *team-id *steam-id "paymentStatus") (termval *pay-status)]
+           $$roster)
+          (ack-return> {"ok" true
+                       "teamId" *team-id
+                       "steamId" *steam-id
+                       "paymentStatus" *pay-status})))
 
       (<<if (not (known-type? *type))
         (ack-return> {"ok" false "error" "unknown-type" "type" *type})))))

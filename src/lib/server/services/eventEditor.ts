@@ -280,6 +280,12 @@ async function audit(
 }
 
 export async function listTournamentEditorItems(): Promise<TournamentEditorListItem[]> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    // Draft/revision editor stays Postgres until EventsModule grows draft support.
+    return [];
+  }
+
   const [events, orphanDrafts] = await Promise.all([
     prisma.event.findMany({
       orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],

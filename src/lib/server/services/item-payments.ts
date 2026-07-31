@@ -7,6 +7,9 @@ import type { CheckoutTeamSelection } from '$lib/types/checkout';
 const ITEM_ORDER_EXPIRY_MS = 30 * 60 * 1000;
 
 export async function expireOverdueOrders(): Promise<number> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) return 0;
+
   const overdueOrders = await prisma.itemPaymentOrder.findMany({
     where: {
       status: 'PENDING',
@@ -42,6 +45,11 @@ export async function createItemPaymentOrder(
   teamId: number,
   paidForSteamIds: string[],
 ) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    badRequest('Item payments are not available under DATA_BACKEND=rama yet');
+  }
+
   const playerInTeam = await prisma.playerInTeam.findUnique({
     where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
     include: {
@@ -133,6 +141,11 @@ export async function createItemPaymentOrder(
  * Find any pending item payment order for a user (used by multi-team checkout).
  */
 export async function getPendingOrderForUser(steamId: string) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void steamId;
+    return null;
+  }
   const order = await prisma.itemPaymentOrder.findFirst({
     where: {
       playerSteamId: steamId,
@@ -315,6 +328,11 @@ export async function cancelItemPaymentOrder(orderNumber: string, steamId: strin
 }
 
 export async function getPendingOrderBySteamId(steamId: string) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void steamId;
+    return null;
+  }
   const order = await prisma.itemPaymentOrder.findFirst({
     where: {
       playerSteamId: steamId,
@@ -535,6 +553,12 @@ export async function getItemPaymentOrders(options: {
   page?: number;
   limit?: number;
 }) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void options;
+    return { orders: [], total: 0, totalPages: 0 };
+  }
+
   const { status, page = 1, limit = 25 } = options;
 
   const where: Record<string, unknown> = {};

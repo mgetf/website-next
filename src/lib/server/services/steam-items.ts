@@ -2,6 +2,8 @@ import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 
 export async function getSteamItems() {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) return [];
   return await prisma.steamItem.findMany({
     orderBy: { name: 'asc' },
   });

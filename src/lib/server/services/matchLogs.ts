@@ -103,6 +103,11 @@ export async function uploadMatchLog({
   logText: string;
   hostname?: string;
 }): Promise<MatchLogSummary> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    throw new Error('Match log upload is not available under DATA_BACKEND=rama yet');
+  }
+
   const existing = await prisma.matchLog.findUnique({ where: { mgeMatchId } });
   if (existing) {
     const existingPreview =
@@ -142,6 +147,12 @@ export async function uploadMatchLog({
 }
 
 export async function getMatchLog(id: number): Promise<MatchLogDetail> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void id;
+    notFound('Match log not found');
+  }
+
   const row = await prisma.matchLog.findUnique({ where: { id } });
   if (!row) notFound('Match log not found');
 
@@ -162,6 +173,13 @@ export async function listMatchLogsByPlayer(
   total: number;
   totalPages: number;
 }> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void steamId;
+    void page;
+    return { logs: [], total: 0, totalPages: 0 };
+  }
+
   const skip = (page - 1) * LOGS_PER_PAGE;
 
   const steamId3 = steamId3FromSteamId64(steamId);
@@ -225,6 +243,12 @@ export async function listMatchLogs(page: number = 1): Promise<{
   total: number;
   totalPages: number;
 }> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void page;
+    return { logs: [], total: 0, totalPages: 0 };
+  }
+
   const skip = (page - 1) * LOGS_PER_PAGE;
 
   const [rows, total] = await Promise.all([

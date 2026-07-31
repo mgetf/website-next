@@ -62,11 +62,19 @@ function cfgKey(name: string) {
  * Used by the presign endpoint to validate before issuing a URL.
  */
 export async function isMapNameTaken(name: string): Promise<boolean> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void name;
+    return false;
+  }
   const existing = await prisma.mapFile.findUnique({ where: { name } });
   return existing !== null;
 }
 
 export async function getMapFiles(): Promise<MapFileRow[]> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) return [];
+
   const maps = await prisma.mapFile.findMany({
     include: { uploader: { select: { steamUsername: true } } },
     orderBy: { name: 'asc' },
@@ -88,6 +96,9 @@ export async function getMapFiles(): Promise<MapFileRow[]> {
 }
 
 export async function getMapFileById(id: number) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) notFound('Map not found');
+
   const m = await prisma.mapFile.findUnique({
     where: { id },
     include: { uploader: { select: { steamUsername: true } } },
@@ -97,6 +108,11 @@ export async function getMapFileById(id: number) {
 }
 
 export async function getMapFilesByIds(ids: number[]) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void ids;
+    return [];
+  }
   return await prisma.mapFile.findMany({
     where: { id: { in: ids } },
     select: {
@@ -110,12 +126,20 @@ export async function getMapFilesByIds(ids: number[]) {
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
+async function assertMapsWritable() {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    throw new Error('Map file mutations are not available under DATA_BACKEND=rama yet');
+  }
+}
+
 export async function createMapFile(params: {
   bspFile: File;
   cfgFile: File;
   description?: string | null;
   uploadedBy: string;
 }) {
+  await assertMapsWritable();
   const { bspFile, cfgFile, description, uploadedBy } = params;
 
   // Validate files
@@ -181,6 +205,7 @@ export async function createMapFileFromPresigned(params: {
   description?: string | null;
   uploadedBy: string;
 }) {
+  await assertMapsWritable();
   const { bspKey: bspR2Key, bspSize, cfgFile, description, uploadedBy } = params;
 
   // Derive canonical map name from the BSP key (e.g. "maps/mge_foo.bsp" → "mge_foo")
@@ -227,6 +252,7 @@ export async function updateMapFileDescription(
   id: number,
   description: string | null,
 ): Promise<void> {
+  await assertMapsWritable();
   const m = await prisma.mapFile.findUnique({ where: { id } });
   if (!m) notFound('Map not found');
 
@@ -237,6 +263,7 @@ export async function updateMapFileDescription(
 }
 
 export async function deleteMapFile(id: number): Promise<void> {
+  await assertMapsWritable();
   const m = await prisma.mapFile.findUnique({ where: { id } });
   if (!m) notFound('Map not found');
 

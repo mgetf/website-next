@@ -228,6 +228,11 @@ export async function getEffectiveRosterLock(teamId: number): Promise<boolean> {
  * Useful for navigation to determine if signup button should show
  */
 export async function hasAnySignupsOpen(): Promise<boolean> {
+  if (isRamaBackend()) {
+    const { hasAnyOpenSignup } = await import('$lib/server/services/signupSeasons');
+    return hasAnyOpenSignup();
+  }
+
   const activeSeasons = await prisma.activeSignupSeason.findMany({
     include: {
       season: {

@@ -7,6 +7,7 @@
 
   PStates:
     $$events              {eventId -> metadata fields}
+    $$event-ids           {\"all\" -> {eventId -> true}}
     $$event-participants  {eventId -> vector of participant maps}
     $$event-placements    {eventId -> vector of placement maps}
     $$event-snapshot      {eventId -> Object}  ; opaque stages/matches JSON"
@@ -83,6 +84,11 @@
                "card" String})})
 
     (declare-pstate
+     s $$event-ids
+     {String ;; "all"
+      (map-schema String Boolean)})
+
+    (declare-pstate
      s $$event-participants
      {String clojure.lang.PersistentVector})
 
@@ -133,6 +139,10 @@
            $$events)
           (local-transform> [(keypath *event-id) (termval [])] $$event-participants)
           (local-transform> [(keypath *event-id) (termval [])] $$event-placements)
+          (|hash "all")
+          (local-transform>
+           [(keypath "all" *event-id) (termval true)]
+           $$event-ids)
           (ack-return> {"ok" true "eventId" *event-id "status" "UPCOMING"})))
 
       ;; ── update-event ────────────────────────────────────────────────

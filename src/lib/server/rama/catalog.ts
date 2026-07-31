@@ -161,3 +161,13 @@ export async function getRegionIds(client: RamaClient): Promise<string[]> {
     return [];
   }
 }
+
+export async function getFormatIds(client: RamaClient): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$format-ids', ['all']);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}

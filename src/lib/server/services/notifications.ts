@@ -31,10 +31,45 @@ async function emitNotify(notification: NotificationPayload): Promise<void> {
   }
 }
 
+function stableNotifNumericId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  return Math.abs(h) || 1;
+}
+
 /**
  * Get notifications for dropdown (unread + recent read, max 10)
  */
 export async function getNotificationsForDropdown(userSteamId: string) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createNotificationsClient, getNotifications } =
+      await import('$lib/server/rama/notifications');
+    const map = await getNotifications(createNotificationsClient(ramaClientOpts()), userSteamId);
+    return Object.entries(map)
+      .map(([id, n]) => ({
+        id: stableNotifNumericId(id),
+        ramaId: id,
+        userSteamId,
+        type: n.type as NotificationType,
+        url: n.href ?? '',
+        message: n.body ?? '',
+        actorSteamId: null as string | null,
+        isRead: Boolean(n.read),
+        createdAt: new Date(n.createdAt || 0),
+        actor: null as {
+          steamId: string;
+          steamUsername: string;
+          steamAvatar: string;
+        } | null,
+      }))
+      .sort((a, b) => {
+        if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      })
+      .slice(0, 10);
+  }
+
   return await prisma.notification.findMany({
     where: {
       userSteamId,
@@ -60,11 +95,6 @@ export async function getNotificationsForDropdown(userSteamId: string) {
  * Get all notifications for a user (with optional limit and pagination)
  * Used for the full notifications page
  */
-function stableNotifNumericId(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
-  return Math.abs(h) || 1;
-}
 
 export async function getAllNotifications(userSteamId: string, limit = 50, offset = 0) {
   const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');

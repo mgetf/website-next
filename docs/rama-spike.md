@@ -15,6 +15,8 @@ See [`rama/README.md`](../rama/README.md) for the full write-up.
 | `MapPoolsModule`      | `src/lib/server/rama/mapPools.ts`      | `map-pools`      |
 | `EventsModule`        | `src/lib/server/rama/events.ts`        | `events`         |
 | `CatalogModule`       | `src/lib/server/rama/catalog.ts`       | `catalog`        |
+| `DivisionsModule`     | `src/lib/server/rama/divisions.ts`     | `divisions`      |
+| `DemosModule`         | `src/lib/server/rama/demos.ts`         | `demos`          |
 
 **Tests:** `cd rama && lein test-rama`  
 **Smoke:** `bun run rama:smoke` (needs live cluster with all modules launched)

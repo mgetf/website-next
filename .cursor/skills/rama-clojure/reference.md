@@ -10,35 +10,35 @@ Hard failures we hit while cutting `rama/src/mge/tf/rama/*_module.clj` and the T
 | Same `let*` error from `(or *x "")` in a transform | Clojure `or`/`and` expand to `let*` even outside `<<if` predicates   | `(defn str-or-empty [v] …)` then call it in dataflow  |
 | `StackOverflowError` in `clojure.algo.monads`      | Deep nested `<<if` / `<<switch` / `<<cond`                           | ≤2 levels of dataflow branching; helpers for the rest |
 | StackOverflow during **AOT** / uberjar             | Same nesting + large `multi-path` trees                              | `-Xss8m` in `project.clj`; compact helpers            |
-| Nested `(count (or …))` / `(>= …)` inside `<<if`   | Treated as dataflow forms; expands badly                             | Pure `defn` helpers: `(actions-count *a :> *n)`         |
+| Nested `(count (or …))` / `(>= …)` inside `<<if`   | Treated as dataflow forms; expands badly                             | Pure `defn` helpers: `(actions-count *a :> *n)`       |
 | `EOF while reading`                                | Unbalanced parens after editing `<<if` trees                         | Count closers carefully; prefer flatter code          |
 | Minimal module works, big one doesn't              | Almost always `and` or nesting — bisect by commenting event handlers | Add one `<<if (= *type …)` handler at a time          |
 
 ## Runtime / worker death
 
-| Symptom                                              | Cause                                                   | Fix                                                                                   |
-| ---------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `Key must be integer` on ban/list update             | `AFTER-ELEM` (or similar) passed **into** `keypath`     | `[(keypath id "actions") AFTER-ELEM (termval row)]`                                   |
-| `CallbackException` / connection closed on append    | Topology threw; worker watchdog killed the task         | Check worker ERROR logs above the test failure                                        |
-| Duplicate / flaky ack after create                   | `ops/explode` then `ack-return>` on same lineage        | Write whole set with `termval`, or `anchor>`/`<<branch`                               |
-| Registration-style races                             | Wrong depot partitioner                                 | `hash-by` the entity whose serializability you need                                   |
-| Uniqueness check always passes / never sees existing | `local-select>` on wrong partition (still on depot key) | `\|hash` the index key **before** reading that PState                                 |
-| `ok: false` / `report-not-found` after successful report | Resolve hashed by `reportId`, report hashed by `demoId` | Prefer shared key in `hash-by` (`reportId` first); include that id on every event   |
-| Create works, later op can't see row                 | Same partition mismatch                                 | Log `(hash-by)` keys for each `type`; they must agree for shared PState writes        |
-| Giant `and>` of many `not=` for unknown-type         | Parser / compile pain                                   | `(defn known-type? [t] (contains? #{…} t))` then `(<<if (not (known-type? *type)) …)` |
+| Symptom                                                  | Cause                                                   | Fix                                                                                   |
+| -------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `Key must be integer` on ban/list update                 | `AFTER-ELEM` (or similar) passed **into** `keypath`     | `[(keypath id "actions") AFTER-ELEM (termval row)]`                                   |
+| `CallbackException` / connection closed on append        | Topology threw; worker watchdog killed the task         | Check worker ERROR logs above the test failure                                        |
+| Duplicate / flaky ack after create                       | `ops/explode` then `ack-return>` on same lineage        | Write whole set with `termval`, or `anchor>`/`<<branch`                               |
+| Registration-style races                                 | Wrong depot partitioner                                 | `hash-by` the entity whose serializability you need                                   |
+| Uniqueness check always passes / never sees existing     | `local-select>` on wrong partition (still on depot key) | `\|hash` the index key **before** reading that PState                                 |
+| `ok: false` / `report-not-found` after successful report | Resolve hashed by `reportId`, report hashed by `demoId` | Prefer shared key in `hash-by` (`reportId` first); include that id on every event     |
+| Create works, later op can't see row                     | Same partition mismatch                                 | Log `(hash-by)` keys for each `type`; they must agree for shared PState writes        |
+| Giant `and>` of many `not=` for unknown-type             | Parser / compile pain                                   | `(defn known-type? [t] (contains? #{…} t))` then `(<<if (not (known-type? *type)) …)` |
 
 ## Schema / path
 
-| Symptom                                             | Cause                                                             | Fix                                                    |
-| --------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------ |
-| REST `selectOne` returns null for a field you wrote | Keyword keys in PState, string navigators in JSON (or vice versa) | String keys end-to-end for REST-first modules          |
-| Long fields wrong / type errors                     | JSON number → Integer, schema expects Long                        | `(long v)` in topology; `"#__L…"` from TS              |
-| Subindexed set pain for 5–7 items                   | Over-engineering                                                  | Store as `Object` + Clojure set via `termval`          |
-| `nil->val` "didn't write"                           | View navigator without term                                       | End with `(term identity)` or `(term inc)` / `termval` |
-| Form action `Invalid demo/report ID`                | Hyphenated id + `z.coerce.number()` → `NaN`                       | Numeric-only string ids (`Date.now()*1000+rand`)       |
-| Map-ban UI shows on week match with fixed arena     | `create-match` always writes `$$map-bans`                         | TS: return `null` when `remaining` empty and no actions |
+| Symptom                                             | Cause                                                             | Fix                                                              |
+| --------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
+| REST `selectOne` returns null for a field you wrote | Keyword keys in PState, string navigators in JSON (or vice versa) | String keys end-to-end for REST-first modules                    |
+| Long fields wrong / type errors                     | JSON number → Integer, schema expects Long                        | `(long v)` in topology; `"#__L…"` from TS                        |
+| Subindexed set pain for 5–7 items                   | Over-engineering                                                  | Store as `Object` + Clojure set via `termval`                    |
+| `nil->val` "didn't write"                           | View navigator without term                                       | End with `(term identity)` or `(term inc)` / `termval`           |
+| Form action `Invalid demo/report ID`                | Hyphenated id + `z.coerce.number()` → `NaN`                       | Numeric-only string ids (`Date.now()*1000+rand`)                 |
+| Map-ban UI shows on week match with fixed arena     | `create-match` always writes `$$map-bans`                         | TS: return `null` when `remaining` empty and no actions          |
 | Map-ban turn wrong vs Prisma                        | Encoded turn as action index                                      | `0=home`, `1=away`; start at `1`; switch after `{0,2,4}` for Bo3 |
-| Ban accepted but wrong action type                  | Clojure ignores ban/pick sequence                                 | Enforce with TS `determineNextAction` before `banMap`  |
+| Ban accepted but wrong action type                  | Clojure ignores ban/pick sequence                                 | Enforce with TS `determineNextAction` before `banMap`            |
 
 ## REST API reminders
 
@@ -80,27 +80,27 @@ const result = acks['matches']; // topology name — NOT the module name
 
 ## Partitioning cheatsheet
 
-| Depot                                                | hash-by                         | Why                                                    |
-| ---------------------------------------------------- | ------------------------------- | ------------------------------------------------------ |
-| `*match-depot`                                       | `matchId`                       | Score + bans + comms serialize per match               |
-| `*user-depot`                                        | `steamId`                       | Ban/sessionVersion serial per user                     |
-| `*team-depot`                                        | `teamId`                        | Roster mutations serialize per team                    |
-| `*demo-depot`                                        | `reportId` \|\| `demoId`        | Report + resolve share partition; create uses demoId   |
-| Cross-entity uniqueness (one team per player/season) | hop to steamId partition        | Same pattern as friendship accept                      |
-| Status / match indexes                               | `\|hash` status or week key     | After primary write on match partition                 |
+| Depot                                                | hash-by                     | Why                                                  |
+| ---------------------------------------------------- | --------------------------- | ---------------------------------------------------- |
+| `*match-depot`                                       | `matchId`                   | Score + bans + comms serialize per match             |
+| `*user-depot`                                        | `steamId`                   | Ban/sessionVersion serial per user                   |
+| `*team-depot`                                        | `teamId`                    | Roster mutations serialize per team                  |
+| `*demo-depot`                                        | `reportId` \|\| `demoId`    | Report + resolve share partition; create uses demoId |
+| Cross-entity uniqueness (one team per player/season) | hop to steamId partition    | Same pattern as friendship accept                    |
+| Status / match indexes                               | `\|hash` status or week key | After primary write on match partition               |
 
 Playoff index hack (no PlayoffsModule yet): store playoff matches with **`weekNo: 0`** → `$$matches-by-week` key `"{seasonId}:0"`.
 
 ## TypeScript service cutover
 
-| Pattern                         | Do                                                                 | Don't                                      |
-| ------------------------------- | ------------------------------------------------------------------ | ------------------------------------------ |
-| Backend gate                    | `isRamaBackend()` then dynamic import of `rama/*`                  | Import prisma under Rama                   |
-| DTO shape                       | Synthesize Prisma-like plain objects the UI already expects        | Leak Rama maps into `.svelte`              |
-| Missing module                  | Soft stub (`getGlobalSettings`, synthetic playoff, empty staff)    | Call prisma (hard-error proxy)             |
-| Map ban id                      | `matchMapBan.id = matchId`                                         | Invent a second numeric id space           |
-| Action types in history         | Uppercase `BAN`/`PICK` for UI that checks Prisma enums             | Leave lowercase `"ban"` from Clojure       |
-| E2E seed                        | Depot append via `src/lib/server/rama/*` helpers                   | Prisma / SQL under Rama E2E                |
+| Pattern                 | Do                                                              | Don't                                |
+| ----------------------- | --------------------------------------------------------------- | ------------------------------------ |
+| Backend gate            | `isRamaBackend()` then dynamic import of `rama/*`               | Import prisma under Rama             |
+| DTO shape               | Synthesize Prisma-like plain objects the UI already expects     | Leak Rama maps into `.svelte`        |
+| Missing module          | Soft stub (`getGlobalSettings`, synthetic playoff, empty staff) | Call prisma (hard-error proxy)       |
+| Map ban id              | `matchMapBan.id = matchId`                                      | Invent a second numeric id space     |
+| Action types in history | Uppercase `BAN`/`PICK` for UI that checks Prisma enums          | Leave lowercase `"ban"` from Clojure |
+| E2E seed                | Depot append via `src/lib/server/rama/*` helpers                | Prisma / SQL under Rama E2E          |
 
 ## Cluster / deploy
 

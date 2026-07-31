@@ -17,6 +17,21 @@ type LockWaiterRow = {
 };
 
 export async function getDbHealthSnapshot() {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    return {
+      capturedAt: new Date().toISOString(),
+      maxConnections: 0,
+      totalConnections: 0,
+      activeConnections: 0,
+      idleConnections: 0,
+      idleInTransactionConnections: 0,
+      oldestTransactionAgeSeconds: 0,
+      lockWaiters: 0,
+      backend: 'rama' as const,
+    };
+  }
+
   const [connectionSummary] = await prisma.$queryRaw<ConnectionSummaryRow[]>`
     SELECT
       current_setting('max_connections')::int AS "maxConnections",

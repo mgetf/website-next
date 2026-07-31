@@ -11,6 +11,7 @@
     $$region-ids      {\"all\" -> {regionId -> true}}   ;; list index for REST scan
     $$formats         {formatId -> {name, code}}
     $$format-by-code  {code -> formatId}
+    $$format-ids      {\"all\" -> {formatId -> true}}
     $$active-signup   {regionId -> {formatId -> seasonId}}"
   (:use [com.rpl.rama]
         [com.rpl.rama.path]))
@@ -75,6 +76,11 @@
                "code" String})})
 
     (declare-pstate s $$format-by-code {String String})
+
+    (declare-pstate
+     s $$format-ids
+     {String ;; "all"
+      (map-schema String Boolean)})
 
     (declare-pstate
      s $$region-ids
@@ -163,6 +169,10 @@
                [(keypath "name") (termval *name)]
                [(keypath "code") (termval *code)])]
              $$formats)
+            (|hash "all")
+            (local-transform>
+             [(keypath "all" *format-id) (termval true)]
+             $$format-ids)
             (ack-return> {"ok" true "formatId" *format-id "code" *code}))))
 
       ;; ── set-active-signup ───────────────────────────────────────────

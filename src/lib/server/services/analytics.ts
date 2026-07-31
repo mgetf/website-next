@@ -42,6 +42,32 @@ interface AnalyticsData {
 }
 
 export async function getAdminAnalytics(): Promise<AnalyticsData> {
+  const empty: AnalyticsData = {
+    playersPerDivision: [],
+    teamsPerRegion: [],
+    paymentStatus: {
+      paid: 0,
+      unpaid: 0,
+      freeTier: 0,
+      totalInPaidDivisions: 0,
+      paymentRate: 0,
+    },
+    keyMetrics: {
+      pendingPlayers: 0,
+      disputedMatches: 0,
+      openDemoReports: 0,
+    },
+    totalPlayers: 0,
+    totalTeams: 0,
+    activeSeasonCount: 0,
+  };
+
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    // Soft zeros until a query topology aggregates Teams/Match/Payments/Demos.
+    return empty;
+  }
+
   // Get active signup season IDs from the junction table
   const activeSeasonIds = await getCurrentSignupSeasonIds();
 

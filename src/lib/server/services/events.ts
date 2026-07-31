@@ -24,7 +24,89 @@ const USER_SELECT = {
   steamAvatar: true,
 } as const;
 
+async function mapRamaEventListItem(
+  eventId: string,
+  row: {
+    name: string;
+    type: string;
+    status: string;
+    isTeamEvent: boolean;
+    description: string;
+    avatar: string;
+    startedAt: string;
+    endedAt: string;
+    prizepool: string;
+    card: string;
+    bracketLink: string;
+  },
+  placements: Array<Record<string, unknown>>,
+  participants: Array<Record<string, unknown>>,
+  snapshot: Record<string, unknown> | null,
+): Promise<EventListItem> {
+  const stages = Array.isArray(snapshot?.stages) ? (snapshot!.stages as unknown[]) : [];
+  const topPlacements = placements
+    .filter((p) => Number(p.placement ?? 99) <= 3)
+    .sort((a, b) => Number(a.placement ?? 0) - Number(b.placement ?? 0))
+    .map((p, i) => ({
+      id: i + 1,
+      placement: Number(p.placement ?? 0),
+      steamId: (p.steamId as string) ?? null,
+      displayName: String(p.displayName ?? p.steamId ?? ''),
+      user: null,
+    }));
+
+  return {
+    id: Number(eventId),
+    name: row.name,
+    type: row.type as EventListItem['type'],
+    status: row.status as EventListItem['status'],
+    isTeamEvent: Boolean(row.isTeamEvent),
+    description: row.description || null,
+    avatar: row.avatar || null,
+    startedAt: row.startedAt || null,
+    endedAt: row.endedAt || null,
+    prizepool: Number(row.prizepool || 0),
+    card: row.card || null,
+    bracketLink: row.bracketLink || null,
+    placements: topPlacements,
+    matchCount: 0,
+    participantCount: participants.length,
+    stageCount: stages.length,
+  };
+}
+
 export async function getAllEvents(): Promise<EventListItem[]> {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const {
+      createEventsClient,
+      getEventIds,
+      getEvent,
+      getEventParticipants,
+      getEventPlacements,
+      getEventSnapshot,
+    } = await import('$lib/server/rama/events');
+    const client = createEventsClient(ramaClientOpts());
+    const ids = await getEventIds(client);
+    const rows: EventListItem[] = [];
+    for (const id of ids) {
+      const event = await getEvent(client, id);
+      if (!event) continue;
+      const [placements, participants, snapshot] = await Promise.all([
+        getEventPlacements(client, id),
+        getEventParticipants(client, id),
+        getEventSnapshot(client, id),
+      ]);
+      rows.push(await mapRamaEventListItem(id, event, placements, participants, snapshot));
+    }
+    rows.sort((a, b) => {
+      const at = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+      const bt = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+      return bt - at;
+    });
+    return rows;
+  }
+
   const events = await prisma.event.findMany({
     orderBy: { startedAt: 'desc' },
     include: {
@@ -68,6 +150,66 @@ export async function getAllEvents(): Promise<EventListItem[]> {
 }
 
 export async function getEventById(id: number): Promise<EventDetail> {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const {
+      createEventsClient,
+      getEvent,
+      getEventParticipants,
+      getEventPlacements,
+      getEventSnapshot,
+    } = await import('$lib/server/rama/events');
+    const client = createEventsClient(ramaClientOpts());
+    const event = await getEvent(client, String(id));
+    if (!event) notFound('Event not found');
+    const [placements, participants, snapshot] = await Promise.all([
+      getEventPlacements(client, String(id)),
+      getEventParticipants(client, String(id)),
+      getEventSnapshot(client, String(id)),
+    ]);
+    const stages = Array.isArray(snapshot?.stages)
+      ? (snapshot!.stages as Array<Record<string, unknown>>).map((s, i) => ({
+          id: Number(s.id ?? i + 1),
+          name: String(s.name ?? `Stage ${i + 1}`),
+          bracketFormat: mapBracketFormat(String(s.bracketFormat ?? 'SINGLE_ELIM')),
+          orderNum: Number(s.orderNum ?? i),
+          matchCount: Array.isArray(s.matches) ? s.matches.length : Number(s.matchCount ?? 0),
+        }))
+      : [];
+
+    return {
+      id,
+      name: event.name,
+      type: event.type as EventDetail['type'],
+      status: event.status as EventDetail['status'],
+      isTeamEvent: Boolean(event.isTeamEvent),
+      description: event.description || null,
+      avatar: event.avatar || null,
+      startedAt: event.startedAt || null,
+      endedAt: event.endedAt || null,
+      prizepool: Number(event.prizepool || 0),
+      card: event.card || null,
+      bracketLink: event.bracketLink || null,
+      placements: placements.map((p, i) => ({
+        id: i + 1,
+        placement: Number(p.placement ?? 0),
+        steamId: (p.steamId as string) ?? null,
+        displayName: String(p.displayName ?? p.steamId ?? ''),
+        user: null,
+      })),
+      participantCount: participants.length,
+      stages,
+      participants: participants.map((p, i) => ({
+        id: i + 1,
+        steamId: (p.steamId as string) ?? null,
+        displayName: String(p.displayName ?? p.steamId ?? ''),
+        seed: p.seed == null ? null : Number(p.seed),
+        eliminated: Boolean(p.eliminated),
+        user: null,
+      })),
+    };
+  }
+
   const event = await prisma.event.findUnique({
     where: { id },
     include: {
@@ -111,6 +253,11 @@ export async function getEventById(id: number): Promise<EventDetail> {
 }
 
 export async function getEventBracketData(stageId: number): Promise<BracketData> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    notFound('Event stage not found');
+  }
+
   const stage = await prisma.eventStage.findUnique({
     where: { id: stageId },
     include: {

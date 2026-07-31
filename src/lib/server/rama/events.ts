@@ -209,3 +209,13 @@ export async function getEventSnapshot(
     return null;
   }
 }
+
+export async function getEventIds(client: RamaClient): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$event-ids', ['all']);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}

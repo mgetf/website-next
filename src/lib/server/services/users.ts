@@ -279,6 +279,23 @@ export async function isUserSignedUpForFormat(steamId: string, formatId: number)
 export async function getUserActiveTeam(
   steamId: string,
 ): Promise<{ id: number; name: string } | null> {
+  if (isRamaBackend()) {
+    const { createTeamsClient, getPlayerSeasonTeam, getTeam } =
+      await import('$lib/server/rama/teams');
+    const client = createTeamsClient(ramaClientOpts());
+    const seasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
+    for (const seasonId of seasonIds) {
+      const teamId = await getPlayerSeasonTeam(client, steamId, String(seasonId));
+      if (!teamId) continue;
+      const team = await getTeam(client, teamId);
+      if (!team) continue;
+      if (Number(team.formatId) !== FORMAT_2V2) continue;
+      return { id: Number(teamId), name: String(team.name ?? '') };
+    }
+    // No name/player index for "any active team" fallback under Rama yet.
+    return null;
+  }
+
   const currentSeasonIds = await getCurrentSignupSeasonIds();
 
   // First, try to find a team in the current signup season
@@ -1141,6 +1158,30 @@ export async function findOrCreateSteamUser(steamUserJson: {
   isNewUser: boolean;
 }> {
   const { steamid, personaname, avatarfull } = steamUserJson;
+
+  if (isRamaBackend()) {
+    const client = usersClient();
+    const existing = await ramaGetUser(client, steamid);
+    const isNewUser = !existing;
+    await ramaUpsertProfile(client, {
+      steamId: steamid,
+      username: personaname,
+      avatarUrl: avatarfull,
+    });
+    if (isNewUser) {
+      await ramaSetPermission(client, { steamId: steamid, permissionLevel: 'GUEST' });
+      await ramaSetBan(client, { steamId: steamid, banStatus: 'NONE' });
+    }
+    const row = await ramaGetUser(client, steamid);
+    return {
+      username: String(row?.username ?? personaname),
+      avatar: String(row?.avatarUrl ?? avatarfull),
+      permissionLevel: String(row?.permissionLevel ?? 'GUEST'),
+      banStatus: String(row?.banStatus ?? 'NONE'),
+      sessionVersion: typeof row?.sessionVersion === 'number' ? row.sessionVersion : 0,
+      isNewUser,
+    };
+  }
 
   const existingUser = await prisma.user.findUnique({
     where: { steamId: steamid },

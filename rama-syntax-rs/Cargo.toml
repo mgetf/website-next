@@ -11,5 +11,6 @@ name = "rama-check"
 path = "src/bin/rama-check.rs"
 
 [dependencies]
+phoron_core = "0.5.4"
 
 [dev-dependencies]

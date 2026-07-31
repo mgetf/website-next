@@ -38,10 +38,10 @@ pub enum TokenKind {
     Comma,
     Semicolon,
     Colon,
-    BindPipe,   // `>` used as binding pipe / sink
-    ArrowSelect, // `-->`
+    BindPipe,       // `>` used as binding pipe / sink
+    ArrowSelect,    // `-->`
     ArrowTransform, // `!<--`
-    ArrowType,  // `->` in pstate schemas
+    ArrowType,      // `->` in pstate schemas
 
     // Literals / names
     Binding(String),     // `*foo` / `%bar`
@@ -176,10 +176,7 @@ impl<'a> Lexer<'a> {
         if self.starts_with("->") {
             let spaced = start == 0
                 || self.bytes[start - 1].is_ascii_whitespace()
-                || matches!(
-                    self.bytes[start - 1],
-                    b'{' | b',' | b'(' | b'[' | b';'
-                );
+                || matches!(self.bytes[start - 1], b'{' | b',' | b'(' | b'[' | b';');
             let after = self.bytes.get(start + 2).copied();
             let followed_by_space_or_ident = matches!(
                 after,
@@ -432,10 +429,6 @@ impl<'a> Lexer<'a> {
         // Consume a rich identifier that may include `/`, `:`, `.`, `*`, `%`, `|`, `-`, `->`
         // and may end with `>` for Rama operators.
         while let Some(b) = self.peek() {
-            if is_ident_continue_rich(b) {
-                self.pos += 1;
-                continue;
-            }
             // Embedded `->` in qualified names: `pool->set`, `foo/->Bar`
             if b == b'-' && self.bytes.get(self.pos + 1) == Some(&b'>') {
                 let after = self.bytes.get(self.pos + 2).copied();
@@ -446,6 +439,10 @@ impl<'a> Lexer<'a> {
                     self.pos += 2;
                     continue;
                 }
+            }
+            if is_ident_continue_rich(b) {
+                self.pos += 1;
+                continue;
             }
             // Trailing `>` for operator names when attached (no space): `ack-return>`, `NONE>`
             if b == b'>' {
@@ -503,7 +500,10 @@ fn is_name_continue(b: u8) -> bool {
 
 fn is_ident_continue_rich(b: u8) -> bool {
     b.is_ascii_alphanumeric()
-        || matches!(b, b'_' | b'-' | b'.' | b'/' | b':' | b'%' | b'*' | b'|' | b'?' | b'=')
+        || matches!(
+            b,
+            b'_' | b'-' | b'.' | b'/' | b':' | b'%' | b'*' | b'|' | b'?' | b'='
+        )
 }
 
 /// Operators end with `>` and have at least one letter before it.
@@ -517,9 +517,9 @@ fn looks_like_operator(s: &str) -> bool {
     }
     let body = &s[..s.len() - 1];
     body.chars().next().is_some_and(|c| c.is_ascii_lowercase())
-        && body
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/' | ':' | '%' | '*' | '|'))
+        && body.chars().all(|c| {
+            c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/' | ':' | '%' | '*' | '|')
+        })
 }
 
 #[cfg(test)]
@@ -528,8 +528,8 @@ mod tests {
 
     #[test]
     fn lexes_select_and_transform() {
-        let tokens = lex("$$matches --> keypath(*id); $$matches !<-- keypath(*id), termval(0);")
-            .unwrap();
+        let tokens =
+            lex("$$matches --> keypath(*id); $$matches !<-- keypath(*id), termval(0);").unwrap();
         assert!(tokens
             .iter()
             .any(|t| matches!(t.kind, TokenKind::ArrowSelect)));

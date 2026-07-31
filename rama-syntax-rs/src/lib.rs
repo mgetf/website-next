@@ -9,15 +9,19 @@
 
 pub mod ast;
 pub mod check;
+pub mod emit_clj;
+pub mod emit_edn;
 pub mod error;
 pub mod lex;
 pub mod parse;
 pub mod span;
 
 pub use ast::SourceFile;
-pub use check::{CheckResult, TypeEnv, check};
+pub use check::{check, CheckResult, TypeEnv};
+pub use emit_clj::emit_clojure;
+pub use emit_edn::{emit_edn, emit_forms, EdnForm};
 pub use error::{Diagnostic, DiagnosticKind, ParseError};
-pub use lex::{Token, TokenKind, lex};
+pub use lex::{lex, Token, TokenKind};
 pub use parse::parse;
 
 /// Parse source and run the type-checker stub.

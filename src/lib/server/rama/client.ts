@@ -3,8 +3,6 @@
  * No custom Clojure HTTP layer. No gRPC.
  *
  * Docs: https://redplanetlabs.com/docs/~/rest.html
- *
- * @lintignore Spike client module; production routes still use Postgres.
  */
 
 export type AckLevel = 'ack' | 'appendAck' | 'none';

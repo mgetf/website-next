@@ -3,5 +3,14 @@
 version = 4
 
 [[package]]
+name = "phoron_core"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25d51efca1234563a111e9713d61e72aefad7af4f8aea8ac0da8ae48c0b5bdd1"
+
+[[package]]
 name = "rama_syntax"
 version = "0.1.0"
+dependencies = [
+ "phoron_core",
+]

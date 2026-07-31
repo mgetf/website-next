@@ -53,6 +53,7 @@ export type BanMapEvent = {
   matchId: string;
   teamId: string;
   arenaId: string;
+  actionType?: 'ban' | 'pick';
 };
 
 export type SubmitScoreEvent = {
@@ -122,7 +123,19 @@ export async function banMap(
   event: BanMapEvent,
   ackLevel: AckLevel = 'ack',
 ): Promise<MatchAck> {
-  return asAck(await client.append(MATCH_DEPOT, event, ackLevel));
+  return asAck(
+    await client.append(
+      MATCH_DEPOT,
+      {
+        type: 'ban-map',
+        matchId: event.matchId,
+        teamId: event.teamId,
+        arenaId: event.arenaId,
+        actionType: event.actionType ?? 'ban',
+      },
+      ackLevel,
+    ),
+  );
 }
 
 export async function submitScore(
@@ -305,12 +318,51 @@ export async function getMapBanTurn(client: RamaClient, matchId: string): Promis
   }
 }
 
+export type MapBanRecord = {
+  turn: number;
+  homeTeamId: string;
+  awayTeamId: string;
+  remaining: string[] | Record<string, unknown>;
+  actions: Array<{ teamId: string; arenaId: string; actionType: string }>;
+  banPhaseComplete: boolean;
+  boSeries: number;
+};
+
+/** Full $$map-bans row for a match, or null if absent. */
+export async function getMapBan(client: RamaClient, matchId: string): Promise<MapBanRecord | null> {
+  try {
+    const v = await client.selectOne('$$map-bans', [matchId]);
+    if (!v || typeof v !== 'object') return null;
+    return v as MapBanRecord;
+  } catch {
+    return null;
+  }
+}
+
 export async function getTeamWins(client: RamaClient, teamId: string): Promise<number> {
   try {
     const v = await client.selectOne('$$team-stats', [teamId, 'wins']);
     return typeof v === 'number' ? v : 0;
   } catch {
     return 0;
+  }
+}
+
+export async function getTeamStats(
+  client: RamaClient,
+  teamId: string,
+): Promise<{ wins: number; losses: number; points: number }> {
+  try {
+    const v = await client.selectOne('$$team-stats', [teamId]);
+    if (!v || typeof v !== 'object') return { wins: 0, losses: 0, points: 0 };
+    const row = v as Record<string, unknown>;
+    return {
+      wins: typeof row.wins === 'number' ? row.wins : 0,
+      losses: typeof row.losses === 'number' ? row.losses : 0,
+      points: typeof row.points === 'number' ? row.points : 0,
+    };
+  } catch {
+    return { wins: 0, losses: 0, points: 0 };
   }
 }
 

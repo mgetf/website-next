@@ -31,12 +31,46 @@
                "post-comm" "request-reschedule" "respond-reschedule"}
              t))
 
-(defn ban-error [turn home away team-id remaining arena-id]
+(defn expected-team [current-turn home away]
+  (if (= (long current-turn) 0) home away))
+
+(defn ban-error [current-turn home away team-id remaining arena-id complete]
   (cond
-    (nil? turn) "no-ban-state"
-    (not= team-id (if (even? (long turn)) away home)) "not-your-turn"
+    (nil? current-turn) "no-ban-state"
+    (true? complete) "ban-complete"
+    (not= team-id (expected-team current-turn home away)) "not-your-turn"
     (not (contains? remaining arena-id)) "arena-not-in-pool"
     :else nil))
+
+(defn should-switch-turn [action-count bo-series]
+  (let [n (long action-count)
+        bo (long bo-series)]
+    (cond
+      (= bo 3) (contains? #{0 2 4} n)
+      (= bo 5) (contains? #{0 2 4 5 6} n)
+      (= bo 7) (contains? #{0 2 4 5 6 7 8} n)
+      :else (contains? #{0 2 4} n))))
+
+(defn next-turn [current-turn switch?]
+  (if switch?
+    (if (= (long current-turn) 0) (long 1) (long 0))
+    (long current-turn)))
+
+(defn total-ban-actions [bo-series]
+  (case (long bo-series)
+    3 (long 6)
+    5 (long 8)
+    7 (long 10)
+    (long 6)))
+
+(defn action-type-or-ban [v]
+  (if (or (nil? v) (= v "")) "ban" v))
+
+(defn actions-count [actions]
+  (count (or actions [])))
+
+(defn ban-now-complete? [next-count bo-series]
+  (>= (long next-count) (total-ban-actions bo-series)))
 
 (defn score-error [status home-score away-score bo-games]
   (cond
@@ -112,11 +146,13 @@
     (declare-pstate
      s $$map-bans
      {String (fixed-keys-schema
-              {"turn" Long
+              {"turn" Long ;; 0 = home, 1 = away (current actor)
                "homeTeamId" String
                "awayTeamId" String
                "remaining" Object
-               "actions" Object})})
+               "actions" Object
+               "banPhaseComplete" Boolean
+               "boSeries" Long})})
 
     (declare-pstate
      s $$team-stats
@@ -201,11 +237,13 @@
           (local-transform>
            [(keypath *match-id)
             (multi-path
-             [(keypath "turn") (termval 0)]
+             [(keypath "turn") (termval (long 1))] ;; away starts
              [(keypath "homeTeamId") (termval *home-id)]
              [(keypath "awayTeamId") (termval *away-id)]
              [(keypath "remaining") (termval *pool-set)]
-             [(keypath "actions") (termval [])])]
+             [(keypath "actions") (termval [])]
+             [(keypath "banPhaseComplete") (termval false)]
+             [(keypath "boSeries") (termval *bo-games)])]
            $$map-bans)
           (local-transform> [(keypath *match-id) (termval "")] $$pending-reschedule)
           (|hash *home-id)
@@ -223,23 +261,43 @@
       (<<if (= *type "ban-map")
         (get *event "teamId" :> *team-id)
         (get *event "arenaId" :> *arena-id)
+        (get *event "actionType" :> *action-type-raw)
+        (action-type-or-ban *action-type-raw :> *action-type)
         (local-select> (keypath *match-id "turn") $$map-bans :> *turn)
         (local-select> (keypath *match-id "homeTeamId") $$map-bans :> *ban-home)
         (local-select> (keypath *match-id "awayTeamId") $$map-bans :> *ban-away)
         (local-select> (keypath *match-id "remaining") $$map-bans :> *remaining)
-        (ban-error *turn *ban-home *ban-away *team-id *remaining *arena-id :> *err)
+        (local-select> (keypath *match-id "banPhaseComplete") $$map-bans :> *complete)
+        (local-select> (keypath *match-id "boSeries") $$map-bans :> *bo-series)
+        (local-select> (keypath *match-id "actions") $$map-bans :> *actions)
+        (ban-error *turn *ban-home *ban-away *team-id *remaining *arena-id *complete :> *err)
         (<<if (some? *err)
           (ack-return> {"ok" false "error" *err})
          (else>)
+          (actions-count *actions :> *action-count)
           (disj *remaining *arena-id :> *next-remaining)
-          (inc *turn :> *next-turn)
+          (should-switch-turn *action-count *bo-series :> *switch?)
+          (next-turn *turn *switch? :> *next-turn)
+          (inc *action-count :> *next-count)
+          (ban-now-complete? *next-count *bo-series :> *now-complete)
           (local-transform> [(keypath *match-id "remaining") (termval *next-remaining)] $$map-bans)
           (local-transform>
            [(keypath *match-id "actions") AFTER-ELEM
-            (termval {"teamId" *team-id "arenaId" *arena-id})]
+            (termval {"teamId" *team-id
+                      "arenaId" *arena-id
+                      "actionType" *action-type})]
            $$map-bans)
-          (local-transform> [(keypath *match-id "turn") (termval *next-turn)] $$map-bans)
-          (ack-return> {"ok" true "matchId" *match-id "banned" *arena-id "turn" *next-turn})))
+          (local-transform>
+           [(keypath *match-id)
+            (multi-path
+             [(keypath "turn") (termval *next-turn)]
+             [(keypath "banPhaseComplete") (termval *now-complete)])]
+           $$map-bans)
+          (ack-return> {"ok" true
+                       "matchId" *match-id
+                       "banned" *arena-id
+                       "turn" *next-turn
+                       "type" *action-type})))
 
       (<<if (= *type "submit-score")
         (get *event "homeScore" :> *hs-raw)

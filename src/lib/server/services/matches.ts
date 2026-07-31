@@ -19,6 +19,7 @@ async function getMatchDetailsRama(matchId: number) {
   const { getTeamById } = await import('$lib/server/services/teams');
   const { getSeasonById } = await import('$lib/server/services/seasons');
   const { createMapPoolsClient, getArena } = await import('$lib/server/rama/mapPools');
+  const { createDemosClient, getDemoIdsForMatch, getDemo } = await import('$lib/server/rama/demos');
 
   const opts = ramaClientOpts();
   const matchClient = createMatchClient(opts);
@@ -137,15 +138,54 @@ async function getMatchDetailsRama(matchId: number) {
       : { steamId: submittedBy, steamUsername: submittedBy, steamAvatar: '' };
   }
 
+  const demosClient = createDemosClient(opts);
+  const demoIds = await getDemoIdsForMatch(demosClient, String(matchId));
+  const demos = [];
+  for (const demoId of demoIds) {
+    const demo = await getDemo(demosClient, demoId);
+    if (!demo) continue;
+    const [player, demoSubmitter] = await Promise.all([
+      getUser(usersClient, demo.playerSteamId),
+      getUser(usersClient, demo.submittedBy),
+    ]);
+    demos.push({
+      id: Number(demoId),
+      file: demo.file,
+      playerSteamId: demo.playerSteamId,
+      submittedBy: demo.submittedBy,
+      matchId,
+      title: demo.title || null,
+      description: demo.description || null,
+      submittedAt: demo.createdAt ? new Date(demo.createdAt) : new Date(),
+      player: player
+        ? {
+            steamId: demo.playerSteamId,
+            steamUsername: String(player.username ?? demo.playerSteamId),
+            steamAvatar: String(player.avatarUrl ?? ''),
+          }
+        : null,
+      submitter: demoSubmitter
+        ? {
+            steamId: demo.submittedBy,
+            steamUsername: String(demoSubmitter.username ?? demo.submittedBy),
+            steamAvatar: String(demoSubmitter.avatarUrl ?? ''),
+          }
+        : null,
+    });
+  }
+
+  const weekNoRaw = Number(row.weekNo ?? 0);
+  const isPlayoff = weekNoRaw === 0;
+
   const match = {
     id: matchId,
     homeTeamId,
     awayTeamId,
     seasonId,
     seasonNo: Number(row.seasonNo ?? season.seasonNum ?? 0),
-    weekNo: Number(row.weekNo ?? 0) || null,
-    playoffId: null as number | null,
-    playoffRound: null as number | null,
+    weekNo: isPlayoff ? null : weekNoRaw || null,
+    playoffId: isPlayoff ? seasonId : (null as number | null),
+    playoffRound: isPlayoff ? 1 : (null as number | null),
     boSeries: boGames,
     boGames: null as number | null,
     status,
@@ -174,7 +214,7 @@ async function getMatchDetailsRama(matchId: number) {
     games,
     matchComms,
     matchMapBans: [] as never[],
-    demos: [] as never[],
+    demos,
     submitter,
   };
 

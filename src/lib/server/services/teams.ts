@@ -280,6 +280,49 @@ export async function getTeamsByDivision(
   regionId: number,
   statuses: string[],
 ) {
+  if (isRamaBackend()) {
+    const { createTeamsClient, getTeamIdsBySeason } = await import('$lib/server/rama/teams');
+    const idsByStatus = await getTeamIdsBySeason(
+      createTeamsClient(ramaClientOpts()),
+      String(seasonId),
+    );
+    const statusSet = new Set(statuses);
+    const teams = [];
+    for (const [teamId, status] of Object.entries(idsByStatus)) {
+      if (!statusSet.has(status)) continue;
+      const team = await getTeamByIdRama(Number(teamId));
+      if (!team) continue;
+      if (team.regionId !== regionId || team.divisionId !== divisionId) continue;
+
+      const totalGames = team.gamesWon + team.gamesLost;
+      const avgPoints = totalGames > 0 ? team.pointsScored / totalGames : 0;
+      teams.push({
+        id: team.id,
+        name: team.name,
+        acronym: team.acronym,
+        avatar: team.avatar,
+        status: team.status,
+        wins: team.wins,
+        losses: team.losses,
+        points: parseFloat(avgPoints.toFixed(1)),
+        paymentStatus: team.paymentStatus,
+        players: team.players.map((p) => ({
+          playerSteamId: p.playerSteamId,
+          player: {
+            steamId: p.player.steamId,
+            steamUsername: p.player.steamUsername,
+          },
+        })),
+        _sortKey: avgPoints,
+      });
+    }
+    return teams.sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (a.losses !== b.losses) return a.losses - b.losses;
+      return b._sortKey - a._sortKey;
+    });
+  }
+
   const teams = await prisma.team.findMany({
     where: {
       seasonId,
@@ -404,6 +447,9 @@ async function getTeamByIdRama(id: number) {
     ? await getSeason(createSeasonsClient(opts), String(seasonId))
     : null;
 
+  const { createMatchClient, getTeamStats } = await import('$lib/server/rama/match');
+  const stats = await getTeamStats(createMatchClient(opts), teamId);
+
   return {
     id,
     name: String(row.name ?? ''),
@@ -417,11 +463,11 @@ async function getTeamByIdRama(id: number) {
     joinPassword: String(row.joinPassword ?? ''),
     paymentStatus: 0,
     avatar: null,
-    wins: 0,
-    losses: 0,
-    gamesWon: 0,
-    gamesLost: 0,
-    pointsScored: 0,
+    wins: stats.wins,
+    losses: stats.losses,
+    gamesWon: stats.wins,
+    gamesLost: stats.losses,
+    pointsScored: stats.points,
     pointsScoredAgainst: 0,
     createdAt: new Date(0),
     division: division
@@ -897,6 +943,33 @@ export async function changeTeamDivision(
  * Used to find default season for league pages
  */
 export async function findRecentSeasonWithTeams(statuses: string[], formatId?: number) {
+  if (isRamaBackend()) {
+    const { createSeasonsClient, getSeasonIds, getSeason } =
+      await import('$lib/server/rama/seasons');
+    const { createTeamsClient, getTeamIdsBySeason } = await import('$lib/server/rama/teams');
+    const opts = ramaClientOpts();
+    const seasonsClient = createSeasonsClient(opts);
+    const teamsClient = createTeamsClient(opts);
+    const statusSet = new Set(statuses);
+    const seasonIds = (await getSeasonIds(seasonsClient))
+      .map(Number)
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => b - a);
+    for (const seasonId of seasonIds) {
+      const season = await getSeason(seasonsClient, String(seasonId));
+      if (!season) continue;
+      if (formatId !== undefined && Number(season.formatId) !== formatId) continue;
+      const idsByStatus = await getTeamIdsBySeason(teamsClient, String(seasonId));
+      const hasVisible = Object.values(idsByStatus).some((s) => statusSet.has(s));
+      if (!hasVisible) continue;
+      return {
+        seasonId,
+        regionId: Number(season.regionId),
+      };
+    }
+    return null;
+  }
+
   return await prisma.team.findFirst({
     where: {
       status: { in: statuses as any },

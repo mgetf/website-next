@@ -18,12 +18,35 @@ export interface UpdatePlayoffParams {
 /**
  * Get playoff configuration for a specific season
  */
+/** Soft playoff config under Rama (no PlayoffsModule yet). id === seasonId. */
+async function syntheticPlayoffForSeason(seasonId: number) {
+  const { getSeasonById } = await import('$lib/server/services/seasons');
+  const season = await getSeasonById(seasonId);
+  if (!season) return null;
+  return {
+    id: seasonId,
+    seasonId,
+    numRounds: 3,
+    doubleElim: 0,
+    isTournament: false,
+    season: {
+      ...season,
+      region: season.region ?? {
+        id: season.regionId,
+        name: String(season.regionId),
+        hidden: 0,
+        currencySymbol: '',
+        currencyCode: '',
+      },
+    },
+  };
+}
+
 export async function getPlayoffBySeason(seasonId: number) {
   try {
     const { isRamaBackend } = await import('$lib/server/rama/config');
     if (isRamaBackend()) {
-      void seasonId;
-      return null;
+      return syntheticPlayoffForSeason(seasonId);
     }
 
     const playoff = await prisma.playoff.findFirst({
@@ -50,7 +73,20 @@ export async function getPlayoffBySeason(seasonId: number) {
 export async function getAllPlayoffs() {
   try {
     const { isRamaBackend } = await import('$lib/server/rama/config');
-    if (isRamaBackend()) return [];
+    if (isRamaBackend()) {
+      const { createSeasonsClient, getSeasonIds, getSeason } =
+        await import('$lib/server/rama/seasons');
+      const { ramaClientOpts } = await import('$lib/server/rama/config');
+      const client = createSeasonsClient(ramaClientOpts());
+      const ids = await getSeasonIds(client);
+      const rows = [];
+      for (const id of ids) {
+        if (!(await getSeason(client, id))) continue;
+        const playoff = await syntheticPlayoffForSeason(Number(id));
+        if (playoff) rows.push(playoff);
+      }
+      return rows;
+    }
 
     const playoffs = await prisma.playoff.findMany({
       include: {
@@ -77,6 +113,19 @@ export async function createPlayoff(params: CreatePlayoffParams) {
   const { seasonId, numRounds, doubleElim, isTournament } = params;
 
   try {
+    const { isRamaBackend } = await import('$lib/server/rama/config');
+    if (isRamaBackend()) {
+      const existing = await syntheticPlayoffForSeason(seasonId);
+      if (!existing) notFound('Season not found');
+      // Soft config — always "exists" under Rama; return updated shape.
+      return {
+        ...existing,
+        numRounds: numRounds ?? existing.numRounds,
+        doubleElim: doubleElim ?? existing.doubleElim,
+        isTournament,
+      };
+    }
+
     // Check if season exists
     const season = await prisma.season.findUnique({
       where: { id: seasonId },

@@ -45,7 +45,8 @@
         (is (= 1 (foreign-select-one (keypath "m1" "weekNo") matches)))
         (is (= "process" (foreign-select-one (keypath "m1" "arenaId") matches)))
         (is (= "" (foreign-select-one (keypath "m1" "submittedAt") matches)))
-        (is (= 0 (foreign-select-one (keypath "m1" "turn") map-bans)))
+        (is (= 1 (foreign-select-one (keypath "m1" "turn") map-bans)))
+        (is (= false (foreign-select-one (keypath "m1" "banPhaseComplete") map-bans)))
         (is (= (set pool)
                (foreign-select-one (keypath "m1" "remaining") map-bans)))
         (is (= "s1" (foreign-select-one (keypath "home" "m1") by-team)))
@@ -159,35 +160,72 @@
         (is (= "2026-08-04T18:00:00.000Z"
                (foreign-select-one (keypath "m1" "matchDateTime") matches))))
 
-      (testing "map bans"
+      (testing "map bans (Bo3 turn pattern)"
+        ;; Create a Bo3 match with a full pool for the ban sequence
+        (append-event!
+         depot
+         {"type" "create-match"
+          "matchId" "m-bo3"
+          "homeTeamId" "h2"
+          "awayTeamId" "a2"
+          "seasonId" "s1"
+          "boGames" 3
+          "weekNo" 0
+          "pool" ["Process" "Product" "Playoff" "Clearing" "Sunshine" "Snakewater" "Gullywash"]})
         (is (= "not-your-turn"
                (get (append-event!
                      depot
                      {"type" "ban-map"
-                      "matchId" "m1"
-                      "teamId" "home"
-                      "arenaId" "process"})
+                      "matchId" "m-bo3"
+                      "teamId" "h2"
+                      "arenaId" "Process"
+                      "actionType" "ban"})
                     "error")))
         (is (= true
                (get (append-event!
                      depot
                      {"type" "ban-map"
-                      "matchId" "m1"
-                      "teamId" "away"
-                      "arenaId" "process"})
+                      "matchId" "m-bo3"
+                      "teamId" "a2"
+                      "arenaId" "Process"
+                      "actionType" "ban"})
                     "ok")))
+        (is (= 0 (foreign-select-one (keypath "m-bo3" "turn") map-bans)))
         (is (= true
                (get (append-event!
                      depot
                      {"type" "ban-map"
-                      "matchId" "m1"
-                      "teamId" "home"
-                      "arenaId" "discard"})
+                      "matchId" "m-bo3"
+                      "teamId" "h2"
+                      "arenaId" "Product"
+                      "actionType" "ban"})
                     "ok")))
-        (is (= 2 (foreign-select-one (keypath "m1" "turn") map-bans)))
-        (is (= [{"teamId" "away" "arenaId" "process"}
-                {"teamId" "home" "arenaId" "discard"}]
-               (foreign-select-one (keypath "m1" "actions") map-bans))))
+        ;; After home ban, stay on home for pick
+        (is (= 0 (foreign-select-one (keypath "m-bo3" "turn") map-bans)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "ban-map"
+                      "matchId" "m-bo3"
+                      "teamId" "h2"
+                      "arenaId" "Playoff"
+                      "actionType" "pick"})
+                    "ok")))
+        (is (= 1 (foreign-select-one (keypath "m-bo3" "turn") map-bans)))
+        (doseq [[team arena atype] [["a2" "Clearing" "pick"]
+                                    ["a2" "Sunshine" "ban"]
+                                    ["h2" "Snakewater" "pick"]]]
+          (is (= true
+                 (get (append-event!
+                       depot
+                       {"type" "ban-map"
+                        "matchId" "m-bo3"
+                        "teamId" team
+                        "arenaId" arena
+                        "actionType" atype})
+                      "ok"))))
+        (is (= true (foreign-select-one (keypath "m-bo3" "banPhaseComplete") map-bans)))
+        (is (= 6 (count (foreign-select-one (keypath "m-bo3" "actions") map-bans)))))
 
       (testing "submit-score + dispute resolve"
         (is (= true

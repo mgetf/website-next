@@ -208,7 +208,7 @@ export async function adminCreatePlayoffMatch(
   page: Page,
   league: SeasonSeed,
   opts: { homeTeamId: number; awayTeamId: number; boSeries?: number },
-): Promise<void> {
+): Promise<number> {
   const boSeries = opts.boSeries ?? 3;
 
   await page.goto('/admin/matches/create');
@@ -241,6 +241,12 @@ export async function adminCreatePlayoffMatch(
     page.waitForURL(/\/admin\/matches\?created=/),
     page.getByRole('button', { name: /Create \d+ Playoff Match/ }).click(),
   ]);
+
+  const matchId = Number(new URL(page.url()).searchParams.get('matchId'));
+  if (!Number.isFinite(matchId) || matchId <= 0) {
+    throw new Error(`adminCreatePlayoffMatch: missing matchId in redirect URL ${page.url()}`);
+  }
+  return matchId;
 }
 
 export async function adminEditSchedule(page: Page, proposedLocal: string): Promise<void> {

@@ -43,11 +43,18 @@ import {
 } from '../../../src/lib/server/rama/users';
 import {
   createMatchClient,
+  getMapBan,
   getMatch,
   getMatchIdsForWeek,
   getMatchStatus as ramaGetMatchStatus,
   getTeamWins as ramaGetTeamWins,
 } from '../../../src/lib/server/rama/match';
+import {
+  createDemo,
+  createDemosClient,
+  getReportIdsByStatus,
+  nextDemoId,
+} from '../../../src/lib/server/rama/demos';
 import {
   createNotificationsClient,
   getUnreadCount,
@@ -318,14 +325,25 @@ export async function seedReadyTeam(params: {
   return teamId;
 }
 
-export async function seedDemo(_params: {
+export async function seedDemo(params: {
   matchId: number;
   playerSteamId: string;
   submittedBy: string;
   title?: string;
 }): Promise<number> {
-  // DemosModule not yet deployed — return a synthetic id for UI flows that tolerate missing demos
-  return Date.now() % 1_000_000;
+  const client = createDemosClient(conductor());
+  const demoId = nextDemoId();
+  const ack = await createDemo(client, {
+    demoId,
+    matchId: String(params.matchId),
+    playerSteamId: params.playerSteamId,
+    submittedBy: params.submittedBy,
+    file: `https://example.test/e2e/${demoId}.dem`,
+    title: params.title ?? 'E2E demo',
+    description: '',
+  });
+  if (!ack.ok) throw new Error(`seedDemo failed: ${ack.error}`);
+  return Number(demoId);
 }
 
 export async function getPlayerPaymentStatus(
@@ -338,8 +356,17 @@ export async function getPlayerPaymentStatus(
   return status === 'PAID' || status === 'EXEMPT' ? 1 : 0;
 }
 
-export async function countDemoReports(_status?: string): Promise<number> {
-  return 0;
+export async function countDemoReports(status?: string): Promise<number> {
+  const client = createDemosClient(conductor());
+  if (status) {
+    return (await getReportIdsByStatus(client, status)).length;
+  }
+  const statuses = ['REVIEW', 'ACTION', 'CLEAR'];
+  let total = 0;
+  for (const s of statuses) {
+    total += (await getReportIdsByStatus(client, s)).length;
+  }
+  return total;
 }
 
 export async function getMatchStatus(matchId: number): Promise<string> {
@@ -354,10 +381,7 @@ export async function getLatestMatchId(opts?: {
   playoff?: boolean;
   seasonId?: number;
 }): Promise<number> {
-  if (opts?.playoff) {
-    throw new Error('getLatestMatchId(playoff): use admin create flow return value under Rama');
-  }
-  const weekNo = opts?.weekNo ?? 1;
+  const weekNo = opts?.playoff ? 0 : (opts?.weekNo ?? 1);
   const seasonId = opts?.seasonId;
   if (seasonId == null) {
     throw new Error('getLatestMatchId: seasonId required under Rama cutover');
@@ -366,7 +390,10 @@ export async function getLatestMatchId(opts?: {
   const ids = await getMatchIdsForWeek(client, String(seasonId), weekNo);
   const numeric = ids.map(Number).filter((n) => Number.isFinite(n));
   if (numeric.length === 0) {
-    throw new Error(`getLatestMatchId: no matches for season ${seasonId} week ${weekNo}`);
+    throw new Error(
+      `getLatestMatchId: no matches for season ${seasonId} week ${weekNo}` +
+        (opts?.playoff ? ' (playoff)' : ''),
+    );
   }
   numeric.sort((a, b) => b - a);
   return numeric[0]!;
@@ -386,8 +413,9 @@ export async function getTeamStatus(teamId: number): Promise<string> {
   return String(team?.status ?? 'UNKNOWN');
 }
 
-export async function getMapBanComplete(_matchId: number): Promise<boolean> {
-  return false;
+export async function getMapBanComplete(matchId: number): Promise<boolean> {
+  const ban = await getMapBan(createMatchClient(conductor()), String(matchId));
+  return Boolean(ban?.banPhaseComplete);
 }
 
 export async function getTeamWins(teamId: number): Promise<number> {

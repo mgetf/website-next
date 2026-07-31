@@ -232,6 +232,26 @@ export async function getPlayerTeams(steamId: string) {
  * regardless of region.
  */
 export async function isUserSignedUpForFormat(steamId: string, formatId: number): Promise<boolean> {
+  if (isRamaBackend()) {
+    const { createSeasonsClient, getSeasonIds, getSeason } =
+      await import('$lib/server/rama/seasons');
+    const { createTeamsClient, getPlayerSeasonTeam, getTeam } =
+      await import('$lib/server/rama/teams');
+    const opts = ramaClientOpts();
+    const seasonsClient = createSeasonsClient(opts);
+    const teamsClient = createTeamsClient(opts);
+    for (const seasonId of await getSeasonIds(seasonsClient)) {
+      const season = await getSeason(seasonsClient, seasonId);
+      if (!season || !season.signupsOpen) continue;
+      if (Number(season.formatId) !== formatId) continue;
+      const teamId = await getPlayerSeasonTeam(teamsClient, steamId, seasonId);
+      if (!teamId) continue;
+      const team = await getTeam(teamsClient, teamId);
+      if (team && String(team.status) !== 'DEAD') return true;
+    }
+    return false;
+  }
+
   const entry = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
@@ -780,6 +800,11 @@ export async function updateUser(
  * Used for staff lists on league pages
  */
 export async function getStaffMembers() {
+  if (isRamaBackend()) {
+    // No staff-division index in UsersModule yet — standings page tolerates empty staff.
+    return [];
+  }
+
   return await prisma.user.findMany({
     where: {
       permissionLevel: {

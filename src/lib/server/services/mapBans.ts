@@ -168,6 +168,54 @@ export async function processBanPickAction(
   arenaId: number,
   actionType: 'ban' | 'pick',
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    // Under Rama, matchMapBan.id is synthesized as the match id.
+    const matchId = matchMapBanId;
+    const status = await getMapBanStatus(matchId);
+    if (!status || status.isComplete) {
+      badRequest('Map ban phase not active');
+    }
+    const banMatch = status.matchMapBan.match;
+    if (!banMatch) {
+      badRequest('Match not found for map ban');
+    }
+    const expectedAction = status.nextAction;
+    if (expectedAction !== actionType) {
+      badRequest(`Expected ${expectedAction} action, got ${actionType}`);
+    }
+    const expectedTeamId =
+      status.matchMapBan.currentTurn === 0 ? banMatch.homeTeamId : banMatch.awayTeamId;
+    if (expectedTeamId !== teamId) {
+      badRequest('Not your turn');
+    }
+    if (status.bannedArenaIds.includes(arenaId) || status.pickedArenaIds.includes(arenaId)) {
+      badRequest('Arena already banned or picked');
+    }
+
+    const { createMatchClient, banMap } = await import('$lib/server/rama/match');
+    const ack = await banMap(createMatchClient(ramaClientOpts()), {
+      type: 'ban-map',
+      matchId: String(matchId),
+      teamId: String(teamId),
+      arenaId: String(arenaId),
+      actionType,
+    });
+    if (!ack.ok) {
+      badRequest(ack.error || 'Failed to ban/pick map');
+    }
+    void playerSteamId;
+    return {
+      id: Date.now(),
+      matchMapBanId,
+      teamId,
+      playerSteamId,
+      arenaId,
+      actionType: actionType === 'ban' ? MapBanActionType.BAN : MapBanActionType.PICK,
+      actionOrder: status.matchMapBan.actions.length,
+    };
+  }
+
   const matchMapBan = await prisma.matchMapBan.findUnique({
     where: { id: matchMapBanId },
     include: {
@@ -298,11 +346,116 @@ export async function assignMapToGames(
  * Get map ban status for a match
  */
 export async function getMapBanStatus(matchId: number) {
-  const { isRamaBackend } = await import('$lib/server/rama/config');
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
   if (isRamaBackend()) {
-    // Week matches use a fixed arena; map-ban UI is wired in a later slice.
-    void matchId;
-    return null;
+    const { createMatchClient, getMapBan } = await import('$lib/server/rama/match');
+    const { createMapPoolsClient, getArena } = await import('$lib/server/rama/mapPools');
+    const { getTeamById } = await import('$lib/server/services/teams');
+
+    const opts = ramaClientOpts();
+    const ban = await getMapBan(createMatchClient(opts), String(matchId));
+    if (!ban) return null;
+
+    const remaining = Array.isArray(ban.remaining)
+      ? (ban.remaining as string[])
+      : ban.remaining && typeof ban.remaining === 'object'
+        ? Object.keys(ban.remaining as object)
+        : [];
+    const actions = Array.isArray(ban.actions) ? ban.actions : [];
+    // Empty pool + no actions → week match with fixed arena; hide map-ban UI.
+    if (remaining.length === 0 && actions.length === 0) return null;
+
+    const homeTeamId = Number(ban.homeTeamId);
+    const awayTeamId = Number(ban.awayTeamId);
+    const boSeries = Number(ban.boSeries ?? 3) || 3;
+    const poolsClient = createMapPoolsClient(opts);
+
+    const mappedActions = [];
+    for (let i = 0; i < actions.length; i++) {
+      const a = actions[i]!;
+      const arenaNum = Number(a.arenaId);
+      const teamNum = Number(a.teamId);
+      const [arenaRow, team] = await Promise.all([
+        Number.isFinite(arenaNum) ? getArena(poolsClient, String(arenaNum)) : null,
+        Number.isFinite(teamNum) ? getTeamById(teamNum) : null,
+      ]);
+      const actionType =
+        String(a.actionType).toLowerCase() === 'pick'
+          ? MapBanActionType.PICK
+          : MapBanActionType.BAN;
+      mappedActions.push({
+        id: i + 1,
+        matchMapBanId: matchId,
+        teamId: teamNum,
+        playerSteamId: '',
+        arenaId: arenaNum,
+        actionType,
+        actionOrder: i,
+        team: team ? { id: team.id, name: team.name } : null,
+        player: null,
+        arena: arenaRow
+          ? {
+              id: arenaNum,
+              name: arenaRow.name,
+              avatar: arenaRow.avatar || null,
+              playoffMap: Number(arenaRow.playoffMap ?? 0),
+            }
+          : { id: arenaNum, name: String(a.arenaId), avatar: null, playoffMap: 0 },
+      });
+    }
+
+    const bannedArenaIds = mappedActions
+      .filter((a) => a.actionType === MapBanActionType.BAN)
+      .map((a) => a.arenaId);
+    const pickedArenaIds = mappedActions
+      .filter((a) => a.actionType === MapBanActionType.PICK)
+      .map((a) => a.arenaId);
+
+    const availableArenas = [];
+    for (const arenaKey of remaining) {
+      const arenaNum = Number(arenaKey);
+      if (!Number.isFinite(arenaNum)) continue;
+      if (bannedArenaIds.includes(arenaNum) || pickedArenaIds.includes(arenaNum)) continue;
+      const arenaRow = await getArena(poolsClient, String(arenaNum));
+      availableArenas.push({
+        arenaId: arenaNum,
+        orderNum: availableArenas.length,
+        arena: arenaRow
+          ? {
+              id: arenaNum,
+              name: arenaRow.name,
+              avatar: arenaRow.avatar || null,
+              playoffMap: Number(arenaRow.playoffMap ?? 0),
+            }
+          : { id: arenaNum, name: arenaKey, avatar: null, playoffMap: 0 },
+      });
+    }
+
+    const nextAction = determineNextAction(mappedActions.length, boSeries);
+    const currentTurn = Number(ban.turn ?? 1);
+
+    return {
+      matchMapBan: {
+        id: matchId,
+        matchId,
+        currentTurn,
+        banPhaseComplete: Boolean(ban.banPhaseComplete),
+        actions: mappedActions,
+        match: {
+          id: matchId,
+          homeTeamId,
+          awayTeamId,
+          boSeries,
+          boGames: null as number | null,
+        },
+        pool: null,
+      },
+      availableArenas,
+      bannedArenaIds,
+      pickedArenaIds,
+      nextAction,
+      isComplete: Boolean(ban.banPhaseComplete),
+    };
   }
 
   const matchMapBan = await prisma.matchMapBan.findFirst({

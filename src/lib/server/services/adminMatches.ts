@@ -523,6 +523,93 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
     mapBanPoolId,
   } = params;
 
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { getPlayoffBySeason } = await import('$lib/server/services/playoffs');
+    const { getTeamById } = await import('$lib/server/services/teams');
+    const playoff = await getPlayoffBySeason(seasonId);
+    if (!playoff || playoff.id !== playoffId) {
+      notFound('Playoff not found');
+    }
+
+    const [seasonData, homeTeam, awayTeam] = await Promise.all([
+      getSeasonByIdForMatch(seasonId),
+      getTeamById(homeTeamId),
+      getTeamById(awayTeamId),
+    ]);
+    if (!homeTeam) notFound(`Home team ${homeTeamId} not found`);
+    if (!awayTeam) notFound(`Away team ${awayTeamId} not found`);
+
+    const seasonFormatId = seasonData?.formatId;
+    if (homeTeam.formatId !== seasonFormatId) {
+      badRequest(
+        `Format mismatch: home team "${homeTeam.name}" (formatId=${homeTeam.formatId}) does not match season format (formatId=${seasonFormatId})`,
+      );
+    }
+    if (awayTeam.formatId !== seasonFormatId) {
+      badRequest(
+        `Format mismatch: away team "${awayTeam.name}" (formatId=${awayTeam.formatId}) does not match season format (formatId=${seasonFormatId})`,
+      );
+    }
+
+    const { createMatchClient, createMatch } = await import('$lib/server/rama/match');
+    const { createMapPoolsClient, getPoolMaps } = await import('$lib/server/rama/mapPools');
+    let pool: string[] = [];
+    if (mapBanPoolId) {
+      pool = await getPoolMaps(createMapPoolsClient(ramaClientOpts()), String(mapBanPoolId));
+    }
+
+    const dt =
+      matchDateTime && matchDateTime.length > 0
+        ? localDatetimeToUtc(matchDateTime, matchTimezone || 'UTC').toISOString()
+        : '';
+
+    const matchId = (Date.now() % 1_000_000_000) + Math.floor(Math.random() * 1_000);
+    // weekNo 0 indexes playoff matches under $$matches-by-week for getLatestMatchId.
+    const ack = await createMatch(createMatchClient(ramaClientOpts()), {
+      type: 'create-match',
+      matchId: String(matchId),
+      homeTeamId: String(homeTeamId),
+      awayTeamId: String(awayTeamId),
+      seasonId: String(seasonId),
+      boGames: boSeries,
+      pool,
+      weekNo: 0,
+      seasonNo,
+      arenaId: arenaId != null ? String(arenaId) : '',
+      matchDateTime: dt,
+      matchTimezone: matchTimezone || '',
+    });
+    if (!ack.ok) {
+      badRequest(ack.error || 'Failed to create playoff match in Rama');
+    }
+
+    const roundLabel = formatPlayoffRound(playoffRound);
+    await createNotificationForTeamOwners(
+      [homeTeamId, awayTeamId],
+      'MATCH_CREATED',
+      `/matches/${matchId}`,
+      `New playoff match scheduled: ${roundLabel}`,
+    );
+
+    void boGames;
+    return {
+      id: matchId,
+      homeTeamId,
+      awayTeamId,
+      seasonId,
+      seasonNo,
+      playoffId,
+      playoffRound,
+      weekNo: null as number | null,
+      boSeries,
+      boGames: boGames || null,
+      status: MatchStatus.UNPLAYED,
+      matchDateTime: dt ? new Date(dt) : null,
+      matchTimezone: matchTimezone || null,
+    };
+  }
+
   // Verify playoff exists
   const playoff = await prisma.playoff.findUnique({
     where: { id: playoffId },

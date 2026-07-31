@@ -36,7 +36,6 @@ import {
   seedReadyTeam,
   seedDemo,
   getMatchStatus,
-  getLatestMatchId,
   getTeamStatus,
   getMapBanComplete,
   getTeamWins,
@@ -456,12 +455,11 @@ test('admin creates week match; chat, deny/accept reschedule, edit schedule/aren
 test('admin creates playoff; map bans; Bo3 scores', async () => {
   test.setTimeout(300_000);
 
-  await adminCreatePlayoffMatch(admin.page, league, {
+  playoffMatchId = await adminCreatePlayoffMatch(admin.page, league, {
     homeTeamId,
     awayTeamId,
     boSeries: 3,
   });
-  playoffMatchId = await getLatestMatchId({ playoff: true });
   const playoffTeams = await getMatchTeams(playoffMatchId);
   const matchHomeCaptain = playoffTeams.homeTeamId === homeTeamId ? homeCaptain : awayCaptain;
   const matchAwayCaptain = playoffTeams.awayTeamId === awayTeamId ? awayCaptain : homeCaptain;

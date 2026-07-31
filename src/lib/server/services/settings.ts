@@ -17,6 +17,16 @@ import { FORMAT_1V1, FORMAT_2V2 } from '$lib/constants/formats';
  * There should only be one row in the global table
  */
 export async function getGlobalSettings() {
+  if (isRamaBackend()) {
+    // Soft defaults — no GlobalsModule yet.
+    return {
+      id: 1,
+      leagueFees: 0,
+      botTradeOfferUrl: null as string | null,
+      botSteamId: null as string | null,
+      standingsVisibleStatuses: ['READY', 'PENDING'],
+    };
+  }
   return await prisma.global.findFirst();
 }
 

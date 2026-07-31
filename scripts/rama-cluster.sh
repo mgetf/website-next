@@ -30,9 +30,14 @@ ensure_release() {
 
 start_daemon() {
   local name="$1"
-  if pgrep -f "rpl.rama.distributed.(daemon|command).${name/devZookeeper/dev_zookeeper}" >/dev/null 2>&1 \
-    || pgrep -f "rpl.rama.distributed.daemon.${name}" >/dev/null 2>&1 \
-    || pgrep -f "rpl.rama.distributed.command.dev_zookeeper" >/dev/null 2>&1; then
+  local pattern
+  case "$name" in
+    devZookeeper) pattern='rpl.rama.distributed.command.dev_zookeeper' ;;
+    conductor) pattern='rpl.rama.distributed.daemon.conductor' ;;
+    supervisor) pattern='rpl.rama.distributed.daemon.supervisor' ;;
+    *) pattern="rpl.rama.distributed.daemon.${name}" ;;
+  esac
+  if pgrep -f "$pattern" >/dev/null 2>&1; then
     echo "$name already running"
     return 0
   fi

@@ -1,0 +1,80 @@
+(ns mge.tf.rama.users-module-test
+  (:use [com.rpl.rama]
+        [com.rpl.rama.path])
+  (:require
+   [clojure.test :refer [deftest is testing]]
+   [com.rpl.rama.test :as rtest]
+   [mge.tf.rama.users-module :as um]))
+
+(def MODULE-NAME "mge.tf.rama.users-module/UsersModule")
+
+(defn append-event!
+  [depot event]
+  (get (foreign-append! depot event) "users"))
+
+(deftest users-lifecycle-test
+  (with-open [ipc (rtest/create-ipc)]
+    (rtest/launch-module! ipc um/UsersModule {:tasks 4 :threads 2})
+    (let [depot (foreign-depot ipc MODULE-NAME "*user-depot")
+          users (foreign-pstate ipc MODULE-NAME "$$users")
+          discord (foreign-pstate ipc MODULE-NAME "$$discord-by-id")]
+
+      (testing "upsert-profile"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "upsert-profile"
+                      "steamId" "s1"
+                      "username" "alice"
+                      "avatarUrl" "http://a"})
+                    "ok")))
+        (is (= "alice" (foreign-select-one (keypath "s1" "username") users)))
+        (is (= "GUEST" (foreign-select-one (keypath "s1" "permissionLevel") users)))
+        (is (= 0 (foreign-select-one (keypath "s1" "sessionVersion") users))))
+
+      (testing "permission + ban bump session"
+        (is (= 1
+               (get (append-event!
+                     depot
+                     {"type" "set-permission"
+                      "steamId" "s1"
+                      "permissionLevel" "ADMIN"})
+                    "sessionVersion")))
+        (is (= 2
+               (get (append-event!
+                     depot
+                     {"type" "set-ban"
+                      "steamId" "s1"
+                      "banStatus" "BANNED"})
+                    "sessionVersion")))
+        (is (= "ADMIN" (foreign-select-one (keypath "s1" "permissionLevel") users)))
+        (is (= "BANNED" (foreign-select-one (keypath "s1" "banStatus") users))))
+
+      (testing "discord link uniqueness"
+        (append-event!
+         depot
+         {"type" "upsert-profile"
+          "steamId" "s2"
+          "username" "bob"
+          "avatarUrl" "http://c"})
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "link-discord"
+                      "steamId" "s1"
+                      "discordId" "d1"})
+                    "ok")))
+        (is (= "s1" (foreign-select-one (keypath "d1") discord)))
+        (is (= "discord-taken"
+               (get (append-event!
+                     depot
+                     {"type" "link-discord"
+                      "steamId" "s2"
+                      "discordId" "d1"})
+                    "error")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "unlink-discord" "steamId" "s1"})
+                    "ok")))
+        (is (nil? (foreign-select-one (keypath "d1") discord)))))))

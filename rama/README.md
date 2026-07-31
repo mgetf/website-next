@@ -36,6 +36,15 @@ src/lib/server/rama/           TypeScript REST client (no business HTTP server)
 scripts/rama-smoke.ts          end-to-end against a live cluster
 ```
 
+## Modules
+
+| Module        | Depot          | Owns                                                   |
+| ------------- | -------------- | ------------------------------------------------------ |
+| `MatchModule` | `*match-depot` | create/ban/score + standings mirrors                   |
+| `UsersModule` | `*user-depot`  | profile, ban, permission, sessionVersion, discord link |
+
+Agent skill (knots + how to write Rama here): `.cursor/skills/rama-clojure/`
+
 ## MatchModule spike (replaces match + map-ban + standings slice of Postgres)
 
 **Depot** `*match-depot` — `hash-by` `matchId`

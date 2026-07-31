@@ -1,18 +1,20 @@
-//! Every god-path module port must parse, type-check, and emit.
+//! Every module `.rama` under rama/src must parse, type-check, and emit.
 use rama_syntax::{analyze, emit_clojure, parse};
 use std::fs;
 use std::path::PathBuf;
 
-fn fixtures() -> Vec<PathBuf> {
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures");
+fn module_sources() -> Vec<PathBuf> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("rama/src/mge/tf/rama");
     let mut paths = fs::read_dir(&dir)
-        .expect("fixtures dir")
+        .unwrap_or_else(|err| panic!("rama module dir {}: {err}", dir.display()))
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
         .filter(|path| {
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name.ends_with("_v2.rama"))
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext == "rama")
         })
         .collect::<Vec<_>>();
     paths.sort();
@@ -20,8 +22,8 @@ fn fixtures() -> Vec<PathBuf> {
 }
 
 #[test]
-fn all_godpath_v2_ports_check_and_emit() {
-    let paths = fixtures();
+fn all_rama_modules_check_and_emit() {
+    let paths = module_sources();
     assert!(
         paths.len() >= 12,
         "expected the full god-path module set, got {}",

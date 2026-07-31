@@ -24,5 +24,7 @@
                              mge.tf.rama.demos-module
                              mge.tf.rama.globals-module]
                        :uberjar-name "mge-rama.jar"}}
+  ;; Source of truth is *.rama under src/ and test/. Run
+  ;; `bash scripts/transpile-rama.sh` (or scripts/test-rama.sh) before lein.
   :aliases {"test-rama" ["with-profile" "+provided" "test"]
             "uberjar-modules" ["with-profile" "+provided,+uberjar" "uberjar"]})

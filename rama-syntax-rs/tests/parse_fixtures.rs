@@ -1,14 +1,17 @@
 use rama_syntax::ast::Item;
 use rama_syntax::{analyze, emit_clojure, parse};
 
-fn fixture(name: &str) -> String {
-    let path = format!("{}/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));
-    std::fs::read_to_string(path).expect("fixture")
+fn match_source() -> String {
+    let path = format!(
+        "{}/../rama/src/mge/tf/rama/match_module.rama",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::fs::read_to_string(path).expect("match module")
 }
 
 #[test]
 fn parses_match_v2() {
-    let src = fixture("match_v2.rama");
+    let src = match_source();
     let file = parse(&src).unwrap_or_else(|e| {
         for d in &e.diagnostics {
             eprintln!("{}", d.render(&src));
@@ -42,7 +45,7 @@ fn parses_match_v2() {
 
 #[test]
 fn typechecks_match_v2() {
-    let src = fixture("match_v2.rama");
+    let src = match_source();
     let (_file, result) = analyze(&src).expect("parse");
     assert!(
         result.ok(),
@@ -57,7 +60,7 @@ fn typechecks_match_v2() {
 
 #[test]
 fn emits_match_v2_clojure() {
-    let src = fixture("match_v2.rama");
+    let src = match_source();
     let file = parse(&src).expect("parse");
     let clj = emit_clojure(&file);
     // Hop-free ban-map stays a compact deframaop; hopping ops inline so

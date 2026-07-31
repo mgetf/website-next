@@ -1,7 +1,8 @@
 //! CLI: check, transpile, or watch `.rama` files.
 
 use rama_syntax::nrepl::{pin_observation, LiveOracle};
-use rama_syntax::{analyze, analyze_with_oracle, emit_clojure};
+use rama_syntax::sexp;
+use rama_syntax::{analyze, analyze_with_oracle, emit_clojure, transpile_source};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -185,6 +186,25 @@ fn check_file(path: &Path, nrepl: Option<&str>) -> ExitCode {
             return ExitCode::from(2);
         }
     };
+
+    if sexp::looks_like_sexp(&src) {
+        return match sexp::parse_document(&src) {
+            Ok(doc) => {
+                println!(
+                    "sexp-mode: parsed {} top-level form(s) from {}",
+                    doc.forms.len(),
+                    path.display()
+                );
+                ExitCode::SUCCESS
+            }
+            Err(err) => {
+                for d in &err.diagnostics {
+                    eprintln!("{}", d.render(&src));
+                }
+                ExitCode::from(1)
+            }
+        };
+    }
 
     let oracle = match nrepl {
         Some(address) => match LiveOracle::connect(address) {
@@ -479,15 +499,8 @@ fn transpile_source_file(path: &Path) -> Result<String, ()> {
         eprintln!("failed to read {}: {err}", path.display());
     })?;
 
-    match analyze(&src) {
-        Ok((file, result)) if result.ok() => Ok(emit_clojure(&file)),
-        Ok((_file, result)) => {
-            for diagnostic in &result.diagnostics {
-                eprintln!("{}", diagnostic.render(&src));
-            }
-            eprintln!("type-check: {} diagnostic(s)", result.diagnostics.len());
-            Err(())
-        }
+    match transpile_source(&src) {
+        Ok(clj) => Ok(clj),
         Err(err) => {
             for diagnostic in &err.diagnostics {
                 eprintln!("{}", diagnostic.render(&src));

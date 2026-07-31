@@ -26,10 +26,12 @@ struct PendingMember {
 }
 
 pstate $$teams: Map<String, Team>
-pstate $$roster: Map<String, Map<String, Member>> @subindexed
+// Roster/pending stay non-subindexed: max 3 players, and dataflow
+// local-select of a whole subindexed map does not seq like a Clojure map.
+pstate $$roster: Map<String, Map<String, Member>>
 pstate $$player-season: Map<String, Map<String, String>> @subindexed
-pstate $$pending: Map<String, Map<String, PendingMember>> @subindexed
-pstate $$pending-by-player: Map<String, Map<String, Long>> @subindexed
+pstate $$pending: Map<String, Map<String, PendingMember>>
+pstate $$pending-by-player: Map<String, Map<String, Long>>
 pstate $$pending-awaiting: Map<String, Map<String, Boolean>>
 pstate $$team-ids-by-season: Map<String, Map<String, String>>
 
@@ -213,9 +215,9 @@ fn decline-error(pendingRow: Dynamic) -> String? {
   return nil
 }
 
-fn leave-error(team: Dynamic, roster: Dynamic, steamId: String) -> String? {
+fn leave-error(team: Dynamic, member: Dynamic) -> String? {
   if (nil?(team)) { return "team-not-found" }
-  if (nil?(get(roster, steamId))) { return "not-on-roster" }
+  if (nil?(member)) { return "not-on-roster" }
   return nil
 }
 
@@ -421,8 +423,8 @@ op leave-team(event: LeaveTeamEvent) {
   let { teamId, steamId } = event
 
   $$teams --> keypath(teamId) > team
-  $$roster --> keypath(teamId) > roster
-  let err = leave-error(team, roster, steamId)
+  $$roster --> keypath(teamId, steamId) > member
+  let err = leave-error(team, member)
   fail err if some?(err)
 
   let seasonId = dynamic-get(team, "seasonId")

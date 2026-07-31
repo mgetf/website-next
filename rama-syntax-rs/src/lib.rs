@@ -16,6 +16,7 @@ pub mod nrepl;
 pub mod parse;
 pub mod rama_ir;
 pub mod rules;
+pub mod sexp;
 pub mod span;
 pub mod types;
 
@@ -28,6 +29,25 @@ pub use lex::{lex, SpannedToken, TokenKind};
 pub use parse::parse;
 pub use rama_ir::Program as RamaProgram;
 pub use rules::Violation as RuleViolation;
+
+/// Transpile a `.rama` source string to Clojure.
+///
+/// Surface modules (`module …`) go through the typed pipeline. Files whose
+/// first non-comment token is `(` are sexp-mode and emit arbitrary Clojure
+/// via the Form IR (used for tests).
+pub fn transpile_source(src: &str) -> Result<String, ParseError> {
+    if sexp::looks_like_sexp(src) {
+        let doc = sexp::parse_document(src)?;
+        return Ok(doc.render());
+    }
+    let (file, result) = analyze(src)?;
+    if !result.ok() {
+        return Err(ParseError {
+            diagnostics: result.diagnostics,
+        });
+    }
+    Ok(emit_clojure(&file))
+}
 
 pub fn analyze(src: &str) -> Result<(SourceFile, CheckResult), ParseError> {
     let file = parse(src)?;

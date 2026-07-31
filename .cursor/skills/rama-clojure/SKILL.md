@@ -7,9 +7,11 @@ description: Write effective Rama Clojure modules for mge.tf using REST-first JS
 
 Pride rule: **Clojure module only. TypeScript talks only via Rama's built-in REST JSON API.** No custom HTTP in Clojure. No gRPC. No Prisma facade / in-memory shim.
 
-Canonical modules: `rama/src/mge/tf/rama/*_module.clj`  
+Canonical modules: `rama/src/mge/tf/rama/*_module.rama` (transpile to `.clj` for Leiningen)  
+Tests: `rama/test/mge/tf/rama/*_test.rama` (sexp-mode → Clojure)  
 Clients: `src/lib/server/rama/`  
 Cluster: `scripts/rama-cluster.sh`  
+Build: `bash rama/scripts/transpile-rama.sh` / `bash rama/scripts/test-rama.sh`  
 Docs: `rama/README.md`, [knots reference](reference.md)
 
 ## Design order

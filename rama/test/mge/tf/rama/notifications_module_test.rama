@@ -1,3 +1,6 @@
+#!clj
+// .rama sexp-mode test — transpiles to Clojure via Form IR.
+
 (ns mge.tf.rama.notifications-module-test
   (:use [com.rpl.rama]
         [com.rpl.rama.path])

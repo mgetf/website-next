@@ -5,3 +5,7 @@
 /.nrepl-port
 /.clj-kondo/.cache/
 /.cpcache/
+
+# Generated from .rama — edit *.rama only
+/src/mge/tf/rama/*.clj
+/test/mge/tf/rama/*.clj

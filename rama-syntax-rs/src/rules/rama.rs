@@ -434,7 +434,7 @@ op ok(id) {
     fn match_fixture_passes_rama_rules() {
         let src = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/fixtures/match_v2.rama"
+            "/../rama/src/mge/tf/rama/match_module.rama"
         ))
         .unwrap();
         let ast = parse(&src).expect("parse");

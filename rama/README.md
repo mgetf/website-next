@@ -23,15 +23,25 @@ Encoding notes from Rama:
 ## Layout
 
 ```
-rama/                          Clojure-only module project (Leiningen)
-  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications / Seasons / MapPools / Events
-  test/mge/tf/rama/*_test.clj
-  project.clj
+rama/                          Rama module project (Leiningen)
+  src/mge/tf/rama/*.rama       Source of truth (surface .rama modules)
+  test/mge/tf/rama/*_test.rama Tests (sexp-mode .rama → any Clojure)
+  scripts/transpile-rama.sh    .rama → generated .clj (gitignored)
+  scripts/test-rama.sh         transpile + lein test-rama
+  project.clj                  Leiningen config (only checked-in .clj)
 
 src/lib/server/rama/           TypeScript REST client (no business HTTP server)
   client.ts + domain helpers (match, users, teams, payments, notifications, seasons, mapPools, events)
 
 scripts/rama-smoke.ts          end-to-end against a live cluster
+```
+
+Edit `.rama` only. Generated `.clj` under `src/` and `test/` is a build artifact:
+
+```bash
+bash scripts/transpile-rama.sh
+bash scripts/test-rama.sh                 # all suites
+bash scripts/test-rama.sh mge.tf.rama.teams-module-test
 ```
 
 ## Modules

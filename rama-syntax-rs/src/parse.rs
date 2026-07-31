@@ -53,6 +53,7 @@ fn item() -> impl Parser<Tok, Item, Error = Err> {
         depot_item(),
         op_item(),
         fn_item(),
+        extern_item(),
     ))
 }
 
@@ -117,7 +118,7 @@ fn depot_item() -> impl Parser<Tok, Item, Error = Err> {
 fn op_item() -> impl Parser<Tok, Item, Error = Err> {
     just(Tok::Op)
         .ignore_then(ident())
-        .then(params())
+        .then(op_params())
         .then(block())
         .map_with_span(|((name, params), body), span| {
             Item::Op(OpDef {
@@ -131,21 +132,58 @@ fn op_item() -> impl Parser<Tok, Item, Error = Err> {
 
 fn fn_item() -> impl Parser<Tok, Item, Error = Err> {
     just(Tok::Fn)
-        .ignore_then(ident())
-        .then(params())
+        .ignore_then(ident_spanned())
+        .then(typed_params())
+        .then(just(Tok::ThinArrow).ignore_then(value_type_expr()).or_not())
         .then(block())
-        .map_with_span(|((name, params), body), span| {
+        .map_with_span(|(((name, params), return_ty), body), span| {
             Item::Fn(FnDef {
-                name: Spanned::new(name, Span::default()),
+                name,
                 params,
+                return_ty,
                 body,
                 span: sp(span),
             })
         })
 }
 
-fn params() -> impl Parser<Tok, Vec<Spanned<String>>, Error = Err> {
+fn extern_item() -> impl Parser<Tok, Item, Error = Err> {
+    just(Tok::Extern)
+        .ignore_then(ident_spanned())
+        .then(
+            ident_spanned()
+                .separated_by(just(Tok::Comma))
+                .allow_trailing()
+                .delimited_by(just(Tok::Lt), just(Tok::Gt))
+                .or_not()
+                .map(Option::unwrap_or_default),
+        )
+        .then(typed_params())
+        .then_ignore(just(Tok::ThinArrow))
+        .then(value_type_expr())
+        .then_ignore(just(Tok::Semicolon).or_not())
+        .map_with_span(|(((name, type_params), params), return_ty), span| {
+            Item::Extern(ExternDecl {
+                name,
+                type_params,
+                params,
+                return_ty,
+                span: sp(span),
+            })
+        })
+}
+
+fn op_params() -> impl Parser<Tok, Vec<Spanned<String>>, Error = Err> {
     ident_spanned()
+        .separated_by(just(Tok::Comma))
+        .allow_trailing()
+        .delimited_by(just(Tok::LParen), just(Tok::RParen))
+}
+
+fn typed_params() -> impl Parser<Tok, Vec<Param>, Error = Err> {
+    ident_spanned()
+        .then(just(Tok::Colon).ignore_then(value_type_expr()).or_not())
+        .map(|(name, ty)| Param { name, ty })
         .separated_by(just(Tok::Comma))
         .allow_trailing()
         .delimited_by(just(Tok::LParen), just(Tok::RParen))
@@ -322,6 +360,84 @@ fn type_expr() -> impl Parser<Tok, Spanned<TypeExpr>, Error = Err> {
     })
 }
 
+fn value_type_expr() -> impl Parser<Tok, Spanned<ValueTypeExpr>, Error = Err> + Clone {
+    recursive(|ty: Recursive<'_, Tok, Spanned<ValueTypeExpr>, Err>| {
+        let segment = choice((
+            select! { Tok::Ident(s) => s },
+            just(Tok::Map).to("Map".to_string()),
+            just(Tok::Object).to("Object".to_string()),
+        ));
+
+        let named = segment
+            .separated_by(just(Tok::Dot))
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(
+                ty.clone()
+                    .separated_by(just(Tok::Comma))
+                    .allow_trailing()
+                    .delimited_by(just(Tok::Lt), just(Tok::Gt))
+                    .or_not()
+                    .map(Option::unwrap_or_default),
+            )
+            .map_with_span(|(segments, args), span| {
+                let mut path = segments.join(".");
+                let inline_nullable = path.ends_with('?');
+                if inline_nullable {
+                    path.pop();
+                }
+                let base = match path.as_str() {
+                    "Nil" => ValueTypeExpr::Nil,
+                    "Unknown" => ValueTypeExpr::Unknown,
+                    "Dynamic" | "Dyn" => ValueTypeExpr::Dynamic,
+                    "Any" => ValueTypeExpr::Any,
+                    "Never" => ValueTypeExpr::Never,
+                    _ => ValueTypeExpr::Named {
+                        path,
+                        args: args.into_iter().map(|arg| arg.node).collect(),
+                    },
+                };
+                let node = if inline_nullable {
+                    ValueTypeExpr::Union(vec![base, ValueTypeExpr::Nil])
+                } else {
+                    base
+                };
+                Spanned::new(node, sp(span))
+            })
+            .then(just(Tok::Question).or_not())
+            .map(|(base, nullable)| {
+                if nullable.is_some() {
+                    let span = base.span;
+                    Spanned::new(
+                        ValueTypeExpr::Union(vec![base.node, ValueTypeExpr::Nil]),
+                        span,
+                    )
+                } else {
+                    base
+                }
+            });
+
+        named
+            .separated_by(just(Tok::Union))
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .map(|types| {
+                if types.len() == 1 {
+                    types.into_iter().next().unwrap()
+                } else {
+                    let span = types
+                        .iter()
+                        .skip(1)
+                        .fold(types[0].span, |span, ty| span.merge(ty.span));
+                    Spanned::new(
+                        ValueTypeExpr::Union(types.into_iter().map(|ty| ty.node).collect()),
+                        span,
+                    )
+                }
+            })
+    })
+}
+
 fn expr() -> impl Parser<Tok, Expr, Error = Err> + Clone {
     recursive(|expr| {
         let lit = choice((
@@ -398,14 +514,35 @@ fn expr() -> impl Parser<Tok, Expr, Error = Err> + Clone {
         ))
         .boxed();
 
-        let equality = atom
+        let cast = atom
+            .then(
+                select! {
+                    Tok::Ident(name) if name == "as" => (),
+                }
+                .ignore_then(value_type_expr())
+                .or_not(),
+            )
+            .map(|(value, ty)| match ty {
+                Some(ty) => {
+                    let span = value.span().merge(ty.span);
+                    Expr::As {
+                        value: Box::new(value),
+                        ty,
+                        span,
+                    }
+                }
+                None => value,
+            })
+            .boxed();
+
+        let equality = cast
             .clone()
             .then(
                 choice((
                     just(Tok::EqEq).to(BinaryOp::Eq),
                     just(Tok::NotEq).to(BinaryOp::NotEq),
                 ))
-                .then(atom)
+                .then(cast)
                 .or_not(),
             )
             .map(|(left, rest)| match rest {

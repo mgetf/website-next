@@ -9,6 +9,9 @@ algebras:
 Runtime representation is a lowering contract, not a third type system.
 CljExpr IR and Flow IR share the same type/schema tables.
 
+The implemented ordinary-function boundary is documented in
+[`CLOJURE_BOUNDARY.md`](./CLOJURE_BOUNDARY.md).
+
 ## JVM value types
 
 Every ordinary expression has a JVM-oriented value type:
@@ -179,6 +182,19 @@ Untyped values enter only through explicit boundaries:
 Clojure Vars without signatures produce `Unknown` in gradual mode and errors
 in strict mode. JVM type hints aid interop and reflection performance, but are
 not runtime contracts.
+
+Extern declarations form Julia-inspired compile-time method sets:
+
+```rama
+extern identity<T>(value: T) -> T
+extern choose(value: String) -> Long
+extern choose(value: Long) -> String
+```
+
+Applicability is determined from the argument tuple; quantified variables are
+solved from arguments and substituted into the return. Equally specific
+overlapping signatures are errors rather than declaration-order dispatch.
+This models the existing Clojure Var; it does not replace Clojure dispatch.
 
 ## Separation of concerns
 

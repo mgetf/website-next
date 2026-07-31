@@ -5,6 +5,7 @@
 
 use crate::ast::*;
 use crate::clj::{self, Form};
+use crate::contracts;
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -252,6 +253,7 @@ fn expr(e: &Expr, mode: Mode) -> Form {
                 expr(else_branch, mode),
             ],
         ),
+        Expr::As { value, ty, .. } => contracts::checked_as(expr(value, mode), &ty.node),
     }
 }
 

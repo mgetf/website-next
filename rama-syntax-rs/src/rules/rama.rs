@@ -11,8 +11,70 @@ pub fn rama_engine() -> Engine {
         Box::new(NavigatorOutsideKeypath),
         Box::new(TransformHasWriteTerm),
         Box::new(FnContainsOnlyClojure),
+        Box::new(CastOnlyInFn),
         Box::new(ShallowExplicitOpIf),
     ])
+}
+
+fn walk_expr(expr: &Expr, f: &mut impl FnMut(&Expr)) {
+    f(expr);
+    match expr {
+        Expr::Call(call) => {
+            for arg in &call.args {
+                walk_expr(arg, f);
+            }
+        }
+        Expr::List { elems, .. } => {
+            for elem in elems {
+                walk_expr(elem, f);
+            }
+        }
+        Expr::Map { entries, .. } => {
+            for entry in entries {
+                walk_expr(&entry.key, f);
+                if let Some(value) = &entry.value {
+                    walk_expr(value, f);
+                }
+            }
+        }
+        Expr::Binary { left, right, .. } => {
+            walk_expr(left, f);
+            walk_expr(right, f);
+        }
+        Expr::Ternary {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            walk_expr(cond, f);
+            walk_expr(then_branch, f);
+            walk_expr(else_branch, f);
+        }
+        Expr::As { value, .. } => walk_expr(value, f),
+        Expr::String(_) | Expr::Keyword(_) | Expr::Ident(_) | Expr::Int(_) | Expr::Bool(_) => {}
+    }
+}
+
+fn walk_statement_exprs(statement: &Stmt, f: &mut impl FnMut(&Expr)) {
+    match statement {
+        Stmt::Let { value, .. } | Stmt::Return { value, .. } | Stmt::Effect { value, .. } => {
+            walk_expr(value, f)
+        }
+        Stmt::Select { path, .. } | Stmt::Transform { path, .. } => {
+            for expr in path {
+                walk_expr(expr, f);
+            }
+        }
+        Stmt::Fail {
+            value, condition, ..
+        } => {
+            walk_expr(value, f);
+            walk_expr(condition, f);
+        }
+        Stmt::Hash { key, .. } => walk_expr(key, f),
+        Stmt::If { condition, .. } => walk_expr(condition, f),
+    }
 }
 
 fn walk_block(block: &Block, f: &mut impl FnMut(&Stmt)) {
@@ -198,6 +260,43 @@ impl Rule for FnContainsOnlyClojure {
 }
 
 struct ShallowExplicitOpIf;
+
+struct CastOnlyInFn;
+
+impl Rule for CastOnlyInFn {
+    fn id(&self) -> &'static str {
+        "rama/as-only-in-fn"
+    }
+
+    fn title(&self) -> &'static str {
+        "Checked `as` belongs to ordinary typed functions"
+    }
+
+    fn because(&self) -> &'static str {
+        "dataflow typing is not implemented yet; lowering a Clojure contract predicate inside Flow IR would be invalid"
+    }
+
+    fn check(&self, program: &Program<'_>) -> Vec<Violation> {
+        let mut out = Vec::new();
+        for body in &program.bodies {
+            if body.kind != BodyKind::Op {
+                continue;
+            }
+            walk_block(body.block, &mut |statement| {
+                walk_statement_exprs(statement, &mut |expr| {
+                    if let Expr::As { span, .. } = expr {
+                        out.push(Violation::new(
+                            self,
+                            *span,
+                            "`as` is not available in `op` until typed Flow IR lands",
+                        ));
+                    }
+                });
+            });
+        }
+        out
+    }
+}
 
 impl Rule for ShallowExplicitOpIf {
     fn id(&self) -> &'static str {

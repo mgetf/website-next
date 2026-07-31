@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    Block, DepotDecl, FnDef, Item, OpDef, PStateDecl, SourceFile, StructDecl, TypeExpr,
+    Block, DepotDecl, ExternDecl, FnDef, Item, OpDef, PStateDecl, SourceFile, StructDecl, TypeExpr,
 };
 use crate::span::Span;
 
@@ -34,6 +34,7 @@ pub struct Program<'a> {
     pub pstates: HashMap<&'a str, &'a PStateDecl>,
     pub depots: HashMap<&'a str, &'a DepotDecl>,
     pub functions: HashMap<&'a str, &'a FnDef>,
+    pub externs: HashMap<&'a str, Vec<&'a ExternDecl>>,
     pub operations: HashMap<&'a str, &'a OpDef>,
     pub bodies: Vec<Body<'a>>,
 }
@@ -45,6 +46,7 @@ impl<'a> Program<'a> {
         let mut pstates = HashMap::new();
         let mut depots = HashMap::new();
         let mut functions = HashMap::new();
+        let mut externs: HashMap<&str, Vec<&ExternDecl>> = HashMap::new();
         let mut operations = HashMap::new();
         let mut bodies = Vec::new();
 
@@ -78,6 +80,12 @@ impl<'a> Program<'a> {
                         span: op.span,
                     });
                 }
+                Item::Extern(extern_decl) => {
+                    externs
+                        .entry(extern_decl.name.node.as_str())
+                        .or_default()
+                        .push(extern_decl);
+                }
             }
         }
 
@@ -88,6 +96,7 @@ impl<'a> Program<'a> {
             pstates,
             depots,
             functions,
+            externs,
             operations,
             bodies,
         }

@@ -23,6 +23,8 @@ pub enum TokenKind {
     Op,
     #[token("fn")]
     Fn,
+    #[token("extern")]
+    Extern,
     #[token("let")]
     Let,
     #[token("fail")]
@@ -48,6 +50,8 @@ pub enum TokenKind {
     ArrowTransform,
     #[token("-->")]
     ArrowSelect,
+    #[token("->")]
+    ThinArrow,
     #[token("==")]
     EqEq,
     #[token("!=")]
@@ -60,6 +64,10 @@ pub enum TokenKind {
     Question,
     #[token("@")]
     At,
+    #[token(".")]
+    Dot,
+    #[token("|")]
+    Union,
 
     #[token("(")]
     LParen,

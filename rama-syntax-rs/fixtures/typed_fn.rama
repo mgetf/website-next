@@ -1,0 +1,27 @@
+module TypedBoundary
+
+extern identity<T>(value: T) -> T
+extern vec<T>(values: java.lang.Iterable<T>) -> java.util.List<T>
+// Deliberately dishonest declaration: runtime contracts must catch the return.
+extern str(value: Long) -> Long
+
+fn echo(value: String) -> String {
+  return identity(value)
+}
+
+fn copy-strings(values: java.util.List<String>) -> java.util.List<String> {
+  return vec(values)
+}
+
+fn bad-extern-return(value: Long) -> Long {
+  return str(value)
+}
+
+fn maybe-label(enabled: Boolean, label: String) -> String? {
+  if (enabled == false) { return nil }
+  return label
+}
+
+fn checked-string(value: Unknown) -> String {
+  return value as String
+}

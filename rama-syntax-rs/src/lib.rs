@@ -6,6 +6,7 @@ pub mod ast;
 pub mod check;
 pub mod clj;
 pub mod clj_verify;
+pub mod contracts;
 pub mod emit_clj;
 pub mod error;
 pub mod lex;
@@ -14,6 +15,7 @@ pub mod parse;
 pub mod rama_ir;
 pub mod rules;
 pub mod span;
+pub mod types;
 
 pub use ast::SourceFile;
 pub use check::{check, CheckResult, TypeEnv};

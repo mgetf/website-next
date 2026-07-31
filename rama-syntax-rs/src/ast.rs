@@ -16,6 +16,7 @@ pub enum Item {
     Depot(DepotDecl),
     Op(OpDef),
     Fn(FnDef),
+    Extern(ExternDecl),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,8 +64,24 @@ pub struct OpDef {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FnDef {
     pub name: Spanned<String>,
-    pub params: Vec<Spanned<String>>,
+    pub params: Vec<Param>,
+    pub return_ty: Option<Spanned<ValueTypeExpr>>,
     pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Param {
+    pub name: Spanned<String>,
+    pub ty: Option<Spanned<ValueTypeExpr>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExternDecl {
+    pub name: Spanned<String>,
+    pub type_params: Vec<Spanned<String>>,
+    pub params: Vec<Param>,
+    pub return_ty: Spanned<ValueTypeExpr>,
     pub span: Span,
 }
 
@@ -158,6 +175,11 @@ pub enum Expr {
         else_branch: Box<Expr>,
         span: Span,
     },
+    As {
+        value: Box<Expr>,
+        ty: Spanned<ValueTypeExpr>,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -178,7 +200,8 @@ impl Expr {
             | Expr::Int(Spanned { span, .. })
             | Expr::Bool(Spanned { span, .. })
             | Expr::Binary { span, .. }
-            | Expr::Ternary { span, .. } => *span,
+            | Expr::Ternary { span, .. }
+            | Expr::As { span, .. } => *span,
         }
     }
 }
@@ -205,4 +228,20 @@ pub enum TypeExpr {
         subindexed: bool,
     },
     Object,
+}
+
+/// JVM-oriented ordinary value type syntax. PState schemas use [`TypeExpr`]
+/// until their dedicated P* parser migration lands.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ValueTypeExpr {
+    Named {
+        path: String,
+        args: Vec<ValueTypeExpr>,
+    },
+    Union(Vec<ValueTypeExpr>),
+    Nil,
+    Unknown,
+    Dynamic,
+    Any,
+    Never,
 }

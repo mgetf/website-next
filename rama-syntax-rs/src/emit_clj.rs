@@ -9,6 +9,7 @@ use crate::clj::{self, Document, Form};
 use crate::clj_verify;
 use crate::lower;
 use crate::rama_ir::Program;
+use crate::types::{self, Type, TypeId, TypeTable, TypedExtern, Typing};
 
 /// Public entry: compile to IR, then serialize.
 pub fn emit_clojure(file: &SourceFile) -> String {
@@ -30,6 +31,7 @@ pub fn compile_program(program: &Program<'_>) -> Document {
     let file = program.source;
     let structs = program.structs.clone();
     let module_name = program.module_name;
+    let typing = types::analyze(program);
 
     let mut doc = Document::new();
     doc.push(clj::comment(
@@ -46,6 +48,28 @@ pub fn compile_program(program: &Program<'_>) -> Document {
             ]),
         ],
     ));
+
+    if has_runtime_contracts(&typing) {
+        doc.push(contract_helper_form());
+    }
+    let extern_wrappers: HashMap<String, String> = typing
+        .externs
+        .iter()
+        .map(|(name, _)| {
+            (
+                name.clone(),
+                format!("__rama_extern_{}", sanitize_symbol(name)),
+            )
+        })
+        .collect();
+    for (name, overloads) in &typing.externs {
+        doc.push(extern_dispatcher_form(
+            name,
+            &extern_wrappers[name],
+            overloads,
+            &typing.table,
+        ));
+    }
 
     for item in &file.items {
         match item {
@@ -69,14 +93,37 @@ pub fn compile_program(program: &Program<'_>) -> Document {
             }
             Item::Fn(func) => {
                 let mut params = Vec::new();
-                params.extend(func.params.iter().map(|p| clj::sym(p.node.clone())));
+                params.extend(func.params.iter().map(|p| clj::sym(p.name.node.clone())));
+                let mut body = lower::lower_fn_body(&func.body);
+                if let Some(function_type) = typing.functions.get(&func.name.node) {
+                    body = rewrite_calls(body, &extern_wrappers);
+                    body = contract_call(
+                        function_type.return_type,
+                        format!("{} return", func.name.node),
+                        body,
+                        &typing.table,
+                    );
+                    for (name, ty) in function_type.params.iter().rev() {
+                        body = clj::call(
+                            "let",
+                            [
+                                clj::vector([
+                                    clj::sym(name),
+                                    contract_call(
+                                        *ty,
+                                        format!("{} argument `{name}`", func.name.node),
+                                        clj::sym(name),
+                                        &typing.table,
+                                    ),
+                                ]),
+                                body,
+                            ],
+                        );
+                    }
+                }
                 doc.push(clj::call(
                     "defn",
-                    [
-                        clj::sym(func.name.node.clone()),
-                        clj::vector(params),
-                        lower::lower_fn_body(&func.body),
-                    ],
+                    [clj::sym(func.name.node.clone()), clj::vector(params), body],
                 ));
             }
             _ => {}
@@ -144,6 +191,314 @@ pub fn compile_program(program: &Program<'_>) -> Document {
     }
 
     doc
+}
+
+fn has_runtime_contracts(typing: &Typing) -> bool {
+    !typing.functions.is_empty() || !typing.externs.is_empty()
+}
+
+fn contract_helper_form() -> Form {
+    clj::call(
+        "defn",
+        [
+            clj::sym("__rama_contract!"),
+            clj::vector([
+                clj::sym("predicate"),
+                clj::sym("expected"),
+                clj::sym("path"),
+                clj::sym("value"),
+            ]),
+            clj::call(
+                "if",
+                [
+                    clj::call("predicate", [clj::sym("value")]),
+                    clj::sym("value"),
+                    clj::call(
+                        "throw",
+                        [clj::call(
+                            "ex-info",
+                            [
+                                clj::call(
+                                    "str",
+                                    [
+                                        clj::string("Contract violation at "),
+                                        clj::sym("path"),
+                                        clj::string(": expected "),
+                                        clj::sym("expected"),
+                                        clj::string(", got "),
+                                        actual_class_form(clj::sym("value")),
+                                    ],
+                                ),
+                                clj::map([
+                                    (clj::kw("kind"), clj::kw("contract-violation")),
+                                    (clj::kw("path"), clj::sym("path")),
+                                    (clj::kw("expected"), clj::sym("expected")),
+                                    (clj::kw("actual"), actual_class_form(clj::sym("value"))),
+                                ]),
+                            ],
+                        )],
+                    ),
+                ],
+            ),
+        ],
+    )
+}
+
+fn actual_class_form(value: Form) -> Form {
+    clj::call(
+        "if",
+        [
+            clj::call("nil?", [value.clone()]),
+            clj::string("nil"),
+            clj::call(".getName", [clj::call("class", [value])]),
+        ],
+    )
+}
+
+fn contract_call(ty: TypeId, path: impl Into<String>, value: Form, table: &TypeTable) -> Form {
+    let variable = "__rama_value";
+    clj::call(
+        "__rama_contract!",
+        [
+            clj::list([
+                clj::sym("fn"),
+                clj::vector([clj::sym(variable)]),
+                predicate_form(ty, clj::sym(variable), table),
+            ]),
+            clj::string(table.display(ty)),
+            clj::string(path),
+            value,
+        ],
+    )
+}
+
+fn predicate_form(ty: TypeId, value: Form, table: &TypeTable) -> Form {
+    match table.get(ty) {
+        Type::Nil => clj::call("nil?", [value]),
+        Type::Never => clj::bool(false),
+        Type::Any | Type::Unknown | Type::Dynamic | Type::Var(_) => clj::bool(true),
+        Type::Union(members) => {
+            let mut forms = vec![clj::sym("or")];
+            forms.extend(
+                members
+                    .iter()
+                    .map(|member| predicate_form(*member, value.clone(), table)),
+            );
+            Form::List(forms)
+        }
+        Type::Jvm { class, args } => {
+            let base = clj::call("instance?", [clj::sym(class), value.clone()]);
+            match (class.as_str(), args.as_slice()) {
+                (
+                    "java.util.List"
+                    | "java.util.Set"
+                    | "java.util.Collection"
+                    | "java.lang.Iterable"
+                    | "clojure.lang.ISeq",
+                    [element],
+                ) => {
+                    let element_name = "__rama_element";
+                    clj::call(
+                        "and",
+                        [
+                            base,
+                            clj::call(
+                                "every?",
+                                [
+                                    clj::list([
+                                        clj::sym("fn"),
+                                        clj::vector([clj::sym(element_name)]),
+                                        predicate_form(*element, clj::sym(element_name), table),
+                                    ]),
+                                    value,
+                                ],
+                            ),
+                        ],
+                    )
+                }
+                ("java.util.Map", [key_type, value_type]) => {
+                    let entry = "__rama_entry";
+                    clj::call(
+                        "and",
+                        [
+                            base,
+                            clj::call(
+                                "every?",
+                                [
+                                    clj::list([
+                                        clj::sym("fn"),
+                                        clj::vector([clj::sym(entry)]),
+                                        clj::call(
+                                            "and",
+                                            [
+                                                predicate_form(
+                                                    *key_type,
+                                                    clj::call("key", [clj::sym(entry)]),
+                                                    table,
+                                                ),
+                                                predicate_form(
+                                                    *value_type,
+                                                    clj::call("val", [clj::sym(entry)]),
+                                                    table,
+                                                ),
+                                            ],
+                                        ),
+                                    ]),
+                                    value,
+                                ],
+                            ),
+                        ],
+                    )
+                }
+                _ => base,
+            }
+        }
+    }
+}
+
+fn extern_dispatcher_form(
+    name: &str,
+    wrapper_name: &str,
+    overloads: &[TypedExtern],
+    table: &TypeTable,
+) -> Form {
+    let args_name = "__rama_args";
+    let mut ordered = overloads.iter().collect::<Vec<_>>();
+    ordered.sort_by_key(|overload| {
+        std::cmp::Reverse(
+            overload
+                .signature
+                .params
+                .iter()
+                .map(|ty| runtime_specificity(*ty, table))
+                .sum::<usize>(),
+        )
+    });
+
+    let mut clauses = Vec::new();
+    for overload in ordered {
+        let mut checks = vec![clj::call(
+            "=",
+            [
+                clj::call("count", [clj::sym(args_name)]),
+                clj::int(overload.signature.params.len() as i64),
+            ],
+        )];
+        for (index, ty) in overload.signature.params.iter().enumerate() {
+            checks.push(predicate_form(
+                *ty,
+                clj::call("nth", [clj::sym(args_name), clj::int(index as i64)]),
+                table,
+            ));
+        }
+        let condition = if checks.len() == 1 {
+            checks.remove(0)
+        } else {
+            clj::call("and", checks)
+        };
+        clauses.push(condition);
+        clauses.push(contract_call(
+            overload.signature.ret,
+            format!("extern `{name}` return"),
+            clj::call("apply", [clj::sym(name), clj::sym(args_name)]),
+            table,
+        ));
+    }
+    clauses.push(clj::kw("else"));
+    clauses.push(clj::call(
+        "throw",
+        [clj::call(
+            "ex-info",
+            [
+                clj::string(format!(
+                    "No runtime contract for extern `{name}` accepted the arguments"
+                )),
+                clj::map([
+                    (clj::kw("kind"), clj::kw("contract-violation")),
+                    (
+                        clj::kw("path"),
+                        clj::string(format!("extern `{name}` arguments")),
+                    ),
+                ]),
+            ],
+        )],
+    ));
+
+    clj::call(
+        "defn",
+        [
+            clj::sym(wrapper_name),
+            clj::vector([clj::sym("&"), clj::sym(args_name)]),
+            clj::call("cond", clauses),
+        ],
+    )
+}
+
+fn runtime_specificity(ty: TypeId, table: &TypeTable) -> usize {
+    match table.get(ty) {
+        Type::Jvm { args, .. } => {
+            2 + args
+                .iter()
+                .map(|arg| runtime_specificity(*arg, table))
+                .sum::<usize>()
+        }
+        Type::Union(members) => members
+            .iter()
+            .map(|member| runtime_specificity(*member, table))
+            .min()
+            .unwrap_or(0),
+        Type::Nil => 2,
+        Type::Never => 3,
+        Type::Any | Type::Unknown | Type::Dynamic | Type::Var(_) => 0,
+    }
+}
+
+fn rewrite_calls(form: Form, extern_wrappers: &HashMap<String, String>) -> Form {
+    match form {
+        Form::List(mut forms) => {
+            if let Some(Form::Symbol(head)) = forms.first_mut() {
+                if let Some(wrapper) = extern_wrappers.get(head) {
+                    *head = wrapper.clone();
+                }
+            }
+            Form::List(
+                forms
+                    .into_iter()
+                    .map(|form| rewrite_calls(form, extern_wrappers))
+                    .collect(),
+            )
+        }
+        Form::Vector(forms) => Form::Vector(
+            forms
+                .into_iter()
+                .map(|form| rewrite_calls(form, extern_wrappers))
+                .collect(),
+        ),
+        Form::Map(entries) => Form::Map(
+            entries
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        rewrite_calls(key, extern_wrappers),
+                        rewrite_calls(value, extern_wrappers),
+                    )
+                })
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
+fn sanitize_symbol(name: &str) -> String {
+    name.chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '_' {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }
 
 fn partitioner_name(depot: &DepotDecl) -> String {
@@ -650,6 +1005,7 @@ fn expr(e: &Expr, ctx: ExprCtx) -> Form {
                 expr(else_branch, ctx),
             ],
         ),
+        Expr::As { value, ty, .. } => crate::contracts::checked_as(expr(value, ctx), &ty.node),
     }
 }
 
@@ -691,6 +1047,7 @@ fn ident_name(name: &str) -> String {
 fn contains_clojure_control(expr: &Expr) -> bool {
     match expr {
         Expr::Ternary { .. } => true,
+        Expr::As { value, .. } => contains_clojure_control(value),
         Expr::Call(call) => {
             matches!(call.callee.node.as_str(), "if" | "cond" | "let")
                 || call.args.iter().any(contains_clojure_control)
@@ -746,6 +1103,7 @@ fn collect_locals(expr: &Expr, out: &mut BTreeSet<String>) {
             collect_locals(then_branch, out);
             collect_locals(else_branch, out);
         }
+        Expr::As { value, .. } => collect_locals(value, out),
         Expr::String(_) | Expr::Keyword(_) | Expr::Int(_) | Expr::Bool(_) => {}
     }
 }

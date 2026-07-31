@@ -6,6 +6,7 @@ use crate::ast::{SourceFile, TypeExpr};
 use crate::error::Diagnostic;
 use crate::rama_ir::Program;
 use crate::rules::check_program;
+use crate::types;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckResult {
@@ -53,7 +54,7 @@ pub fn check(file: &SourceFile) -> CheckResult {
 }
 
 pub fn check_program_ir(program: &Program<'_>) -> CheckResult {
-    let diagnostics = check_program(program)
+    let mut diagnostics: Vec<Diagnostic> = check_program(program)
         .into_iter()
         .map(|violation| {
             Diagnostic::rule(
@@ -65,5 +66,6 @@ pub fn check_program_ir(program: &Program<'_>) -> CheckResult {
             )
         })
         .collect();
+    diagnostics.extend(types::analyze(program).diagnostics);
     CheckResult { diagnostics }
 }

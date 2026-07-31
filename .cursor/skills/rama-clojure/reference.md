@@ -4,32 +4,32 @@ Hard failures we hit while spiking `rama/src/mge/tf/rama/match_module.clj`. Read
 
 ## Compile-time
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| `Unable to resolve symbol: let* in this context` | Used Clojure `and`/`or`/`if-let`/`when-let` in dataflow | Use `and>` / `or>` / `<<if`, or move logic to `defn` |
-| `StackOverflowError` in `clojure.algo.monads` | Deep nested `<<if` / `<<switch` / `<<cond` | ≤2 levels of dataflow branching; helpers for the rest |
-| `EOF while reading` | Unbalanced parens after editing `<<if` trees | Count closers carefully; prefer flatter code |
-| Minimal module works, big one doesn't | Almost always `and` or nesting — bisect by commenting event handlers | Add one `<<if (= *type …)` handler at a time |
+| Symptom                                          | Cause                                                                | Fix                                                   |
+| ------------------------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------- |
+| `Unable to resolve symbol: let* in this context` | Used Clojure `and`/`or`/`if-let`/`when-let` in dataflow              | Use `and>` / `or>` / `<<if`, or move logic to `defn`  |
+| `StackOverflowError` in `clojure.algo.monads`    | Deep nested `<<if` / `<<switch` / `<<cond`                           | ≤2 levels of dataflow branching; helpers for the rest |
+| `EOF while reading`                              | Unbalanced parens after editing `<<if` trees                         | Count closers carefully; prefer flatter code          |
+| Minimal module works, big one doesn't            | Almost always `and` or nesting — bisect by commenting event handlers | Add one `<<if (= *type …)` handler at a time          |
 
 ## Runtime / worker death
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| `Key must be integer` on ban/list update | `AFTER-ELEM` (or similar) passed **into** `keypath` | `[(keypath id "actions") AFTER-ELEM (termval row)]` |
-| `CallbackException` / connection closed on append | Topology threw; worker watchdog killed the task | Check worker ERROR logs above the test failure |
-| Duplicate / flaky ack after create | `ops/explode` then `ack-return>` on same lineage | Write whole set with `termval`, or `anchor>`/`<<branch` |
-| Registration-style races | Wrong depot partitioner | `hash-by` the entity whose serializability you need |
-| Uniqueness check always passes / never sees existing | `local-select>` on wrong partition (still on depot key) | `\|hash` the index key **before** reading that PState |
-| Giant `and>` of many `not=` for unknown-type | Parser / compile pain | `(defn known-type? [t] (contains? #{…} t))` then `(<<if (not (known-type? *type)) …)` |
+| Symptom                                              | Cause                                                   | Fix                                                                                   |
+| ---------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `Key must be integer` on ban/list update             | `AFTER-ELEM` (or similar) passed **into** `keypath`     | `[(keypath id "actions") AFTER-ELEM (termval row)]`                                   |
+| `CallbackException` / connection closed on append    | Topology threw; worker watchdog killed the task         | Check worker ERROR logs above the test failure                                        |
+| Duplicate / flaky ack after create                   | `ops/explode` then `ack-return>` on same lineage        | Write whole set with `termval`, or `anchor>`/`<<branch`                               |
+| Registration-style races                             | Wrong depot partitioner                                 | `hash-by` the entity whose serializability you need                                   |
+| Uniqueness check always passes / never sees existing | `local-select>` on wrong partition (still on depot key) | `\|hash` the index key **before** reading that PState                                 |
+| Giant `and>` of many `not=` for unknown-type         | Parser / compile pain                                   | `(defn known-type? [t] (contains? #{…} t))` then `(<<if (not (known-type? *type)) …)` |
 
 ## Schema / path
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| REST `selectOne` returns null for a field you wrote | Keyword keys in PState, string navigators in JSON (or vice versa) | String keys end-to-end for REST-first modules |
-| Long fields wrong / type errors | JSON number → Integer, schema expects Long | `(long v)` in topology; `"#__L…"` from TS |
-| Subindexed set pain for 5–7 items | Over-engineering | Store as `Object` + Clojure set via `termval` |
-| `nil->val` "didn't write" | View navigator without term | End with `(term identity)` or `(term inc)` / `termval` |
+| Symptom                                             | Cause                                                             | Fix                                                    |
+| --------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------ |
+| REST `selectOne` returns null for a field you wrote | Keyword keys in PState, string navigators in JSON (or vice versa) | String keys end-to-end for REST-first modules          |
+| Long fields wrong / type errors                     | JSON number → Integer, schema expects Long                        | `(long v)` in topology; `"#__L…"` from TS              |
+| Subindexed set pain for 5–7 items                   | Over-engineering                                                  | Store as `Object` + Clojure set via `termval`          |
+| `nil->val` "didn't write"                           | View navigator without term                                       | End with `(term identity)` or `(term inc)` / `termval` |
 
 ## REST API reminders
 
@@ -70,12 +70,12 @@ const result = acks['matches']; // topology name
 
 ## Partitioning cheatsheet
 
-| Depot | hash-by | Why |
-|---|---|---|
-| `*match-depot` | `matchId` | Score + bans serialize per match |
-| `*user-depot` | `steamId` | Ban/sessionVersion serial per user |
-| `*team-depot` | `teamId` | Roster mutations serialize per team |
-| Cross-entity uniqueness (one team per player/season) | hop to steamId partition | Same pattern as friendship accept |
+| Depot                                                | hash-by                  | Why                                 |
+| ---------------------------------------------------- | ------------------------ | ----------------------------------- |
+| `*match-depot`                                       | `matchId`                | Score + bans serialize per match    |
+| `*user-depot`                                        | `steamId`                | Ban/sessionVersion serial per user  |
+| `*team-depot`                                        | `teamId`                 | Roster mutations serialize per team |
+| Cross-entity uniqueness (one team per player/season) | hop to steamId partition | Same pattern as friendship accept   |
 
 ## What not to do
 
@@ -107,10 +107,14 @@ const result = acks['matches']; // topology name
 ```ts
 await client.selectOne('$$matches', [matchId, 'status']);
 await client.selectOne('$$map-bans', [matchId, 'turn']);
-await client.append('*match-depot', {
-  type: 'ban-map',
-  matchId,
-  teamId,
-  arenaId,
-}, 'ack');
+await client.append(
+  '*match-depot',
+  {
+    type: 'ban-map',
+    matchId,
+    teamId,
+    arenaId,
+  },
+  'ack',
+);
 ```

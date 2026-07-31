@@ -31,7 +31,7 @@ Docs: `rama/README.md`, [knots reference](reference.md)
 
 ### Use `and>` / `or>` — never `and` / `or`
 
-Clojure `and`/`or` expand to `let*`. Dataflow cannot resolve `let*` → compile error *"Unable to resolve symbol: let*"*.
+Clojure `and`/`or` expand to `let*`. Dataflow cannot resolve `let*` → compile error _"Unable to resolve symbol: let_"*.
 
 ```clojure
 ;; ❌

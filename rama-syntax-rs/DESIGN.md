@@ -1,93 +1,120 @@
 # .rama v2 — design notes (reviewed)
 
-Rule: **strip naming conventions and compiler noise; keep Specter as the
-user-facing path API.** Select/transform sigils stay. The Rust program owns
-lowering nits (`:>` bindings, `$$` prefixes, trailing `>` emit names, etc.).
+Strip naming conventions and compiler noise. **Specter stays the user-facing
+path API** (`-->` / `!<--`, navigators, `keypath`, `termval`, …). Schemas look
+like Rust. Topologies stay tiny. The Rust program owns lowering.
 
-## Spec review (resolved)
+## Resolved
 
-| # | Proposal | Verdict |
-|---|----------|---------|
-| 1 | Kill sigil soup / naming conventions (`*var`, `%fn`, trailing `>` on ops) | **yes** |
-| 2 | Destructuring close to JS semantics (incl. handler heads) | **yes** |
-| 3 | Drop trailing `>` vocabulary (`ack-return>` → `ack`, one op keyword) | **yes** |
-| 4 | JS-style `matches[id] = {…}` instead of path writes | **no** — record assignment is `multi-path` over fixed-keys-schema; Specter stays |
-| 5 | Replace `-->` / `!<--` with JS subscript lvalues | **no** — Specter paths + navigators *are* the beauty; select/transform sigils stay |
-| 6 | Soften navigator vocab / sugar `+=` / `push` | **open** — need a complex module both ways; lean keep navigators bare |
-| 7 | `at partition(k) {…}` block vs bare `|hash k` | **open** — lean **bare statement** is better; compare on a real cross-partition module |
-| 8 | Cap deep `if` because Clojure `<<if` can SO | **no** — deep `if` **must** work in `.rama`; SO is a target bug, compiler emits a safe shape |
-| 9 | JS object literals `{ ok: true }` | **no** — Clojure map literals `{"ok" true}` are better |
-| 10 | Drop `ramaop` vs `ramafn` | **yes** — one construct; emit-shape inferred |
+| Topic | Decision |
+|-------|----------|
+| Naming (`*var`, `%fn`, trailing `>` on ops) | gone |
+| `ramaop` / `ramafn` | one keyword: `op` |
+| Destructuring | `let {a, b} = event` — keep |
+| Select bind | `$$p --> keypath(id) > { a, b }` — beauty, keep |
+| Path writes | Specter; navigators as siblings — keep |
+| Fixed-keys write | **whole-map `termval({…})`**, not N transforms / required `multi-path` |
+| Validation | `fail "msg" if cond` — prefer over nested ifs (deep `if` still legal) |
+| Ack | **`return`** (emits `ack-return>`) |
+| Map literals | Clojure style `{"ok" true}` / `{:status "UNPLAYED"}` |
+| PState types | **Rust-like**: `struct` + `pstate name: Map<K, V>` — not `String -> fixed` |
+| Fixed-keys field names | **keywords** (normal Rama); REST modules may still choose strings |
+| Partition hop | bare `\|hash k` for now (open) |
+| Deep `if` | must work; Clojure SO is an emitter problem |
 
-## What stays beautiful (do not touch)
+## Schemas (Rust-shaped)
 
-- Specter paths as the user-facing API: `keypath`, `multi-path`, `termval`,
-  `term`, `nil->val`, `AFTER-ELEM`, `NONE>`, `selected?`, `MAP-VALS`, …
-- Select / transform sigils: `$$matches --> …` and `$$matches !<-- …`
-  (pstate sigil `$$` is still open — declaration-scoped names may drop it later;
-  path ops do not)
-- Comma-separated path steps (navigators as **siblings**, never inside `keypath`)
-- Clojure map literals: `{"ok" true "matchId" matchId}`
-
-## What the Rust program strips / owns
-
-| Surface noise (v1) | v2 |
-|--------------------|----|
-| `*match-id`, `%update` | `match-id` / `update` — locals are just names |
-| `ack-return>`, `send-emits>`, `unify>` | `ack`, `emit`, `unify` — emit-shape is inferred |
-| `ramaop` / `ramafn` | `op` (or `flow`) — one keyword |
-| Stacked `get(event, "f") > f` | Destructure: `on depot "type" { matchId, homeTeamId, … }` |
-| N single-field `!<--` to one fixed-keys entity | Prefer one `!<-- keypath(id), multi-path([…], […])` (already Specter) |
-| Deep `<<if` SO on Clojure | Emit flat / CPS-safe IR; **source may nest freely** |
-| Binding pipe `:>` in emitted Clojure | Inserted by emitter, not typed in `.rama` (or keep a single `>` bind if useful) |
-
-## v2 sketch
-
-See `fixtures/match_v2.rama` (aspirational — parser does not accept it yet).
+Alien (rejected):
 
 ```rama
-op create-match(event) {
-  let { matchId, homeTeamId, awayTeamId, seasonId, boGames, pool } = event
-
-  $$matches --> keypath(matchId) > existing
-  if (nil?(existing)) {
-    $$matches !<-- keypath(matchId), multi-path(
-      ["homeTeamId" termval(homeTeamId)]
-      ["awayTeamId" termval(awayTeamId)]
-      ["seasonId" termval(seasonId)]
-      ["status" termval("UNPLAYED")]
-      ["homeScore" termval(0)]
-      ["awayScore" termval(0)]
-      ["boGames" termval(long(boGames))]
-    )
-    |hash homeTeamId
-    $$matches-by-team !<-- keypath(homeTeamId, matchId), termval(seasonId)
-    ack {"ok" true "matchId" matchId}
-  } else {
-    ack {"ok" false "error" "match-exists"}
-  }
-}
+pstate $$matches { String -> fixed { "status" String } }
+pstate $$matches-by-team { String -> map String }   // meaningless
 ```
 
-Notes vs the rejected JS rewrite:
-- Paths stay paths. `multi-path` *is* the record assignment for fixed-keys-schema.
-- `|hash homeTeamId` left as a bare statement pending a side-by-side on a meatier module.
-- Nested `if` is legal; emitter must not blow the Clojure stack.
+Target:
 
-## Open questions (need examples)
+```rama
+struct Match {
+  :homeTeamId String
+  :awayTeamId String
+  :seasonId   String
+  :status     String
+  :homeScore  Long
+  :awayScore  Long
+  :winnerId   String
+  :boGames    Long
+}
 
-1. **Navigators vs sugar** — keep `AFTER-ELEM` / `nil->val` bare, or allow
-   `actions, AFTER-ELEM, termval(…)` only (no `push` / `+=`)? Lean bare.
-2. **Partition hop** — bare `|hash k` vs `at partition(k) {…}`. Lean bare.
-3. **`$$` on pstates** — keep for “this is distributed state” readability, or
-   drop once `pstate` decls are in scope?
-4. **Bind operator** — keep `> name` after select/effects, or `let name = …`?
+struct MapBan {
+  :turn       Long
+  :homeTeamId String
+  :awayTeamId String
+  :remaining  Object
+  :actions    Object
+}
 
-## Checker (revised)
+struct TeamStats {
+  :wins   Long
+  :losses Long
+  :points Long
+}
 
-- Lint parallel single-field transforms against the same `keypath(id)` on a
-  fixed-keys pstate → suggest `multi-path` collapse (does not invent JS assign).
-- Navigator-inside-`keypath` remains a hard error (MatchModule scar).
-- Transform must terminate in `term` / `termval` / `NONE>` / `multi-path`.
-- Deep `if`: allowed; if target Clojure SO’s, fix emission, don’t reject source.
-- No JS-object / no subscript-lvalue lint — those are not the language.
+pstate matches:        Map<String, Match>
+pstate mapBans:        Map<String, MapBan>
+pstate teamStats:      Map<String, TeamStats>
+pstate matchesByTeam:  Map<String, Map<String, String>> @subindexed
+```
+
+Lowering: `Map<K, Struct>` → `{K (fixed-keys-schema {…})}`; nested
+`Map<K, Map<K2, V>> @subindexed` → `(map-schema K2 V {:subindex? true})`.
+The `$$` prefix on use sites is still open; decls above omit it, path sites
+may keep `$$matches` until we decide.
+
+## Fixed-keys write = set the map
+
+You do **not** have to explode into `multi-path` field-by-field. Whole-map
+`termval` is the concise form (and should work):
+
+```rama
+$$matches !<-- keypath(matchId), termval({
+  :homeTeamId homeTeamId
+  :awayTeamId awayTeamId
+  :seasonId   seasonId
+  :status     "UNPLAYED"
+  :homeScore  0
+  :awayScore  0
+  :boGames    bo
+})
+```
+
+`multi-path` remains available when you only patch some fields.
+
+## Topology style
+
+```rama
+$$mapBans --> keypath(matchId) > { turn, homeTeamId, awayTeamId, remaining }
+
+fail "no-ban-state" if turn == nil
+fail "not-your-turn" if teamId != (even?(turn) ? awayTeamId : homeTeamId)
+fail "arena-not-in-pool" if not(contains?(remaining, arenaId))
+
+$$mapBans !<-- keypath(matchId, :actions), AFTER-ELEM, termval({:teamId teamId :arenaId arenaId})
+
+return {"ok" true "matchId" matchId "banned" arenaId}
+```
+
+## Emitter owns
+
+- Insert `:>` / `$$` / trailing `>` where Clojure-Rama requires them
+- `return m` → `(ack-return> m)`
+- `fail "e" if c` → flat error branch (never nested-`<<if` pyramids unless user wrote `if`)
+- `struct` / `Map<…>` → `fixed-keys-schema` / `map-schema`
+- Keyword keys in schemas ↔ path segments `:field`
+
+## Open
+
+1. `$$` on pstate use sites — keep for “distributed state” readability?
+2. Bare `|hash k` vs block — lean bare until a meatier module decides
+3. REST string-key modules — same syntax with `"homeTeamId"` instead of `:homeTeamId`, or a schema attribute?
+
+See `fixtures/match_v2.rama`.

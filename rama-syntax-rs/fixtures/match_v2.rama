@@ -1,45 +1,39 @@
-// ASPIRATIONAL v2 — see DESIGN.md (reviewed).
-// Specter paths + --> / !<-- stay. Naming conventions / trailing > go.
-// Clojure map literals. Destructuring. Deep if allowed. Bare |hash (open).
+// ASPIRATIONAL v2 — see DESIGN.md.
+// Specter paths + --> / !<--. Rust-like structs. fail/return. Whole-map termval.
 
 module Match
 
-pstate $$matches {
-  String -> fixed {
-    "homeTeamId" String
-    "awayTeamId" String
-    "seasonId" String
-    "status" String
-    "homeScore" Long
-    "awayScore" Long
-    "winnerId" String
-    "boGames" Long
-  }
+struct Match {
+  :homeTeamId String
+  :awayTeamId String
+  :seasonId   String
+  :status     String
+  :homeScore  Long
+  :awayScore  Long
+  :winnerId   String
+  :boGames    Long
 }
 
-pstate $$map-bans {
-  String -> fixed {
-    "turn" Long
-    "homeTeamId" String
-    "awayTeamId" String
-    "remaining" Object
-    "actions" Object
-  }
+struct MapBan {
+  :turn       Long
+  :homeTeamId String
+  :awayTeamId String
+  :remaining  Object
+  :actions    Object
 }
 
-pstate $$team-stats {
-  String -> fixed {
-    "wins" Long
-    "losses" Long
-    "points" Long
-  }
+struct TeamStats {
+  :wins   Long
+  :losses Long
+  :points Long
 }
 
-pstate $$matches-by-team {
-  String -> map String
-}
+pstate matches:       Map<String, Match>
+pstate mapBans:       Map<String, MapBan>
+pstate teamStats:     Map<String, TeamStats>
+pstate matchesByTeam: Map<String, Map<String, String>> @subindexed
 
-depot match-depot keyed-by matchId
+depot matchDepot keyed-by matchId
 
 op create-match(event) {
   let { matchId, homeTeamId, awayTeamId, seasonId, boGames, pool } = event
@@ -47,67 +41,50 @@ op create-match(event) {
   let pool-set = set(pool)
 
   $$matches --> keypath(matchId) > existing
+  fail "match-exists" if not(nil?(existing))
 
-  if (nil?(existing)) {
-    // fixed-keys record write = one multi-path (Specter), not N transforms
-    $$matches !<-- keypath(matchId), multi-path(
-      ["homeTeamId" termval(homeTeamId)]
-      ["awayTeamId" termval(awayTeamId)]
-      ["seasonId" termval(seasonId)]
-      ["status" termval("UNPLAYED")]
-      ["homeScore" termval(0)]
-      ["awayScore" termval(0)]
-      ["boGames" termval(bo)]
-    )
+  $$matches !<-- keypath(matchId), termval({
+    :homeTeamId homeTeamId
+    :awayTeamId awayTeamId
+    :seasonId   seasonId
+    :status     "UNPLAYED"
+    :homeScore  0
+    :awayScore  0
+    :boGames    bo
+  })
 
-    $$map-bans !<-- keypath(matchId), multi-path(
-      ["turn" termval(0)]
-      ["homeTeamId" termval(homeTeamId)]
-      ["awayTeamId" termval(awayTeamId)]
-      ["remaining" termval(pool-set)]
-      ["actions" termval([])]
-    )
+  $$mapBans !<-- keypath(matchId), termval({
+    :turn       0
+    :homeTeamId homeTeamId
+    :awayTeamId awayTeamId
+    :remaining  pool-set
+    :actions    []
+  })
 
-    |hash homeTeamId
-    $$matches-by-team !<-- keypath(homeTeamId, matchId), termval(seasonId)
-    |hash awayTeamId
-    $$matches-by-team !<-- keypath(awayTeamId, matchId), termval(seasonId)
+  |hash homeTeamId
+  $$matchesByTeam !<-- keypath(homeTeamId, matchId), termval(seasonId)
+  |hash awayTeamId
+  $$matchesByTeam !<-- keypath(awayTeamId, matchId), termval(seasonId)
 
-    ack {"ok" true "matchId" matchId}
-  } else {
-    ack {"ok" false "error" "match-exists"}
-  }
+  return {"ok" true "matchId" matchId}
 }
 
 op ban-map(event) {
   let { matchId, teamId, arenaId } = event
 
-  $$map-bans --> keypath(matchId) > { turn, homeTeamId, awayTeamId, remaining }
+  $$mapBans --> keypath(matchId) > { turn, homeTeamId, awayTeamId, remaining }
 
-  if (nil?(turn)) {
-    ack {"ok" false "error" "no-ban-state"}
-  } else {
-    let expected = even?(turn) ? awayTeamId : homeTeamId
-    if (not=(teamId, expected)) {
-      ack {"ok" false "error" "not-your-turn"}
-    } else {
-      if (not(contains?(remaining, arenaId))) {
-        ack {"ok" false "error" "arena-not-in-pool"}
-      } else {
-        let next-remaining = disj(remaining, arenaId)
-        let next-turn = inc(turn)
+  fail "no-ban-state" if turn == nil
+  fail "not-your-turn" if teamId != (even?(turn) ? awayTeamId : homeTeamId)
+  fail "arena-not-in-pool" if not(contains?(remaining, arenaId))
 
-        $$map-bans !<-- keypath(matchId), multi-path(
-          ["remaining" termval(next-remaining)]
-          ["turn" termval(next-turn)]
-        )
-        // navigator is a sibling path step — never inside keypath
-        $$map-bans !<-- keypath(matchId, "actions"), AFTER-ELEM, termval({"teamId" teamId "arenaId" arenaId})
+  $$mapBans !<-- keypath(matchId), multi-path(
+    [:remaining termval(disj(remaining, arenaId))]
+    [:turn termval(inc(turn))]
+  )
+  $$mapBans !<-- keypath(matchId, :actions), AFTER-ELEM, termval({:teamId teamId :arenaId arenaId})
 
-        ack {"ok" true "matchId" matchId "banned" arenaId "turn" next-turn}
-      }
-    }
-  }
+  return {"ok" true "matchId" matchId "banned" arenaId "turn" inc(turn)}
 }
 
 op submit-score(event) {
@@ -117,33 +94,27 @@ op submit-score(event) {
 
   $$matches --> keypath(matchId) > { status, homeTeamId, awayTeamId, boGames }
 
-  if (nil?(status)) {
-    ack {"ok" false "error" "match-not-found"}
-  } else {
-    if (not=(status, "UNPLAYED")) {
-      ack {"ok" false "error" "already-played"}
-    } else {
-      if (not(or(and(>=(hs, boGames), >(hs, as)), and(>=(as, boGames), >(as, hs))))) {
-        ack {"ok" false "error" "incomplete-or-invalid-score"}
-      } else {
-        let winnerId = >(hs, as) ? homeTeamId : awayTeamId
-        let loserId = =(winnerId, homeTeamId) ? awayTeamId : homeTeamId
+  fail "match-not-found" if status == nil
+  fail "already-played" if status != "UNPLAYED"
+  fail "incomplete-or-invalid-score" if not(
+    or(and(>=(hs, boGames), >(hs, as)), and(>=(as, boGames), >(as, hs)))
+  )
 
-        $$matches !<-- keypath(matchId), multi-path(
-          ["status" termval("PLAYED")]
-          ["homeScore" termval(hs)]
-          ["awayScore" termval(as)]
-          ["winnerId" termval(winnerId)]
-        )
+  let winnerId = >(hs, as) ? homeTeamId : awayTeamId
+  let loserId = =(winnerId, homeTeamId) ? awayTeamId : homeTeamId
 
-        |hash winnerId
-        $$team-stats !<-- keypath(winnerId, "wins"), nil->val(0), term(inc)
-        $$team-stats !<-- keypath(winnerId, "points"), nil->val(0), term(inc)
-        |hash loserId
-        $$team-stats !<-- keypath(loserId, "losses"), nil->val(0), term(inc)
+  $$matches !<-- keypath(matchId), multi-path(
+    [:status termval("PLAYED")]
+    [:homeScore termval(hs)]
+    [:awayScore termval(as)]
+    [:winnerId termval(winnerId)]
+  )
 
-        ack {"ok" true "matchId" matchId "winnerId" winnerId "homeScore" hs "awayScore" as}
-      }
-    }
-  }
+  |hash winnerId
+  $$teamStats !<-- keypath(winnerId, :wins), nil->val(0), term(inc)
+  $$teamStats !<-- keypath(winnerId, :points), nil->val(0), term(inc)
+  |hash loserId
+  $$teamStats !<-- keypath(loserId, :losses), nil->val(0), term(inc)
+
+  return {"ok" true "matchId" matchId "winnerId" winnerId "homeScore" hs "awayScore" as}
 }

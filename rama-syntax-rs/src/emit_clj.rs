@@ -50,7 +50,9 @@ pub fn compile_program(program: &Program<'_>) -> Document {
     ));
 
     if has_runtime_contracts(&typing) {
-        doc.push(contract_helper_form());
+        for form in contract_helper_form() {
+            doc.push(form);
+        }
     }
     let extern_wrappers: HashMap<String, String> = typing
         .externs
@@ -197,8 +199,64 @@ fn has_runtime_contracts(typing: &Typing) -> bool {
     !typing.functions.is_empty() || !typing.externs.is_empty()
 }
 
-fn contract_helper_form() -> Form {
-    clj::call(
+fn contract_helper_form() -> Vec<Form> {
+    // Violations are both thrown and appended to a tab-separated tape so
+    // `rama-check learn` can turn runtime evidence into source edits.
+    let tape_atom = clj::call(
+        "def",
+        [
+            clj::sym("__rama_tape"),
+            clj::call(
+                "atom",
+                [clj::call(
+                    "System/getenv",
+                    [clj::string("RAMA_CONTRACT_TAPE")],
+                )],
+            ),
+        ],
+    );
+    let record = clj::call(
+        "defn",
+        [
+            clj::sym("__rama_record!"),
+            clj::vector([clj::sym("path"), clj::sym("expected"), clj::sym("actual")]),
+            clj::call(
+                "when-let",
+                [
+                    clj::vector([
+                        clj::sym("tape"),
+                        clj::call("deref", [clj::sym("__rama_tape")]),
+                    ]),
+                    clj::call(
+                        "locking",
+                        [
+                            clj::sym("__rama_tape"),
+                            clj::call(
+                                "spit",
+                                [
+                                    clj::sym("tape"),
+                                    clj::call(
+                                        "str",
+                                        [
+                                            clj::sym("path"),
+                                            clj::string("\t"),
+                                            clj::sym("expected"),
+                                            clj::string("\t"),
+                                            clj::sym("actual"),
+                                            clj::string("\n"),
+                                        ],
+                                    ),
+                                    clj::kw("append"),
+                                    clj::bool(true),
+                                ],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    );
+    let contract = clj::call(
         "defn",
         [
             clj::sym("__rama_contract!"),
@@ -214,34 +272,51 @@ fn contract_helper_form() -> Form {
                     clj::call("predicate", [clj::sym("value")]),
                     clj::sym("value"),
                     clj::call(
-                        "throw",
-                        [clj::call(
-                            "ex-info",
-                            [
-                                clj::call(
-                                    "str",
+                        "do",
+                        [
+                            clj::call(
+                                "__rama_record!",
+                                [
+                                    clj::sym("path"),
+                                    clj::sym("expected"),
+                                    actual_class_form(clj::sym("value")),
+                                ],
+                            ),
+                            clj::call(
+                                "throw",
+                                [clj::call(
+                                    "ex-info",
                                     [
-                                        clj::string("Contract violation at "),
-                                        clj::sym("path"),
-                                        clj::string(": expected "),
-                                        clj::sym("expected"),
-                                        clj::string(", got "),
-                                        actual_class_form(clj::sym("value")),
+                                        clj::call(
+                                            "str",
+                                            [
+                                                clj::string("Contract violation at "),
+                                                clj::sym("path"),
+                                                clj::string(": expected "),
+                                                clj::sym("expected"),
+                                                clj::string(", got "),
+                                                actual_class_form(clj::sym("value")),
+                                            ],
+                                        ),
+                                        clj::map([
+                                            (clj::kw("kind"), clj::kw("contract-violation")),
+                                            (clj::kw("path"), clj::sym("path")),
+                                            (clj::kw("expected"), clj::sym("expected")),
+                                            (
+                                                clj::kw("actual"),
+                                                actual_class_form(clj::sym("value")),
+                                            ),
+                                        ]),
                                     ],
-                                ),
-                                clj::map([
-                                    (clj::kw("kind"), clj::kw("contract-violation")),
-                                    (clj::kw("path"), clj::sym("path")),
-                                    (clj::kw("expected"), clj::sym("expected")),
-                                    (clj::kw("actual"), actual_class_form(clj::sym("value"))),
-                                ]),
-                            ],
-                        )],
+                                )],
+                            ),
+                        ],
                     ),
                 ],
             ),
         ],
-    )
+    );
+    vec![tape_atom, record, contract]
 }
 
 fn actual_class_form(value: Form) -> Form {

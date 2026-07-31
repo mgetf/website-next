@@ -32,6 +32,13 @@ fn main() -> ExitCode {
                 ExitCode::from(2)
             }
         },
+        "learn" => match parse_learn_options(&args[1..]) {
+            Ok(options) => learn(options),
+            Err(message) => {
+                eprintln!("{message}\n{}", usage());
+                ExitCode::from(2)
+            }
+        },
         "transpile" => match parse_path_and_output(&args[1..]) {
             Ok((path, output)) => transpile_file(&path, output.as_deref()),
             Err(message) => {
@@ -56,7 +63,7 @@ fn main() -> ExitCode {
 }
 
 fn usage() -> &'static str {
-    "usage:\n  rama-check <file.rama>\n  rama-check check <file.rama> [--nrepl HOST:PORT]\n  rama-check observe-call <file.rama> <var> --args '<edn-vector>' --nrepl HOST:PORT [--write]\n  rama-check transpile <file.rama> [-o out.clj]\n  rama-check watch <dir-or-file> [-o out-dir]"
+    "usage:\n  rama-check <file.rama>\n  rama-check check <file.rama> [--nrepl HOST:PORT]\n  rama-check observe-call <file.rama> <var> --args '<edn-vector>' --nrepl HOST:PORT [--write]\n  rama-check learn <file.rama> --tape <violations-file> [--write]\n  rama-check learn <file.rama> --nrepl HOST:PORT --eval '<form>' [--write]\n  rama-check transpile <file.rama> [-o out.clj]\n  rama-check watch <dir-or-file> [-o out-dir]"
 }
 
 fn parse_check_options(args: &[String]) -> Result<(PathBuf, Option<String>), String> {
@@ -219,6 +226,195 @@ fn check_file(path: &Path, nrepl: Option<&str>) -> ExitCode {
             ExitCode::from(1)
         }
     }
+}
+
+struct LearnOptions {
+    path: PathBuf,
+    tape: Option<PathBuf>,
+    nrepl: Option<String>,
+    eval_forms: Vec<String>,
+    write: bool,
+}
+
+fn parse_learn_options(args: &[String]) -> Result<LearnOptions, String> {
+    let path = args
+        .first()
+        .map(PathBuf::from)
+        .ok_or_else(|| "learn requires a .rama file".to_string())?;
+    let mut tape = None;
+    let mut nrepl = None;
+    let mut eval_forms = Vec::new();
+    let mut write = false;
+    let mut index = 1;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--tape" => {
+                tape = Some(PathBuf::from(
+                    args.get(index + 1)
+                        .ok_or_else(|| "missing value after --tape".to_string())?,
+                ));
+                index += 2;
+            }
+            "--nrepl" => {
+                nrepl = Some(
+                    args.get(index + 1)
+                        .ok_or_else(|| "missing value after --nrepl".to_string())?
+                        .clone(),
+                );
+                index += 2;
+            }
+            "--eval" => {
+                eval_forms.push(
+                    args.get(index + 1)
+                        .ok_or_else(|| "missing value after --eval".to_string())?
+                        .clone(),
+                );
+                index += 2;
+            }
+            "--write" => {
+                write = true;
+                index += 1;
+            }
+            value => return Err(format!("unexpected learn option `{value}`")),
+        }
+    }
+    if tape.is_none() && (nrepl.is_none() || eval_forms.is_empty()) {
+        return Err("learn requires either --tape, or --nrepl plus --eval".to_string());
+    }
+    Ok(LearnOptions {
+        path,
+        tape,
+        nrepl,
+        eval_forms,
+        write,
+    })
+}
+
+fn learn(options: LearnOptions) -> ExitCode {
+    let source = match fs::read_to_string(&options.path) {
+        Ok(source) => source,
+        Err(error) => {
+            eprintln!("failed to read {}: {error}", options.path.display());
+            return ExitCode::from(2);
+        }
+    };
+    let file = match rama_syntax::parse(&source) {
+        Ok(file) => file,
+        Err(error) => {
+            for diagnostic in &error.diagnostics {
+                eprintln!("{}", diagnostic.render(&source));
+            }
+            return ExitCode::from(1);
+        }
+    };
+
+    let tape_contents = if let Some(tape) = &options.tape {
+        match fs::read_to_string(tape) {
+            Ok(contents) => contents,
+            Err(error) => {
+                eprintln!("failed to read tape {}: {error}", tape.display());
+                return ExitCode::from(2);
+            }
+        }
+    } else {
+        match drive_reproduction(&options, &file, &source) {
+            Ok(contents) => contents,
+            Err(message) => {
+                eprintln!("{message}");
+                return ExitCode::from(1);
+            }
+        }
+    };
+
+    let violations = rama_syntax::learn::parse_tape(&tape_contents);
+    if violations.is_empty() {
+        println!("no contract violations recorded; nothing to learn");
+        return ExitCode::SUCCESS;
+    }
+    let suggestions = rama_syntax::learn::analyze_tape(&source, &file, &violations);
+    for suggestion in &suggestions {
+        println!("{}", suggestion.message);
+    }
+    if options.write {
+        let (updated, applied) = rama_syntax::learn::apply_fixes(&source, &suggestions);
+        if applied > 0 {
+            if let Err(error) = fs::write(&options.path, &updated) {
+                eprintln!("failed to write {}: {error}", options.path.display());
+                return ExitCode::from(2);
+            }
+            println!(
+                "applied {applied} fix(es) to {}; re-run check to surface any newly visible static errors",
+                options.path.display()
+            );
+        } else {
+            println!("no mechanical fixes to apply");
+        }
+    }
+    ExitCode::SUCCESS
+}
+
+/// Transpile, load into the connected runtime, point the contract tape at a
+/// scratch file, run the reproduction forms, and return the recorded tape.
+fn drive_reproduction(
+    options: &LearnOptions,
+    file: &rama_syntax::SourceFile,
+    source: &str,
+) -> Result<String, String> {
+    let address = options.nrepl.as_deref().expect("nrepl checked by parser");
+    let oracle =
+        LiveOracle::connect(address).map_err(|error| format!("nREPL connect failed: {error}"))?;
+
+    let module_name = file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            rama_syntax::ast::Item::Module(module) => Some(module.name.node.clone()),
+            _ => None,
+        })
+        .ok_or_else(|| "source has no module declaration".to_string())?;
+
+    let (_, result) = analyze(source).map_err(|error| error.to_string())?;
+    if !result.ok() {
+        return Err("fix static diagnostics before learn's drive mode".to_string());
+    }
+
+    let scratch = env::temp_dir().join(format!("rama-learn-{}", std::process::id()));
+    fs::create_dir_all(&scratch).map_err(|error| error.to_string())?;
+    let clj_path = scratch.join(format!("{module_name}.clj"));
+    let tape_path = scratch.join("contract-tape.tsv");
+    let _ = fs::remove_file(&tape_path);
+    fs::write(&clj_path, emit_clojure(file)).map_err(|error| error.to_string())?;
+
+    let load = format!(
+        "(load-file {})",
+        clj_string(&clj_path.display().to_string())
+    );
+    oracle
+        .eval(&load)
+        .map_err(|error| format!("loading generated namespace failed: {error}"))?;
+    let arm_tape = format!(
+        "(reset! (deref (resolve (symbol {}))) {})",
+        clj_string(&format!("{module_name}/__rama_tape")),
+        clj_string(&tape_path.display().to_string())
+    );
+    oracle
+        .eval(&arm_tape)
+        .map_err(|error| format!("arming the contract tape failed: {error}"))?;
+
+    for form in &options.eval_forms {
+        let wrapped = format!(
+            "(try {form} :__rama-ok (catch Exception __rama-error (.getMessage __rama-error)))"
+        );
+        oracle
+            .eval(&wrapped)
+            .map_err(|error| format!("reproduction form failed: {error}"))?;
+    }
+
+    Ok(fs::read_to_string(&tape_path).unwrap_or_default())
+}
+
+fn clj_string(value: &str) -> String {
+    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 fn observe_call(options: ObserveOptions) -> ExitCode {

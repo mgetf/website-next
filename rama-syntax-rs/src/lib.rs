@@ -9,6 +9,7 @@ pub mod clj_verify;
 pub mod contracts;
 pub mod emit_clj;
 pub mod error;
+pub mod learn;
 pub mod lex;
 pub mod lower;
 pub mod nrepl;

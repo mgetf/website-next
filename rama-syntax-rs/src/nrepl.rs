@@ -362,6 +362,11 @@ impl LiveOracle {
         })
     }
 
+    /// Raw evaluation in the connected runtime (used by `learn` drive mode).
+    pub fn eval(&self, code: &str) -> Result<EvalResponse, Error> {
+        self.client.lock().unwrap().eval(code)
+    }
+
     pub fn var_info(&self, name: &str) -> Result<Option<VarInfo>, Error> {
         if let Some(cached) = self.vars.lock().unwrap().get(name).cloned() {
             return Ok(cached);

@@ -42,6 +42,7 @@ scripts/rama-smoke.ts          end-to-end against a live cluster
 | ------------- | -------------- | ------------------------------------------------------ |
 | `MatchModule` | `*match-depot` | create/ban/score + standings mirrors                   |
 | `UsersModule` | `*user-depot`  | profile, ban, permission, sessionVersion, discord link |
+| `TeamsModule` | `*team-depot`  | create/join/leave, roster cap, season uniqueness       |
 
 Agent skill (knots + how to write Rama here): `.cursor/skills/rama-clojure/`
 

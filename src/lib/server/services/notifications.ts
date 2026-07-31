@@ -235,6 +235,15 @@ export async function createNotificationForTeam(
   message: string,
   actorSteamId?: string,
 ) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    // NotificationsModule cutover for team fan-out is a follow-up; join flow must not hit Prisma.
+    void teamId;
+    void message;
+    void actorSteamId;
+    return;
+  }
+
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { id: true },

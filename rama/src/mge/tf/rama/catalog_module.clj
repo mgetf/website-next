@@ -8,6 +8,7 @@
 
   PStates:
     $$regions         {regionId -> {name, hidden, currencySymbol, currencyCode}}
+    $$region-ids      {\"all\" -> {regionId -> true}}   ;; list index for REST scan
     $$formats         {formatId -> {name, code}}
     $$format-by-code  {code -> formatId}
     $$active-signup   {regionId -> {formatId -> seasonId}}"
@@ -76,6 +77,13 @@
     (declare-pstate s $$format-by-code {String String})
 
     (declare-pstate
+     s $$region-ids
+     {String ;; "all" (single outer key)
+      (map-schema String ;; regionId
+                  Boolean ;; presence marker
+                  )})
+
+    (declare-pstate
      s $$active-signup
      {String ;; regionId
       (map-schema String ;; formatId
@@ -108,6 +116,11 @@
              [(keypath "currencySymbol") (termval *symbol-s)]
              [(keypath "currencyCode") (termval *code-s)])]
            $$regions)
+          ;; Repartition to a fixed shard so all region IDs accumulate in one place.
+          (|hash "all")
+          (local-transform>
+           [(keypath "all" *region-id) (termval true)]
+           $$region-ids)
           (ack-return> {"ok" true "regionId" *region-id})))
 
       ;; ── set-region-hidden ───────────────────────────────────────────

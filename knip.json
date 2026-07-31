@@ -3,5 +3,6 @@
   "tags": ["-lintignore"],
   "ignoreDependencies": ["@prisma/client"],
   "ignoreFiles": ["src/lib/index.ts", "scripts/**"],
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": true,
+  "entry": ["tests/e2e/**/*.ts", "playwright.config.ts"]
 }

@@ -5,6 +5,33 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import { createCatalogClient, getRegion, getRegionIds } from '$lib/server/rama/catalog';
+
+// ─── Rama helpers ──────────────────────────────────────────────────────────────
+
+async function getVisibleRegionsRama(): Promise<
+  { id: number; name: string; currencySymbol: string; currencyCode: string }[]
+> {
+  const client = createCatalogClient(ramaClientOpts());
+  const ids = await getRegionIds(client);
+  const results: { id: number; name: string; currencySymbol: string; currencyCode: string }[] = [];
+  for (const rid of ids) {
+    const r = await getRegion(client, rid);
+    if (r && !r.hidden) {
+      results.push({
+        id: Number(rid),
+        name: r.name,
+        currencySymbol: r.currencySymbol,
+        currencyCode: r.currencyCode,
+      });
+    }
+  }
+  results.sort((a, b) => a.id - b.id);
+  return results;
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────────
 
 /**
  * Get all regions with their season and team counts
@@ -31,6 +58,8 @@ export async function getRegions() {
  * Includes currencySymbol for displaying prices
  */
 export async function getVisibleRegions() {
+  if (isRamaBackend()) return getVisibleRegionsRama();
+
   return await prisma.region.findMany({
     where: { hidden: 0 },
     select: {
@@ -48,6 +77,11 @@ export async function getVisibleRegions() {
  * Returns only id and name for visible regions
  */
 export async function getRegionsForFilter() {
+  if (isRamaBackend()) {
+    const regions = await getVisibleRegionsRama();
+    return regions.map((r) => ({ id: r.id, name: r.name }));
+  }
+
   return await prisma.region.findMany({
     select: { id: true, name: true },
     where: { hidden: 0 },

@@ -5,6 +5,46 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import { createCatalogClient, getRegionIds } from '$lib/server/rama/catalog';
+import {
+  createDivisionsClient,
+  getDivision,
+  getDivisionIdsByRegion,
+} from '$lib/server/rama/divisions';
+
+// ─── Rama helpers ──────────────────────────────────────────────────────────────
+
+async function getVisibleDivisionsRama(): Promise<
+  { id: number; name: string; signupCost: number; regionId: number }[]
+> {
+  const catalogOpts = ramaClientOpts();
+  const catalog = createCatalogClient(catalogOpts);
+  const divisions = createDivisionsClient(catalogOpts);
+
+  const regionIds = await getRegionIds(catalog);
+  const results: { id: number; name: string; signupCost: number; regionId: number }[] = [];
+
+  for (const rid of regionIds) {
+    const divIds = await getDivisionIdsByRegion(divisions, rid);
+    for (const did of divIds) {
+      const d = await getDivision(divisions, did);
+      if (d) {
+        results.push({
+          id: Number(did),
+          name: d.name,
+          signupCost: Number(d.signupCost),
+          regionId: Number(d.regionId),
+        });
+      }
+    }
+  }
+  // Match Postgres ordering: id DESC (higher id = lower tier)
+  results.sort((a, b) => b.id - a.id);
+  return results;
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────────
 
 /**
  * Get all divisions with their team counts
@@ -41,6 +81,8 @@ export async function getDivisions() {
  * Includes regionId for filtering by region
  */
 export async function getVisibleDivisions() {
+  if (isRamaBackend()) return getVisibleDivisionsRama();
+
   return await prisma.division.findMany({
     where: { hidden: 0 },
     select: {
@@ -58,6 +100,17 @@ export async function getVisibleDivisions() {
  * Returns only id and name for visible divisions
  */
 export async function getDivisionsForFilter() {
+  if (isRamaBackend()) {
+    const divs = await getVisibleDivisionsRama();
+    // Region name is not populated under Rama (no callers need it in the E2E path)
+    return divs.map((d) => ({
+      id: d.id,
+      name: d.name,
+      regionId: d.regionId,
+      region: { name: String(d.regionId) },
+    }));
+  }
+
   return await prisma.division.findMany({
     where: { hidden: 0 },
     select: {

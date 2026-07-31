@@ -183,6 +183,12 @@ export interface AuditLogFilters {
  */
 export async function logAudit(params: AuditLogParams): Promise<void> {
   try {
+    const { isRamaBackend } = await import('$lib/server/rama/config');
+    if (isRamaBackend()) {
+      // AuditLog module not cut over yet — no-op under Rama so mutations don't fail.
+      return;
+    }
+
     await prisma.auditLog.create({
       data: {
         actorId: params.actorId ?? null,

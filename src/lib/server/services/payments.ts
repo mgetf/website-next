@@ -8,6 +8,7 @@ import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { CheckoutParticipation } from '$lib/types/checkout';
+import { isRamaBackend } from '$lib/server/rama/config';
 
 export interface UnpaidPlayer {
   steamId: string;
@@ -495,6 +496,19 @@ export async function checkPaymentRequired(options: {
   totalCost: number;
   isFirstPayment: boolean;
 }> {
+  // Under Rama there is no Postgres payment table yet — all divisions are free-to-join.
+  if (isRamaBackend()) {
+    return {
+      required: false,
+      alreadyPaid: true,
+      amountPaid: 0,
+      signupCost: 0,
+      leagueFees: 0,
+      totalCost: 0,
+      isFirstPayment: false,
+    };
+  }
+
   const { divisionId, steamId, seasonId } = options;
 
   const [division, leagueFees] = await Promise.all([

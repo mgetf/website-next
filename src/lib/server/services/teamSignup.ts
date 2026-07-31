@@ -12,6 +12,15 @@ import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSea
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { getJwtSecret } from '$lib/server/utils/env';
 import { hashPassword } from '$lib/server/utils/password';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import { createCatalogClient, getActiveSignupSeason, getRegionIds } from '$lib/server/rama/catalog';
+import { createSeasonsClient, getSeason } from '$lib/server/rama/seasons';
+import {
+  createTeam as ramaCreateTeam,
+  createTeamsClient,
+  getPlayerSeasonTeam,
+} from '$lib/server/rama/teams';
+import { createDivisionsClient, getDivision } from '$lib/server/rama/divisions';
 
 // Token expiry reduced from 7d to 1h for security (shorter exposure window)
 const TOKEN_EXPIRY = '1h';
@@ -56,11 +65,134 @@ interface TeamReregistrationData {
   ownerSteamId: string;
 }
 
+// ─── Rama helpers ──────────────────────────────────────────────────────────────
+
+async function getSignupContextRama(steamId: string | null): Promise<SignupContext> {
+  const opts = ramaClientOpts();
+  const catalog = createCatalogClient(opts);
+  const seasons = createSeasonsClient(opts);
+  const teams = createTeamsClient(opts);
+
+  const regionIds = await getRegionIds(catalog);
+  const formatId = String(FORMAT_2V2);
+
+  const activeSeasonIds: string[] = [];
+  for (const rid of regionIds) {
+    const sid = await getActiveSignupSeason(catalog, rid, formatId);
+    if (sid != null) activeSeasonIds.push(sid);
+  }
+
+  const seasonRecords = await Promise.all(activeSeasonIds.map((sid) => getSeason(seasons, sid)));
+
+  const anySignupsOpen = seasonRecords.some((r) => r?.signupsOpen);
+  const allRostersLocked = seasonRecords.length > 0 && seasonRecords.every((r) => r?.rosterLocked);
+
+  let hasActiveTeam = false;
+  if (steamId) {
+    for (const sid of activeSeasonIds) {
+      const teamId = await getPlayerSeasonTeam(teams, steamId, sid);
+      if (teamId) {
+        hasActiveTeam = true;
+        break;
+      }
+    }
+  }
+
+  return {
+    isLoggedIn: !!steamId,
+    ownedTeams: [], // name index not available in Rama
+    hasActiveTeam,
+    signupClosed: !anySignupsOpen,
+    rosterLocked: allRostersLocked,
+    previousSeasonTeams: [], // old-season scan not available in Rama
+  };
+}
+
+async function validateTeamCreationRama(data: TeamCreationData): Promise<void> {
+  const opts = ramaClientOpts();
+  const catalog = createCatalogClient(opts);
+  const seasons = createSeasonsClient(opts);
+  const teams = createTeamsClient(opts);
+
+  const regionIds = await getRegionIds(catalog);
+  const formatId = String(FORMAT_2V2);
+
+  const activeSeasonIds: string[] = [];
+  for (const rid of regionIds) {
+    const sid = await getActiveSignupSeason(catalog, rid, formatId);
+    if (sid != null) activeSeasonIds.push(sid);
+  }
+
+  for (const sid of activeSeasonIds) {
+    const existing = await getPlayerSeasonTeam(teams, data.ownerSteamId, sid);
+    if (existing) {
+      badRequest('You are already in an active 2v2 team for this season');
+    }
+  }
+
+  // Name length / content validation (no name-uniqueness check — no index in Rama)
+  if (!data.name || data.name.length > 25) {
+    badRequest('Team name must be between 1 and 25 characters');
+  }
+
+  if (/<|>/.test(data.name)) {
+    badRequest('Team name cannot contain < or > characters');
+  }
+
+  if (data.acronym && data.acronym.length > 4) {
+    badRequest('Team acronym must be 4 characters or less');
+  }
+}
+
+async function createTeamRama(data: TeamCreationData): Promise<number> {
+  await validateTeamCreationRama(data);
+
+  const opts = ramaClientOpts();
+  const divisionsClient = createDivisionsClient(opts);
+  const division = await getDivision(divisionsClient, String(data.divisionId));
+
+  if (!division) {
+    badRequest('Invalid division selected');
+  }
+
+  const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
+  if (!seasonId) {
+    badRequest('No active signup season for this region');
+  }
+
+  // Generate a numeric team ID (same approach as E2E seed helpers)
+  const teamId = Date.now() % 2_000_000_000;
+
+  const hashedPassword = await hashPassword(data.joinPassword);
+  const teamsClient = createTeamsClient(opts);
+  const ack = await ramaCreateTeam(teamsClient, {
+    teamId: String(teamId),
+    steamId: data.ownerSteamId,
+    name: data.name,
+    acronym: data.acronym ?? '',
+    formatId: String(FORMAT_2V2),
+    seasonId: String(seasonId),
+    divisionId: String(data.divisionId),
+    regionId: String(data.regionId),
+    joinPassword: hashedPassword,
+  });
+
+  if (!ack.ok) {
+    badRequest(ack.error ?? 'Failed to create team');
+  }
+
+  return teamId;
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────────
+
 /**
  * Get signup context for a user
  * Now uses per-season settings instead of global
  */
 export async function getSignupContext(steamId: string | null): Promise<SignupContext> {
+  if (isRamaBackend()) return getSignupContextRama(steamId);
+
   // Get current signup season IDs for 2v2 format
   const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
 
@@ -165,6 +297,11 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
  * Validate team creation data
  */
 export async function validateTeamCreation(data: TeamCreationData): Promise<void> {
+  if (isRamaBackend()) {
+    await validateTeamCreationRama(data);
+    return;
+  }
+
   // Get current signup season IDs for 2v2 format
   const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
 
@@ -217,6 +354,8 @@ export async function validateTeamCreation(data: TeamCreationData): Promise<void
  * Create a new team
  */
 export async function createTeam(data: TeamCreationData): Promise<number> {
+  if (isRamaBackend()) return createTeamRama(data);
+
   // Validate first
   await validateTeamCreation(data);
 

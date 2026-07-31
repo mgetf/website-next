@@ -50,6 +50,18 @@ export async function isTeamAdmin(user: SessionUser | null, teamId: number): Pro
   // Check if user is a global admin/moderator
   if (isAdmin(user)) return true;
 
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createTeamsClient, getRosterMember } = await import('$lib/server/rama/teams');
+    const member = await getRosterMember(
+      createTeamsClient(ramaClientOpts()),
+      String(teamId),
+      user.steamId,
+    );
+    if (!member?.active) return false;
+    return member.permissionLevel === 'ADMIN' || member.permissionLevel === 'STATUS';
+  }
+
   // Check team membership
   const membership = await prisma.playerInTeam.findUnique({
     where: {
@@ -72,6 +84,13 @@ export async function isTeamAdmin(user: SessionUser | null, teamId: number): Pro
  * Useful for initial login or permission checks
  */
 export async function getPermissionLevel(steamId: string): Promise<UserRole> {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createUsersClient, getUser } = await import('$lib/server/rama/users');
+    const row = await getUser(createUsersClient(ramaClientOpts()), steamId);
+    return (row?.permissionLevel as UserRole) ?? UserRole.GUEST;
+  }
+
   const user = await prisma.user.findUnique({
     where: { steamId },
     select: { permissionLevel: true },

@@ -6,6 +6,11 @@
 
 import { prisma } from '$lib/server/db';
 import { setActiveSignupSeason } from './signupSeasons';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import { createCatalogClient, getRegionIds, getActiveSignupSeason } from '$lib/server/rama/catalog';
+import { createSeasonsClient, getSeason } from '$lib/server/rama/seasons';
+import { createTeamsClient, getTeam } from '$lib/server/rama/teams';
+import { FORMAT_1V1, FORMAT_2V2 } from '$lib/constants/formats';
 
 /**
  * Get global settings
@@ -144,6 +149,19 @@ export async function toggleSeasonPaymentRequired(seasonId: number) {
  * A season that is not active is considered a past/completed season.
  */
 export async function isSeasonCurrentlyActive(seasonId: number): Promise<boolean> {
+  if (isRamaBackend()) {
+    const catalog = createCatalogClient(ramaClientOpts());
+    const regionIds = await getRegionIds(catalog);
+    const sid = String(seasonId);
+    for (const rid of regionIds) {
+      for (const fid of [String(FORMAT_2V2), String(FORMAT_1V1)]) {
+        const active = await getActiveSignupSeason(catalog, rid, fid);
+        if (active === sid) return true;
+      }
+    }
+    return false;
+  }
+
   const entry = await prisma.activeSignupSeason.findFirst({
     where: { seasonId },
   });
@@ -169,6 +187,16 @@ export async function isTeamSeasonActive(teamId: number): Promise<boolean> {
  * season is still the current active season. Past seasons are never locked.
  */
 export async function getEffectiveRosterLock(teamId: number): Promise<boolean> {
+  if (isRamaBackend()) {
+    const opts = ramaClientOpts();
+    const team = await getTeam(createTeamsClient(opts), String(teamId));
+    const seasonId = team?.seasonId;
+    if (typeof seasonId !== 'string') return false;
+    const season = await getSeason(createSeasonsClient(opts), seasonId);
+    if (!season?.rosterLocked) return false;
+    return isSeasonCurrentlyActive(Number(seasonId));
+  }
+
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: {

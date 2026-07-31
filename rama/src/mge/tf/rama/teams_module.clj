@@ -16,7 +16,8 @@
 
 (defn known-type? [t]
   (contains? #{"create-team" "join-team" "leave-team"
-               "set-status" "set-member-permission"}
+               "set-status" "set-member-permission"
+               "request-join" "approve-pending" "decline-pending"}
              t))
 
 (defn status-error [status]
@@ -28,6 +29,15 @@
 
 (defn active-count [roster]
   (count (filter (fn [[_ m]] (true? (get m "active"))) (seq (or roster {})))))
+
+(defn pending-key [team-id steam-id]
+  (str team-id ":" steam-id))
+
+(defn awaiting-status []
+  (long 1))
+
+(defn join-password-or-empty [v]
+  (if (nil? v) "" v))
 
 (defn create-error [existing creator-slot]
   (cond
@@ -43,6 +53,18 @@
     (some? (get roster steam-id)) "already-on-roster"
     (>= (active-count roster) (max-roster format-id)) "roster-full"
     :else nil))
+
+(defn request-join-error [team roster steam-id player-slot format-id]
+  (join-error team roster steam-id player-slot format-id))
+
+(defn approve-error [team roster steam-id player-slot format-id pending-row]
+  (cond
+    (nil? pending-row) "pending-not-found"
+    (not= (long (get pending-row "status")) 1) "pending-not-awaiting"
+    :else (join-error team roster steam-id player-slot format-id)))
+
+(defn decline-error [pending-row]
+  (when (nil? pending-row) "pending-not-found"))
 
 (defn leave-error [team roster steam-id]
   (cond
@@ -75,7 +97,8 @@
                "divisionId" String
                "regionId" String
                "status" String
-               "createdBy" String})})
+               "createdBy" String
+               "joinPassword" String})})
 
     (declare-pstate
      s $$roster
@@ -94,6 +117,27 @@
                   String ;; teamId
                   {:subindex? true})})
 
+    (declare-pstate
+     s $$pending
+     {String ;; teamId
+      (map-schema String ;; steamId
+                  (fixed-keys-schema
+                   {"status" Long})
+                  {:subindex? true})})
+
+    (declare-pstate
+     s $$pending-by-player
+     {String ;; steamId
+      (map-schema String ;; teamId
+                  Long ;; status
+                  {:subindex? true})})
+
+    (declare-pstate
+     s $$pending-awaiting
+     {String ;; "all"
+      (map-schema String ;; "teamId:steamId"
+                  Boolean)})
+
     (<<sources s
       (source> *team-depot :> *event)
       (get *event "type" :> *type)
@@ -108,6 +152,8 @@
         (get *event "seasonId" :> *season-id)
         (get *event "divisionId" :> *division-id)
         (get *event "regionId" :> *region-id)
+        (get *event "joinPassword" :> *join-password-raw)
+        (join-password-or-empty *join-password-raw :> *join-password)
         (local-select> (keypath *team-id) $$teams :> *existing)
         ;; uniqueness lives on steamId partition
         (|hash *steam-id)
@@ -120,14 +166,19 @@
            [(keypath *steam-id *season-id) (termval *team-id)]
            $$player-season)
           (|hash *team-id)
-          (local-transform> [(keypath *team-id "name") (termval *name)] $$teams)
-          (local-transform> [(keypath *team-id "acronym") (termval *acronym)] $$teams)
-          (local-transform> [(keypath *team-id "formatId") (termval *format-id)] $$teams)
-          (local-transform> [(keypath *team-id "seasonId") (termval *season-id)] $$teams)
-          (local-transform> [(keypath *team-id "divisionId") (termval *division-id)] $$teams)
-          (local-transform> [(keypath *team-id "regionId") (termval *region-id)] $$teams)
-          (local-transform> [(keypath *team-id "status") (termval "UNREADY")] $$teams)
-          (local-transform> [(keypath *team-id "createdBy") (termval *steam-id)] $$teams)
+          (local-transform>
+           [(keypath *team-id)
+            (multi-path
+             [(keypath "name") (termval *name)]
+             [(keypath "acronym") (termval *acronym)]
+             [(keypath "formatId") (termval *format-id)]
+             [(keypath "seasonId") (termval *season-id)]
+             [(keypath "divisionId") (termval *division-id)]
+             [(keypath "regionId") (termval *region-id)]
+             [(keypath "status") (termval "UNREADY")]
+             [(keypath "createdBy") (termval *steam-id)]
+             [(keypath "joinPassword") (termval *join-password)])]
+           $$teams)
           (local-transform>
            [(keypath *team-id *steam-id)
             (multi-path
@@ -161,6 +212,95 @@
              [(keypath "permissionLevel") (termval "MEMBER")]
              [(keypath "paymentStatus") (termval "UNPAID")])]
            $$roster)
+          (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
+
+      ;; ── request-join → pending awaiting-admin ───────────────────────
+      (<<if (= *type "request-join")
+        (get *event "steamId" :> *steam-id)
+        (local-select> (keypath *team-id) $$teams :> *team)
+        (local-select> (keypath *team-id) $$roster :> *roster)
+        (get *team "seasonId" :> *season-id)
+        (get *team "formatId" :> *format-id)
+        (|hash *steam-id)
+        (local-select> (keypath *steam-id *season-id) $$player-season :> *player-slot)
+        (request-join-error *team *roster *steam-id *player-slot *format-id :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (pending-key *team-id *steam-id :> *pkey)
+          (awaiting-status :> *st)
+          (|hash *team-id)
+          (local-transform>
+           [(keypath *team-id *steam-id "status") (termval *st)]
+           $$pending)
+          (|hash *steam-id)
+          (local-transform>
+           [(keypath *steam-id *team-id) (termval *st)]
+           $$pending-by-player)
+          (|hash "all")
+          (local-transform>
+           [(keypath "all" *pkey) (termval true)]
+           $$pending-awaiting)
+          (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
+
+      ;; ── approve-pending → roster + clear pending ────────────────────
+      (<<if (= *type "approve-pending")
+        (get *event "steamId" :> *steam-id)
+        (local-select> (keypath *team-id) $$teams :> *team)
+        (local-select> (keypath *team-id) $$roster :> *roster)
+        (local-select> (keypath *team-id *steam-id) $$pending :> *pending-row)
+        (get *team "seasonId" :> *season-id)
+        (get *team "formatId" :> *format-id)
+        (|hash *steam-id)
+        (local-select> (keypath *steam-id *season-id) $$player-season :> *player-slot)
+        (approve-error *team *roster *steam-id *player-slot *format-id *pending-row :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (pending-key *team-id *steam-id :> *pkey)
+          (local-transform>
+           [(keypath *steam-id *season-id) (termval *team-id)]
+           $$player-season)
+          (local-transform>
+           [(keypath *steam-id *team-id) NONE>]
+           $$pending-by-player)
+          (|hash *team-id)
+          (local-transform>
+           [(keypath *team-id *steam-id)
+            (multi-path
+             [(keypath "active") (termval true)]
+             [(keypath "permissionLevel") (termval "MEMBER")]
+             [(keypath "paymentStatus") (termval "UNPAID")])]
+           $$roster)
+          (local-transform>
+           [(keypath *team-id *steam-id) NONE>]
+           $$pending)
+          (|hash "all")
+          (local-transform>
+           [(keypath "all" *pkey) NONE>]
+           $$pending-awaiting)
+          (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
+
+      ;; ── decline-pending → clear pending ─────────────────────────────
+      (<<if (= *type "decline-pending")
+        (get *event "steamId" :> *steam-id)
+        (local-select> (keypath *team-id *steam-id) $$pending :> *pending-row)
+        (decline-error *pending-row :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (pending-key *team-id *steam-id :> *pkey)
+          (local-transform>
+           [(keypath *team-id *steam-id) NONE>]
+           $$pending)
+          (|hash *steam-id)
+          (local-transform>
+           [(keypath *steam-id *team-id) NONE>]
+           $$pending-by-player)
+          (|hash "all")
+          (local-transform>
+           [(keypath "all" *pkey) NONE>]
+           $$pending-awaiting)
           (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
 
       ;; ── leave-team ──────────────────────────────────────────────────

@@ -17,6 +17,7 @@
     (rtest/launch-module! ipc cm/CatalogModule {:tasks 4 :threads 2})
     (let [depot (foreign-depot ipc MODULE-NAME "*catalog-depot")
           regions (foreign-pstate ipc MODULE-NAME "$$regions")
+          region-ids (foreign-pstate ipc MODULE-NAME "$$region-ids")
           formats (foreign-pstate ipc MODULE-NAME "$$formats")
           by-code (foreign-pstate ipc MODULE-NAME "$$format-by-code")
           signup (foreign-pstate ipc MODULE-NAME "$$active-signup")]
@@ -33,6 +34,8 @@
                       "currencyCode" "USD"})
                     "ok")))
         (is (= "North America" (foreign-select-one (keypath "na" "name") regions)))
+        (is (= true (foreign-select-one (keypath "all" "na") region-ids))
+            "region-ids index should have the upserted region")
         (is (= true
                (get (append-event!
                      depot

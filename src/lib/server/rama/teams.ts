@@ -4,7 +4,7 @@
  * @lintignore Spike team helpers; production team routes still use Postgres.
  */
 
-import { RamaClient, type AckLevel } from './client';
+import { RamaClient, ramaLong, type AckLevel } from './client';
 
 export const TEAMS_MODULE = 'mge.tf.rama.teams-module/TeamsModule';
 export const TEAM_DEPOT = '*team-depot';
@@ -14,9 +14,15 @@ export type TeamAck = {
   error?: string;
   teamId?: string;
   steamId?: string;
-  status?: string;
+  status?: string | number;
   permissionLevel?: string;
   type?: string;
+};
+
+export type RosterMember = {
+  active: boolean;
+  permissionLevel: string;
+  paymentStatus: string;
 };
 
 function asAck(topologyReturns: Record<string, unknown>): TeamAck {
@@ -47,10 +53,28 @@ export async function createTeam(
     seasonId: string;
     divisionId: string;
     regionId: string;
+    joinPassword?: string;
   },
   ackLevel: AckLevel = 'ack',
 ): Promise<TeamAck> {
-  return asAck(await client.append(TEAM_DEPOT, { type: 'create-team', ...event }, ackLevel));
+  return asAck(
+    await client.append(
+      TEAM_DEPOT,
+      {
+        type: 'create-team',
+        teamId: event.teamId,
+        steamId: event.steamId,
+        name: event.name,
+        acronym: event.acronym,
+        formatId: event.formatId,
+        seasonId: event.seasonId,
+        divisionId: event.divisionId,
+        regionId: event.regionId,
+        joinPassword: event.joinPassword ?? '',
+      },
+      ackLevel,
+    ),
+  );
 }
 
 export async function joinTeam(
@@ -59,6 +83,41 @@ export async function joinTeam(
   ackLevel: AckLevel = 'ack',
 ): Promise<TeamAck> {
   return asAck(await client.append(TEAM_DEPOT, { type: 'join-team', ...event }, ackLevel));
+}
+
+export async function requestJoin(
+  client: RamaClient,
+  event: { teamId: string; steamId: string; status?: number },
+  ackLevel: AckLevel = 'ack',
+): Promise<TeamAck> {
+  return asAck(
+    await client.append(
+      TEAM_DEPOT,
+      {
+        type: 'request-join',
+        teamId: event.teamId,
+        steamId: event.steamId,
+        status: ramaLong(event.status ?? 1),
+      },
+      ackLevel,
+    ),
+  );
+}
+
+export async function approvePending(
+  client: RamaClient,
+  event: { teamId: string; steamId: string },
+  ackLevel: AckLevel = 'ack',
+): Promise<TeamAck> {
+  return asAck(await client.append(TEAM_DEPOT, { type: 'approve-pending', ...event }, ackLevel));
+}
+
+export async function declinePending(
+  client: RamaClient,
+  event: { teamId: string; steamId: string },
+  ackLevel: AckLevel = 'ack',
+): Promise<TeamAck> {
+  return asAck(await client.append(TEAM_DEPOT, { type: 'decline-pending', ...event }, ackLevel));
 }
 
 export async function leaveTeam(
@@ -105,6 +164,33 @@ export async function getTeam(
   }
 }
 
+export async function getRoster(
+  client: RamaClient,
+  teamId: string,
+): Promise<Record<string, RosterMember>> {
+  try {
+    const v = await client.selectOne('$$roster', [teamId]);
+    if (!v || typeof v !== 'object') return {};
+    return v as Record<string, RosterMember>;
+  } catch {
+    return {};
+  }
+}
+
+export async function getRosterMember(
+  client: RamaClient,
+  teamId: string,
+  steamId: string,
+): Promise<RosterMember | null> {
+  try {
+    const v = await client.selectOne('$$roster', [teamId, steamId]);
+    if (!v || typeof v !== 'object') return null;
+    return v as RosterMember;
+  } catch {
+    return null;
+  }
+}
+
 export async function getPlayerSeasonTeam(
   client: RamaClient,
   steamId: string,
@@ -115,5 +201,46 @@ export async function getPlayerSeasonTeam(
     return typeof v === 'string' ? v : null;
   } catch {
     return null;
+  }
+}
+
+export async function getPendingStatus(
+  client: RamaClient,
+  teamId: string,
+  steamId: string,
+): Promise<number | null> {
+  try {
+    const v = await client.selectOne('$$pending', [teamId, steamId, 'status']);
+    return typeof v === 'number' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Pending statuses keyed by teamId for a player. */
+export async function getPendingByPlayer(
+  client: RamaClient,
+  steamId: string,
+): Promise<Record<string, number>> {
+  try {
+    const v = await client.selectOne('$$pending-by-player', [steamId]);
+    if (!v || typeof v !== 'object') return {};
+    return v as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Awaiting-admin pending keys from $$pending-awaiting["all"].
+ * Keys are "teamId:steamId".
+ */
+export async function getAwaitingPendingKeys(client: RamaClient): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$pending-awaiting', ['all']);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
   }
 }

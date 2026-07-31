@@ -11,6 +11,17 @@ import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { isSeasonCurrentlyActive } from './settings';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 import { verifyPassword } from '$lib/server/utils/password';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import {
+  createTeamsClient,
+  getTeam,
+  getRoster,
+  getRosterMember,
+  getPlayerSeasonTeam,
+  getPendingStatus,
+  getPendingByPlayer,
+  requestJoin,
+} from '$lib/server/rama/teams';
 
 type TeamJoinTeam = Prisma.TeamGetPayload<{
   include: {
@@ -112,6 +123,14 @@ export async function validateTokenAndGetTeam(
  * passwords must be migrated via scripts/migrate-plaintext-join-passwords.ts.
  */
 export async function validateJoinPassword(teamId: number, password: string): Promise<boolean> {
+  if (isRamaBackend()) {
+    const team = await getTeam(createTeamsClient(ramaClientOpts()), String(teamId));
+    if (!team) notFound('Team not found');
+    const stored = String(team.joinPassword ?? '');
+    if (!stored) return false;
+    return verifyPassword(password, stored);
+  }
+
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { joinPassword: true },
@@ -140,6 +159,44 @@ export async function joinByPassword(
   const isValid = await validateJoinPassword(teamId, password);
   if (!isValid) {
     badRequest('Incorrect team password');
+  }
+
+  if (isRamaBackend()) {
+    const client = createTeamsClient(ramaClientOpts());
+    const team = await getTeam(client, String(teamId));
+    if (!team) notFound('Team not found');
+
+    if (Number(team.formatId) === FORMAT_1V1) {
+      badRequest('Cannot join 1v1 teams');
+    }
+
+    const seasonIdNum = Number(team.seasonId);
+    if (Number.isFinite(seasonIdNum)) {
+      const seasonActive = await isSeasonCurrentlyActive(seasonIdNum);
+      if (!seasonActive) {
+        badRequest("This team's season has ended. Joining is no longer available.");
+      }
+    }
+
+    const roster = await getRoster(client, String(teamId));
+    const activeCount = Object.values(roster).filter((m) => m.active).length;
+    if (activeCount >= 3) {
+      badRequest('Team is full (maximum 3 players)');
+    }
+    if (roster[steamId]) {
+      badRequest('You are already on this team');
+    }
+
+    if (typeof team.seasonId === 'string') {
+      const other = await getPlayerSeasonTeam(client, steamId, team.seasonId);
+      if (other) {
+        badRequest('You are already in another 2v2 team for this season');
+      }
+    }
+
+    const ack = await requestJoin(client, { teamId: String(teamId), steamId });
+    if (!ack.ok) badRequest(ack.error ?? 'Failed to request join');
+    return;
   }
 
   const team = await prisma.team.findUnique({
@@ -319,6 +376,15 @@ export async function getUserPendingInvites(steamId: string) {
  * Check if a player is in a specific team
  */
 export async function isPlayerInTeam(steamId: string, teamId: number): Promise<boolean> {
+  if (isRamaBackend()) {
+    const member = await getRosterMember(
+      createTeamsClient(ramaClientOpts()),
+      String(teamId),
+      steamId,
+    );
+    return Boolean(member?.active);
+  }
+
   const playerInTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
@@ -338,6 +404,16 @@ export async function isPlayerInTeam(steamId: string, teamId: number): Promise<b
  * (allows being in old season teams)
  */
 export async function isPlayerInAnyActiveTeam(steamId: string): Promise<boolean> {
+  if (isRamaBackend()) {
+    const client = createTeamsClient(ramaClientOpts());
+    const seasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
+    for (const sid of seasonIds) {
+      const teamId = await getPlayerSeasonTeam(client, steamId, String(sid));
+      if (teamId) return true;
+    }
+    return false;
+  }
+
   const currentSeasonIds = await getCurrentSignupSeasonIds();
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
@@ -365,6 +441,10 @@ export async function getPendingStatusForTeam(
   steamId: string,
   teamId: number,
 ): Promise<number | null> {
+  if (isRamaBackend()) {
+    return getPendingStatus(createTeamsClient(ramaClientOpts()), String(teamId), steamId);
+  }
+
   const pending = await prisma.pendingPlayer.findUnique({
     where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
     select: { status: true },
@@ -377,6 +457,11 @@ export async function getPendingStatusForTeam(
  * status=0 records are unaccepted invites and do not block joining elsewhere.
  */
 export async function hasAnyPendingRequest(steamId: string): Promise<boolean> {
+  if (isRamaBackend()) {
+    const byTeam = await getPendingByPlayer(createTeamsClient(ramaClientOpts()), steamId);
+    return Object.values(byTeam).some((status) => status === 1);
+  }
+
   const pending = await prisma.pendingPlayer.findFirst({
     where: { playerSteamId: steamId, status: 1 },
     select: { teamId: true },
@@ -388,6 +473,15 @@ export async function hasAnyPendingRequest(steamId: string): Promise<boolean> {
  * Decline/delete pending invitation
  */
 export async function declineInvitation(steamId: string, teamId: number): Promise<void> {
+  if (isRamaBackend()) {
+    const { declinePending } = await import('$lib/server/rama/teams');
+    await declinePending(createTeamsClient(ramaClientOpts()), {
+      teamId: String(teamId),
+      steamId,
+    });
+    return;
+  }
+
   await prisma.pendingPlayer.deleteMany({
     where: {
       playerSteamId: steamId,

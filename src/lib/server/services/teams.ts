@@ -8,6 +8,7 @@ import { prisma } from '$lib/server/db';
 import { TeamStatus, NotificationType } from '$prisma/client.js';
 import type { Prisma } from '$prisma/client.js';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
 import { notFound, badRequest, forbidden } from '$lib/server/utils/errors';
 import { createNotificationForUser } from '$lib/server/services/notifications';
 
@@ -344,7 +345,132 @@ export async function getTeamsByDivision(
 /**
  * Get a single team by ID
  */
+function permToInt(level: string | undefined): number {
+  if (level === 'STATUS') return 2;
+  if (level === 'ADMIN') return 1;
+  return 0;
+}
+
+function paymentToInt(status: string | undefined): number {
+  if (status === 'PAID' || status === 'MARKED_PAID') return 1;
+  if (status === 'FREE' || status === 'NOT_REQUIRED') return 2;
+  return 0;
+}
+
+async function getTeamByIdRama(id: number) {
+  const opts = ramaClientOpts();
+  const teamsClient = (await import('$lib/server/rama/teams')).createTeamsClient(opts);
+  const { getTeam, getRoster } = await import('$lib/server/rama/teams');
+  const { createDivisionsClient, getDivision } = await import('$lib/server/rama/divisions');
+  const { createCatalogClient, getRegion } = await import('$lib/server/rama/catalog');
+  const { createSeasonsClient, getSeason } = await import('$lib/server/rama/seasons');
+  const { createUsersClient, getUser } = await import('$lib/server/rama/users');
+
+  const teamId = String(id);
+  const row = await getTeam(teamsClient, teamId);
+  if (!row) return null;
+
+  const roster = await getRoster(teamsClient, teamId);
+  const usersClient = createUsersClient(opts);
+  const players = [];
+  for (const [steamId, member] of Object.entries(roster)) {
+    const user = await getUser(usersClient, steamId);
+    players.push({
+      playerSteamId: steamId,
+      teamId: id,
+      active: member.active ? 1 : 0,
+      permissionLevel: permToInt(member.permissionLevel),
+      paymentStatus: paymentToInt(member.paymentStatus),
+      startedAt: new Date(0),
+      leftAt: null,
+      player: {
+        steamId,
+        steamUsername: String(user?.username ?? steamId),
+        steamAvatar: String(user?.avatarUrl ?? ''),
+      },
+    });
+  }
+
+  const divisionId = Number(row.divisionId);
+  const regionId = Number(row.regionId);
+  const seasonId = Number(row.seasonId);
+  const division = Number.isFinite(divisionId)
+    ? await getDivision(createDivisionsClient(opts), String(divisionId))
+    : null;
+  const region = Number.isFinite(regionId)
+    ? await getRegion(createCatalogClient(opts), String(regionId))
+    : null;
+  const season = Number.isFinite(seasonId)
+    ? await getSeason(createSeasonsClient(opts), String(seasonId))
+    : null;
+
+  return {
+    id,
+    name: String(row.name ?? ''),
+    acronym: String(row.acronym ?? '') || null,
+    formatId: Number(row.formatId),
+    seasonId: Number.isFinite(seasonId) ? seasonId : null,
+    divisionId: Number.isFinite(divisionId) ? divisionId : null,
+    regionId: Number.isFinite(regionId) ? regionId : null,
+    status: String(row.status ?? 'UNREADY') as TeamStatus,
+    createdBy: String(row.createdBy ?? ''),
+    joinPassword: String(row.joinPassword ?? ''),
+    paymentStatus: 0,
+    avatar: null,
+    wins: 0,
+    losses: 0,
+    gamesWon: 0,
+    gamesLost: 0,
+    pointsScored: 0,
+    pointsScoredAgainst: 0,
+    createdAt: new Date(0),
+    division: division
+      ? {
+          id: divisionId,
+          name: division.name,
+          regionId,
+          signupCost: Number(division.signupCost ?? 0),
+          sortOrder: Number(division.sortOrder ?? 0),
+        }
+      : null,
+    region: region
+      ? {
+          id: regionId,
+          name: region.name,
+          hidden: region.hidden,
+          currencySymbol: region.currencySymbol,
+          currencyCode: region.currencyCode,
+        }
+      : null,
+    season: season
+      ? {
+          id: seasonId,
+          seasonNum: Number(season.seasonNum),
+          numWeeks: Number(season.numWeeks),
+          regionId,
+          formatId: Number(season.formatId),
+          signupsOpen: Boolean(season.signupsOpen),
+          rosterLocked: Boolean(season.rosterLocked),
+          paymentRequired: Boolean(season.paymentRequired),
+          matchWeek: Number(season.matchWeek ?? 0),
+          matchDeadline: season.matchDeadline || null,
+          info: season.info ?? '',
+        }
+      : null,
+    players,
+    homeMatches: [] as never[],
+    awayMatches: [] as never[],
+    _count: {
+      players: players.length,
+      homeMatches: 0,
+      awayMatches: 0,
+    },
+  };
+}
+
 export async function getTeamById(id: number) {
+  if (isRamaBackend()) return getTeamByIdRama(id);
+
   return await prisma.team.findUnique({
     where: { id },
     include: {
@@ -420,6 +546,8 @@ export async function getTeamById(id: number) {
  * Get a compact team snapshot for audit metadata.
  */
 export async function getTeamAuditSnapshot(id: number) {
+  if (isRamaBackend()) return null;
+
   const team = await prisma.team.findUnique({
     where: { id },
     select: {
@@ -514,6 +642,33 @@ export async function updateTeam(
  * "Mark as paid" action first.
  */
 export async function adminSetTeamStatus(id: number, status: TeamStatus) {
+  if (isRamaBackend()) {
+    const team = await getTeamByIdRama(id);
+    if (!team) notFound('Team not found');
+
+    if (status === TeamStatus.READY || status === TeamStatus.PENDING) {
+      const isFreeDiv = !team.division || team.division.signupCost === 0;
+      if (!isFreeDiv) {
+        const paidCount = team.players.filter(
+          (p) => p.active === 1 && p.paymentStatus !== 0,
+        ).length;
+        if (paidCount < MIN_PAID_PLAYERS_TO_READY) {
+          badRequest(
+            `Cannot set team to ${status}: at least ${MIN_PAID_PLAYERS_TO_READY} active players must be marked as paid first`,
+          );
+        }
+      }
+    }
+
+    const { createTeamsClient, setTeamStatus } = await import('$lib/server/rama/teams');
+    const ack = await setTeamStatus(createTeamsClient(ramaClientOpts()), {
+      teamId: String(id),
+      status: status as 'UNREADY' | 'PENDING' | 'READY' | 'DEAD' | 'PLACEMENT',
+    });
+    if (!ack.ok) badRequest(ack.error ?? 'Failed to set status');
+    return { id, status };
+  }
+
   const team = await prisma.team.findUnique({
     where: { id },
     include: {
@@ -553,6 +708,36 @@ const MIN_PAID_PLAYERS_TO_READY = 2;
  * and at least MIN_PAID_PLAYERS_TO_READY active players to be paid.
  */
 export async function toggleTeamReady(teamId: number, userSteamId: string) {
+  if (isRamaBackend()) {
+    const team = await getTeamByIdRama(teamId);
+    if (!team) notFound('Team not found');
+
+    const caller = team.players.find((p) => p.playerSteamId === userSteamId && p.active === 1);
+    if (!caller || caller.permissionLevel < 1) {
+      forbidden('Only team admins can toggle ready');
+    }
+
+    if (team.status !== TeamStatus.UNREADY) {
+      badRequest('Team must be in UNREADY status to toggle ready');
+    }
+
+    const isFreeDiv = !team.division || team.division.signupCost === 0;
+    if (!isFreeDiv) {
+      const paidCount = team.players.filter((p) => p.active === 1 && p.paymentStatus !== 0).length;
+      if (paidCount < MIN_PAID_PLAYERS_TO_READY) {
+        badRequest(`At least ${MIN_PAID_PLAYERS_TO_READY} players must be paid before readying up`);
+      }
+    }
+
+    const { createTeamsClient, setTeamStatus } = await import('$lib/server/rama/teams');
+    const ack = await setTeamStatus(createTeamsClient(ramaClientOpts()), {
+      teamId: String(teamId),
+      status: 'PENDING',
+    });
+    if (!ack.ok) badRequest(ack.error ?? 'Failed to ready up');
+    return { id: teamId, status: TeamStatus.PENDING };
+  }
+
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {

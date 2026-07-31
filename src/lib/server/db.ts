@@ -1,46 +1,40 @@
 /**
  * Database Connection Utility
- * Prisma Client singleton for SvelteKit (Prisma v7 + Direct TCP)
  *
- * This ensures we don't create multiple instances of Prisma Client
- * in development (which can exhaust database connections)
+ * When DATA_BACKEND=rama (or RAMA_CONDUCTOR_URL is set with DATA_BACKEND=rama),
+ * Postgres/Prisma is disabled — services must use Rama REST helpers.
+ *
+ * Otherwise: Prisma Client singleton (Prisma v7 + Direct TCP).
  */
 
 import { PrismaClient } from '$prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { dev, building } from '$app/environment';
 
-// Load .env file in development (Vite SSR doesn't auto-populate process.env)
 if (dev && !building) {
   const { config } = await import('dotenv');
   config();
 }
 
-// PrismaClient is attached to the `global` object in development to prevent
-// exhausting your database connection limit.
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-function createPrismaClient(): PrismaClient {
+function isRamaBackend(): boolean {
+  const flag = (process.env.DATA_BACKEND ?? '').toLowerCase();
+  return flag === 'rama' || flag === 'rama-rest';
+}
+
+function createPostgresPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error('DATABASE_URL environment variable is not set');
   }
 
-  // Append application_name so pg_stat_activity can attribute connections to this service,
-  // enabling per-service audits against the shared connection budget.
   const connectionStringWithApp = connectionString.includes('?')
     ? `${connectionString}&application_name=website-next`
     : `${connectionString}?application_name=website-next`;
 
-  // Pass PoolConfig directly so @prisma/adapter-pg creates the pool using its own
-  // bundled pg version. Avoids cross-package Pool instance contamination in production
-  // where the adapter ships pg as a regular (non-peer) dependency.
-  //
-  // DB_POOL_MAX budget (2 replicas): 2 × (10 pool + 1 hub listener) = 22 steady-state;
-  // × 4 at Railway deploy overlap = 44; + ~23 sibling services ≈ 67 of 97 usable connections.
-  // Do not raise DB_POOL_MAX above 10 without recalculating against max_connections.
   const adapter = new PrismaPg({
     connectionString: connectionStringWithApp,
     max: parseInt(process.env.DB_POOL_MAX ?? '10'),
@@ -54,14 +48,42 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
-// During build, export a dummy - actual client created at runtime
-// This prevents SvelteKit's build analysis from triggering DB connection
+/** Proxy that fails loudly if any service still touches Prisma under Rama. */
+function createRamaBlockedPrisma(): PrismaClient {
+  const err = () => {
+    throw new Error(
+      'Postgres/Prisma is disabled (DATA_BACKEND=rama). Use $lib/server/rama/* REST helpers.',
+    );
+  };
+  return new Proxy({} as PrismaClient, {
+    get(_t, prop) {
+      if (prop === '$disconnect') return async () => {};
+      if (prop === 'then') return undefined;
+      return new Proxy(
+        {},
+        {
+          get() {
+            return err;
+          },
+          apply() {
+            err();
+          },
+        },
+      );
+    },
+  });
+}
+
+function createPrismaClient(): PrismaClient {
+  if (isRamaBackend()) return createRamaBlockedPrisma();
+  return createPostgresPrismaClient();
+}
+
 export const prisma: PrismaClient = building
   ? (undefined as unknown as PrismaClient)
   : (globalForPrisma.prisma ??= createPrismaClient());
 
-// Graceful shutdown (only at runtime, not during build)
-if (!building && typeof window === 'undefined') {
+if (!building && typeof window === 'undefined' && !isRamaBackend()) {
   process.on('beforeExit', async () => {
     await prisma.$disconnect();
   });

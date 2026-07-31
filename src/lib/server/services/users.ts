@@ -1,7 +1,8 @@
 /**
  * Users Service
  *
- * All user-related business logic and database operations.
+ * Session + test-login paths use Rama UsersModule over REST when DATA_BACKEND=rama.
+ * Remaining profile/admin paths still on Prisma until cut over.
  */
 
 import { prisma } from '$lib/server/db';
@@ -10,14 +11,30 @@ import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { formatPlayoffRound } from '$lib/utils/playoffs';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import {
+  createUsersClient,
+  getSessionVersion as ramaGetSessionVersion,
+  getUser as ramaGetUser,
+  setBan as ramaSetBan,
+  setPermission as ramaSetPermission,
+  upsertProfile as ramaUpsertProfile,
+} from '$lib/server/rama/users';
 
 export type { ProfileMatch } from '$lib/types/match';
+
+function usersClient() {
+  return createUsersClient(ramaClientOpts());
+}
 
 /**
  * Fetch the current session version for a user.
  * Used by hooks to detect stale sessions after role/ban changes.
  */
 export async function getSessionVersion(steamId: string): Promise<number> {
+  if (isRamaBackend()) {
+    return (await ramaGetSessionVersion(usersClient(), steamId)) ?? 0;
+  }
   const user = await prisma.user.findUnique({
     where: { steamId },
     select: { sessionVersion: true },
@@ -30,9 +47,80 @@ export async function getSessionVersion(steamId: string): Promise<number> {
  * Used by hooks to refresh a stale session cookie without forcing re-login.
  */
 export async function getSessionFields(steamId: string) {
+  if (isRamaBackend()) {
+    const row = await ramaGetUser(usersClient(), steamId);
+    if (!row) return null;
+    return {
+      steamUsername: String(row.username ?? ''),
+      steamAvatar: String(row.avatarUrl ?? ''),
+      permissionLevel: String(row.permissionLevel ?? 'GUEST'),
+      banStatus: String(row.banStatus ?? 'NONE'),
+      sessionVersion: typeof row.sessionVersion === 'number' ? row.sessionVersion : 0,
+    };
+  }
   return await prisma.user.findUnique({
     where: { steamId },
     select: {
+      steamUsername: true,
+      steamAvatar: true,
+      permissionLevel: true,
+      banStatus: true,
+      sessionVersion: true,
+    },
+  });
+}
+
+/**
+ * Upsert a user for non-production test login (Playwright / local).
+ * Rama path: UsersModule upsert-profile + set-permission + set-ban.
+ */
+export async function upsertTestLoginUser(params: {
+  steamId: string;
+  username: string;
+  role: 'GUEST' | 'MODERATOR' | 'ADMIN';
+}) {
+  const avatar =
+    'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
+
+  if (isRamaBackend()) {
+    const client = usersClient();
+    await ramaUpsertProfile(client, {
+      steamId: params.steamId,
+      username: params.username,
+      avatarUrl: avatar,
+    });
+    await ramaSetPermission(client, {
+      steamId: params.steamId,
+      permissionLevel: params.role,
+    });
+    await ramaSetBan(client, { steamId: params.steamId, banStatus: 'NONE' });
+    const row = await ramaGetUser(client, params.steamId);
+    return {
+      steamId: params.steamId,
+      steamUsername: String(row?.username ?? params.username),
+      steamAvatar: String(row?.avatarUrl ?? avatar),
+      permissionLevel: String(row?.permissionLevel ?? params.role),
+      banStatus: String(row?.banStatus ?? 'NONE'),
+      sessionVersion: typeof row?.sessionVersion === 'number' ? row.sessionVersion : 0,
+    };
+  }
+
+  return prisma.user.upsert({
+    where: { steamId: params.steamId },
+    create: {
+      steamId: params.steamId,
+      steamUsername: params.username,
+      steamAvatar: avatar,
+      permissionLevel: params.role,
+      banStatus: 'NONE',
+    },
+    update: {
+      steamUsername: params.username,
+      permissionLevel: params.role,
+      banStatus: 'NONE',
+    },
+    select: {
+      steamId: true,
       steamUsername: true,
       steamAvatar: true,
       permissionLevel: true,

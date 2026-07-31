@@ -147,3 +147,17 @@ export async function getActiveSignupSeason(
     return null;
   }
 }
+
+/**
+ * Returns all region IDs tracked in the $$region-ids index.
+ * The outer key "all" holds a map of {regionId -> true}.
+ */
+export async function getRegionIds(client: RamaClient): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$region-ids', ['all']);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}

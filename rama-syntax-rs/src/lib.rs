@@ -1,7 +1,10 @@
 //! .rama v2 — parser (logos + chumsky), path checker stub, Clojure transpile.
+//!
+//! Pipeline: source → rama AST → [`clj::Form`] IR → pretty-printed Clojure.
 
 pub mod ast;
 pub mod check;
+pub mod clj;
 pub mod emit_clj;
 pub mod error;
 pub mod lex;
@@ -11,7 +14,8 @@ pub mod span;
 
 pub use ast::SourceFile;
 pub use check::{check, CheckResult, TypeEnv};
-pub use emit_clj::emit_clojure;
+pub use clj::{Document as CljDocument, Form as CljForm};
+pub use emit_clj::{compile as compile_clj, emit_clojure};
 pub use error::{Diagnostic, DiagnosticKind, ParseError};
 pub use lex::{lex, SpannedToken, TokenKind};
 pub use parse::parse;

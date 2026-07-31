@@ -63,4 +63,23 @@ fn emits_match_v2_clojure() {
     assert!(clj.contains("(ack-return>"));
     assert!(clj.contains("(|hash"));
     assert!(clj.contains("AFTER-ELEM"));
+    assert!(
+        clj.contains("fixed-keys-schema"),
+        "struct should lower to fixed-keys-schema"
+    );
+    assert!(clj.contains("identity"), "fail chains use identity+cond");
+    assert!(clj.contains("cond"), "fail chains use identity+cond");
+    assert!(clj.contains("*__err"), "flat fail should bind *__err");
+    assert!(clj.contains("else>"), "success path under else>");
+    // ban-map has 3 fails → one <<if, not three
+    let ban = clj
+        .split("deframaop")
+        .find(|s| s.contains("ban-map>"))
+        .expect("ban-map op");
+    let ban_body = ban.split("deframaop").next().unwrap_or(ban);
+    assert_eq!(
+        ban_body.matches("<<if").count(),
+        1,
+        "ban-map should have a single <<if for fails: {ban_body}"
+    );
 }

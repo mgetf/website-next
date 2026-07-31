@@ -1,9 +1,10 @@
 //! Statement → expression lowering for `fn` bodies.
 //!
-//! Clojure has no `return`. Surface `return` / `let` / `if` become nested
-//! `(let …)` / `(if …)` / `(cond …)` so emitted `defn` is idiomatic Clojure.
+//! Produces [`clj::Form`] (not source text). Clojure has no `return`; surface
+//! `return` / `let` / `if` become nested `let` / `if` / `cond` forms.
 
 use crate::ast::*;
+use crate::clj::{self, Form};
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -14,26 +15,23 @@ enum Mode {
     Fn,
 }
 
-/// Lower a `fn` body to a single Clojure expression string (no `return`).
-pub fn lower_fn_body(block: &Block, indent: usize) -> String {
-    lower_stmts(&block.stmts, Mode::Fn, indent)
+/// Lower a `fn` body to one Clojure expression form (no `return`).
+pub fn lower_fn_body(block: &Block) -> Form {
+    lower_stmts(&block.stmts, Mode::Fn)
 }
 
-fn lower_stmts(stmts: &[Stmt], mode: Mode, indent: usize) -> String {
-    let p = pad(indent);
+fn lower_stmts(stmts: &[Stmt], mode: Mode) -> Form {
     if stmts.is_empty() {
-        return format!("{p}nil");
+        return clj::nil();
     }
 
     match &stmts[0] {
-        Stmt::Return { value, .. } => {
-            format!("{p}{}", emit_expr(value, mode))
-        }
+        Stmt::Return { value, .. } => expr(value, mode),
 
         Stmt::Let { pattern, value, .. } => {
             let binding = let_binding(pattern, value, mode);
-            let body = lower_stmts(&stmts[1..], mode, indent + 2);
-            format!("{p}(let [{binding}]\n{body})")
+            let body = lower_stmts(&stmts[1..], mode);
+            clj::call("let", [clj::vector(binding), body])
         }
 
         Stmt::If {
@@ -49,32 +47,34 @@ fn lower_stmts(stmts: &[Stmt], mode: Mode, indent: usize) -> String {
                 None => rest.to_vec(),
             };
 
-            // Chain of `if (c) { return x }` with no else → compact `cond` when possible.
             if alternative.is_none()
                 && matches!(consequence.stmts.as_slice(), [Stmt::Return { .. }])
                 && !rest.is_empty()
             {
-                return emit_cond_chain(stmts, mode, indent);
+                return cond_chain(stmts, mode);
             }
 
-            let then_e = lower_stmts(&then_stmts, mode, indent + 2);
-            let else_e = lower_stmts(&else_stmts, mode, indent + 2);
-            format!(
-                "{p}(if {}\n{then_e}\n{else_e})",
-                emit_expr(condition, mode)
+            clj::call(
+                "if",
+                [
+                    expr(condition, mode),
+                    lower_stmts(&then_stmts, mode),
+                    lower_stmts(&else_stmts, mode),
+                ],
             )
         }
 
         Stmt::Effect { value, .. } => {
             if stmts.len() == 1 {
-                format!("{p}{}", emit_expr(value, mode))
+                expr(value, mode)
             } else {
-                let rest = lower_stmts(&stmts[1..], mode, indent + 2);
-                format!("{p}(do\n{}{}\n{rest})", pad(indent + 2), emit_expr(value, mode))
+                clj::call(
+                    "do",
+                    [expr(value, mode), lower_stmts(&stmts[1..], mode)],
+                )
             }
         }
 
-        // Illegal / meaningless in fn — still lower somehow so emit doesn't panic.
         other => {
             let note = match other {
                 Stmt::Fail { .. } => "fail",
@@ -84,19 +84,22 @@ fn lower_stmts(stmts: &[Stmt], mode: Mode, indent: usize) -> String {
                 _ => "stmt",
             };
             if stmts.len() == 1 {
-                format!("{p}(throw (ex-info \"{note} not valid in fn\" {{}}))")
+                clj::call(
+                    "throw",
+                    [clj::call(
+                        "ex-info",
+                        [clj::string(format!("{note} not valid in fn")), clj::map([])],
+                    )],
+                )
             } else {
-                lower_stmts(&stmts[1..], mode, indent)
+                lower_stmts(&stmts[1..], mode)
             }
         }
     }
 }
 
-/// `if (c) { return a }; if (c2) { return b }; return c` → `(cond …)`.
-fn emit_cond_chain(stmts: &[Stmt], mode: Mode, indent: usize) -> String {
-    let p = pad(indent);
-    let sep = format!("\n{}", pad(indent + 2));
-    let mut clauses: Vec<String> = Vec::new();
+fn cond_chain(stmts: &[Stmt], mode: Mode) -> Form {
+    let mut arms: Vec<Form> = Vec::new();
     let mut i = 0;
     while i < stmts.len() {
         match &stmts[i] {
@@ -109,38 +112,27 @@ fn emit_cond_chain(stmts: &[Stmt], mode: Mode, indent: usize) -> String {
                 let Stmt::Return { value, .. } = &consequence.stmts[0] else {
                     unreachable!()
                 };
-                clauses.push(format!(
-                    "{}\n{}{}",
-                    emit_expr(condition, mode),
-                    pad(indent + 2),
-                    emit_expr(value, mode)
-                ));
+                arms.push(expr(condition, mode));
+                arms.push(expr(value, mode));
                 i += 1;
             }
             Stmt::Return { value, .. } => {
-                clauses.push(format!(
-                    ":else\n{}{}",
-                    pad(indent + 2),
-                    emit_expr(value, mode)
-                ));
-                return format!("{p}(cond\n{}{})", pad(indent + 2), clauses.join(&sep));
+                arms.push(clj::kw("else"));
+                arms.push(expr(value, mode));
+                return clj::call("cond", arms);
             }
             _ => break,
         }
     }
-    if clauses.is_empty() {
-        // Entry guard should prevent this; nested `if` without cond recursion.
-        return emit_plain_if(&stmts[0], &stmts[1..], mode, indent);
+    if arms.is_empty() {
+        return plain_if(&stmts[0], &stmts[1..], mode);
     }
-    // Partial chain: keep collected arms, lower the remainder as `:else`.
-    let else_body = lower_stmts(&stmts[i..], mode, indent + 2);
-    clauses.push(format!(":else\n{else_body}"));
-    format!("{p}(cond\n{}{})", pad(indent + 2), clauses.join(&sep))
+    arms.push(clj::kw("else"));
+    arms.push(lower_stmts(&stmts[i..], mode));
+    clj::call("cond", arms)
 }
 
-/// Nested `(if …)` without re-entering the cond optimizer (avoids loops).
-fn emit_plain_if(head: &Stmt, rest: &[Stmt], mode: Mode, indent: usize) -> String {
-    let p = pad(indent);
+fn plain_if(head: &Stmt, rest: &[Stmt], mode: Mode) -> Form {
     let Stmt::If {
         condition,
         consequence,
@@ -148,24 +140,22 @@ fn emit_plain_if(head: &Stmt, rest: &[Stmt], mode: Mode, indent: usize) -> Strin
         ..
     } = head
     else {
-        return lower_stmts(
-            &std::iter::once(head.clone())
-                .chain(rest.iter().cloned())
-                .collect::<Vec<_>>(),
-            mode,
-            indent,
-        );
+        let mut all = vec![head.clone()];
+        all.extend_from_slice(rest);
+        return lower_stmts(&all, mode);
     };
     let then_stmts = append_if_falls_through(&consequence.stmts, rest);
     let else_stmts = match alternative {
         Some(alt) => append_if_falls_through(&alt.stmts, rest),
         None => rest.to_vec(),
     };
-    let then_e = lower_stmts(&then_stmts, mode, indent + 2);
-    let else_e = lower_stmts(&else_stmts, mode, indent + 2);
-    format!(
-        "{p}(if {}\n{then_e}\n{else_e})",
-        emit_expr(condition, mode)
+    clj::call(
+        "if",
+        [
+            expr(condition, mode),
+            lower_stmts(&then_stmts, mode),
+            lower_stmts(&else_stmts, mode),
+        ],
     )
 }
 
@@ -196,60 +186,51 @@ fn always_returns(stmts: &[Stmt]) -> bool {
     }
 }
 
-fn let_binding(pattern: &LetPattern, value: &Expr, mode: Mode) -> String {
-    let rhs = emit_expr(value, mode);
+fn let_binding(pattern: &LetPattern, value: &Expr, mode: Mode) -> Vec<Form> {
+    let rhs = expr(value, mode);
     match pattern {
-        LetPattern::Name(n) => format!("{} {rhs}", local_name(&n.node, mode)),
+        LetPattern::Name(n) => vec![local(n.node.as_str(), mode), rhs],
         LetPattern::Destructure(names) => {
-            let keys: Vec<_> = names.iter().map(|n| n.node.clone()).collect();
-            format!("{{:keys [{}]}} {rhs}", keys.join(" "))
+            let keys: Vec<Form> = names.iter().map(|n| clj::sym(n.node.clone())).collect();
+            vec![
+                clj::map([(clj::kw("keys"), clj::vector(keys))]),
+                rhs,
+            ]
         }
     }
 }
 
-fn local_name(name: &str, mode: Mode) -> String {
+fn local(name: &str, mode: Mode) -> Form {
     match mode {
-        Mode::Fn => name.to_string(),
-        Mode::Op => format!("*{name}"),
+        Mode::Fn => clj::sym(name),
+        Mode::Op => clj::sym(format!("*{name}")),
     }
 }
 
-fn emit_expr(expr: &Expr, mode: Mode) -> String {
-    match expr {
+fn expr(e: &Expr, mode: Mode) -> Form {
+    match e {
         Expr::Call(c) => {
-            let mut parts = vec![c.callee.node.clone()];
-            parts.extend(c.args.iter().map(|a| emit_expr(a, mode)));
-            format!("({})", parts.join(" "))
+            let mut args = Vec::with_capacity(c.args.len());
+            args.extend(c.args.iter().map(|a| expr(a, mode)));
+            clj::call(c.callee.node.clone(), args)
         }
-        Expr::List { elems, .. } => format!(
-            "[{}]",
-            elems
-                .iter()
-                .map(|e| emit_expr(e, mode))
-                .collect::<Vec<_>>()
-                .join(" ")
-        ),
-        Expr::Map { entries, .. } => {
-            let parts: Vec<_> = entries
-                .iter()
-                .flat_map(|e| {
-                    let k = emit_expr(&e.key, mode);
-                    match &e.value {
-                        Some(v) => vec![k, emit_expr(v, mode)],
-                        None => vec![k.clone(), k],
-                    }
-                })
-                .collect();
-            format!("{{{}}}", parts.join(" "))
-        }
-        Expr::String(s) => format!("{:?}", s.node),
-        Expr::Keyword(k) => format!(":{}", k.node),
+        Expr::List { elems, .. } => clj::vector(elems.iter().map(|a| expr(a, mode))),
+        Expr::Map { entries, .. } => clj::map(entries.iter().map(|ent| {
+            let k = expr(&ent.key, mode);
+            let v = match &ent.value {
+                Some(v) => expr(v, mode),
+                None => k.clone(),
+            };
+            (k, v)
+        })),
+        Expr::String(s) => clj::string(s.node.clone()),
+        Expr::Keyword(k) => clj::kw(k.node.clone()),
         Expr::Ident(i) => match mode {
-            Mode::Fn => i.node.clone(),
-            Mode::Op => op_ident(&i.node),
+            Mode::Fn => clj::sym(i.node.clone()),
+            Mode::Op => clj::sym(op_ident(&i.node)),
         },
-        Expr::Int(n) => n.node.to_string(),
-        Expr::Bool(b) => b.node.to_string(),
+        Expr::Int(n) => clj::int(n.node),
+        Expr::Bool(b) => clj::bool(b.node),
         Expr::Binary {
             op, left, right, ..
         } => {
@@ -257,29 +238,34 @@ fn emit_expr(expr: &Expr, mode: Mode) -> String {
                 BinaryOp::Eq => "=",
                 BinaryOp::NotEq => "not=",
             };
-            format!(
-                "({op} {} {})",
-                emit_expr(left, mode),
-                emit_expr(right, mode)
-            )
+            clj::call(op, [expr(left, mode), expr(right, mode)])
         }
         Expr::Ternary {
             cond,
             then_branch,
             else_branch,
             ..
-        } => format!(
-            "(if {} {} {})",
-            emit_expr(cond, mode),
-            emit_expr(then_branch, mode),
-            emit_expr(else_branch, mode)
+        } => clj::call(
+            "if",
+            [
+                expr(cond, mode),
+                expr(then_branch, mode),
+                expr(else_branch, mode),
+            ],
         ),
     }
 }
 
 fn op_ident(name: &str) -> String {
-    if name
-        .chars()
+    if looks_like_local(name) {
+        format!("*{name}")
+    } else {
+        name.to_string()
+    }
+}
+
+fn looks_like_local(name: &str) -> bool {
+    name.chars()
         .next()
         .is_some_and(|c| c.is_lowercase() || c == '_')
         && !matches!(
@@ -296,6 +282,7 @@ fn op_ident(name: &str) -> String {
                 | "not"
                 | "and"
                 | "or"
+                | "some?"
                 | "keypath"
                 | "termval"
                 | "term"
@@ -303,20 +290,12 @@ fn op_ident(name: &str) -> String {
                 | "nil->val"
                 | "AFTER-ELEM"
         )
-    {
-        format!("*{name}")
-    } else {
-        name.to_string()
-    }
-}
-
-fn pad(n: usize) -> String {
-    " ".repeat(n)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::clj::render;
     use crate::parse::parse;
 
     #[test]
@@ -334,8 +313,8 @@ fn ban-error(turn, home, away, teamId, remaining, arenaId) {
         let Item::Fn(func) = &file.items[1] else {
             panic!("expected fn");
         };
-        let out = lower_fn_body(&func.body, 2);
-        assert!(out.contains("(cond"), "got: {out}");
+        let out = render(&lower_fn_body(&func.body));
+        assert!(out.contains("cond"), "got: {out}");
         assert!(out.contains("no-ban-state"), "got: {out}");
         assert!(out.contains(":else"), "got: {out}");
         assert!(!out.contains("return"), "got: {out}");
@@ -355,9 +334,14 @@ fn add1(x) {
         let Item::Fn(func) = &file.items[1] else {
             panic!("expected fn");
         };
-        let out = lower_fn_body(&func.body, 0);
-        assert!(out.contains("(let [y (inc x)]"), "got: {out}");
-        assert!(out.contains("y)"), "got: {out}");
+        let form = lower_fn_body(&func.body);
+        assert!(
+            matches!(&form, Form::List(xs) if xs.first() == Some(&clj::sym("let"))),
+            "expected let form, got {form:?}"
+        );
+        let out = render(&form);
+        assert!(out.contains("inc"), "got: {out}");
+        assert!(out.contains('y'), "got: {out}");
         assert!(!out.contains("*y"), "got: {out}");
     }
 }

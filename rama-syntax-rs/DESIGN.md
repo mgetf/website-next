@@ -5,7 +5,9 @@ sigils in source. Strip naming conventions in the **emitter**; keep Specter as
 the user-facing path API (`-->` / `!<--`, navigators, `keypath`, `termval`, …).
 Schemas look like Rust. Topologies stay tiny.
 
-Stack: **logos** lexer + **chumsky** parser → AST → Clojure transpile / path check.
+Stack: **logos** lexer + **chumsky** parser → rama AST → **Clojure IR**
+(`clj::Form`) → pretty-printed source / path check. Compilation is between IRs;
+string paste is only the final serializer.
 
 ## Resolved
 
@@ -192,13 +194,13 @@ to erase `return`. Cond/if nesting is enough for the MatchModule helper style.
 
 ## Next work (priority)
 
-1. **Clojure seam** — `fn` statement→expression lowering lives in `src/lower.rs`
-   (`return`/`let`/`if` → nested `let`/`if`/`cond`). Keep `clojure { }` minimal.
-2. **`op` emit polish** — flat `fail` chains (not nested `<<if`); `struct` →
-   `fixed-keys-schema` in `declare-pstate`.
-3. **Topology tests** — transpile → drop into `rama/` test harness /
-   `InProcessCluster` (the proof, not unit-snapshots of strings alone).
-4. **Typechecker** — deepen against `struct` / `Map<…>` / Specter paths
-   (navigator-in-keypath, fixed-keys fields, `fail` expr type).
+1. **Clojure seam** — done (`src/lower.rs`).
+2. **`op` emit polish** — done: consecutive `fail` → `(identity (cond …) :> *__err)`
+   + one `<<if`/`else>`; `struct` → `fixed-keys-schema` in pstate decls.
+3. **Module skeleton emit** — wrap depot/pstates/`<<sources` in `defmodule`
+   (today’s bare `(declare-pstate s …)` is not loadable).
+4. **Topology tests** — transpile → drop into `rama/` /
+   `InProcessCluster` (the proof).
+5. **Typechecker** — deepen against `struct` / `Map<…>` / Specter paths.
 
 See `fixtures/match_v2.rama`.

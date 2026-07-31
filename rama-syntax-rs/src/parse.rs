@@ -2,7 +2,7 @@
 
 use crate::ast::*;
 use crate::error::{Diagnostic, ParseError};
-use crate::lex::{Token, TokenKind, lex};
+use crate::lex::{lex, Token, TokenKind};
 use crate::span::{Span, Spanned};
 
 pub fn parse(src: &str) -> Result<SourceFile, ParseError> {
@@ -79,7 +79,10 @@ impl Parser {
     }
 
     fn parse_ramaop(&mut self) -> Result<RamaOpDef, ParseError> {
-        let start = self.expect(TokenKind::RamaOp, "expected ramaop")?.span.start;
+        let start = self
+            .expect(TokenKind::RamaOp, "expected ramaop")?
+            .span
+            .start;
         let name = self.parse_op_or_ident_name()?;
         self.expect(TokenKind::LParen, "expected '(' after ramaop name")?;
         let params = self.parse_param_list()?;
@@ -95,7 +98,10 @@ impl Parser {
     }
 
     fn parse_ramafn(&mut self) -> Result<RamaFnDef, ParseError> {
-        let start = self.expect(TokenKind::RamaFn, "expected ramafn")?.span.start;
+        let start = self
+            .expect(TokenKind::RamaFn, "expected ramafn")?
+            .span
+            .start;
         let name_tok = self.bump();
         let name = match name_tok.kind {
             TokenKind::Binding(n) => Spanned::new(n, name_tok.span),
@@ -131,7 +137,10 @@ impl Parser {
     }
 
     fn parse_pstate_decl(&mut self) -> Result<PStateDecl, ParseError> {
-        let start = self.expect(TokenKind::PState, "expected pstate")?.span.start;
+        let start = self
+            .expect(TokenKind::PState, "expected pstate")?
+            .span
+            .start;
         let name_tok = self.bump();
         let name = match name_tok.kind {
             TokenKind::PStateRef(n) => Spanned::new(n, name_tok.span),
@@ -186,7 +195,10 @@ impl Parser {
                     }
                 }
                 let end = self.expect(TokenKind::RBrace, "expected '}'")?.span.end;
-                Ok(Spanned::new(TypeExpr::Fixed { fields }, Span::new(start, end)))
+                Ok(Spanned::new(
+                    TypeExpr::Fixed { fields },
+                    Span::new(start, end),
+                ))
             }
             TokenKind::Map => {
                 self.bump();
@@ -523,8 +535,7 @@ impl Parser {
                 && matches!(
                     self.tokens.get(self.pos + 1).map(|t| &t.kind),
                     Some(TokenKind::LParen)
-                ))
-        {
+                )) {
             InlineTarget::Call(self.parse_call_from_callee()?)
         } else {
             InlineTarget::Binding(self.parse_binding_target()?)
@@ -544,10 +555,7 @@ impl Parser {
             // stop path if next would be binding / end
             if matches!(
                 self.peek_kind(),
-                TokenKind::BindPipe
-                    | TokenKind::Semicolon
-                    | TokenKind::RBrace
-                    | TokenKind::Eof
+                TokenKind::BindPipe | TokenKind::Semicolon | TokenKind::RBrace | TokenKind::Eof
             ) {
                 break;
             }

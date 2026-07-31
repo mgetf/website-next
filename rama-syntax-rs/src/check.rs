@@ -78,10 +78,7 @@ fn check_stmt(stmt: &Stmt, env: &TypeEnv, out: &mut Vec<Diagnostic>) {
             check_path_access(pstate, path, PathMode::Transform, env, *span, out);
         }
         Stmt::Select {
-            pstate,
-            path,
-            span,
-            ..
+            pstate, path, span, ..
         } => {
             check_path_access(pstate, path, PathMode::Select, env, *span, out);
         }
@@ -132,10 +129,7 @@ fn check_path_access(
     };
 
     if path.is_empty() {
-        out.push(Diagnostic::type_error(
-            stmt_span,
-            "empty path expression",
-        ));
+        out.push(Diagnostic::type_error(stmt_span, "empty path expression"));
         return;
     }
 
@@ -234,8 +228,7 @@ fn check_path_access(
                     }
                     // termval value type vs current field — stub equality check
                     if call.callee.node == "termval" {
-                        if let (Some(val), Some(expected)) =
-                            (call.args.first(), leaf_type_name(ty))
+                        if let (Some(val), Some(expected)) = (call.args.first(), leaf_type_name(ty))
                         {
                             if let Some(got) = infer_lit_type(val) {
                                 if !types_compatible(&got, expected) {
@@ -326,12 +319,8 @@ fn check_path_access(
             }
         } else {
             let ok = match last {
-                Some(Expr::Ident(Spanned { node, .. })) => {
-                    node == "NONE>" || is_navigator(node)
-                }
-                Some(Expr::Keyword(Spanned { node, .. })) => {
-                    node == "NONE>" || is_navigator(node)
-                }
+                Some(Expr::Ident(Spanned { node, .. })) => node == "NONE>" || is_navigator(node),
+                Some(Expr::Keyword(Spanned { node, .. })) => node == "NONE>" || is_navigator(node),
                 _ => false,
             };
             if !ok {
@@ -375,9 +364,7 @@ fn navigator_lit(expr: &Expr) -> Option<(String, Span)> {
         {
             Some((node.clone(), *span))
         }
-        Expr::Keyword(Spanned { node, span }) if is_navigator(node) => {
-            Some((node.clone(), *span))
-        }
+        Expr::Keyword(Spanned { node, span }) if is_navigator(node) => Some((node.clone(), *span)),
         _ => None,
     }
 }

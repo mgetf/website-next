@@ -1,4 +1,4 @@
-use rama_syntax::{DiagnosticKind, analyze, parse};
+use rama_syntax::{analyze, emit_clojure, parse, DiagnosticKind};
 
 fn fixture(name: &str) -> String {
     let path = format!("{}/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));
@@ -45,6 +45,24 @@ fn parses_first_rama_subset() {
 }
 
 #[test]
+fn emits_match_create_clojure_surface() {
+    let src = fixture("match_create.rama");
+    let file = parse(&src).expect("parse");
+    let clj = emit_clojure(&file);
+
+    assert!(clj.contains("(deframaop create-match> [*event]"));
+    assert!(clj.contains("(get *event \"matchId\" :> *match-id)"));
+    assert!(clj.contains("(pool->set *pool :> *pool-set)"));
+    assert!(clj.contains("(local-select> (keypath *match-id) $$matches :> *existing)"));
+    assert!(clj.contains(
+        "(local-transform> [(keypath *match-id \"status\") (termval \"UNPLAYED\")] $$matches)"
+    ));
+    assert!(clj.contains("(<<if (nil? *existing)"));
+    assert!(clj.contains("(else>)"));
+    assert!(clj.contains("(ack-return> {\"ok\" true \"matchId\" *match-id})"));
+}
+
+#[test]
 fn bad_paths_emit_type_diagnostics() {
     let src = fixture("bad_paths.rama");
     let (_file, result) = analyze(&src).expect("parse");
@@ -60,7 +78,8 @@ fn bad_paths_emit_type_diagnostics() {
         "expected unknown field: {msgs:?}"
     );
     assert!(
-        msgs.iter().any(|m| m.contains("navigator") && m.contains("keypath")),
+        msgs.iter()
+            .any(|m| m.contains("navigator") && m.contains("keypath")),
         "expected navigator-in-keypath: {msgs:?}"
     );
     assert!(

@@ -1,66 +1,93 @@
-# .rama v2 — design notes
+# .rama v2 — design notes (reviewed)
 
-v1 (current parser) transliterates Clojure-Rama's implementation vocabulary into
-C-style clothes. Every wart below is compiler-internal vocabulary leaking into
-surface syntax. v2's rule: **if the compiler can know it, the human doesn't type it.**
-All lowering nits are the Rust program's job.
+Rule: **strip naming conventions and compiler noise; keep Specter as the
+user-facing path API.** Select/transform sigils stay. The Rust program owns
+lowering nits (`:>` bindings, `$$` prefixes, trailing `>` emit names, etc.).
 
-## Critique of v1
+## Spec review (resolved)
 
-| # | Wart | Root cause | v2 fix |
-|---|------|-----------|--------|
-| 1 | Sigil soup: `*var` `%fn` `$$pstate` `\|hash` `<anchor>` `:kw` `-->` `!<--` `>` | Clojure macroexpander needs sigils; we have a symbol table | No sigils. Declared names are just names. Keywords removed (string keys only). |
-| 2 | Stacked `get(*event, "field") > *field;` | No destructuring in dataflow | JS-style destructuring, incl. in `on` handler heads |
-| 3 | Trailing `>` (`ramaop foo>`, `ack-return>`, `unify>`) | Clojure-Rama emit-stream naming convention | Plain keywords: `on`, `ack`, `flow`. Emit-shape inferred. |
-| 4 | N parallel `!<--` transforms to one entity | No record assignment | `matches[id] = { ... }` lowers to one `multi-path` transform; `<-` merges |
-| 5 | Read/write arrow asymmetry (`-->` vs `!<--`) + comma path DSL | Specter paths as user-facing API | Subscript/dot lvalues: `x = matches[id].status`, `matches[id].status = x` |
-| 6 | `termval` / `term` / `nil->val` / `AFTER-ELEM` in user code | Navigator vocabulary is the API | `+=` (schema-derived zero default), `?? 0`, `list push item` |
-| 7 | `\|hash(*id);` bare statement | Partition hop modeled as an op | `at partition(id) { ... }` block — makes "reads must hop too" structural |
-| 8 | Validation pyramids / error-string defns | Deep `<<if` stack-overflows the Clojure compiler | `fail "msg" if cond` guard clauses; compiler emits flat error/ack shape |
-| 9 | `{"ok" true}` juxtaposed pairs | Clojure map literal | JS object literals: `{ ok: true, matchId }` with punning |
-| 10 | `ramaop` vs `ramafn` | CPS emit semantics in declaration keywords | One construct; compiler analyzes emit shape |
+| # | Proposal | Verdict |
+|---|----------|---------|
+| 1 | Kill sigil soup / naming conventions (`*var`, `%fn`, trailing `>` on ops) | **yes** |
+| 2 | Destructuring close to JS semantics (incl. handler heads) | **yes** |
+| 3 | Drop trailing `>` vocabulary (`ack-return>` → `ack`, one op keyword) | **yes** |
+| 4 | JS-style `matches[id] = {…}` instead of path writes | **no** — record assignment is `multi-path` over fixed-keys-schema; Specter stays |
+| 5 | Replace `-->` / `!<--` with JS subscript lvalues | **no** — Specter paths + navigators *are* the beauty; select/transform sigils stay |
+| 6 | Soften navigator vocab / sugar `+=` / `push` | **open** — need a complex module both ways; lean keep navigators bare |
+| 7 | `at partition(k) {…}` block vs bare `|hash k` | **open** — lean **bare statement** is better; compare on a real cross-partition module |
+| 8 | Cap deep `if` because Clojure `<<if` can SO | **no** — deep `if` **must** work in `.rama`; SO is a target bug, compiler emits a safe shape |
+| 9 | JS object literals `{ ok: true }` | **no** — Clojure map literals `{"ok" true}` are better |
+| 10 | Drop `ramaop` vs `ramafn` | **yes** — one construct; emit-shape inferred |
+
+## What stays beautiful (do not touch)
+
+- Specter paths as the user-facing API: `keypath`, `multi-path`, `termval`,
+  `term`, `nil->val`, `AFTER-ELEM`, `NONE>`, `selected?`, `MAP-VALS`, …
+- Select / transform sigils: `$$matches --> …` and `$$matches !<-- …`
+  (pstate sigil `$$` is still open — declaration-scoped names may drop it later;
+  path ops do not)
+- Comma-separated path steps (navigators as **siblings**, never inside `keypath`)
+- Clojure map literals: `{"ok" true "matchId" matchId}`
+
+## What the Rust program strips / owns
+
+| Surface noise (v1) | v2 |
+|--------------------|----|
+| `*match-id`, `%update` | `match-id` / `update` — locals are just names |
+| `ack-return>`, `send-emits>`, `unify>` | `ack`, `emit`, `unify` — emit-shape is inferred |
+| `ramaop` / `ramafn` | `op` (or `flow`) — one keyword |
+| Stacked `get(event, "f") > f` | Destructure: `on depot "type" { matchId, homeTeamId, … }` |
+| N single-field `!<--` to one fixed-keys entity | Prefer one `!<-- keypath(id), multi-path([…], […])` (already Specter) |
+| Deep `<<if` SO on Clojure | Emit flat / CPS-safe IR; **source may nest freely** |
+| Binding pipe `:>` in emitted Clojure | Inserted by emitter, not typed in `.rama` (or keep a single `>` bind if useful) |
 
 ## v2 sketch
 
 See `fixtures/match_v2.rama` (aspirational — parser does not accept it yet).
 
 ```rama
-on matchEvents "create-match" { matchId, homeTeamId, awayTeamId, seasonId, boGames, pool } {
-  fail "match-exists" if matches[matchId] exists
+op create-match(event) {
+  let { matchId, homeTeamId, awayTeamId, seasonId, boGames, pool } = event
 
-  matches[matchId] = {
-    homeTeamId, awayTeamId, seasonId,
-    status: "UNPLAYED", homeScore: 0, awayScore: 0,
-    boGames: long(boGames ?? 0),
+  $$matches --> keypath(matchId) > existing
+  if (nil?(existing)) {
+    $$matches !<-- keypath(matchId), multi-path(
+      ["homeTeamId" termval(homeTeamId)]
+      ["awayTeamId" termval(awayTeamId)]
+      ["seasonId" termval(seasonId)]
+      ["status" termval("UNPLAYED")]
+      ["homeScore" termval(0)]
+      ["awayScore" termval(0)]
+      ["boGames" termval(long(boGames))]
+    )
+    |hash homeTeamId
+    $$matches-by-team !<-- keypath(homeTeamId, matchId), termval(seasonId)
+    ack {"ok" true "matchId" matchId}
+  } else {
+    ack {"ok" false "error" "match-exists"}
   }
-
-  at partition(homeTeamId) { matchesByTeam[homeTeamId][matchId] = seasonId }
-
-  ack { ok: true, matchId }
 }
 ```
 
-## Operators
+Notes vs the rejected JS rewrite:
+- Paths stay paths. `multi-path` *is* the record assignment for fixed-keys-schema.
+- `|hash homeTeamId` left as a bare statement pending a side-by-side on a meatier module.
+- Nested `if` is legal; emitter must not blow the Clojure stack.
 
-| Surface | Lowers to |
-|---------|-----------|
-| `x = pstate[k]` (read) | `(local-select> (keypath k) $$pstate :> *x)` |
-| `pstate[k] = { ... }` | `(local-transform> [(keypath k) (multi-path [field (termval v)] ...)] $$pstate)` |
-| `pstate[k] <- { ... }` | same, but merge (only listed fields) |
-| `pstate[k].f += n` | `[(keypath k "f") (nil->val <schema-zero>) (term #(+ % n))]` |
-| `list push item` | `[... AFTER-ELEM (termval item)]` (never inside keypath) |
-| `x ?? d` | `(nil->val d)` in paths; `(or> x d)` in exprs |
-| `pstate[k] exists` | select + `(some? ...)` |
-| `k in set` / `not in` | `(contains? set k)` / negation |
-| `at partition(k) { ... }` | `(|hash k)` + body (reads and writes inside are post-hop) |
-| `fail "msg" if cond` | error-accumulator + flat `(<<if (some? *err) (ack-return> {"ok" false "error" *err}) (else>) ...)` |
-| `ack { ... }` | `(ack-return> {...})` |
-| `on depot "type" { fields } { ... }` | `<<sources` branch on `(= *type ...)` + destructured gets |
-| `depot d keyed by f` | `(declare-depot setup *d (hash-by f-extractor))` |
+## Open questions (need examples)
 
-## Checker upgrades implied
+1. **Navigators vs sugar** — keep `AFTER-ELEM` / `nil->val` bare, or allow
+   `actions, AFTER-ELEM, termval(…)` only (no `push` / `+=`)? Lean bare.
+2. **Partition hop** — bare `|hash k` vs `at partition(k) {…}`. Lean bare.
+3. **`$$` on pstates** — keep for “this is distributed state” readability, or
+   drop once `pstate` decls are in scope?
+4. **Bind operator** — keep `> name` after select/effects, or `let name = …`?
 
-- Lint: parallel single-field transforms to same `pstate[k]` → suggest record assign / `multi-path` (transitional, for v1 files)
-- Schema-aware `+=`: numeric fields get zero-defaults; non-numeric `+=` is a type error
-- `at partition(k)`: selects on pstates keyed by something other than `k` outside a matching `at` block → error ("reads must hop too")
-- Guard depth: `fail` chains keep IR flat; nested `if` beyond 2 levels is a compile error (Clojure target constraint, enforced at source)
+## Checker (revised)
+
+- Lint parallel single-field transforms against the same `keypath(id)` on a
+  fixed-keys pstate → suggest `multi-path` collapse (does not invent JS assign).
+- Navigator-inside-`keypath` remains a hard error (MatchModule scar).
+- Transform must terminate in `term` / `termval` / `NONE>` / `multi-path`.
+- Deep `if`: allowed; if target Clojure SO’s, fix emission, don’t reject source.
+- No JS-object / no subscript-lvalue lint — those are not the language.

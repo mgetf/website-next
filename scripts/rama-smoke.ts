@@ -9,6 +9,20 @@
  *   bun run scripts/rama-smoke.ts
  */
 import {
+  createEvent,
+  createEventsClient,
+  getEvent,
+  getEventParticipants,
+  getEventPlacements,
+  getEventSnapshot,
+  getEventStatus,
+  setEventParticipants,
+  setEventPlacements,
+  setEventSnapshot,
+  setEventStatus,
+  updateEvent,
+} from '../src/lib/server/rama/events';
+import {
   createMapPoolsClient,
   createPool,
   getArenaName,
@@ -313,6 +327,60 @@ async function main() {
   );
   console.log('pool', await getPool(mapPools, poolId));
   console.log('poolMaps', await getPoolMaps(mapPools, poolId));
+
+  const eventsClient = createEventsClient({ conductorUrl, supervisorBaseUrl });
+  const eventId = `evt-${Date.now()}`;
+  console.log(
+    'createEvent',
+    await createEvent(eventsClient, {
+      eventId,
+      name: 'Smoke Cup',
+      eventType: 'CUP',
+      prizepool: '50.00',
+    }),
+  );
+  console.log(
+    'updateEvent',
+    await updateEvent(eventsClient, {
+      eventId,
+      name: 'Smoke Cup Finals',
+      startedAt: '2026-08-01T00:00:00Z',
+      prizepool: '75.00',
+    }),
+  );
+  console.log(
+    'setEventStatus',
+    await setEventStatus(eventsClient, { eventId, status: 'REGISTRATION' }),
+  );
+  console.log(
+    'setEventParticipants',
+    await setEventParticipants(eventsClient, {
+      eventId,
+      participants: [
+        { steamId, displayName: 'Smoke', seed: 1 },
+        { steamId: mateId, displayName: 'Mate', seed: 2 },
+      ],
+    }),
+  );
+  console.log(
+    'setEventPlacements',
+    await setEventPlacements(eventsClient, {
+      eventId,
+      placements: [{ steamId, displayName: 'Smoke', placement: 1 }],
+    }),
+  );
+  console.log(
+    'setEventSnapshot',
+    await setEventSnapshot(eventsClient, {
+      eventId,
+      snapshot: { stages: [{ name: 'Main', bracketFormat: 'SINGLE_ELIM' }] },
+    }),
+  );
+  console.log('event', await getEvent(eventsClient, eventId));
+  console.log('eventStatus', await getEventStatus(eventsClient, eventId));
+  console.log('eventParticipants', await getEventParticipants(eventsClient, eventId));
+  console.log('eventPlacements', await getEventPlacements(eventsClient, eventId));
+  console.log('eventSnapshot', await getEventSnapshot(eventsClient, eventId));
 }
 
 main().catch((err) => {

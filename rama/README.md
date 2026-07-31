@@ -24,13 +24,12 @@ Encoding notes from Rama:
 
 ```
 rama/                          Clojure-only module project (Leiningen)
-  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications / Seasons / MapPools
+  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications / Seasons / MapPools / Events
   test/mge/tf/rama/*_test.clj
   project.clj
 
 src/lib/server/rama/           TypeScript REST client (no business HTTP server)
-  client.ts                    generic append / select / selectOne / invokeQuery
-  match.ts | users.ts | teams.ts | payments.ts | notifications.ts | seasons.ts | mapPools.ts
+  client.ts + domain helpers (match, users, teams, payments, notifications, seasons, mapPools, events)
 
 scripts/rama-smoke.ts          end-to-end against a live cluster
 ```
@@ -46,6 +45,7 @@ scripts/rama-smoke.ts          end-to-end against a live cluster
 | `NotificationsModule` | `*notification-depot` | notify, mark-read, mark-all-read, unread count                |
 | `SeasonsModule`       | `*season-depot`       | create, flags, schedule, info; unique (region, format, num)   |
 | `MapPoolsModule`      | `*map-pool-depot`     | arenas, pool CRUD, ordered arena list for bans                |
+| `EventsModule`        | `*event-depot`        | event metadata, participants, placements, opaque bracket JSON |
 
 Agent skill (knots + how to write Rama here): `.cursor/skills/rama-clojure/`
 
@@ -170,13 +170,28 @@ Topology ack key: `seasons`.
 **PStates:** `$$arenas`, `$$pools`, `$$pool-maps`  
 Topology ack key: `map-pools`.
 
+## EventsModule
+
+**Depot** `*event-depot` — `hash-by` `eventId`
+
+| `type`             | Fields                                                                  |
+| ------------------ | ----------------------------------------------------------------------- |
+| `create-event`     | eventId, name, eventType (`CUP`/`CHAMPIONSHIP`/`FIGHT_NIGHT`), …        |
+| `update-event`     | eventId, name, description, avatar, dates, prizepool, bracketLink, card |
+| `set-status`       | eventId, status (`UPCOMING`/`REGISTRATION`/`IN_PROGRESS`/`COMPLETED`)   |
+| `set-participants` | eventId, participants[] (wholesale)                                     |
+| `set-placements`   | eventId, placements[] (wholesale)                                       |
+| `set-snapshot`     | eventId, snapshot (opaque stages/matches JSON)                          |
+
+**PStates:** `$$events`, `$$event-participants`, `$$event-placements`, `$$event-snapshot`  
+Topology ack key: `events`.
+
 ## Ripping Postgres out (next steps)
 
-1. ~~Expand modules: users, teams, payments, notifications, seasons, map pools~~ (done in this spike).
-2. Add events/brackets modules.
-3. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services.
-4. Keep Steam/Discord OAuth + R2 blobs at the edge; store only indexes in PStates.
-5. Replace `pg_notify` SSE with notification PState polling or a tiny bridge once Rama exposes reactivity over REST.
-6. Delete Prisma when every read/write path has a PState/depot equivalent.
+1. ~~Expand core domain modules~~ (matches → users → teams → payments → notifications → seasons → map pools → events).
+2. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services (vertical slices).
+3. Keep Steam/Discord OAuth + R2 blobs at the edge; store only indexes in PStates.
+4. Replace `pg_notify` SSE with notification PState polling or a tiny bridge once Rama exposes reactivity over REST.
+5. Delete Prisma when every read/write path has a PState/depot equivalent.
 
 This spike proves the hard interactive paths without a second HTTP stack.

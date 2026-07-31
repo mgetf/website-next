@@ -4,12 +4,13 @@ Hard failures we hit while spiking `rama/src/mge/tf/rama/match_module.clj`. Read
 
 ## Compile-time
 
-| Symptom                                          | Cause                                                                | Fix                                                   |
-| ------------------------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------- |
-| `Unable to resolve symbol: let* in this context` | Used Clojure `and`/`or`/`if-let`/`when-let` in dataflow              | Use `and>` / `or>` / `<<if`, or move logic to `defn`  |
-| `StackOverflowError` in `clojure.algo.monads`    | Deep nested `<<if` / `<<switch` / `<<cond`                           | ≤2 levels of dataflow branching; helpers for the rest |
-| `EOF while reading`                              | Unbalanced parens after editing `<<if` trees                         | Count closers carefully; prefer flatter code          |
-| Minimal module works, big one doesn't            | Almost always `and` or nesting — bisect by commenting event handlers | Add one `<<if (= *type …)` handler at a time          |
+| Symptom                                            | Cause                                                                | Fix                                                   |
+| -------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------- |
+| `Unable to resolve symbol: let* in this context`   | Used Clojure `and`/`or`/`if-let`/`when-let` in dataflow              | Use `and>` / `or>` / `<<if`, or move logic to `defn`  |
+| Same `let*` error from `(or *x "")` in a transform | Clojure `or`/`and` expand to `let*` even outside `<<if` predicates   | `(defn str-or-empty [v] …)` then call it in dataflow  |
+| `StackOverflowError` in `clojure.algo.monads`      | Deep nested `<<if` / `<<switch` / `<<cond`                           | ≤2 levels of dataflow branching; helpers for the rest |
+| `EOF while reading`                                | Unbalanced parens after editing `<<if` trees                         | Count closers carefully; prefer flatter code          |
+| Minimal module works, big one doesn't              | Almost always `and` or nesting — bisect by commenting event handlers | Add one `<<if (= *type …)` handler at a time          |
 
 ## Runtime / worker death
 

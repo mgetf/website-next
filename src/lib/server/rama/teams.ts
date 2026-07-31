@@ -197,6 +197,7 @@ export async function getRoster(
   teamId: string,
 ): Promise<Record<string, RosterMember>> {
   try {
+    // Prefer range navigator — bare selectOne([teamId]) is flaky for nested maps over REST.
     return (await client.selectSubindexedMap('$$roster', teamId)) as Record<string, RosterMember>;
   } catch {
     return {};

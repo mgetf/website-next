@@ -302,6 +302,7 @@ export async function captainRemovePlayer(page: Page, playerName: string): Promi
       .last()
       .click(),
   ]);
+  await expect(page.getByText(playerName)).toHaveCount(0, { timeout: 10_000 });
 }
 
 /** Read invite link from team edit → Invite Players tab. */

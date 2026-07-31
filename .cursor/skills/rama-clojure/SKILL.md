@@ -111,15 +111,17 @@ Keywords work for record/keyword maps; we use `defn` + string keys for REST.
 `selectOne($$pstate, [partitionKey])` on a `{:subindex? true}` inner map **hangs / times out** over REST. The data is there — the navigator is wrong.
 
 ```typescript
-// ❌ hangs on $$roster / $$notifications / $$match-comms / …
-await client.selectOne('$$roster', [teamId]);
+// ❌ hangs on $$notifications / $$match-comms / $$player-season / …
+await client.selectOne('$$notifications', [steamId]);
 
 // ✅ page the subindex
-await client.selectSubindexedMap('$$roster', teamId);
-// → selectOne(['teamId', ['sortedMapRangeFrom', '', { 'max-amt': 500 }]])
+await client.selectSubindexedMap('$$notifications', steamId);
+// → selectOne(['steamId', ['sortedMapRangeFrom', '', { 'max-amt': 500 }]])
 ```
 
 Leaf keys still work: `selectOne('$$roster', [teamId, steamId])`.
+
+Also: inside Clojure dataflow, `local-select>` of a whole subindexed map does **not** behave like a Clojure map for `(get …)` / `seq` / `count`. Prefer non-subindexed maps when the inner map is small (e.g. team roster ≤3), or select leaf keys / maintain an explicit counter.
 
 ### Depot `hash-by` must match every event that shares a PState row
 

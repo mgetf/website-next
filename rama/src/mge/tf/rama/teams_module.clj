@@ -90,10 +90,10 @@
 (defn decline-error [pending-row]
   (when (nil? pending-row) "pending-not-found"))
 
-(defn leave-error [team roster steam-id]
+(defn leave-error [team member]
   (cond
     (nil? team) "team-not-found"
-    (nil? (get roster steam-id)) "not-on-roster"
+    (nil? member) "not-on-roster"
     :else nil))
 
 (defn member-perm-error [level]
@@ -124,6 +124,9 @@
                "createdBy" String
                "joinPassword" String})})
 
+    ;; Roster/pending stay non-subindexed: max 3 players, and dataflow
+    ;; `local-select>` of a whole subindexed map does not seq like a Clojure map
+    ;; (breaks active-count / leave-error `(get roster steamId)`).
     (declare-pstate
      s $$roster
      {String ;; teamId
@@ -131,8 +134,7 @@
                   (fixed-keys-schema
                    {"active" Boolean
                     "permissionLevel" String
-                    "paymentStatus" String})
-                  {:subindex? true})})
+                    "paymentStatus" String}))})
 
     (declare-pstate
      s $$player-season
@@ -146,15 +148,13 @@
      {String ;; teamId
       (map-schema String ;; steamId
                   (fixed-keys-schema
-                   {"status" Long})
-                  {:subindex? true})})
+                   {"status" Long}))})
 
     (declare-pstate
      s $$pending-by-player
      {String ;; steamId
       (map-schema String ;; teamId
-                  Long ;; status
-                  {:subindex? true})})
+                  Long)})
 
     (declare-pstate
      s $$pending-awaiting
@@ -385,8 +385,8 @@
       (<<if (= *type "leave-team")
         (get *event "steamId" :> *steam-id)
         (local-select> (keypath *team-id) $$teams :> *team)
-        (local-select> (keypath *team-id) $$roster :> *roster)
-        (leave-error *team *roster *steam-id :> *err)
+        (local-select> (keypath *team-id *steam-id) $$roster :> *member)
+        (leave-error *team *member :> *err)
         (<<if (some? *err)
           (ack-return> {"ok" false "error" *err})
          (else>)

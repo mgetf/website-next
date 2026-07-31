@@ -23,7 +23,8 @@ async function syntheticPlayoffForSeason(seasonId: number) {
   return {
     id: seasonId,
     seasonId,
-    numRounds: 3,
+    // Single upper round → one matchup in admin create preview (2^(rounds-round)=1).
+    numRounds: 1,
     doubleElim: 0,
     isTournament: false,
     season: {

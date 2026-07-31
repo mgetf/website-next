@@ -232,9 +232,9 @@ export async function adminCreatePlayoffMatch(
   await expect(page.getByText('Match Preview')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/Select teams manually/i)).toBeVisible();
 
-  // Playoff form uses name=homeTeamIds / awayTeamIds (may share ids with FormSelect)
-  await page.locator('select[name="homeTeamIds"]').selectOption(String(opts.homeTeamId));
-  await page.locator('select[name="awayTeamIds"]').selectOption(String(opts.awayTeamId));
+  // Playoff form uses name=homeTeamIds / awayTeamIds (one pair per previewed matchup)
+  await page.locator('select[name="homeTeamIds"]').first().selectOption(String(opts.homeTeamId));
+  await page.locator('select[name="awayTeamIds"]').first().selectOption(String(opts.awayTeamId));
 
   await Promise.all([
     page.waitForURL(/\/admin\/matches\?created=/),

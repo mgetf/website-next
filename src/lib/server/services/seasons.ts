@@ -6,12 +6,69 @@
 
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '$prisma/client.js';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import { createSeasonsClient, getSeason, getSeasonIds } from '$lib/server/rama/seasons';
+import { createCatalogClient, getRegion, getFormat } from '$lib/server/rama/catalog';
+
+async function hydrateSeasonRama(seasonId: string) {
+  const opts = ramaClientOpts();
+  const season = await getSeason(createSeasonsClient(opts), seasonId);
+  if (!season) return null;
+  const catalog = createCatalogClient(opts);
+  const region = await getRegion(catalog, season.regionId);
+  const format = await getFormat(catalog, season.formatId);
+  const id = Number(seasonId);
+  const regionId = Number(season.regionId);
+  const formatId = Number(season.formatId);
+  return {
+    id,
+    seasonNum: Number(season.seasonNum),
+    numWeeks: Number(season.numWeeks),
+    regionId,
+    formatId,
+    signupsOpen: Boolean(season.signupsOpen),
+    rosterLocked: Boolean(season.rosterLocked),
+    paymentRequired: Boolean(season.paymentRequired),
+    matchWeek: Number(season.matchWeek ?? 0),
+    matchDeadline: season.matchDeadline ? new Date(String(season.matchDeadline)) : null,
+    info: season.info ?? '',
+    region: {
+      id: regionId,
+      name: region?.name ?? String(regionId),
+      hidden: region?.hidden ? 1 : 0,
+      currencySymbol: region?.currencySymbol ?? '',
+      currencyCode: region?.currencyCode ?? '',
+    },
+    format: {
+      id: formatId,
+      name: format?.name ?? 'Unknown',
+      code: format?.code ?? '',
+    },
+    _count: { teams: 0, matches: 0 },
+  };
+}
 
 /**
  * Get all seasons with their region and team/match counts
  * Ordered by season number descending (most recent first)
  */
 export async function getSeasons() {
+  if (isRamaBackend()) {
+    const ids = await getSeasonIds(createSeasonsClient(ramaClientOpts()));
+    const rows = [];
+    for (const id of ids) {
+      const row = await hydrateSeasonRama(id);
+      if (row) rows.push(row);
+    }
+    rows.sort((a, b) => b.seasonNum - a.seasonNum);
+    // Spike shape mirrors Prisma include used by admin create/league pages
+    return rows as unknown as Awaited<ReturnType<typeof getSeasonsFromPrisma>>;
+  }
+
+  return getSeasonsFromPrisma();
+}
+
+async function getSeasonsFromPrisma() {
   return await prisma.season.findMany({
     include: {
       region: true,
@@ -33,6 +90,16 @@ export async function getSeasons() {
  * Get a single season by ID
  */
 export async function getSeasonById(id: number) {
+  if (isRamaBackend()) {
+    return (await hydrateSeasonRama(String(id))) as unknown as Awaited<
+      ReturnType<typeof getSeasonByIdFromPrisma>
+    >;
+  }
+
+  return getSeasonByIdFromPrisma(id);
+}
+
+async function getSeasonByIdFromPrisma(id: number) {
   return await prisma.season.findUnique({
     where: { id },
     include: {

@@ -137,3 +137,36 @@ export async function getPoolMaps(client: RamaClient, poolId: string): Promise<s
     return [];
   }
 }
+
+export async function getArena(
+  client: RamaClient,
+  arenaId: string,
+): Promise<{ name: string; avatar: string; playoffMap: number } | null> {
+  try {
+    const v = await client.selectOne('$$arenas', [arenaId]);
+    if (!v || typeof v !== 'object') return null;
+    return v as { name: string; avatar: string; playoffMap: number };
+  } catch {
+    return null;
+  }
+}
+
+export async function getArenaIds(client: RamaClient): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$arena-ids', ['all']);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}
+
+export async function getPoolIds(client: RamaClient): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$pool-ids', ['all']);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}

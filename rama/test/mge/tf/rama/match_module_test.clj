@@ -21,6 +21,7 @@
           team-stats (foreign-pstate ipc MODULE-NAME "$$team-stats")
           by-team (foreign-pstate ipc MODULE-NAME "$$matches-by-team")
           pool ["process" "discard" "viggle" "asa" "product"]
+          by-week (foreign-pstate ipc MODULE-NAME "$$matches-by-week")
           create-ack (append-event!
                       depot
                       {"type" "create-match"
@@ -29,17 +30,23 @@
                        "awayTeamId" "away"
                        "seasonId" "s1"
                        "boGames" 2
+                       "weekNo" 1
+                       "seasonNo" 5
+                       "arenaId" "process"
                        "pool" pool})]
 
       (testing "create-match"
         (is (= true (get create-ack "ok")))
         (is (= "UNPLAYED" (foreign-select-one (keypath "m1" "status") matches)))
         (is (= "home" (foreign-select-one (keypath "m1" "homeTeamId") matches)))
+        (is (= 1 (foreign-select-one (keypath "m1" "weekNo") matches)))
+        (is (= "process" (foreign-select-one (keypath "m1" "arenaId") matches)))
         (is (= 0 (foreign-select-one (keypath "m1" "turn") map-bans)))
         (is (= (set pool)
                (foreign-select-one (keypath "m1" "remaining") map-bans)))
         (is (= "s1" (foreign-select-one (keypath "home" "m1") by-team)))
         (is (= "s1" (foreign-select-one (keypath "away" "m1") by-team)))
+        (is (= true (foreign-select-one (keypath "s1:1" "m1") by-week)))
         (is (= "match-exists"
                (get (append-event!
                      depot

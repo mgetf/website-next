@@ -158,6 +158,13 @@
       (map-schema String ;; "teamId:steamId"
                   Boolean)})
 
+    (declare-pstate
+     s $$team-ids-by-season
+     {String ;; seasonId
+      (map-schema String ;; teamId
+                  String ;; status
+                  )})
+
     (<<sources s
       (source> *team-depot :> *event)
       (get *event "type" :> *type)
@@ -206,6 +213,10 @@
              [(keypath "permissionLevel") (termval "STATUS")]
              [(keypath "paymentStatus") (termval "UNPAID")])]
            $$roster)
+          (|hash *season-id)
+          (local-transform>
+           [(keypath *season-id *team-id) (termval "UNREADY")]
+           $$team-ids-by-season)
           (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
 
       ;; ── join-team ───────────────────────────────────────────────────
@@ -394,9 +405,14 @@
         (<<if (some? *err)
           (ack-return> {"ok" false "error" *err})
          (else>)
+          (get *team "seasonId" :> *season-id)
           (local-transform>
            [(keypath *team-id "status") (termval *status)]
            $$teams)
+          (|hash *season-id)
+          (local-transform>
+           [(keypath *season-id *team-id) (termval *status)]
+           $$team-ids-by-season)
           (ack-return> {"ok" true "teamId" *team-id "status" *status})))
 
       ;; ── set-member-permission ───────────────────────────────────────

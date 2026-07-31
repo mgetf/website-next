@@ -12,10 +12,154 @@ import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { createNotificationForTeamOwners, createNotificationForAdmins } from './notifications';
 
+async function getMatchDetailsRama(matchId: number) {
+  const { ramaClientOpts } = await import('$lib/server/rama/config');
+  const { createMatchClient, getMatch } = await import('$lib/server/rama/match');
+  const { getTeamById } = await import('$lib/server/services/teams');
+  const { getSeasonById } = await import('$lib/server/services/seasons');
+  const { createMapPoolsClient, getArena } = await import('$lib/server/rama/mapPools');
+
+  const row = await getMatch(createMatchClient(ramaClientOpts()), String(matchId));
+  if (!row) notFound('Match not found');
+
+  const homeTeamId = Number(row.homeTeamId);
+  const awayTeamId = Number(row.awayTeamId);
+  const seasonId = Number(row.seasonId);
+  const [homeTeam, awayTeam, season] = await Promise.all([
+    getTeamById(homeTeamId),
+    getTeamById(awayTeamId),
+    getSeasonById(seasonId),
+  ]);
+  if (!homeTeam || !awayTeam) notFound('Match teams not found');
+
+  const boGames = Number(row.boGames ?? 1) || 1;
+  const arenaIdRaw = row.arenaId ? String(row.arenaId) : '';
+  const arenaId = arenaIdRaw ? Number(arenaIdRaw) : null;
+  let arena: {
+    id: number;
+    name: string;
+    avatar: string | null;
+    playoffMap: number;
+  } | null = null;
+  if (arenaId != null && Number.isFinite(arenaId)) {
+    const arenaRow = await getArena(createMapPoolsClient(ramaClientOpts()), String(arenaId));
+    if (arenaRow) {
+      arena = {
+        id: arenaId,
+        name: arenaRow.name,
+        avatar: arenaRow.avatar || null,
+        playoffMap: Number(arenaRow.playoffMap ?? 0),
+      };
+    }
+  }
+
+  const status = String(row.status ?? 'UNPLAYED') as MatchStatus;
+  const played = status === MatchStatus.PLAYED || status === MatchStatus.DISPUTE;
+  const homeScore = played ? Number(row.homeScore ?? 0) : null;
+  const awayScore = played ? Number(row.awayScore ?? 0) : null;
+
+  const games = Array.from({ length: boGames }, (_, i) => ({
+    id: matchId * 100 + i + 1,
+    matchId,
+    gameNum: i + 1,
+    arenaId,
+    homeTeamScore: i === 0 ? homeScore : null,
+    awayTeamScore: i === 0 ? awayScore : null,
+    arena,
+  }));
+
+  const matchDateTime =
+    row.matchDateTime && String(row.matchDateTime).length > 0
+      ? new Date(String(row.matchDateTime))
+      : null;
+
+  const homeActive = homeTeam.players.filter((p) => p.active === 1);
+  const awayActive = awayTeam.players.filter((p) => p.active === 1);
+
+  if (!season) notFound('Match season not found');
+
+  const winnerIdRaw = row.winnerId ? Number(row.winnerId) : null;
+  const winnerId =
+    winnerIdRaw != null && Number.isFinite(winnerIdRaw) && winnerIdRaw > 0 ? winnerIdRaw : null;
+  const winnerScore =
+    played && winnerId != null ? (winnerId === homeTeamId ? homeScore : awayScore) : null;
+  const loserScore =
+    played && winnerId != null ? (winnerId === homeTeamId ? awayScore : homeScore) : null;
+
+  const match = {
+    id: matchId,
+    homeTeamId,
+    awayTeamId,
+    seasonId,
+    seasonNo: Number(row.seasonNo ?? season.seasonNum ?? 0),
+    weekNo: Number(row.weekNo ?? 0) || null,
+    playoffId: null as number | null,
+    playoffRound: null as number | null,
+    boSeries: boGames,
+    boGames: null as number | null,
+    status,
+    matchDateTime,
+    matchTimezone: row.matchTimezone ? String(row.matchTimezone) : null,
+    homeTeamScore: homeScore,
+    awayTeamScore: awayScore,
+    winnerScore,
+    loserScore,
+    submittedBy: null as string | null,
+    submittedAt: null as Date | null,
+    winnerId,
+    homeTeam: { ...homeTeam, players: homeActive },
+    awayTeam: { ...awayTeam, players: awayActive },
+    season: {
+      ...season,
+      region: season.region ?? {
+        id: season.regionId,
+        name: String(season.regionId),
+        hidden: 0,
+        currencySymbol: '',
+        currencyCode: '',
+      },
+    },
+    playoff: null,
+    games,
+    matchComms: [] as never[],
+    matchMapBans: [] as never[],
+    demos: [] as never[],
+    submitter: null,
+  };
+
+  const is1v1 = homeTeam.formatId === FORMAT_1V1;
+  if (is1v1) {
+    return {
+      ...match,
+      is1v1: true as const,
+      homePlayer: homeActive[0]?.player || null,
+      awayPlayer: awayActive[0]?.player || null,
+    };
+  }
+
+  return {
+    ...match,
+    is1v1: false as const,
+    homePlayer: null,
+    awayPlayer: null,
+  };
+}
+
 /**
  * Get complete match details with all relations
  */
 export async function getMatchDetails(matchId: number) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    return (await getMatchDetailsRama(matchId)) as unknown as Awaited<
+      ReturnType<typeof getMatchDetailsFromPrisma>
+    >;
+  }
+
+  return getMatchDetailsFromPrisma(matchId);
+}
+
+async function getMatchDetailsFromPrisma(matchId: number) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
@@ -130,6 +274,20 @@ export async function getMatchDetails(matchId: number) {
 export async function getMatchWeekLabel(match: Match): Promise<string | null> {
   if (match.weekNo === null || match.weekNo === undefined) {
     return null;
+  }
+
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatchIdsForTeam, getMatchIdsForWeek } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const weekIds = await getMatchIdsForWeek(client, String(match.seasonId), match.weekNo);
+    const teamIds = new Set(await getMatchIdsForTeam(client, String(match.homeTeamId)));
+    const homeTeamMatchesForThisWeek = weekIds
+      .filter((id) => teamIds.has(id))
+      .map((id) => ({ id: Number(id) }))
+      .sort((a, b) => a.id - b.id);
+    return calculateWeekLabel(match, homeTeamMatchesForThisWeek);
   }
 
   // Get all matches for the HOME team in this week

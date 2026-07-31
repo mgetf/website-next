@@ -44,6 +44,7 @@ import {
 import {
   createMatchClient,
   getMatch,
+  getMatchIdsForWeek,
   getMatchStatus as ramaGetMatchStatus,
   getTeamWins as ramaGetTeamWins,
 } from '../../../src/lib/server/rama/match';
@@ -346,13 +347,29 @@ export async function getMatchStatus(matchId: number): Promise<string> {
   return (await ramaGetMatchStatus(client, String(matchId))) ?? 'UNKNOWN';
 }
 
-export async function getLatestMatchId(_opts?: {
+export async function getLatestMatchId(opts?: {
   homeTeamId?: number;
   awayTeamId?: number;
   weekNo?: number;
   playoff?: boolean;
+  seasonId?: number;
 }): Promise<number> {
-  throw new Error('getLatestMatchId: use admin create flow return value under Rama cutover');
+  if (opts?.playoff) {
+    throw new Error('getLatestMatchId(playoff): use admin create flow return value under Rama');
+  }
+  const weekNo = opts?.weekNo ?? 1;
+  const seasonId = opts?.seasonId;
+  if (seasonId == null) {
+    throw new Error('getLatestMatchId: seasonId required under Rama cutover');
+  }
+  const client = createMatchClient(conductor());
+  const ids = await getMatchIdsForWeek(client, String(seasonId), weekNo);
+  const numeric = ids.map(Number).filter((n) => Number.isFinite(n));
+  if (numeric.length === 0) {
+    throw new Error(`getLatestMatchId: no matches for season ${seasonId} week ${weekNo}`);
+  }
+  numeric.sort((a, b) => b - a);
+  return numeric[0]!;
 }
 
 export async function getTeamByName(name: string): Promise<{ id: number; status: string }> {

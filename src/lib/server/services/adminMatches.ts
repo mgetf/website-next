@@ -40,6 +40,40 @@ export function sortTeamsByStandings(teams: Team[]): Team[] {
   });
 }
 
+async function countPriorMatchups(
+  seasonId: number,
+  teamAId: number,
+  teamBId: number,
+): Promise<number> {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, getMatchIdsForTeam } =
+      await import('$lib/server/rama/match');
+    const client = createMatchClient(ramaClientOpts());
+    const aIds = await getMatchIdsForTeam(client, String(teamAId));
+    const bIds = new Set(await getMatchIdsForTeam(client, String(teamBId)));
+    let count = 0;
+    for (const matchId of aIds) {
+      if (!bIds.has(matchId)) continue;
+      const match = await getMatch(client, matchId);
+      if (match && String(match.seasonId) === String(seasonId)) count++;
+    }
+    return count;
+  }
+
+  const existingMatches = await prisma.match.findMany({
+    where: {
+      seasonId,
+      OR: [
+        { homeTeamId: teamAId, awayTeamId: teamBId },
+        { homeTeamId: teamBId, awayTeamId: teamAId },
+      ],
+    },
+    select: { id: true },
+  });
+  return existingMatches.length;
+}
+
 /**
  * Pair teams for matches, avoiding repeat matchups
  * Returns array of teams paired in order [team1, team2, team3, team4, ...]
@@ -77,24 +111,9 @@ export async function pairTeamsForMatches(teams: Team[], seasonId: number): Prom
         continue;
       }
 
-      // Check existing matches between these teams
-      const existingMatches = await prisma.match.findMany({
-        where: {
-          seasonId,
-          OR: [
-            {
-              homeTeamId: currentTeam.id,
-              awayTeamId: potentialOpponent.id,
-            },
-            {
-              homeTeamId: potentialOpponent.id,
-              awayTeamId: currentTeam.id,
-            },
-          ],
-        },
-      });
+      const prior = await countPriorMatchups(seasonId, currentTeam.id, potentialOpponent.id);
 
-      if (existingMatches.length <= playedAll) {
+      if (prior <= playedAll) {
         finalTeams.push(currentTeam);
         finalTeams.push(potentialOpponent);
         foundMatch = true;
@@ -125,6 +144,160 @@ interface CreateMatchSetParams {
   manualPairings?: { homeTeamId: number; awayTeamId: number }[];
 }
 
+async function createMatchSetRama(
+  regionId: number,
+  divisionId: number,
+  params: CreateMatchSetParams,
+) {
+  const {
+    seasonId,
+    seasonNo,
+    weekNo,
+    boSeries,
+    arenaId,
+    matchDateTime,
+    matchTimezone,
+    mapBanPoolId,
+    isPlayoff,
+    manualPairings,
+  } = params;
+
+  if (isPlayoff) {
+    badRequest('Playoff matches require manual team selection. Use createPlayoffMatch instead.');
+  }
+
+  const teams = (await getEligibleTeams(regionId, divisionId, seasonId)) as Team[];
+  if (teams.length < 2) {
+    badRequest('Not enough eligible teams for match creation');
+  }
+
+  const season = await getSeasonByIdForMatch(seasonId);
+  const seasonFormatId = season?.formatId;
+  const eligibleTeamIds = new Set(teams.map((t) => t.id));
+
+  let matchPairs: { homeTeam: Team; awayTeam: Team }[];
+  if (manualPairings && manualPairings.length > 0) {
+    for (const { homeTeamId, awayTeamId } of manualPairings) {
+      if (!eligibleTeamIds.has(homeTeamId)) {
+        badRequest(`Team ${homeTeamId} is not eligible for this match set`);
+      }
+      if (!eligibleTeamIds.has(awayTeamId)) {
+        badRequest(`Team ${awayTeamId} is not eligible for this match set`);
+      }
+      if (homeTeamId === awayTeamId) {
+        badRequest(`A team cannot play against itself (team ${homeTeamId})`);
+      }
+    }
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+    matchPairs = manualPairings.map(({ homeTeamId, awayTeamId }) => ({
+      homeTeam: teamsById.get(homeTeamId)!,
+      awayTeam: teamsById.get(awayTeamId)!,
+    }));
+  } else {
+    const pairedTeams = await pairTeamsForMatches(teams, seasonId);
+    if (pairedTeams.length === 0) {
+      badRequest('No valid team pairings found');
+    }
+    matchPairs = [];
+    for (let i = 0; i < pairedTeams.length - 1; i += 2) {
+      matchPairs.push({ homeTeam: pairedTeams[i], awayTeam: pairedTeams[i + 1] });
+    }
+  }
+
+  const pairedTeamIds = new Set(matchPairs.flatMap((p) => [p.homeTeam.id, p.awayTeam.id]));
+  const byeTeams = teams.filter((t) => !pairedTeamIds.has(t.id));
+
+  const { ramaClientOpts } = await import('$lib/server/rama/config');
+  const { createMatchClient, createMatch } = await import('$lib/server/rama/match');
+  const { createMapPoolsClient, getPoolMaps } = await import('$lib/server/rama/mapPools');
+  const matchClient = createMatchClient(ramaClientOpts());
+
+  let pool: string[] = [];
+  if (mapBanPoolId) {
+    pool = await getPoolMaps(createMapPoolsClient(ramaClientOpts()), String(mapBanPoolId));
+  }
+
+  const dt =
+    matchDateTime && matchDateTime.length > 0
+      ? localDatetimeToUtc(matchDateTime, matchTimezone || 'UTC').toISOString()
+      : '';
+
+  const matches: Array<{
+    id: number;
+    homeTeamId: number;
+    awayTeamId: number;
+    seasonId: number;
+    seasonNo: number;
+    weekNo: number | null;
+    boSeries: number;
+    status: MatchStatus;
+  }> = [];
+  const baseMatchId = (Date.now() % 1_000_000_000) + Math.floor(Math.random() * 1_000);
+  for (const { homeTeam, awayTeam } of matchPairs) {
+    if (homeTeam.formatId !== seasonFormatId || awayTeam.formatId !== seasonFormatId) {
+      badRequest(
+        `Format mismatch: teams must match the season's format. ` +
+          `Season formatId=${seasonFormatId}, home formatId=${homeTeam.formatId}, away formatId=${awayTeam.formatId}`,
+      );
+    }
+
+    const matchId: number = baseMatchId + matches.length;
+    const ack = await createMatch(matchClient, {
+      type: 'create-match',
+      matchId: String(matchId),
+      homeTeamId: String(homeTeam.id),
+      awayTeamId: String(awayTeam.id),
+      seasonId: String(seasonId),
+      boGames: boSeries,
+      pool,
+      weekNo: weekNo ?? 0,
+      seasonNo,
+      arenaId: arenaId != null ? String(arenaId) : '',
+      matchDateTime: dt,
+      matchTimezone: matchTimezone || '',
+    });
+    if (!ack.ok) {
+      badRequest(ack.error || 'Failed to create match in Rama');
+    }
+
+    await createNotificationForTeamOwners(
+      [homeTeam.id, awayTeam.id],
+      'MATCH_CREATED',
+      `/matches/${matchId}`,
+      `New match scheduled for Week ${weekNo}`,
+    );
+
+    matches.push({
+      id: matchId,
+      homeTeamId: homeTeam.id,
+      awayTeamId: awayTeam.id,
+      seasonId,
+      seasonNo,
+      weekNo: weekNo ?? null,
+      boSeries,
+      status: MatchStatus.UNPLAYED,
+    });
+  }
+
+  for (const byeTeam of byeTeams) {
+    if (weekNo !== undefined) {
+      await createNotificationForTeamOwners(
+        [byeTeam.id],
+        'BYE_WEEK',
+        `/teams/${byeTeam.id}`,
+        `Your team has a bye week for Week ${weekNo}. No match was scheduled this week.`,
+      );
+    }
+  }
+
+  return { matches, byeTeams };
+}
+
+async function getSeasonByIdForMatch(seasonId: number) {
+  const { getSeasonById } = await import('$lib/server/services/seasons');
+  return getSeasonById(seasonId);
+}
+
 /**
  * Create a set of regular season matches
  */
@@ -133,6 +306,11 @@ export async function createMatchSet(
   divisionId: number,
   params: CreateMatchSetParams,
 ) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    return createMatchSetRama(regionId, divisionId, params);
+  }
+
   const {
     seasonId,
     seasonNo,
@@ -439,6 +617,31 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
  * Filters by region, division, season, and READY status.
  */
 export async function getEligibleTeams(regionId: number, divisionId: number, seasonId: number) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const season = await getSeasonByIdForMatch(seasonId);
+    const paymentRequired = season?.paymentRequired ?? false;
+    const formatId = season?.formatId;
+    const { createTeamsClient, getTeamIdsBySeason } = await import('$lib/server/rama/teams');
+    const { getTeamById } = await import('$lib/server/services/teams');
+    const idsByStatus = await getTeamIdsBySeason(
+      createTeamsClient(ramaClientOpts()),
+      String(seasonId),
+    );
+    const rows = [];
+    for (const [teamId, status] of Object.entries(idsByStatus)) {
+      if (status !== 'READY') continue;
+      const team = await getTeamById(Number(teamId));
+      if (!team) continue;
+      if (team.regionId !== regionId || team.divisionId !== divisionId) continue;
+      if (formatId != null && team.formatId !== formatId) continue;
+      if (paymentRequired && ![1, 2].includes(team.paymentStatus ?? 0)) continue;
+      rows.push(team);
+    }
+    rows.sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+    return rows;
+  }
+
   // Get season settings for payment requirement and format (per-season setting)
   const season = await prisma.season.findUnique({
     where: { id: seasonId },
@@ -478,23 +681,50 @@ export async function calculateWeekLabel(
   seasonId: number,
   weekNo: number,
 ): Promise<{ weekLabel: string; existingCount: number }> {
-  // Find all matches for this week/season where both teams are in the same region/division
-  const existingMatches = await prisma.match.findMany({
-    where: {
-      weekNo,
-      seasonId,
-      homeTeam: {
-        regionId,
-        divisionId,
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  let existingMatches: { id: number }[];
+
+  if (isRamaBackend()) {
+    const { createMatchClient, getMatch, getMatchIdsForWeek } =
+      await import('$lib/server/rama/match');
+    const { getTeamById } = await import('$lib/server/services/teams');
+    const client = createMatchClient(ramaClientOpts());
+    const ids = await getMatchIdsForWeek(client, String(seasonId), weekNo);
+    existingMatches = [];
+    for (const matchId of ids) {
+      const match = await getMatch(client, matchId);
+      if (!match) continue;
+      const home = await getTeamById(Number(match.homeTeamId));
+      const away = await getTeamById(Number(match.awayTeamId));
+      if (
+        home?.regionId === regionId &&
+        home?.divisionId === divisionId &&
+        away?.regionId === regionId &&
+        away?.divisionId === divisionId
+      ) {
+        existingMatches.push({ id: Number(matchId) });
+      }
+    }
+    existingMatches.sort((a, b) => a.id - b.id);
+  } else {
+    // Find all matches for this week/season where both teams are in the same region/division
+    existingMatches = await prisma.match.findMany({
+      where: {
+        weekNo,
+        seasonId,
+        homeTeam: {
+          regionId,
+          divisionId,
+        },
+        awayTeam: {
+          regionId,
+          divisionId,
+        },
       },
-      awayTeam: {
-        regionId,
-        divisionId,
-      },
-    },
-    select: { id: true },
-    orderBy: { id: 'asc' },
-  });
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+  }
 
   // Group matches into sets by checking for gaps in IDs
   // Matches created together have sequential IDs

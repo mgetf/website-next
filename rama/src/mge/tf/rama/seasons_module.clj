@@ -72,6 +72,11 @@
                               {:subindex? true})
                   {:subindex? true})})
 
+    (declare-pstate
+     s $$season-ids
+     {String ;; "all"
+      (map-schema String Boolean)})
+
     (<<sources s
       (source> *season-depot :> *event)
       (get *event "type" :> *type)
@@ -118,6 +123,10 @@
                [(keypath "matchDeadline") (termval "")]
                [(keypath "info") (termval "")])]
              $$seasons)
+            (|hash "all")
+            (local-transform>
+             [(keypath "all" *season-id) (termval true)]
+             $$season-ids)
             (ack-return> {"ok" true "seasonId" *season-id}))))
 
       ;; ── set-flags ───────────────────────────────────────────────────

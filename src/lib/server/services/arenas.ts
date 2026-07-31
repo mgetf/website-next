@@ -5,11 +5,32 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import { createMapPoolsClient, getArena, getArenaIds } from '$lib/server/rama/mapPools';
 
 /**
  * Get all arenas with their game counts
  */
 export async function getArenas() {
+  if (isRamaBackend()) {
+    const client = createMapPoolsClient(ramaClientOpts());
+    const ids = await getArenaIds(client);
+    const rows = [];
+    for (const id of ids) {
+      const arena = await getArena(client, id);
+      if (!arena) continue;
+      rows.push({
+        id: Number(id),
+        name: arena.name,
+        avatar: arena.avatar || null,
+        playoffMap: Number(arena.playoffMap ?? 0),
+        _count: { games: 0 },
+      });
+    }
+    rows.sort((a, b) => a.name.localeCompare(b.name));
+    return rows;
+  }
+
   return await prisma.arena.findMany({
     include: {
       _count: {

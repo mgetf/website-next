@@ -355,6 +355,25 @@ export async function createNotificationForTeamOwners(
   message: string,
   actorSteamId?: string,
 ) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createTeamsClient, getRoster } = await import('$lib/server/rama/teams');
+    const client = createTeamsClient(ramaClientOpts());
+    const uniqueSteamIds = new Set<string>();
+    for (const teamId of teamIds) {
+      const roster = await getRoster(client, String(teamId));
+      for (const [steamId, member] of Object.entries(roster)) {
+        if (!member.active || steamId === actorSteamId) continue;
+        if (member.permissionLevel !== 'ADMIN' && member.permissionLevel !== 'STATUS') continue;
+        uniqueSteamIds.add(steamId);
+      }
+    }
+    for (const steamId of uniqueSteamIds) {
+      await notifyRama(steamId, type, url, message);
+    }
+    return;
+  }
+
   const teamOwners = await prisma.playerInTeam.findMany({
     where: {
       teamId: { in: teamIds },

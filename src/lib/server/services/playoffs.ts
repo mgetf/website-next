@@ -20,6 +20,12 @@ export interface UpdatePlayoffParams {
  */
 export async function getPlayoffBySeason(seasonId: number) {
   try {
+    const { isRamaBackend } = await import('$lib/server/rama/config');
+    if (isRamaBackend()) {
+      void seasonId;
+      return null;
+    }
+
     const playoff = await prisma.playoff.findFirst({
       where: { seasonId },
       include: {
@@ -43,6 +49,9 @@ export async function getPlayoffBySeason(seasonId: number) {
  */
 export async function getAllPlayoffs() {
   try {
+    const { isRamaBackend } = await import('$lib/server/rama/config');
+    if (isRamaBackend()) return [];
+
     const playoffs = await prisma.playoff.findMany({
       include: {
         season: {

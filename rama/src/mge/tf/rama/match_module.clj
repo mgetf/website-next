@@ -1,8 +1,10 @@
 (ns mge.tf.rama.match-module
   "Match spike — JSON-map events for Rama REST (no Clojure HTTP).
 
-  Depot *match-depot (hash-by matchId): create-match | ban-map | submit-score
-  PStates: $$matches $$map-bans $$team-stats $$matches-by-team"
+  Depot *match-depot (hash-by matchId):
+    create-match | ban-map | submit-score | set-schedule | set-match-status
+
+  PStates: $$matches $$map-bans $$team-stats $$matches-by-team $$matches-by-week"
   (:use [com.rpl.rama]
         [com.rpl.rama.path]))
 
@@ -10,10 +12,21 @@
   (get event "matchId"))
 
 (defn long-or-zero [v]
-  (long (or v 0)))
+  (long (if (nil? v) 0 v)))
+
+(defn str-or-empty [v]
+  (if (nil? v) "" v))
 
 (defn pool->set [pool]
-  (set pool))
+  (set (or pool [])))
+
+(defn week-key [season-id week-no]
+  (str season-id ":" week-no))
+
+(defn known-type? [t]
+  (contains? #{"create-match" "ban-map" "submit-score"
+               "set-schedule" "set-match-status"}
+             t))
 
 (defn ban-error [turn home away team-id remaining arena-id]
   (cond
@@ -30,6 +43,13 @@
              (and (>= away-score bo-games) (> away-score home-score))))
     "incomplete-or-invalid-score"
     :else nil))
+
+(defn match-status-error [status]
+  (when-not (contains? #{"UNPLAYED" "PLAYED" "DISPUTE"} status)
+    "invalid-match-status"))
+
+(defn missing-match-error [field-err match]
+  (or field-err (when (nil? match) "match-not-found")))
 
 (defn pick-winner [home-id away-id home-score away-score]
   (if (> home-score away-score) home-id away-id))
@@ -52,7 +72,12 @@
                "homeScore" Long
                "awayScore" Long
                "winnerId" String
-               "boGames" Long})})
+               "boGames" Long
+               "weekNo" Long
+               "seasonNo" Long
+               "arenaId" String
+               "matchDateTime" String
+               "matchTimezone" String})})
 
     (declare-pstate
      s $$map-bans
@@ -74,6 +99,12 @@
      s $$matches-by-team
      {String (map-schema String String {:subindex? true})})
 
+    (declare-pstate
+     s $$matches-by-week
+     {String ;; "seasonId:weekNo"
+      (map-schema String ;; matchId
+                  Boolean)})
+
     (<<sources s
       (source> *match-depot :> *event)
       (get *event "type" :> *type)
@@ -85,26 +116,53 @@
         (get *event "seasonId" :> *season-id)
         (get *event "boGames" :> *bo-raw)
         (get *event "pool" :> *pool)
+        (get *event "weekNo" :> *week-raw)
+        (get *event "seasonNo" :> *season-no-raw)
+        (get *event "arenaId" :> *arena-raw)
+        (get *event "matchDateTime" :> *dt-raw)
+        (get *event "matchTimezone" :> *tz-raw)
         (long-or-zero *bo-raw :> *bo-games)
+        (long-or-zero *week-raw :> *week-no)
+        (long-or-zero *season-no-raw :> *season-no)
+        (str-or-empty *arena-raw :> *arena-id)
+        (str-or-empty *dt-raw :> *match-dt)
+        (str-or-empty *tz-raw :> *match-tz)
         (pool->set *pool :> *pool-set)
+        (week-key *season-id *week-no :> *wkey)
         (local-select> (keypath *match-id) $$matches :> *existing)
         (<<if (nil? *existing)
-          (local-transform> [(keypath *match-id "homeTeamId") (termval *home-id)] $$matches)
-          (local-transform> [(keypath *match-id "awayTeamId") (termval *away-id)] $$matches)
-          (local-transform> [(keypath *match-id "seasonId") (termval *season-id)] $$matches)
-          (local-transform> [(keypath *match-id "status") (termval "UNPLAYED")] $$matches)
-          (local-transform> [(keypath *match-id "homeScore") (termval 0)] $$matches)
-          (local-transform> [(keypath *match-id "awayScore") (termval 0)] $$matches)
-          (local-transform> [(keypath *match-id "boGames") (termval *bo-games)] $$matches)
-          (local-transform> [(keypath *match-id "turn") (termval 0)] $$map-bans)
-          (local-transform> [(keypath *match-id "homeTeamId") (termval *home-id)] $$map-bans)
-          (local-transform> [(keypath *match-id "awayTeamId") (termval *away-id)] $$map-bans)
-          (local-transform> [(keypath *match-id "remaining") (termval *pool-set)] $$map-bans)
-          (local-transform> [(keypath *match-id "actions") (termval [])] $$map-bans)
+          (local-transform>
+           [(keypath *match-id)
+            (multi-path
+             [(keypath "homeTeamId") (termval *home-id)]
+             [(keypath "awayTeamId") (termval *away-id)]
+             [(keypath "seasonId") (termval *season-id)]
+             [(keypath "status") (termval "UNPLAYED")]
+             [(keypath "homeScore") (termval 0)]
+             [(keypath "awayScore") (termval 0)]
+             [(keypath "winnerId") (termval "")]
+             [(keypath "boGames") (termval *bo-games)]
+             [(keypath "weekNo") (termval *week-no)]
+             [(keypath "seasonNo") (termval *season-no)]
+             [(keypath "arenaId") (termval *arena-id)]
+             [(keypath "matchDateTime") (termval *match-dt)]
+             [(keypath "matchTimezone") (termval *match-tz)])]
+           $$matches)
+          (local-transform>
+           [(keypath *match-id)
+            (multi-path
+             [(keypath "turn") (termval 0)]
+             [(keypath "homeTeamId") (termval *home-id)]
+             [(keypath "awayTeamId") (termval *away-id)]
+             [(keypath "remaining") (termval *pool-set)]
+             [(keypath "actions") (termval [])])]
+           $$map-bans)
           (|hash *home-id)
           (local-transform> [(keypath *home-id *match-id) (termval *season-id)] $$matches-by-team)
           (|hash *away-id)
           (local-transform> [(keypath *away-id *match-id) (termval *season-id)] $$matches-by-team)
+          (|hash *wkey)
+          (local-transform> [(keypath *wkey *match-id) (termval true)] $$matches-by-week)
           (ack-return> {"ok" true "matchId" *match-id})
          (else>)
           (ack-return> {"ok" false "error" "match-exists"})))
@@ -145,10 +203,14 @@
          (else>)
           (pick-winner *home-id *away-id *home-score *away-score :> *winner-id)
           (pick-loser *home-id *away-id *winner-id :> *loser-id)
-          (local-transform> [(keypath *match-id "status") (termval "PLAYED")] $$matches)
-          (local-transform> [(keypath *match-id "homeScore") (termval *home-score)] $$matches)
-          (local-transform> [(keypath *match-id "awayScore") (termval *away-score)] $$matches)
-          (local-transform> [(keypath *match-id "winnerId") (termval *winner-id)] $$matches)
+          (local-transform>
+           [(keypath *match-id)
+            (multi-path
+             [(keypath "status") (termval "PLAYED")]
+             [(keypath "homeScore") (termval *home-score)]
+             [(keypath "awayScore") (termval *away-score)]
+             [(keypath "winnerId") (termval *winner-id)])]
+           $$matches)
           (|hash *winner-id)
           (local-transform> [(keypath *winner-id "wins") (nil->val 0) (term inc)] $$team-stats)
           (local-transform> [(keypath *winner-id "points") (nil->val 0) (term inc)] $$team-stats)
@@ -163,7 +225,36 @@
                        "homeScore" *home-score
                        "awayScore" *away-score})))
 
-      (<<if (and> (not= *type "create-match")
-                  (not= *type "ban-map")
-                  (not= *type "submit-score"))
+      (<<if (= *type "set-schedule")
+        (get *event "matchDateTime" :> *dt-raw)
+        (get *event "matchTimezone" :> *tz-raw)
+        (str-or-empty *dt-raw :> *match-dt)
+        (str-or-empty *tz-raw :> *match-tz)
+        (local-select> (keypath *match-id) $$matches :> *match)
+        (missing-match-error nil *match :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (local-transform>
+           [(keypath *match-id)
+            (multi-path
+             [(keypath "matchDateTime") (termval *match-dt)]
+             [(keypath "matchTimezone") (termval *match-tz)])]
+           $$matches)
+          (ack-return> {"ok" true "matchId" *match-id})))
+
+      (<<if (= *type "set-match-status")
+        (get *event "status" :> *status)
+        (match-status-error *status :> *field-err)
+        (local-select> (keypath *match-id) $$matches :> *match)
+        (missing-match-error *field-err *match :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (local-transform>
+           [(keypath *match-id "status") (termval *status)]
+           $$matches)
+          (ack-return> {"ok" true "matchId" *match-id "status" *status})))
+
+      (<<if (not (known-type? *type))
         (ack-return> {"ok" false "error" "unknown-type" "type" *type})))))

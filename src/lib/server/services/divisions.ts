@@ -6,7 +6,7 @@
 
 import { prisma } from '$lib/server/db';
 import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
-import { createCatalogClient, getRegionIds } from '$lib/server/rama/catalog';
+import { createCatalogClient, getRegion, getRegionIds } from '$lib/server/rama/catalog';
 import {
   createDivisionsClient,
   getDivision,
@@ -51,6 +51,39 @@ async function getVisibleDivisionsRama(): Promise<
  * Includes hidden divisions (for admin use)
  */
 export async function getDivisions() {
+  if (isRamaBackend()) {
+    const catalogOpts = ramaClientOpts();
+    const catalog = createCatalogClient(catalogOpts);
+    const divisions = createDivisionsClient(catalogOpts);
+    const regionIds = await getRegionIds(catalog);
+    const rows = [];
+    for (const rid of regionIds) {
+      const region = await getRegion(catalog, rid);
+      const divIds = await getDivisionIdsByRegion(divisions, rid);
+      for (const did of divIds) {
+        const d = await getDivision(divisions, did);
+        if (!d) continue;
+        rows.push({
+          id: Number(did),
+          name: d.name,
+          regionId: Number(d.regionId),
+          signupCost: Number(d.signupCost ?? 0),
+          sortOrder: Number(d.sortOrder ?? 0),
+          hidden: 0,
+          itemPaymentId: null,
+          region: {
+            id: Number(rid),
+            name: region?.name ?? String(rid),
+          },
+          itemPayment: null,
+          _count: { teams: 0 },
+        });
+      }
+    }
+    rows.sort((a, b) => a.id - b.id);
+    return rows;
+  }
+
   return await prisma.division.findMany({
     include: {
       region: {

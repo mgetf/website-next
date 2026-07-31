@@ -384,12 +384,11 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
 test('admin creates week match; chat, deny/accept reschedule, edit schedule/arenas, scores, dispute, demo report', async () => {
   test.setTimeout(300_000);
 
-  await adminCreateWeekMatch(admin.page, league, {
+  weekMatchId = await adminCreateWeekMatch(admin.page, league, {
     weekNo: 1,
     boSeries: 1,
     arenaId: league.arenaIds[0],
   });
-  weekMatchId = await getLatestMatchId({ weekNo: 1 });
 
   await homeCaptain.page.goto(`/matches/${weekMatchId}`);
   await expect(homeCaptain.page.getByText('Match Communications')).toBeVisible();

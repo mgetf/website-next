@@ -38,6 +38,26 @@ async function getVisibleRegionsRama(): Promise<
  * Includes hidden regions (for admin use)
  */
 export async function getRegions() {
+  if (isRamaBackend()) {
+    const client = createCatalogClient(ramaClientOpts());
+    const ids = await getRegionIds(client);
+    const rows = [];
+    for (const rid of ids) {
+      const r = await getRegion(client, rid);
+      if (!r) continue;
+      rows.push({
+        id: Number(rid),
+        name: r.name,
+        hidden: r.hidden ? 1 : 0,
+        currencySymbol: r.currencySymbol,
+        currencyCode: r.currencyCode,
+        _count: { seasons: 0, teams: 0 },
+      });
+    }
+    rows.sort((a, b) => a.name.localeCompare(b.name));
+    return rows;
+  }
+
   return await prisma.region.findMany({
     include: {
       _count: {

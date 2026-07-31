@@ -99,6 +99,12 @@ export async function createMatchComm(
  * Get pending reschedule request for a match
  */
 export async function getPendingReschedule(matchId: number) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void matchId;
+    return null;
+  }
+
   const reschedule = await prisma.matchComm.findFirst({
     where: {
       matchId,
@@ -283,6 +289,12 @@ export function canRequestReschedule(match: Match): boolean {
 }
 
 export async function settleExpiredReschedules(matchId?: number): Promise<number> {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void matchId;
+    return 0;
+  }
+
   const cutoff = new Date(Date.now() - RESCHEDULE_RESPONSE_WINDOW_MS);
   const expiredReschedules = await prisma.matchComm.findMany({
     where: {

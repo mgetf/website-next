@@ -5,11 +5,59 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import {
+  createMapPoolsClient,
+  getArena,
+  getPool,
+  getPoolIds,
+  getPoolMaps,
+} from '$lib/server/rama/mapPools';
 
 /**
  * Get all map ban pools with their maps and match counts
  */
 export async function getMapBanPools() {
+  if (isRamaBackend()) {
+    const client = createMapPoolsClient(ramaClientOpts());
+    const ids = await getPoolIds(client);
+    const rows = [];
+    for (const poolId of ids) {
+      const pool = await getPool(client, poolId);
+      if (!pool) continue;
+      const arenaIds = await getPoolMaps(client, poolId);
+      const mapsInPool = [];
+      for (let i = 0; i < arenaIds.length; i++) {
+        const arenaId = arenaIds[i]!;
+        const arena = await getArena(client, arenaId);
+        mapsInPool.push({
+          poolId: Number(poolId),
+          arenaId: Number(arenaId),
+          orderNum: i + 1,
+          arena: {
+            id: Number(arenaId),
+            name: arena?.name ?? String(arenaId),
+            avatar: arena?.avatar || null,
+            playoffMap: Number(arena?.playoffMap ?? 0),
+          },
+        });
+      }
+      rows.push({
+        id: Number(poolId),
+        name: pool.name,
+        isActive: pool.isActive ? 1 : 0,
+        createdAt: new Date(0),
+        mapsInPool,
+        _count: { matchMapBans: 0 },
+      });
+    }
+    return rows as unknown as Awaited<ReturnType<typeof getMapBanPoolsFromPrisma>>;
+  }
+
+  return getMapBanPoolsFromPrisma();
+}
+
+async function getMapBanPoolsFromPrisma() {
   return await prisma.mapBanPool.findMany({
     include: {
       mapsInPool: {

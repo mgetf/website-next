@@ -1,9 +1,6 @@
 /**
  * Typed helpers for the MatchModule spike over Rama REST JSON.
  *
- * Not yet wired into SvelteKit routes — Postgres still serves production paths.
- * Import from here when cutting match writes over to Rama.
- *
  * @lintignore Spike match helpers; production routes still use Postgres.
  */
 
@@ -24,6 +21,7 @@ export type MatchAck = {
   expectedTeamId?: string;
   type?: string;
   boGames?: number;
+  status?: string;
 };
 
 export type CreateMatchEvent = {
@@ -34,6 +32,11 @@ export type CreateMatchEvent = {
   seasonId: string;
   boGames: number;
   pool: string[];
+  weekNo?: number;
+  seasonNo?: number;
+  arenaId?: string;
+  matchDateTime?: string;
+  matchTimezone?: string;
 };
 
 export type BanMapEvent = {
@@ -85,7 +88,23 @@ export async function createMatch(
   event: CreateMatchEvent,
   ackLevel: AckLevel = 'ack',
 ): Promise<MatchAck> {
-  return asAck(await client.append(MATCH_DEPOT, withLongs(event, ['boGames']), ackLevel));
+  return asAck(
+    await client.append(
+      MATCH_DEPOT,
+      withLongs(
+        {
+          ...event,
+          weekNo: event.weekNo ?? 0,
+          seasonNo: event.seasonNo ?? 0,
+          arenaId: event.arenaId ?? '',
+          matchDateTime: event.matchDateTime ?? '',
+          matchTimezone: event.matchTimezone ?? '',
+        },
+        ['boGames', 'weekNo', 'seasonNo'],
+      ),
+      ackLevel,
+    ),
+  );
 }
 
 export async function banMap(
@@ -104,6 +123,35 @@ export async function submitScore(
   return asAck(
     await client.append(MATCH_DEPOT, withLongs(event, ['homeScore', 'awayScore']), ackLevel),
   );
+}
+
+/** @lintignore Used by upcoming admin schedule-edit cutover */
+export async function setMatchSchedule(
+  client: RamaClient,
+  event: { matchId: string; matchDateTime?: string; matchTimezone?: string },
+  ackLevel: AckLevel = 'ack',
+): Promise<MatchAck> {
+  return asAck(
+    await client.append(
+      MATCH_DEPOT,
+      {
+        type: 'set-schedule',
+        matchId: event.matchId,
+        matchDateTime: event.matchDateTime ?? '',
+        matchTimezone: event.matchTimezone ?? '',
+      },
+      ackLevel,
+    ),
+  );
+}
+
+/** @lintignore Used by upcoming dispute/status cutover */
+export async function setMatchStatus(
+  client: RamaClient,
+  event: { matchId: string; status: 'UNPLAYED' | 'PLAYED' | 'DISPUTE' },
+  ackLevel: AckLevel = 'ack',
+): Promise<MatchAck> {
+  return asAck(await client.append(MATCH_DEPOT, { type: 'set-match-status', ...event }, ackLevel));
 }
 
 export async function getMatch(
@@ -149,4 +197,30 @@ export async function getRemainingArenas(client: RamaClient, matchId: string): P
   if (Array.isArray(v)) return v as string[];
   if (v && typeof v === 'object') return Object.keys(v as object);
   return [];
+}
+
+/** Match ids for a season week from $$matches-by-week. */
+export async function getMatchIdsForWeek(
+  client: RamaClient,
+  seasonId: string,
+  weekNo: number,
+): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$matches-by-week', [`${seasonId}:${weekNo}`]);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}
+
+/** Match ids for a team from $$matches-by-team. */
+export async function getMatchIdsForTeam(client: RamaClient, teamId: string): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$matches-by-team', [teamId]);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, string>);
+  } catch {
+    return [];
+  }
 }

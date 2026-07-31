@@ -80,6 +80,16 @@
      s $$pool-maps
      {String clojure.lang.PersistentVector})
 
+    (declare-pstate
+     s $$arena-ids
+     {String ;; "all"
+      (map-schema String Boolean)})
+
+    (declare-pstate
+     s $$pool-ids
+     {String ;; "all"
+      (map-schema String Boolean)})
+
     (<<sources s
       (source> *map-pool-depot :> *event)
       (get *event "type" :> *type)
@@ -103,6 +113,10 @@
              [(keypath "avatar") (termval *avatar-s)]
              [(keypath "playoffMap") (termval *playoff)])]
            $$arenas)
+          (|hash "all")
+          (local-transform>
+           [(keypath "all" *arena-id) (termval true)]
+           $$arena-ids)
           (ack-return> {"ok" true "arenaId" *arena-id})))
 
       ;; ── create-pool ─────────────────────────────────────────────────
@@ -123,6 +137,10 @@
           (local-transform>
            [(keypath *pool-id) (termval [])]
            $$pool-maps)
+          (|hash "all")
+          (local-transform>
+           [(keypath "all" *pool-id) (termval true)]
+           $$pool-ids)
           (ack-return> {"ok" true "poolId" *pool-id})))
 
       ;; ── rename-pool ─────────────────────────────────────────────────

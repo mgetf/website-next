@@ -167,3 +167,13 @@ export async function lookupSeasonId(
     return null;
   }
 }
+
+export async function getSeasonIds(client: RamaClient): Promise<string[]> {
+  try {
+    const v = await client.selectOne('$$season-ids', ['all']);
+    if (!v || typeof v !== 'object') return [];
+    return Object.keys(v as Record<string, boolean>);
+  } catch {
+    return [];
+  }
+}

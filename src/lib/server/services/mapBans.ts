@@ -298,6 +298,13 @@ export async function assignMapToGames(
  * Get map ban status for a match
  */
 export async function getMapBanStatus(matchId: number) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    // Week matches use a fixed arena; map-ban UI is wired in a later slice.
+    void matchId;
+    return null;
+  }
+
   const matchMapBan = await prisma.matchMapBan.findFirst({
     where: { matchId },
     include: {

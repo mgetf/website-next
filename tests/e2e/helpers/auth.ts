@@ -170,7 +170,7 @@ export async function adminCreateWeekMatch(
   page: Page,
   league: SeasonSeed,
   opts?: { weekNo?: number; boSeries?: number; arenaId?: number },
-): Promise<void> {
+): Promise<number> {
   const weekNo = opts?.weekNo ?? 1;
   const boSeries = opts?.boSeries ?? 1;
   const arenaId = opts?.arenaId ?? league.arenaIds[0];
@@ -196,6 +196,12 @@ export async function adminCreateWeekMatch(
     page.waitForURL(/\/admin\/matches\?created=/),
     page.getByRole('button', { name: /Create \d+ Match/ }).click(),
   ]);
+
+  const matchId = Number(new URL(page.url()).searchParams.get('matchId'));
+  if (!Number.isFinite(matchId) || matchId <= 0) {
+    throw new Error(`adminCreateWeekMatch: missing matchId in redirect URL ${page.url()}`);
+  }
+  return matchId;
 }
 
 export async function adminCreatePlayoffMatch(

@@ -274,3 +274,17 @@ export async function getAwaitingPendingKeys(client: RamaClient): Promise<string
     return [];
   }
 }
+
+/** teamId → status for a season from $$team-ids-by-season. */
+export async function getTeamIdsBySeason(
+  client: RamaClient,
+  seasonId: string,
+): Promise<Record<string, string>> {
+  try {
+    const v = await client.selectOne('$$team-ids-by-season', [seasonId]);
+    if (!v || typeof v !== 'object') return {};
+    return v as Record<string, string>;
+  } catch {
+    return {};
+  }
+}

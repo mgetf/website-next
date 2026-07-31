@@ -7,7 +7,8 @@
 use std::collections::{BTreeSet, HashMap};
 
 use crate::ast::{
-    BinaryOp, Block, Expr, ExternDecl, FnDef, Item, LetPattern, Param, Stmt, ValueTypeExpr,
+    BinaryOp, Block, Expr, ExternDecl, FnDef, Item, LetPattern, OpDef, Param, Stmt, TypeExpr,
+    ValueTypeExpr,
 };
 use crate::error::Diagnostic;
 use crate::rama_ir::Program;
@@ -200,11 +201,167 @@ impl<'a> Checker<'a> {
 
     fn run(mut self) -> Typing {
         for item in &self.program.source.items {
-            if let Item::Fn(function) = item {
-                self.check_function(function);
+            match item {
+                Item::Fn(function) => self.check_function(function),
+                Item::Op(op) => self.check_op(op),
+                _ => {}
             }
         }
         self.typing
+    }
+
+    /// Op-lite checking: only runs when a param is annotated. Event fields
+    /// type the destructured bindings; pure expressions (fail conditions,
+    /// let values, returns) are inferred; dataflow paths are skipped until
+    /// path typing lands.
+    fn check_op(&mut self, op: &OpDef) {
+        if op.params.iter().all(|param| param.ty.is_none()) {
+            return;
+        }
+        let mut locals: HashMap<String, TypeId> = HashMap::new();
+        let mut event_params: HashMap<String, String> = HashMap::new();
+        for param in &op.params {
+            let ty = match &param.ty {
+                Some(annotation) => {
+                    if let ValueTypeExpr::Named { path, args } = &annotation.node {
+                        if args.is_empty() && self.program.structs.contains_key(path.as_str()) {
+                            event_params.insert(param.name.node.clone(), path.clone());
+                            self.typing.table.intern(Type::Dynamic)
+                        } else {
+                            self.resolve_type(&annotation.node, &BTreeSet::new(), annotation.span)
+                        }
+                    } else {
+                        self.resolve_type(&annotation.node, &BTreeSet::new(), annotation.span)
+                    }
+                }
+                None => self.typing.table.intern(Type::Dynamic),
+            };
+            locals.insert(param.name.node.clone(), ty);
+        }
+        self.check_op_block(&op.body, &mut locals, &event_params);
+    }
+
+    fn check_op_block(
+        &mut self,
+        block: &Block,
+        locals: &mut HashMap<String, TypeId>,
+        event_params: &HashMap<String, String>,
+    ) {
+        for statement in &block.stmts {
+            match statement {
+                Stmt::Let {
+                    pattern: LetPattern::Destructure(names),
+                    value: Expr::Ident(source),
+                    ..
+                } if event_params.contains_key(&source.node) => {
+                    let struct_name = event_params[&source.node].clone();
+                    let declaration = self.program.structs[struct_name.as_str()];
+                    let fields: Vec<(String, TypeExpr)> = declaration
+                        .fields
+                        .iter()
+                        .map(|field| (field.name.node.clone(), field.ty.node.clone()))
+                        .collect();
+                    for name in names {
+                        match fields.iter().find(|(field, _)| field == &name.node) {
+                            Some((_, schema)) => {
+                                let ty = self.schema_value_type(schema);
+                                locals.insert(name.node.clone(), ty);
+                            }
+                            None => {
+                                let available = fields
+                                    .iter()
+                                    .map(|(field, _)| field.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(", ");
+                                self.typing.diagnostics.push(Diagnostic::type_error(
+                                    name.span,
+                                    format!(
+                                        "event struct `{struct_name}` has no field `{}`; available: {available}",
+                                        name.node
+                                    ),
+                                ));
+                                let unknown = self.typing.table.intern(Type::Unknown);
+                                locals.insert(name.node.clone(), unknown);
+                            }
+                        }
+                    }
+                }
+                Stmt::Let { pattern, value, .. } => {
+                    let ty = self.infer_expr(value, locals);
+                    match pattern {
+                        LetPattern::Name(name) => {
+                            locals.insert(name.node.clone(), ty);
+                        }
+                        LetPattern::Destructure(names) => {
+                            let dynamic = self.typing.table.intern(Type::Dynamic);
+                            for name in names {
+                                locals.insert(name.node.clone(), dynamic);
+                            }
+                        }
+                    }
+                }
+                Stmt::Select { target, .. } => {
+                    // Select paths are untyped until path optics land; the
+                    // bindings enter as Dynamic.
+                    let dynamic = self.typing.table.intern(Type::Dynamic);
+                    match target {
+                        crate::ast::BindingTarget::Name(name) => {
+                            locals.insert(name.node.clone(), dynamic);
+                        }
+                        crate::ast::BindingTarget::Destructure(names) => {
+                            for name in names {
+                                locals.insert(name.node.clone(), dynamic);
+                            }
+                        }
+                    }
+                }
+                Stmt::Transform { .. } => {}
+                Stmt::Fail {
+                    value, condition, ..
+                } => {
+                    self.infer_expr(condition, locals);
+                    self.infer_expr(value, locals);
+                }
+                Stmt::Return { value, .. } => {
+                    self.infer_expr(value, locals);
+                }
+                Stmt::Hash { key, .. } => {
+                    self.infer_expr(key, locals);
+                }
+                Stmt::Effect { value, .. } => {
+                    self.infer_expr(value, locals);
+                }
+                Stmt::If {
+                    condition,
+                    consequence,
+                    alternative,
+                    ..
+                } => {
+                    self.infer_expr(condition, locals);
+                    let mut consequence_locals = locals.clone();
+                    self.check_op_block(consequence, &mut consequence_locals, event_params);
+                    if let Some(alternative) = alternative {
+                        let mut alternative_locals = locals.clone();
+                        self.check_op_block(alternative, &mut alternative_locals, event_params);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Map a PState/struct schema leaf to the value type an event field
+    /// carries after boundary validation and coercion.
+    fn schema_value_type(&mut self, schema: &TypeExpr) -> TypeId {
+        match schema {
+            TypeExpr::Named(name) => match name.as_str() {
+                "String" => self.typing.table.jvm("java.lang.String", Vec::new()),
+                "Long" | "Int" | "Integer" => self.typing.table.jvm("java.lang.Long", Vec::new()),
+                "Boolean" => self.typing.table.jvm("java.lang.Boolean", Vec::new()),
+                _ => self.typing.table.intern(Type::Dynamic),
+            },
+            // Schema `Object` is the untyped escape at the event boundary.
+            TypeExpr::Object | TypeExpr::Map { .. } => self.typing.table.intern(Type::Dynamic),
+        }
     }
 
     fn install_prelude(&mut self) {
@@ -547,6 +704,34 @@ impl<'a> Checker<'a> {
             simple("Long"),
             SignatureSource::Prelude,
         );
+        for comparison in [">", ">=", "<", "<="] {
+            self.signature(
+                comparison,
+                vec![simple("Number"), simple("Number")],
+                simple("Boolean"),
+                SignatureSource::Prelude,
+            );
+        }
+        self.signature(
+            "=",
+            vec![simple("Any"), simple("Any")],
+            simple("Boolean"),
+            SignatureSource::Prelude,
+        );
+        for boolean_op in ["and", "or"] {
+            self.signature(
+                boolean_op,
+                vec![simple("Any"), simple("Any")],
+                simple("Boolean"),
+                SignatureSource::Prelude,
+            );
+            self.signature(
+                boolean_op,
+                vec![simple("Any"), simple("Any"), simple("Any")],
+                simple("Boolean"),
+                SignatureSource::Prelude,
+            );
+        }
     }
 
     fn signature(
@@ -1059,6 +1244,17 @@ impl<'a> Checker<'a> {
                 && pair[0].1.ret == pair[1].1.ret
                 && pair[0].1.quantified == pair[1].1.quantified
         });
+        // Dynamic arguments legitimately satisfy several overloads at once;
+        // ambiguity is only an error when static types caused the tie.
+        let dynamic_arguments = args
+            .iter()
+            .any(|arg| matches!(self.typing.table.get(*arg), Type::Dynamic));
+        if best.len() > 1 && !equivalent_duplicates && dynamic_arguments {
+            return self
+                .typing
+                .table
+                .union(best.iter().map(|(_, _, result)| *result));
+        }
         if best.len() > 1 && !equivalent_duplicates {
             self.typing.diagnostics.push(Diagnostic::type_error(
                 span,
@@ -1808,6 +2004,53 @@ fn append-label(xs: java.util.List<Long>) -> java.util.List<Long | String> {
 "#,
         );
         assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    }
+
+    #[test]
+    fn event_destructure_types_fields_and_catches_typos() {
+        let good = typing(
+            r#"
+module T
+struct BanEvent { :matchId String :turn Long }
+op ban(event: BanEvent) {
+  let { matchId, turn } = event
+  fail "bad-turn" if not(even?(turn))
+  return {"ok" true "matchId" matchId}
+}
+"#,
+        );
+        assert!(good.diagnostics.is_empty(), "{:#?}", good.diagnostics);
+
+        let typo = typing(
+            r#"
+module T
+struct BanEvent { :matchId String :turn Long }
+op ban(event: BanEvent) {
+  let { mtchId } = event
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(typo.diagnostics.iter().any(|diagnostic| {
+            diagnostic.message.contains("no field `mtchId`")
+                && diagnostic.message.contains("matchId, turn")
+        }));
+
+        let misuse = typing(
+            r#"
+module T
+struct BanEvent { :matchId String :turn Long }
+op ban(event: BanEvent) {
+  let { matchId } = event
+  fail "bad" if not(even?(matchId))
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(misuse
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.message.contains("no `even?` signature") }));
     }
 
     #[test]

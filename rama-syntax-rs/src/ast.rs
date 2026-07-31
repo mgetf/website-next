@@ -56,7 +56,7 @@ pub struct DepotDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct OpDef {
     pub name: Spanned<String>,
-    pub params: Vec<Spanned<String>>,
+    pub params: Vec<Param>,
     pub body: Block,
     pub span: Span,
 }

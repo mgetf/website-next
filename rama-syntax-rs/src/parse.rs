@@ -118,7 +118,7 @@ fn depot_item() -> impl Parser<Tok, Item, Error = Err> {
 fn op_item() -> impl Parser<Tok, Item, Error = Err> {
     just(Tok::Op)
         .ignore_then(ident())
-        .then(op_params())
+        .then(typed_params())
         .then(block())
         .map_with_span(|((name, params), body), span| {
             Item::Op(OpDef {
@@ -175,13 +175,6 @@ fn extern_item() -> impl Parser<Tok, Item, Error = Err> {
                 })
             },
         )
-}
-
-fn op_params() -> impl Parser<Tok, Vec<Spanned<String>>, Error = Err> {
-    ident_spanned()
-        .separated_by(just(Tok::Comma))
-        .allow_trailing()
-        .delimited_by(just(Tok::LParen), just(Tok::RParen))
 }
 
 fn typed_params() -> impl Parser<Tok, Vec<Param>, Error = Err> {

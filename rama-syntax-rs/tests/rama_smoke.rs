@@ -75,11 +75,31 @@ const SMOKE_TEST: &str = r#"
                 "homeTeamId" "home"
                 "awayTeamId" "away"
                 "seasonId" "s1"
-                "boGames" 2
+                "boGames" (int 2) ;; JSON-style Integer: boundary must coerce
                 "pool" ["process" "discard"]})]
       (is (= true (get ack "ok")))
       (is (= "UNPLAYED"
              (foreign-select-one (keypath "m1" "status") matches)))
+      ;; The generated validator acks malformed events instead of
+      ;; killing the worker.
+      (let [bad (append-event!
+                 depot
+                 {"type" "ban-map"
+                  "matchId" 123
+                  "teamId" "home"
+                  "arenaId" "process"})]
+        (is (= false (get bad "ok")))
+        (is (= "invalid-event" (get bad "error")))
+        (is (= "field `matchId` must be a String" (get bad "detail"))))
+      (let [missing (append-event!
+                     depot
+                     {"type" "ban-map"
+                      "matchId" "m1"
+                      "teamId" "home"})]
+        (is (= "invalid-event" (get missing "error")))
+        (is (= "missing field `arenaId`" (get missing "detail"))))
+      ;; Long comparisons in submit-score prove the create-match Integer
+      ;; was coerced before storage.
       (is (= "not-your-turn"
              (get (append-event!
                    depot

@@ -28,7 +28,7 @@ fn parses_match_v2() {
         .iter()
         .filter(|i| matches!(i, Item::Struct(_)))
         .count();
-    assert_eq!(structs, 3);
+    assert_eq!(structs, 6, "3 pstate schemas + 3 event structs");
     let pstates = file
         .items
         .iter()
@@ -71,7 +71,7 @@ fn emits_match_v2_clojure() {
     assert!(clj.contains("cond"), "fail chains use identity+cond");
     assert!(clj.contains("*__err"), "flat fail should bind *__err");
     assert!(clj.contains("else>"), "success path under else>");
-    // ban-map has 3 fails → one <<if, not three
+    // ban-map: one <<if guards the event validation, one collapses 3 fails.
     let ban = clj
         .split("deframaop")
         .find(|s| s.contains("ban-map>"))
@@ -79,7 +79,15 @@ fn emits_match_v2_clojure() {
     let ban_body = ban.split("deframaop").next().unwrap_or(ban);
     assert_eq!(
         ban_body.matches("<<if").count(),
-        1,
-        "ban-map should have a single <<if for fails: {ban_body}"
+        2,
+        "ban-map should have event-guard + fail-collapse <<ifs: {ban_body}"
+    );
+    assert!(
+        clj.contains("__ban-map-event-error"),
+        "typed event should generate a validator"
+    );
+    assert!(
+        clj.contains("__rama_coerce_longs"),
+        "Long event fields should generate coercion"
     );
 }

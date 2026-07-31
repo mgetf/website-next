@@ -147,9 +147,20 @@ pub fn compile_program(program: &Program<'_>) -> Document {
         ));
     }
 
+    let any_long_event_fields = file.items.iter().any(|item| {
+        matches!(item, Item::Op(op) if event_spec(op, &structs)
+            .is_some_and(|event| event
+                .fields
+                .iter()
+                .any(|(_, check)| *check == FieldCheck::Long)))
+    });
+    if any_long_event_fields {
+        doc.push(coerce_longs_helper_form());
+    }
+
     for item in &file.items {
         if let Item::Op(op) = item {
-            let (helpers, op_form) = compile_op(op);
+            let (helpers, op_form) = compile_op(op, &structs);
             for helper in helpers {
                 doc.push(helper);
             }
@@ -674,7 +685,56 @@ struct OpCompiler<'a> {
     expr_gen: usize,
 }
 
-fn compile_op(op: &OpDef) -> (Vec<Form>, Form) {
+/// Typed depot event: which param carries it and what field checks apply.
+struct EventSpec {
+    param: String,
+    /// `(field name, check)` in declaration order.
+    fields: Vec<(String, FieldCheck)>,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum FieldCheck {
+    String,
+    Long,
+    Boolean,
+    Map,
+    Any,
+}
+
+fn event_spec(op: &OpDef, structs: &HashMap<&str, &StructDecl>) -> Option<EventSpec> {
+    op.params.iter().find_map(|param| {
+        let ty = param.ty.as_ref()?;
+        let crate::ast::ValueTypeExpr::Named { path, args } = &ty.node else {
+            return None;
+        };
+        if !args.is_empty() {
+            return None;
+        }
+        let declaration = structs.get(path.as_str())?;
+        Some(EventSpec {
+            param: param.name.node.clone(),
+            fields: declaration
+                .fields
+                .iter()
+                .map(|field| {
+                    let check = match &field.ty.node {
+                        TypeExpr::Named(name) => match name.as_str() {
+                            "String" => FieldCheck::String,
+                            "Long" | "Int" | "Integer" => FieldCheck::Long,
+                            "Boolean" => FieldCheck::Boolean,
+                            _ => FieldCheck::Any,
+                        },
+                        TypeExpr::Map { .. } => FieldCheck::Map,
+                        TypeExpr::Object => FieldCheck::Any,
+                    };
+                    (field.name.node.clone(), check)
+                })
+                .collect(),
+        })
+    })
+}
+
+fn compile_op(op: &OpDef, structs: &HashMap<&str, &StructDecl>) -> (Vec<Form>, Form) {
     let mut compiler = OpCompiler {
         op_name: &op.name.node,
         helpers: Vec::new(),
@@ -684,20 +744,198 @@ fn compile_op(op: &OpDef) -> (Vec<Form>, Form) {
     let mut params: Vec<Form> = op
         .params
         .iter()
-        .map(|p| clj::sym(format!("*{}", p.node)))
+        .map(|p| clj::sym(format!("*{}", p.name.node)))
         .collect();
     params.extend(
         op_pstates(&op.body)
             .into_iter()
             .map(|name| clj::sym(format!("$${name}"))),
     );
+    let mut body = compiler.stmts(&op.body.stmts);
+
+    if let Some(event) = event_spec(op, structs) {
+        let validator_name = format!("__{}-event-error", op.name.node);
+        compiler
+            .helpers
+            .push(event_validator_form(&validator_name, &event));
+
+        let long_fields: Vec<&str> = event
+            .fields
+            .iter()
+            .filter(|(_, check)| *check == FieldCheck::Long)
+            .map(|(name, _)| name.as_str())
+            .collect();
+        let raw_event = format!("*{}", event.param);
+        let mut guarded = Vec::new();
+        if long_fields.is_empty() {
+            guarded.extend(body);
+        } else {
+            // JSON numbers arrive as Integers; normalize Long fields once,
+            // then run the body against the coerced event.
+            let coerced = "*__event";
+            body = body
+                .into_iter()
+                .map(|form| rename_symbol(form, &raw_event, coerced))
+                .collect();
+            guarded.push(clj::call(
+                "__rama_coerce_longs",
+                [
+                    clj::sym(&raw_event),
+                    clj::vector(long_fields.iter().map(|name| clj::string(*name))),
+                    clj::sym(":>"),
+                    clj::sym(coerced),
+                ],
+            ));
+            guarded.extend(body);
+        }
+
+        let mut if_form = vec![
+            clj::sym("<<if"),
+            clj::call("some?", [clj::sym("*__event-error")]),
+            clj::call(
+                "ack-return>",
+                [clj::map([
+                    (clj::string("ok"), clj::bool(false)),
+                    (clj::string("error"), clj::string("invalid-event")),
+                    (clj::string("detail"), clj::sym("*__event-error")),
+                ])],
+            ),
+            clj::call("else>", []),
+        ];
+        if_form.extend(guarded);
+
+        body = vec![
+            clj::call(
+                &validator_name,
+                [
+                    clj::sym(&raw_event),
+                    clj::sym(":>"),
+                    clj::sym("*__event-error"),
+                ],
+            ),
+            Form::List(if_form),
+        ];
+    }
+
     let mut xs = vec![clj::sym(format!("{}>", op.name.node)), clj::vector(params)];
     // Body fragments splice as sibling list elements (Rama dataflow body).
-    xs.extend(compiler.stmts(&op.body.stmts));
+    xs.extend(body);
     // Rebuild with head symbol deframaop
     let mut all = vec![clj::sym("deframaop")];
     all.extend(xs);
     (compiler.helpers, Form::List(all))
+}
+
+/// Plain-Clojure validator: nil for a well-formed event, else an error string.
+fn event_validator_form(name: &str, event: &EventSpec) -> Form {
+    let value = |field: &str| clj::call("get", [clj::sym("event"), clj::string(field)]);
+    let mut arms = vec![
+        clj::call("not", [clj::call("map?", [clj::sym("event")])]),
+        clj::string("event must be a map"),
+    ];
+    for (field, check) in &event.fields {
+        arms.push(clj::call("nil?", [value(field)]));
+        arms.push(clj::string(format!("missing field `{field}`")));
+        let (predicate, description): (Option<Form>, &str) = match check {
+            FieldCheck::String => (Some(clj::call("string?", [value(field)])), "a String"),
+            FieldCheck::Long => (
+                Some(clj::call(
+                    "or",
+                    [
+                        clj::call("instance?", [clj::sym("java.lang.Long"), value(field)]),
+                        clj::call("instance?", [clj::sym("java.lang.Integer"), value(field)]),
+                    ],
+                )),
+                "a Long",
+            ),
+            FieldCheck::Boolean => (Some(clj::call("boolean?", [value(field)])), "a Boolean"),
+            FieldCheck::Map => (Some(clj::call("map?", [value(field)])), "a map"),
+            FieldCheck::Any => (None, ""),
+        };
+        if let Some(predicate) = predicate {
+            arms.push(clj::call("not", [predicate]));
+            arms.push(clj::string(format!(
+                "field `{field}` must be {description}"
+            )));
+        }
+    }
+    arms.push(clj::kw("else"));
+    arms.push(clj::nil());
+    clj::call(
+        "defn",
+        [
+            clj::sym(name),
+            clj::vector([clj::sym("event")]),
+            clj::call("cond", arms),
+        ],
+    )
+}
+
+fn coerce_longs_helper_form() -> Form {
+    clj::call(
+        "defn",
+        [
+            clj::sym("__rama_coerce_longs"),
+            clj::vector([clj::sym("event"), clj::sym("fields")]),
+            clj::call(
+                "reduce",
+                [
+                    clj::list([
+                        clj::sym("fn"),
+                        clj::vector([clj::sym("m"), clj::sym("field")]),
+                        clj::call(
+                            "if",
+                            [
+                                clj::call(
+                                    "some?",
+                                    [clj::call("get", [clj::sym("m"), clj::sym("field")])],
+                                ),
+                                clj::call(
+                                    "assoc",
+                                    [
+                                        clj::sym("m"),
+                                        clj::sym("field"),
+                                        clj::call(
+                                            "long",
+                                            [clj::call("get", [clj::sym("m"), clj::sym("field")])],
+                                        ),
+                                    ],
+                                ),
+                                clj::sym("m"),
+                            ],
+                        ),
+                    ]),
+                    clj::sym("event"),
+                    clj::sym("fields"),
+                ],
+            ),
+        ],
+    )
+}
+
+fn rename_symbol(form: Form, from: &str, to: &str) -> Form {
+    match form {
+        Form::Symbol(symbol) if symbol == from => clj::sym(to),
+        Form::List(forms) => Form::List(
+            forms
+                .into_iter()
+                .map(|form| rename_symbol(form, from, to))
+                .collect(),
+        ),
+        Form::Vector(forms) => Form::Vector(
+            forms
+                .into_iter()
+                .map(|form| rename_symbol(form, from, to))
+                .collect(),
+        ),
+        Form::Map(entries) => Form::Map(
+            entries
+                .into_iter()
+                .map(|(key, value)| (rename_symbol(key, from, to), rename_symbol(value, from, to)))
+                .collect(),
+        ),
+        other => other,
+    }
 }
 
 fn module_type_name(module_name: &str) -> String {

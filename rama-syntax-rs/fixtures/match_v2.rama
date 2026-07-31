@@ -35,9 +35,31 @@ pstate $$matchesByTeam: Map<String, Map<String, String>> @subindexed
 
 depot matchDepot keyed-by matchId
 
-op create-match(event) {
+// Event structs: the compiler generates a boundary validator per op and
+// coerces JSON Integer payloads into the declared Long fields.
+struct CreateMatchEvent {
+  :matchId    String
+  :homeTeamId String
+  :awayTeamId String
+  :seasonId   String
+  :boGames    Long
+  :pool       Object
+}
+
+struct BanMapEvent {
+  :matchId String
+  :teamId  String
+  :arenaId String
+}
+
+struct SubmitScoreEvent {
+  :matchId   String
+  :homeScore Long
+  :awayScore Long
+}
+
+op create-match(event: CreateMatchEvent) {
   let { matchId, homeTeamId, awayTeamId, seasonId, boGames, pool } = event
-  let bo = long(boGames)
   let pool-set = set(pool)
 
   $$matches --> keypath(matchId) > existing
@@ -50,7 +72,7 @@ op create-match(event) {
     :status     "UNPLAYED"
     :homeScore  0
     :awayScore  0
-    :boGames    bo
+    :boGames    boGames
   })
 
   $$mapBans !<-- keypath(matchId), termval({
@@ -69,7 +91,7 @@ op create-match(event) {
   return {"ok" true "matchId" matchId}
 }
 
-op ban-map(event) {
+op ban-map(event: BanMapEvent) {
   let { matchId, teamId, arenaId } = event
 
   $$mapBans --> keypath(matchId) > { turn, homeTeamId, awayTeamId, remaining }
@@ -87,10 +109,10 @@ op ban-map(event) {
   return {"ok" true "matchId" matchId "banned" arenaId "turn" inc(turn)}
 }
 
-op submit-score(event) {
+op submit-score(event: SubmitScoreEvent) {
   let { matchId, homeScore, awayScore } = event
-  let hs = long(homeScore)
-  let as = long(awayScore)
+  let hs = homeScore
+  let as = awayScore
 
   $$matches --> keypath(matchId) > { status, homeTeamId, awayTeamId, boGames }
 

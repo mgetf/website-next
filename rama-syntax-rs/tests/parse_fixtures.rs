@@ -57,7 +57,18 @@ fn emits_match_v2_clojure() {
     let src = fixture("match_v2.rama");
     let file = parse(&src).expect("parse");
     let clj = emit_clojure(&file);
-    assert!(clj.contains("(deframaop create-match>"));
+    // Hop-free ban-map stays a compact deframaop; hopping ops inline so
+    // their pstate references survive the partition hops.
+    assert!(clj.contains("(deframaop ban-map>"));
+    assert!(
+        !clj.contains("(deframaop create-match>"),
+        "hopping op must inline: {clj}"
+    );
+    assert!(clj.contains("(case> \"create-match\")"));
+    assert!(
+        clj.contains("\"unknown-type\""),
+        "switch dispatch should ack unknown event types"
+    );
     assert!(clj.contains("(local-select>"));
     assert!(clj.contains("(local-transform>"));
     assert!(clj.contains("(ack-return>"));
@@ -71,16 +82,16 @@ fn emits_match_v2_clojure() {
     assert!(clj.contains("cond"), "fail chains use identity+cond");
     assert!(clj.contains("*__err"), "flat fail should bind *__err");
     assert!(clj.contains("else>"), "success path under else>");
-    // ban-map: one <<if guards the event validation, one collapses 3 fails.
-    let ban = clj
-        .split("deframaop")
-        .find(|s| s.contains("ban-map>"))
-        .expect("ban-map op");
-    let ban_body = ban.split("deframaop").next().unwrap_or(ban);
+    // The ban-map deframaop: event-validation guard + collapsed fail guard.
+    let ban_body = clj
+        .split("(deframaop ban-map>")
+        .nth(1)
+        .and_then(|rest| rest.split("(defn ").next())
+        .expect("ban-map deframaop");
     assert_eq!(
         ban_body.matches("<<if").count(),
         2,
-        "ban-map should have event-guard + fail-collapse <<ifs: {ban_body}"
+        "unexpected <<if count in ban-map op: {ban_body}"
     );
     assert!(
         clj.contains("__ban-map-event-error"),

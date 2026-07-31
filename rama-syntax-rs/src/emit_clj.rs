@@ -158,13 +158,36 @@ pub fn compile_program(program: &Program<'_>) -> Document {
         doc.push(coerce_longs_helper_form());
     }
 
+    // Two emit strategies, chosen per op by a probed Rama rule (RULES.md):
+    // a PState passed as a deframaop parameter loses writes silently when
+    // accessed after a partitioner hop. Hop-free ops therefore stay compact
+    // deframaops (keeping <<sources small enough for Rama's compiler stack),
+    // while ops containing |hash inline into the topology so their `$$`
+    // references resolve in hop-aware topology scope.
+    let mut op_bodies: HashMap<&str, Vec<Form>> = HashMap::new();
     for item in &file.items {
         if let Item::Op(op) = item {
-            let (helpers, op_form) = compile_op(op, &structs);
+            let (helpers, body) = compile_op_body(op, &structs);
             for helper in helpers {
                 doc.push(helper);
             }
-            doc.push(op_form);
+            if op_has_partitioner(&op.body) {
+                op_bodies.insert(op.name.node.as_str(), body);
+            } else {
+                let mut params = vec![clj::sym("*event")];
+                params.extend(
+                    op_pstates(&op.body)
+                        .into_iter()
+                        .map(|name| clj::sym(format!("$${name}"))),
+                );
+                let mut form = vec![
+                    clj::sym("deframaop"),
+                    clj::sym(format!("{}>", op.name.node)),
+                    clj::vector(params),
+                ];
+                form.extend(body);
+                doc.push(Form::List(form));
+            }
         }
     }
 
@@ -199,6 +222,7 @@ pub fn compile_program(program: &Program<'_>) -> Document {
             &depots,
             &pstates,
             &ops,
+            &op_bodies,
             &structs,
         ));
     }
@@ -734,23 +758,17 @@ fn event_spec(op: &OpDef, structs: &HashMap<&str, &StructDecl>) -> Option<EventS
     })
 }
 
-fn compile_op(op: &OpDef, structs: &HashMap<&str, &StructDecl>) -> (Vec<Form>, Form) {
+/// Compile an op to (top-level helper defns, dataflow body forms).
+///
+/// The body references the depot event as `*event` regardless of the surface
+/// parameter name, ready to splice into a `<<sources` dispatch branch.
+fn compile_op_body(op: &OpDef, structs: &HashMap<&str, &StructDecl>) -> (Vec<Form>, Vec<Form>) {
     let mut compiler = OpCompiler {
         op_name: &op.name.node,
         helpers: Vec::new(),
         fail_gen: 0,
         expr_gen: 0,
     };
-    let mut params: Vec<Form> = op
-        .params
-        .iter()
-        .map(|p| clj::sym(format!("*{}", p.name.node)))
-        .collect();
-    params.extend(
-        op_pstates(&op.body)
-            .into_iter()
-            .map(|name| clj::sym(format!("$${name}"))),
-    );
     let mut body = compiler.stmts(&op.body.stmts);
 
     if let Some(event) = event_spec(op, structs) {
@@ -817,13 +835,17 @@ fn compile_op(op: &OpDef, structs: &HashMap<&str, &StructDecl>) -> (Vec<Form>, F
         ];
     }
 
-    let mut xs = vec![clj::sym(format!("{}>", op.name.node)), clj::vector(params)];
-    // Body fragments splice as sibling list elements (Rama dataflow body).
-    xs.extend(body);
-    // Rebuild with head symbol deframaop
-    let mut all = vec![clj::sym("deframaop")];
-    all.extend(xs);
-    (compiler.helpers, Form::List(all))
+    // The <<sources dispatch binds the depot payload as *event.
+    if let Some(param) = op.params.first() {
+        if param.name.node != "event" {
+            let surface = format!("*{}", param.name.node);
+            body = body
+                .into_iter()
+                .map(|form| rename_symbol(form, &surface, "*event"))
+                .collect();
+        }
+    }
+    (compiler.helpers, body)
 }
 
 /// Plain-Clojure validator: nil for a well-formed event, else an error string.
@@ -913,6 +935,47 @@ fn coerce_longs_helper_form() -> Form {
     )
 }
 
+fn op_has_partitioner(block: &Block) -> bool {
+    block.stmts.iter().any(|stmt| match stmt {
+        Stmt::Hash { .. } => true,
+        Stmt::If {
+            consequence,
+            alternative,
+            ..
+        } => {
+            op_has_partitioner(consequence) || alternative.as_ref().is_some_and(op_has_partitioner)
+        }
+        _ => false,
+    })
+}
+
+fn op_pstates(block: &Block) -> BTreeSet<String> {
+    fn visit(block: &Block, out: &mut BTreeSet<String>) {
+        for stmt in &block.stmts {
+            match stmt {
+                Stmt::Select { pstate, .. } | Stmt::Transform { pstate, .. } => {
+                    out.insert(pstate.node.clone());
+                }
+                Stmt::If {
+                    consequence,
+                    alternative,
+                    ..
+                } => {
+                    visit(consequence, out);
+                    if let Some(alt) = alternative {
+                        visit(alt, out);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let mut out = BTreeSet::new();
+    visit(block, &mut out);
+    out
+}
+
 fn rename_symbol(form: Form, from: &str, to: &str) -> Form {
     match form {
         Form::Symbol(symbol) if symbol == from => clj::sym(to),
@@ -951,6 +1014,7 @@ fn defmodule_form(
     depots: &[&DepotDecl],
     pstates: &[&PStateDecl],
     ops: &[&OpDef],
+    op_bodies: &HashMap<&str, Vec<Form>>,
     structs: &HashMap<&str, &StructDecl>,
 ) -> Form {
     let mut body: Vec<Form> = Vec::new();
@@ -1000,24 +1064,39 @@ fn defmodule_form(
                 ],
             ),
         ];
+        // One flat <<switch instead of sequential <<ifs: sequential branches
+        // compile as nested continuations and overflow Rama's compiler stack
+        // once several guarded op bodies inline (see RULES.md).
+        //
+        // Op bodies inline here so `$$` references resolve in topology scope.
+        // Parameter-passed PStates accessed after a partitioner hop lose
+        // writes silently (see RULES.md).
+        let mut switch = vec![clj::sym("<<switch"), clj::sym("*__type")];
         for op in ops {
-            let mut call_args = vec![clj::sym("*event")];
-            call_args.extend(
-                op_pstates(&op.body)
-                    .into_iter()
-                    .map(|name| clj::sym(format!("$${name}"))),
-            );
-            sources.push(clj::call(
-                "<<if",
-                [
-                    clj::call(
-                        "=",
-                        [clj::sym("*__type"), clj::string(op.name.node.clone())],
-                    ),
-                    clj::call(format!("{}>", op.name.node), call_args),
-                ],
-            ));
+            switch.push(clj::call("case>", [clj::string(op.name.node.clone())]));
+            match op_bodies.get(op.name.node.as_str()) {
+                Some(body) => switch.extend(body.clone()),
+                None => {
+                    let mut call = vec![clj::sym(format!("{}>", op.name.node)), clj::sym("*event")];
+                    call.extend(
+                        op_pstates(&op.body)
+                            .into_iter()
+                            .map(|name| clj::sym(format!("$${name}"))),
+                    );
+                    switch.push(Form::List(call));
+                }
+            }
         }
+        switch.push(clj::call("default>", []));
+        switch.push(clj::call(
+            "ack-return>",
+            [clj::map([
+                (clj::string("ok"), clj::bool(false)),
+                (clj::string("error"), clj::string("unknown-type")),
+                (clj::string("type"), clj::sym("*__type")),
+            ])],
+        ));
+        sources.push(Form::List(switch));
         let_body.push(Form::List(sources));
     }
 
@@ -1041,33 +1120,6 @@ fn defmodule_form(
     ];
     mod_elems.extend(body);
     Form::List(mod_elems)
-}
-
-fn op_pstates(block: &Block) -> BTreeSet<String> {
-    fn visit(block: &Block, out: &mut BTreeSet<String>) {
-        for stmt in &block.stmts {
-            match stmt {
-                Stmt::Select { pstate, .. } | Stmt::Transform { pstate, .. } => {
-                    out.insert(pstate.node.clone());
-                }
-                Stmt::If {
-                    consequence,
-                    alternative,
-                    ..
-                } => {
-                    visit(consequence, out);
-                    if let Some(alt) = alternative {
-                        visit(alt, out);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    let mut out = BTreeSet::new();
-    visit(block, &mut out);
-    out
 }
 
 fn pstate_type_form(ty: &TypeExpr, structs: &HashMap<&str, &StructDecl>) -> Form {
@@ -1531,6 +1583,7 @@ pstate $$matches: Map<String, Match>
     fn collapses_fail_chain_to_single_if() {
         let src = r#"
 module M
+depot events keyed-by id
 op ban(event) {
   let { turn, arenaId } = event
   fail "no-ban-state" if turn == nil
@@ -1546,6 +1599,11 @@ op ban(event) {
         assert!(out.contains("some?"), "got: {out}");
         assert!(out.contains("*__err1"), "got: {out}");
         assert!(out.contains("(else>)"), "got: {out}");
+        // Dispatch is a flat <<switch; a hop-free op keeps the compact
+        // deframaop form; the collapsed fail guard is the only <<if.
+        assert!(out.contains("<<switch"), "got: {out}");
+        assert!(out.contains("(case> \"ban\")"), "got: {out}");
+        assert!(out.contains("(deframaop ban>"), "got: {out}");
         let if_count = out.matches("<<if").count();
         assert_eq!(if_count, 1, "expected one <<if, got {if_count}: {out}");
     }
@@ -1554,8 +1612,10 @@ op ban(event) {
     fn lowers_surface_keyword_fields_to_rest_strings() {
         let src = r#"
 module M
+depot events keyed-by id
 pstate $$p: Map<String, Object>
-op put(id) {
+op put(event) {
+  let { id } = event
   $$p !<-- keypath(id), termval({:status "ok"})
   return {"ok" true}
 }

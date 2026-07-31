@@ -385,6 +385,18 @@ impl<'a> Checker<'a> {
             SignatureSource::Prelude,
         );
         self.signature(
+            "some?",
+            vec![simple("Any")],
+            simple("Boolean"),
+            SignatureSource::Prelude,
+        );
+        self.signature(
+            "boolean",
+            vec![simple("Any")],
+            simple("Boolean"),
+            SignatureSource::Prelude,
+        );
+        self.signature(
             "not",
             vec![simple("Any")],
             simple("Boolean"),
@@ -1367,9 +1379,21 @@ impl<'a> Checker<'a> {
                 *score += 1;
                 true
             }
-            Type::Union(members) => members
-                .into_iter()
-                .any(|member| self.match_type(member, actual, bindings, score)),
+            Type::Union(members) => {
+                // A union argument satisfies a union parameter when every
+                // branch of the argument fits some branch of the parameter.
+                if let Type::Union(actual_members) = self.typing.table.get(actual).clone() {
+                    actual_members.into_iter().all(|actual_member| {
+                        members.iter().any(|expected_member| {
+                            self.match_type(*expected_member, actual_member, bindings, score)
+                        })
+                    })
+                } else {
+                    members
+                        .into_iter()
+                        .any(|member| self.match_type(member, actual, bindings, score))
+                }
+            }
             Type::Function {
                 params: expected_params,
                 ret: expected_ret,

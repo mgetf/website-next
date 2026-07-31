@@ -63,11 +63,12 @@ const SMOKE_TEST: &str = r#"
 (deftest generated-module-lifecycle
   (with-open [ipc (rtest/create-ipc)]
     (rtest/launch-module! ipc generated/MatchModule {:tasks 4 :threads 2})
-    (let [module-name "Match/MatchModule"
+    (    let [module-name "Match/MatchModule"
           depot (foreign-depot ipc module-name "*matchDepot")
           matches (foreign-pstate ipc module-name "$$matches")
           map-bans (foreign-pstate ipc module-name "$$mapBans")
           team-stats (foreign-pstate ipc module-name "$$teamStats")
+          by-team (foreign-pstate ipc module-name "$$matchesByTeam")
           ack (append-event!
                depot
                {"type" "create-match"
@@ -80,6 +81,11 @@ const SMOKE_TEST: &str = r#"
       (is (= true (get ack "ok")))
       (is (= "UNPLAYED"
              (foreign-select-one (keypath "m1" "status") matches)))
+      ;; Cross-partition index writes after |hash hops. These are the
+      ;; assertions that expose lost writes when PStates are passed as
+      ;; deframaop parameters across partitioners.
+      (is (= "s1" (foreign-select-one (keypath "home" "m1") by-team)))
+      (is (= "s1" (foreign-select-one (keypath "away" "m1") by-team)))
       ;; The generated validator acks malformed events instead of
       ;; killing the worker.
       (let [bad (append-event!

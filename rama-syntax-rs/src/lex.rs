@@ -117,6 +117,8 @@ pub enum TokenKind {
 
     /// Must win over hyphenated idents (otherwise `nil-` + `>` + `val`).
     #[token("nil->val", |_| "nil->val".to_string(), priority = 20)]
+    /// Rama's delete navigator; `>` cannot be part of the ident regex.
+    #[token("NONE>", |_| "NONE>".to_string(), priority = 20)]
     #[regex(r#"[A-Za-z_][A-Za-z0-9_?]*(?:-[A-Za-z0-9_?]+)*\??"#, |lex| lex.slice().to_string(), priority = 1)]
     Ident(String),
 }

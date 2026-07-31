@@ -31,7 +31,9 @@ fn verify_form(form: &Form, context: Context, out: &mut Vec<Issue>) {
         Form::List(xs) => {
             let head = head(xs);
             let next = match head {
-                Some("deframaop") | Some("<<sources") | Some("<<if") => Context::Dataflow,
+                Some("deframaop") | Some("<<sources") | Some("<<if") | Some("<<switch") => {
+                    Context::Dataflow
+                }
                 Some("defn") | Some("fn") => Context::Clj,
                 _ => context,
             };

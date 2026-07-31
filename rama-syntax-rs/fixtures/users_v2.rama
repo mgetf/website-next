@@ -1,0 +1,183 @@
+// UsersModule ported from rama/src/mge/tf/rama/users_module.clj.
+// The empirical test for the language: typed events, typed fn helpers,
+// cross-partition discord uniqueness, session-version bumps.
+
+module Users
+
+struct User {
+  :username        String
+  :avatarUrl       String
+  :permissionLevel String
+  :banStatus       String
+  :sessionVersion  Long
+  :discordId       String
+}
+
+pstate $$users:       Map<String, User>
+pstate $$discordById: Map<String, String>
+
+depot userDepot keyed-by steamId
+
+struct UpsertProfileEvent {
+  :steamId   String
+  :username  String
+  :avatarUrl String
+}
+
+struct SetPermissionEvent {
+  :steamId         String
+  :permissionLevel String
+}
+
+struct SetBanEvent {
+  :steamId   String
+  :banStatus String
+}
+
+struct BumpSessionEvent {
+  :steamId String
+}
+
+struct LinkDiscordEvent {
+  :steamId   String
+  :discordId String
+}
+
+struct UnlinkDiscordEvent {
+  :steamId String
+}
+
+fn ban-error(status: String) -> String? {
+  if (not(contains?(set(["NONE" "SUSPENDED" "BANNED"]), status))) {
+    return "invalid-ban-status"
+  }
+  return nil
+}
+
+fn permission-error(level: String) -> String? {
+  if (not(contains?(set(["GUEST" "MODERATOR" "ADMIN"]), level))) {
+    return "invalid-permission-level"
+  }
+  return nil
+}
+
+fn mutate-error(existing: Dynamic, fieldErr: String?) -> String? {
+  if (some?(fieldErr)) { return fieldErr }
+  if (nil?(existing)) { return "user-not-found" }
+  return nil
+}
+
+fn discord-id-error(discordId: String, takenBy: String?, steamId: String) -> String? {
+  if (or(nil?(discordId), discordId == "")) { return "missing-discord-id" }
+  if (and(some?(takenBy), takenBy != steamId)) { return "discord-taken" }
+  return nil
+}
+
+fn clear-old-discord?(old: String?, discordId: String) -> Boolean {
+  return boolean(and(some?(old), old != "", old != discordId))
+}
+
+op upsert-profile(event: UpsertProfileEvent) {
+  let { steamId, username, avatarUrl } = event
+
+  $$users --> keypath(steamId, :sessionVersion) > sv
+  $$users !<-- keypath(steamId, :username), termval(username)
+  $$users !<-- keypath(steamId, :avatarUrl), termval(avatarUrl)
+
+  if (nil?(sv)) {
+    $$users !<-- keypath(steamId, :sessionVersion), termval(0)
+    $$users !<-- keypath(steamId, :permissionLevel), termval("GUEST")
+    $$users !<-- keypath(steamId, :banStatus), termval("NONE")
+  }
+
+  return {"ok" true "steamId" steamId}
+}
+
+op set-permission(event: SetPermissionEvent) {
+  let { steamId, permissionLevel } = event
+
+  $$users --> keypath(steamId) > existing
+  let err = mutate-error(existing, permission-error(permissionLevel))
+  fail err if some?(err)
+
+  $$users --> keypath(steamId, :sessionVersion), nil->val(0) > sv
+  let nextSv = inc(sv)
+  $$users !<-- keypath(steamId, :permissionLevel), termval(permissionLevel)
+  $$users !<-- keypath(steamId, :sessionVersion), termval(nextSv)
+
+  return {"ok" true "steamId" steamId "permissionLevel" permissionLevel "sessionVersion" nextSv}
+}
+
+op set-ban(event: SetBanEvent) {
+  let { steamId, banStatus } = event
+
+  $$users --> keypath(steamId) > existing
+  let err = mutate-error(existing, ban-error(banStatus))
+  fail err if some?(err)
+
+  $$users --> keypath(steamId, :sessionVersion), nil->val(0) > sv
+  let nextSv = inc(sv)
+  $$users !<-- keypath(steamId, :banStatus), termval(banStatus)
+  $$users !<-- keypath(steamId, :sessionVersion), termval(nextSv)
+
+  return {"ok" true "steamId" steamId "banStatus" banStatus "sessionVersion" nextSv}
+}
+
+op bump-session(event: BumpSessionEvent) {
+  let { steamId } = event
+
+  $$users --> keypath(steamId) > existing
+  fail "user-not-found" if nil?(existing)
+
+  $$users --> keypath(steamId, :sessionVersion), nil->val(0) > sv
+  let nextSv = inc(sv)
+  $$users !<-- keypath(steamId, :sessionVersion), termval(nextSv)
+
+  return {"ok" true "steamId" steamId "sessionVersion" nextSv}
+}
+
+op link-discord(event: LinkDiscordEvent) {
+  let { steamId, discordId } = event
+
+  $$users --> keypath(steamId) > existing
+  fail "user-not-found" if nil?(existing)
+
+  $$users --> keypath(steamId, :discordId) > old
+
+  // reverse index lives on the discordId partition — hop before read
+  |hash discordId
+  $$discordById --> keypath(discordId) > takenBy
+  let err = discord-id-error(discordId, takenBy, steamId)
+  fail err if some?(err)
+
+  $$discordById !<-- keypath(discordId), termval(steamId)
+
+  if (clear-old-discord?(old, discordId)) {
+    |hash old
+    $$discordById !<-- keypath(old), NONE>
+  }
+
+  |hash steamId
+  $$users !<-- keypath(steamId, :discordId), termval(discordId)
+
+  return {"ok" true "steamId" steamId "discordId" discordId}
+}
+
+op unlink-discord(event: UnlinkDiscordEvent) {
+  let { steamId } = event
+
+  $$users --> keypath(steamId) > existing
+  fail "user-not-found" if nil?(existing)
+
+  $$users --> keypath(steamId, :discordId) > old
+
+  if (clear-old-discord?(old, "")) {
+    |hash old
+    $$discordById !<-- keypath(old), NONE>
+  }
+
+  |hash steamId
+  $$users !<-- keypath(steamId, :discordId), termval(nil)
+
+  return {"ok" true "steamId" steamId}
+}

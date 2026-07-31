@@ -182,6 +182,7 @@ fn should_block_list(xs: &[Form]) -> bool {
             | "do"
             | "if"
             | "<<if"
+            | "<<switch"
             | "<<sources"
             | "fixed-keys-schema"
             | "map-schema"

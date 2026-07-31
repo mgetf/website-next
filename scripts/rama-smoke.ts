@@ -19,11 +19,24 @@ import {
   getTeamWins,
   submitScore,
 } from '../src/lib/server/rama/match';
+import { createUsersClient, getSessionVersion, upsertProfile } from '../src/lib/server/rama/users';
 
 const conductorUrl = process.env.RAMA_CONDUCTOR_URL ?? 'http://localhost:8888';
 const supervisorBaseUrl = process.env.RAMA_SUPERVISOR_URL;
 
 async function main() {
+  const users = createUsersClient({ conductorUrl, supervisorBaseUrl });
+  const steamId = `smoke-user-${Date.now()}`;
+  console.log(
+    'users upsert',
+    await upsertProfile(users, {
+      steamId,
+      username: 'smoke',
+      avatarUrl: 'http://example/a.png',
+    }),
+  );
+  console.log('sessionVersion', await getSessionVersion(users, steamId));
+
   const client = createMatchClient({ conductorUrl, supervisorBaseUrl });
   const matchId = `smoke-${Date.now()}`;
 

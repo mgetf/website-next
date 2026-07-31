@@ -1,10 +1,16 @@
-# Rama Spike — Match Module over REST JSON
+# Rama Spike — Modules over REST JSON
 
 See [`rama/README.md`](../rama/README.md) for the full write-up.
 
 **Transit:** TypeScript → Rama built-in REST (JSON depot append + JSON paths). No gRPC. No Clojure HTTP server.
 
-**Module:** `mge.tf.rama.match-module/MatchModule`  
-**Client:** `src/lib/server/rama/client.ts` + `match.ts`  
+| Module                | Client                                 | Topology ack key |
+| --------------------- | -------------------------------------- | ---------------- |
+| `MatchModule`         | `src/lib/server/rama/match.ts`         | `matches`        |
+| `UsersModule`         | `src/lib/server/rama/users.ts`         | `users`          |
+| `TeamsModule`         | `src/lib/server/rama/teams.ts`         | `teams`          |
+| `PaymentsModule`      | `src/lib/server/rama/payments.ts`      | `payments`       |
+| `NotificationsModule` | `src/lib/server/rama/notifications.ts` | `notifications`  |
+
 **Tests:** `cd rama && lein test-rama`  
-**Smoke:** `bun run rama:smoke` (needs live cluster)
+**Smoke:** `bun run rama:smoke` (needs live cluster with all five modules launched)

@@ -24,25 +24,26 @@ Encoding notes from Rama:
 
 ```
 rama/                          Clojure-only module project (Leiningen)
-  src/mge/tf/rama/match_module.clj
-  test/mge/tf/rama/match_module_test.clj
+  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications
+  test/mge/tf/rama/*_test.clj
   project.clj
 
 src/lib/server/rama/           TypeScript REST client (no business HTTP server)
   client.ts                    generic append / select / selectOne / invokeQuery
-  match.ts                     MatchModule helpers
-  index.ts
+  match.ts | users.ts | teams.ts | payments.ts | notifications.ts
 
 scripts/rama-smoke.ts          end-to-end against a live cluster
 ```
 
 ## Modules
 
-| Module        | Depot          | Owns                                                   |
-| ------------- | -------------- | ------------------------------------------------------ |
-| `MatchModule` | `*match-depot` | create/ban/score + standings mirrors                   |
-| `UsersModule` | `*user-depot`  | profile, ban, permission, sessionVersion, discord link |
-| `TeamsModule` | `*team-depot`  | create/join/leave, roster cap, season uniqueness       |
+| Module                | Depot                 | Owns                                                          |
+| --------------------- | --------------------- | ------------------------------------------------------------- |
+| `MatchModule`         | `*match-depot`        | create/ban/score + standings mirrors                          |
+| `UsersModule`         | `*user-depot`         | profile, ban, permission, sessionVersion, discord link        |
+| `TeamsModule`         | `*team-depot`         | create/join/leave, roster cap, season uniqueness              |
+| `PaymentsModule`      | `*payment-depot`      | mark-paid, item order create/confirm/expire, team paid counts |
+| `NotificationsModule` | `*notification-depot` | notify, mark-read, mark-all-read, unread count                |
 
 Agent skill (knots + how to write Rama here): `.cursor/skills/rama-clojure/`
 
@@ -110,12 +111,40 @@ RAMA_CONDUCTOR_URL=http://<conductor>:8888 bun run rama:smoke
 2. Set `RAMA_CONDUCTOR_URL` (optional `RAMA_SUPERVISOR_URL` to skip discovery).
 3. Run the smoke script above.
 
-## Ripping Postgres out (next steps, not in this spike)
+## PaymentsModule
 
-1. Expand modules: users, teams, payments, notifications (same REST-only rule).
-2. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services.
-3. Keep Steam/Discord OAuth + R2 blobs at the edge; store only indexes in PStates.
-4. Replace `pg_notify` SSE with notification PState polling or a tiny bridge once Rama exposes reactivity over REST.
-5. Delete Prisma when every read/write path has a PState/depot equivalent.
+**Depot** `*payment-depot` — `hash-by` `orderId|steamId`
 
-This spike proves the hard interactive path (create → ban turns → score → standings) without a second HTTP stack.
+| `type`               | Fields                                                                          |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `mark-paid`          | steamId, seasonId, teamId, status (`PAID`/`EXEMPT`), amount, source, paymentId? |
+| `create-item-order`  | orderId, steamId, teamId, seasonId, amount                                      |
+| `confirm-item-order` | orderId                                                                         |
+| `expire-item-order`  | orderId                                                                         |
+
+**PStates:** `$$player-season-payment`, `$$team-paid-count`, `$$item-orders`, `$$payments`  
+Topology ack key: `payments`.
+
+## NotificationsModule
+
+**Depot** `*notification-depot` — `hash-by` `steamId`
+
+| `type`          | Fields                                         |
+| --------------- | ---------------------------------------------- |
+| `notify`        | steamId, id, notifType, body, href?, createdAt |
+| `mark-read`     | steamId, id                                    |
+| `mark-all-read` | steamId                                        |
+
+**PStates:** `$$notifications`, `$$unread-count`  
+Topology ack key: `notifications`.
+
+## Ripping Postgres out (next steps)
+
+1. ~~Expand modules: users, teams, payments, notifications~~ (done in this spike).
+2. Add seasons/config + events/brackets modules.
+3. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services.
+4. Keep Steam/Discord OAuth + R2 blobs at the edge; store only indexes in PStates.
+5. Replace `pg_notify` SSE with notification PState polling or a tiny bridge once Rama exposes reactivity over REST.
+6. Delete Prisma when every read/write path has a PState/depot equivalent.
+
+This spike proves the hard interactive paths (matches, users, teams, payments, notifications) without a second HTTP stack.

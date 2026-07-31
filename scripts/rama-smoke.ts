@@ -1,5 +1,5 @@
 /**
- * Smoke-exercise MatchModule + UsersModule + TeamsModule via Rama REST JSON.
+ * Smoke-exercise all Rama modules via REST JSON.
  *
  * Requires a running Rama cluster with modules launched, and:
  *   RAMA_CONDUCTOR_URL=http://localhost:8888
@@ -19,6 +19,23 @@ import {
   getTeamWins,
   submitScore,
 } from '../src/lib/server/rama/match';
+import {
+  createNotificationsClient,
+  getUnreadCount,
+  markAllRead,
+  markRead,
+  notify,
+} from '../src/lib/server/rama/notifications';
+import {
+  confirmItemOrder,
+  createItemOrder,
+  createPaymentsClient,
+  expireItemOrder,
+  getItemOrderStatus,
+  getPlayerPaymentStatus,
+  getTeamPaidCount,
+  markPaid,
+} from '../src/lib/server/rama/payments';
 import {
   createTeam,
   createTeamsClient,
@@ -137,6 +154,84 @@ async function main() {
   console.log('status', await getMatchStatus(client, matchId));
   console.log('home wins', await getTeamWins(client, 'team-home'));
   console.log('away wins', await getTeamWins(client, 'team-away'));
+
+  const payments = createPaymentsClient({ conductorUrl, supervisorBaseUrl });
+  const seasonId = 'season-spike';
+  console.log(
+    'markPaid',
+    await markPaid(payments, {
+      steamId,
+      seasonId,
+      teamId,
+      status: 'PAID',
+      amount: 25,
+      source: 'SMOKE',
+      paymentId: `pay-${Date.now()}`,
+    }),
+  );
+  console.log('playerPayment', await getPlayerPaymentStatus(payments, steamId, seasonId));
+  console.log('teamPaidCount', await getTeamPaidCount(payments, teamId));
+
+  const orderId = `ord-${Date.now()}`;
+  console.log(
+    'createItemOrder',
+    await createItemOrder(payments, {
+      orderId,
+      steamId: mateId,
+      teamId,
+      seasonId,
+      amount: 25,
+    }),
+  );
+  console.log('orderStatus', await getItemOrderStatus(payments, orderId));
+  console.log('confirmItemOrder', await confirmItemOrder(payments, orderId));
+  console.log('orderStatus after confirm', await getItemOrderStatus(payments, orderId));
+  console.log('matePayment', await getPlayerPaymentStatus(payments, mateId, seasonId));
+
+  const expireOrderId = `ord-exp-${Date.now()}`;
+  console.log(
+    'createItemOrder (expire)',
+    await createItemOrder(payments, {
+      orderId: expireOrderId,
+      steamId: `${steamId}-exp`,
+      teamId,
+      seasonId,
+      amount: 25,
+    }),
+  );
+  console.log('expireItemOrder', await expireItemOrder(payments, expireOrderId));
+  console.log('expiredStatus', await getItemOrderStatus(payments, expireOrderId));
+
+  const notifications = createNotificationsClient({ conductorUrl, supervisorBaseUrl });
+  const notifId = `n-${Date.now()}`;
+  console.log(
+    'notify',
+    await notify(notifications, {
+      steamId,
+      id: notifId,
+      notifType: 'PAYMENT',
+      body: 'Payment confirmed',
+      href: `/users/${steamId}/payments`,
+      createdAt: new Date().toISOString(),
+    }),
+  );
+  console.log('unread', await getUnreadCount(notifications, steamId));
+  console.log('markRead', await markRead(notifications, { steamId, id: notifId }));
+  console.log('unread after read', await getUnreadCount(notifications, steamId));
+  const notifId2 = `n2-${Date.now()}`;
+  console.log(
+    'notify2',
+    await notify(notifications, {
+      steamId,
+      id: notifId2,
+      notifType: 'TEAM',
+      body: 'Team status changed',
+      href: `/teams/${teamId}`,
+      createdAt: new Date().toISOString(),
+    }),
+  );
+  console.log('markAllRead', await markAllRead(notifications, steamId));
+  console.log('unread after mark-all', await getUnreadCount(notifications, steamId));
 }
 
 main().catch((err) => {

@@ -46,6 +46,7 @@ scripts/rama-smoke.ts          end-to-end against a live cluster
 | `SeasonsModule`       | `*season-depot`       | create, flags, schedule, info; unique (region, format, num)   |
 | `MapPoolsModule`      | `*map-pool-depot`     | arenas, pool CRUD, ordered arena list for bans                |
 | `EventsModule`        | `*event-depot`        | event metadata, participants, placements, opaque bracket JSON |
+| `CatalogModule`       | `*catalog-depot`      | regions, formats (unique code), active signup season pointers |
 
 Agent skill (knots + how to write Rama here): `.cursor/skills/rama-clojure/`
 
@@ -186,9 +187,23 @@ Topology ack key: `map-pools`.
 **PStates:** `$$events`, `$$event-participants`, `$$event-placements`, `$$event-snapshot`  
 Topology ack key: `events`.
 
+## CatalogModule
+
+**Depot** `*catalog-depot` — `hash-by` `regionId|formatId|code`
+
+| `type`              | Fields                                                  |
+| ------------------- | ------------------------------------------------------- |
+| `upsert-region`     | regionId, name, hidden?, currencySymbol?, currencyCode? |
+| `set-region-hidden` | regionId, hidden                                        |
+| `upsert-format`     | formatId, name, code (unique via `$$format-by-code`)    |
+| `set-active-signup` | regionId, formatId, seasonId                            |
+
+**PStates:** `$$regions`, `$$formats`, `$$format-by-code`, `$$active-signup`  
+Topology ack key: `catalog`.
+
 ## Ripping Postgres out (next steps)
 
-1. ~~Expand core domain modules~~ (matches → users → teams → payments → notifications → seasons → map pools → events).
+1. ~~Expand core domain modules~~ (matches → users → teams → payments → notifications → seasons → map pools → events → catalog).
 2. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services (vertical slices).
 3. Keep Steam/Discord OAuth + R2 blobs at the edge; store only indexes in PStates.
 4. Replace `pg_notify` SSE with notification PState polling or a tiny bridge once Rama exposes reactivity over REST.

@@ -9,6 +9,17 @@
  *   bun run scripts/rama-smoke.ts
  */
 import {
+  createCatalogClient,
+  getActiveSignupSeason,
+  getFormat,
+  getFormatIdByCode,
+  getRegion,
+  setActiveSignup,
+  setRegionHidden,
+  upsertFormat,
+  upsertRegion,
+} from '../src/lib/server/rama/catalog';
+import {
   createEvent,
   createEventsClient,
   getEvent,
@@ -381,6 +392,30 @@ async function main() {
   console.log('eventParticipants', await getEventParticipants(eventsClient, eventId));
   console.log('eventPlacements', await getEventPlacements(eventsClient, eventId));
   console.log('eventSnapshot', await getEventSnapshot(eventsClient, eventId));
+
+  const catalog = createCatalogClient({ conductorUrl, supervisorBaseUrl });
+  console.log(
+    'upsertRegion',
+    await upsertRegion(catalog, {
+      regionId: 'na',
+      name: 'North America',
+      currencySymbol: '$',
+      currencyCode: 'USD',
+    }),
+  );
+  console.log('setRegionHidden', await setRegionHidden(catalog, { regionId: 'na', hidden: false }));
+  console.log('region', await getRegion(catalog, 'na'));
+  console.log(
+    'upsertFormat',
+    await upsertFormat(catalog, { formatId: '2', name: '2v2', code: '2v2' }),
+  );
+  console.log('format', await getFormat(catalog, '2'));
+  console.log('formatByCode', await getFormatIdByCode(catalog, '2v2'));
+  console.log(
+    'setActiveSignup',
+    await setActiveSignup(catalog, { regionId: 'na', formatId: '2', seasonId: seasonKey }),
+  );
+  console.log('activeSignup', await getActiveSignupSeason(catalog, 'na', '2'));
 }
 
 main().catch((err) => {

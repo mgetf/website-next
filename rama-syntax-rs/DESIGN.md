@@ -195,6 +195,8 @@ to erase `return`. Cond/if nesting is enough for the MatchModule helper style.
 - `tests/rama_smoke.rs`: ignored-by-default real Rama/InProcessCluster proof.
 
 See `RULES.md` for the classification and current rule inventory.
+See `TYPE_SYSTEM.md` for the gradual type/JVM/schema seam and `DEBUGGING.md`
+for the typed Flow-IR instrumentation idea.
 
 ## Open
 
@@ -207,7 +209,7 @@ See `RULES.md` for the classification and current rule inventory.
 2. **Typechecker** — deepen against `struct` / `Map<…>` / Specter paths.
 3. **Module identity** — separate Clojure namespace, module class, and topology
    name instead of deriving all three from `module Match`.
-4. **Cross-partition analysis** — track partition key flow so missing `|hash`
-   before local reads/writes becomes a Rama IR diagnostic.
+4. **Typed backend split** — lower typed Rama IR into separate CljExpr and Flow
+   IRs so the Clojure/dataflow boundary is structural.
 
 See `fixtures/match_v2.rama`.

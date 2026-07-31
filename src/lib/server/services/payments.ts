@@ -5,9 +5,16 @@
  */
 
 import { notFound, badRequest } from '$lib/server/utils/errors';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { CheckoutParticipation } from '$lib/types/checkout';
-import { isRamaBackend } from '$lib/server/rama/config';
+import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
+import {
+  createTeamsClient,
+  getRosterMember,
+  getTeam,
+  setMemberPayment,
+} from '$lib/server/rama/teams';
+import { createPaymentsClient, markPaid } from '$lib/server/rama/payments';
+import { createDivisionsClient, getDivision } from '$lib/server/rama/divisions';
 
 export interface UnpaidPlayer {
   steamId: string;
@@ -53,15 +60,57 @@ export async function getLeagueFees(): Promise<number> {
 
 /**
  * Mark a player as paid manually (for payments made outside PayPal).
- * Records a Payment and PaymentTracker entry for audit consistency,
- * then updates PlayerInTeam and Team payment statuses.
+ * Under Rama: PaymentsModule mark-paid + TeamsModule set-member-payment.
  */
 export async function markPlayerAsPaidManually(
   steamId: string,
   teamId: number,
   adminSteamId: string,
 ): Promise<void> {
-  throw new Error('markPlayerAsPaidManually is not available under Rama');
+  if (isRamaBackend()) {
+    void adminSteamId;
+    const opts = ramaClientOpts();
+    const teams = createTeamsClient(opts);
+    const teamKey = String(teamId);
+    const team = await getTeam(teams, teamKey);
+    if (!team) notFound('Team not found');
+
+    const member = await getRosterMember(teams, teamKey, steamId);
+    if (!member?.active) notFound('Player is not on this team');
+    if (member.paymentStatus === 'PAID' || member.paymentStatus === 'EXEMPT') {
+      badRequest('Player is already marked as paid');
+    }
+
+    const seasonId = String(team.seasonId ?? '');
+    if (!seasonId) badRequest('Team has no associated season');
+
+    let amount = 0;
+    const divisionId = team.divisionId != null ? String(team.divisionId) : '';
+    if (divisionId) {
+      const division = await getDivision(createDivisionsClient(opts), divisionId);
+      amount = Number(division?.signupCost ?? 0);
+    }
+
+    const payAck = await markPaid(createPaymentsClient(opts), {
+      steamId,
+      seasonId,
+      teamId: teamKey,
+      status: 'PAID',
+      amount,
+      source: 'manual',
+      paymentId: `manual-${Date.now()}-${steamId}`,
+    });
+    if (!payAck.ok) badRequest(payAck.error ?? 'Failed to record payment');
+
+    const memberAck = await setMemberPayment(teams, {
+      teamId: teamKey,
+      steamId,
+      paymentStatus: 'PAID',
+    });
+    if (!memberAck.ok) badRequest(memberAck.error ?? 'Failed to update member payment');
+    return;
+  }
+  throw new Error('markPlayerAsPaidManually requires DATA_BACKEND=rama');
 }
 
 /**
@@ -76,7 +125,8 @@ export async function recordPayPalCapture(options: {
   amount: number;
   currency: string;
 }): Promise<void> {
-  throw new Error('recordPayPalCapture is not available under Rama');
+  void options;
+  badRequest('PayPal captures are not available under Rama');
 }
 
 export interface PaymentHistoryEntry {
@@ -123,7 +173,8 @@ export async function recordMultiTeamPayPalCapture(options: {
   captureId: string;
   currency: string;
 }): Promise<void> {
-  throw new Error('recordMultiTeamPayPalCapture is not available under Rama');
+  void options;
+  badRequest('PayPal captures are not available under Rama');
 }
 
 /**

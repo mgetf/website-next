@@ -123,7 +123,13 @@ export async function isSeasonCurrentlyActive(seasonId: number): Promise<boolean
  * Returns false for teams with no season or whose season has ended.
  */
 export async function isTeamSeasonActive(teamId: number): Promise<boolean> {
-  return false;
+  if (isRamaBackend()) {
+    const team = await getTeam(createTeamsClient(ramaClientOpts()), String(teamId));
+    const seasonId = team?.seasonId;
+    if (typeof seasonId !== 'string' && typeof seasonId !== 'number') return false;
+    return isSeasonCurrentlyActive(Number(seasonId));
+  }
+  throw new Error('isTeamSeasonActive requires DATA_BACKEND=rama');
 }
 
 /**

@@ -356,7 +356,121 @@ async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, Profi
  * Used by player/[steamId] page
  */
 export async function getPlayerProfile(steamId: string): Promise<PlayerProfile | null> {
-  void steamId;
+  if (isRamaBackend()) {
+    const opts = ramaClientOpts();
+    const user = await ramaGetUser(usersClient(), steamId);
+    if (!user) return null;
+
+    const { createTeamsClient, getPlayerSeasonMap, getTeam, getRosterMember } =
+      await import('$lib/server/rama/teams');
+    const { createDivisionsClient, getDivision } = await import('$lib/server/rama/divisions');
+    const { createCatalogClient, getRegion } = await import('$lib/server/rama/catalog');
+    const { createSeasonsClient, getSeason } = await import('$lib/server/rama/seasons');
+    const { createMatchClient, getTeamStats } = await import('$lib/server/rama/match');
+
+    const teams = createTeamsClient(opts);
+    const divisions = createDivisionsClient(opts);
+    const catalog = createCatalogClient(opts);
+    const seasons = createSeasonsClient(opts);
+    const match = createMatchClient(opts);
+
+    const seasonMap = await getPlayerSeasonMap(teams, steamId);
+    const currentTeams: PlayerProfile['currentTeams'] = [];
+    const entries1v1: PlayerProfile['entries1v1'] = [];
+
+    for (const [seasonId, teamId] of Object.entries(seasonMap)) {
+      const team = await getTeam(teams, teamId);
+      if (!team) continue;
+      const status = String(team.status ?? 'UNREADY');
+      const formatId = Number(team.formatId);
+      const divisionId = team.divisionId != null ? Number(team.divisionId) : null;
+      const regionId = team.regionId != null ? Number(team.regionId) : null;
+      const division = divisionId != null ? await getDivision(divisions, String(divisionId)) : null;
+      const region = regionId != null ? await getRegion(catalog, String(regionId)) : null;
+      const season = await getSeason(seasons, seasonId);
+      const stats = await getTeamStats(match, teamId);
+      const member = await getRosterMember(teams, teamId, steamId);
+      const isPaid =
+        member?.paymentStatus === 'PAID' ||
+        member?.paymentStatus === 'EXEMPT' ||
+        member?.paymentStatus === 'MARKED_PAID';
+
+      if (formatId === FORMAT_1V1) {
+        entries1v1.push({
+          id: Number(teamId),
+          active: status !== 'DEAD',
+          status,
+          division: division?.name || 'Unknown',
+          divisionId,
+          regionId,
+          region: region?.name || 'Unknown',
+          seasonNum: Number(season?.seasonNum ?? 0),
+          wins: stats.wins,
+          losses: stats.losses,
+          startedAt: new Date(0),
+          leftAt: null,
+          isPaid: Boolean(isPaid),
+          signupCost: Number(division?.signupCost ?? 0),
+          matches: [],
+        });
+        continue;
+      }
+
+      if (formatId === FORMAT_2V2 && status !== 'DEAD' && member?.active) {
+        currentTeams.push({
+          teamId: Number(teamId),
+          teamName: String(team.name ?? ''),
+          division: division?.name || 'Unknown',
+          regionName: region?.name || 'Unknown',
+          seasonNum: Number(season?.seasonNum ?? 0),
+          status,
+          wins: stats.wins,
+          losses: stats.losses,
+          totalRecord: `${stats.wins}-${stats.losses}`,
+          joined: new Date(0),
+          permissionLevel:
+            member.permissionLevel === 'STATUS' ? 2 : member.permissionLevel === 'ADMIN' ? 1 : 0,
+          matches: [],
+        });
+      }
+    }
+
+    const current1v1 = entries1v1.find((e) => e.active) ?? null;
+
+    return {
+      player: {
+        steamId,
+        name: String(user.username ?? steamId),
+        avatar: String(user.avatarUrl ?? '') || null,
+        discordLinked: Boolean(user.discordId),
+        discordUsername: null,
+        permissionLevel: String(user.permissionLevel ?? 'GUEST'),
+        banStatus: String(user.banStatus ?? 'NONE'),
+        punishmentCount: 0,
+        nameOverride: 0,
+        avatarOverride: 0,
+        staffDivisions: [],
+      },
+      currentTeams,
+      teamHistory: [],
+      tournaments: [],
+      fightNights: [],
+      achievements: [],
+      current1v1Entry: current1v1
+        ? {
+            id: current1v1.id,
+            division: current1v1.division,
+            divisionId: current1v1.divisionId,
+            region: current1v1.region,
+            regionId: current1v1.regionId,
+            seasonNum: current1v1.seasonNum,
+            wins: current1v1.wins,
+            losses: current1v1.losses,
+          }
+        : null,
+      entries1v1,
+    };
+  }
   return null;
 }
 
@@ -423,15 +537,24 @@ export async function getStaffMembers(): Promise<
 }
 
 /**
- * Ban a user with a reason
- */
-/**
  * Clear a user's punishment status and deactivate active punishment records
  */
 export async function clearPunishment(steamId: string, clearedBy: string) {
-  throw new Error('clearPunishment is not available under Rama');
+  if (isRamaBackend()) {
+    void clearedBy;
+    const client = usersClient();
+    const existing = await ramaGetUser(client, steamId);
+    if (!existing) throw new Error('User not found');
+    const ack = await ramaSetBan(client, { steamId, banStatus: 'NONE' });
+    if (!ack.ok) throw new Error(ack.error ?? 'Failed to clear punishment');
+    return;
+  }
+  throw new Error('clearPunishment requires DATA_BACKEND=rama');
 }
 
+/**
+ * Ban a user with a reason
+ */
 export async function banUser(
   steamId: string,
   bannedBy: string,
@@ -439,7 +562,24 @@ export async function banUser(
   reason: string,
   duration?: number,
 ) {
-  throw new Error('banUser is not available under Rama');
+  if (isRamaBackend()) {
+    void bannedBy;
+    void reason;
+    void duration;
+    if (severity === 'WARNING') {
+      // UsersModule has no WARNING status — treat as soft warning with no ban flip.
+      const existing = await ramaGetUser(usersClient(), steamId);
+      if (!existing) throw new Error('User not found');
+      return { steamId, severity, reason };
+    }
+    const client = usersClient();
+    const existing = await ramaGetUser(client, steamId);
+    if (!existing) throw new Error('User not found');
+    const ack = await ramaSetBan(client, { steamId, banStatus: severity });
+    if (!ack.ok) throw new Error(ack.error ?? 'Failed to ban user');
+    return { steamId, severity, reason };
+  }
+  throw new Error('banUser requires DATA_BACKEND=rama');
 }
 
 /**

@@ -155,9 +155,46 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
 /**
  * Toggle a 1v1 entry from UNREADY to PENDING.
  * Requires the player to be paid (for paid divisions).
+ * Owner permission is STATUS or ADMIN.
  */
 export async function toggle1v1Ready(teamId: number, requestingSteamId: string): Promise<void> {
-  throw new Error('toggle1v1Ready is not available under Rama');
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const opts = ramaClientOpts();
+    const { createTeamsClient, getTeam, getRosterMember, setTeamStatus } =
+      await import('$lib/server/rama/teams');
+    const { createDivisionsClient, getDivision } = await import('$lib/server/rama/divisions');
+    const teams = createTeamsClient(opts);
+    const teamKey = String(teamId);
+    const team = await getTeam(teams, teamKey);
+    if (!team) notFound('1v1 entry not found');
+    if (Number(team.formatId) !== FORMAT_1V1) badRequest('This is not a 1v1 entry');
+
+    const member = await getRosterMember(teams, teamKey, requestingSteamId);
+    if (
+      !member?.active ||
+      (member.permissionLevel !== 'STATUS' && member.permissionLevel !== 'ADMIN')
+    ) {
+      forbidden('You can only ready up your own 1v1 entry');
+    }
+
+    if (String(team.status) !== TeamStatus.UNREADY) {
+      badRequest('Entry must be in UNREADY status to ready up');
+    }
+
+    const division = team.divisionId
+      ? await getDivision(createDivisionsClient(opts), String(team.divisionId))
+      : null;
+    const isFreeDiv = !division || Number(division.signupCost ?? 0) === 0;
+    if (!isFreeDiv && member.paymentStatus === 'UNPAID') {
+      badRequest('You must be paid before readying up');
+    }
+
+    const ack = await setTeamStatus(teams, { teamId: teamKey, status: 'PENDING' });
+    if (!ack.ok) badRequest(ack.error ?? 'Failed to ready up');
+    return;
+  }
+  throw new Error('toggle1v1Ready requires DATA_BACKEND=rama');
 }
 
 /**
@@ -169,15 +206,72 @@ export async function withdraw1v1Entry(
   requestingSteamId: string,
   isAdmin: boolean,
 ): Promise<void> {
-  throw new Error('withdraw1v1Entry is not available under Rama');
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const opts = ramaClientOpts();
+    const { createTeamsClient, getTeam, getRosterMember } = await import('$lib/server/rama/teams');
+    const teams = createTeamsClient(opts);
+    const teamKey = String(teamId);
+    const team = await getTeam(teams, teamKey);
+    if (!team) notFound('1v1 entry not found');
+    if (Number(team.formatId) !== FORMAT_1V1) badRequest('This is not a 1v1 entry');
+    if (String(team.status) === TeamStatus.DEAD) {
+      badRequest('This 1v1 entry has already been withdrawn');
+    }
+
+    if (!isAdmin) {
+      const member = await getRosterMember(teams, teamKey, requestingSteamId);
+      if (
+        !member?.active ||
+        (member.permissionLevel !== 'STATUS' && member.permissionLevel !== 'ADMIN')
+      ) {
+        forbidden('You can only withdraw from your own 1v1 entry');
+      }
+    }
+
+    await disbandTeam(teamId);
+    return;
+  }
+  throw new Error('withdraw1v1Entry requires DATA_BACKEND=rama');
 }
 
 /**
  * Restore a withdrawn 1v1 entry (admin only)
- * Sets team status back to READY and reactivates the player
+ * Sets team status back to UNREADY and re-joins the creator as STATUS.
  */
 export async function restore1v1Entry(teamId: number): Promise<void> {
-  throw new Error('restore1v1Entry is not available under Rama');
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const opts = ramaClientOpts();
+    const { createTeamsClient, getTeam, joinTeam, setMemberPermission, setTeamStatus } =
+      await import('$lib/server/rama/teams');
+    const teams = createTeamsClient(opts);
+    const teamKey = String(teamId);
+    const team = await getTeam(teams, teamKey);
+    if (!team) notFound('1v1 entry not found');
+    if (Number(team.formatId) !== FORMAT_1V1) badRequest('This is not a 1v1 entry');
+    if (String(team.status) !== TeamStatus.DEAD) {
+      badRequest('This 1v1 entry is not withdrawn');
+    }
+
+    const creatorSteamId = String(team.createdBy ?? '');
+    if (!creatorSteamId) badRequest('Cannot restore 1v1 entry without creator');
+
+    const statusAck = await setTeamStatus(teams, { teamId: teamKey, status: 'UNREADY' });
+    if (!statusAck.ok) badRequest(statusAck.error ?? 'Failed to restore entry');
+
+    const joinAck = await joinTeam(teams, { teamId: teamKey, steamId: creatorSteamId });
+    if (!joinAck.ok) badRequest(joinAck.error ?? 'Failed to restore roster');
+
+    const permAck = await setMemberPermission(teams, {
+      teamId: teamKey,
+      steamId: creatorSteamId,
+      permissionLevel: 'STATUS',
+    });
+    if (!permAck.ok) badRequest(permAck.error ?? 'Failed to restore owner permission');
+    return;
+  }
+  throw new Error('restore1v1Entry requires DATA_BACKEND=rama');
 }
 
 const VALID_1V1_STATUSES: TeamStatus[] = [
@@ -197,5 +291,72 @@ export async function change1v1Status(
   teamId: number,
   newStatus: TeamStatus,
 ): Promise<{ oldStatus: string; newStatus: string }> {
-  throw new Error('change1v1Status is not available under Rama');
+  if (!VALID_1V1_STATUSES.includes(newStatus)) {
+    badRequest(`Invalid status: ${newStatus}`);
+  }
+
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const opts = ramaClientOpts();
+    const { createTeamsClient, getTeam, getRoster, joinTeam, setMemberPermission, setTeamStatus } =
+      await import('$lib/server/rama/teams');
+    const { createDivisionsClient, getDivision } = await import('$lib/server/rama/divisions');
+    const teams = createTeamsClient(opts);
+    const teamKey = String(teamId);
+    const team = await getTeam(teams, teamKey);
+    if (!team) notFound('1v1 entry not found');
+    if (Number(team.formatId) !== FORMAT_1V1) badRequest('This is not a 1v1 entry');
+
+    const oldStatus = String(team.status) as TeamStatus;
+    if (oldStatus === newStatus) badRequest('Status is already ' + newStatus);
+
+    if (newStatus === TeamStatus.READY) {
+      const division = team.divisionId
+        ? await getDivision(createDivisionsClient(opts), String(team.divisionId))
+        : null;
+      const isFreeDiv = !division || Number(division.signupCost ?? 0) === 0;
+      if (!isFreeDiv) {
+        const roster = await getRoster(teams, teamKey);
+        const player = Object.values(roster).find((m) => m.active);
+        if (!player || player.paymentStatus === 'UNPAID') {
+          badRequest('Cannot set entry to READY: player must be marked as paid first');
+        }
+      }
+    }
+
+    if (newStatus === TeamStatus.DEAD) {
+      await disbandTeam(teamId);
+      return { oldStatus, newStatus };
+    }
+
+    if (oldStatus === TeamStatus.DEAD) {
+      const creatorSteamId = String(team.createdBy ?? '');
+      if (!creatorSteamId) badRequest('Cannot restore 1v1 entry without creator');
+
+      const statusAck = await setTeamStatus(teams, {
+        teamId: teamKey,
+        status: newStatus as 'UNREADY' | 'PENDING' | 'READY' | 'DEAD' | 'PLACEMENT',
+      });
+      if (!statusAck.ok) badRequest(statusAck.error ?? 'Failed to update status');
+
+      const joinAck = await joinTeam(teams, { teamId: teamKey, steamId: creatorSteamId });
+      if (!joinAck.ok) badRequest(joinAck.error ?? 'Failed to restore roster');
+
+      const permAck = await setMemberPermission(teams, {
+        teamId: teamKey,
+        steamId: creatorSteamId,
+        permissionLevel: 'STATUS',
+      });
+      if (!permAck.ok) badRequest(permAck.error ?? 'Failed to restore owner permission');
+      return { oldStatus, newStatus };
+    }
+
+    const ack = await setTeamStatus(teams, {
+      teamId: teamKey,
+      status: newStatus as 'UNREADY' | 'PENDING' | 'READY' | 'DEAD' | 'PLACEMENT',
+    });
+    if (!ack.ok) badRequest(ack.error ?? 'Failed to update status');
+    return { oldStatus, newStatus };
+  }
+  throw new Error('change1v1Status requires DATA_BACKEND=rama');
 }

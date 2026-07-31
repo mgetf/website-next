@@ -5,7 +5,12 @@
  */
 
 import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
-import { createMapPoolsClient, getArena, getArenaIds } from '$lib/server/rama/mapPools';
+import {
+  createMapPoolsClient,
+  getArena,
+  getArenaIds,
+  upsertArena,
+} from '$lib/server/rama/mapPools';
 
 /**
  * Get all arenas with their game counts
@@ -43,7 +48,36 @@ export async function createArena(data: {
   avatar?: string | null;
   playoffMap: number;
 }) {
-  throw new Error('createArena is not available under Rama');
+  if (isRamaBackend()) {
+    const trimmedName = data.name.trim();
+    if (!trimmedName) throw new Error('Arena name is required');
+
+    const client = createMapPoolsClient(ramaClientOpts());
+    const ids = await getArenaIds(client);
+    for (const id of ids) {
+      const existing = await getArena(client, id);
+      if (existing && existing.name.toLowerCase() === trimmedName.toLowerCase()) {
+        throw new Error('Arena with this name already exists');
+      }
+    }
+
+    const arenaId = String(Date.now() % 2_000_000_000);
+    const ack = await upsertArena(client, {
+      arenaId,
+      name: trimmedName,
+      avatar: data.avatar?.trim() || '',
+      playoffMap: data.playoffMap,
+    });
+    if (!ack.ok) throw new Error(ack.error ?? 'Failed to create arena');
+
+    return {
+      id: Number(arenaId),
+      name: trimmedName,
+      avatar: data.avatar?.trim() || null,
+      playoffMap: data.playoffMap,
+    };
+  }
+  throw new Error('createArena requires DATA_BACKEND=rama');
 }
 
 /**

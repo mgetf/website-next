@@ -6,7 +6,12 @@ import type { RegionRecord } from '$lib/types/service-models';
  */
 
 import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
-import { createCatalogClient, getRegion, getRegionIds } from '$lib/server/rama/catalog';
+import {
+  createCatalogClient,
+  getRegion,
+  getRegionIds,
+  upsertRegion,
+} from '$lib/server/rama/catalog';
 
 // ─── Rama helpers ──────────────────────────────────────────────────────────────
 
@@ -88,7 +93,36 @@ export async function getRegionsForFilter() {
  * - Region name must be unique (case-insensitive)
  */
 export async function createRegion(name: string) {
-  throw new Error('createRegion is not available under Rama');
+  if (isRamaBackend()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error('Region name is required');
+
+    const client = createCatalogClient(ramaClientOpts());
+    const ids = await getRegionIds(client);
+    for (const rid of ids) {
+      const existing = await getRegion(client, rid);
+      if (existing && existing.name.toLowerCase() === trimmedName.toLowerCase()) {
+        throw new Error('Region with this name already exists');
+      }
+    }
+
+    const regionId = String(Date.now() % 2_000_000_000);
+    const ack = await upsertRegion(client, {
+      regionId,
+      name: trimmedName,
+      hidden: false,
+    });
+    if (!ack.ok) throw new Error(ack.error ?? 'Failed to create region');
+
+    return {
+      id: Number(regionId),
+      name: trimmedName,
+      hidden: 0,
+      currencySymbol: '',
+      currencyCode: '',
+    };
+  }
+  throw new Error('createRegion requires DATA_BACKEND=rama');
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = {

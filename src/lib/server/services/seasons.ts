@@ -5,7 +5,13 @@
  */
 
 import { isRamaBackend, ramaClientOpts } from '$lib/server/rama/config';
-import { createSeasonsClient, getSeason, getSeasonIds } from '$lib/server/rama/seasons';
+import {
+  createSeasonsClient,
+  createSeason as ramaCreateSeason,
+  getSeason,
+  getSeasonIds,
+  lookupSeasonId,
+} from '$lib/server/rama/seasons';
 import { createCatalogClient, getRegion, getFormat } from '$lib/server/rama/catalog';
 import type { LatestSeasonPerRegion, SeasonFilterRow } from '$lib/types/service-models';
 
@@ -128,7 +134,38 @@ export async function createSeason(data: {
   formatId: number;
   numWeeks: number;
 }) {
-  throw new Error('createSeason is not available under Rama');
+  if (isRamaBackend()) {
+    const opts = ramaClientOpts();
+    const seasons = createSeasonsClient(opts);
+    const existing = await lookupSeasonId(
+      seasons,
+      String(data.regionId),
+      String(data.formatId),
+      data.seasonNum,
+    );
+    if (existing) {
+      throw new Error(`Season ${data.seasonNum} already exists for this region and format`);
+    }
+
+    const seasonId = String(Date.now() % 2_000_000_000);
+    const ack = await ramaCreateSeason(seasons, {
+      seasonId,
+      seasonNum: data.seasonNum,
+      numWeeks: data.numWeeks,
+      regionId: String(data.regionId),
+      formatId: String(data.formatId),
+    });
+    if (!ack.ok) throw new Error(ack.error ?? 'Failed to create season');
+
+    return {
+      id: Number(seasonId),
+      seasonNum: data.seasonNum,
+      regionId: data.regionId,
+      formatId: data.formatId,
+      numWeeks: data.numWeeks,
+    };
+  }
+  throw new Error('createSeason requires DATA_BACKEND=rama');
 }
 
 /**

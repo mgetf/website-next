@@ -11,6 +11,7 @@ import {
   createDivisionsClient,
   getDivision,
   getDivisionIdsByRegion,
+  upsertDivision,
 } from '$lib/server/rama/divisions';
 
 // ─── Rama helpers ──────────────────────────────────────────────────────────────
@@ -142,8 +143,45 @@ export async function createDivision(data: {
   signupCost: number;
   regionId: number;
 }): Promise<DivisionRecord> {
-  void data;
-  throw new Error('createDivision is not available under Rama');
+  if (isRamaBackend()) {
+    const trimmedName = data.name.trim();
+    if (!trimmedName) throw new Error('Division name is required');
+    if (!data.regionId) throw new Error('Region is required');
+
+    const opts = ramaClientOpts();
+    const catalog = createCatalogClient(opts);
+    const region = await getRegion(catalog, String(data.regionId));
+    if (!region) throw new Error('Region not found');
+
+    const divisions = createDivisionsClient(opts);
+    const existingIds = await getDivisionIdsByRegion(divisions, String(data.regionId));
+    for (const did of existingIds) {
+      const d = await getDivision(divisions, did);
+      if (d && d.name.toLowerCase() === trimmedName.toLowerCase()) {
+        throw new Error('Division with this name already exists in this region');
+      }
+    }
+
+    const divisionId = String(Date.now() % 2_000_000_000);
+    const ack = await upsertDivision(divisions, {
+      divisionId,
+      name: trimmedName,
+      regionId: String(data.regionId),
+      signupCost: data.signupCost,
+      sortOrder: 0,
+    });
+    if (!ack.ok) throw new Error(ack.error ?? 'Failed to create division');
+
+    return {
+      id: Number(divisionId),
+      name: trimmedName,
+      signupCost: data.signupCost,
+      hidden: 0,
+      regionId: data.regionId,
+      sortOrder: 0,
+    };
+  }
+  throw new Error('createDivision requires DATA_BACKEND=rama');
 }
 
 /**

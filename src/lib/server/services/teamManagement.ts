@@ -21,6 +21,7 @@ import {
   getTeam,
   leaveTeam,
   setMemberPermission,
+  setTeamStatus,
 } from '$lib/server/rama/teams';
 import { createUsersClient, getUser } from '$lib/server/rama/users';
 import { createDivisionsClient, getDivision } from '$lib/server/rama/divisions';
@@ -347,7 +348,24 @@ export async function invitePlayerBySteamId(
  * Disband team (mark as DEAD and deactivate all players)
  */
 export async function disbandTeam(teamId: number): Promise<void> {
-  throw new Error('disbandTeam is not available under Rama');
+  if (isRamaBackend()) {
+    const client = createTeamsClient(ramaClientOpts());
+    const teamKey = String(teamId);
+    const team = await getTeam(client, teamKey);
+    if (!team) notFound('Team not found');
+
+    const statusAck = await setTeamStatus(client, { teamId: teamKey, status: 'DEAD' });
+    if (!statusAck.ok) badRequest(statusAck.error ?? 'Failed to disband team');
+
+    const roster = await getRoster(client, teamKey);
+    for (const [steamId, member] of Object.entries(roster)) {
+      if (!member.active) continue;
+      const leaveAck = await leaveTeam(client, { teamId: teamKey, steamId });
+      if (!leaveAck.ok) badRequest(leaveAck.error ?? 'Failed to remove roster member');
+    }
+    return;
+  }
+  throw new Error('disbandTeam requires DATA_BACKEND=rama');
 }
 
 /**

@@ -130,9 +130,51 @@ export async function validateTokenAndGetTeam(
   token: string,
   steamId?: string,
 ): Promise<TeamJoinInfo> {
-  void token;
-  void steamId;
-  throw new Error('validateTokenAndGetTeam is not available under Rama');
+  const { teamId } = validateJoinToken(token);
+
+  if (isRamaBackend()) {
+    const team = await loadTeamJoinTeamRama(teamId);
+    if (!team) notFound('Team not found');
+
+    if (team.formatId === FORMAT_1V1) {
+      return {
+        team,
+        activePlayers: team.players,
+        canJoin: false,
+        error: '1v1 entries cannot be joined - they are individual player entries',
+      };
+    }
+
+    const activePlayers = team.players;
+
+    if (steamId) {
+      const isTeamMember = activePlayers.some(
+        (p: { playerSteamId: string; permissionLevel: number }) =>
+          p.playerSteamId === steamId && p.permissionLevel >= 0,
+      );
+      if (isTeamMember) {
+        return {
+          team,
+          activePlayers,
+          canJoin: false,
+          error: 'You cannot invite yourself to your own team',
+        };
+      }
+    }
+
+    if (activePlayers.length >= 3) {
+      return {
+        team,
+        activePlayers,
+        canJoin: false,
+        error: 'Team is full (maximum 3 players)',
+      };
+    }
+
+    return { team, activePlayers, canJoin: true };
+  }
+
+  throw new Error('validateTokenAndGetTeam requires DATA_BACKEND=rama');
 }
 
 /**

@@ -267,7 +267,7 @@ export interface AdminMatchListRow {
 }
 
 export interface AuditLogRow {
-  id: number;
+  id: string;
   timestamp: Date;
   actorId: string | null;
   actorRole: string | null;

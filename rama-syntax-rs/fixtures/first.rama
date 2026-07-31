@@ -1,0 +1,71 @@
+// Port of tommy-mor/rama-syntax examples/first.rama (trimmed + parseable subset)
+ramaop send-emits>(*agent-name,
+                   *agent-task-id,
+                   *agent-id,
+                   *retry-num,
+                   *invoke-id,
+                   *agg-invoke-id,
+                   *emits,
+                   *result,
+                   *rstats,
+                   *fork-context)
+{
+  anchor <root>;
+  ops/explode(*emits) > {*invoke-id, *fork-invoke-id, *target-task-id, *node-name, *args} as *emit;
+  hook:emit>(*emit);
+  apart/|aor([*agent-name, *agent-task-id, *agent-id, *retry-num], |direct, *target-task-id);
+  aor-types/->valid-NodeOp(*invoke-id,
+                           *fork-invoke-id,
+                           *fork-context,
+                           *node-name,
+                           *args,
+                           *agg-invoke-id) > *op;
+  anchor <regular-emit>;
+
+  hook <root>;
+
+  mapv(comp(h/half-uuid, :invoke-id), *emits) > *next-ack-vals;
+  reduce(bit-xor, h/half-uuid(*invoke-id), *next-ack-vals) > *ack-val;
+  apart/|aor([*agent-name,
+              *agent-task-id,
+              *agent-id,
+              *retry-num], |direct, *agent-task-id);
+
+  atomic {
+    hook:update-last-progress>();
+    $$root !<-- keypath(*agent-id), multi-path([:last-progress-time-millis, termval(h/current-time-millis())]
+                                               [:stats, term(stats/agent-stats-merger(*stats))]);
+  }
+
+  if (some?(*result)) {
+    hook:writing-result(*agent-task-id, *agent-id, *result);
+    $$root !<-- keypath(*agent-id),
+                selected(:result, nil?),
+                multi-path([:result, termval(*result)]
+                           [:finish-time-millis, termval(*finish-time-millis)]);
+    $$stream-shared !<-- :active-invokes, set-elem(*agent-id), NONE>;
+  } else {
+    ramafn %update-ack-val(*v){ > bit-xor(*v, *ack-val) };
+    $$root !<-- keypath(*agent-id), :ack-val, term(%update-ack-val);
+    $$root --> keypath(*agent-id) > {*root-ack-val :ack-val, *result};
+
+    if (=(0, *root-ack-val)) {
+      if (nil?(*result)) {
+        h/current-time-millis() > *finish-time-millis;
+        $$root !<-- keypath(*agent-id),
+                    multi-path([:result, termval(aor-types/->AgentResult("Agent completed without result", true))]
+                               [:finish-time-millis, termval(*finish-time-millis)]);
+
+        finished-streaming-chunk() > *finished-streaming-chunk;
+        $$root !<-- keypath(*agent-id),
+                    :streaming,
+                    MAP-VALS,
+                    :all,
+                    AFTER-ELEM,
+                    termval(*finished-streaming-chunk);
+      };
+    };
+  };
+  unify>(<regular-emit>, <agg-ack-emit>);
+  > *op;
+}

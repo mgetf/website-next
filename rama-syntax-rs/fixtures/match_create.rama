@@ -1,0 +1,92 @@
+// Surface-syntax sketch of MatchModule create-match (mge.tf rama spike).
+// Schemas feed the path type-checker stub.
+
+pstate $$matches {
+  String -> fixed {
+    "homeTeamId": String
+    "awayTeamId": String
+    "seasonId": String
+    "status": String
+    "homeScore": Long
+    "awayScore": Long
+    "winnerId": String
+    "boGames": Long
+  }
+}
+
+pstate $$map-bans {
+  String -> fixed {
+    "turn": Long
+    "homeTeamId": String
+    "awayTeamId": String
+    "remaining": Object
+    "actions": Object
+  }
+}
+
+pstate $$matches-by-team {
+  String -> map String
+}
+
+ramaop create-match>(*event) {
+  get(*event, "matchId") > *match-id;
+  get(*event, "homeTeamId") > *home-id;
+  get(*event, "awayTeamId") > *away-id;
+  get(*event, "seasonId") > *season-id;
+  get(*event, "boGames") > *bo-raw;
+  get(*event, "pool") > *pool;
+  long-or-zero(*bo-raw) > *bo-games;
+  pool->set(*pool) > *pool-set;
+
+  $$matches --> keypath(*match-id) > *existing;
+
+  if (nil?(*existing)) {
+    $$matches !<-- keypath(*match-id, "homeTeamId"), termval(*home-id);
+    $$matches !<-- keypath(*match-id, "awayTeamId"), termval(*away-id);
+    $$matches !<-- keypath(*match-id, "seasonId"), termval(*season-id);
+    $$matches !<-- keypath(*match-id, "status"), termval("UNPLAYED");
+    $$matches !<-- keypath(*match-id, "homeScore"), termval(0);
+    $$matches !<-- keypath(*match-id, "awayScore"), termval(0);
+    $$matches !<-- keypath(*match-id, "boGames"), termval(*bo-games);
+
+    $$map-bans !<-- keypath(*match-id, "turn"), termval(0);
+    $$map-bans !<-- keypath(*match-id, "homeTeamId"), termval(*home-id);
+    $$map-bans !<-- keypath(*match-id, "awayTeamId"), termval(*away-id);
+    $$map-bans !<-- keypath(*match-id, "remaining"), termval(*pool-set);
+    $$map-bans !<-- keypath(*match-id, "actions"), termval([]);
+
+    |hash(*home-id);
+    $$matches-by-team !<-- keypath(*home-id, *match-id), termval(*season-id);
+    |hash(*away-id);
+    $$matches-by-team !<-- keypath(*away-id, *match-id), termval(*season-id);
+
+    ack-return>({"ok" true, "matchId" *match-id});
+  } else {
+    ack-return>({"ok" false, "error" "match-exists"});
+  };
+}
+
+ramaop ban-map>(*event) {
+  get(*event, "matchId") > *match-id;
+  get(*event, "teamId") > *team-id;
+  get(*event, "arenaId") > *arena-id;
+
+  $$map-bans --> keypath(*match-id, "turn") > *turn;
+  $$map-bans --> keypath(*match-id, "homeTeamId") > *ban-home;
+  $$map-bans --> keypath(*match-id, "awayTeamId") > *ban-away;
+  $$map-bans --> keypath(*match-id, "remaining") > *remaining;
+
+  ban-error(*turn, *ban-home, *ban-away, *team-id, *remaining, *arena-id) > *err;
+
+  if (some?(*err)) {
+    ack-return>({"ok" false, "error" *err});
+  } else {
+    disj(*remaining, *arena-id) > *next-remaining;
+    inc(*turn) > *next-turn;
+    $$map-bans !<-- keypath(*match-id, "remaining"), termval(*next-remaining);
+    // Navigator AFTER-ELEM is a sibling path step — never inside keypath.
+    $$map-bans !<-- keypath(*match-id, "actions"), AFTER-ELEM, termval({"teamId" *team-id, "arenaId" *arena-id});
+    $$map-bans !<-- keypath(*match-id, "turn"), termval(*next-turn);
+    ack-return>({"ok" true, "matchId" *match-id, "banned" *arena-id, "turn" *next-turn});
+  };
+}

@@ -256,6 +256,10 @@ fn actual_class_form(value: Form) -> Form {
 }
 
 fn contract_call(ty: TypeId, path: impl Into<String>, value: Form, table: &TypeTable) -> Form {
+    let path = path.into();
+    if let Type::Function { params, ret } = table.get(ty) {
+        return function_contract(ty, params, *ret, path, value, table);
+    }
     let variable = "__rama_value";
     clj::call(
         "__rama_contract!",
@@ -268,6 +272,57 @@ fn contract_call(ty: TypeId, path: impl Into<String>, value: Form, table: &TypeT
             clj::string(table.display(ty)),
             clj::string(path),
             value,
+        ],
+    )
+}
+
+fn function_contract(
+    function_type: TypeId,
+    params: &[TypeId],
+    ret: TypeId,
+    path: String,
+    value: Form,
+    table: &TypeTable,
+) -> Form {
+    let function_name = "__rama_function";
+    let parameter_names = (0..params.len())
+        .map(|index| format!("__rama_fn_arg{index}"))
+        .collect::<Vec<_>>();
+    let checked_function = clj::call(
+        "__rama_contract!",
+        [
+            clj::list([
+                clj::sym("fn"),
+                clj::vector([clj::sym("__rama_candidate")]),
+                clj::call("ifn?", [clj::sym("__rama_candidate")]),
+            ]),
+            clj::string(table.display(function_type)),
+            clj::string(path.clone()),
+            value,
+        ],
+    );
+    let mut invocation = vec![clj::sym(function_name)];
+    invocation.extend(params.iter().zip(&parameter_names).enumerate().map(
+        |(index, (ty, name))| {
+            contract_call(
+                *ty,
+                format!("{path} argument {index}"),
+                clj::sym(name),
+                table,
+            )
+        },
+    ));
+    let checked_return =
+        contract_call(ret, format!("{path} return"), Form::List(invocation), table);
+    clj::call(
+        "let",
+        [
+            clj::vector([clj::sym(function_name), checked_function]),
+            clj::list([
+                clj::sym("fn"),
+                clj::vector(parameter_names.iter().map(clj::sym)),
+                checked_return,
+            ]),
         ],
     )
 }
@@ -286,6 +341,27 @@ fn predicate_form(ty: TypeId, value: Form, table: &TypeTable) -> Form {
             );
             Form::List(forms)
         }
+        Type::Function { .. } => clj::call("ifn?", [value]),
+        Type::Capability { name, args } => match (name.as_str(), args.as_slice()) {
+            ("Seqable", [_]) => clj::call("seqable?", [value]),
+            ("Reducible", [_]) => clj::call(
+                "or",
+                [
+                    clj::call("seqable?", [value.clone()]),
+                    clj::call("instance?", [clj::sym("clojure.lang.IReduceInit"), value]),
+                ],
+            ),
+            ("Countable", []) => clj::call(
+                "or",
+                [
+                    clj::call("nil?", [value.clone()]),
+                    clj::call("string?", [value.clone()]),
+                    clj::call("counted?", [value]),
+                ],
+            ),
+            ("Transducer", [_, _]) => clj::call("ifn?", [value]),
+            _ => clj::bool(false),
+        },
         Type::Jvm { class, args } => {
             let base = clj::call("instance?", [clj::sym(class), value.clone()]);
             match (class.as_str(), args.as_slice()) {
@@ -293,8 +369,7 @@ fn predicate_form(ty: TypeId, value: Form, table: &TypeTable) -> Form {
                     "java.util.List"
                     | "java.util.Set"
                     | "java.util.Collection"
-                    | "java.lang.Iterable"
-                    | "clojure.lang.ISeq",
+                    | "java.lang.Iterable",
                     [element],
                 ) => {
                     let element_name = "__rama_element";
@@ -397,10 +472,20 @@ fn extern_dispatcher_form(
             clj::call("and", checks)
         };
         clauses.push(condition);
+        let checked_arguments = clj::vector(overload.signature.params.iter().enumerate().map(
+            |(index, ty)| {
+                contract_call(
+                    *ty,
+                    format!("extern `{name}` argument {index}"),
+                    clj::call("nth", [clj::sym(args_name), clj::int(index as i64)]),
+                    table,
+                )
+            },
+        ));
         clauses.push(contract_call(
             overload.signature.ret,
             format!("extern `{name}` return"),
-            clj::call("apply", [clj::sym(&overload.target), clj::sym(args_name)]),
+            clj::call("apply", [clj::sym(&overload.target), checked_arguments]),
             table,
         ));
     }
@@ -449,6 +534,8 @@ fn runtime_specificity(ty: TypeId, table: &TypeTable) -> usize {
             .unwrap_or(0),
         Type::Nil => 2,
         Type::Never => 3,
+        Type::Function { .. } => 2,
+        Type::Capability { .. } => 1,
         Type::Any | Type::Unknown | Type::Dynamic | Type::Var(_) => 0,
     }
 }

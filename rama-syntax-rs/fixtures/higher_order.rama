@@ -1,0 +1,59 @@
+module HigherOrder
+
+extern add = clojure.core/+(left: Long, right: Long) -> Long
+
+fn double(value: Long) -> Long {
+  return inc(inc(value))
+}
+
+fn add-values(left: Long, right: Long) -> Long {
+  return add(left, right)
+}
+
+fn nonzero(value: Long) -> Boolean {
+  return not(value == 0)
+}
+
+fn to-label(value: Long) -> String {
+  return str(value)
+}
+
+fn double-all(values: java.util.List<Long>) -> clojure.lang.LazySeq<Long> {
+  return map(double, values)
+}
+
+fn pairwise-add(left: java.util.List<Long>, right: java.util.List<Long>) -> clojure.lang.LazySeq<Long> {
+  return map(add-values, left, right)
+}
+
+fn keep-nonzero(values: Seqable<Long>) -> clojure.lang.LazySeq<Long> {
+  return filter(nonzero, values)
+}
+
+fn all-nonzero(values: Seqable<Long>) -> Boolean {
+  return every?(nonzero, values)
+}
+
+fn first-label(values: Seqable<Long>) -> String? {
+  return some(to-label, values)
+}
+
+fn total(values: Reducible<Long>) -> Long {
+  return reduce(add-values, 0, values)
+}
+
+fn collect(values: Reducible<Long>) -> java.util.List<Long> {
+  return into([], values)
+}
+
+fn transform-into(values: Reducible<Long>) -> java.util.List<Long> {
+  return into([], map(double), values)
+}
+
+fn invoke-checked(callback: Fn<(Long) -> String>, value: Long) -> String {
+  return callback(value)
+}
+
+fn narrow-callback(value: Unknown) -> Fn<(Long) -> String> {
+  return value as Fn<(Long) -> String>
+}

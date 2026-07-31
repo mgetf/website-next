@@ -21,6 +21,8 @@ pub enum Type {
     Jvm { class: String, args: Vec<TypeId> },
     Var(String),
     Union(Vec<TypeId>),
+    Function { params: Vec<TypeId>, ret: TypeId },
+    Capability { name: String, args: Vec<TypeId> },
     Nil,
     Unknown,
     Dynamic,
@@ -66,6 +68,24 @@ impl TypeTable {
                 .map(|ty| self.display(*ty))
                 .collect::<Vec<_>>()
                 .join(" | "),
+            Type::Function { params, ret } => format!(
+                "Fn<({}) -> {}>",
+                params
+                    .iter()
+                    .map(|param| self.display(*param))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                self.display(*ret)
+            ),
+            Type::Capability { name, args } if args.is_empty() => name.clone(),
+            Type::Capability { name, args } => format!(
+                "{}<{}>",
+                name,
+                args.iter()
+                    .map(|arg| self.display(*arg))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             Type::Nil => "Nil".into(),
             Type::Unknown => "Unknown".into(),
             Type::Dynamic => "Dynamic".into(),
@@ -374,6 +394,159 @@ impl<'a> Checker<'a> {
             ),
             SignatureSource::Prelude,
         );
+        self.generic_signature(
+            "map",
+            &["A", "B"],
+            vec![
+                function(vec![var("A")], var("B")),
+                capability("Seqable", vec![var("A")]),
+            ],
+            generic("clojure.lang.LazySeq", vec![var("B")]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "map",
+            &["A", "B"],
+            vec![function(vec![var("A")], var("B"))],
+            capability("Transducer", vec![var("A"), var("B")]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "map",
+            &["A", "B", "R"],
+            vec![
+                function(vec![var("A"), var("B")], var("R")),
+                capability("Seqable", vec![var("A")]),
+                capability("Seqable", vec![var("B")]),
+            ],
+            generic("clojure.lang.LazySeq", vec![var("R")]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "map",
+            &["A", "B", "C", "R"],
+            vec![
+                function(vec![var("A"), var("B"), var("C")], var("R")),
+                capability("Seqable", vec![var("A")]),
+                capability("Seqable", vec![var("B")]),
+                capability("Seqable", vec![var("C")]),
+            ],
+            generic("clojure.lang.LazySeq", vec![var("R")]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "filter",
+            &["A", "P"],
+            vec![
+                function(vec![var("A")], var("P")),
+                capability("Seqable", vec![var("A")]),
+            ],
+            generic("clojure.lang.LazySeq", vec![var("A")]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "filter",
+            &["A", "P"],
+            vec![function(vec![var("A")], var("P"))],
+            capability("Transducer", vec![var("A"), var("A")]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "every?",
+            &["A", "P"],
+            vec![
+                function(vec![var("A")], var("P")),
+                capability("Seqable", vec![var("A")]),
+            ],
+            simple("Boolean"),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "some",
+            &["A", "B"],
+            vec![
+                function(vec![var("A")], var("B")),
+                capability("Seqable", vec![var("A")]),
+            ],
+            union(vec![var("B"), simple("Nil")]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "reduce",
+            &["A", "E"],
+            vec![
+                function(vec![var("A"), var("E")], var("A")),
+                var("A"),
+                capability("Reducible", vec![var("E")]),
+            ],
+            var("A"),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "into",
+            &["A", "E"],
+            vec![
+                generic("java.util.List", vec![var("A")]),
+                capability("Reducible", vec![var("E")]),
+            ],
+            generic("java.util.List", vec![union(vec![var("A"), var("E")])]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "into",
+            &["A", "E", "R"],
+            vec![
+                generic("java.util.List", vec![var("A")]),
+                capability("Transducer", vec![var("E"), var("R")]),
+                capability("Reducible", vec![var("E")]),
+            ],
+            generic("java.util.List", vec![union(vec![var("A"), var("R")])]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "into",
+            &["A", "E"],
+            vec![
+                generic("java.util.Set", vec![var("A")]),
+                capability("Reducible", vec![var("E")]),
+            ],
+            generic("java.util.Set", vec![union(vec![var("A"), var("E")])]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "into",
+            &["A", "E", "R"],
+            vec![
+                generic("java.util.Set", vec![var("A")]),
+                capability("Transducer", vec![var("E"), var("R")]),
+                capability("Reducible", vec![var("E")]),
+            ],
+            generic("java.util.Set", vec![union(vec![var("A"), var("R")])]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "first",
+            &["A"],
+            vec![capability("Seqable", vec![var("A")])],
+            union(vec![var("A"), simple("Nil")]),
+            SignatureSource::Prelude,
+        );
+        self.generic_signature(
+            "seq",
+            &["A"],
+            vec![capability("Seqable", vec![var("A")])],
+            union(vec![
+                generic("clojure.lang.ISeq", vec![var("A")]),
+                simple("Nil"),
+            ]),
+            SignatureSource::Prelude,
+        );
+        self.signature(
+            "count",
+            vec![capability("Countable", Vec::new())],
+            simple("Long"),
+            SignatureSource::Prelude,
+        );
     }
 
     fn signature(
@@ -628,6 +801,45 @@ impl<'a> Checker<'a> {
                     .collect::<Vec<_>>();
                 self.typing.table.union(members)
             }
+            ValueTypeExpr::Function { params, ret } => {
+                let params = params
+                    .iter()
+                    .map(|param| self.resolve_type(param, quantified, span))
+                    .collect();
+                let ret = self.resolve_type(ret, quantified, span);
+                self.typing.table.intern(Type::Function { params, ret })
+            }
+            ValueTypeExpr::Capability { name, args } => {
+                let expected_arity = match name.as_str() {
+                    "Seqable" | "Reducible" => 1,
+                    "Countable" => 0,
+                    "Transducer" => 2,
+                    _ => {
+                        self.typing.diagnostics.push(Diagnostic::type_error(
+                            span,
+                            format!("unknown capability `{name}`"),
+                        ));
+                        args.len()
+                    }
+                };
+                if args.len() != expected_arity {
+                    self.typing.diagnostics.push(Diagnostic::type_error(
+                        span,
+                        format!(
+                            "`{name}` expects {expected_arity} type argument(s), got {}",
+                            args.len()
+                        ),
+                    ));
+                }
+                let args = args
+                    .iter()
+                    .map(|arg| self.resolve_type(arg, quantified, span))
+                    .collect();
+                self.typing.table.intern(Type::Capability {
+                    name: name.clone(),
+                    args,
+                })
+            }
             ValueTypeExpr::Nil => self.typing.table.intern(Type::Nil),
             ValueTypeExpr::Unknown => self.typing.table.intern(Type::Unknown),
             ValueTypeExpr::Dynamic => self.typing.table.intern(Type::Dynamic),
@@ -715,13 +927,10 @@ impl<'a> Checker<'a> {
             Expr::Ident(identifier) if identifier.node == "nil" => {
                 self.typing.table.intern(Type::Nil)
             }
-            Expr::Ident(identifier) => locals.get(&identifier.node).copied().unwrap_or_else(|| {
-                self.typing.diagnostics.push(Diagnostic::type_error(
-                    identifier.span,
-                    format!("unknown value `{}`", identifier.node),
-                ));
-                self.typing.table.intern(Type::Unknown)
-            }),
+            Expr::Ident(identifier) => match locals.get(&identifier.node).copied() {
+                Some(local) => local,
+                None => self.infer_function_value(&identifier.node, identifier.span),
+            },
             Expr::List { elems, .. } => {
                 let mut elem_type = self.typing.table.intern(Type::Never);
                 for elem in elems {
@@ -774,7 +983,10 @@ impl<'a> Checker<'a> {
                     .iter()
                     .map(|arg| self.infer_expr(arg, locals))
                     .collect::<Vec<_>>();
-                self.resolve_call(&call.callee.node, &args, call.span)
+                match locals.get(&call.callee.node).copied() {
+                    Some(callable) => self.resolve_callable(callable, &args, call.span),
+                    None => self.resolve_call(&call.callee.node, &args, call.span),
+                }
             }
             Expr::As { value, ty, .. } => {
                 self.infer_expr(value, locals);
@@ -863,6 +1075,80 @@ impl<'a> Checker<'a> {
         best[0].2
     }
 
+    fn infer_function_value(&mut self, name: &str, span: Span) -> TypeId {
+        let Some(candidates) = self.signatures.get(name).cloned() else {
+            self.typing.diagnostics.push(Diagnostic::type_error(
+                span,
+                format!("unknown value `{name}`"),
+            ));
+            return self.typing.table.intern(Type::Unknown);
+        };
+        let mut distinct = candidates
+            .into_iter()
+            .map(|signature| (signature.params, signature.ret))
+            .collect::<Vec<_>>();
+        distinct.dedup();
+        if distinct.len() != 1 {
+            self.typing.diagnostics.push(Diagnostic::type_error(
+                span,
+                format!(
+                    "overloaded function `{name}` cannot be used as a value without an explicit `as Fn<...>`"
+                ),
+            ));
+            return self.typing.table.intern(Type::Unknown);
+        }
+        let (params, ret) = distinct.pop().unwrap();
+        self.typing.table.intern(Type::Function { params, ret })
+    }
+
+    fn resolve_callable(&mut self, callable: TypeId, args: &[TypeId], span: Span) -> TypeId {
+        match self.typing.table.get(callable).clone() {
+            Type::Function { params, ret } if params.len() == args.len() => {
+                for (index, (actual, expected)) in args.iter().zip(params).enumerate() {
+                    if !self.assignable(*actual, expected) {
+                        self.typing.diagnostics.push(Diagnostic::type_error(
+                            span,
+                            format!(
+                                "call argument {index} has type `{}`, expected `{}`",
+                                self.typing.table.display(*actual),
+                                self.typing.table.display(expected)
+                            ),
+                        ));
+                    }
+                }
+                ret
+            }
+            Type::Function { params, .. } => {
+                self.typing.diagnostics.push(Diagnostic::type_error(
+                    span,
+                    format!(
+                        "function expects {} argument(s), got {}",
+                        params.len(),
+                        args.len()
+                    ),
+                ));
+                self.typing.table.intern(Type::Unknown)
+            }
+            Type::Dynamic => self.typing.table.intern(Type::Dynamic),
+            Type::Unknown => {
+                self.typing.diagnostics.push(Diagnostic::type_error(
+                    span,
+                    "cannot call `Unknown`; narrow it to `Fn<(...) -> ...>` first",
+                ));
+                self.typing.table.intern(Type::Unknown)
+            }
+            other => {
+                let other = self.typing.table.intern(other);
+                let display = self.typing.table.display(other);
+                self.typing.diagnostics.push(Diagnostic::type_error(
+                    span,
+                    format!("value of type `{display}` is not callable"),
+                ));
+                self.typing.table.intern(Type::Unknown)
+            }
+        }
+    }
+
     fn match_type(
         &mut self,
         expected: TypeId,
@@ -873,13 +1159,7 @@ impl<'a> Checker<'a> {
         match self.typing.table.get(expected).clone() {
             Type::Var(name) => {
                 if let Some(bound) = bindings.get(&name).copied() {
-                    if self.assignable(actual, bound) && self.assignable(bound, actual) {
-                        true
-                    } else {
-                        let joined = self.join(bound, actual);
-                        bindings.insert(name, joined);
-                        true
-                    }
+                    self.assignable(actual, bound) && self.assignable(bound, actual)
                 } else {
                     bindings.insert(name, actual);
                     *score += 2;
@@ -894,6 +1174,29 @@ impl<'a> Checker<'a> {
             Type::Union(members) => members
                 .into_iter()
                 .any(|member| self.match_type(member, actual, bindings, score)),
+            Type::Function {
+                params: expected_params,
+                ret: expected_ret,
+            } => match self.typing.table.get(actual).clone() {
+                Type::Function {
+                    params: actual_params,
+                    ret: actual_ret,
+                } if expected_params.len() == actual_params.len() => {
+                    *score += 4;
+                    expected_params
+                        .into_iter()
+                        .zip(actual_params)
+                        .all(|(expected, actual)| {
+                            self.match_type(expected, actual, bindings, score)
+                        })
+                        && self.match_type(expected_ret, actual_ret, bindings, score)
+                }
+                Type::Dynamic => true,
+                _ => false,
+            },
+            Type::Capability { name, args } => {
+                self.match_capability(&name, &args, actual, bindings, score)
+            }
             Type::Jvm {
                 class,
                 args: expected_args,
@@ -940,6 +1243,21 @@ impl<'a> Checker<'a> {
                     .collect::<Vec<_>>();
                 self.typing.table.union(members)
             }
+            Type::Function { params, ret } => {
+                let params = params
+                    .into_iter()
+                    .map(|param| self.substitute(param, bindings))
+                    .collect();
+                let ret = self.substitute(ret, bindings);
+                self.typing.table.intern(Type::Function { params, ret })
+            }
+            Type::Capability { name, args } => {
+                let args = args
+                    .into_iter()
+                    .map(|arg| self.substitute(arg, bindings))
+                    .collect();
+                self.typing.table.intern(Type::Capability { name, args })
+            }
             _ => ty,
         }
     }
@@ -980,6 +1298,26 @@ impl<'a> Checker<'a> {
                                 && self.assignable(*expected, *actual)
                         })
             }
+            (
+                Type::Function {
+                    params: actual_params,
+                    ret: actual_ret,
+                },
+                Type::Function {
+                    params: expected_params,
+                    ret: expected_ret,
+                },
+            ) => {
+                actual_params.len() == expected_params.len()
+                    && actual_params
+                        .iter()
+                        .zip(expected_params)
+                        .all(|(actual, expected)| self.assignable(*expected, *actual))
+                    && self.assignable(*actual_ret, *expected_ret)
+            }
+            (actual, Type::Capability { name, args }) => {
+                self.capability_assignable(actual, name, args)
+            }
             _ => false,
         }
     }
@@ -991,6 +1329,132 @@ impl<'a> Checker<'a> {
             left
         } else {
             self.typing.table.union([left, right])
+        }
+    }
+
+    fn match_capability(
+        &mut self,
+        name: &str,
+        expected_args: &[TypeId],
+        actual: TypeId,
+        bindings: &mut HashMap<String, TypeId>,
+        score: &mut usize,
+    ) -> bool {
+        match self.typing.table.get(actual).clone() {
+            Type::Dynamic => true,
+            Type::Unknown => false,
+            Type::Nil => matches!(name, "Seqable" | "Reducible" | "Countable"),
+            Type::Union(members) => members
+                .into_iter()
+                .all(|member| self.match_capability(name, expected_args, member, bindings, score)),
+            Type::Capability {
+                name: actual_name,
+                args: actual_args,
+            } if actual_name == name && actual_args.len() == expected_args.len() => expected_args
+                .iter()
+                .copied()
+                .zip(actual_args)
+                .all(|(expected, actual)| self.match_type(expected, actual, bindings, score)),
+            Type::Jvm { class, args } if name == "Countable" => {
+                class == "java.lang.String"
+                    || self.class_assignable(&class, "java.util.Collection")
+                    || self.class_assignable(&class, "java.util.Map")
+                    || self.class_assignable(&class, "clojure.lang.Counted")
+                    || !args.is_empty() && class == "java.util.Map"
+            }
+            Type::Jvm { class, args }
+                if matches!(name, "Seqable" | "Reducible") && expected_args.len() == 1 =>
+            {
+                let element = if class == "java.lang.String" {
+                    Some(self.typing.table.jvm("java.lang.Character", Vec::new()))
+                } else if class == "java.util.Map" && args.len() == 2 {
+                    Some(self.typing.table.jvm("java.util.Map.Entry", args.clone()))
+                } else if matches!(
+                    class.as_str(),
+                    "java.util.List"
+                        | "java.util.Set"
+                        | "java.util.Collection"
+                        | "java.lang.Iterable"
+                        | "clojure.lang.ISeq"
+                        | "clojure.lang.LazySeq"
+                        | "clojure.lang.IReduce"
+                        | "clojure.lang.IReduceInit"
+                ) && args.len() == 1
+                {
+                    Some(args[0])
+                } else {
+                    None
+                };
+                element.is_some_and(|element| {
+                    *score += 2;
+                    self.match_type(expected_args[0], element, bindings, score)
+                })
+            }
+            _ => false,
+        }
+    }
+
+    fn capability_assignable(&self, actual: &Type, name: &str, args: &[TypeId]) -> bool {
+        match actual {
+            Type::Dynamic | Type::Never => true,
+            Type::Nil => matches!(name, "Seqable" | "Reducible" | "Countable"),
+            Type::Union(members) => members.iter().all(|member| {
+                self.capability_assignable(self.typing.table.get(*member), name, args)
+            }),
+            Type::Capability {
+                name: actual_name,
+                args: actual_args,
+            } => {
+                actual_name == name
+                    && actual_args.len() == args.len()
+                    && actual_args
+                        .iter()
+                        .zip(args)
+                        .all(|(actual, expected)| self.assignable(*actual, *expected))
+            }
+            Type::Jvm { class, args: _ } if name == "Countable" => {
+                class == "java.lang.String"
+                    || self.class_assignable(class, "java.util.Collection")
+                    || self.class_assignable(class, "java.util.Map")
+                    || self.class_assignable(class, "clojure.lang.Counted")
+            }
+            Type::Jvm {
+                class,
+                args: actual_args,
+            } if matches!(name, "Seqable" | "Reducible") && args.len() == 1 => {
+                if class == "java.lang.String" {
+                    matches!(
+                        self.typing.table.get(args[0]),
+                        Type::Jvm { class, .. } if class == "java.lang.Character" || class == "java.lang.Object"
+                    )
+                } else if class == "java.util.Map" && actual_args.len() == 2 {
+                    match self.typing.table.get(args[0]) {
+                        Type::Jvm {
+                            class,
+                            args: expected_entry,
+                        } if class == "java.util.Map.Entry" && expected_entry.len() == 2 => {
+                            self.assignable(actual_args[0], expected_entry[0])
+                                && self.assignable(actual_args[1], expected_entry[1])
+                        }
+                        Type::Any | Type::Dynamic | Type::Unknown => true,
+                        _ => false,
+                    }
+                } else if actual_args.len() == 1
+                    && (self.class_assignable(class, "java.lang.Iterable")
+                        || matches!(
+                            class.as_str(),
+                            "clojure.lang.ISeq"
+                                | "clojure.lang.LazySeq"
+                                | "clojure.lang.IReduce"
+                                | "clojure.lang.IReduceInit"
+                        ))
+                {
+                    self.assignable(actual_args[0], args[0])
+                } else {
+                    false
+                }
+            }
+            _ => false,
         }
     }
 
@@ -1156,6 +1620,20 @@ fn var(name: &str) -> ValueTypeExpr {
 fn generic(name: &str, args: Vec<ValueTypeExpr>) -> ValueTypeExpr {
     ValueTypeExpr::Named {
         path: name.into(),
+        args,
+    }
+}
+
+fn function(params: Vec<ValueTypeExpr>, ret: ValueTypeExpr) -> ValueTypeExpr {
+    ValueTypeExpr::Function {
+        params,
+        ret: Box::new(ret),
+    }
+}
+
+fn capability(name: &str, args: Vec<ValueTypeExpr>) -> ValueTypeExpr {
+    ValueTypeExpr::Capability {
+        name: name.into(),
         args,
     }
 }
@@ -1394,5 +1872,78 @@ fn typo(value: Strng) -> Strng { return value }
             .diagnostics
             .iter()
             .any(|diagnostic| diagnostic.message.contains("unknown JVM type `Strng`")));
+    }
+
+    #[test]
+    fn map_infers_through_typed_callback_and_seqable_capability() {
+        let result = typing(
+            r#"
+module Higher
+fn double(value: Long) -> Long { return inc(inc(value)) }
+fn double-all(values: java.util.List<Long>) -> clojure.lang.LazySeq<Long> {
+  return map(double, values)
+}
+"#,
+        );
+        assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    }
+
+    #[test]
+    fn map_rejects_callback_with_wrong_element_type() {
+        let result = typing(
+            r#"
+module Higher
+fn string-size(value: String) -> Long { return count(value) }
+fn invalid(values: java.util.List<Long>) -> clojure.lang.LazySeq<Long> {
+  return map(string-size, values)
+}
+"#,
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("no `map` signature")),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn reduce_with_init_correlates_accumulator_and_element_types() {
+        let result = typing(
+            r#"
+module Higher
+extern add = clojure.core/+(left: Long, right: Long) -> Long
+fn add-values(left: Long, right: Long) -> Long { return add(left, right) }
+fn total(values: java.util.List<Long>) -> Long {
+  return reduce(add-values, 0, values)
+}
+"#,
+        );
+        assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    }
+
+    #[test]
+    fn fn_type_and_capability_annotations_round_trip() {
+        let result = typing(
+            r#"
+module Higher
+extern invoke<T, R>(f: Fn<(T) -> R>, value: T) -> R
+fn use(f: Fn<(Long) -> String>, values: Seqable<Long>) -> String {
+  return invoke(f, first(values) as Long)
+}
+"#,
+        );
+        assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+        let function = &result.functions["use"];
+        assert_eq!(
+            result.table.display(function.params[0].1),
+            "Fn<(java.lang.Long) -> java.lang.String>"
+        );
+        assert_eq!(
+            result.table.display(function.params[1].1),
+            "Seqable<java.lang.Long>"
+        );
     }
 }

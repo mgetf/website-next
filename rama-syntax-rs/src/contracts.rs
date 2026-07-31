@@ -4,6 +4,13 @@ use crate::ast::ValueTypeExpr;
 use crate::clj::{self, Form};
 
 pub fn checked_as(value: Form, ty: &ValueTypeExpr) -> Form {
+    checked_at(value, ty, format!("explicit `as {}`", display(ty)))
+}
+
+fn checked_at(value: Form, ty: &ValueTypeExpr, path: String) -> Form {
+    if let ValueTypeExpr::Function { params, ret } = ty {
+        return checked_function(value, params, ret, path);
+    }
     let variable = "__rama_cast_value";
     clj::call(
         "__rama_contract!",
@@ -14,8 +21,58 @@ pub fn checked_as(value: Form, ty: &ValueTypeExpr) -> Form {
                 predicate(ty, clj::sym(variable)),
             ]),
             clj::string(display(ty)),
-            clj::string(format!("explicit `as {}`", display(ty))),
+            clj::string(path),
             value,
+        ],
+    )
+}
+
+fn checked_function(
+    value: Form,
+    params: &[ValueTypeExpr],
+    ret: &ValueTypeExpr,
+    path: String,
+) -> Form {
+    let function_name = "__rama_cast_function";
+    let names = (0..params.len())
+        .map(|index| format!("__rama_cast_arg{index}"))
+        .collect::<Vec<_>>();
+    let checked_function = clj::call(
+        "__rama_contract!",
+        [
+            clj::list([
+                clj::sym("fn"),
+                clj::vector([clj::sym("__rama_cast_candidate")]),
+                clj::call("ifn?", [clj::sym("__rama_cast_candidate")]),
+            ]),
+            clj::string(display(&ValueTypeExpr::Function {
+                params: params.to_vec(),
+                ret: Box::new(ret.clone()),
+            })),
+            clj::string(path.clone()),
+            value,
+        ],
+    );
+    let mut invocation = vec![clj::sym(function_name)];
+    invocation.extend(
+        params
+            .iter()
+            .zip(&names)
+            .enumerate()
+            .map(|(index, (ty, name))| {
+                checked_at(clj::sym(name), ty, format!("{path} argument {index}"))
+            }),
+    );
+    let result = checked_at(Form::List(invocation), ret, format!("{path} return"));
+    clj::call(
+        "let",
+        [
+            clj::vector([clj::sym(function_name), checked_function]),
+            clj::list([
+                clj::sym("fn"),
+                clj::vector(names.iter().map(clj::sym)),
+                result,
+            ]),
         ],
     )
 }
@@ -34,6 +91,27 @@ fn predicate(ty: &ValueTypeExpr, value: Form) -> Form {
             );
             Form::List(forms)
         }
+        ValueTypeExpr::Function { .. } => clj::call("ifn?", [value]),
+        ValueTypeExpr::Capability { name, args } => match (name.as_str(), args.as_slice()) {
+            ("Seqable", [_]) => clj::call("seqable?", [value]),
+            ("Reducible", [_]) => clj::call(
+                "or",
+                [
+                    clj::call("seqable?", [value.clone()]),
+                    clj::call("instance?", [clj::sym("clojure.lang.IReduceInit"), value]),
+                ],
+            ),
+            ("Countable", []) => clj::call(
+                "or",
+                [
+                    clj::call("nil?", [value.clone()]),
+                    clj::call("string?", [value.clone()]),
+                    clj::call("counted?", [value]),
+                ],
+            ),
+            ("Transducer", [_, _]) => clj::call("ifn?", [value]),
+            _ => clj::bool(false),
+        },
         ValueTypeExpr::Named { path, args } => {
             let class = resolve_class(path);
             let base = clj::call("instance?", [clj::sym(&class), value.clone()]);
@@ -42,8 +120,7 @@ fn predicate(ty: &ValueTypeExpr, value: Form) -> Form {
                     "java.util.List"
                     | "java.util.Set"
                     | "java.util.Collection"
-                    | "java.lang.Iterable"
-                    | "clojure.lang.ISeq",
+                    | "java.lang.Iterable",
                     [element],
                 ) => {
                     let item = "__rama_cast_element";
@@ -108,6 +185,17 @@ pub fn display(ty: &ValueTypeExpr) -> String {
         ValueTypeExpr::Union(members) => {
             members.iter().map(display).collect::<Vec<_>>().join(" | ")
         }
+        ValueTypeExpr::Function { params, ret } => format!(
+            "Fn<({}) -> {}>",
+            params.iter().map(display).collect::<Vec<_>>().join(", "),
+            display(ret)
+        ),
+        ValueTypeExpr::Capability { name, args } if args.is_empty() => name.clone(),
+        ValueTypeExpr::Capability { name, args } => format!(
+            "{}<{}>",
+            name,
+            args.iter().map(display).collect::<Vec<_>>().join(", ")
+        ),
         ValueTypeExpr::Nil => "Nil".into(),
         ValueTypeExpr::Unknown => "Unknown".into(),
         ValueTypeExpr::Dynamic => "Dynamic".into(),

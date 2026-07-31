@@ -241,6 +241,14 @@ pub enum ValueTypeExpr {
         args: Vec<ValueTypeExpr>,
     },
     Union(Vec<ValueTypeExpr>),
+    Function {
+        params: Vec<ValueTypeExpr>,
+        ret: Box<ValueTypeExpr>,
+    },
+    Capability {
+        name: String,
+        args: Vec<ValueTypeExpr>,
+    },
     Nil,
     Unknown,
     Dynamic,

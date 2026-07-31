@@ -396,6 +396,12 @@ fn value_type_expr() -> impl Parser<Tok, Spanned<ValueTypeExpr>, Error = Err> + 
                     "Dynamic" | "Dyn" => ValueTypeExpr::Dynamic,
                     "Any" => ValueTypeExpr::Any,
                     "Never" => ValueTypeExpr::Never,
+                    "Seqable" | "Reducible" | "Countable" | "Transducer" => {
+                        ValueTypeExpr::Capability {
+                            name: path,
+                            args: args.into_iter().map(|arg| arg.node).collect(),
+                        }
+                    }
                     _ => ValueTypeExpr::Named {
                         path,
                         args: args.into_iter().map(|arg| arg.node).collect(),
@@ -407,7 +413,32 @@ fn value_type_expr() -> impl Parser<Tok, Spanned<ValueTypeExpr>, Error = Err> + 
                     base
                 };
                 Spanned::new(node, sp(span))
-            })
+            });
+
+        let function = select! {
+            Tok::Ident(name) if name == "Fn" => (),
+        }
+        .ignore_then(just(Tok::Lt))
+        .ignore_then(
+            ty.clone()
+                .separated_by(just(Tok::Comma))
+                .allow_trailing()
+                .delimited_by(just(Tok::LParen), just(Tok::RParen)),
+        )
+        .then_ignore(just(Tok::ThinArrow))
+        .then(ty.clone())
+        .then_ignore(just(Tok::Gt))
+        .map_with_span(|(params, ret), span| {
+            Spanned::new(
+                ValueTypeExpr::Function {
+                    params: params.into_iter().map(|param| param.node).collect(),
+                    ret: Box::new(ret.node),
+                },
+                sp(span),
+            )
+        });
+
+        let nullable = choice((function, named))
             .then(just(Tok::Question).or_not())
             .map(|(base, nullable)| {
                 if nullable.is_some() {
@@ -421,7 +452,7 @@ fn value_type_expr() -> impl Parser<Tok, Spanned<ValueTypeExpr>, Error = Err> + 
                 }
             });
 
-        named
+        nullable
             .separated_by(just(Tok::Union))
             .at_least(1)
             .collect::<Vec<_>>()
@@ -594,7 +625,7 @@ fn qualified_var_spanned() -> impl Parser<Tok, Spanned<String>, Error = Err> {
         .at_least(1)
         .collect::<Vec<_>>()
         .then_ignore(just(Tok::Slash))
-        .then(ident())
+        .then(choice((ident(), just(Tok::Plus).to("+".to_string()))))
         .map_with_span(|(namespace, name), span| {
             Spanned::new(format!("{}/{}", namespace.join("."), name), sp(span))
         })

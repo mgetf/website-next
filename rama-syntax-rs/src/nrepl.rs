@@ -476,6 +476,7 @@ fn observe_code(var: &str, args_edn: &str) -> String {
                       (or (sequential? value) (instance? java.util.List value)) \
                         (str \"java.util.List<\" \
                           (join-types (map describe value)) \">\") \
+                      (ifn? value) \"Fn<(Unknown) -> Unknown>\" \
                       :else (.getName (class value))))] \
           (let [requested (symbol {}) \
                 f (if (namespace requested) \

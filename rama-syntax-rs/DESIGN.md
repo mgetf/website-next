@@ -210,14 +210,26 @@ for the typed Flow-IR instrumentation idea.
 
 1. Bare `|hash k` vs block — lean bare until a meatier module decides
 
+## Done since
+
+1. **Cutover proof** — generated Match and Users modules pass the ORIGINAL
+   handwritten test suites (`rama_smoke`/`users_smoke` overwrite + restore).
+2. **Module identity** — `module a.b.c/ClassName topology name`; kebab depot
+   and pstate names.
+3. **Path typing** — select/transform paths fold through declared schemas:
+   key types, field typos (with available-field lists), `termval`/`term`
+   write checks, `nil->val` defaults, and typed select bindings (known
+   unsoundness: bindings are non-nullable until flow refinement lands).
+4. **Typed depot events, learning loop, live nREPL oracle** — see
+   `LIVE_ORACLE.md`, `RULES.md`, `CLOJURE_BOUNDARY.md`.
+
 ## Next work (priority)
 
-1. **Generated lifecycle proof** — create/ban/score is green via
-   `cargo test --test rama_smoke -- --ignored`.
-2. **Typechecker** — deepen against `struct` / `Map<…>` / Specter paths.
-3. **Module identity** — separate Clojure namespace, module class, and topology
-   name instead of deriving all three from `module Match`.
-4. **Typed backend split** — lower typed Rama IR into separate CljExpr and Flow
-   IRs so the Clojure/dataflow boundary is structural.
+1. **Flow refinement** — `fail ... if nil?(x)` should narrow `x` so select
+   bindings can become honestly nullable.
+2. **Typed backend split** — lower typed Rama IR into separate CljExpr and
+   Flow IRs so the Clojure/dataflow boundary is structural.
+3. **Split `types.rs`** — table/prelude/infer/paths/ops modules.
+4. **Cardinality** — `ALL`/`subselect` navigators emit-many semantics.
 
 See `fixtures/match_v2.rama`.

@@ -165,6 +165,24 @@ pub struct Typing {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// Where a select/transform path currently points within a declared schema.
+#[derive(Debug, Clone, PartialEq)]
+enum SchemaFocus {
+    Map {
+        key: TypeId,
+        value: Box<SchemaFocus>,
+    },
+    Struct(String),
+    Leaf(TypeId),
+    Dynamic,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PathMode {
+    Select,
+    Transform,
+}
+
 pub trait TypeOracle {
     fn is_assignable(&self, actual: &str, expected: &str) -> Option<bool>;
     fn extern_suggestions(&self, name: &str) -> Vec<String>;
@@ -300,22 +318,26 @@ impl<'a> Checker<'a> {
                         }
                     }
                 }
-                Stmt::Select { target, .. } => {
-                    // Select paths are untyped until path optics land; the
-                    // bindings enter as Dynamic.
-                    let dynamic = self.typing.table.intern(Type::Dynamic);
+                Stmt::Select {
+                    pstate,
+                    path,
+                    target,
+                    ..
+                } => {
+                    let focus = self.fold_path(pstate, path, locals, PathMode::Select);
                     match target {
                         crate::ast::BindingTarget::Name(name) => {
-                            locals.insert(name.node.clone(), dynamic);
+                            let ty = self.focus_binding_type(&focus);
+                            locals.insert(name.node.clone(), ty);
                         }
                         crate::ast::BindingTarget::Destructure(names) => {
-                            for name in names {
-                                locals.insert(name.node.clone(), dynamic);
-                            }
+                            self.bind_destructured_focus(&focus, names, locals);
                         }
                     }
                 }
-                Stmt::Transform { .. } => {}
+                Stmt::Transform { pstate, path, .. } => {
+                    self.fold_path(pstate, path, locals, PathMode::Transform);
+                }
                 Stmt::Fail {
                     value, condition, ..
                 } => {
@@ -361,6 +383,340 @@ impl<'a> Checker<'a> {
             },
             // Schema `Object` is the untyped escape at the event boundary.
             TypeExpr::Object | TypeExpr::Map { .. } => self.typing.table.intern(Type::Dynamic),
+        }
+    }
+
+    /// Turn a declared schema type into a navigable focus.
+    fn schema_focus(&mut self, schema: &TypeExpr) -> SchemaFocus {
+        match schema {
+            TypeExpr::Named(name) if self.program.structs.contains_key(name.as_str()) => {
+                SchemaFocus::Struct(name.clone())
+            }
+            TypeExpr::Named(_) => SchemaFocus::Leaf(self.schema_value_type(schema)),
+            TypeExpr::Object => SchemaFocus::Dynamic,
+            TypeExpr::Map { key, value, .. } => SchemaFocus::Map {
+                key: self.schema_value_type(key),
+                value: Box::new(self.schema_focus(value)),
+            },
+        }
+    }
+
+    /// Fold a select/transform path through the pstate's declared schema,
+    /// checking key types, field existence, and write terminals. Returns the
+    /// final focus for binding.
+    fn fold_path(
+        &mut self,
+        pstate: &crate::span::Spanned<String>,
+        path: &[Expr],
+        locals: &HashMap<String, TypeId>,
+        mode: PathMode,
+    ) -> SchemaFocus {
+        let Some(declaration) = self.program.pstates.get(pstate.node.as_str()) else {
+            // Unknown pstates already carry a rule diagnostic.
+            return SchemaFocus::Dynamic;
+        };
+        let root = declaration.ty.node.clone();
+        let mut focus = self.schema_focus(&root);
+        for segment in path {
+            focus = self.fold_segment(focus, segment, locals, mode);
+        }
+        focus
+    }
+
+    fn fold_segment(
+        &mut self,
+        focus: SchemaFocus,
+        segment: &Expr,
+        locals: &HashMap<String, TypeId>,
+        mode: PathMode,
+    ) -> SchemaFocus {
+        match segment {
+            Expr::Call(call) if call.callee.node == "keypath" => {
+                let mut focus = focus;
+                for key in &call.args {
+                    focus = self.descend_key(focus, key, locals);
+                }
+                focus
+            }
+            Expr::Keyword(_) => self.descend_key(focus, segment, locals),
+            Expr::Call(call) if call.callee.node == "nil->val" => {
+                if let (Some(default), SchemaFocus::Leaf(expected)) = (call.args.first(), &focus) {
+                    let actual = self.infer_expr(default, locals);
+                    if !self.assignable(actual, *expected) {
+                        self.typing.diagnostics.push(Diagnostic::type_error(
+                            default.span(),
+                            format!(
+                                "nil->val default has type `{}`, this position declares `{}`",
+                                self.typing.table.display(actual),
+                                self.typing.table.display(*expected)
+                            ),
+                        ));
+                    }
+                }
+                focus
+            }
+            Expr::Call(call) if call.callee.node == "termval" => {
+                if mode == PathMode::Transform {
+                    if let Some(value) = call.args.first() {
+                        self.check_termval(&focus, value, locals);
+                    }
+                }
+                focus
+            }
+            Expr::Call(call) if call.callee.node == "term" => {
+                if let (PathMode::Transform, Some(Expr::Ident(function)), SchemaFocus::Leaf(t)) =
+                    (mode, call.args.first(), &focus)
+                {
+                    let callable = self.infer_function_value(&function.node, function.span);
+                    if let Type::Function { params, ret } = self.typing.table.get(callable).clone()
+                    {
+                        if params.len() == 1
+                            && (!self.assignable(*t, params[0]) || !self.assignable(ret, *t))
+                        {
+                            self.typing.diagnostics.push(Diagnostic::type_error(
+                                function.span,
+                                format!(
+                                    "term function `{}` has type `{}`, incompatible with this position's `{}`",
+                                    function.node,
+                                    self.typing.table.display(callable),
+                                    self.typing.table.display(*t)
+                                ),
+                            ));
+                        }
+                    }
+                }
+                focus
+            }
+            Expr::Call(call) if call.callee.node == "multi-path" => {
+                for branch in &call.args {
+                    if let Expr::List { elems, .. } = branch {
+                        let mut branch_focus = focus.clone();
+                        for elem in elems {
+                            branch_focus = self.fold_segment(branch_focus, elem, locals, mode);
+                        }
+                    }
+                }
+                focus
+            }
+            Expr::Ident(ident) if ident.node == "NONE>" || ident.node == "AFTER-ELEM" => focus,
+            // Unknown navigators end precise tracking.
+            _ => SchemaFocus::Dynamic,
+        }
+    }
+
+    fn descend_key(
+        &mut self,
+        focus: SchemaFocus,
+        key: &Expr,
+        locals: &HashMap<String, TypeId>,
+    ) -> SchemaFocus {
+        match focus {
+            SchemaFocus::Map {
+                key: key_type,
+                value,
+            } => {
+                if !matches!(key, Expr::Keyword(_)) {
+                    let actual = self.infer_expr(key, locals);
+                    if !self.assignable(actual, key_type) {
+                        self.typing.diagnostics.push(Diagnostic::type_error(
+                            key.span(),
+                            format!(
+                                "map key has type `{}`, the schema declares `{}`",
+                                self.typing.table.display(actual),
+                                self.typing.table.display(key_type)
+                            ),
+                        ));
+                    }
+                }
+                *value
+            }
+            SchemaFocus::Struct(struct_name) => {
+                let field_name = match key {
+                    Expr::Keyword(name) | Expr::String(name) => Some(name),
+                    _ => None,
+                };
+                let Some(field_name) = field_name else {
+                    self.typing.diagnostics.push(Diagnostic::type_error(
+                        key.span(),
+                        format!(
+                            "fields of `{struct_name}` are addressed by keyword, e.g. `:status`"
+                        ),
+                    ));
+                    return SchemaFocus::Dynamic;
+                };
+                let fields: Vec<(String, TypeExpr)> = self.program.structs[struct_name.as_str()]
+                    .fields
+                    .iter()
+                    .map(|field| (field.name.node.clone(), field.ty.node.clone()))
+                    .collect();
+                match fields.iter().find(|(name, _)| name == &field_name.node) {
+                    Some((_, schema)) => {
+                        let schema = schema.clone();
+                        self.schema_focus(&schema)
+                    }
+                    None => {
+                        let available = fields
+                            .iter()
+                            .map(|(name, _)| name.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        self.typing.diagnostics.push(Diagnostic::type_error(
+                            field_name.span,
+                            format!(
+                                "`{struct_name}` has no field `{}`; available: {available}",
+                                field_name.node
+                            ),
+                        ));
+                        SchemaFocus::Dynamic
+                    }
+                }
+            }
+            SchemaFocus::Leaf(t) => {
+                self.typing.diagnostics.push(Diagnostic::type_error(
+                    key.span(),
+                    format!(
+                        "cannot descend into `{}`; the path already reached a leaf value",
+                        self.typing.table.display(t)
+                    ),
+                ));
+                SchemaFocus::Dynamic
+            }
+            SchemaFocus::Dynamic => SchemaFocus::Dynamic,
+        }
+    }
+
+    fn check_termval(
+        &mut self,
+        focus: &SchemaFocus,
+        value: &Expr,
+        locals: &HashMap<String, TypeId>,
+    ) {
+        match focus {
+            SchemaFocus::Leaf(expected) => {
+                if matches!(value, Expr::Ident(ident) if ident.node == "nil") {
+                    return; // explicit clear
+                }
+                let actual = self.infer_expr(value, locals);
+                if !self.assignable(actual, *expected) {
+                    self.typing.diagnostics.push(Diagnostic::type_error(
+                        value.span(),
+                        format!(
+                            "termval writes `{}` where the schema declares `{}`",
+                            self.typing.table.display(actual),
+                            self.typing.table.display(*expected)
+                        ),
+                    ));
+                }
+            }
+            SchemaFocus::Struct(struct_name) => {
+                let Expr::Map { entries, .. } = value else {
+                    self.infer_expr(value, locals);
+                    return;
+                };
+                let fields: Vec<(String, TypeExpr)> = self.program.structs[struct_name.as_str()]
+                    .fields
+                    .iter()
+                    .map(|field| (field.name.node.clone(), field.ty.node.clone()))
+                    .collect();
+                for entry in entries {
+                    let Expr::Keyword(key) = &entry.key else {
+                        continue;
+                    };
+                    match fields.iter().find(|(name, _)| name == &key.node) {
+                        Some((_, schema)) => {
+                            let schema = schema.clone();
+                            let expected = self.schema_value_type(&schema);
+                            if let Some(entry_value) = &entry.value {
+                                let actual = self.infer_expr(entry_value, locals);
+                                if !self.assignable(actual, expected) {
+                                    self.typing.diagnostics.push(Diagnostic::type_error(
+                                        entry_value.span(),
+                                        format!(
+                                            "field `{}` of `{struct_name}` declares `{}`, got `{}`",
+                                            key.node,
+                                            self.typing.table.display(expected),
+                                            self.typing.table.display(actual)
+                                        ),
+                                    ));
+                                }
+                            }
+                        }
+                        None => {
+                            let available = fields
+                                .iter()
+                                .map(|(name, _)| name.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            self.typing.diagnostics.push(Diagnostic::type_error(
+                                key.span,
+                                format!(
+                                    "`{struct_name}` has no field `{}`; available: {available}",
+                                    key.node
+                                ),
+                            ));
+                        }
+                    }
+                }
+            }
+            SchemaFocus::Map { .. } | SchemaFocus::Dynamic => {
+                self.infer_expr(value, locals);
+            }
+        }
+    }
+
+    /// Binding type for a single select target. Bindings are deliberately
+    /// non-nullable even though a missed keypath emits nil: flow refinement
+    /// from `fail ... if nil?(x)` guards does not exist yet, and nullable
+    /// bindings would reject every guarded use downstream.
+    fn focus_binding_type(&mut self, focus: &SchemaFocus) -> TypeId {
+        match focus {
+            SchemaFocus::Leaf(t) => *t,
+            _ => self.typing.table.intern(Type::Dynamic),
+        }
+    }
+
+    fn bind_destructured_focus(
+        &mut self,
+        focus: &SchemaFocus,
+        names: &[crate::span::Spanned<String>],
+        locals: &mut HashMap<String, TypeId>,
+    ) {
+        let SchemaFocus::Struct(struct_name) = focus else {
+            let dynamic = self.typing.table.intern(Type::Dynamic);
+            for name in names {
+                locals.insert(name.node.clone(), dynamic);
+            }
+            return;
+        };
+        let fields: Vec<(String, TypeExpr)> = self.program.structs[struct_name.as_str()]
+            .fields
+            .iter()
+            .map(|field| (field.name.node.clone(), field.ty.node.clone()))
+            .collect();
+        for name in names {
+            match fields.iter().find(|(field, _)| field == &name.node) {
+                Some((_, schema)) => {
+                    let schema = schema.clone();
+                    let ty = self.schema_value_type(&schema);
+                    locals.insert(name.node.clone(), ty);
+                }
+                None => {
+                    let available = fields
+                        .iter()
+                        .map(|(field, _)| field.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    self.typing.diagnostics.push(Diagnostic::type_error(
+                        name.span,
+                        format!(
+                            "`{struct_name}` has no field `{}`; available: {available}",
+                            name.node
+                        ),
+                    ));
+                    let unknown = self.typing.table.intern(Type::Unknown);
+                    locals.insert(name.node.clone(), unknown);
+                }
+            }
         }
     }
 
@@ -2075,6 +2431,176 @@ op ban(event: BanEvent) {
             .diagnostics
             .iter()
             .any(|diagnostic| { diagnostic.message.contains("no `even?` signature") }));
+    }
+
+    const PATH_MODULE: &str = r#"
+module T
+struct User { :name String :score Long }
+pstate $$users: Map<String, User>
+pstate $$index: Map<String, String>
+depot d keyed-by id
+struct E { :id String :label String }
+"#;
+
+    fn path_typing(op: &str) -> Typing {
+        typing(&format!("{PATH_MODULE}\n{op}"))
+    }
+
+    #[test]
+    fn keypath_field_typo_is_caught_with_available_fields() {
+        let result = path_typing(
+            r#"
+op read(event: E) {
+  let { id } = event
+  $$users --> keypath(id, :scor) > s
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(result.diagnostics.iter().any(|diagnostic| {
+            diagnostic.message.contains("no field `scor`")
+                && diagnostic.message.contains("name, score")
+        }));
+    }
+
+    #[test]
+    fn select_destructure_typo_is_caught() {
+        let result = path_typing(
+            r#"
+op read(event: E) {
+  let { id } = event
+  $$users --> keypath(id) > { name, scre }
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.message.contains("no field `scre`") }));
+    }
+
+    #[test]
+    fn select_bindings_carry_schema_types() {
+        let good = path_typing(
+            r#"
+op read(event: E) {
+  let { id } = event
+  $$users --> keypath(id, :score), nil->val(0) > s
+  let next = inc(s)
+  return {"ok" true "next" next}
+}
+"#,
+        );
+        assert!(good.diagnostics.is_empty(), "{:#?}", good.diagnostics);
+
+        let bad = path_typing(
+            r#"
+op read(event: E) {
+  let { id } = event
+  $$users --> keypath(id, :name) > n
+  let next = inc(n)
+  return {"ok" true "next" next}
+}
+"#,
+        );
+        assert!(bad.diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .message
+                .contains("no `inc` signature accepts (java.lang.String)")
+        }));
+    }
+
+    #[test]
+    fn termval_type_mismatches_are_caught() {
+        let leaf = path_typing(
+            r#"
+op write(event: E) {
+  let { id } = event
+  $$users !<-- keypath(id, :score), termval("high")
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(leaf.diagnostics.iter().any(|diagnostic| {
+            diagnostic.message.contains(
+                "termval writes `java.lang.String` where the schema declares `java.lang.Long`",
+            )
+        }));
+
+        let map = path_typing(
+            r#"
+op write(event: E) {
+  let { id, label } = event
+  $$users !<-- keypath(id), termval({:name label :score "zero" :extra 1})
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(map.diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .message
+                .contains("field `score` of `User` declares `java.lang.Long`")
+        }));
+        assert!(map
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("no field `extra`")));
+    }
+
+    #[test]
+    fn map_key_type_mismatch_is_caught() {
+        let result = path_typing(
+            r#"
+op write(event: E) {
+  let { id } = event
+  $$users --> keypath(id, :score) > s
+  $$index !<-- keypath(s), termval(id)
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(result.diagnostics.iter().any(|diagnostic| {
+            diagnostic.message.contains(
+                "map key has type `java.lang.Long`, the schema declares `java.lang.String`",
+            )
+        }));
+    }
+
+    #[test]
+    fn term_function_must_match_position_type() {
+        let result = path_typing(
+            r#"
+fn shout(value: String) -> String { return value }
+op write(event: E) {
+  let { id } = event
+  $$users !<-- keypath(id, :score), nil->val(0), term(shout)
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.message.contains("term function `shout`") }));
+    }
+
+    #[test]
+    fn descending_past_a_leaf_is_caught() {
+        let result = path_typing(
+            r#"
+op read(event: E) {
+  let { id } = event
+  $$users --> keypath(id, :score, :deeper) > s
+  return {"ok" true}
+}
+"#,
+        );
+        assert!(result.diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .message
+                .contains("cannot descend into `java.lang.Long`")
+        }));
     }
 
     #[test]

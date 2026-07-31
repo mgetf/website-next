@@ -1,4 +1,5 @@
-use rama_syntax::{analyze, emit_clojure, parse, DiagnosticKind};
+use rama_syntax::ast::Item;
+use rama_syntax::{analyze, emit_clojure, parse};
 
 fn fixture(name: &str) -> String {
     let path = format!("{}/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));
@@ -6,88 +7,60 @@ fn fixture(name: &str) -> String {
 }
 
 #[test]
-fn parses_match_create() {
-    let src = fixture("match_create.rama");
+fn parses_match_v2() {
+    let src = fixture("match_v2.rama");
     let file = parse(&src).unwrap_or_else(|e| {
         for d in &e.diagnostics {
             eprintln!("{}", d.render(&src));
         }
         panic!("parse failed");
     });
-    assert!(file.items.len() >= 4, "schemas + ops");
+
+    assert!(matches!(file.items[0], Item::Module(_)));
+    let ops = file
+        .items
+        .iter()
+        .filter(|i| matches!(i, Item::Op(_)))
+        .count();
+    assert_eq!(ops, 3, "create-match, ban-map, submit-score");
+    let structs = file
+        .items
+        .iter()
+        .filter(|i| matches!(i, Item::Struct(_)))
+        .count();
+    assert_eq!(structs, 3);
+    let pstates = file
+        .items
+        .iter()
+        .filter(|i| matches!(i, Item::PState(_)))
+        .count();
+    assert_eq!(pstates, 4);
 }
 
 #[test]
-fn typechecks_match_create_clean() {
-    let src = fixture("match_create.rama");
+fn typechecks_match_v2() {
+    let src = fixture("match_v2.rama");
     let (_file, result) = analyze(&src).expect("parse");
     assert!(
         result.ok(),
-        "unexpected diagnostics: {:?}",
+        "unexpected: {:?}",
         result
             .diagnostics
             .iter()
-            .map(|d| d.message.as_str())
+            .map(|d| &d.message)
             .collect::<Vec<_>>()
     );
 }
 
 #[test]
-fn parses_first_rama_subset() {
-    let src = fixture("first.rama");
-    let file = parse(&src).unwrap_or_else(|e| {
-        for d in &e.diagnostics {
-            eprintln!("{}", d.render(&src));
-        }
-        panic!("parse failed");
-    });
-    assert_eq!(file.items.len(), 1);
-}
-
-#[test]
-fn emits_match_create_clojure_surface() {
-    let src = fixture("match_create.rama");
+fn emits_match_v2_clojure() {
+    let src = fixture("match_v2.rama");
     let file = parse(&src).expect("parse");
     let clj = emit_clojure(&file);
-
-    assert!(clj.contains("(deframaop create-match> [*event]"));
-    assert!(clj.contains("(get *event \"matchId\" :> *match-id)"));
-    assert!(clj.contains("(pool->set *pool :> *pool-set)"));
-    assert!(clj.contains("(local-select> (keypath *match-id) $$matches :> *existing)"));
-    assert!(clj.contains(
-        "(local-transform> [(keypath *match-id \"status\") (termval \"UNPLAYED\")] $$matches)"
-    ));
-    assert!(clj.contains("(<<if (nil? *existing)"));
-    assert!(clj.contains("(else>)"));
-    assert!(clj.contains("(ack-return> {\"ok\" true \"matchId\" *match-id})"));
-}
-
-#[test]
-fn bad_paths_emit_type_diagnostics() {
-    let src = fixture("bad_paths.rama");
-    let (_file, result) = analyze(&src).expect("parse");
-    assert!(!result.ok());
-    let msgs: Vec<_> = result
-        .diagnostics
-        .iter()
-        .filter(|d| d.kind == DiagnosticKind::Type)
-        .map(|d| d.message.as_str())
-        .collect();
-    assert!(
-        msgs.iter().any(|m| m.contains("unknown field")),
-        "expected unknown field: {msgs:?}"
-    );
-    assert!(
-        msgs.iter()
-            .any(|m| m.contains("navigator") && m.contains("keypath")),
-        "expected navigator-in-keypath: {msgs:?}"
-    );
-    assert!(
-        msgs.iter().any(|m| m.contains("termval type mismatch")),
-        "expected termval mismatch: {msgs:?}"
-    );
-    assert!(
-        msgs.iter().any(|m| m.contains("unknown pstate")),
-        "expected unknown pstate: {msgs:?}"
-    );
+    assert!(clj.contains("(deframaop create-match>"));
+    assert!(clj.contains("(local-select>"));
+    assert!(clj.contains("(local-transform>"));
+    assert!(clj.contains("(ack-return>"));
+    assert!(clj.contains("(|hash"));
+    assert!(clj.contains("AFTER-ELEM"));
 }

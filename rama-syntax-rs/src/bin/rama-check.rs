@@ -42,7 +42,7 @@ fn main() -> ExitCode {
             println!("{}", usage());
             ExitCode::SUCCESS
         }
-        // Backwards-compatible shorthand: `rama-check fixtures/foo.rama`.
+        // Shorthand: `rama-check fixtures/foo.rama`
         path => check_file(path),
     }
 }

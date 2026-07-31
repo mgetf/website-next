@@ -11,5 +11,7 @@ name = "rama-check"
 path = "src/bin/rama-check.rs"
 
 [dependencies]
+chumsky = { version = "0.9", default-features = false, features = ["std"] }
+logos = "0.14"
 
 [dev-dependencies]

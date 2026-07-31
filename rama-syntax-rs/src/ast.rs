@@ -1,12 +1,7 @@
-//! Abstract syntax tree for Rama surface syntax.
-//!
-//! Mirrors the shapes in [tommy-mor/rama-syntax](https://github.com/tommy-mor/rama-syntax)
-//! (`tree-sitter-rama` grammar + `examples/*.rama`), plus a `pstate` schema
-//! declaration used by the type-checker stub.
+//! .rama v2 AST — Specter paths, Rust-like schemas, no naming-convention sigils.
 
 use crate::span::{Span, Spanned};
 
-/// A parsed `.rama` source file.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {
     pub items: Vec<Item>,
@@ -15,42 +10,62 @@ pub struct SourceFile {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Item {
-    /// `ramaop name>(params) { ... }`
-    RamaOp(RamaOpDef),
-    /// Top-level `ramafn %name(params) { > expr; }`
-    RamaFn(RamaFnDef),
-    /// Type-checker extension: `pstate $$name { Key -> Value }`
+    Module(ModuleDecl),
+    Struct(StructDecl),
     PState(PStateDecl),
+    Depot(DepotDecl),
+    Op(OpDef),
+    Fn(FnDef),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct RamaOpDef {
+pub struct ModuleDecl {
     pub name: Spanned<String>,
-    pub params: Vec<Spanned<Param>>,
-    pub body: Block,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct RamaFnDef {
+pub struct StructDecl {
     pub name: Spanned<String>,
-    pub params: Vec<Spanned<Param>>,
-    pub body: Vec<InlineBinding>,
+    pub fields: Vec<StructField>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructField {
+    /// Keyword name without leading `:`.
+    pub name: Spanned<String>,
+    pub ty: Spanned<TypeExpr>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PStateDecl {
     pub name: Spanned<String>,
-    pub key: Spanned<TypeExpr>,
-    pub value: Spanned<TypeExpr>,
+    pub ty: Spanned<TypeExpr>,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Param {
-    Binding(String),
-    Ident(String),
+pub struct DepotDecl {
+    pub name: Spanned<String>,
+    pub keyed_by: Spanned<String>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OpDef {
+    pub name: Spanned<String>,
+    pub params: Vec<Spanned<String>>,
+    pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FnDef {
+    pub name: Spanned<String>,
+    pub params: Vec<Spanned<String>>,
+    pub body: Block,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,13 +76,15 @@ pub struct Block {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
-    Anchor {
-        anchor: Spanned<String>,
+    Let {
+        pattern: LetPattern,
+        value: Expr,
         span: Span,
     },
-    Effect {
-        value: Expr,
-        binding: Option<EffectBinding>,
+    Select {
+        pstate: Spanned<String>,
+        path: Vec<Expr>,
+        target: BindingTarget,
         span: Span,
     },
     Transform {
@@ -75,23 +92,22 @@ pub enum Stmt {
         path: Vec<Expr>,
         span: Span,
     },
-    Select {
-        pstate: Spanned<String>,
-        path: Vec<Expr>,
-        target: Option<BindingTarget>,
+    Fail {
+        value: Expr,
+        condition: Expr,
         span: Span,
     },
-    HookNamed {
-        name: Spanned<String>,
-        arg: Option<Expr>,
+    Return {
+        value: Expr,
         span: Span,
     },
-    HookAnchor {
-        anchor: Spanned<String>,
+    /// Bare `|hash key` partition hop.
+    Hash {
+        key: Expr,
         span: Span,
     },
-    Unify {
-        anchors: Vec<Spanned<String>>,
+    Effect {
+        value: Expr,
         span: Span,
     },
     If {
@@ -100,41 +116,18 @@ pub enum Stmt {
         alternative: Option<Block>,
         span: Span,
     },
-    Atomic {
-        body: Block,
-        span: Span,
-    },
-    Sink {
-        target: BindingTarget,
-        span: Span,
-    },
-    RamaFn(RamaFnDef),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct EffectBinding {
-    pub target: BindingTarget,
-    pub alias: Option<Spanned<String>>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct InlineBinding {
-    pub value: Option<Expr>,
-    pub target: InlineTarget,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum InlineTarget {
-    Binding(BindingTarget),
-    Call(CallExpr),
+pub enum LetPattern {
+    Name(Spanned<String>),
+    Destructure(Vec<Spanned<String>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BindingTarget {
     Name(Spanned<String>),
-    Map(Vec<MapEntry>),
-    List(Vec<Expr>),
+    Destructure(Vec<Spanned<String>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -149,15 +142,28 @@ pub enum Expr {
         span: Span,
     },
     String(Spanned<String>),
-    Anchor(Spanned<String>),
     Keyword(Spanned<String>),
-    Binding(Spanned<String>),
-    PState(Spanned<String>),
-    Pipe(Spanned<String>),
     Ident(Spanned<String>),
-    /// Integer literal (type-checker / MatchModule fixtures).
     Int(Spanned<i64>),
     Bool(Spanned<bool>),
+    Binary {
+        op: BinaryOp,
+        left: Box<Expr>,
+        right: Box<Expr>,
+        span: Span,
+    },
+    Ternary {
+        cond: Box<Expr>,
+        then_branch: Box<Expr>,
+        else_branch: Box<Expr>,
+        span: Span,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinaryOp {
+    Eq,
+    NotEq,
 }
 
 impl Expr {
@@ -167,14 +173,12 @@ impl Expr {
             Expr::List { span, .. }
             | Expr::Map { span, .. }
             | Expr::String(Spanned { span, .. })
-            | Expr::Anchor(Spanned { span, .. })
             | Expr::Keyword(Spanned { span, .. })
-            | Expr::Binding(Spanned { span, .. })
-            | Expr::PState(Spanned { span, .. })
-            | Expr::Pipe(Spanned { span, .. })
             | Expr::Ident(Spanned { span, .. })
             | Expr::Int(Spanned { span, .. })
-            | Expr::Bool(Spanned { span, .. }) => *span,
+            | Expr::Bool(Spanned { span, .. })
+            | Expr::Binary { span, .. }
+            | Expr::Ternary { span, .. } => *span,
         }
     }
 }
@@ -192,18 +196,13 @@ pub struct MapEntry {
     pub value: Option<Expr>,
 }
 
-/// Type expressions for `pstate` schema decls (type-checker stub).
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeExpr {
     Named(String),
-    /// `fixed { "field": Type, ... }`
-    Fixed {
-        fields: Vec<(String, TypeExpr)>,
-    },
-    /// `map Value` (subindexed map values)
     Map {
+        key: Box<TypeExpr>,
         value: Box<TypeExpr>,
+        subindexed: bool,
     },
-    /// Opaque / escape hatch
     Object,
 }

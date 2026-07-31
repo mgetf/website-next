@@ -1,824 +1,457 @@
-//! Recursive-descent parser for Rama surface syntax.
+//! .rama v2 parser ([`chumsky`] over logos tokens).
 
 use crate::ast::*;
 use crate::error::{Diagnostic, ParseError};
-use crate::lex::{lex, Token, TokenKind};
+use crate::lex::{lex, TokenKind};
 use crate::span::{Span, Spanned};
+use chumsky::prelude::*;
+use chumsky::Stream;
+
+type Tok = TokenKind;
+type Err = Simple<Tok, std::ops::Range<usize>>;
+
+fn sp(span: std::ops::Range<usize>) -> Span {
+    Span::new(span.start, span.end)
+}
 
 pub fn parse(src: &str) -> Result<SourceFile, ParseError> {
     let tokens = lex(src)?;
-    let mut p = Parser::new(tokens);
-    p.parse_source_file()
+    let eoi = src.len()..src.len();
+    let stream = Stream::from_iter(
+        eoi,
+        tokens
+            .into_iter()
+            .map(|(tok, span)| (tok, span.start..span.end)),
+    );
+
+    match file().parse(stream) {
+        Ok(f) => Ok(f),
+        Err(errors) => Err(ParseError {
+            diagnostics: errors
+                .into_iter()
+                .map(|e| Diagnostic::parse(sp(e.span()), format!("{e:?}")))
+                .collect(),
+        }),
+    }
 }
 
-struct Parser {
-    tokens: Vec<Token>,
-    pos: usize,
-}
-
-impl Parser {
-    fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, pos: 0 }
-    }
-
-    fn peek(&self) -> &Token {
-        self.tokens
-            .get(self.pos)
-            .unwrap_or_else(|| self.tokens.last().expect("token stream"))
-    }
-
-    fn peek_kind(&self) -> &TokenKind {
-        &self.peek().kind
-    }
-
-    fn bump(&mut self) -> Token {
-        let t = self.peek().clone();
-        if !matches!(t.kind, TokenKind::Eof) {
-            self.pos += 1;
-        }
-        t
-    }
-
-    fn expect(&mut self, kind: TokenKind, msg: &str) -> Result<Token, ParseError> {
-        if std::mem::discriminant(self.peek_kind()) == std::mem::discriminant(&kind) {
-            Ok(self.bump())
-        } else {
-            Err(ParseError::one(Diagnostic::parse(
-                self.peek().span,
-                format!("{msg}, got {:?}", self.peek_kind()),
-            )))
-        }
-    }
-
-    fn parse_source_file(&mut self) -> Result<SourceFile, ParseError> {
-        let start = self.peek().span.start;
-        let mut items = Vec::new();
-        while !matches!(self.peek_kind(), TokenKind::Eof) {
-            items.push(self.parse_item()?);
-        }
-        let end = self.peek().span.end;
-        Ok(SourceFile {
+fn file() -> impl Parser<Tok, SourceFile, Error = Err> {
+    item()
+        .repeated()
+        .then_ignore(end())
+        .map_with_span(|items, span| SourceFile {
             items,
-            span: Span::new(start, end),
+            span: sp(span),
         })
-    }
+}
 
-    fn parse_item(&mut self) -> Result<Item, ParseError> {
-        match self.peek_kind() {
-            TokenKind::RamaOp => Ok(Item::RamaOp(self.parse_ramaop()?)),
-            TokenKind::RamaFn => Ok(Item::RamaFn(self.parse_ramafn()?)),
-            TokenKind::PState => Ok(Item::PState(self.parse_pstate_decl()?)),
-            _ => Err(ParseError::one(Diagnostic::parse(
-                self.peek().span,
-                format!(
-                    "expected ramaop, ramafn, or pstate, got {:?}",
-                    self.peek_kind()
-                ),
-            ))),
-        }
-    }
+fn item() -> impl Parser<Tok, Item, Error = Err> {
+    choice((
+        module_item(),
+        struct_item(),
+        pstate_item(),
+        depot_item(),
+        op_item(),
+        fn_item(),
+    ))
+}
 
-    fn parse_ramaop(&mut self) -> Result<RamaOpDef, ParseError> {
-        let start = self
-            .expect(TokenKind::RamaOp, "expected ramaop")?
-            .span
-            .start;
-        let name = self.parse_op_or_ident_name()?;
-        self.expect(TokenKind::LParen, "expected '(' after ramaop name")?;
-        let params = self.parse_param_list()?;
-        self.expect(TokenKind::RParen, "expected ')' after parameters")?;
-        let body = self.parse_block()?;
-        let span = Span::new(start, body.span.end);
-        Ok(RamaOpDef {
-            name,
-            params,
-            body,
-            span,
+fn module_item() -> impl Parser<Tok, Item, Error = Err> {
+    just(Tok::Module)
+        .ignore_then(ident())
+        .map_with_span(|name, span| {
+            Item::Module(ModuleDecl {
+                name: Spanned::new(name, sp(span.clone())),
+                span: sp(span),
+            })
         })
-    }
+}
 
-    fn parse_ramafn(&mut self) -> Result<RamaFnDef, ParseError> {
-        let start = self
-            .expect(TokenKind::RamaFn, "expected ramafn")?
-            .span
-            .start;
-        let name_tok = self.bump();
-        let name = match name_tok.kind {
-            TokenKind::Binding(n) => Spanned::new(n, name_tok.span),
-            TokenKind::Ident(n) => Spanned::new(n, name_tok.span),
-            _ => {
-                return Err(ParseError::one(Diagnostic::parse(
-                    name_tok.span,
-                    "expected ramafn name",
-                )))
-            }
-        };
-        self.expect(TokenKind::LParen, "expected '(' after ramafn name")?;
-        let params = self.parse_param_list()?;
-        self.expect(TokenKind::RParen, "expected ')'")?;
-        self.expect(TokenKind::LBrace, "expected '{' for ramafn body")?;
-        let mut body = Vec::new();
-        while !matches!(self.peek_kind(), TokenKind::RBrace | TokenKind::Eof) {
-            body.push(self.parse_inline_binding()?);
-        }
-        let end = self.expect(TokenKind::RBrace, "expected '}'")?.span.end;
-        if body.is_empty() {
-            return Err(ParseError::one(Diagnostic::parse(
-                Span::new(start, end),
-                "ramafn body must contain at least one binding",
-            )));
-        }
-        Ok(RamaFnDef {
-            name,
-            params,
-            body,
-            span: Span::new(start, end),
+fn struct_item() -> impl Parser<Tok, Item, Error = Err> {
+    just(Tok::Struct)
+        .ignore_then(ident())
+        .then(
+            keyword()
+                .then(type_expr())
+                .map(|(name, ty)| StructField { name, ty })
+                .repeated()
+                .delimited_by(just(Tok::LBrace), just(Tok::RBrace)),
+        )
+        .map_with_span(|(name, fields), span| {
+            Item::Struct(StructDecl {
+                name: Spanned::new(name, Span::default()),
+                fields,
+                span: sp(span),
+            })
         })
-    }
+}
 
-    fn parse_pstate_decl(&mut self) -> Result<PStateDecl, ParseError> {
-        let start = self
-            .expect(TokenKind::PState, "expected pstate")?
-            .span
-            .start;
-        let name_tok = self.bump();
-        let name = match name_tok.kind {
-            TokenKind::PStateRef(n) => Spanned::new(n, name_tok.span),
-            _ => {
-                return Err(ParseError::one(Diagnostic::parse(
-                    name_tok.span,
-                    "expected $$pstate name",
-                )))
-            }
-        };
-        self.expect(TokenKind::LBrace, "expected '{' after pstate name")?;
-        let key = self.parse_type_expr()?;
-        self.expect(TokenKind::ArrowType, "expected '->' in pstate schema")?;
-        let value = self.parse_type_expr()?;
-        let end = self.expect(TokenKind::RBrace, "expected '}'")?.span.end;
-        Ok(PStateDecl {
-            name,
-            key,
-            value,
-            span: Span::new(start, end),
-        })
-    }
-
-    fn parse_type_expr(&mut self) -> Result<Spanned<TypeExpr>, ParseError> {
-        let start = self.peek().span.start;
-        match self.peek_kind() {
-            TokenKind::Fixed => {
-                self.bump();
-                self.expect(TokenKind::LBrace, "expected '{' after fixed")?;
-                let mut fields = Vec::new();
-                while !matches!(self.peek_kind(), TokenKind::RBrace | TokenKind::Eof) {
-                    let key_tok = self.bump();
-                    let key = match key_tok.kind {
-                        TokenKind::String(s) => s,
-                        TokenKind::Ident(s) => s,
-                        TokenKind::Keyword(s) => s,
-                        _ => {
-                            return Err(ParseError::one(Diagnostic::parse(
-                                key_tok.span,
-                                "expected field name in fixed schema",
-                            )))
-                        }
-                    };
-                    // optional colon
-                    if matches!(self.peek_kind(), TokenKind::Colon) {
-                        self.bump();
-                    }
-                    let ty = self.parse_type_expr()?.node;
-                    fields.push((key, ty));
-                    if matches!(self.peek_kind(), TokenKind::Comma) {
-                        self.bump();
-                    }
-                }
-                let end = self.expect(TokenKind::RBrace, "expected '}'")?.span.end;
-                Ok(Spanned::new(
-                    TypeExpr::Fixed { fields },
-                    Span::new(start, end),
-                ))
-            }
-            TokenKind::Map => {
-                self.bump();
-                let inner = self.parse_type_expr()?;
-                Ok(Spanned::new(
-                    TypeExpr::Map {
-                        value: Box::new(inner.node),
-                    },
-                    Span::new(start, inner.span.end),
-                ))
-            }
-            TokenKind::Object => {
-                let t = self.bump();
-                Ok(Spanned::new(TypeExpr::Object, t.span))
-            }
-            TokenKind::Ident(_) | TokenKind::String(_) => {
-                let t = self.bump();
-                let name = match t.kind {
-                    TokenKind::Ident(s) | TokenKind::String(s) => s,
-                    _ => unreachable!(),
-                };
-                Ok(Spanned::new(TypeExpr::Named(name), t.span))
-            }
-            _ => Err(ParseError::one(Diagnostic::parse(
-                self.peek().span,
-                format!("expected type expression, got {:?}", self.peek_kind()),
-            ))),
-        }
-    }
-
-    fn parse_op_or_ident_name(&mut self) -> Result<Spanned<String>, ParseError> {
-        let t = self.bump();
-        match t.kind {
-            TokenKind::Operator(n) | TokenKind::Ident(n) => Ok(Spanned::new(n, t.span)),
-            _ => Err(ParseError::one(Diagnostic::parse(
-                t.span,
-                "expected ramaop name",
-            ))),
-        }
-    }
-
-    fn parse_param_list(&mut self) -> Result<Vec<Spanned<Param>>, ParseError> {
-        let mut params = Vec::new();
-        if matches!(self.peek_kind(), TokenKind::RParen) {
-            return Ok(params);
-        }
-        loop {
-            let t = self.bump();
-            let param = match t.kind {
-                TokenKind::Binding(n) => Spanned::new(Param::Binding(n), t.span),
-                TokenKind::Ident(n) => Spanned::new(Param::Ident(n), t.span),
-                _ => {
-                    return Err(ParseError::one(Diagnostic::parse(
-                        t.span,
-                        "expected parameter",
-                    )))
-                }
-            };
-            params.push(param);
-            if matches!(self.peek_kind(), TokenKind::Comma) {
-                self.bump();
-                continue;
-            }
-            break;
-        }
-        Ok(params)
-    }
-
-    fn parse_block(&mut self) -> Result<Block, ParseError> {
-        let start = self.expect(TokenKind::LBrace, "expected '{'")?.span.start;
-        let mut stmts = Vec::new();
-        while !matches!(self.peek_kind(), TokenKind::RBrace | TokenKind::Eof) {
-            stmts.push(self.parse_stmt()?);
-        }
-        let end = self.expect(TokenKind::RBrace, "expected '}'")?.span.end;
-        Ok(Block {
-            stmts,
-            span: Span::new(start, end),
-        })
-    }
-
-    fn parse_stmt(&mut self) -> Result<Stmt, ParseError> {
-        match self.peek_kind() {
-            TokenKind::Anchor => self.parse_anchor_stmt(),
-            TokenKind::Hook => self.parse_hook_stmt(),
-            TokenKind::Unify => self.parse_unify_stmt(),
-            TokenKind::If => self.parse_if_stmt(),
-            TokenKind::Atomic => self.parse_atomic_stmt(),
-            TokenKind::RamaFn => {
-                let def = self.parse_ramafn()?;
-                self.optional_semi();
-                Ok(Stmt::RamaFn(def))
-            }
-            TokenKind::BindPipe => self.parse_sink_stmt(),
-            TokenKind::PStateRef(_) => self.parse_pstate_stmt(),
-            _ => self.parse_effect_stmt(),
-        }
-    }
-
-    fn parse_anchor_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let start = self.bump().span.start;
-        let a = self.bump();
-        let TokenKind::AnchorRef(name) = a.kind else {
-            return Err(ParseError::one(Diagnostic::parse(
-                a.span,
-                "expected <anchor>",
-            )));
-        };
-        let end = self.optional_semi().max(a.span.end);
-        Ok(Stmt::Anchor {
-            anchor: Spanned::new(name, a.span),
-            span: Span::new(start, end),
-        })
-    }
-
-    fn parse_hook_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let start = self.bump().span.start;
-        if matches!(self.peek_kind(), TokenKind::Colon) {
-            self.bump();
-            let name = self.parse_callable_name()?;
-            let arg = if matches!(self.peek_kind(), TokenKind::LParen) {
-                self.bump();
-                // hook:name(arg) — single argument expression, or empty
-                let arg = if matches!(self.peek_kind(), TokenKind::RParen) {
-                    None
-                } else {
-                    // may be multiple comma-separated — fold as call args into a list? grammar says single _expression
-                    // but first.rama has hook:writing-result(*a, *b, *c) — allow arg list as one call-like
-                    let mut args = vec![self.parse_expr()?];
-                    while matches!(self.peek_kind(), TokenKind::Comma) {
-                        self.bump();
-                        args.push(self.parse_expr()?);
-                    }
-                    if args.len() == 1 {
-                        Some(args.remove(0))
-                    } else {
-                        let span = args
-                            .first()
-                            .unwrap()
-                            .span()
-                            .merge(args.last().unwrap().span());
-                        Some(Expr::List { elems: args, span })
-                    }
-                };
-                self.expect(TokenKind::RParen, "expected ')' after hook args")?;
-                arg
-            } else {
-                None
-            };
-            let end = self.optional_semi();
-            return Ok(Stmt::HookNamed {
+fn pstate_item() -> impl Parser<Tok, Item, Error = Err> {
+    just(Tok::PState)
+        .ignore_then(pstate_ref())
+        .then_ignore(just(Tok::Colon))
+        .then(type_expr())
+        .map_with_span(|(name, ty), span| {
+            Item::PState(PStateDecl {
                 name,
-                arg,
-                span: Span::new(start, end),
+                ty,
+                span: sp(span),
+            })
+        })
+}
+
+fn depot_item() -> impl Parser<Tok, Item, Error = Err> {
+    just(Tok::Depot)
+        .ignore_then(ident())
+        .then_ignore(just(Tok::KeyedBy))
+        .then(ident())
+        .map_with_span(|(name, keyed), span| {
+            Item::Depot(DepotDecl {
+                name: Spanned::new(name, Span::default()),
+                keyed_by: Spanned::new(keyed, Span::default()),
+                span: sp(span),
+            })
+        })
+}
+
+fn op_item() -> impl Parser<Tok, Item, Error = Err> {
+    just(Tok::Op)
+        .ignore_then(ident())
+        .then(params())
+        .then(block())
+        .map_with_span(|((name, params), body), span| {
+            Item::Op(OpDef {
+                name: Spanned::new(name, Span::default()),
+                params,
+                body,
+                span: sp(span),
+            })
+        })
+}
+
+fn fn_item() -> impl Parser<Tok, Item, Error = Err> {
+    just(Tok::Fn)
+        .ignore_then(ident())
+        .then(params())
+        .then(block())
+        .map_with_span(|((name, params), body), span| {
+            Item::Fn(FnDef {
+                name: Spanned::new(name, Span::default()),
+                params,
+                body,
+                span: sp(span),
+            })
+        })
+}
+
+fn params() -> impl Parser<Tok, Vec<Spanned<String>>, Error = Err> {
+    ident_spanned()
+        .separated_by(just(Tok::Comma))
+        .allow_trailing()
+        .delimited_by(just(Tok::LParen), just(Tok::RParen))
+}
+
+fn block() -> impl Parser<Tok, Block, Error = Err> + Clone {
+    recursive(|block| {
+        let if_stmt = just(Tok::If)
+            .ignore_then(expr().delimited_by(just(Tok::LParen), just(Tok::RParen)))
+            .then(block.clone())
+            .then(just(Tok::Else).ignore_then(block.clone()).or_not())
+            .map_with_span(|((condition, consequence), alternative), span| Stmt::If {
+                condition,
+                consequence,
+                alternative,
+                span: sp(span),
             });
-        }
-        let a = self.bump();
-        let TokenKind::AnchorRef(name) = a.kind else {
-            return Err(ParseError::one(Diagnostic::parse(
-                a.span,
-                "expected hook <anchor> or hook:name",
-            )));
-        };
-        let end = self.optional_semi().max(a.span.end);
-        Ok(Stmt::HookAnchor {
-            anchor: Spanned::new(name, a.span),
-            span: Span::new(start, end),
-        })
-    }
 
-    fn parse_unify_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let start = self.bump().span.start;
-        self.expect(TokenKind::LParen, "expected '(' after unify>")?;
-        let mut anchors = Vec::new();
-        loop {
-            let a = self.bump();
-            let TokenKind::AnchorRef(name) = a.kind else {
-                return Err(ParseError::one(Diagnostic::parse(
-                    a.span,
-                    "expected anchor in unify>",
-                )));
-            };
-            anchors.push(Spanned::new(name, a.span));
-            if matches!(self.peek_kind(), TokenKind::Comma) {
-                self.bump();
-                continue;
-            }
-            break;
-        }
-        self.expect(TokenKind::RParen, "expected ')'")?;
-        let end = self.optional_semi();
-        Ok(Stmt::Unify {
-            anchors,
-            span: Span::new(start, end),
-        })
-    }
+        let stmt = choice((
+            let_stmt(),
+            fail_stmt(),
+            return_stmt(),
+            select_stmt(),
+            transform_stmt(),
+            hash_stmt(),
+            if_stmt,
+            effect_stmt(),
+        ))
+        .boxed();
 
-    fn parse_if_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let start = self.bump().span.start;
-        self.expect(TokenKind::LParen, "expected '(' after if")?;
-        let condition = self.parse_expr()?;
-        self.expect(TokenKind::RParen, "expected ')' after if condition")?;
-        let consequence = self.parse_block()?;
-        let mut end = consequence.span.end;
-        end = self.optional_semi().max(end);
-        let alternative = if matches!(self.peek_kind(), TokenKind::Else) {
-            self.bump();
-            let alt = self.parse_block()?;
-            end = alt.span.end;
-            end = self.optional_semi().max(end);
-            Some(alt)
-        } else {
-            None
-        };
-        Ok(Stmt::If {
-            condition,
-            consequence,
-            alternative,
-            span: Span::new(start, end),
-        })
-    }
+        stmt.repeated()
+            .delimited_by(just(Tok::LBrace), just(Tok::RBrace))
+            .map_with_span(|stmts, span| Block {
+                stmts,
+                span: sp(span),
+            })
+    })
+}
 
-    fn parse_atomic_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let start = self.bump().span.start;
-        let body = self.parse_block()?;
-        Ok(Stmt::Atomic {
-            span: Span::new(start, body.span.end),
-            body,
-        })
-    }
-
-    fn parse_sink_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let start = self.bump().span.start;
-        let target = self.parse_binding_target()?;
-        let end = self.optional_semi();
-        Ok(Stmt::Sink {
-            target,
-            span: Span::new(start, end),
-        })
-    }
-
-    fn parse_pstate_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let pstate_tok = self.bump();
-        let TokenKind::PStateRef(name) = pstate_tok.kind else {
-            unreachable!()
-        };
-        let pstate = Spanned::new(name, pstate_tok.span);
-
-        if matches!(self.peek_kind(), TokenKind::ArrowTransform) {
-            self.bump();
-            let path = self.parse_path()?;
-            // optional trailing BindPipe `>` (grammar)
-            if matches!(self.peek_kind(), TokenKind::BindPipe) {
-                self.bump();
-            }
-            let end = self.optional_semi();
-            return Ok(Stmt::Transform {
-                pstate,
-                path,
-                span: Span::new(pstate_tok.span.start, end),
-            });
-        }
-
-        if matches!(self.peek_kind(), TokenKind::ArrowSelect) {
-            self.bump();
-            let path = self.parse_path()?;
-            let target = if matches!(self.peek_kind(), TokenKind::BindPipe) {
-                self.bump();
-                Some(self.parse_binding_target()?)
-            } else {
-                None
-            };
-            let end = self.optional_semi();
-            return Ok(Stmt::Select {
-                pstate,
-                path,
-                target,
-                span: Span::new(pstate_tok.span.start, end),
-            });
-        }
-
-        // Fall through: pstate used as expression start of effect
-        // Put the token back conceptually by parsing effect from an Ident-like expr
-        Err(ParseError::one(Diagnostic::parse(
-            self.peek().span,
-            "expected --> or !<-- after pstate",
+fn let_stmt() -> impl Parser<Tok, Stmt, Error = Err> {
+    just(Tok::Let)
+        .ignore_then(choice((
+            ident_spanned()
+                .separated_by(just(Tok::Comma))
+                .at_least(1)
+                .delimited_by(just(Tok::LBrace), just(Tok::RBrace))
+                .map(LetPattern::Destructure),
+            ident_spanned().map(LetPattern::Name),
         )))
-    }
-
-    fn parse_effect_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let start = self.peek().span.start;
-        let value = self.parse_expr()?;
-        let binding = if matches!(self.peek_kind(), TokenKind::BindPipe) {
-            self.bump();
-            let target = self.parse_binding_target()?;
-            let alias = if matches!(self.peek_kind(), TokenKind::As) {
-                self.bump();
-                let t = self.bump();
-                match t.kind {
-                    TokenKind::Binding(n) => Some(Spanned::new(n, t.span)),
-                    _ => {
-                        return Err(ParseError::one(Diagnostic::parse(
-                            t.span,
-                            "expected binding alias after as",
-                        )))
-                    }
-                }
-            } else {
-                None
-            };
-            Some(EffectBinding { target, alias })
-        } else {
-            None
-        };
-        let end = self.optional_semi().max(value.span().end);
-        Ok(Stmt::Effect {
+        .then_ignore(just(Tok::Eq))
+        .then(expr())
+        .map_with_span(|(pattern, value), span| Stmt::Let {
+            pattern,
             value,
-            binding,
-            span: Span::new(start, end),
+            span: sp(span),
         })
-    }
+}
 
-    fn parse_inline_binding(&mut self) -> Result<InlineBinding, ParseError> {
-        let start = self.peek().span.start;
-        // optional value, then bind pipe, then target
-        let value = if matches!(self.peek_kind(), TokenKind::BindPipe) {
-            None
-        } else {
-            Some(self.parse_expr()?)
-        };
-        self.expect(TokenKind::BindPipe, "expected '>' in ramafn body")?;
-        let target = if matches!(self.peek_kind(), TokenKind::Operator(_))
-            || (matches!(self.peek_kind(), TokenKind::Ident(_))
-                && matches!(
-                    self.tokens.get(self.pos + 1).map(|t| &t.kind),
-                    Some(TokenKind::LParen)
-                )) {
-            InlineTarget::Call(self.parse_call_from_callee()?)
-        } else {
-            InlineTarget::Binding(self.parse_binding_target()?)
-        };
-        let end = self.optional_semi();
-        Ok(InlineBinding {
+fn fail_stmt() -> impl Parser<Tok, Stmt, Error = Err> {
+    just(Tok::Fail)
+        .ignore_then(expr())
+        .then_ignore(just(Tok::If))
+        .then(expr())
+        .map_with_span(|(value, condition), span| Stmt::Fail {
             value,
+            condition,
+            span: sp(span),
+        })
+}
+
+fn return_stmt() -> impl Parser<Tok, Stmt, Error = Err> {
+    just(Tok::Return)
+        .ignore_then(expr())
+        .map_with_span(|value, span| Stmt::Return {
+            value,
+            span: sp(span),
+        })
+}
+
+fn select_stmt() -> impl Parser<Tok, Stmt, Error = Err> {
+    pstate_ref()
+        .then_ignore(just(Tok::ArrowSelect))
+        .then(path())
+        .then_ignore(just(Tok::Gt))
+        .then(binding_target())
+        .map_with_span(|((pstate, path), target), span| Stmt::Select {
+            pstate,
+            path,
             target,
-            span: Span::new(start, end),
+            span: sp(span),
         })
-    }
+}
 
-    fn parse_path(&mut self) -> Result<Vec<Expr>, ParseError> {
-        let mut path = vec![self.parse_expr()?];
-        while matches!(self.peek_kind(), TokenKind::Comma) {
-            self.bump();
-            // stop path if next would be binding / end
-            if matches!(
-                self.peek_kind(),
-                TokenKind::BindPipe | TokenKind::Semicolon | TokenKind::RBrace | TokenKind::Eof
-            ) {
-                break;
-            }
-            path.push(self.parse_expr()?);
-        }
-        Ok(path)
-    }
+fn transform_stmt() -> impl Parser<Tok, Stmt, Error = Err> {
+    pstate_ref()
+        .then_ignore(just(Tok::ArrowTransform))
+        .then(path())
+        .map_with_span(|(pstate, path), span| Stmt::Transform {
+            pstate,
+            path,
+            span: sp(span),
+        })
+}
 
-    fn parse_binding_target(&mut self) -> Result<BindingTarget, ParseError> {
-        match self.peek_kind() {
-            TokenKind::Binding(_) => {
-                let t = self.bump();
-                let TokenKind::Binding(n) = t.kind else {
-                    unreachable!()
-                };
-                Ok(BindingTarget::Name(Spanned::new(n, t.span)))
-            }
-            TokenKind::LBrace => {
-                let map = self.parse_map_expr()?;
-                let Expr::Map { entries, .. } = map else {
-                    unreachable!()
-                };
-                Ok(BindingTarget::Map(entries))
-            }
-            TokenKind::LBracket => {
-                let list = self.parse_list_expr()?;
-                let Expr::List { elems, .. } = list else {
-                    unreachable!()
-                };
-                Ok(BindingTarget::List(elems))
-            }
-            _ => Err(ParseError::one(Diagnostic::parse(
-                self.peek().span,
-                "expected binding target",
-            ))),
-        }
-    }
+fn hash_stmt() -> impl Parser<Tok, Stmt, Error = Err> {
+    filter_map(|span, tok| match tok {
+        Tok::Pipe(s) if s == "hash" => Ok(()),
+        t => Err(Simple::expected_input_found(span, None, Some(t))),
+    })
+    .ignore_then(expr())
+    .map_with_span(|key, span| Stmt::Hash {
+        key,
+        span: sp(span),
+    })
+}
 
-    fn parse_expr(&mut self) -> Result<Expr, ParseError> {
-        // call if ident/op followed by (
-        if self.is_callable_start()
-            && matches!(
-                self.tokens.get(self.pos + 1).map(|t| &t.kind),
-                Some(TokenKind::LParen)
+fn effect_stmt() -> impl Parser<Tok, Stmt, Error = Err> {
+    expr().map_with_span(|value, span| Stmt::Effect {
+        value,
+        span: sp(span),
+    })
+}
+
+fn path() -> impl Parser<Tok, Vec<Expr>, Error = Err> {
+    expr().separated_by(just(Tok::Comma)).at_least(1)
+}
+
+fn binding_target() -> impl Parser<Tok, BindingTarget, Error = Err> {
+    choice((
+        ident_spanned()
+            .separated_by(just(Tok::Comma))
+            .at_least(1)
+            .delimited_by(just(Tok::LBrace), just(Tok::RBrace))
+            .map(BindingTarget::Destructure),
+        ident_spanned().map(BindingTarget::Name),
+    ))
+}
+
+fn type_expr() -> impl Parser<Tok, Spanned<TypeExpr>, Error = Err> {
+    recursive(|ty: Recursive<'_, Tok, Spanned<TypeExpr>, Err>| {
+        let named = choice((
+            select! { Tok::Ident(s) => TypeExpr::Named(s) },
+            select! { Tok::Object => TypeExpr::Object },
+        ))
+        .map_with_span(|t, span| Spanned::new(t, sp(span)));
+
+        let map = just(Tok::Map)
+            .ignore_then(
+                ty.clone()
+                    .then_ignore(just(Tok::Comma))
+                    .then(ty)
+                    .delimited_by(just(Tok::Lt), just(Tok::Gt)),
             )
-        {
-            return Ok(Expr::Call(self.parse_call_from_callee()?));
+            .then(
+                just(Tok::At)
+                    .ignore_then(select! { Tok::Ident(s) => s })
+                    .or_not(),
+            )
+            .map_with_span(
+                |((key, value), at): ((Spanned<TypeExpr>, Spanned<TypeExpr>), Option<String>),
+                 span| {
+                    Spanned::new(
+                        TypeExpr::Map {
+                            key: Box::new(key.node),
+                            value: Box::new(value.node),
+                            subindexed: matches!(at.as_deref(), Some("subindexed")),
+                        },
+                        sp(span),
+                    )
+                },
+            );
+
+        choice((map, named))
+    })
+}
+
+fn expr() -> impl Parser<Tok, Expr, Error = Err> + Clone {
+    recursive(|expr| {
+        let lit = choice((
+            select! { Tok::String(s) => s }
+                .map_with_span(|s, span| Expr::String(Spanned::new(s, sp(span)))),
+            select! { Tok::Int(n) => n }
+                .map_with_span(|n, span| Expr::Int(Spanned::new(n, sp(span)))),
+            select! { Tok::Bool(b) => b }
+                .map_with_span(|b, span| Expr::Bool(Spanned::new(b, sp(span)))),
+            select! { Tok::Keyword(s) => s }
+                .map_with_span(|s, span| Expr::Keyword(Spanned::new(s, sp(span)))),
+        ))
+        .boxed();
+
+        let callee = select! {
+            Tok::Ident(s) => s,
+            Tok::Ge => ">=".into(),
+            Tok::Gt => ">".into(),
+            Tok::Eq => "=".into(),
+            Tok::Keyword(s) => format!(":{s}"),
         }
+        .map_with_span(|s, span| Spanned::new(s, sp(span)));
 
-        match self.peek_kind() {
-            TokenKind::LBracket => self.parse_list_expr(),
-            TokenKind::LBrace => self.parse_map_expr(),
-            TokenKind::String(_) => {
-                let t = self.bump();
-                let TokenKind::String(s) = t.kind else {
-                    unreachable!()
-                };
-                Ok(Expr::String(Spanned::new(s, t.span)))
-            }
-            TokenKind::Int(_) => {
-                let t = self.bump();
-                let TokenKind::Int(n) = t.kind else {
-                    unreachable!()
-                };
-                Ok(Expr::Int(Spanned::new(n, t.span)))
-            }
-            TokenKind::Bool(_) => {
-                let t = self.bump();
-                let TokenKind::Bool(b) = t.kind else {
-                    unreachable!()
-                };
-                Ok(Expr::Bool(Spanned::new(b, t.span)))
-            }
-            TokenKind::AnchorRef(_) => {
-                let t = self.bump();
-                let TokenKind::AnchorRef(n) = t.kind else {
-                    unreachable!()
-                };
-                Ok(Expr::Anchor(Spanned::new(n, t.span)))
-            }
-            TokenKind::Keyword(_) => {
-                let t = self.bump();
-                let TokenKind::Keyword(n) = t.kind else {
-                    unreachable!()
-                };
-                Ok(Expr::Keyword(Spanned::new(n, t.span)))
-            }
-            TokenKind::Binding(_) => {
-                let t = self.bump();
-                let TokenKind::Binding(n) = t.kind else {
-                    unreachable!()
-                };
-                Ok(Expr::Binding(Spanned::new(n, t.span)))
-            }
-            TokenKind::PStateRef(_) => {
-                let t = self.bump();
-                let TokenKind::PStateRef(n) = t.kind else {
-                    unreachable!()
-                };
-                Ok(Expr::PState(Spanned::new(n, t.span)))
-            }
-            TokenKind::PipeVariant(_) => {
-                // `|direct` alone, or `|hash(...)` call (handled above when followed by '(')
-                let t = self.bump();
-                let TokenKind::PipeVariant(n) = t.kind else {
-                    unreachable!()
-                };
-                Ok(Expr::Pipe(Spanned::new(n, t.span)))
-            }
-            TokenKind::Operator(_) | TokenKind::Ident(_) => {
-                let name = self.parse_callable_name()?;
-                Ok(Expr::Ident(name))
-            }
-            _ => Err(ParseError::one(Diagnostic::parse(
-                self.peek().span,
-                format!("expected expression, got {:?}", self.peek_kind()),
-            ))),
-        }
-    }
+        let call = callee
+            .then(
+                expr
+                    .clone()
+                    .separated_by(just(Tok::Comma).or_not())
+                    .allow_trailing()
+                    .delimited_by(just(Tok::LParen), just(Tok::RParen))
+                    .or_not(),
+            )
+            .map(|(name, args)| match args {
+                Some(args) => Expr::Call(CallExpr {
+                    span: name.span,
+                    callee: name,
+                    args,
+                }),
+                None => Expr::Ident(name),
+            })
+            .boxed();
 
-    fn is_callable_start(&self) -> bool {
-        matches!(
-            self.peek_kind(),
-            TokenKind::Operator(_)
-                | TokenKind::Ident(_)
-                | TokenKind::Keyword(_)
-                | TokenKind::Binding(_)
-                | TokenKind::PipeVariant(_)
-        )
-    }
+        let list = expr
+            .clone()
+            .separated_by(just(Tok::Comma).or_not())
+            .allow_trailing()
+            .delimited_by(just(Tok::LBracket), just(Tok::RBracket))
+            .map_with_span(|elems, span| Expr::List {
+                elems,
+                span: sp(span),
+            })
+            .boxed();
 
-    fn parse_callable_name(&mut self) -> Result<Spanned<String>, ParseError> {
-        let t = self.bump();
-        match t.kind {
-            TokenKind::Operator(n)
-            | TokenKind::Ident(n)
-            | TokenKind::Keyword(n)
-            | TokenKind::Binding(n) => Ok(Spanned::new(n, t.span)),
-            TokenKind::PipeVariant(n) => Ok(Spanned::new(format!("|{n}"), t.span)),
-            _ => Err(ParseError::one(Diagnostic::parse(
-                t.span,
-                "expected callable name",
-            ))),
-        }
-    }
+        let map = expr
+            .clone()
+            .then(expr.clone().or_not())
+            .separated_by(just(Tok::Comma).or_not())
+            .allow_trailing()
+            .delimited_by(just(Tok::LBrace), just(Tok::RBrace))
+            .map_with_span(|entries, span| Expr::Map {
+                entries: entries
+                    .into_iter()
+                    .map(|(key, value)| MapEntry { key, value })
+                    .collect(),
+                span: sp(span),
+            })
+            .boxed();
 
-    fn parse_call_from_callee(&mut self) -> Result<CallExpr, ParseError> {
-        let callee = self.parse_callable_name()?;
-        let start = callee.span.start;
-        self.expect(TokenKind::LParen, "expected '('")?;
-        let mut args = Vec::new();
-        if !matches!(self.peek_kind(), TokenKind::RParen) {
-            loop {
-                args.push(self.parse_expr()?);
-                // commas optional between args (grammar)
-                if matches!(self.peek_kind(), TokenKind::Comma) {
-                    self.bump();
-                    if matches!(self.peek_kind(), TokenKind::RParen) {
-                        break;
-                    }
-                    continue;
-                }
-                if matches!(self.peek_kind(), TokenKind::RParen) {
-                    break;
-                }
-                // allow space-separated args
-                if self.is_expr_start() {
-                    continue;
-                }
-                break;
-            }
-        }
-        let end = self.expect(TokenKind::RParen, "expected ')'")?.span.end;
-        Ok(CallExpr {
-            callee,
-            args,
-            span: Span::new(start, end),
-        })
-    }
+        let atom = choice((
+            expr.clone().delimited_by(just(Tok::LParen), just(Tok::RParen)),
+            call,
+            list,
+            map,
+            lit,
+        ))
+        .boxed();
 
-    fn is_expr_start(&self) -> bool {
-        matches!(
-            self.peek_kind(),
-            TokenKind::LBracket
-                | TokenKind::LBrace
-                | TokenKind::LParen
-                | TokenKind::String(_)
-                | TokenKind::Int(_)
-                | TokenKind::Bool(_)
-                | TokenKind::AnchorRef(_)
-                | TokenKind::Keyword(_)
-                | TokenKind::Binding(_)
-                | TokenKind::PStateRef(_)
-                | TokenKind::PipeVariant(_)
-                | TokenKind::Operator(_)
-                | TokenKind::Ident(_)
-        )
-    }
+        let equality = atom
+            .clone()
+            .then(
+                choice((
+                    just(Tok::EqEq).to(BinaryOp::Eq),
+                    just(Tok::NotEq).to(BinaryOp::NotEq),
+                ))
+                .then(atom)
+                .or_not(),
+            )
+            .map(|(left, rest)| match rest {
+                Some((op, right)) => Expr::Binary {
+                    span: left.span().merge(right.span()),
+                    op,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                },
+                None => left,
+            })
+            .boxed();
 
-    fn parse_list_expr(&mut self) -> Result<Expr, ParseError> {
-        let start = self.expect(TokenKind::LBracket, "expected '['")?.span.start;
-        let mut elems = Vec::new();
-        while !matches!(self.peek_kind(), TokenKind::RBracket | TokenKind::Eof) {
-            elems.push(self.parse_expr()?);
-            if matches!(self.peek_kind(), TokenKind::Comma) {
-                self.bump();
-            } else if matches!(self.peek_kind(), TokenKind::RBracket) {
-                break;
-            } else if self.is_expr_start() {
-                continue;
-            } else {
-                break;
-            }
-        }
-        let end = self.expect(TokenKind::RBracket, "expected ']'")?.span.end;
-        Ok(Expr::List {
-            elems,
-            span: Span::new(start, end),
-        })
-    }
+        equality
+            .then(
+                just(Tok::Question)
+                    .ignore_then(expr.clone())
+                    .then_ignore(just(Tok::Colon))
+                    .then(expr)
+                    .or_not(),
+            )
+            .map(|(cond, rest)| match rest {
+                Some((then_branch, else_branch)) => Expr::Ternary {
+                    span: cond.span().merge(else_branch.span()),
+                    cond: Box::new(cond),
+                    then_branch: Box::new(then_branch),
+                    else_branch: Box::new(else_branch),
+                },
+                None => cond,
+            })
+    })
+}
 
-    fn parse_map_expr(&mut self) -> Result<Expr, ParseError> {
-        let start = self.expect(TokenKind::LBrace, "expected '{'")?.span.start;
-        let mut entries = Vec::new();
-        while !matches!(self.peek_kind(), TokenKind::RBrace | TokenKind::Eof) {
-            let key = self.parse_expr()?;
-            let value = if self.is_expr_start()
-                && !matches!(self.peek_kind(), TokenKind::Comma | TokenKind::RBrace)
-            {
-                // optional colon between key/value for ergonomics
-                if matches!(self.peek_kind(), TokenKind::Colon) {
-                    self.bump();
-                }
-                if self.is_expr_start() {
-                    Some(self.parse_expr()?)
-                } else {
-                    None
-                }
-            } else if matches!(self.peek_kind(), TokenKind::Colon) {
-                self.bump();
-                Some(self.parse_expr()?)
-            } else {
-                None
-            };
-            entries.push(MapEntry { key, value });
-            if matches!(self.peek_kind(), TokenKind::Comma) {
-                self.bump();
-            }
-        }
-        let end = self.expect(TokenKind::RBrace, "expected '}'")?.span.end;
-        Ok(Expr::Map {
-            entries,
-            span: Span::new(start, end),
-        })
-    }
+fn ident() -> impl Parser<Tok, String, Error = Err> {
+    select! { Tok::Ident(s) => s }
+}
 
-    fn optional_semi(&mut self) -> usize {
-        if matches!(self.peek_kind(), TokenKind::Semicolon) {
-            self.bump().span.end
-        } else if self.pos > 0 {
-            self.tokens[self.pos - 1].span.end
-        } else {
-            self.peek().span.end
-        }
-    }
+fn ident_spanned() -> impl Parser<Tok, Spanned<String>, Error = Err> {
+    ident().map_with_span(|s, span| Spanned::new(s, sp(span)))
+}
+
+fn keyword() -> impl Parser<Tok, Spanned<String>, Error = Err> {
+    select! { Tok::Keyword(s) => s }.map_with_span(|s, span| Spanned::new(s, sp(span)))
+}
+
+fn pstate_ref() -> impl Parser<Tok, Spanned<String>, Error = Err> {
+    select! { Tok::PStateRef(s) => s }.map_with_span(|s, span| Spanned::new(s, sp(span)))
 }

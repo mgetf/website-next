@@ -1,5 +1,5 @@
-// ASPIRATIONAL v2 — see DESIGN.md.
-// Specter paths + --> / !<--. Rust-like structs. fail/return. Whole-map termval.
+// .rama v2 — see DESIGN.md
+// Specter paths + --> / !<--. Rust-like structs. fail / return. $$ pstates.
 
 module Match
 

@@ -1,8 +1,11 @@
 # .rama v2 — design notes (reviewed)
 
-Strip naming conventions and compiler noise. **Specter stays the user-facing
-path API** (`-->` / `!<--`, navigators, `keypath`, `termval`, …). Schemas look
-like Rust. Topologies stay tiny. The Rust program owns lowering.
+**v2 is the only dialect.** No legacy surface, no trailing `>` on ops, no `*var`
+sigils in source. Strip naming conventions in the **emitter**; keep Specter as
+the user-facing path API (`-->` / `!<--`, navigators, `keypath`, `termval`, …).
+Schemas look like Rust. Topologies stay tiny.
+
+Stack: **logos** lexer + **chumsky** parser → AST → Clojure transpile / path check.
 
 ## Resolved
 

@@ -11,6 +11,7 @@ pub mod emit_clj;
 pub mod error;
 pub mod lex;
 pub mod lower;
+pub mod nrepl;
 pub mod parse;
 pub mod rama_ir;
 pub mod rules;
@@ -30,5 +31,15 @@ pub use rules::Violation as RuleViolation;
 pub fn analyze(src: &str) -> Result<(SourceFile, CheckResult), ParseError> {
     let file = parse(src)?;
     let result = check(&file);
+    Ok((file, result))
+}
+
+pub fn analyze_with_oracle(
+    src: &str,
+    oracle: &dyn types::TypeOracle,
+) -> Result<(SourceFile, CheckResult), ParseError> {
+    let file = parse(src)?;
+    let program = rama_ir::Program::from_ast(&file);
+    let result = check::check_program_ir_with_oracle(&program, Some(oracle));
     Ok((file, result))
 }

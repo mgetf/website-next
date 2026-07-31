@@ -158,19 +158,23 @@ fn extern_item() -> impl Parser<Tok, Item, Error = Err> {
                 .or_not()
                 .map(Option::unwrap_or_default),
         )
+        .then(just(Tok::Eq).ignore_then(qualified_var_spanned()).or_not())
         .then(typed_params())
         .then_ignore(just(Tok::ThinArrow))
         .then(value_type_expr())
         .then_ignore(just(Tok::Semicolon).or_not())
-        .map_with_span(|(((name, type_params), params), return_ty), span| {
-            Item::Extern(ExternDecl {
-                name,
-                type_params,
-                params,
-                return_ty,
-                span: sp(span),
-            })
-        })
+        .map_with_span(
+            |((((name, type_params), target), params), return_ty), span| {
+                Item::Extern(ExternDecl {
+                    name,
+                    target,
+                    type_params,
+                    params,
+                    return_ty,
+                    span: sp(span),
+                })
+            },
+        )
 }
 
 fn op_params() -> impl Parser<Tok, Vec<Spanned<String>>, Error = Err> {
@@ -582,6 +586,18 @@ fn ident() -> impl Parser<Tok, String, Error = Err> {
 
 fn ident_spanned() -> impl Parser<Tok, Spanned<String>, Error = Err> {
     ident().map_with_span(|s, span| Spanned::new(s, sp(span)))
+}
+
+fn qualified_var_spanned() -> impl Parser<Tok, Spanned<String>, Error = Err> {
+    ident()
+        .separated_by(just(Tok::Dot))
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then_ignore(just(Tok::Slash))
+        .then(ident())
+        .map_with_span(|(namespace, name), span| {
+            Spanned::new(format!("{}/{}", namespace.join("."), name), sp(span))
+        })
 }
 
 fn keyword() -> impl Parser<Tok, Spanned<String>, Error = Err> {

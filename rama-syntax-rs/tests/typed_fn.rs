@@ -81,3 +81,22 @@ fn nope(value: Long) -> String {
     assert!(diagnostic.message.contains("java.lang.String"));
     assert_eq!(diagnostic.span.slice(source).trim(), "return value");
 }
+
+#[test]
+fn parses_explicit_qualified_extern_target() {
+    let source = r#"
+module Qualified
+extern vec = clojure.core/vec(value: Unknown) -> Unknown
+"#;
+    let file = parse(source).expect("parse");
+    let Item::Extern(extern_decl) = &file.items[1] else {
+        panic!("expected extern");
+    };
+    assert_eq!(
+        extern_decl
+            .target
+            .as_ref()
+            .map(|target| target.node.as_str()),
+        Some("clojure.core/vec")
+    );
+}

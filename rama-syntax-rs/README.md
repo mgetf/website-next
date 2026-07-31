@@ -15,7 +15,8 @@ There is no v1 / legacy dialect. Naming conventions (`*var`, trailing `>` on ops
 ## Design
 
 See [`DESIGN.md`](./DESIGN.md), [`TYPE_SYSTEM.md`](./TYPE_SYSTEM.md), and
-[`CLOJURE_BOUNDARY.md`](./CLOJURE_BOUNDARY.md). Canonical fixtures:
+[`CLOJURE_BOUNDARY.md`](./CLOJURE_BOUNDARY.md). Live runtime discovery and
+source pinning are documented in [`LIVE_ORACLE.md`](./LIVE_ORACLE.md). Canonical fixtures:
 [`fixtures/match_v2.rama`](./fixtures/match_v2.rama) and
 [`fixtures/typed_fn.rama`](./fixtures/typed_fn.rama).
 
@@ -25,6 +26,8 @@ See [`DESIGN.md`](./DESIGN.md), [`TYPE_SYSTEM.md`](./TYPE_SYSTEM.md), and
 cargo test
 cargo test --test typed_contract_smoke -- --ignored
 cargo run --bin rama-check -- check fixtures/match_v2.rama
+cargo run --bin rama-check -- check fixtures/typed_fn.rama --nrepl 127.0.0.1:7888
+cargo run --bin rama-check -- observe-call fixtures/typed_fn.rama clojure.core/vec --args '[[1 2]]' --nrepl 127.0.0.1:7888
 cargo run --bin rama-check -- transpile fixtures/match_v2.rama
 cargo run --bin rama-check -- watch fixtures -o out
 ```

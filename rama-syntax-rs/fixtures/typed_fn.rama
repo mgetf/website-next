@@ -1,9 +1,9 @@
 module TypedBoundary
 
-extern identity<T>(value: T) -> T
-extern vec<T>(values: java.lang.Iterable<T>) -> java.util.List<T>
+extern identity<T> = clojure.core/identity(value: T) -> T
+extern vec<T> = clojure.core/vec(values: java.lang.Iterable<T>) -> java.util.List<T>
 // Deliberately dishonest declaration: runtime contracts must catch the return.
-extern str(value: Long) -> Long
+extern str = clojure.core/str(value: Long) -> Long
 
 fn echo(value: String) -> String {
   return identity(value)

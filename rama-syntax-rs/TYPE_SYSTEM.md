@@ -47,6 +47,11 @@ the classpath, validates arity/bounds, and uses JVM assignability and overload
 resolution. Generic arguments are retained by `.rama` analysis even though
 JVM method descriptors erase them.
 
+When connected through nREPL, nominal assignability is answered by
+`Class.isAssignableFrom` in the live target classloader. Runtime Var metadata
+and concrete observations are emitted as source-ready `extern` declarations;
+see [`LIVE_ORACLE.md`](./LIVE_ORACLE.md).
+
 An in-memory collection is not promoted into a special `.rama` collection
 type. A Clojure vector, Java `ArrayList`, or other collection has the
 appropriate nominal JVM type (possibly widened to a declared interface).

@@ -131,6 +131,7 @@ pub struct TypedFunction {
 #[derive(Debug, Clone)]
 pub struct TypedExtern {
     pub name: String,
+    pub target: String,
     pub wrapper_name: String,
     pub signature: Signature,
 }
@@ -143,20 +144,31 @@ pub struct Typing {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+pub trait TypeOracle {
+    fn is_assignable(&self, actual: &str, expected: &str) -> Option<bool>;
+    fn extern_suggestions(&self, name: &str) -> Vec<String>;
+}
+
 pub fn analyze(program: &Program<'_>) -> Typing {
-    Checker::new(program).run()
+    Checker::new(program, None).run()
+}
+
+pub fn analyze_with_oracle(program: &Program<'_>, oracle: &dyn TypeOracle) -> Typing {
+    Checker::new(program, Some(oracle)).run()
 }
 
 struct Checker<'a> {
     program: &'a Program<'a>,
+    oracle: Option<&'a dyn TypeOracle>,
     typing: Typing,
     signatures: HashMap<String, Vec<Signature>>,
 }
 
 impl<'a> Checker<'a> {
-    fn new(program: &'a Program<'a>) -> Self {
+    fn new(program: &'a Program<'a>, oracle: Option<&'a dyn TypeOracle>) -> Self {
         let mut checker = Self {
             program,
+            oracle,
             typing: Typing::default(),
             signatures: HashMap::new(),
         };
@@ -415,6 +427,10 @@ impl<'a> Checker<'a> {
                 .map_or(0, Vec::len);
             let typed = TypedExtern {
                 name: extern_decl.name.node.clone(),
+                target: extern_decl.target.as_ref().map_or_else(
+                    || extern_decl.name.node.clone(),
+                    |target| target.node.clone(),
+                ),
                 wrapper_name: format!(
                     "__rama_extern_{}_{}",
                     sanitize(&extern_decl.name.node),
@@ -769,9 +785,22 @@ impl<'a> Checker<'a> {
 
     fn resolve_call(&mut self, name: &str, args: &[TypeId], span: Span) -> TypeId {
         let Some(candidates) = self.signatures.get(name).cloned() else {
+            let suggestions = self
+                .oracle
+                .map_or_else(Vec::new, |oracle| oracle.extern_suggestions(name));
+            let suggestion_text = if suggestions.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "\nobserved live Var; pin one of:\n  {}",
+                    suggestions.join("\n  ")
+                )
+            };
             self.typing.diagnostics.push(Diagnostic::type_error(
                 span,
-                format!("unknown function `{name}` in typed code; add an `extern` declaration"),
+                format!(
+                    "unknown function `{name}` in typed code; add an `extern` declaration{suggestion_text}"
+                ),
             ));
             return self.typing.table.intern(Type::Unknown);
         };
@@ -872,7 +901,7 @@ impl<'a> Checker<'a> {
                 Type::Jvm {
                     class: actual_class,
                     args: actual_args,
-                } if is_subclass(&actual_class, &class)
+                } if self.class_assignable(&actual_class, &class)
                     && expected_args.len() == actual_args.len() =>
                 {
                     *score += if actual_class == class { 5 } else { 3 };
@@ -941,7 +970,7 @@ impl<'a> Checker<'a> {
                     args: expected_args,
                 },
             ) => {
-                is_subclass(actual_class, expected_class)
+                self.class_assignable(actual_class, expected_class)
                     && actual_args.len() == expected_args.len()
                     && actual_args
                         .iter()
@@ -967,6 +996,12 @@ impl<'a> Checker<'a> {
 
     fn jvm_alias(&mut self, alias: &str) -> TypeId {
         self.typing.table.jvm(resolve_class(alias), Vec::new())
+    }
+
+    fn class_assignable(&self, actual: &str, expected: &str) -> bool {
+        self.oracle
+            .and_then(|oracle| oracle.is_assignable(actual, expected))
+            .unwrap_or_else(|| bootstrap_assignable(actual, expected))
     }
 }
 
@@ -1014,7 +1049,7 @@ fn generic_arity(class: &str) -> Option<usize> {
     }
 }
 
-fn is_subclass(actual: &str, expected: &str) -> bool {
+fn bootstrap_assignable(actual: &str, expected: &str) -> bool {
     if actual == expected || expected == "java.lang.Object" {
         return true;
     }

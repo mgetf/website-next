@@ -54,6 +54,13 @@ pub fn check(file: &SourceFile) -> CheckResult {
 }
 
 pub fn check_program_ir(program: &Program<'_>) -> CheckResult {
+    check_program_ir_with_oracle(program, None)
+}
+
+pub fn check_program_ir_with_oracle(
+    program: &Program<'_>,
+    oracle: Option<&dyn types::TypeOracle>,
+) -> CheckResult {
     let mut diagnostics: Vec<Diagnostic> = check_program(program)
         .into_iter()
         .map(|violation| {
@@ -66,6 +73,9 @@ pub fn check_program_ir(program: &Program<'_>) -> CheckResult {
             )
         })
         .collect();
-    diagnostics.extend(types::analyze(program).diagnostics);
+    diagnostics.extend(match oracle {
+        Some(oracle) => types::analyze_with_oracle(program, oracle).diagnostics,
+        None => types::analyze(program).diagnostics,
+    });
     CheckResult { diagnostics }
 }

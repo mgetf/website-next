@@ -116,8 +116,9 @@ The runtime smoke test proves:
 
 ## Current limits
 
-- Java class existence/method overloads are not yet loaded from the classpath;
-  fully qualified names are accepted and explicit externs provide signatures.
+- Connected checks use the live nREPL classloader for nominal assignability;
+  Java method overload discovery is not yet surfaced as automatic externs.
+- Offline checks retain a small bootstrap hierarchy when no nREPL is present.
 - Higher-order function, tuple, and vararg types are not implemented yet.
 - Flow/op expressions are not typed.
 - Inferred function returns are not yet solved as a recursive SCC.

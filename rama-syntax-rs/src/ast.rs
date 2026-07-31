@@ -79,6 +79,8 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExternDecl {
     pub name: Spanned<String>,
+    /// Qualified Clojure Var symbol, e.g. `clojure.core/vec`.
+    pub target: Option<Spanned<String>>,
     pub type_params: Vec<Spanned<String>>,
     pub params: Vec<Param>,
     pub return_ty: Spanned<ValueTypeExpr>,

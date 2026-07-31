@@ -1,6 +1,7 @@
 //! CLI: check, transpile, or watch `.rama` files.
 
-use rama_syntax::{analyze, emit_clojure};
+use rama_syntax::nrepl::{pin_observation, LiveOracle};
+use rama_syntax::{analyze, analyze_with_oracle, emit_clojure};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -17,13 +18,20 @@ fn main() -> ExitCode {
     };
 
     match command {
-        "check" => {
-            let Some(path) = args.get(1) else {
-                eprintln!("{}", usage());
-                return ExitCode::from(2);
-            };
-            check_file(path)
-        }
+        "check" => match parse_check_options(&args[1..]) {
+            Ok((path, nrepl)) => check_file(&path, nrepl.as_deref()),
+            Err(message) => {
+                eprintln!("{message}\n{}", usage());
+                ExitCode::from(2)
+            }
+        },
+        "observe-call" => match parse_observe_options(&args[1..]) {
+            Ok(options) => observe_call(options),
+            Err(message) => {
+                eprintln!("{message}\n{}", usage());
+                ExitCode::from(2)
+            }
+        },
         "transpile" => match parse_path_and_output(&args[1..]) {
             Ok((path, output)) => transpile_file(&path, output.as_deref()),
             Err(message) => {
@@ -43,12 +51,93 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         // Shorthand: `rama-check fixtures/foo.rama`
-        path => check_file(path),
+        path => check_file(Path::new(path), None),
     }
 }
 
 fn usage() -> &'static str {
-    "usage:\n  rama-check <file.rama>\n  rama-check check <file.rama>\n  rama-check transpile <file.rama> [-o out.clj]\n  rama-check watch <dir-or-file> [-o out-dir]"
+    "usage:\n  rama-check <file.rama>\n  rama-check check <file.rama> [--nrepl HOST:PORT]\n  rama-check observe-call <file.rama> <var> --args '<edn-vector>' --nrepl HOST:PORT [--write]\n  rama-check transpile <file.rama> [-o out.clj]\n  rama-check watch <dir-or-file> [-o out-dir]"
+}
+
+fn parse_check_options(args: &[String]) -> Result<(PathBuf, Option<String>), String> {
+    let mut path = None;
+    let mut nrepl = None;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--nrepl" => {
+                nrepl = Some(
+                    args.get(index + 1)
+                        .ok_or_else(|| "missing value after --nrepl".to_string())?
+                        .clone(),
+                );
+                index += 2;
+            }
+            value if value.starts_with('-') => return Err(format!("unknown option {value}")),
+            value => {
+                if path.replace(PathBuf::from(value)).is_some() {
+                    return Err(format!("unexpected argument {value}"));
+                }
+                index += 1;
+            }
+        }
+    }
+    Ok((path.ok_or_else(|| "missing .rama path".to_string())?, nrepl))
+}
+
+struct ObserveOptions {
+    path: PathBuf,
+    var: String,
+    args_edn: String,
+    nrepl: String,
+    write: bool,
+}
+
+fn parse_observe_options(args: &[String]) -> Result<ObserveOptions, String> {
+    let path = args
+        .first()
+        .map(PathBuf::from)
+        .ok_or_else(|| "observe-call requires a .rama file".to_string())?;
+    let var = args
+        .get(1)
+        .cloned()
+        .ok_or_else(|| "observe-call requires a Var name".to_string())?;
+    let mut args_edn = None;
+    let mut nrepl = None;
+    let mut write = false;
+    let mut index = 2;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--args" => {
+                args_edn = Some(
+                    args.get(index + 1)
+                        .ok_or_else(|| "missing value after --args".to_string())?
+                        .clone(),
+                );
+                index += 2;
+            }
+            "--nrepl" => {
+                nrepl = Some(
+                    args.get(index + 1)
+                        .ok_or_else(|| "missing value after --nrepl".to_string())?
+                        .clone(),
+                );
+                index += 2;
+            }
+            "--write" => {
+                write = true;
+                index += 1;
+            }
+            value => return Err(format!("unexpected observe-call option `{value}`")),
+        }
+    }
+    Ok(ObserveOptions {
+        path,
+        var,
+        args_edn: args_edn.ok_or_else(|| "observe-call requires --args".to_string())?,
+        nrepl: nrepl.ok_or_else(|| "observe-call requires --nrepl".to_string())?,
+        write,
+    })
 }
 
 fn parse_path_and_output(args: &[String]) -> Result<(PathBuf, Option<PathBuf>), String> {
@@ -81,8 +170,7 @@ fn parse_path_and_output(args: &[String]) -> Result<(PathBuf, Option<PathBuf>), 
         .ok_or_else(|| "missing .rama path".to_string())
 }
 
-fn check_file(path: impl AsRef<Path>) -> ExitCode {
-    let path = path.as_ref();
+fn check_file(path: &Path, nrepl: Option<&str>) -> ExitCode {
     let src = match fs::read_to_string(path) {
         Ok(s) => s,
         Err(e) => {
@@ -91,7 +179,22 @@ fn check_file(path: impl AsRef<Path>) -> ExitCode {
         }
     };
 
-    match analyze(&src) {
+    let oracle = match nrepl {
+        Some(address) => match LiveOracle::connect(address) {
+            Ok(oracle) => Some(oracle),
+            Err(error) => {
+                eprintln!("failed to connect to nREPL at {address}: {error}");
+                return ExitCode::from(2);
+            }
+        },
+        None => None,
+    };
+    let analysis = match &oracle {
+        Some(oracle) => analyze_with_oracle(&src, oracle),
+        None => analyze(&src),
+    };
+
+    match analysis {
         Ok((file, result)) => {
             println!(
                 "parsed {} item(s) from {path}",
@@ -116,6 +219,46 @@ fn check_file(path: impl AsRef<Path>) -> ExitCode {
             ExitCode::from(1)
         }
     }
+}
+
+fn observe_call(options: ObserveOptions) -> ExitCode {
+    let oracle = match LiveOracle::connect(&options.nrepl) {
+        Ok(oracle) => oracle,
+        Err(error) => {
+            eprintln!("failed to connect to nREPL at {}: {error}", options.nrepl);
+            return ExitCode::from(2);
+        }
+    };
+    let observation = match oracle.observe_call(&options.var, &options.args_edn) {
+        Ok(observation) => observation,
+        Err(error) => {
+            eprintln!("observe-call failed: {error}");
+            return ExitCode::from(1);
+        }
+    };
+    let declaration = observation.extern_declaration();
+    println!("{declaration}");
+    if options.write {
+        let mut source = match fs::read_to_string(&options.path) {
+            Ok(source) => source,
+            Err(error) => {
+                eprintln!("failed to read {}: {error}", options.path.display());
+                return ExitCode::from(2);
+            }
+        };
+        let (updated, changed) = pin_observation(&source, &observation);
+        if !changed {
+            println!("already pinned in {}", options.path.display());
+            return ExitCode::SUCCESS;
+        }
+        source = updated;
+        if let Err(error) = fs::write(&options.path, source) {
+            eprintln!("failed to write {}: {error}", options.path.display());
+            return ExitCode::from(2);
+        }
+        println!("pinned observation in {}", options.path.display());
+    }
+    ExitCode::SUCCESS
 }
 
 fn transpile_file(path: &Path, output: Option<&Path>) -> ExitCode {
@@ -279,4 +422,38 @@ fn write_file(path: &Path, contents: &str) -> std::io::Result<()> {
         fs::create_dir_all(parent)?;
     }
     fs::write(path, contents)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn strings(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_string()).collect()
+    }
+
+    #[test]
+    fn parses_check_nrepl_option() {
+        let (path, nrepl) =
+            parse_check_options(&strings(&["fixture.rama", "--nrepl", "127.0.0.1:7888"])).unwrap();
+        assert_eq!(path, PathBuf::from("fixture.rama"));
+        assert_eq!(nrepl.as_deref(), Some("127.0.0.1:7888"));
+    }
+
+    #[test]
+    fn parses_observe_write_options() {
+        let options = parse_observe_options(&strings(&[
+            "fixture.rama",
+            "clojure.core/vec",
+            "--args",
+            "[[1 2]]",
+            "--nrepl",
+            "localhost:7888",
+            "--write",
+        ]))
+        .unwrap();
+        assert_eq!(options.var, "clojure.core/vec");
+        assert_eq!(options.args_edn, "[[1 2]]");
+        assert!(options.write);
+    }
 }

@@ -400,7 +400,7 @@ fn extern_dispatcher_form(
         clauses.push(contract_call(
             overload.signature.ret,
             format!("extern `{name}` return"),
-            clj::call("apply", [clj::sym(name), clj::sym(args_name)]),
+            clj::call("apply", [clj::sym(&overload.target), clj::sym(args_name)]),
             table,
         ));
     }

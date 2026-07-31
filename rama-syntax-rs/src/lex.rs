@@ -66,6 +66,8 @@ pub enum TokenKind {
     At,
     #[token(".")]
     Dot,
+    #[token("/")]
+    Slash,
     #[token("|")]
     Union,
 

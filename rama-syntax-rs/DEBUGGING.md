@@ -46,6 +46,10 @@ Example tape line (single-line EDN or JSON):
 2. `--probe-buffer`: keep a bounded per-worker ring buffer. A CLI with nREPL
    connectivity can query probe IDs and report recent values/classes.
 
+The nREPL transport and live type oracle now exist (`src/nrepl.rs`; see
+`LIVE_ORACLE.md`). Stable-ID Flow-IR probe injection and worker aggregation are
+the remaining pieces.
+
 For distributed deployments, the CLI must query every worker or use a
 dedicated debug PState/stream. A local atom is only visible in one JVM. A debug
 PState is globally queryable but perturbs topology/state, so it must remain a

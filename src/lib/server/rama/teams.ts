@@ -104,6 +104,22 @@ export async function requestJoin(
   );
 }
 
+export async function createInvite(
+  client: RamaClient,
+  event: { teamId: string; steamId: string },
+  ackLevel: AckLevel = 'ack',
+): Promise<TeamAck> {
+  return asAck(await client.append(TEAM_DEPOT, { type: 'create-invite', ...event }, ackLevel));
+}
+
+export async function acceptInvite(
+  client: RamaClient,
+  event: { teamId: string; steamId: string },
+  ackLevel: AckLevel = 'ack',
+): Promise<TeamAck> {
+  return asAck(await client.append(TEAM_DEPOT, { type: 'accept-invite', ...event }, ackLevel));
+}
+
 export async function approvePending(
   client: RamaClient,
   event: { teamId: string; steamId: string },
@@ -214,6 +230,20 @@ export async function getPendingStatus(
     return typeof v === 'number' ? v : null;
   } catch {
     return null;
+  }
+}
+
+/** Pending rows for a team: steamId → { status }. */
+export async function getPendingForTeam(
+  client: RamaClient,
+  teamId: string,
+): Promise<Record<string, { status: number }>> {
+  try {
+    const v = await client.selectOne('$$pending', [teamId]);
+    if (!v || typeof v !== 'object') return {};
+    return v as Record<string, { status: number }>;
+  } catch {
+    return {};
   }
 }
 

@@ -1028,6 +1028,21 @@ export async function findRecent1v1SeasonWithEntries(
  * Returns null if team not found
  */
 export async function getTeamFormatCheck(teamId: number) {
+  if (isRamaBackend()) {
+    const { createTeamsClient, getTeam, getRoster } = await import('$lib/server/rama/teams');
+    const client = createTeamsClient(ramaClientOpts());
+    const team = await getTeam(client, String(teamId));
+    if (!team) return null;
+    const roster = await getRoster(client, String(teamId));
+    return {
+      formatId: Number(team.formatId),
+      players: Object.entries(roster).map(([playerSteamId, m]) => ({
+        playerSteamId,
+        active: m.active ? 1 : 0,
+      })),
+    };
+  }
+
   return await prisma.team.findUnique({
     where: { id: teamId },
     select: {

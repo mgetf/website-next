@@ -60,7 +60,35 @@ export async function getNotificationsForDropdown(userSteamId: string) {
  * Get all notifications for a user (with optional limit and pagination)
  * Used for the full notifications page
  */
+function stableNotifNumericId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  return Math.abs(h) || 1;
+}
+
 export async function getAllNotifications(userSteamId: string, limit = 50, offset = 0) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createNotificationsClient, getNotifications } =
+      await import('$lib/server/rama/notifications');
+    const map = await getNotifications(createNotificationsClient(ramaClientOpts()), userSteamId);
+    const rows = Object.entries(map)
+      .map(([id, n]) => ({
+        id: stableNotifNumericId(id),
+        ramaId: id,
+        userSteamId,
+        type: n.type as NotificationType,
+        url: n.href ?? '',
+        message: n.body ?? '',
+        actorSteamId: null as string | null,
+        isRead: Boolean(n.read),
+        createdAt: new Date(n.createdAt || 0),
+        actor: null,
+      }))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return rows.slice(offset, offset + limit);
+  }
+
   return await prisma.notification.findMany({
     where: {
       userSteamId,
@@ -84,6 +112,16 @@ export async function getAllNotifications(userSteamId: string, limit = 50, offse
  * Get notification counts for a user
  */
 export async function getNotificationCounts(userSteamId: string) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createNotificationsClient, getNotifications, getUnreadCount } =
+      await import('$lib/server/rama/notifications');
+    const client = createNotificationsClient(ramaClientOpts());
+    const map = await getNotifications(client, userSteamId);
+    const unreadCount = await getUnreadCount(client, userSteamId);
+    return { unreadCount, totalCount: Object.keys(map).length };
+  }
+
   const [unreadCount, totalCount] = await Promise.all([
     prisma.notification.count({
       where: { userSteamId, isRead: false },
@@ -120,6 +158,14 @@ export async function markAsRead(notificationId: number, userSteamId: string) {
  * Mark all notifications as read for a user
  */
 export async function markAllAsRead(userSteamId: string) {
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    const { createNotificationsClient, markAllRead } =
+      await import('$lib/server/rama/notifications');
+    await markAllRead(createNotificationsClient(ramaClientOpts()), userSteamId);
+    return;
+  }
+
   await prisma.notification.updateMany({
     where: {
       userSteamId,
@@ -230,17 +276,38 @@ export async function createNotificationForMatch(
  * Create notifications for all players in a team (except the trigger user)
  * This notifies all team members when there's team activity (pending player requests, etc.)
  */
+async function notifyRama(
+  steamId: string,
+  type: string,
+  url: string,
+  message: string,
+): Promise<void> {
+  const { ramaClientOpts } = await import('$lib/server/rama/config');
+  const { createNotificationsClient, notify } = await import('$lib/server/rama/notifications');
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  await notify(createNotificationsClient(ramaClientOpts()), {
+    steamId,
+    id,
+    notifType: type,
+    body: message,
+    href: url,
+    createdAt: new Date().toISOString(),
+  });
+}
+
 export async function createNotificationForTeam(
   teamId: number,
   message: string,
   actorSteamId?: string,
 ) {
-  const { isRamaBackend } = await import('$lib/server/rama/config');
+  const { isRamaBackend, ramaClientOpts } = await import('$lib/server/rama/config');
   if (isRamaBackend()) {
-    // NotificationsModule cutover for team fan-out is a follow-up; join flow must not hit Prisma.
-    void teamId;
-    void message;
-    void actorSteamId;
+    const { createTeamsClient, getRoster } = await import('$lib/server/rama/teams');
+    const roster = await getRoster(createTeamsClient(ramaClientOpts()), String(teamId));
+    for (const [steamId, member] of Object.entries(roster)) {
+      if (!member.active || steamId === actorSteamId) continue;
+      await notifyRama(steamId, 'PENDING_PLAYER', `/teams/${teamId}`, message);
+    }
     return;
   }
 
@@ -326,6 +393,13 @@ export async function createNotificationForUser(
   message: string,
   actorSteamId?: string,
 ) {
+  const { isRamaBackend } = await import('$lib/server/rama/config');
+  if (isRamaBackend()) {
+    void actorSteamId;
+    await notifyRama(steamId, type, url, message);
+    return;
+  }
+
   const notification = await prisma.notification.create({
     data: {
       userSteamId: steamId,

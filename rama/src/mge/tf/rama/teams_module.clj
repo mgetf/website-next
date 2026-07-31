@@ -17,7 +17,8 @@
 (defn known-type? [t]
   (contains? #{"create-team" "join-team" "leave-team"
                "set-status" "set-member-permission"
-               "request-join" "approve-pending" "decline-pending"}
+               "request-join" "approve-pending" "decline-pending"
+               "create-invite" "accept-invite"}
              t))
 
 (defn status-error [status]
@@ -36,8 +37,27 @@
 (defn awaiting-status []
   (long 1))
 
+(defn invite-status []
+  (long 0))
+
 (defn join-password-or-empty [v]
   (if (nil? v) "" v))
+
+(defn create-invite-error [team roster steam-id pending-row]
+  (cond
+    (nil? team) "team-not-found"
+    (= (get team "status") "DEAD") "team-dead"
+    (and (some? (get roster steam-id))
+         (true? (get (get roster steam-id) "active")))
+    "already-on-roster"
+    (some? pending-row) "pending-exists"
+    :else nil))
+
+(defn accept-invite-error [pending-row]
+  (cond
+    (nil? pending-row) "pending-not-found"
+    (not= (long (get pending-row "status")) 0) "pending-not-invite"
+    :else nil))
 
 (defn create-error [existing creator-slot]
   (cond
@@ -183,7 +203,7 @@
            [(keypath *team-id *steam-id)
             (multi-path
              [(keypath "active") (termval true)]
-             [(keypath "permissionLevel") (termval "ADMIN")]
+             [(keypath "permissionLevel") (termval "STATUS")]
              [(keypath "paymentStatus") (termval "UNPAID")])]
            $$roster)
           (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
@@ -300,6 +320,49 @@
           (|hash "all")
           (local-transform>
            [(keypath "all" *pkey) NONE>]
+           $$pending-awaiting)
+          (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
+
+      ;; ── create-invite → pending status=0 (Steam invite) ─────────────
+      (<<if (= *type "create-invite")
+        (get *event "steamId" :> *steam-id)
+        (local-select> (keypath *team-id) $$teams :> *team)
+        (local-select> (keypath *team-id) $$roster :> *roster)
+        (local-select> (keypath *team-id *steam-id) $$pending :> *pending-row)
+        (create-invite-error *team *roster *steam-id *pending-row :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (invite-status :> *st)
+          (local-transform>
+           [(keypath *team-id *steam-id "status") (termval *st)]
+           $$pending)
+          (|hash *steam-id)
+          (local-transform>
+           [(keypath *steam-id *team-id) (termval *st)]
+           $$pending-by-player)
+          (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
+
+      ;; ── accept-invite → pending 0→1 + awaiting index ────────────────
+      (<<if (= *type "accept-invite")
+        (get *event "steamId" :> *steam-id)
+        (local-select> (keypath *team-id *steam-id) $$pending :> *pending-row)
+        (accept-invite-error *pending-row :> *err)
+        (<<if (some? *err)
+          (ack-return> {"ok" false "error" *err})
+         (else>)
+          (pending-key *team-id *steam-id :> *pkey)
+          (awaiting-status :> *st)
+          (local-transform>
+           [(keypath *team-id *steam-id "status") (termval *st)]
+           $$pending)
+          (|hash *steam-id)
+          (local-transform>
+           [(keypath *steam-id *team-id) (termval *st)]
+           $$pending-by-player)
+          (|hash "all")
+          (local-transform>
+           [(keypath "all" *pkey) (termval true)]
            $$pending-awaiting)
           (ack-return> {"ok" true "teamId" *team-id "steamId" *steam-id})))
 

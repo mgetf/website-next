@@ -46,7 +46,7 @@
         (is (= "Alpha" (foreign-select-one (keypath "t1" "name") teams)))
         (is (= "hashed-pw" (foreign-select-one (keypath "t1" "joinPassword") teams)))
         (is (= true (foreign-select-one (keypath "t1" "p1" "active") roster)))
-        (is (= "ADMIN" (foreign-select-one (keypath "t1" "p1" "permissionLevel") roster)))
+        (is (= "STATUS" (foreign-select-one (keypath "t1" "p1" "permissionLevel") roster)))
         (is (= "t1" (foreign-select-one (keypath "p1" "s1") player-season))))
 
       (testing "duplicate team / player season blocked"
@@ -147,4 +147,32 @@
         (is (nil? (foreign-select-one (keypath "t1" "p6") pending)))
         (is (nil? (foreign-select-one (keypath "p6" "t1") pending-by-player)))
         (is (nil? (foreign-select-one (keypath "all" "t1:p6") pending-awaiting)))
-        (is (nil? (foreign-select-one (keypath "t1" "p6") roster)))))))
+        (is (nil? (foreign-select-one (keypath "t1" "p6") roster))))
+
+      (testing "create-invite → accept-invite → approve"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "create-invite" "teamId" "t1" "steamId" "p7"})
+                    "ok")))
+        (is (= 0 (foreign-select-one (keypath "t1" "p7" "status") pending)))
+        (is (= 0 (foreign-select-one (keypath "p7" "t1") pending-by-player)))
+        (is (nil? (foreign-select-one (keypath "all" "t1:p7") pending-awaiting)))
+        (is (= "pending-exists"
+               (get (append-event!
+                     depot
+                     {"type" "create-invite" "teamId" "t1" "steamId" "p7"})
+                    "error")))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "accept-invite" "teamId" "t1" "steamId" "p7"})
+                    "ok")))
+        (is (= 1 (foreign-select-one (keypath "t1" "p7" "status") pending)))
+        (is (= true (foreign-select-one (keypath "all" "t1:p7") pending-awaiting)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "approve-pending" "teamId" "t1" "steamId" "p7"})
+                    "ok")))
+        (is (= true (foreign-select-one (keypath "t1" "p7" "active") roster)))))))

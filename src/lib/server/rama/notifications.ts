@@ -76,3 +76,25 @@ export async function getUnreadCount(client: RamaClient, steamId: string): Promi
     return 0;
   }
 }
+
+export type RamaNotification = {
+  type: string;
+  body: string;
+  href: string;
+  read: boolean;
+  createdAt: string;
+};
+
+/** All notifications for a user: id → fields. */
+export async function getNotifications(
+  client: RamaClient,
+  steamId: string,
+): Promise<Record<string, RamaNotification>> {
+  try {
+    const v = await client.selectOne('$$notifications', [steamId]);
+    if (!v || typeof v !== 'object') return {};
+    return v as Record<string, RamaNotification>;
+  } catch {
+    return {};
+  }
+}

@@ -24,13 +24,13 @@ Encoding notes from Rama:
 
 ```
 rama/                          Clojure-only module project (Leiningen)
-  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications
+  src/mge/tf/rama/*.clj        Match / Users / Teams / Payments / Notifications / Seasons
   test/mge/tf/rama/*_test.clj
   project.clj
 
 src/lib/server/rama/           TypeScript REST client (no business HTTP server)
   client.ts                    generic append / select / selectOne / invokeQuery
-  match.ts | users.ts | teams.ts | payments.ts | notifications.ts
+  match.ts | users.ts | teams.ts | payments.ts | notifications.ts | seasons.ts
 
 scripts/rama-smoke.ts          end-to-end against a live cluster
 ```
@@ -44,6 +44,7 @@ scripts/rama-smoke.ts          end-to-end against a live cluster
 | `TeamsModule`         | `*team-depot`         | create/join/leave, roster cap, season uniqueness              |
 | `PaymentsModule`      | `*payment-depot`      | mark-paid, item order create/confirm/expire, team paid counts |
 | `NotificationsModule` | `*notification-depot` | notify, mark-read, mark-all-read, unread count                |
+| `SeasonsModule`       | `*season-depot`       | create, flags, schedule, info; unique (region, format, num)   |
 
 Agent skill (knots + how to write Rama here): `.cursor/skills/rama-clojure/`
 
@@ -138,13 +139,28 @@ Topology ack key: `payments`.
 **PStates:** `$$notifications`, `$$unread-count`  
 Topology ack key: `notifications`.
 
+## SeasonsModule
+
+**Depot** `*season-depot` — `hash-by` `seasonId`
+
+| `type`          | Fields                                                    |
+| --------------- | --------------------------------------------------------- |
+| `create-season` | seasonId, seasonNum, numWeeks, regionId, formatId         |
+| `set-flags`     | seasonId, signupsOpen, rosterLocked, paymentRequired      |
+| `set-schedule`  | seasonId, matchWeek, matchDeadline?                       |
+| `set-info`      | seasonId, info                                            |
+| `update-season` | seasonId, numWeeks (identity keys immutable after create) |
+
+**PStates:** `$$seasons`, `$$season-index` `{regionId → {formatId → {seasonNumStr → seasonId}}}`  
+Topology ack key: `seasons`.
+
 ## Ripping Postgres out (next steps)
 
-1. ~~Expand modules: users, teams, payments, notifications~~ (done in this spike).
-2. Add seasons/config + events/brackets modules.
+1. ~~Expand modules: users, teams, payments, notifications, seasons~~ (done in this spike).
+2. Add events/brackets + map-ban-pool config modules.
 3. Point SvelteKit form actions at `RamaClient.append` + `selectOne` instead of Prisma services.
 4. Keep Steam/Discord OAuth + R2 blobs at the edge; store only indexes in PStates.
 5. Replace `pg_notify` SSE with notification PState polling or a tiny bridge once Rama exposes reactivity over REST.
 6. Delete Prisma when every read/write path has a PState/depot equivalent.
 
-This spike proves the hard interactive paths (matches, users, teams, payments, notifications) without a second HTTP stack.
+This spike proves the hard interactive paths without a second HTTP stack.

@@ -1,0 +1,104 @@
+(ns mge.tf.rama.seasons-module-test
+  (:use [com.rpl.rama]
+        [com.rpl.rama.path])
+  (:require
+   [clojure.test :refer [deftest is testing]]
+   [com.rpl.rama.test :as rtest]
+   [mge.tf.rama.seasons-module :as sm]))
+
+(def MODULE-NAME "mge.tf.rama.seasons-module/SeasonsModule")
+
+(defn append-event!
+  [depot event]
+  (get (foreign-append! depot event) "seasons"))
+
+(deftest seasons-lifecycle-test
+  (with-open [ipc (rtest/create-ipc)]
+    (rtest/launch-module! ipc sm/SeasonsModule {:tasks 4 :threads 2})
+    (let [depot (foreign-depot ipc MODULE-NAME "*season-depot")
+          seasons (foreign-pstate ipc MODULE-NAME "$$seasons")
+          index (foreign-pstate ipc MODULE-NAME "$$season-index")]
+
+      (testing "create-season writes season + uniqueness index"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "create-season"
+                      "seasonId" "s1"
+                      "seasonNum" 3
+                      "numWeeks" 8
+                      "regionId" "na"
+                      "formatId" "2"})
+                    "ok")))
+        (is (= 3 (foreign-select-one (keypath "s1" "seasonNum") seasons)))
+        (is (= false (foreign-select-one (keypath "s1" "signupsOpen") seasons)))
+        (is (= "s1" (foreign-select-one (keypath "na" "2" "3") index)))
+        (is (= "season-exists"
+               (get (append-event!
+                     depot
+                     {"type" "create-season"
+                      "seasonId" "s1"
+                      "seasonNum" 4
+                      "numWeeks" 8
+                      "regionId" "na"
+                      "formatId" "2"})
+                    "error")))
+        (is (= "season-num-taken"
+               (get (append-event!
+                     depot
+                     {"type" "create-season"
+                      "seasonId" "s2"
+                      "seasonNum" 3
+                      "numWeeks" 8
+                      "regionId" "na"
+                      "formatId" "2"})
+                    "error"))))
+
+      (testing "set-flags / set-schedule / set-info / update-season"
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-flags"
+                      "seasonId" "s1"
+                      "signupsOpen" true
+                      "rosterLocked" false
+                      "paymentRequired" true})
+                    "ok")))
+        (is (= true (foreign-select-one (keypath "s1" "signupsOpen") seasons)))
+        (is (= true (foreign-select-one (keypath "s1" "paymentRequired") seasons)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-schedule"
+                      "seasonId" "s1"
+                      "matchWeek" 2
+                      "matchDeadline" "2026-08-01T00:00:00Z"})
+                    "ok")))
+        (is (= 2 (foreign-select-one (keypath "s1" "matchWeek") seasons)))
+        (is (= "2026-08-01T00:00:00Z"
+               (foreign-select-one (keypath "s1" "matchDeadline") seasons)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "set-info"
+                      "seasonId" "s1"
+                      "info" "## Season 3"})
+                    "ok")))
+        (is (= "## Season 3" (foreign-select-one (keypath "s1" "info") seasons)))
+        (is (= true
+               (get (append-event!
+                     depot
+                     {"type" "update-season"
+                      "seasonId" "s1"
+                      "numWeeks" 10})
+                    "ok")))
+        (is (= 10 (foreign-select-one (keypath "s1" "numWeeks") seasons)))
+        (is (= "season-not-found"
+               (get (append-event!
+                     depot
+                     {"type" "set-flags"
+                      "seasonId" "missing"
+                      "signupsOpen" true
+                      "rosterLocked" false
+                      "paymentRequired" false})
+                    "error")))))))

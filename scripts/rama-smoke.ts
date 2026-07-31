@@ -47,6 +47,17 @@ import {
   setTeamStatus,
 } from '../src/lib/server/rama/teams';
 import {
+  createSeason,
+  createSeasonsClient,
+  getSeason,
+  getSeasonSignupsOpen,
+  lookupSeasonId,
+  setSeasonFlags,
+  setSeasonInfo,
+  setSeasonSchedule,
+  updateSeason,
+} from '../src/lib/server/rama/seasons';
+import {
   bumpSession,
   createUsersClient,
   getSessionVersion,
@@ -232,6 +243,44 @@ async function main() {
   );
   console.log('markAllRead', await markAllRead(notifications, steamId));
   console.log('unread after mark-all', await getUnreadCount(notifications, steamId));
+
+  const seasons = createSeasonsClient({ conductorUrl, supervisorBaseUrl });
+  const seasonKey = `season-${Date.now()}`;
+  console.log(
+    'createSeason',
+    await createSeason(seasons, {
+      seasonId: seasonKey,
+      seasonNum: 99,
+      numWeeks: 8,
+      regionId: 'na',
+      formatId: '2',
+    }),
+  );
+  console.log('lookupSeasonId', await lookupSeasonId(seasons, 'na', '2', 99));
+  console.log(
+    'setSeasonFlags',
+    await setSeasonFlags(seasons, {
+      seasonId: seasonKey,
+      signupsOpen: true,
+      rosterLocked: false,
+      paymentRequired: true,
+    }),
+  );
+  console.log('signupsOpen', await getSeasonSignupsOpen(seasons, seasonKey));
+  console.log(
+    'setSeasonSchedule',
+    await setSeasonSchedule(seasons, {
+      seasonId: seasonKey,
+      matchWeek: 1,
+      matchDeadline: '2026-08-01T00:00:00Z',
+    }),
+  );
+  console.log(
+    'setSeasonInfo',
+    await setSeasonInfo(seasons, { seasonId: seasonKey, info: 'Smoke' }),
+  );
+  console.log('updateSeason', await updateSeason(seasons, { seasonId: seasonKey, numWeeks: 10 }));
+  console.log('season', await getSeason(seasons, seasonKey));
 }
 
 main().catch((err) => {

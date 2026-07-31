@@ -25,6 +25,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "boundary-check": "bun run scripts/boundary-check.ts",
+    "rama:smoke": "bun run scripts/rama-smoke.ts",
     "db:studio": "prisma studio",
     "db:studio:prod": "dotenv -e .env.production -- prisma studio",
     "knip": "knip"

@@ -40,7 +40,7 @@ pub fn compile_program(program: &Program<'_>) -> Document {
     doc.push(clj::call(
         "ns",
         [
-            clj::sym(module_name),
+            clj::sym(program.namespace),
             clj::list([
                 clj::kw("use"),
                 clj::vector([clj::sym("com.rpl.rama")]),
@@ -219,6 +219,7 @@ pub fn compile_program(program: &Program<'_>) -> Document {
     if !depots.is_empty() || !pstates.is_empty() {
         doc.push(defmodule_form(
             module_name,
+            program.topology,
             &depots,
             &pstates,
             &ops,
@@ -1011,6 +1012,7 @@ fn module_type_name(module_name: &str) -> String {
 
 fn defmodule_form(
     module_name: &str,
+    topology: &str,
     depots: &[&DepotDecl],
     pstates: &[&PStateDecl],
     ops: &[&OpDef],
@@ -1106,7 +1108,7 @@ fn defmodule_form(
             clj::sym("s"),
             clj::call(
                 "stream-topology",
-                [clj::sym("topologies"), clj::string("main")],
+                [clj::sym("topologies"), clj::string(topology)],
             ),
         ]),
     ];

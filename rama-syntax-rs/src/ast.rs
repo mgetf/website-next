@@ -21,7 +21,12 @@ pub enum Item {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModuleDecl {
+    /// Module class name, e.g. `UsersModule`.
     pub name: Spanned<String>,
+    /// Clojure namespace when declared as `module a.b.c/Name`.
+    pub namespace: Option<String>,
+    /// Stream topology name (`topology users`); defaults to `main`.
+    pub topology: Option<String>,
     pub span: Span,
 }
 

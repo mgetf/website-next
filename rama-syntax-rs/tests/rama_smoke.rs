@@ -1,136 +1,114 @@
-//! Real Rama compiler smoke test.
+//! Cutover proof: the generated MatchModule replaces the handwritten one and
+//! must pass the ORIGINAL `match-module-test` unchanged, plus typed-boundary
+//! assertions (invalid events acked, JSON Integer coercion).
 //!
-//! Run explicitly with:
-//! `cargo test --test rama_smoke -- --ignored`
+//! Run with `cargo test --test rama_smoke -- --ignored`.
 
 use rama_syntax::{emit_clojure, parse};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-struct GeneratedFiles(Vec<PathBuf>);
+struct RestoreOnDrop {
+    path: PathBuf,
+    original: String,
+    extra: PathBuf,
+}
 
-impl Drop for GeneratedFiles {
+impl Drop for RestoreOnDrop {
     fn drop(&mut self) {
-        for path in &self.0 {
-            let _ = fs::remove_file(path);
-        }
+        let _ = fs::write(&self.path, &self.original);
+        let _ = fs::remove_file(&self.extra);
     }
 }
 
 #[test]
 #[ignore = "requires Leiningen plus downloaded Rama dependencies"]
-fn generated_match_module_runs_full_lifecycle() {
+fn generated_match_module_passes_original_test_suite() {
     let crate_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let workspace = crate_dir.parent().expect("workspace parent");
     let rama = workspace.join("rama");
-    let module_path = rama.join("src/Match.clj");
-    let test_path = rama.join("test/generated_match_test.clj");
-    let _cleanup = GeneratedFiles(vec![module_path.clone(), test_path.clone()]);
+    let module_path = rama.join("src/mge/tf/rama/match_module.clj");
+    let extra_test_path = rama.join("test/generated_match_extra_test.clj");
+
+    let original = fs::read_to_string(&module_path).expect("handwritten match module");
+    let _restore = RestoreOnDrop {
+        path: module_path.clone(),
+        original,
+        extra: extra_test_path.clone(),
+    };
 
     let source =
-        fs::read_to_string(crate_dir.join("fixtures/match_v2.rama")).expect("read match fixture");
+        fs::read_to_string(crate_dir.join("fixtures/match_v2.rama")).expect("match fixture");
     let ast = parse(&source).expect("parse match fixture");
     fs::write(&module_path, emit_clojure(&ast)).expect("write generated module");
-    fs::write(&test_path, SMOKE_TEST).expect("write Rama smoke test");
+    fs::write(&extra_test_path, EXTRA_TEST).expect("write extra assertions");
 
     let output = Command::new("lein")
-        .args(["test-rama", "generated-match-test"])
+        .args([
+            "test-rama",
+            "mge.tf.rama.match-module-test",
+            "generated-match-extra-test",
+        ])
         .current_dir(&rama)
         .output()
         .expect("run lein test-rama");
 
     assert!(
         output.status.success(),
-        "generated Rama module failed:\nstdout:\n{}\nstderr:\n{}",
+        "generated match module failed the original suite:\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
 }
 
-const SMOKE_TEST: &str = r#"
-(ns generated-match-test
+const EXTRA_TEST: &str = r#"
+(ns generated-match-extra-test
   (:use [com.rpl.rama]
         [com.rpl.rama.path])
   (:require
-   [clojure.test :refer [deftest is]]
+   [clojure.test :refer [deftest is testing]]
    [com.rpl.rama.test :as rtest]
-   [Match :as generated]))
+   [mge.tf.rama.match-module :as mm]))
+
+(def MODULE-NAME "mge.tf.rama.match-module/MatchModule")
 
 (defn append-event! [depot event]
-  (get (foreign-append! depot event) "main"))
+  (get (foreign-append! depot event) "matches"))
 
-(deftest generated-module-lifecycle
+(deftest typed-event-boundary
   (with-open [ipc (rtest/create-ipc)]
-    (rtest/launch-module! ipc generated/MatchModule {:tasks 4 :threads 2})
-    (    let [module-name "Match/MatchModule"
-          depot (foreign-depot ipc module-name "*matchDepot")
-          matches (foreign-pstate ipc module-name "$$matches")
-          map-bans (foreign-pstate ipc module-name "$$mapBans")
-          team-stats (foreign-pstate ipc module-name "$$teamStats")
-          by-team (foreign-pstate ipc module-name "$$matchesByTeam")
-          ack (append-event!
-               depot
-               {"type" "create-match"
-                "matchId" "m1"
-                "homeTeamId" "home"
-                "awayTeamId" "away"
-                "seasonId" "s1"
-                "boGames" (int 2) ;; JSON-style Integer: boundary must coerce
-                "pool" ["process" "discard"]})]
-      (is (= true (get ack "ok")))
-      (is (= "UNPLAYED"
-             (foreign-select-one (keypath "m1" "status") matches)))
-      ;; Cross-partition index writes after |hash hops. These are the
-      ;; assertions that expose lost writes when PStates are passed as
-      ;; deframaop parameters across partitioners.
-      (is (= "s1" (foreign-select-one (keypath "home" "m1") by-team)))
-      (is (= "s1" (foreign-select-one (keypath "away" "m1") by-team)))
-      ;; The generated validator acks malformed events instead of
-      ;; killing the worker.
-      (let [bad (append-event!
-                 depot
-                 {"type" "ban-map"
-                  "matchId" 123
-                  "teamId" "home"
-                  "arenaId" "process"})]
-        (is (= false (get bad "ok")))
-        (is (= "invalid-event" (get bad "error")))
-        (is (= "field `matchId` must be a String" (get bad "detail"))))
-      (let [missing (append-event!
+    (rtest/launch-module! ipc mm/MatchModule {:tasks 4 :threads 2})
+    (let [depot (foreign-depot ipc MODULE-NAME "*match-depot")
+          matches (foreign-pstate ipc MODULE-NAME "$$matches")]
+
+      (testing "JSON-style Integer boGames coerces at the boundary"
+        (is (= true
+               (get (append-event!
                      depot
-                     {"type" "ban-map"
-                      "matchId" "m1"
-                      "teamId" "home"})]
-        (is (= "invalid-event" (get missing "error")))
-        (is (= "missing field `arenaId`" (get missing "detail"))))
-      ;; Long comparisons in submit-score prove the create-match Integer
-      ;; was coerced before storage.
-      (is (= "not-your-turn"
-             (get (append-event!
+                     {"type" "create-match"
+                      "matchId" "mi"
+                      "homeTeamId" "home"
+                      "awayTeamId" "away"
+                      "seasonId" "s1"
+                      "boGames" (int 2)
+                      "pool" ["process"]})
+                    "ok")))
+        (is (= 2 (foreign-select-one (keypath "mi" "boGames") matches))))
+
+      (testing "malformed events ack with precise detail"
+        (let [bad (append-event!
                    depot
-                   {"type" "ban-map"
-                    "matchId" "m1"
-                    "teamId" "home"
-                    "arenaId" "process"})
-                  "error")))
-      (is (= true
-             (get (append-event!
-                   depot
-                   {"type" "ban-map"
-                    "matchId" "m1"
-                    "teamId" "away"
-                    "arenaId" "process"})
-                  "ok")))
-      (is (= 1 (foreign-select-one (keypath "m1" "turn") map-bans)))
-      (is (= true
-             (get (append-event!
-                   depot
-                   {"type" "submit-score"
-                    "matchId" "m1"
-                    "homeScore" 2
-                    "awayScore" 0})
-                  "ok")))
-      (is (= "PLAYED" (foreign-select-one (keypath "m1" "status") matches)))
-      (is (= 1 (foreign-select-one (keypath "home" "wins") team-stats))))))
+                   {"type" "ban-map" "matchId" 123 "teamId" "home"})]
+          (is (= "invalid-event" (get bad "error")))
+          (is (= "field `matchId` must be a String" (get bad "detail"))))
+        (let [missing (append-event!
+                       depot
+                       {"type" "ban-map" "matchId" "mi" "teamId" "home"})]
+          (is (= "missing field `arenaId`" (get missing "detail")))))
+
+      (testing "unknown types ack"
+        (is (= "unknown-type"
+               (get (append-event! depot {"type" "mystery" "matchId" "mi"})
+                    "error")))))))
 "#;

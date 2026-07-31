@@ -2,7 +2,7 @@
 // The empirical test for the language: typed events, typed fn helpers,
 // cross-partition discord uniqueness, session-version bumps.
 
-module Users
+module mge.tf.rama.users-module/UsersModule topology users
 
 struct User {
   :username        String
@@ -14,9 +14,9 @@ struct User {
 }
 
 pstate $$users:       Map<String, User>
-pstate $$discordById: Map<String, String>
+pstate $$discord-by-id: Map<String, String>
 
-depot userDepot keyed-by steamId
+depot user-depot keyed-by steamId
 
 struct UpsertProfileEvent {
   :steamId   String
@@ -146,15 +146,15 @@ op link-discord(event: LinkDiscordEvent) {
 
   // reverse index lives on the discordId partition — hop before read
   |hash discordId
-  $$discordById --> keypath(discordId) > takenBy
+  $$discord-by-id --> keypath(discordId) > takenBy
   let err = discord-id-error(discordId, takenBy, steamId)
   fail err if some?(err)
 
-  $$discordById !<-- keypath(discordId), termval(steamId)
+  $$discord-by-id !<-- keypath(discordId), termval(steamId)
 
   if (clear-old-discord?(old, discordId)) {
     |hash old
-    $$discordById !<-- keypath(old), NONE>
+    $$discord-by-id !<-- keypath(old), NONE>
   }
 
   |hash steamId
@@ -173,7 +173,7 @@ op unlink-discord(event: UnlinkDiscordEvent) {
 
   if (clear-old-discord?(old, "")) {
     |hash old
-    $$discordById !<-- keypath(old), NONE>
+    $$discord-by-id !<-- keypath(old), NONE>
   }
 
   |hash steamId

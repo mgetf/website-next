@@ -58,11 +58,29 @@ fn item() -> impl Parser<Tok, Item, Error = Err> {
 }
 
 fn module_item() -> impl Parser<Tok, Item, Error = Err> {
+    // `module Name` or `module a.b.c/Name`, optionally `topology <name>`.
     just(Tok::Module)
-        .ignore_then(ident())
-        .map_with_span(|name, span| {
+        .ignore_then(
+            ident()
+                .separated_by(just(Tok::Dot))
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .then(just(Tok::Slash).ignore_then(ident()).or_not())
+        .then(
+            select! { Tok::Ident(word) if word == "topology" => () }
+                .ignore_then(ident())
+                .or_not(),
+        )
+        .map_with_span(|((segments, class_name), topology), span| {
+            let (name, namespace) = match class_name {
+                Some(class_name) => (class_name, Some(segments.join("."))),
+                None => (segments.join("."), None),
+            };
             Item::Module(ModuleDecl {
                 name: Spanned::new(name, sp(span.clone())),
+                namespace,
+                topology,
                 span: sp(span),
             })
         })

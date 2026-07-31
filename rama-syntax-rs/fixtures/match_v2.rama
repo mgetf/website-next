@@ -1,7 +1,7 @@
 // .rama v2 — see DESIGN.md
 // Specter paths + --> / !<--. Rust-like structs. fail / return. $$ pstates.
 
-module Match
+module mge.tf.rama.match-module/MatchModule topology matches
 
 struct Match {
   :homeTeamId String
@@ -29,11 +29,11 @@ struct TeamStats {
 }
 
 pstate $$matches:       Map<String, Match>
-pstate $$mapBans:       Map<String, MapBan>
-pstate $$teamStats:     Map<String, TeamStats>
-pstate $$matchesByTeam: Map<String, Map<String, String>> @subindexed
+pstate $$map-bans:       Map<String, MapBan>
+pstate $$team-stats:     Map<String, TeamStats>
+pstate $$matches-by-team: Map<String, Map<String, String>> @subindexed
 
-depot matchDepot keyed-by matchId
+depot match-depot keyed-by matchId
 
 // Event structs: the compiler generates a boundary validator per op and
 // coerces JSON Integer payloads into the declared Long fields.
@@ -75,7 +75,7 @@ op create-match(event: CreateMatchEvent) {
     :boGames    boGames
   })
 
-  $$mapBans !<-- keypath(matchId), termval({
+  $$map-bans !<-- keypath(matchId), termval({
     :turn       0
     :homeTeamId homeTeamId
     :awayTeamId awayTeamId
@@ -84,9 +84,9 @@ op create-match(event: CreateMatchEvent) {
   })
 
   |hash homeTeamId
-  $$matchesByTeam !<-- keypath(homeTeamId, matchId), termval(seasonId)
+  $$matches-by-team !<-- keypath(homeTeamId, matchId), termval(seasonId)
   |hash awayTeamId
-  $$matchesByTeam !<-- keypath(awayTeamId, matchId), termval(seasonId)
+  $$matches-by-team !<-- keypath(awayTeamId, matchId), termval(seasonId)
 
   return {"ok" true "matchId" matchId}
 }
@@ -94,17 +94,17 @@ op create-match(event: CreateMatchEvent) {
 op ban-map(event: BanMapEvent) {
   let { matchId, teamId, arenaId } = event
 
-  $$mapBans --> keypath(matchId) > { turn, homeTeamId, awayTeamId, remaining }
+  $$map-bans --> keypath(matchId) > { turn, homeTeamId, awayTeamId, remaining }
 
   fail "no-ban-state" if turn == nil
   fail "not-your-turn" if teamId != (even?(turn) ? awayTeamId : homeTeamId)
   fail "arena-not-in-pool" if not(contains?(remaining, arenaId))
 
-  $$mapBans !<-- keypath(matchId), multi-path(
+  $$map-bans !<-- keypath(matchId), multi-path(
     [:remaining termval(disj(remaining, arenaId))]
     [:turn termval(inc(turn))]
   )
-  $$mapBans !<-- keypath(matchId, :actions), AFTER-ELEM, termval({:teamId teamId :arenaId arenaId})
+  $$map-bans !<-- keypath(matchId, :actions), AFTER-ELEM, termval({:teamId teamId :arenaId arenaId})
 
   return {"ok" true "matchId" matchId "banned" arenaId "turn" inc(turn)}
 }
@@ -133,10 +133,10 @@ op submit-score(event: SubmitScoreEvent) {
   )
 
   |hash winnerId
-  $$teamStats !<-- keypath(winnerId, :wins), nil->val(0), term(inc)
-  $$teamStats !<-- keypath(winnerId, :points), nil->val(0), term(inc)
+  $$team-stats !<-- keypath(winnerId, :wins), nil->val(0), term(inc)
+  $$team-stats !<-- keypath(winnerId, :points), nil->val(0), term(inc)
   |hash loserId
-  $$teamStats !<-- keypath(loserId, :losses), nil->val(0), term(inc)
+  $$team-stats !<-- keypath(loserId, :losses), nil->val(0), term(inc)
 
   return {"ok" true "matchId" matchId "winnerId" winnerId "homeScore" hs "awayScore" as}
 }

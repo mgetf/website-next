@@ -30,6 +30,10 @@ pub struct Body<'a> {
 pub struct Program<'a> {
     pub source: &'a SourceFile,
     pub module_name: &'a str,
+    /// Clojure namespace; falls back to the module class name.
+    pub namespace: &'a str,
+    /// Stream topology name; `main` unless declared.
+    pub topology: &'a str,
     pub structs: HashMap<&'a str, &'a StructDecl>,
     pub pstates: HashMap<&'a str, &'a PStateDecl>,
     pub depots: HashMap<&'a str, &'a DepotDecl>,
@@ -42,6 +46,8 @@ pub struct Program<'a> {
 impl<'a> Program<'a> {
     pub fn from_ast(source: &'a SourceFile) -> Self {
         let mut module_name = "Generated";
+        let mut namespace: Option<&str> = None;
+        let mut topology = "main";
         let mut structs = HashMap::new();
         let mut pstates = HashMap::new();
         let mut depots = HashMap::new();
@@ -52,7 +58,13 @@ impl<'a> Program<'a> {
 
         for item in &source.items {
             match item {
-                Item::Module(m) => module_name = &m.name.node,
+                Item::Module(m) => {
+                    module_name = &m.name.node;
+                    namespace = m.namespace.as_deref();
+                    if let Some(declared) = &m.topology {
+                        topology = declared;
+                    }
+                }
                 Item::Struct(s) => {
                     structs.insert(s.name.node.as_str(), s);
                 }
@@ -92,6 +104,8 @@ impl<'a> Program<'a> {
         Self {
             source,
             module_name,
+            namespace: namespace.unwrap_or(module_name),
+            topology,
             structs,
             pstates,
             depots,

@@ -221,10 +221,9 @@ export async function adminCreatePlayoffMatch(
   });
   await page.locator('#divisionId').selectOption(String(league.divisionId));
   await page.locator('#seasonId').selectOption(String(league.seasonId));
-  await expect(page.locator('#playoffRound option').filter({ hasText: 'Upper Round' })).toHaveCount(
-    1,
-    { timeout: 10_000 },
-  );
+  await expect(
+    page.locator('#playoffRound option').filter({ hasText: 'Upper Round 1' }),
+  ).toHaveCount(1, { timeout: 10_000 });
   await page.locator('#playoffRound').selectOption('1');
   await page.locator('#mapBanPoolId').selectOption(String(league.mapBanPoolId));
   await page.locator('#boSeries').selectOption(String(boSeries));

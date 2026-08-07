@@ -1116,6 +1116,43 @@ export async function findOrCreateSteamUser(steamUserJson: {
 }
 
 /**
+ * Upsert a user for non-production test login.
+ * Sets the requested role and clears ban status so E2E fixtures are deterministic.
+ */
+export async function upsertTestLoginUser(params: {
+  steamId: string;
+  username: string;
+  role: 'GUEST' | 'MODERATOR' | 'ADMIN';
+}) {
+  const avatar =
+    'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
+
+  return prisma.user.upsert({
+    where: { steamId: params.steamId },
+    create: {
+      steamId: params.steamId,
+      steamUsername: params.username,
+      steamAvatar: avatar,
+      permissionLevel: params.role,
+      banStatus: 'NONE',
+    },
+    update: {
+      steamUsername: params.username,
+      permissionLevel: params.role,
+      banStatus: 'NONE',
+    },
+    select: {
+      steamId: true,
+      steamUsername: true,
+      steamAvatar: true,
+      permissionLevel: true,
+      banStatus: true,
+      sessionVersion: true,
+    },
+  });
+}
+
+/**
  * Link a Discord account to a Steam user via upsert
  */
 export async function linkDiscordAccount(

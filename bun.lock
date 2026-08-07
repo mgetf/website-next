@@ -5,27 +5,28 @@
     "": {
       "name": "mge-next",
       "dependencies": {
-        "@aws-sdk/client-s3": "^3.1084.0",
-        "@aws-sdk/s3-request-presigner": "^3.1084.0",
-        "@prisma/adapter-pg": "^7.8.0",
-        "@prisma/client": "^7.8.0",
-        "@tailwindcss/vite": "^4.3.2",
+        "@aws-sdk/client-s3": "^3.1093.0",
+        "@aws-sdk/s3-request-presigner": "^3.1093.0",
+        "@prisma/adapter-pg": "^7.9.0",
+        "@prisma/client": "^7.9.0",
+        "@tailwindcss/vite": "^4.3.3",
         "@types/jsonwebtoken": "^9.0.10",
         "archiver": "7.0.1",
         "chart.js": "^4.5.1",
         "flag-icons": "^7.5.0",
-        "fuse.js": "^7.4.2",
+        "fuse.js": "^7.5.0",
         "jsonwebtoken": "^9.0.3",
         "node-steam-openid": "^2.0.0",
         "pg": "^8.22.0",
-        "svelte-dnd-action": "^0.9.70",
+        "svelte-dnd-action": "^0.9.74",
         "svelte-exmarkdown": "^5.0.2",
-        "tailwindcss": "^4.3.2",
+        "tailwindcss": "^4.3.3",
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@playwright/test": "^1.62.0",
         "@sveltejs/adapter-node": "^5.5.7",
-        "@sveltejs/kit": "^2.69.2",
+        "@sveltejs/kit": "^2.70.1",
         "@sveltejs/vite-plugin-svelte": "^7.2.0",
         "@types/archiver": "^7.0.0",
         "@types/node": "^25.9.5",
@@ -33,15 +34,15 @@
         "dotenv": "^17.4.2",
         "dotenv-cli": "^11.0.0",
         "husky": "^9.1.7",
-        "knip": "^6.26.0",
-        "lint-staged": "^17.0.8",
-        "prettier": "^3.9.5",
+        "knip": "^6.29.0",
+        "lint-staged": "^17.1.1",
+        "prettier": "^3.9.6",
         "prettier-plugin-svelte": "^4.1.1",
-        "prisma": "^7.8.0",
-        "svelte": "^5.56.4",
-        "svelte-check": "^4.7.2",
+        "prisma": "^7.9.0",
+        "svelte": "^5.56.7",
+        "svelte-check": "^4.7.3",
         "typescript": "^6.0.3",
-        "vite": "^8.1.4",
+        "vite": "^8.1.5",
       },
     },
   },
@@ -203,6 +204,8 @@
     "@oxc-resolver/binding-win32-x64-msvc": ["@oxc-resolver/binding-win32-x64-msvc@11.24.2", "", { "os": "win32", "cpu": "x64" }, "sha512-UqGPmo56KDfLlfXFAFIrNflHT8tFxWGEivWg3Zeyp4Uy2NlKN1FGPr6/BxcLGG3+kZ6Wp14g5Uj+n71boqZfiw=="],
 
     "@pkgjs/parseargs": ["@pkgjs/parseargs@0.11.0", "", {}, "sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg=="],
+
+    "@playwright/test": ["@playwright/test@1.62.0", "", { "dependencies": { "playwright": "1.62.0" }, "bin": { "playwright": "cli.js" } }, "sha512-9zOJ6ZQRAena31MpOH9VSzIz8Ou3YJ/wtY/eQm5T2uhfhG7/U3COrMS8xOtUrZrp9OgdmzEnIYODye3nY1VqzA=="],
 
     "@polka/url": ["@polka/url@1.0.0-next.29", "", {}, "sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww=="],
 
@@ -990,6 +993,10 @@
 
     "pkg-types": ["pkg-types@2.3.0", "", { "dependencies": { "confbox": "^0.2.2", "exsolve": "^1.0.7", "pathe": "^2.0.3" } }, "sha512-SIqCzDRg0s9npO5XQ3tNZioRY1uK06lA41ynBC1YmFTmnY6FjUjVt6s4LoADmwoig1qqD0oK8h1p/8mlMx8Oig=="],
 
+    "playwright": ["playwright@1.62.0", "", { "dependencies": { "playwright-core": "1.62.0" }, "optionalDependencies": { "fsevents": "2.3.2" }, "bin": { "playwright": "cli.js" } }, "sha512-Z14dG305dgaLu6foB1TXQagFiW8JfSUIUaUuPaKQ6NtBPKF1P/qXcqfh6c6K/icPqdy37JmjbiBXf6JNg6Sylw=="],
+
+    "playwright-core": ["playwright-core@1.62.0", "", { "bin": { "playwright-core": "cli.js" } }, "sha512-nsNRyq0r2zsG8AcRHWknc9QRA5XCueC7gWMrs+Gx2tlZn9hcl8zudfh00lhJPY1DE7NmZ6bDsT9g2yey8mXljA=="],
+
     "postcss": ["postcss@8.5.22", "", { "dependencies": { "nanoid": "^3.3.16", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-KBDEIpLrvpv16pp3K0Fw+UCoZfopFjjgeB+0tA/aaThfEE74kKDLrgg603YvOWJyg3+WYtyq3xYsQWsIyZlPqQ=="],
 
     "postgres": ["postgres@3.4.7", "", {}, "sha512-Jtc2612XINuBjIl/QTWsV5UvE8UHuNblcO3vVADSrKsrc6RqGX6lOW1cEo3CM2v0XG4Nat8nI+YM7/f26VxXLw=="],
@@ -1257,6 +1264,8 @@
     "pg/pg-protocol": ["pg-protocol@1.15.0", "", {}, "sha512-cq9sECI5s0+uPUXjbz8ioyPJni6RzsRib0US67i5IoTZKw8fNeYlVE7u8F4dG7vEJJtc5wdD1K189lCCUwqWTQ=="],
 
     "pg-types/postgres-array": ["postgres-array@2.0.0", "", {}, "sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA=="],
+
+    "playwright/fsevents": ["fsevents@2.3.2", "", { "os": "darwin" }, "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="],
 
     "proper-lockfile/signal-exit": ["signal-exit@3.0.7", "", {}, "sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ=="],
 

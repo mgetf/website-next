@@ -38,12 +38,14 @@ bun run format
 bun run check
 bun run boundary-check
 bun run knip
+bun run test:e2e   # requires Postgres (see docker-compose.test.yml / .env.test)
 ```
 
 - `format` — Prettier formatting
 - `check` — TypeScript / Svelte type checking
 - `boundary-check` — enforces the architectural boundaries described below
 - `knip` — flags unused files, dependencies, and exports
+- `test:e2e` — Playwright season god path (uses `/auth/test-login`, disabled in production)
 
 ## Architecture Must-Knows
 

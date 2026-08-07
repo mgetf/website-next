@@ -10,7 +10,8 @@
 
   let { content, class: className = '' }: Props = $props();
 
-  const plugins = [gfmPlugin(), { rehypePlugin: rehypeSanitizeUrls() }];
+  // Pass the plugin factory (not the return value) — unified calls it as an attacher.
+  const plugins = [gfmPlugin(), { rehypePlugin: rehypeSanitizeUrls }];
 </script>
 
 <div class="markdown-content prose prose-invert max-w-none {className}">

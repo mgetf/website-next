@@ -1,6 +1,7 @@
 <script lang="ts">
   import Markdown from 'svelte-exmarkdown';
   import { gfmPlugin } from 'svelte-exmarkdown/gfm';
+  import { rehypeSanitizeUrls } from '$lib/utils/markdownSanitize';
 
   interface Props {
     content: string;
@@ -9,7 +10,7 @@
 
   let { content, class: className = '' }: Props = $props();
 
-  const plugins = [gfmPlugin()];
+  const plugins = [gfmPlugin(), { rehypePlugin: rehypeSanitizeUrls() }];
 </script>
 
 <div class="markdown-content prose prose-invert max-w-none {className}">

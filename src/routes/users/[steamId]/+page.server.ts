@@ -2,6 +2,7 @@ import { error, fail, isHttpError } from '@sveltejs/kit';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import {
   getPlayerProfile,
+  getUserBySteamId,
   unlinkDiscord,
   lockUserName,
   unlockUserName,
@@ -15,7 +16,7 @@ import { TeamStatus } from '$prisma/client.js';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { isAdmin } from '$lib/server/auth/permissions';
+import { isAdmin, requireCanModerateUser, requireStrictAdmin } from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -337,7 +338,16 @@ export const actions: Actions = {
     }
 
     try {
+      const targetUser = await getUserBySteamId(steamId);
+      if (!targetUser) {
+        return fail(404, { error: 'User not found' });
+      }
+
+      requireCanModerateUser(locals.user, targetUser.permissionLevel);
+
       if (severity === 'NONE') {
+        // Clearing punishments is head-admin only (matches /admin/users)
+        requireStrictAdmin(locals.user);
         await clearPunishment(steamId, locals.user.steamId);
 
         await logAudit({

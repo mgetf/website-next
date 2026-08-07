@@ -10,6 +10,9 @@ import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { formatPlayoffRound } from '$lib/utils/playoffs';
+import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
+import { conflict } from '$lib/server/utils/errors';
+import { isSafeUrl } from '$lib/utils/safeUrl';
 
 export type { ProfileMatch } from '$lib/types/match';
 
@@ -681,10 +684,16 @@ export async function updateUser(
     updateData.sessionVersion = { increment: 1 };
   }
 
-  return await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { steamId },
     data: updateData,
   });
+
+  if (permissionChanged || banChanged) {
+    invalidateCachedSessionVersion(steamId);
+  }
+
+  return updated;
 }
 
 /**
@@ -723,6 +732,7 @@ export async function getStaffMembers() {
 export async function clearPunishment(steamId: string, clearedBy: string) {
   const user = await prisma.user.findUnique({ where: { steamId } });
   if (!user) throw new Error('User not found');
+  void clearedBy;
 
   await prisma.user.update({
     where: { steamId },
@@ -737,6 +747,8 @@ export async function clearPunishment(steamId: string, clearedBy: string) {
     where: { playerSteamId: steamId, status: 1 },
     data: { status: 0 },
   });
+
+  invalidateCachedSessionVersion(steamId);
 }
 
 export async function banUser(
@@ -753,6 +765,8 @@ export async function banUser(
       sessionVersion: { increment: 1 },
     },
   });
+
+  invalidateCachedSessionVersion(steamId);
 
   // Create punishment record
   return await prisma.punishment.create({
@@ -888,10 +902,13 @@ export async function lockUserAvatar(steamId: string, avatarUrl: string) {
     throw new Error('Avatar URL is required');
   }
 
-  try {
-    new URL(trimmed);
-  } catch {
-    throw new Error('Invalid URL format');
+  // Avatars are rendered in <img src> — only allow https (and http for local fixtures)
+  if (!isSafeUrl(trimmed) || trimmed.startsWith('/') || trimmed.startsWith('#')) {
+    throw new Error('Avatar URL must be an http(s) URL');
+  }
+  const protocol = new URL(trimmed).protocol.toLowerCase();
+  if (protocol !== 'https:' && protocol !== 'http:') {
+    throw new Error('Avatar URL must be an http(s) URL');
   }
 
   return await prisma.user.update({
@@ -1161,6 +1178,17 @@ export async function linkDiscordAccount(
   discordAvatar: string | null,
   steamId: string,
 ): Promise<void> {
+  const existingByDiscord = await prisma.discord.findUnique({ where: { discordId } });
+  if (existingByDiscord?.playerSteamId && existingByDiscord.playerSteamId !== steamId) {
+    conflict('This Discord account is already linked to another user');
+  }
+
+  const existingBySteam = await prisma.discord.findUnique({ where: { playerSteamId: steamId } });
+  if (existingBySteam && existingBySteam.discordId !== discordId) {
+    // User is re-linking to a different Discord — drop the old association first
+    await prisma.discord.delete({ where: { discordId: existingBySteam.discordId } });
+  }
+
   await prisma.discord.upsert({
     where: { discordId },
     create: { discordId, discordUsername, discordAvatar, playerSteamId: steamId },

@@ -1,5 +1,10 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
+import {
+  requireAdmin,
+  requireStrictAdmin,
+  requireCanModerateUser,
+  isStrictAdmin,
+} from '$lib/server/auth/permissions';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
@@ -26,8 +31,8 @@ const steamIdSchema = z.object({
 
 const updateUserSchema = z.object({
   steamId: z.string().min(1, 'Invalid user ID'),
-  permissionLevel: z.string().optional().default(''),
-  banStatus: z.string().optional().default(''),
+  permissionLevel: z.enum(['', 'GUEST', 'MODERATOR', 'ADMIN']).optional().default(''),
+  banStatus: z.enum(['', 'NONE', 'WARNING', 'SUSPENDED', 'BANNED']).optional().default(''),
   nameOverride: z.string().optional().default(''),
   staffDivisionIds: z.array(z.string()).optional().default([]),
 });
@@ -132,6 +137,16 @@ export const actions: Actions = {
 
     if (permissionLevel) {
       requireStrictAdmin(locals.user);
+    }
+
+    // Ban status changes (including clearing via NONE) require the same
+    // staff-protection rules as the dedicated ban/clear actions.
+    if (banStatus) {
+      const targetUser = await getUserBySteamId(steamId);
+      requireCanModerateUser(locals.user, targetUser?.permissionLevel ?? 'GUEST');
+      if (banStatus === 'NONE') {
+        requireStrictAdmin(locals.user);
+      }
     }
 
     try {

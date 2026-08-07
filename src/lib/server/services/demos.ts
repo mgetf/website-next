@@ -6,6 +6,7 @@
 import { prisma } from '$lib/server/db';
 import { uploadToR2 } from '$lib/server/utils/r2Upload';
 import { DemoStatus } from '$prisma/client.js';
+import { assertSafeBasename, safeDemoStorageName } from '$lib/server/utils/filenames';
 import fs from 'fs';
 
 interface UploadDemoData {
@@ -34,7 +35,9 @@ export async function uploadDemo(data: UploadDemoData) {
     throw new Error('File too large. Maximum size is 200MB.');
   }
 
-  const uniqueFileName = `match-demo/${Date.now()}-${file.originalFilename}`;
+  // Never embed the client filename in the object key (path traversal / weird chars)
+  const storageBasename = assertSafeBasename(safeDemoStorageName(file.originalFilename));
+  const uniqueFileName = `match-demo/${storageBasename}`;
   const demoUrl = await uploadToR2(file.filepath, uniqueFileName);
 
   if (!demoUrl) {

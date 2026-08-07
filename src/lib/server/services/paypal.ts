@@ -4,21 +4,31 @@
  * Handles PayPal API authentication and common operations.
  * All PayPal-related business logic goes here.
  *
- * TEST MODE: Set PAYPAL_MODE=test to enable mock payments for development.
- * This allows testing the full payment flow without valid PayPal credentials.
+ * TEST MODE: Set PAYPAL_MODE=test to enable mock payments for local development ONLY.
+ * Test mode is refused outside APP_ENVIRONMENT=development so staging/prod cannot
+ * accidentally accept free mock captures.
  */
 
 import { getOptionalEnv } from '$lib/server/utils/env';
+import { getAppEnvironment } from '$lib/server/utils/environment';
 
 // Cached access token
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
 
 /**
- * Check if we're in test/mock mode
+ * Check if we're in test/mock mode.
+ * Only honored when APP_ENVIRONMENT is development.
  */
 export function isPayPalTestMode(): boolean {
-  return getOptionalEnv('PAYPAL_MODE') === 'test';
+  return getOptionalEnv('PAYPAL_MODE') === 'test' && getAppEnvironment() === 'development';
+}
+
+/**
+ * True when PAYPAL_MODE=test was set outside local development (misconfiguration).
+ */
+export function isPayPalTestModeMisconfigured(): boolean {
+  return getOptionalEnv('PAYPAL_MODE') === 'test' && getAppEnvironment() !== 'development';
 }
 
 /**
@@ -28,15 +38,20 @@ export function getPayPalConfig() {
   const mode = getOptionalEnv('PAYPAL_MODE', 'sandbox');
   const clientId = getOptionalEnv('PAYPAL_CLIENT_ID');
   const clientSecret = getOptionalEnv('PAYPAL_CLIENT_SECRET');
+  const isTestMode = isPayPalTestMode();
 
-  const apiBase = mode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+  // If someone set test mode outside development, fall through to sandbox/live
+  // API paths but callers should reject via isPayPalTestModeMisconfigured().
+  const effectiveMode = isTestMode ? 'test' : mode === 'test' ? 'sandbox' : mode;
+  const apiBase =
+    effectiveMode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 
   return {
-    mode,
+    mode: effectiveMode,
     clientId,
     clientSecret,
     apiBase,
-    isTestMode: mode === 'test',
+    isTestMode,
   };
 }
 
@@ -139,9 +154,17 @@ export async function createPayPalOrder(params: {
 }): Promise<{ success: boolean; order?: any; error?: string }> {
   const { amount, currency, steamId, teamId, customId, returnUrl, cancelUrl } = params;
   const resolvedCustomId = customId ?? `${steamId}|${teamId}`;
+
+  if (isPayPalTestModeMisconfigured()) {
+    return {
+      success: false,
+      error: 'PayPal test mode is only allowed in local development',
+    };
+  }
+
   const config = getPayPalConfig();
 
-  // TEST MODE: Return mock order
+  // TEST MODE: Return mock order (development only)
   if (config.isTestMode) {
     const mockOrderId = `TEST-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     return {
@@ -244,9 +267,16 @@ export async function capturePayPalOrder(
     currency: string;
   },
 ): Promise<{ success: boolean; captureData?: any; error?: string }> {
+  if (isPayPalTestModeMisconfigured()) {
+    return {
+      success: false,
+      error: 'PayPal test mode is only allowed in local development',
+    };
+  }
+
   const config = getPayPalConfig();
 
-  // TEST MODE: Return mock capture response
+  // TEST MODE: Return mock capture response (development only)
   if (config.isTestMode) {
     if (!testData) {
       return { success: false, error: 'Test mode requires testData parameter' };

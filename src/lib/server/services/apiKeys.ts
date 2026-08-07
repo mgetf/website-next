@@ -2,15 +2,16 @@
  * API Key Service
  *
  * CRUD operations and validation for service-to-service API keys.
+ * Secrets are stored as SHA-256 hashes; plaintext is returned only once at creation.
  */
 
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { prisma } from '$lib/server/db';
 
 export type ApiKeyRecord = {
   id: number;
   name: string;
-  key: string;
+  keyPrefix: string;
   active: boolean;
   createdAt: Date;
   lastUsedAt: Date | null;
@@ -30,24 +31,64 @@ export type ApiKeyListItem = {
   creator: { steamUsername: string };
 };
 
-function maskApiKey(key: string): string {
-  if (key.startsWith('mge_') && key.length > 12) {
-    const body = key.slice(4);
-    return `mge_${body.slice(0, 4)}…${body.slice(-4)}`;
+export type CreatedApiKey = ApiKeyRecord & {
+  /** Plaintext secret — shown once at creation, never stored. */
+  key: string;
+};
+
+/**
+ * Hash an API key for at-rest storage / lookup.
+ * Exported for unit tests and migrations.
+ */
+export function hashApiKey(key: string): string {
+  return createHash('sha256').update(key).digest('hex');
+}
+
+function maskApiKeyPrefix(keyPrefix: string): string {
+  if (keyPrefix.startsWith('mge_') && keyPrefix.length >= 8) {
+    return `${keyPrefix}…`;
   }
   return 'mge_••••••••';
+}
+
+function toApiKeyRecord(record: {
+  id: number;
+  name: string;
+  keyPrefix: string;
+  active: boolean;
+  createdAt: Date;
+  lastUsedAt: Date | null;
+  createdBy: string;
+  creator: { steamUsername: string };
+}): ApiKeyRecord {
+  return {
+    id: record.id,
+    name: record.name,
+    keyPrefix: record.keyPrefix,
+    active: record.active,
+    createdAt: record.createdAt,
+    lastUsedAt: record.lastUsedAt,
+    createdBy: record.createdBy,
+    creator: record.creator,
+  };
 }
 
 /**
  * Generate and store a new API key.
  * Keys use the format: mge_<64 random hex chars>
+ * Only the SHA-256 hash is persisted.
  */
-export async function createApiKey(name: string, createdBy: string): Promise<ApiKeyRecord> {
+export async function createApiKey(name: string, createdBy: string): Promise<CreatedApiKey> {
   const key = `mge_${randomBytes(32).toString('hex')}`;
-  return await prisma.apiKey.create({
-    data: { name, key, createdBy },
+  const keyHash = hashApiKey(key);
+  const keyPrefix = key.slice(0, 8);
+
+  const record = await prisma.apiKey.create({
+    data: { name, keyHash, keyPrefix, createdBy },
     include: { creator: { select: { steamUsername: true } } },
   });
+
+  return { ...toApiKeyRecord(record), key };
 }
 
 /**
@@ -60,9 +101,9 @@ export async function getApiKeys(): Promise<ApiKeyListItem[]> {
     include: { creator: { select: { steamUsername: true } } },
   });
 
-  return keys.map(({ key, ...rest }) => ({
-    ...rest,
-    keyPreview: maskApiKey(key),
+  return keys.map((record) => ({
+    ...toApiKeyRecord(record),
+    keyPreview: maskApiKeyPrefix(record.keyPrefix),
   }));
 }
 
@@ -86,8 +127,10 @@ export async function deleteApiKey(id: number): Promise<void> {
  * Returns null if the key does not exist or is inactive.
  */
 export async function validateApiKey(key: string): Promise<ApiKeyRecord | null> {
+  if (!key || key.length < 12) return null;
+
   const record = await prisma.apiKey.findUnique({
-    where: { key },
+    where: { keyHash: hashApiKey(key) },
     include: { creator: { select: { steamUsername: true } } },
   });
 
@@ -98,5 +141,5 @@ export async function validateApiKey(key: string): Promise<ApiKeyRecord | null> 
     .update({ where: { id: record.id }, data: { lastUsedAt: new Date() } })
     .catch(() => {});
 
-  return record;
+  return toApiKeyRecord(record);
 }

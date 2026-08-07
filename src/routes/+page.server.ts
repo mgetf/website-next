@@ -3,7 +3,11 @@ import {
   calculateStandingsStats,
   getTop1v1EntriesForHomepage,
 } from '$lib/server/services/teams';
-import { getLatestSeasonPerRegionByFormat } from '$lib/server/services/seasons';
+import {
+  getLatestSeasonPerRegionByFormat,
+  getLeagueGridByFormat,
+  type LeagueGrid,
+} from '$lib/server/services/seasons';
 import { findTopDivisionByRegion } from '$lib/server/services/divisions';
 import { getContent, CONTENT_KEYS, getDefaultContent } from '$lib/server/services/siteContent';
 import { getGlobalSettings } from '$lib/server/services/settings';
@@ -28,11 +32,22 @@ function regionSortKey(name: string): number {
   return REGION_ORDER[name.toLowerCase()] ?? 99;
 }
 
+function sortLeagueGrid(grid: LeagueGrid): LeagueGrid {
+  return {
+    seasonNums: grid.seasonNums,
+    rows: [...grid.rows].sort((a, b) => regionSortKey(a.regionName) - regionSortKey(b.regionName)),
+  };
+}
+
+const emptyLeagueGrid: LeagueGrid = { seasonNums: [], rows: [] };
+
 export const load = async () => {
   try {
     const [
       seasons2v2,
       seasons1v1,
+      leagueGrid2v2Raw,
+      leagueGrid1v1Raw,
       homepageSubtitle,
       homepageAbout,
       globalSettings,
@@ -40,11 +55,16 @@ export const load = async () => {
     ] = await Promise.all([
       getLatestSeasonPerRegionByFormat(FORMAT_2V2),
       getLatestSeasonPerRegionByFormat(FORMAT_1V1),
+      getLeagueGridByFormat(FORMAT_2V2),
+      getLeagueGridByFormat(FORMAT_1V1),
       getContent(CONTENT_KEYS.HOMEPAGE_SUBTITLE),
       getContent(CONTENT_KEYS.HOMEPAGE_ABOUT),
       getGlobalSettings(),
       getRegions(),
     ]);
+
+    const leagueGrid2v2 = sortLeagueGrid(leagueGrid2v2Raw);
+    const leagueGrid1v1 = sortLeagueGrid(leagueGrid1v1Raw);
 
     const standingsStatuses = (
       globalSettings?.standingsVisibleStatuses?.length
@@ -240,6 +260,8 @@ export const load = async () => {
 
     return {
       eloLeaderboard,
+      leagueGrid2v2,
+      leagueGrid1v1,
       leaderboard2v2,
       leaderboard1v1,
       anySignupsOpen2v2,
@@ -254,6 +276,8 @@ export const load = async () => {
 
     return {
       eloLeaderboard: [],
+      leagueGrid2v2: emptyLeagueGrid,
+      leagueGrid1v1: emptyLeagueGrid,
       leaderboard2v2: [],
       leaderboard1v1: [],
       anySignupsOpen2v2: false,

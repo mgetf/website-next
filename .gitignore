@@ -32,3 +32,5 @@ vite.config.ts.timestamp-*
 
 *.code-workspace
 *.ps1
+
+repomix-output.xml

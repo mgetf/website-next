@@ -2,6 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
   "ignoreDependencies": ["@prisma/client"],
+  "ignore": ["src/test-mocks/**"],
   "ignoreFiles": ["src/lib/index.ts", "scripts/**"],
   "ignoreExportsUsedInFile": true
 }

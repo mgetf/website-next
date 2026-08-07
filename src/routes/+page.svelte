@@ -1,7 +1,6 @@
 <script lang="ts">
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import Card from '$lib/components/ui/Card.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
 
   function regionToFlagCode(name: string): string {
@@ -60,20 +59,9 @@
     topEntries: Entry1v1[];
   }
 
-  interface LeagueGrid {
-    seasonNums: number[];
-    rows: {
-      regionId: number;
-      regionName: string;
-      cells: (number | null)[];
-    }[];
-  }
-
   interface PageData {
     user: any;
     eloLeaderboard: EloRegion[];
-    leagueGrid2v2: LeagueGrid;
-    leagueGrid1v1: LeagueGrid;
     leaderboard2v2: League2v2Region[];
     leaderboard1v1: League1v1Region[];
     anySignupsOpen2v2: boolean;
@@ -83,16 +71,12 @@
 
   let { data } = $props<{ data: PageData }>();
 
-  const emptyLeagueGrid: LeagueGrid = { seasonNums: [], rows: [] };
   const eloLeaderboard = $derived(data.eloLeaderboard ?? []);
-  const leagueGrid2v2 = $derived(data.leagueGrid2v2 ?? emptyLeagueGrid);
-  const leagueGrid1v1 = $derived(data.leagueGrid1v1 ?? emptyLeagueGrid);
   const leaderboard2v2 = $derived(data.leaderboard2v2 ?? []);
   const leaderboard1v1 = $derived(data.leaderboard1v1 ?? []);
   const siteContent = $derived(data.siteContent ?? { subtitle: '', about: '' });
   const signupHref = $derived(data.user ? '/signup' : '/auth/login?redirect=%2Fsignup');
   const showEloLeaderboard = $derived(eloLeaderboard.length > 0);
-  const showLeagueGrid = $derived(leagueGrid2v2.rows.length > 0 || leagueGrid1v1.rows.length > 0);
 </script>
 
 <div class="min-h-screen">
@@ -108,154 +92,6 @@
       </p>
     </div>
   </section>
-
-  <!-- League Grid (region × season) -->
-  {#if showLeagueGrid}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 mb-10 sm:mb-14">
-      <div class="mb-5 sm:mb-6 text-center">
-        <h2 class="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight mb-1">
-          Leagues
-        </h2>
-        <p class="text-text-muted text-sm">Jump to standings by region and season</p>
-      </div>
-
-      <div class="space-y-6">
-        {#if leagueGrid2v2.rows.length > 0}
-          <div>
-            <div class="mb-3 flex items-center gap-3">
-              <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-format-2v2-400/70">
-                2v2 League
-              </h3>
-              <div class="flex-1 h-px bg-format-2v2-500/20"></div>
-            </div>
-            <Card padding="none" class="overflow-hidden">
-              <div class="overflow-x-auto">
-                <div
-                  class="grid min-w-max"
-                  style="grid-template-columns: minmax(7rem, 10rem) repeat({leagueGrid2v2.seasonNums
-                    .length}, minmax(6.5rem, 1fr));"
-                >
-                  <div
-                    class="sticky left-0 z-10 bg-surface-card px-4 py-3 text-xs font-bold uppercase tracking-widest text-text-muted border-b border-border-default"
-                  >
-                    Region
-                  </div>
-                  {#each leagueGrid2v2.seasonNums as seasonNum (seasonNum)}
-                    <div
-                      class="px-3 py-3 text-center text-xs font-bold uppercase tracking-widest text-text-muted border-b border-border-default"
-                    >
-                      Season {seasonNum}
-                    </div>
-                  {/each}
-
-                  {#each leagueGrid2v2.rows as row, rowIndex (row.regionId)}
-                    {@const fc = regionToFlagCode(row.regionName)}
-                    {@const rowBorder =
-                      rowIndex < leagueGrid2v2.rows.length - 1
-                        ? 'border-b border-border-default'
-                        : ''}
-                    <div
-                      class="sticky left-0 z-10 bg-surface-card px-4 py-3 flex items-center gap-2 {rowBorder}"
-                    >
-                      {#if fc}<FlagIcon code={fc} class="w-5 h-3.5 rounded-sm shrink-0" />{/if}
-                      <span class="text-sm font-semibold text-white truncate">{row.regionName}</span
-                      >
-                    </div>
-                    {#each row.cells as seasonId, cellIndex (leagueGrid2v2.seasonNums[cellIndex])}
-                      <div class="px-3 py-2.5 flex items-center justify-center {rowBorder}">
-                        {#if seasonId !== null}
-                          <Button
-                            variant="format-2v2"
-                            size="sm"
-                            href="/leagues/2v2?season={seasonId}&region={row.regionId}"
-                            class="w-full text-center"
-                          >
-                            View
-                          </Button>
-                        {:else}
-                          <span class="text-text-muted text-sm" aria-hidden="true">—</span>
-                          <span class="sr-only"
-                            >No Season {leagueGrid2v2.seasonNums[cellIndex]} for {row.regionName}</span
-                          >
-                        {/if}
-                      </div>
-                    {/each}
-                  {/each}
-                </div>
-              </div>
-            </Card>
-          </div>
-        {/if}
-
-        {#if leagueGrid1v1.rows.length > 0}
-          <div>
-            <div class="mb-3 flex items-center gap-3">
-              <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-format-1v1-400/70">
-                1v1 League
-              </h3>
-              <div class="flex-1 h-px bg-format-1v1-500/20"></div>
-            </div>
-            <Card padding="none" class="overflow-hidden">
-              <div class="overflow-x-auto">
-                <div
-                  class="grid min-w-max"
-                  style="grid-template-columns: minmax(7rem, 10rem) repeat({leagueGrid1v1.seasonNums
-                    .length}, minmax(6.5rem, 1fr));"
-                >
-                  <div
-                    class="sticky left-0 z-10 bg-surface-card px-4 py-3 text-xs font-bold uppercase tracking-widest text-text-muted border-b border-border-default"
-                  >
-                    Region
-                  </div>
-                  {#each leagueGrid1v1.seasonNums as seasonNum (seasonNum)}
-                    <div
-                      class="px-3 py-3 text-center text-xs font-bold uppercase tracking-widest text-text-muted border-b border-border-default"
-                    >
-                      Season {seasonNum}
-                    </div>
-                  {/each}
-
-                  {#each leagueGrid1v1.rows as row, rowIndex (row.regionId)}
-                    {@const fc = regionToFlagCode(row.regionName)}
-                    {@const rowBorder =
-                      rowIndex < leagueGrid1v1.rows.length - 1
-                        ? 'border-b border-border-default'
-                        : ''}
-                    <div
-                      class="sticky left-0 z-10 bg-surface-card px-4 py-3 flex items-center gap-2 {rowBorder}"
-                    >
-                      {#if fc}<FlagIcon code={fc} class="w-5 h-3.5 rounded-sm shrink-0" />{/if}
-                      <span class="text-sm font-semibold text-white truncate">{row.regionName}</span
-                      >
-                    </div>
-                    {#each row.cells as seasonId, cellIndex (leagueGrid1v1.seasonNums[cellIndex])}
-                      <div class="px-3 py-2.5 flex items-center justify-center {rowBorder}">
-                        {#if seasonId !== null}
-                          <Button
-                            variant="format-1v1"
-                            size="sm"
-                            href="/leagues/1v1?season={seasonId}&region={row.regionId}"
-                            class="w-full text-center"
-                          >
-                            View
-                          </Button>
-                        {:else}
-                          <span class="text-text-muted text-sm" aria-hidden="true">—</span>
-                          <span class="sr-only"
-                            >No Season {leagueGrid1v1.seasonNums[cellIndex]} for {row.regionName}</span
-                          >
-                        {/if}
-                      </div>
-                    {/each}
-                  {/each}
-                </div>
-              </div>
-            </Card>
-          </div>
-        {/if}
-      </div>
-    </section>
-  {/if}
 
   <!-- MGE ELO Leaderboard -->
   {#if showEloLeaderboard}

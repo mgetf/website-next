@@ -1030,8 +1030,7 @@ model MapFile {
 model ApiKey {
   id          Int       @id @default(autoincrement())
   name        String
-  keyHash     String    @unique @map("key_hash")
-  keyPrefix   String    @map("key_prefix")
+  key         String    @unique
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now()) @map("created_at")
   lastUsedAt  DateTime? @map("last_used_at")

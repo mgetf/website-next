@@ -35,9 +35,7 @@ function regionSortKey(name: string): number {
 function sortLeagueGrid(grid: LeagueGrid): LeagueGrid {
   return {
     seasonNums: grid.seasonNums,
-    rows: [...grid.rows].sort(
-      (a, b) => regionSortKey(a.regionName) - regionSortKey(b.regionName),
-    ),
+    rows: [...grid.rows].sort((a, b) => regionSortKey(a.regionName) - regionSortKey(b.regionName)),
   };
 }
 

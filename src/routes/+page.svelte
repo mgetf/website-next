@@ -132,8 +132,8 @@
               <div class="overflow-x-auto">
                 <div
                   class="grid min-w-max"
-                  style="grid-template-columns: minmax(7rem, 10rem) repeat({leagueGrid2v2
-                    .seasonNums.length}, minmax(6.5rem, 1fr));"
+                  style="grid-template-columns: minmax(7rem, 10rem) repeat({leagueGrid2v2.seasonNums
+                    .length}, minmax(6.5rem, 1fr));"
                 >
                   <div
                     class="sticky left-0 z-10 bg-surface-card px-4 py-3 text-xs font-bold uppercase tracking-widest text-text-muted border-b border-border-default"
@@ -158,7 +158,8 @@
                       class="sticky left-0 z-10 bg-surface-card px-4 py-3 flex items-center gap-2 {rowBorder}"
                     >
                       {#if fc}<FlagIcon code={fc} class="w-5 h-3.5 rounded-sm shrink-0" />{/if}
-                      <span class="text-sm font-semibold text-white truncate">{row.regionName}</span>
+                      <span class="text-sm font-semibold text-white truncate">{row.regionName}</span
+                      >
                     </div>
                     {#each row.cells as seasonId, cellIndex (leagueGrid2v2.seasonNums[cellIndex])}
                       <div class="px-3 py-2.5 flex items-center justify-center {rowBorder}">
@@ -198,8 +199,8 @@
               <div class="overflow-x-auto">
                 <div
                   class="grid min-w-max"
-                  style="grid-template-columns: minmax(7rem, 10rem) repeat({leagueGrid1v1
-                    .seasonNums.length}, minmax(6.5rem, 1fr));"
+                  style="grid-template-columns: minmax(7rem, 10rem) repeat({leagueGrid1v1.seasonNums
+                    .length}, minmax(6.5rem, 1fr));"
                 >
                   <div
                     class="sticky left-0 z-10 bg-surface-card px-4 py-3 text-xs font-bold uppercase tracking-widest text-text-muted border-b border-border-default"
@@ -224,7 +225,8 @@
                       class="sticky left-0 z-10 bg-surface-card px-4 py-3 flex items-center gap-2 {rowBorder}"
                     >
                       {#if fc}<FlagIcon code={fc} class="w-5 h-3.5 rounded-sm shrink-0" />{/if}
-                      <span class="text-sm font-semibold text-white truncate">{row.regionName}</span>
+                      <span class="text-sm font-semibold text-white truncate">{row.regionName}</span
+                      >
                     </div>
                     {#each row.cells as seasonId, cellIndex (leagueGrid1v1.seasonNums[cellIndex])}
                       <div class="px-3 py-2.5 flex items-center justify-center {rowBorder}">

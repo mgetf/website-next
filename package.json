@@ -29,9 +29,13 @@
     "db:studio:prod": "dotenv -e .env.production -- prisma studio",
     "knip": "knip",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "bun --env-file=.env.test playwright test",
+    "test:e2e:ui": "bun --env-file=.env.test playwright test --ui",
+    "migrate:test": "dotenv -e .env.test -- prisma migrate deploy"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.70.1",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",

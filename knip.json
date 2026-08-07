@@ -4,5 +4,6 @@
   "ignoreDependencies": ["@prisma/client"],
   "ignore": ["src/test-mocks/**"],
   "ignoreFiles": ["src/lib/index.ts", "scripts/**"],
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": true,
+  "entry": ["tests/e2e/**/*.ts"]
 }

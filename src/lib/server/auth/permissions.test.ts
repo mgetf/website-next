@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { isHttpError } from '@sveltejs/kit';
 import { BanStatus, UserRole, type SessionUser } from '$lib/types/user';
 import {
+  canModerateUser,
   hasRole,
   isAdmin,
   isBanned,
   isStrictAdmin,
   requireAdmin,
   requireAuth,
+  requireCanModerateUser,
   requireNotBanned,
   requireStrictAdmin,
 } from '../auth/permissions';
@@ -83,5 +85,26 @@ describe('require* guards', () => {
     expect(statusOf(() => requireNotBanned(null))).toBe(401);
     expect(statusOf(() => requireNotBanned(user({ banStatus: BanStatus.BANNED })))).toBe(403);
     expect(statusOf(() => requireNotBanned(user()))).toBeNull();
+  });
+});
+
+describe('staff moderation guards', () => {
+  it('allows moderators to moderate guests only', () => {
+    const mod = user({ permissionLevel: UserRole.MODERATOR });
+    expect(canModerateUser(mod, UserRole.GUEST)).toBe(true);
+    expect(canModerateUser(mod, UserRole.MODERATOR)).toBe(false);
+    expect(canModerateUser(mod, UserRole.ADMIN)).toBe(false);
+  });
+
+  it('allows admins to moderate staff', () => {
+    const admin = user({ permissionLevel: UserRole.ADMIN });
+    expect(canModerateUser(admin, UserRole.MODERATOR)).toBe(true);
+    expect(canModerateUser(admin, UserRole.ADMIN)).toBe(true);
+  });
+
+  it('requireCanModerateUser blocks mods targeting staff', () => {
+    const mod = user({ permissionLevel: UserRole.MODERATOR });
+    expect(statusOf(() => requireCanModerateUser(mod, UserRole.ADMIN))).toBe(403);
+    expect(statusOf(() => requireCanModerateUser(mod, UserRole.GUEST))).toBeNull();
   });
 });

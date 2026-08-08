@@ -21,6 +21,7 @@
         "svelte-dnd-action": "^0.9.74",
         "svelte-exmarkdown": "^5.0.2",
         "tailwindcss": "^4.3.3",
+        "unist-util-visit": "^5.1.0",
         "zod": "^4.4.3",
       },
       "devDependencies": {

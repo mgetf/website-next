@@ -85,6 +85,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       steamId: user.steamId,
       steamUsername: user.steamUsername,
       steamAvatar: user.steamAvatar,
+      flagEmoji: user.flagEmoji ?? null,
       permissionLevel: user.permissionLevel,
       banStatus: user.banStatus,
       nameOverride: user.nameOverride,

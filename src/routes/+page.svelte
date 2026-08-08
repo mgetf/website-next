@@ -19,6 +19,7 @@
     isRegistered: boolean;
     name: string | null;
     avatar: string | null;
+    flagEmoji: string | null;
   }
 
   interface EloRegion {
@@ -41,6 +42,7 @@
     name: string;
     avatar: string | null;
     steamId: string | null;
+    flagEmoji: string | null;
     record: string;
     points: number;
   }
@@ -184,6 +186,9 @@
                         />
                       </svg>
                     </div>
+                  {/if}
+                  {#if entry.flagEmoji}
+                    <span class="leading-none shrink-0" aria-hidden="true">{entry.flagEmoji}</span>
                   {/if}
                   <div class="flex-1 min-w-0">
                     {#if entry.isRegistered && entry.name}
@@ -386,6 +391,11 @@
                                 alt={entry.name}
                                 class="w-5 h-5 rounded-full shrink-0"
                               />
+                            {/if}
+                            {#if entry.flagEmoji}
+                              <span class="leading-none shrink-0" aria-hidden="true"
+                                >{entry.flagEmoji}</span
+                              >
                             {/if}
                             <span class="text-white font-medium text-sm truncate">{entry.name}</span
                             >

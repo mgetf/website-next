@@ -102,6 +102,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
               name: team.name, // This is the frozen player name
               avatar: team.avatar, // This is the frozen player avatar
               steamId: player?.steamId || null,
+              flagEmoji: player?.flagEmoji ?? null,
               wins: team.wins,
               losses: team.losses,
               points: team.points,
@@ -141,6 +142,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
           steamId: string;
           name: string;
           avatar: string | null;
+          flagEmoji: string | null;
           role: string;
         }>;
       }
@@ -166,6 +168,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
           steamId: staff.steamId,
           name: staff.steamUsername,
           avatar: staff.steamAvatar,
+          flagEmoji: staff.flagEmoji ?? null,
           role: staff.permissionLevel === 'ADMIN' ? 'Head Admin' : 'Moderator',
         });
       }

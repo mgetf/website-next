@@ -10,6 +10,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
+  import { FLAG_EMOJI_OPTIONS, getFlagEmojiName } from '$lib/constants/flagEmojis';
   import type { ProfileMatch } from '$lib/types/match';
   import type { MgeRating } from '$lib/types/mge';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
@@ -59,6 +60,7 @@
       steamId: string;
       name: string;
       avatar: string | null;
+      flagEmoji: string | null;
       discordLinked: boolean;
       discordUsername: string | null;
       permissionLevel: string;
@@ -165,9 +167,13 @@
   // State for admin actions
   let showEditName = $state(false);
   let showEditAvatar = $state(false);
+  let showEditFlag = $state(false);
   let showPunish = $state(false);
   let editNameValue = $state('');
   let editAvatarValue = $state('');
+  let selectedFlagEmoji = $state('');
+  let flagSearch = $state('');
+  let isUpdatingFlag = $state(false);
   let punishSeverity = $state('');
   let isAdminSubmitting = $state(false);
 
@@ -292,6 +298,20 @@
     showEditAvatar = true;
   }
 
+  function openEditFlag() {
+    selectedFlagEmoji = player.flagEmoji || '';
+    flagSearch = '';
+    showEditFlag = true;
+  }
+
+  const filteredFlagOptions = $derived.by(() => {
+    const q = flagSearch.trim().toLowerCase();
+    if (!q) return FLAG_EMOJI_OPTIONS;
+    return FLAG_EMOJI_OPTIONS.filter(
+      (f) => f.name.toLowerCase().includes(q) || f.code.toLowerCase().includes(q),
+    );
+  });
+
   function winPct(wins: number, losses: number): string {
     const total = wins + losses;
     if (total === 0) return '0';
@@ -331,7 +351,14 @@
 
       <!-- Player Name -->
       <div class="relative group/name">
-        <h1 class="text-5xl font-black text-white">
+        <h1 class="text-5xl font-black text-white flex items-center justify-center gap-3">
+          {#if player.flagEmoji}
+            <span
+              class="text-4xl leading-none"
+              title={getFlagEmojiName(player.flagEmoji) ?? undefined}
+              aria-hidden="true">{player.flagEmoji}</span
+            >
+          {/if}
           {player.name}
         </h1>
         {#if isAdmin}
@@ -352,6 +379,22 @@
           </button>
         {/if}
       </div>
+
+      {#if isOwnProfile || isAdmin}
+        <button
+          type="button"
+          onclick={openEditFlag}
+          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-input/60 hover:bg-surface-hover/60 border border-border-input/40 text-sm text-text-body hover:text-white transition-colors"
+        >
+          {#if player.flagEmoji}
+            <span class="text-lg leading-none" aria-hidden="true">{player.flagEmoji}</span>
+            <span>{getFlagEmojiName(player.flagEmoji) ?? 'Flag'}</span>
+            <span class="text-text-muted text-xs">Change</span>
+          {:else}
+            <span>Add country flag</span>
+          {/if}
+        </button>
+      {/if}
 
       <!-- Role & Staff Division Badges -->
       {#if player.permissionLevel !== 'GUEST'}
@@ -1963,6 +2006,119 @@
         : punishSeverity === 'NONE'
           ? 'Clear Punishment'
           : 'Apply Punishment'}
+    </Button>
+  {/snippet}
+</Dialog>
+
+<!-- Flag Emoji Picker -->
+<Dialog
+  open={showEditFlag}
+  title="Choose Flag"
+  maxWidth="lg"
+  onClose={() => (showEditFlag = false)}
+>
+  <form
+    id="form-set-flag"
+    method="POST"
+    action="?/setFlagEmoji"
+    use:enhance={() => {
+      isUpdatingFlag = true;
+      return async ({ result, update }) => {
+        isUpdatingFlag = false;
+        if (result.type === 'success') {
+          showEditFlag = false;
+          toast.success((result.data as any)?.message || 'Flag updated');
+          await update();
+        } else if (result.type === 'failure') {
+          toast.error((result.data as any)?.error || 'Failed to update flag');
+        } else {
+          toast.error('Failed to update flag');
+        }
+      };
+    }}
+  >
+    <input type="hidden" name="flagEmoji" value={selectedFlagEmoji} />
+
+    <div class="space-y-4">
+      <div
+        class="flex items-center gap-3 p-3 rounded-lg bg-surface-page/50 border border-border-default"
+      >
+        <span class="text-3xl leading-none w-10 text-center" aria-hidden="true">
+          {selectedFlagEmoji || '—'}
+        </span>
+        <div class="min-w-0">
+          <p class="text-white font-medium truncate">
+            {selectedFlagEmoji
+              ? (getFlagEmojiName(selectedFlagEmoji) ?? 'Selected flag')
+              : 'No flag selected'}
+          </p>
+          <p class="text-xs text-text-muted">
+            Shown on your profile and next to your name in tables
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <label for="flag-search" class="sr-only">Search countries</label>
+        <input
+          id="flag-search"
+          type="search"
+          bind:value={flagSearch}
+          placeholder="Search countries..."
+          class="w-full px-3 py-2 rounded-lg bg-surface-input border border-border-input text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </div>
+
+      <div
+        class="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-72 overflow-y-auto p-1"
+        role="listbox"
+        aria-label="Country flags"
+      >
+        <button
+          type="button"
+          role="option"
+          aria-selected={selectedFlagEmoji === ''}
+          onclick={() => (selectedFlagEmoji = '')}
+          class="flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors {selectedFlagEmoji ===
+          ''
+            ? 'border-primary-500 bg-primary-500/10'
+            : 'border-border-default hover:bg-surface-hover'}"
+        >
+          <span class="text-xl leading-none text-text-muted">∅</span>
+          <span class="text-[10px] text-text-muted truncate w-full text-center">None</span>
+        </button>
+        {#each filteredFlagOptions as flag (flag.code)}
+          <button
+            type="button"
+            role="option"
+            aria-selected={selectedFlagEmoji === flag.emoji}
+            title={flag.name}
+            onclick={() => (selectedFlagEmoji = flag.emoji)}
+            class="flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors {selectedFlagEmoji ===
+            flag.emoji
+              ? 'border-primary-500 bg-primary-500/10'
+              : 'border-border-default hover:bg-surface-hover'}"
+          >
+            <span class="text-xl leading-none" aria-hidden="true">{flag.emoji}</span>
+            <span class="text-[10px] text-text-muted truncate w-full text-center">{flag.code}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  </form>
+
+  {#snippet footer()}
+    <Button type="button" variant="secondary" class="flex-1" onclick={() => (showEditFlag = false)}>
+      Cancel
+    </Button>
+    <Button
+      type="submit"
+      form="form-set-flag"
+      variant="primary"
+      class="flex-1"
+      disabled={isUpdatingFlag || selectedFlagEmoji === (player.flagEmoji || '')}
+    >
+      {isUpdatingFlag ? 'Saving...' : 'Save Flag'}
     </Button>
   {/snippet}
 </Dialog>

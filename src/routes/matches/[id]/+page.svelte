@@ -543,7 +543,12 @@
             class="w-16 h-16 rounded-full object-cover"
           />
           <div>
-            <div class="font-semibold text-lg text-white">{match.homePlayer.steamUsername}</div>
+            <div class="font-semibold text-lg text-white flex items-center gap-2">
+              {#if match.homePlayer.flagEmoji}
+                <span class="leading-none" aria-hidden="true">{match.homePlayer.flagEmoji}</span>
+              {/if}
+              {match.homePlayer.steamUsername}
+            </div>
             <div class="text-sm text-text-body">
               {match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
             </div>
@@ -595,7 +600,12 @@
           class="flex items-center space-x-4 hover:bg-surface-input p-4 rounded-lg transition justify-end"
         >
           <div class="text-right">
-            <div class="font-semibold text-lg text-white">{match.awayPlayer.steamUsername}</div>
+            <div class="font-semibold text-lg text-white flex items-center justify-end gap-2">
+              {#if match.awayPlayer.flagEmoji}
+                <span class="leading-none" aria-hidden="true">{match.awayPlayer.flagEmoji}</span>
+              {/if}
+              {match.awayPlayer.steamUsername}
+            </div>
             <div class="text-sm text-text-body">
               {match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
             </div>

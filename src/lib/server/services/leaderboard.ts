@@ -63,6 +63,7 @@ export interface EloLeaderboardEntry {
   steamId64: string;
   name: string | null;
   avatar: string | null;
+  flagEmoji: string | null;
   elo: number;
   wins: number | null;
   losses: number | null;
@@ -144,6 +145,7 @@ export async function getEloLeaderboardPage(
         steamId64: steam64,
         name: display?.name ?? e.name ?? steamNamesForUnregistered[steam64] ?? null,
         avatar: display?.avatar ?? null,
+        flagEmoji: display?.flagEmoji ?? null,
         elo: e.elo,
         wins: e.wins,
         losses: e.losses,
@@ -204,6 +206,7 @@ export async function getEloLeaderboardPage(
         steamId64: e.steam64,
         name: display.name,
         avatar: display.avatar,
+        flagEmoji: display.flagEmoji,
         elo: e.elo,
         wins: e.wins,
         losses: e.losses,
@@ -252,6 +255,7 @@ export async function getEloLeaderboardPage(
       steamId64: steam64,
       name: display?.name ?? e.name ?? steamNamesForUnregistered[steam64] ?? null,
       avatar: display?.avatar ?? null,
+      flagEmoji: display?.flagEmoji ?? null,
       elo: e.elo,
       wins: e.wins,
       losses: e.losses,
@@ -278,7 +282,12 @@ export async function searchEloLeaderboard(params: {
   const isSteam64 = /^\d{17}$/.test(q);
   const isSteam32 = /^STEAM_\d:\d:\d+$/i.test(q);
 
-  let candidates: { steamId64: string; name: string | null; avatar: string | null }[];
+  let candidates: {
+    steamId64: string;
+    name: string | null;
+    avatar: string | null;
+    flagEmoji: string | null;
+  }[];
 
   if (isSteam64 || isSteam32) {
     const steam64 = isSteam32 ? (steamId64FromSteamId32(q) ?? q) : q;
@@ -288,6 +297,7 @@ export async function searchEloLeaderboard(params: {
         steamId64: steam64,
         name: displays[steam64]?.name ?? null,
         avatar: displays[steam64]?.avatar ?? null,
+        flagEmoji: displays[steam64]?.flagEmoji ?? null,
       },
     ];
   } else {
@@ -296,6 +306,7 @@ export async function searchEloLeaderboard(params: {
       steamId64: u.steamId,
       name: u.name,
       avatar: u.avatar,
+      flagEmoji: u.flagEmoji,
     }));
   }
 
@@ -304,7 +315,7 @@ export async function searchEloLeaderboard(params: {
   const regionSet = new Set(regions.map((r) => r.toLowerCase()));
 
   const results = await Promise.all(
-    candidates.map(async ({ steamId64, name, avatar }) => {
+    candidates.map(async ({ steamId64, name, avatar, flagEmoji }) => {
       const ratings = await getPlayerRatings(steamId64);
       return ratings
         .filter((r) => regionSet.has(r.region.toLowerCase()))
@@ -312,6 +323,7 @@ export async function searchEloLeaderboard(params: {
           steamId64,
           name,
           avatar,
+          flagEmoji,
           region: r.region,
           elo: r.elo,
           wins: r.wins,
@@ -339,6 +351,7 @@ export async function searchEloLeaderboard(params: {
     steamId64: e.steamId64,
     name: e.name,
     avatar: e.avatar,
+    flagEmoji: e.flagEmoji,
     elo: e.elo,
     wins: e.wins,
     losses: e.losses,

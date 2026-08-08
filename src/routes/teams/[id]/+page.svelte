@@ -360,6 +360,9 @@
                     <img src={player.avatar} alt={player.name} class="w-12 h-12 rounded" />
                     <div>
                       <div class="flex items-center gap-2">
+                        {#if player.flagEmoji}
+                          <span class="leading-none" aria-hidden="true">{player.flagEmoji}</span>
+                        {/if}
                         <span
                           class="text-white font-medium group-hover:text-primary-400 transition-colors"
                         >
@@ -428,11 +431,18 @@
                         class="w-12 h-12 rounded opacity-60"
                       />
                       <div>
-                        <span
-                          class="text-white font-medium group-hover:text-primary-400 transition-colors"
-                        >
-                          {player.name}
-                        </span>
+                        <div class="flex items-center gap-2">
+                          {#if player.flagEmoji}
+                            <span class="leading-none opacity-80" aria-hidden="true"
+                              >{player.flagEmoji}</span
+                            >
+                          {/if}
+                          <span
+                            class="text-white font-medium group-hover:text-primary-400 transition-colors"
+                          >
+                            {player.name}
+                          </span>
+                        </div>
                         <div class="text-sm text-text-body">
                           {formatDate(player.joinedAt)} - {formatDate(player.leftAt)}
                         </div>
@@ -770,6 +780,9 @@
                   <div class="flex items-center justify-between p-3 bg-surface-page/50 rounded-lg">
                     <div class="flex items-center gap-3">
                       <img src={player.avatar} alt={player.name} class="w-8 h-8 rounded" />
+                      {#if player.flagEmoji}
+                        <span class="leading-none" aria-hidden="true">{player.flagEmoji}</span>
+                      {/if}
                       <span class="text-white font-medium">{player.name}</span>
                       <Badge color="red">Unpaid</Badge>
                     </div>

@@ -449,6 +449,7 @@ model User {
   banStatus       BanStatus @default(NONE) @map("ban_status")
   nameOverride    Int       @default(0) @map("name_override")
   avatarOverride  Int       @default(0) @map("avatar_override")
+  flagEmoji       String?   @map("flag_emoji")
   sessionVersion  Int       @default(0) @map("session_version")
 
   staffDivisions           Division[]                @relation("StaffAssignments")

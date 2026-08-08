@@ -10,6 +10,8 @@ import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { formatPlayoffRound } from '$lib/utils/playoffs';
+import { isValidFlagEmoji } from '$lib/constants/flagEmojis';
+import { badRequest, notFound } from '$lib/server/utils/errors';
 
 export type { ProfileMatch } from '$lib/types/match';
 
@@ -73,31 +75,37 @@ export async function getRegisteredSteamIds(steamIds: string[]): Promise<string[
 export async function searchUsersByName(
   query: string,
   limit = 25,
-): Promise<{ steamId: string; name: string; avatar: string | null }[]> {
+): Promise<{ steamId: string; name: string; avatar: string | null; flagEmoji: string | null }[]> {
   if (!query.trim()) return [];
   const users = await prisma.user.findMany({
     where: { steamUsername: { contains: query.trim(), mode: 'insensitive' } },
-    select: { steamId: true, steamUsername: true, steamAvatar: true },
+    select: { steamId: true, steamUsername: true, steamAvatar: true, flagEmoji: true },
     take: limit,
   });
   return users.map((u) => ({
     steamId: u.steamId,
     name: u.steamUsername,
     avatar: u.steamAvatar ?? null,
+    flagEmoji: u.flagEmoji ?? null,
   }));
 }
 
 export async function getUserDisplaysByIds(
   steamIds: string[],
-): Promise<Record<string, { name: string; avatar: string | null }>> {
+): Promise<Record<string, { name: string; avatar: string | null; flagEmoji: string | null }>> {
   if (steamIds.length === 0) return {};
   const users = await prisma.user.findMany({
     where: { steamId: { in: steamIds } },
-    select: { steamId: true, steamUsername: true, steamAvatar: true },
+    select: { steamId: true, steamUsername: true, steamAvatar: true, flagEmoji: true },
   });
-  const result: Record<string, { name: string; avatar: string | null }> = {};
+  const result: Record<string, { name: string; avatar: string | null; flagEmoji: string | null }> =
+    {};
   for (const u of users) {
-    result[u.steamId] = { name: u.steamUsername, avatar: u.steamAvatar ?? null };
+    result[u.steamId] = {
+      name: u.steamUsername,
+      avatar: u.steamAvatar ?? null,
+      flagEmoji: u.flagEmoji ?? null,
+    };
   }
   return result;
 }
@@ -519,6 +527,7 @@ export async function getPlayerProfile(steamId: string) {
       steamId: user.steamId,
       name: user.steamUsername,
       avatar: user.steamAvatar,
+      flagEmoji: user.flagEmoji ?? null,
       discordLinked: !!user.discord,
       discordUsername: user.discord?.discordUsername || null,
       permissionLevel: user.permissionLevel,
@@ -702,6 +711,7 @@ export async function getStaffMembers() {
       steamId: true,
       steamUsername: true,
       steamAvatar: true,
+      flagEmoji: true,
       permissionLevel: true,
       staffDivisions: {
         select: {
@@ -924,6 +934,25 @@ export async function unlockUserAvatar(steamId: string) {
 }
 
 /**
+ * Set or clear a user's profile flag emoji.
+ * Pass null or empty string to clear.
+ */
+export async function updateUserFlagEmoji(steamId: string, flagEmoji: string | null) {
+  const user = await prisma.user.findUnique({ where: { steamId } });
+  if (!user) notFound('User not found');
+
+  const normalized = flagEmoji?.trim() || null;
+  if (!isValidFlagEmoji(normalized)) {
+    badRequest('Invalid flag emoji');
+  }
+
+  return await prisma.user.update({
+    where: { steamId },
+    data: { flagEmoji: normalized },
+  });
+}
+
+/**
  * Unlink a user's Discord account
  * Can be used by the user themselves or by an admin
  */
@@ -979,6 +1008,7 @@ export async function getUsersPublic(page: number = 1, search?: string, role?: s
         steamId: true,
         steamUsername: true,
         steamAvatar: true,
+        flagEmoji: true,
         permissionLevel: true,
         banStatus: true,
         discord: {

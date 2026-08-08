@@ -107,6 +107,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
           steamId: string;
           name: string;
           avatar: string | null;
+          flagEmoji: string | null;
           role: string;
         }>;
       }
@@ -132,6 +133,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
           steamId: staff.steamId,
           name: staff.steamUsername,
           avatar: staff.steamAvatar,
+          flagEmoji: staff.flagEmoji ?? null,
           role: staff.permissionLevel === 'ADMIN' ? 'Head Admin' : 'Moderator',
         });
       }

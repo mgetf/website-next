@@ -7,6 +7,7 @@ import {
   unlockUserName,
   lockUserAvatar,
   unlockUserAvatar,
+  updateUserFlagEmoji,
   banUser,
   clearPunishment,
 } from '$lib/server/services/users';
@@ -15,11 +16,22 @@ import { TeamStatus } from '$prisma/client.js';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { isAdmin } from '$lib/server/auth/permissions';
+import { isAdmin, requireAuth } from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getPlayerRatings } from '$lib/server/clients/mgePlatform';
+import { FLAG_EMOJI_OPTIONS } from '$lib/constants/flagEmojis';
+import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
+import { z } from 'zod';
+
+const setFlagEmojiSchema = z.object({
+  flagEmoji: z
+    .string()
+    .optional()
+    .default('')
+    .refine((v) => v === '' || FLAG_EMOJI_OPTIONS.some((f) => f.emoji === v), 'Invalid flag emoji'),
+});
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
@@ -67,6 +79,32 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 };
 
 export const actions: Actions = {
+  setFlagEmoji: async ({ request, params, locals }) => {
+    requireAuth(locals.user);
+    const { steamId } = params;
+
+    if (locals.user.steamId !== steamId && !isAdmin(locals.user)) {
+      return formError('You can only update your own flag', 403);
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, setFlagEmojiSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await updateUserFlagEmoji(steamId, validation.data.flagEmoji || null);
+      return formSuccess(
+        { flagEmoji: validation.data.flagEmoji || null },
+        validation.data.flagEmoji ? 'Flag updated' : 'Flag cleared',
+      );
+    } catch (err) {
+      return formError(
+        getErrorMessage(err, 'Failed to update flag'),
+        isHttpError(err) ? err.status : 500,
+      );
+    }
+  },
+
   withdraw1v1: async ({ request, params, locals, getClientAddress }) => {
     if (!locals.user) {
       return fail(401, { error: 'You must be logged in' });

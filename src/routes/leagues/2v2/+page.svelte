@@ -48,6 +48,7 @@
         steamId: string;
         name: string;
         avatar: string | null;
+        flagEmoji: string | null;
         role: string;
       }>;
     }>;
@@ -472,19 +473,24 @@
                           href="/users/{member.steamId}"
                           class="flex items-center justify-between py-2 hover:bg-surface-input/30 rounded px-2 -mx-2 transition-colors group"
                         >
-                          <div class="flex items-center gap-2">
+                          <div class="flex items-center gap-2 min-w-0">
                             <img
                               src={member.avatar || `https://picsum.photos/seed/${member.name}/32`}
                               alt={member.name}
-                              class="w-7 h-7 rounded"
+                              class="w-7 h-7 rounded shrink-0"
                             />
+                            {#if member.flagEmoji}
+                              <span class="leading-none shrink-0" aria-hidden="true"
+                                >{member.flagEmoji}</span
+                              >
+                            {/if}
                             <span
-                              class="text-sm text-white group-hover:text-primary-400 transition-colors"
+                              class="text-sm text-white group-hover:text-primary-400 transition-colors truncate"
                             >
                               {member.name}
                             </span>
                           </div>
-                          <span class="text-xs text-warning-500/80">
+                          <span class="text-xs text-warning-500/80 shrink-0">
                             {member.role}
                           </span>
                         </a>

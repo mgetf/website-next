@@ -55,7 +55,13 @@ export const load = async () => {
     // --- MGE ELO Leaderboard (from platform API) ---
     const eloLeaderboard: {
       region: string;
-      entries: { elo: number; steamId64: string; name: string | null; avatar: string | null }[];
+      entries: {
+        elo: number;
+        steamId64: string;
+        name: string | null;
+        avatar: string | null;
+        flagEmoji: string | null;
+      }[];
     }[] = [];
 
     if (platformRegions.length > 0) {
@@ -127,6 +133,7 @@ export const load = async () => {
               isRegistered,
               name: display?.name ?? platformName ?? steamNames[steam64] ?? null,
               avatar: display?.avatar ?? null,
+              flagEmoji: display?.flagEmoji ?? null,
             };
           }),
         });
@@ -191,6 +198,7 @@ export const load = async () => {
             name: string;
             avatar: string | null;
             steamId: string | null;
+            flagEmoji: string | null;
             record: string;
             points: number;
           }[] = [];
@@ -208,6 +216,7 @@ export const load = async () => {
               name: e.name,
               avatar: e.avatar,
               steamId: e.steamId,
+              flagEmoji: e.flagEmoji,
               record: e.record,
               points: e.pointsPerGame,
             }));

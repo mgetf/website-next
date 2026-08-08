@@ -252,6 +252,9 @@
               {user.steamUsername.slice(0, 2).toUpperCase()}
             </div>
           {/if}
+          {#if user.flagEmoji}
+            <span class="leading-none shrink-0" aria-hidden="true">{user.flagEmoji}</span>
+          {/if}
           <div class="min-w-0">
             <a
               href="/users/{user.steamId}"

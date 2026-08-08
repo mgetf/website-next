@@ -275,6 +275,9 @@
               </svg>
             </div>
           {/if}
+          {#if row.flagEmoji}
+            <span class="leading-none shrink-0" aria-hidden="true">{row.flagEmoji}</span>
+          {/if}
           {#if row.isRegistered && row.name}
             <a
               href="/users/{row.steamId64}"

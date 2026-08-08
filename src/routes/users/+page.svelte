@@ -9,6 +9,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import PlayerLink from '$lib/components/ui/PlayerLink.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -168,21 +169,15 @@
     >
       {#snippet cell(user, col)}
         {#if col.key === 'player'}
-          <a
-            href="/users/{user.steamId}"
-            class="flex items-center space-x-2 group whitespace-nowrap"
-          >
-            <img
-              src={user.steamAvatar || '/default-avatar.png'}
-              alt={user.steamUsername}
-              class="w-8 h-8 rounded-full"
-            />
-            <span
-              class="text-sm font-medium text-white group-hover:text-primary-400 transition-colors"
-            >
-              {user.steamUsername}
-            </span>
-          </a>
+          <PlayerLink
+            steamId={user.steamId}
+            name={user.steamUsername}
+            avatar={user.steamAvatar}
+            flagEmoji={user.flagEmoji}
+            avatarClass="rounded-full"
+            nameClass="text-sm font-medium text-white group-hover:text-primary-400 transition-colors"
+            class="whitespace-nowrap"
+          />
         {:else if col.key === 'discord'}
           {#if user.discord?.discordUsername}
             <div class="flex items-center space-x-2 whitespace-nowrap">

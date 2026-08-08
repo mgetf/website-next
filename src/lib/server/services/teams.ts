@@ -306,6 +306,7 @@ export async function getTeamsByDivision(
             select: {
               steamId: true,
               steamUsername: true,
+              flagEmoji: true,
             },
           },
         },
@@ -358,6 +359,7 @@ export async function getTeamById(id: number) {
               steamId: true,
               steamUsername: true,
               steamAvatar: true,
+              flagEmoji: true,
             },
           },
         },
@@ -759,6 +761,7 @@ export async function getTop1v1EntriesForHomepage(options: {
           player: {
             select: {
               steamId: true,
+              flagEmoji: true,
             },
           },
         },
@@ -779,6 +782,7 @@ export async function getTop1v1EntriesForHomepage(options: {
       name: team.name,
       avatar: team.avatar,
       steamId: team.players[0]?.player?.steamId ?? null,
+      flagEmoji: team.players[0]?.player?.flagEmoji ?? null,
       wins: team.wins,
       losses: team.losses,
       record: `${team.wins}-${team.losses}`,

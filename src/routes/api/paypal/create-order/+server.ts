@@ -1,23 +1,32 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createPayPalOrder } from '$lib/server/services/paypal';
+import { createPayPalOrder, isPayPalTestModeMisconfigured } from '$lib/server/services/paypal';
+import { resolvePayPalCheckoutQuote } from '$lib/server/services/payments';
 import { logError } from '$lib/server/utils/logger';
-import { requireAuth, isAdmin } from '$lib/server/auth/permissions';
-import { env } from '$env/dynamic/private';
+import { requireAuth, isAdmin, requireNotBanned } from '$lib/server/auth/permissions';
+import { getOptionalEnv } from '$lib/server/utils/env';
 import { paymentRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
+import { getErrorMessage } from '$lib/server/utils/errors';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
-    // Require authentication
     requireAuth(locals.user);
+    requireNotBanned(locals.user);
 
     const { allowed, response } = checkRateLimit(paymentRateLimiter, locals.user.steamId);
     if (!allowed && response) return response;
 
-    const body = await request.json();
-    const { amount, currency, steamId, teams, teamId, paidForSteamIds } = body;
+    if (isPayPalTestModeMisconfigured()) {
+      return json(
+        { error: 'Payment system misconfigured. Please contact support.' },
+        { status: 503 },
+      );
+    }
 
-    if (!amount || !currency || !steamId) {
+    const body = await request.json();
+    const { currency: _ignoredCurrency, steamId, teams, teamId, paidForSteamIds } = body;
+
+    if (!steamId) {
       return json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -40,13 +49,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       );
     }
 
-    const baseUrl = env.PUBLIC_URL || 'http://localhost:5173';
-    const firstTeamId = teamsArray[0]!.teamId;
-    const customId = teamsArray.length > 1 ? `${steamId}|multi` : `${steamId}|${firstTeamId}`;
+    // Server-compute the charge — never trust client amount/currency
+    const quote = await resolvePayPalCheckoutQuote(teamsArray);
+
+    const baseUrl = getOptionalEnv('PUBLIC_URL', 'http://localhost:5173');
+    const firstTeamId = quote.teams[0]!.teamId;
+    const customId = quote.teams.length > 1 ? `${steamId}|multi` : `${steamId}|${firstTeamId}`;
 
     const result = await createPayPalOrder({
-      amount,
-      currency,
+      amount: quote.amount,
+      currency: quote.currency,
       steamId,
       teamId: firstTeamId,
       customId,
@@ -55,27 +67,37 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     });
 
     if (!result.success) {
-      // Log error server-side (sanitized - no sensitive data)
       await logError('PayPal create-order failed', {
         steamId,
         firstTeamId,
-        amount,
-        currency,
+        amount: quote.amount,
+        currency: quote.currency,
         error: result.error || 'Unknown error',
       });
 
-      // Return generic error to client (never expose sensitive details)
       return json({ error: 'Failed to create payment order. Please try again.' }, { status: 500 });
     }
 
-    return json(result.order);
-  } catch (err) {
-    // Log error server-side (sanitized)
-    await logError('PayPal create-order exception', {
-      error: err instanceof Error ? err.message : 'Unknown error',
+    return json({
+      ...result.order,
+      // Echo server quote so the client can assert before capture
+      expectedAmount: quote.amount,
+      expectedCurrency: quote.currency,
+      resolvedTeams: quote.teams,
     });
+  } catch (err) {
+    const message = getErrorMessage(err, 'Internal server error');
+    const status =
+      err && typeof err === 'object' && 'status' in err && typeof err.status === 'number'
+        ? err.status
+        : 500;
 
-    // Return generic error to client (never expose sensitive details)
-    return json({ error: 'Internal server error' }, { status: 500 });
+    if (status >= 500) {
+      await logError('PayPal create-order exception', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
+
+    return json({ error: status < 500 ? message : 'Internal server error' }, { status });
   }
 };

@@ -37,6 +37,7 @@ import { getMapBanStatus, processBanPickAction } from '$lib/server/services/mapB
 import { canDisputeMatch, localDatetimeToUtc } from '$lib/server/utils/matchHelpers';
 import { createNotificationForMatch } from '$lib/server/services/notifications';
 import { uploadDemo, reportDemo, getUserDemoReports } from '$lib/server/services/demos';
+import { assertSafeBasename, safeDemoStorageName } from '$lib/server/utils/filenames';
 import {
   adminUpdateMatchSchedule,
   adminUpdateMatchArenas,
@@ -742,7 +743,9 @@ export const actions: Actions = {
 
       const tempDir = join(tmpdir(), 'mge-demos');
       await mkdir(tempDir, { recursive: true });
-      const tempPath = join(tempDir, `${Date.now()}-${file.name}`);
+      // Never put the client filename on disk — path traversal risk
+      const tempBasename = assertSafeBasename(safeDemoStorageName(file.name));
+      const tempPath = join(tempDir, tempBasename);
 
       const arrayBuffer = await file.arrayBuffer();
       await writeFile(tempPath, Buffer.from(arrayBuffer));
@@ -750,7 +753,7 @@ export const actions: Actions = {
       await uploadDemo({
         file: {
           filepath: tempPath,
-          originalFilename: file.name,
+          originalFilename: file.name.toLowerCase().endsWith('.dem') ? 'upload.dem' : file.name,
           size: file.size,
         },
         playerSteamId,

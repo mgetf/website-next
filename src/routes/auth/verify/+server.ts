@@ -28,6 +28,21 @@ export const GET: RequestHandler = async ({ cookies, request, getClientAddress }
     const { username, avatar, permissionLevel, banStatus, sessionVersion, isNewUser } =
       await findOrCreateSteamUser(steamUser);
 
+    // Suspended/banned accounts must not receive a usable session
+    if (banStatus === BanStatus.BANNED || banStatus === BanStatus.SUSPENDED) {
+      await logAudit({
+        actorId: steamUser.steamid,
+        actorRole: permissionLevel,
+        category: AuditCategory.AUTH,
+        action: AuditAction.AUTH_LOGIN,
+        targetType: 'User',
+        targetId: steamUser.steamid,
+        metadata: { isNewUser, steamUsername: username, rejected: true, banStatus },
+        ipAddress: getClientAddress(),
+      });
+      throw redirect(302, '/?error=banned');
+    }
+
     const sessionUser = {
       steamId: steamUser.steamid,
       steamUsername: username,

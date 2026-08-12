@@ -33,8 +33,8 @@
       regionId: number;
     }>;
     regions: Array<{ id: number; name: string }>;
-    selectedSeasonId: number;
-    selectedRegionId: number;
+    selectedSeasonId: number | null;
+    selectedRegionId: number | null;
     selectedRegionName: string;
     selectedSeasonNum: number;
     teamsByDivision: Array<{
@@ -90,8 +90,8 @@
   let isInitialized = $state(false);
 
   $effect(() => {
-    selectedSeason = data.selectedSeasonId;
-    selectedRegion = data.selectedRegionId;
+    selectedSeason = data.selectedSeasonId ?? 0;
+    selectedRegion = data.selectedRegionId ?? 0;
   });
 
   const regionsWithSeasons = $derived(
@@ -110,11 +110,13 @@
   }
 
   $effect(() => {
+    if (data.seasons.length === 0) return;
+
     const seasonsForRegion = data.seasons.filter(
       (s: (typeof data.seasons)[number]) => s.regionId === selectedRegion,
     );
     if (!seasonsForRegion.find((s: (typeof data.seasons)[number]) => s.id === selectedSeason)) {
-      selectedSeason = seasonsForRegion[0]?.id || data.selectedSeasonId;
+      selectedSeason = seasonsForRegion[0]?.id || data.selectedSeasonId || 0;
     }
   });
 
@@ -123,6 +125,8 @@
       isInitialized = true;
       return;
     }
+
+    if (data.seasons.length === 0 || !selectedSeason || !selectedRegion) return;
 
     const params = new URLSearchParams();
     params.set('season', selectedSeason.toString());
@@ -208,7 +212,7 @@
     {/if}
   </PageHero>
 
-  {#if activeTab === 'info'}
+  {#if data.seasons.length > 0 && activeTab === 'info'}
     <div class="max-w-4xl mx-auto px-6 py-4">
       {#if isEditing}
         <form
@@ -332,7 +336,7 @@
         </div>
       {/if}
     </div>
-  {:else}
+  {:else if data.seasons.length > 0}
     <!-- Main Content with Sidebars -->
     <div class="max-w-[1600px] mx-auto px-6 py-4">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">

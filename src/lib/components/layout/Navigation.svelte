@@ -288,7 +288,12 @@
         </a>
 
         {#if canSignUp}
-          <Button href="/signup" variant="primary" size="sm" class="w-full justify-center whitespace-nowrap">
+          <Button
+            href="/signup"
+            variant="primary"
+            size="sm"
+            class="w-full justify-center whitespace-nowrap"
+          >
             Sign Up
           </Button>
         {/if}

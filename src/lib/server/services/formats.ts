@@ -181,7 +181,7 @@ export async function getFormatsWithSeasons(): Promise<
   { id: number; name: string; code: string; themeKey: string; isIndividual: boolean }[]
 > {
   return prisma.format.findMany({
-    where: { seasons: { some: {} } },
+    where: { seasons: { some: { region: { hidden: 0 } } } },
     select: { id: true, name: true, code: true, themeKey: true, isIndividual: true },
     orderBy: { id: 'asc' },
   });

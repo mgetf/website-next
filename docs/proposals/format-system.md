@@ -2,8 +2,8 @@
 
 **Author:** Development Team  
 **Date:** February 15, 2026  
-**Status:** 📋 Documented (no work planned)  
-**Priority:** Low (revisit only if new formats are needed)
+**Status:** Implemented (data-driven Format config + dynamic routes)  
+**Priority:** Done for Ultiduo/BBall team formats
 
 ---
 
@@ -170,7 +170,8 @@ This is a significant refactor. Only justified if we have concrete plans for a t
 
 ## Decision Log
 
-| Date     | Decision                                                                                                                                                |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Jan 2026 | Format table created during schema normalization to replace `is1v1` magic integers. CRUD added to admin panel.                                          |
-| Feb 2026 | Documented that format behavior is hardcoded despite CRUDable table. Decided this is acceptable under YAGNI. Will revisit if a third format is planned. |
+| Date     | Decision                                                                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Jan 2026 | Format table created during schema normalization to replace `is1v1` magic integers. CRUD added to admin panel.                                                |
+| Feb 2026 | Documented that format behavior is hardcoded despite CRUDable table. Decided this is acceptable under YAGNI. Will revisit if a third format is planned.       |
+| Aug 2026 | Implemented data-driven Format fields (roster/payments/flags/themeKey), dynamic `/signup/[formatCode]` and `/leagues/[formatCode]`, seeded Ultiduo and BBall. |

@@ -31,6 +31,7 @@ RUN apk add --no-cache openssl
 COPY --from=builder /app/build build/
 COPY --from=builder /app/node_modules node_modules/
 COPY --from=builder /app/prisma prisma/
+COPY --from=builder /app/prisma.config.ts prisma.config.ts
 COPY package.json .
 
 EXPOSE 3000
@@ -39,4 +40,5 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV ADDRESS_HEADER=CF-Connecting-IP
 
-CMD [ "bun", "run", "./build/index.js" ]
+# Apply pending migrations then start the app (Railway Release Command can also call migrate alone)
+CMD [ "bun", "run", "start:prod" ]

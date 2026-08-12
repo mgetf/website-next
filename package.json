@@ -22,6 +22,7 @@
     "generate": "prisma generate",
     "migrate": "prisma migrate deploy",
     "migrate:prod": "dotenv -e .env.production -- prisma migrate deploy",
+    "start:prod": "bunx prisma migrate deploy && bun run ./build/index.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "boundary-check": "bun run scripts/boundary-check.ts",

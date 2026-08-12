@@ -1,11 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
+import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSeasons, getSeasonInfo, updateSeasonInfo } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { getTeamsByDivision, findRecent1v1SeasonWithEntries } from '$lib/server/services/teams';
+import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
 import { getStaffMembers, isUserSignedUpForFormat } from '$lib/server/services/users';
 import { getGlobalSettings } from '$lib/server/services/settings';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
 import { z } from 'zod';
@@ -15,8 +15,10 @@ const updateSeasonInfoSchema = z.object({
   info: z.string().optional().default(''),
 });
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ params, url, locals }) => {
   try {
+    const format = await requireFormatByCode(params.formatCode);
+
     // Get query parameters (if any)
     const seasonParam = url.searchParams.get('season');
     const regionParam = url.searchParams.get('region');
@@ -34,52 +36,37 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       ? globalSettings.standingsVisibleStatuses
       : ['READY', 'PENDING'];
 
-    // Fetch all seasons and filter to 1v1 only, AND only for visible regions
-    const allSeasons = await getSeasons();
-    const seasons1v1 = allSeasons.filter(
-      (s) => s.formatId === FORMAT_1V1 && visibleRegionIds.has(s.regionId),
+    // Fetch all seasons and filter to only visible regions AND this format
+    const allSeasonsRaw = await getSeasons();
+    const allSeasons = allSeasonsRaw.filter(
+      (s) => visibleRegionIds.has(s.regionId) && s.formatId === format.id,
     );
 
-    // Find the most recent 1v1 season that has entries
-    const defaultSeasonWithEntries = await findRecent1v1SeasonWithEntries(
-      visibleStatuses,
-      FORMAT_1V1,
-    );
+    let defaultSeasonWithTeams = await findRecentSeasonWithTeams(visibleStatuses, format.id);
 
     // Determine selected season and region
     let selectedSeasonId: number | undefined;
     let selectedRegionId: number | undefined;
 
     if (seasonParam && regionParam) {
-      // User specified both via URL - verify it's a 1v1 season
-      const requestedSeasonId = parseInt(seasonParam);
-      const requestedSeason = seasons1v1.find((s) => s.id === requestedSeasonId);
-      if (requestedSeason) {
-        selectedSeasonId = requestedSeasonId;
-        selectedRegionId = parseInt(regionParam);
-      }
-    }
-
-    if (!selectedSeasonId) {
-      if (defaultSeasonWithEntries) {
-        // Default to the most recent season that has entries
-        selectedSeasonId = defaultSeasonWithEntries.seasonId;
-        selectedRegionId = defaultSeasonWithEntries.regionId;
-      } else if (seasons1v1.length > 0) {
-        // Fallback to first 1v1 season
-        selectedSeasonId = seasons1v1[0].id;
-        selectedRegionId = seasons1v1[0].regionId;
-      } else {
-        // No 1v1 seasons exist
-        selectedSeasonId = 0;
-        selectedRegionId = allRegions[0]?.id || 0;
-      }
+      // User specified both via URL
+      selectedSeasonId = parseInt(seasonParam);
+      selectedRegionId = parseInt(regionParam);
+    } else if (defaultSeasonWithTeams) {
+      // Default to the most recent season that has teams
+      selectedSeasonId = defaultSeasonWithTeams.seasonId || allSeasons[0]?.id;
+      selectedRegionId = defaultSeasonWithTeams.regionId || allRegions[0]?.id;
+    } else {
+      // Fallback to first available
+      selectedSeasonId = allSeasons[0]?.id;
+      selectedRegionId = allRegions[0]?.id;
     }
 
     // Fetch all divisions (visible ones)
+    // Order by ID descending to show highest divisions first (INVITE -> PREMIER -> INTERMEDIATE -> OPEN -> NEWCOMER)
     const divisions = await getVisibleDivisions();
 
-    const entriesByDivision = await Promise.all(
+    const teamsByDivision = await Promise.all(
       divisions.map(async (division) => {
         const teams = await getTeamsByDivision(
           division.id,
@@ -88,24 +75,22 @@ export const load: PageServerLoad = async ({ url, locals }) => {
           visibleStatuses,
         );
 
-        // Transform to show player info instead of team info
-        // The "team" name is actually the player's frozen Steam name for 1v1
-        const entries = teams
-          // Filter out DEAD entries that never played (didn't affect placements)
+        const filtered = teams
           .filter((team: any) => team.status !== 'DEAD' || team.wins + team.losses > 0)
           .map((team: any) => {
-            // Get the single player from this 1v1 entry
-            const player = team.players?.[0]?.player;
+            if (format.isIndividual) {
+              // For individual formats, flatten to show player info instead of team
+              const player = team.players?.[0];
+              return {
+                ...team,
+                isWithdrawn: team.status === 'DEAD',
+                playerName: player?.player?.steamUsername || team.name,
+                playerId: player?.playerSteamId,
+                playerAvatar: player?.player?.steamAvatar || team.avatar,
+              };
+            }
             return {
-              id: team.id,
-              teamId: team.id, // For internal use
-              name: team.name, // This is the frozen player name
-              avatar: team.avatar, // This is the frozen player avatar
-              steamId: player?.steamId || null,
-              wins: team.wins,
-              losses: team.losses,
-              points: team.points,
-              status: team.status,
+              ...team,
               isWithdrawn: team.status === 'DEAD',
             };
           });
@@ -115,14 +100,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
             id: division.id,
             name: division.name,
           },
-          entries,
+          teams: filtered,
         };
       }),
     );
-
-    // Get selected region and season info
-    const selectedRegion = allRegions.find((r) => r.id === selectedRegionId);
-    const selectedSeason = seasons1v1.find((s) => s.id === selectedSeasonId);
 
     // Fetch staff members (users with MODERATOR or ADMIN permission level)
     const allStaff = await getStaffMembers();
@@ -181,20 +162,31 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       });
     });
 
-    // Convert map to array and sort divisions by ID (descending)
+    // Convert map to array and sort divisions by ID (descending, like old website)
     const staffByDivision = Array.from(staffByDivisionMap.values()).sort(
       (a, b) => b.division.id - a.division.id,
     );
 
+    // Get selected region and season info
+    const selectedRegion = allRegions.find((r) => r.id === selectedRegionId);
+    const selectedSeason = allSeasons.find((s) => s.id === selectedSeasonId);
+
     let userAlreadySignedUp = false;
     if (locals.user) {
-      userAlreadySignedUp = await isUserSignedUpForFormat(locals.user.steamId, FORMAT_1V1);
+      userAlreadySignedUp = await isUserSignedUpForFormat(locals.user.steamId, format.id);
     }
 
     const seasonInfo = selectedSeasonId ? await getSeasonInfo(selectedSeasonId) : null;
 
     return {
-      seasons: seasons1v1.map((s) => ({
+      format: {
+        id: format.id,
+        name: format.name,
+        code: format.code,
+        isIndividual: format.isIndividual,
+        themeKey: format.themeKey,
+      },
+      seasons: allSeasons.map((s) => ({
         id: s.id,
         name: `Season ${s.seasonNum}`,
         seasonNum: s.seasonNum,
@@ -204,11 +196,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
         id: r.id,
         name: r.name,
       })),
-      selectedSeasonId: selectedSeasonId || 0,
-      selectedRegionId: selectedRegionId || 0,
+      selectedSeasonId,
+      selectedRegionId,
       selectedRegionName: selectedRegion?.name || 'Unknown',
       selectedSeasonNum: selectedSeason?.seasonNum || 0,
-      entriesByDivision: entriesByDivision.filter((d) => d.entries.length > 0),
+      teamsByDivision: teamsByDivision.filter((d) => d.teams.length > 0),
       staffByDivision,
       deadlines: {
         signupClosed: !selectedSeason?.signupsOpen,
@@ -220,17 +212,24 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       isAdmin: isAdmin(locals.user),
     };
   } catch (error) {
-    console.error('Error loading 1v1 league page:', error);
+    console.error(`Error loading ${params.formatCode} league page:`, error);
 
     // Return fallback data
     return {
+      format: {
+        id: 0,
+        name: 'Unknown',
+        code: params.formatCode,
+        isIndividual: false,
+        themeKey: 'primary',
+      },
       seasons: [],
       regions: [],
       selectedSeasonId: 0,
       selectedRegionId: 0,
       selectedRegionName: 'Unknown',
       selectedSeasonNum: 0,
-      entriesByDivision: [],
+      teamsByDivision: [],
       staffByDivision: [],
       deadlines: {
         signupClosed: true,

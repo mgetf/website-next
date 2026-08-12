@@ -5,12 +5,15 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import { getFormatThemeClasses } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let isSubmitting = $state(false);
   let selectedRegionId = $state<number | null>(null);
   let divisionValue = $state('');
+
+  const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 
   // Get the selected region object
   const selectedRegion = $derived(
@@ -76,10 +79,12 @@
         href="/signup"
         class="inline-flex items-center text-text-body hover:text-white mb-4 transition-colors"
       >
-        &larr; Back to Signup Options
+        ← Back to Signup Options
       </a>
-      <h1 class="text-4xl font-bold text-white mb-2">1v1 League Signup</h1>
-      <p class="text-text-body">Sign up as an individual player for the 1v1 league</p>
+      <h1 class="text-4xl font-bold text-white mb-2">{data.format.name} League Signup</h1>
+      <p class="text-text-body">
+        Sign up as an individual player for the {data.format.name} league
+      </p>
     </div>
 
     <!-- Error Message -->
@@ -88,12 +93,12 @@
     {#if !data.canSignup}
       <!-- Unavailable Message -->
       <Card padding="none" class="p-12 text-center">
-        <div class="text-6xl mb-4">&#128683;</div>
-        <h2 class="text-2xl font-bold text-white mb-4">1v1 Signup Unavailable</h2>
+        <div class="text-6xl mb-4">🚫</div>
+        <h2 class="text-2xl font-bold text-white mb-4">{data.format.name} Signup Unavailable</h2>
         <p class="text-text-body text-lg mb-6">
           {data.disabledReason}
         </p>
-        <Button href="/signup" variant="secondary" size="lg">&larr; Back to Signup Options</Button>
+        <Button href="/signup" variant="secondary" size="lg">← Back to Signup Options</Button>
       </Card>
     {:else}
       <!-- User Info Card -->
@@ -161,13 +166,17 @@
           />
 
           <!-- Info Box -->
-          <div class="mb-6 p-4 bg-info-500/10 border border-info-500/30 rounded-lg">
-            <h4 class="text-info-400 font-medium mb-2">How 1v1 League Works</h4>
+          <div
+            class="mb-6 p-4 {themeClasses.bg500_10} border {themeClasses.border500_30} rounded-lg"
+          >
+            <h4 class="{themeClasses.text400} font-medium mb-2">
+              How {data.format.name} League Works
+            </h4>
             <ul class="text-sm text-text-body space-y-1">
-              <li>&#8226; You sign up as an individual player, not a team</li>
-              <li>&#8226; Your Steam name and avatar are frozen at signup time</li>
-              <li>&#8226; Matches are played 1v1 against other players</li>
-              <li>&#8226; Same match infrastructure as 2v2 (scheduling, map bans, demos)</li>
+              <li>• You sign up as an individual player, not a team</li>
+              <li>• Your Steam name and avatar are frozen at signup time</li>
+              <li>• Matches are played 1v1 against other players</li>
+              <li>• Same match infrastructure as team formats (scheduling, map bans, demos)</li>
             </ul>
           </div>
 
@@ -192,7 +201,7 @@
           <!-- Submit Button -->
           <div class="flex items-center gap-4">
             <Button type="submit" variant="primary" size="lg" disabled={isSubmitting}>
-              {isSubmitting ? 'Signing Up...' : 'Sign Up for 1v1 League'}
+              {isSubmitting ? 'Signing Up...' : `Sign Up for ${data.format.name} League`}
             </Button>
             <Button href="/signup" variant="secondary" size="lg">Cancel</Button>
           </div>

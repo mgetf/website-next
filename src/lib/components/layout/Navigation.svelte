@@ -8,6 +8,7 @@
   import YoutubeIcon from '$lib/components/icons/YoutubeIcon.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import NewChip from '$lib/components/ui/NewChip.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
 
   type Props = {
     user: SessionUser | null;
@@ -17,6 +18,7 @@
     isInTeam?: boolean;
     userTeam?: { id: number; name: string } | null;
     realtimeEnabled?: boolean;
+    formats?: Array<{ name: string; code: string }>;
   };
 
   let {
@@ -27,6 +29,7 @@
     isInTeam = false,
     userTeam = null,
     realtimeEnabled = true,
+    formats = [],
   }: Props = $props();
 
   // Mobile menu state
@@ -79,18 +82,17 @@
             <div
               class="absolute left-0 mt-1 w-40 bg-surface-card border border-border-default rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
             >
-              <a
-                href="/leagues/2v2"
-                class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input rounded-t-lg"
-              >
-                2v2 League
-              </a>
-              <a
-                href="/leagues/1v1"
-                class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input rounded-b-lg"
-              >
-                1v1 League
-              </a>
+              {#each formats as format, index}
+                <a
+                  href="/leagues/{format.code}"
+                  class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input {index ===
+                  0
+                    ? 'rounded-t-lg'
+                    : ''} {index === formats.length - 1 ? 'rounded-b-lg' : ''}"
+                >
+                  {format.name} League
+                </a>
+              {/each}
             </div>
           </div>
           <a
@@ -169,12 +171,14 @@
           </a>
         </div>
         {#if canSignUp}
-          <a
+          <Button
             href="/signup"
-            class="hidden md:block px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors"
+            variant="primary"
+            size="sm"
+            class="hidden md:inline-flex items-center shrink-0 whitespace-nowrap"
           >
             Sign Up
-          </a>
+          </Button>
         {/if}
 
         <!-- User Section -->
@@ -225,18 +229,14 @@
   {#if mobileMenuOpen}
     <div class="md:hidden border-t border-border-default bg-surface-card">
       <div class="px-4 py-3 space-y-1">
-        <a
-          href="/leagues/2v2"
-          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
-        >
-          2v2 League
-        </a>
-        <a
-          href="/leagues/1v1"
-          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
-        >
-          1v1 League
-        </a>
+        {#each formats as format}
+          <a
+            href="/leagues/{format.code}"
+            class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
+          >
+            {format.name} League
+          </a>
+        {/each}
         <a
           href="/tournaments"
           class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
@@ -288,12 +288,9 @@
         </a>
 
         {#if canSignUp}
-          <a
-            href="/signup"
-            class="block px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-center"
-          >
+          <Button href="/signup" variant="primary" size="sm" class="w-full justify-center whitespace-nowrap">
             Sign Up
-          </a>
+          </Button>
         {/if}
 
         <div class="pt-3 border-t border-border-default">

@@ -9,6 +9,7 @@ import { getUserActiveTeam } from '$lib/server/services/users';
 import { getNotificationsForDropdown } from '$lib/server/services/notifications';
 import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 import { getSiteSettings } from '$lib/server/services/siteSettings';
+import { getFormatsWithSeasons } from '$lib/server/services/formats';
 import { isRealtimeNotificationsEnabled } from '$lib/server/utils/env';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
@@ -26,6 +27,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
       signupClosed: true,
       isInTeam: false,
       userTeam: null,
+      formats: [],
       siteSettings: {
         siteTitle: 'MGE.tf Dev',
         faviconPath: null,
@@ -37,10 +39,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     };
   }
 
-  // Check if any active signup season has signups open
-  const [anySignupsOpen, siteSettings] = await Promise.all([
+  // Check if any active signup season has signups open and get formats
+  const [anySignupsOpen, siteSettings, formats] = await Promise.all([
     hasAnySignupsOpen(),
     getSiteSettings(),
+    getFormatsWithSeasons(),
   ]);
   // Inverted: signupClosed = NOT anySignupsOpen
   const signupClosed = !anySignupsOpen;
@@ -73,6 +76,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     signupClosed,
     isInTeam,
     userTeam,
+    formats: formats.map((f) => ({ name: f.name, code: f.code })),
     siteSettings: {
       siteTitle: siteSettings.siteTitle,
       faviconPath: siteSettings.faviconPath,

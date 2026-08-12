@@ -97,6 +97,7 @@
           isInTeam={data.isInTeam}
           userTeam={data.userTeam}
           realtimeEnabled={data.realtimeEnabled}
+          formats={data.formats}
         />
 
         {#if data.announcements.length > 0 && !page.url.pathname.startsWith('/admin')}

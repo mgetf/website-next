@@ -9,7 +9,7 @@ import type { Prisma } from '$prisma/client.js';
 import jwt from 'jsonwebtoken';
 import { badRequest, forbidden } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { requireFormatById } from './formats';
 import { getJwtSecret } from '$lib/server/utils/env';
 import { hashPassword } from '$lib/server/utils/password';
 
@@ -47,6 +47,7 @@ interface TeamCreationData {
   regionId: number;
   joinPassword: string;
   ownerSteamId: string;
+  formatId: number;
 }
 
 interface TeamReregistrationData {
@@ -54,20 +55,26 @@ interface TeamReregistrationData {
   divisionId: number;
   regionId: number;
   ownerSteamId: string;
+  formatId: number;
 }
 
 /**
- * Get signup context for a user
- * Now uses per-season settings instead of global
+ * Get signup context for a user for a specific team format
  */
-export async function getSignupContext(steamId: string | null): Promise<SignupContext> {
-  // Get current signup season IDs for 2v2 format
-  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
+export async function getSignupContext(
+  steamId: string | null,
+  formatId: number,
+): Promise<SignupContext> {
+  const format = await requireFormatById(formatId);
+  if (format.isIndividual) {
+    badRequest('Use individual signup for this format');
+  }
 
-  // Get active signup seasons with their settings
+  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(formatId);
+
   const activeSignupSeasons = await prisma.activeSignupSeason.findMany({
     where: {
-      formatId: FORMAT_2V2,
+      formatId,
     },
     include: {
       season: {
@@ -95,7 +102,7 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
         permissionLevel: 2,
         active: 1,
         team: {
-          formatId: FORMAT_2V2,
+          formatId,
         },
       },
       include: {
@@ -110,16 +117,15 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
     });
     ownedTeams = ownedMemberships.map((membership) => membership.team);
 
-    // Check if user is in any active 2v2 team that's ALREADY in a current signup season
-    // This allows users to re-register teams from previous seasons
+    // Check if user is in any active team for this format already in a current signup season
     const activeTeamMembership = await prisma.playerInTeam.findFirst({
       where: {
         playerSteamId: steamId,
         active: 1,
         team: {
-          formatId: FORMAT_2V2,
+          formatId,
           seasonId: {
-            in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1], // Use -1 as fallback to match nothing
+            in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
           },
         },
       },
@@ -129,7 +135,6 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
   }
 
   // Find active memberships on old-season teams that would be auto-removed on signup.
-  // Only relevant when the user can actually proceed (no current-season team blocking them).
   let previousSeasonTeams: { id: number; name: string }[] = [];
   if (steamId && !hasActiveTeam) {
     const oldMemberships = await prisma.playerInTeam.findMany({
@@ -137,7 +142,7 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
         playerSteamId: steamId,
         active: 1,
         team: {
-          formatId: FORMAT_2V2,
+          formatId,
           seasonId: {
             notIn: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
           },
@@ -165,17 +170,19 @@ export async function getSignupContext(steamId: string | null): Promise<SignupCo
  * Validate team creation data
  */
 export async function validateTeamCreation(data: TeamCreationData): Promise<void> {
-  // Get current signup season IDs for 2v2 format
-  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_2V2);
+  const format = await requireFormatById(data.formatId);
+  if (format.isIndividual) {
+    badRequest('Use individual signup for this format');
+  }
 
-  // Check if user is already in an active 2v2 team for a CURRENT signup season
-  // Users can create new teams if their old team is from a previous season
+  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(data.formatId);
+
   const existingTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: data.ownerSteamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: data.formatId,
         seasonId: {
           in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
         },
@@ -229,8 +236,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
     badRequest('Invalid division selected');
   }
 
-  // Get the signup season for the region (2v2 format)
-  const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
+  const seasonId = await getSignupSeasonForRegion(data.regionId, data.formatId);
 
   if (!seasonId) {
     badRequest('No active signup season for this region');
@@ -250,7 +256,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
       divisionId: data.divisionId,
       regionId: data.regionId,
       seasonId: seasonId,
-      formatId: FORMAT_2V2,
+      formatId: data.formatId,
       status: initialStatus,
       joinPassword: hashedPassword,
       paymentStatus: division.signupCost === 0 ? 2 : 0,
@@ -271,14 +277,12 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   const playerPaymentStatus =
     division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
 
-  // Deactivate any stale memberships on other 2v2 teams from previous seasons
-  // before adding the owner to the new team
   await prisma.playerInTeam.updateMany({
     where: {
       playerSteamId: data.ownerSteamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: data.formatId,
         seasonId: { not: seasonId },
       },
     },
@@ -327,11 +331,16 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
     forbidden('You must be the team owner to re-register');
   }
 
-  if (ownership.team.formatId !== FORMAT_2V2) {
-    badRequest('Only 2v2 teams can be re-registered on this page');
+  if (ownership.team.formatId !== data.formatId) {
+    badRequest('Team format does not match this signup flow');
   }
 
-  const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_2V2);
+  const format = await requireFormatById(data.formatId);
+  if (format.isIndividual || !format.supportsReregistration) {
+    badRequest('This format does not support team re-registration');
+  }
+
+  const seasonId = await getSignupSeasonForRegion(data.regionId, data.formatId);
 
   if (!seasonId) {
     badRequest('No active signup season for this region');
@@ -349,13 +358,12 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
   const initialPaymentStatus = division.signupCost === 0 ? 2 : 0;
   const initialStatus = TeamStatus.UNREADY;
 
-  // Deactivate any stale memberships on other 2v2 teams from previous seasons
   await prisma.playerInTeam.updateMany({
     where: {
       playerSteamId: data.ownerSteamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: data.formatId,
         id: { not: data.teamId },
         seasonId: { not: seasonId },
       },

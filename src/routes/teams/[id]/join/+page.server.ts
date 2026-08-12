@@ -100,12 +100,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   }
 
-  const playerInOtherTeam = await isPlayerInAnyActiveTeam(locals.user.steamId);
+  const playerInOtherTeam = await isPlayerInAnyActiveTeam(locals.user.steamId, team.formatId);
 
   if (playerInOtherTeam) {
     return {
       team,
-      error: 'You are already in another 2v2 team',
+      error: 'You are already in another team for this format',
       canJoin: false,
       rosterLocked,
     };

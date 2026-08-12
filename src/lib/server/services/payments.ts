@@ -6,7 +6,7 @@
 
 import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { requireFormatById } from './formats';
 import type { CheckoutParticipation } from '$lib/types/checkout';
 
 export interface UnpaidPlayer {
@@ -255,7 +255,8 @@ export async function markPlayerAsPaidManually(
       where: { teamId, active: 1, paymentStatus: 1 },
     });
 
-    const requiredPaidPlayers = playerInTeam.team.formatId === FORMAT_1V1 ? 1 : 2;
+    const format = await requireFormatById(playerInTeam.team.formatId);
+    const requiredPaidPlayers = format.requiredPaidPlayers;
 
     if (paidPlayersCount >= requiredPaidPlayers) {
       await tx.team.update({
@@ -282,7 +283,7 @@ export async function recordPayPalCapture(options: {
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
-    include: { division: true },
+    include: { division: true, format: true },
   });
 
   if (!team?.seasonId) {
@@ -330,7 +331,7 @@ export async function recordPayPalCapture(options: {
       where: { teamId, active: 1, paymentStatus: 1 },
     });
 
-    const requiredPaidPlayers = team.formatId === FORMAT_1V1 ? 1 : 2;
+    const requiredPaidPlayers = team.format.requiredPaidPlayers;
 
     if (paidPlayersCount >= requiredPaidPlayers) {
       await tx.team.update({
@@ -514,7 +515,7 @@ export async function recordMultiTeamPayPalCapture(options: {
 
   const teamRecords = await prisma.team.findMany({
     where: { id: { in: teams.map((t) => t.teamId) } },
-    include: { division: true },
+    include: { division: true, format: true },
   });
 
   const teamMap = new Map(teamRecords.map((t) => [t.id, t]));
@@ -569,7 +570,7 @@ export async function recordMultiTeamPayPalCapture(options: {
         where: { teamId, active: 1, paymentStatus: 1 },
       });
 
-      const requiredPaidPlayers = team.formatId === FORMAT_1V1 ? 1 : 2;
+      const requiredPaidPlayers = team.format.requiredPaidPlayers;
 
       if (paidPlayersCount >= requiredPaidPlayers) {
         await tx.team.update({

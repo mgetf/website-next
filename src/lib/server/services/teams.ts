@@ -812,33 +812,6 @@ export async function getPlayerCurrentTeamName(
 }
 
 /**
- * Find the most recent season that has 1v1 entries with the given statuses
- * Returns { seasonId, regionId } or null if none found
- */
-export async function findRecent1v1SeasonWithEntries(
-  statuses: string[],
-  formatId: number,
-): Promise<{ seasonId: number; regionId: number } | null> {
-  const result = await prisma.team.findFirst({
-    where: {
-      formatId,
-      status: { in: statuses as any },
-    },
-    select: {
-      seasonId: true,
-      regionId: true,
-      season: { select: { seasonNum: true } },
-    },
-    orderBy: [{ season: { seasonNum: 'desc' } }],
-  });
-
-  if (result?.seasonId && result?.regionId) {
-    return { seasonId: result.seasonId, regionId: result.regionId };
-  }
-  return null;
-}
-
-/**
  * Get team format and player list for format-based redirect checks
  * Returns null if team not found
  */

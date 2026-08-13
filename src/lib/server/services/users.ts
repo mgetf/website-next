@@ -9,7 +9,7 @@ import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
-import { formatPlayoffRound } from '$lib/utils/playoffs';
+import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
 import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
 import { conflict } from '$lib/server/utils/errors';
 import { isSafeUrl } from '$lib/utils/safeUrl';
@@ -401,8 +401,17 @@ async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, Profi
       homeTeam: { select: { id: true, name: true } },
       awayTeam: { select: { id: true, name: true } },
     },
-    orderBy: [{ weekNo: 'asc' }, { playoffRound: 'asc' }],
+    orderBy: [{ weekNo: 'asc' }, { id: 'asc' }],
   });
+
+  // Regular season first, then playoffs in bracket order (signed playoffRound
+  // cannot be sorted correctly by a simple Prisma orderBy).
+  matches.sort((a, b) =>
+    compareMatchHistoryOrder(
+      { weekNo: a.weekNo, playoffRound: a.playoffRound, id: a.id },
+      { weekNo: b.weekNo, playoffRound: b.playoffRound, id: b.id },
+    ),
+  );
 
   const result = new Map<number, ProfileMatch[]>();
   for (const id of teamIds) result.set(id, []);

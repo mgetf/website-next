@@ -1,0 +1,35 @@
+version: 2
+
+multi-ecosystem-groups:
+  all:
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: staging
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+
+updates:
+  - package-ecosystem: bun
+    directory: /
+    patterns:
+      - '*'
+    multi-ecosystem-group: all
+    open-pull-requests-limit: 1
+
+  - package-ecosystem: docker
+    directory: /
+    patterns:
+      - '*'
+    multi-ecosystem-group: all
+    open-pull-requests-limit: 1
+
+  - package-ecosystem: github-actions
+    directory: /
+    patterns:
+      - '*'
+    multi-ecosystem-group: all
+    open-pull-requests-limit: 1

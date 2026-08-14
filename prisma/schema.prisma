@@ -489,9 +489,10 @@ model User {
   eventPlacements          EventPlacement[]
   itemPaymentOrders        ItemPaymentOrder[]
   mapFilesUploaded         MapFile[]
-  eventDraftsCreated       EventDraft[]              @relation("EventDraftCreatedBy")
-  eventDraftsUpdated       EventDraft[]              @relation("EventDraftUpdatedBy")
-  eventRevisionsPublished  EventRevision[]            @relation("EventRevisionPublishedBy")
+  eventDraftsCreated          EventDraft[]           @relation("EventDraftCreatedBy")
+  eventDraftsUpdated          EventDraft[]           @relation("EventDraftUpdatedBy")
+  eventRevisionsPublished     EventRevision[]        @relation("EventRevisionPublishedBy")
+  rulebookRevisionsPublished  RulebookRevision[]     @relation("RulebookRevisionPublishedBy")
 
   @@map("users")
 }
@@ -1002,6 +1003,20 @@ model SiteContent {
   updatedBy String?  @map("updated_by") // Steam ID of last editor
 
   @@map("site_content")
+}
+
+model RulebookRevision {
+  id          Int      @id @default(autoincrement())
+  version     Int      @unique
+  content     String
+  message     String
+  publishedAt DateTime @default(now()) @map("published_at")
+  publishedBy String?  @map("published_by")
+
+  publisher User? @relation("RulebookRevisionPublishedBy", fields: [publishedBy], references: [steamId])
+
+  @@index([publishedAt])
+  @@map("rulebook_revisions")
 }
 
 model SiteSettings {

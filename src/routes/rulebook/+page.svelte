@@ -3,6 +3,8 @@
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import RulebookTOC from '$lib/components/markdown/RulebookTOC.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import { formatDateTime } from '$lib/utils/datetime';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
@@ -13,10 +15,10 @@
     level: number;
   }
 
-  let tocItems = $state<TOCItem[]>([]);
   let activeId = $state('');
 
-  // Parse headings from content to build TOC
+  const tocItems = $derived(parseHeadings(data.content));
+
   function parseHeadings(markdown: string): TOCItem[] {
     const headingRegex = /^(#{1,4})\s+(.+)$/gm;
     const items: TOCItem[] = [];
@@ -36,7 +38,6 @@
     return items;
   }
 
-  // Add IDs to headings in the rendered content
   function addHeadingIds() {
     const container = document.querySelector('.rulebook-content');
     if (!container) return;
@@ -52,7 +53,6 @@
     });
   }
 
-  // Track active section on scroll
   function setupScrollSpy() {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -81,36 +81,43 @@
   }
 
   onMount(() => {
-    tocItems = parseHeadings(data.content);
-
-    // Wait for markdown to render, then add IDs
-    setTimeout(() => {
+    let disconnect: (() => void) | undefined;
+    const timeout = setTimeout(() => {
       addHeadingIds();
-      const cleanup = setupScrollSpy();
-      return cleanup;
+      disconnect = setupScrollSpy();
     }, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      disconnect?.();
+    };
   });
 </script>
 
 <div>
-  <PageHero
-    title="Rulebook"
-    subtitle="Official rules and regulations for MGE.tf"
-    maxWidth="max-w-7xl"
-    border
-  />
+  <PageHero maxWidth="max-w-7xl" border>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-5xl font-black text-white mb-2">Rulebook</h1>
+        <p class="text-xl text-text-body">Official rules and regulations for MGE.tf</p>
+      </div>
+      <div class="flex flex-col items-start gap-2 sm:items-end">
+        {#if data.updatedAt}
+          <p class="text-sm text-text-muted">Last updated {formatDateTime(data.updatedAt)}</p>
+        {/if}
+        <Button variant="secondary" size="sm" href="/rulebook/history">Change history</Button>
+      </div>
+    </div>
+  </PageHero>
 
-  <!-- Content -->
   <div class="max-w-7xl mx-auto px-6 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      <!-- Sidebar TOC -->
       <aside class="lg:col-span-3">
         <div class="lg:sticky lg:top-24">
           <RulebookTOC items={tocItems} {activeId} />
         </div>
       </aside>
 
-      <!-- Main Content -->
       <main class="lg:col-span-9">
         <div
           class="rulebook-content bg-surface-card/80 backdrop-blur border border-border-default rounded-lg p-6 lg:p-10"

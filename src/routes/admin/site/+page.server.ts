@@ -17,6 +17,8 @@ import {
   getAllContent,
   upsertContent,
   getContent,
+  getPublishedRulebook,
+  publishRulebook,
   CONTENT_KEYS,
   getDefaultContent,
 } from '$lib/server/services/siteContent';
@@ -28,9 +30,10 @@ import {
   extensionForImageMime,
   isR2Available,
 } from '$lib/server/utils/r2Upload';
-import { fail } from '@sveltejs/kit';
+import { fail, isHttpError } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
+import { validateForm, validationError, formError, formSuccess } from '$lib/server/utils/forms';
+import { RULEBOOK_MESSAGE_MIN_LENGTH } from '$lib/utils/rulebookPublish';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { UserRole } from '$lib/types/user';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -45,8 +48,16 @@ const homepageContentSchema = z.object({
   about: z.string().optional().default(''),
 });
 
-const rulebookSchema = z.object({
+const publishRulebookSchema = z.object({
   content: z.string().min(1, 'Rulebook content cannot be empty'),
+  message: z
+    .string()
+    .trim()
+    .min(
+      RULEBOOK_MESSAGE_MIN_LENGTH,
+      `Explain the change in at least ${RULEBOOK_MESSAGE_MIN_LENGTH} characters`,
+    ),
+  expectedVersion: z.coerce.number().int().min(0),
 });
 
 const matchCreatedMessageSchema = z.object({
@@ -94,15 +105,16 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
   }
 
-  const [rulebookContent, matchCreatedMessageContent] = await Promise.all([
-    getContent(CONTENT_KEYS.RULEBOOK),
+  const [publishedRulebook, matchCreatedMessageContent] = await Promise.all([
+    getPublishedRulebook(),
     getContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE),
   ]);
 
   return {
     settings,
     content: contentMap,
-    rulebookContent: rulebookContent || getDefaultContent(CONTENT_KEYS.RULEBOOK),
+    rulebookContent: publishedRulebook.content,
+    rulebookVersion: publishedRulebook.version ?? 0,
     matchCreatedMessage:
       matchCreatedMessageContent || getDefaultContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE),
     isHeadAdmin: locals.user.permissionLevel === UserRole.ADMIN,
@@ -172,29 +184,39 @@ export const actions: Actions = {
     }
   },
 
-  updateRulebook: async ({ request, locals, getClientAddress }) => {
+  publishRulebook: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const validation = validateForm(formData, rulebookSchema);
+    const validation = validateForm(formData, publishRulebookSchema);
     if (!validation.success) return validationError(validation.errors);
 
-    const { content } = validation.data;
+    const { content, message, expectedVersion } = validation.data;
 
     try {
-      await upsertContent(CONTENT_KEYS.RULEBOOK, content, locals.user.steamId);
+      const result = await publishRulebook({
+        content,
+        message,
+        publishedBy: locals.user.steamId,
+        expectedVersion,
+      });
       await logAudit({
-        actorId: locals.user?.steamId,
-        actorRole: locals.user?.permissionLevel,
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
         category: AuditCategory.SITE,
-        action: AuditAction.CONTENT_UPDATED,
-        metadata: { key: 'rulebook' },
+        action: AuditAction.RULEBOOK_PUBLISHED,
+        targetType: 'RulebookRevision',
+        targetId: String(result.version),
+        metadata: { version: result.version, message },
         ipAddress: getClientAddress(),
       });
-      return { success: true, message: 'Rulebook updated' };
-    } catch (error) {
-      console.error('Error updating rulebook:', error);
-      return fail(500, { error: 'Failed to update rulebook' });
+      return formSuccess(undefined, `Rulebook published as revision ${result.version}`);
+    } catch (err) {
+      if (isHttpError(err)) {
+        return formError(err.body.message, err.status);
+      }
+      console.error('Error publishing rulebook:', err);
+      return formError('Failed to publish rulebook', 500);
     }
   },
 

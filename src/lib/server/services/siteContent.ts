@@ -4,6 +4,14 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { badRequest, conflict, notFound } from '$lib/server/utils/errors';
+import type {
+  PublishedRulebook,
+  RulebookRevisionDetail,
+  RulebookRevisionSummary,
+} from '$lib/types/rulebook';
+import { nextRulebookVersion, validateRulebookPublish } from '$lib/utils/rulebookPublish';
+import { diffText } from '$lib/utils/textDiff';
 
 // Content keys used throughout the site
 export const CONTENT_KEYS = {
@@ -83,10 +91,7 @@ Disputes must be filed within 24 hours of match completion.
 
 ### 3.2 Resolution
 Admins will review all evidence and make a final decision.
-
----
-
-*Last updated: ${new Date().toLocaleDateString()}*`;
+`;
 
     case CONTENT_KEYS.HOMEPAGE_SUBTITLE:
       return 'The Premier MGE League';
@@ -122,4 +127,155 @@ Good luck to both teams!`;
     default:
       return '';
   }
+}
+
+const revisionPublisherInclude = {
+  publisher: {
+    select: {
+      steamId: true,
+      steamUsername: true,
+    },
+  },
+} as const;
+
+function toRevisionSummary(revision: {
+  version: number;
+  message: string;
+  publishedAt: Date;
+  publishedBy: string | null;
+  publisher: { steamId: string; steamUsername: string } | null;
+}): RulebookRevisionSummary {
+  return {
+    version: revision.version,
+    message: revision.message,
+    publishedAt: revision.publishedAt.toISOString(),
+    publishedBySteamId: revision.publisher?.steamId ?? revision.publishedBy,
+    publishedByName: revision.publisher?.steamUsername ?? null,
+  };
+}
+
+export async function getPublishedRulebook(): Promise<PublishedRulebook> {
+  const [live, latest] = await Promise.all([
+    prisma.siteContent.findUnique({
+      where: { key: CONTENT_KEYS.RULEBOOK },
+    }),
+    prisma.rulebookRevision.findFirst({
+      orderBy: { version: 'desc' },
+      include: revisionPublisherInclude,
+    }),
+  ]);
+
+  return {
+    content: live?.content ?? getDefaultContent(CONTENT_KEYS.RULEBOOK),
+    version: latest?.version ?? null,
+    updatedAt: latest?.publishedAt.toISOString() ?? live?.updatedAt.toISOString() ?? null,
+    updatedByName: latest?.publisher?.steamUsername ?? null,
+  };
+}
+
+export async function listRulebookRevisions(): Promise<RulebookRevisionSummary[]> {
+  const revisions = await prisma.rulebookRevision.findMany({
+    orderBy: { version: 'desc' },
+    include: revisionPublisherInclude,
+  });
+
+  return revisions.map(toRevisionSummary);
+}
+
+export async function getRulebookRevision(version: number): Promise<RulebookRevisionDetail> {
+  if (!Number.isInteger(version) || version < 1) {
+    notFound('Rulebook revision not found');
+  }
+
+  const [current, previous, next] = await Promise.all([
+    prisma.rulebookRevision.findUnique({
+      where: { version },
+      include: revisionPublisherInclude,
+    }),
+    prisma.rulebookRevision.findUnique({
+      where: { version: version - 1 },
+      select: { version: true, content: true },
+    }),
+    prisma.rulebookRevision.findUnique({
+      where: { version: version + 1 },
+      select: { version: true },
+    }),
+  ]);
+
+  if (!current) {
+    notFound('Rulebook revision not found');
+  }
+
+  const previousContent = previous?.content ?? '';
+
+  return {
+    ...toRevisionSummary(current),
+    content: current.content,
+    previousVersion: previous?.version ?? null,
+    nextVersion: next?.version ?? null,
+    hunks: diffText(previousContent, current.content),
+  };
+}
+
+export async function publishRulebook(input: {
+  content: string;
+  message: string;
+  publishedBy: string;
+  expectedVersion: number;
+}): Promise<{ version: number }> {
+  return prisma.$transaction(async (tx) => {
+    const [live, latest] = await Promise.all([
+      tx.siteContent.findUnique({
+        where: { key: CONTENT_KEYS.RULEBOOK },
+        select: { content: true },
+      }),
+      tx.rulebookRevision.findFirst({
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      }),
+    ]);
+
+    const currentVersion = latest?.version ?? 0;
+    const currentContent = live?.content ?? '';
+    const validation = validateRulebookPublish({
+      content: input.content,
+      message: input.message,
+      currentContent,
+      currentVersion,
+      expectedVersion: input.expectedVersion,
+    });
+
+    if (!validation.ok) {
+      if (validation.conflict) {
+        conflict(validation.error);
+      }
+      badRequest(validation.error);
+    }
+
+    const version = nextRulebookVersion(currentVersion);
+
+    await tx.rulebookRevision.create({
+      data: {
+        version,
+        content: input.content,
+        message: input.message.trim(),
+        publishedBy: input.publishedBy,
+      },
+    });
+
+    await tx.siteContent.upsert({
+      where: { key: CONTENT_KEYS.RULEBOOK },
+      update: {
+        content: input.content,
+        updatedBy: input.publishedBy,
+      },
+      create: {
+        key: CONTENT_KEYS.RULEBOOK,
+        content: input.content,
+        updatedBy: input.publishedBy,
+      },
+    });
+
+    return { version };
+  });
 }

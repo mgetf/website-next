@@ -3,6 +3,7 @@ import { getTeamsPublic } from '$lib/server/services/teams';
 import { getRegions } from '$lib/server/services/regions';
 import { getSeasons } from '$lib/server/services/seasons';
 import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { buildPageSeo } from '$lib/utils/seo';
 
 export const load: PageServerLoad = async ({ url }) => {
   const page = parseInt(url.searchParams.get('page') || '1');
@@ -23,6 +24,10 @@ export const load: PageServerLoad = async ({ url }) => {
   const seasons = allSeasons.filter((s) => s.formatId === FORMAT_2V2);
 
   return {
+    seo: buildPageSeo(url.origin, {
+      title: 'Teams | MGE.tf',
+      description: 'Browse all MGE.tf teams',
+    }),
     teams,
     pagination,
     regions,

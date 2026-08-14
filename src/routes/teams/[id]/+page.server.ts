@@ -25,6 +25,7 @@ import {
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { getByeWeeksForTeam } from '$lib/server/services/byeWeeks';
+import { buildPageSeo } from '$lib/utils/seo';
 
 const playerSteamIdSchema = z.object({
   playerSteamId: z.string().min(1, 'Player Steam ID is required'),
@@ -243,7 +244,29 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       ? allDivisions.filter((d) => d.regionId === team.regionId)
       : allDivisions;
 
+  const divisionLabel = [team.division?.name, team.region?.name ? `(${team.region.name})` : null]
+    .filter(Boolean)
+    .join(' ');
+  const seasonLabel = team.season?.seasonNum ? `Season ${team.season.seasonNum}` : null;
+  const recordLabel = `${team.wins}-${team.losses}`;
+  const seoDescription = [
+    team.acronym ? `${team.name} (${team.acronym})` : team.name,
+    divisionLabel || null,
+    seasonLabel,
+    `Record ${recordLabel}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return {
+    seo: buildPageSeo(url.origin, {
+      title: `${team.name} | MGE.tf`,
+      description: seoDescription,
+      image: team.avatar,
+      imageAlt: `${team.name} team avatar`,
+      card: 'summary',
+      type: 'profile',
+    }),
     team: {
       id: team.id,
       name: team.name,

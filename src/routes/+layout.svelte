@@ -8,11 +8,27 @@
   import DevGate from '$lib/components/layout/DevGate.svelte';
   import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
   import { identifyUser } from '$lib/utils/posthog';
+  import { DEFAULT_SEO_DESCRIPTION, DEFAULT_SEO_IMAGE_PATH, toAbsoluteUrl } from '$lib/utils/seo';
   import { onMount } from 'svelte';
   import { afterNavigate } from '$app/navigation';
   import { page } from '$app/state';
 
   let { data, children }: { data: LayoutData; children: any } = $props();
+
+  const siteTitle = $derived(data.siteSettings?.siteTitle || 'MGE.tf');
+  const seo = $derived.by(() => {
+    const pageSeo = page.data.seo;
+    const title = pageSeo?.title ?? `${siteTitle} - Competitive TF2 MGE League`;
+    const description = pageSeo?.description ?? DEFAULT_SEO_DESCRIPTION;
+    const image =
+      pageSeo?.image ?? toAbsoluteUrl(DEFAULT_SEO_IMAGE_PATH, page.url.origin) ?? undefined;
+    const imageAlt = pageSeo?.imageAlt ?? siteTitle;
+    const card = pageSeo?.card ?? 'summary';
+    const type = pageSeo?.type ?? 'website';
+    const url = page.url.href.split('?')[0];
+
+    return { title, description, image, imageAlt, card, type, url };
+  });
 
   // Identify user to PostHog when layout mounts
   onMount(() => {
@@ -31,12 +47,28 @@
 </script>
 
 <svelte:head>
-  <title>{data.siteSettings?.siteTitle || 'MGE.tf'} - Competitive TF2 MGE League</title>
-  <meta
-    name="description"
-    content="MGE.tf is a competitive Team Fortress 2 MGE league platform for 2v2 tournaments and seasonal play"
-  />
+  <title>{seo.title}</title>
+  <meta name="description" content={seo.description} />
   <meta name="view-transition" content="same-origin" />
+
+  <meta property="og:site_name" content={siteTitle} />
+  <meta property="og:type" content={seo.type} />
+  <meta property="og:title" content={seo.title} />
+  <meta property="og:description" content={seo.description} />
+  <meta property="og:url" content={seo.url} />
+  {#if seo.image}
+    <meta property="og:image" content={seo.image} />
+    <meta property="og:image:alt" content={seo.imageAlt} />
+  {/if}
+
+  <meta name="twitter:card" content={seo.card} />
+  <meta name="twitter:title" content={seo.title} />
+  <meta name="twitter:description" content={seo.description} />
+  {#if seo.image}
+    <meta name="twitter:image" content={seo.image} />
+    <meta name="twitter:image:alt" content={seo.imageAlt} />
+  {/if}
+
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap"
     rel="stylesheet"

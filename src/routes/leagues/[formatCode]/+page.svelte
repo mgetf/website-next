@@ -4,6 +4,7 @@
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+  import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
 
@@ -15,7 +16,6 @@
 
   let activeTab = $state<'standings' | 'info'>('standings');
   let isEditing = $state(false);
-  let showPreview = $state(false);
   let editContent = $state('');
   interface PageData {
     user: any;
@@ -222,7 +222,6 @@
             return async ({ update }) => {
               await update({ reset: false });
               isEditing = false;
-              showPreview = false;
             };
           }}
         >
@@ -231,54 +230,26 @@
             class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
           >
             <div
-              class="flex items-center justify-between px-4 py-3 border-b border-border-default bg-surface-page/50"
+              class="flex items-center justify-end gap-2 px-4 py-3 border-b border-border-default bg-surface-page/50"
             >
-              <div class="flex items-center gap-1 bg-surface-input/60 rounded-md p-1">
-                <button
-                  type="button"
-                  onclick={() => (showPreview = false)}
-                  class="px-3 py-1 rounded text-xs font-semibold transition-all {!showPreview
-                    ? 'bg-surface-hover text-white'
-                    : 'text-text-body hover:text-white'}">Edit</button
-                >
-                <button
-                  type="button"
-                  onclick={() => (showPreview = true)}
-                  class="px-3 py-1 rounded text-xs font-semibold transition-all {showPreview
-                    ? 'bg-surface-hover text-white'
-                    : 'text-text-body hover:text-white'}">Preview</button
-                >
-              </div>
-              <div class="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onclick={() => {
-                    isEditing = false;
-                    showPreview = false;
-                  }}>Cancel</Button
-                >
-                <Button type="submit" variant="primary" size="sm">Save</Button>
-              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onclick={() => {
+                  isEditing = false;
+                }}>Cancel</Button
+              >
+              <Button type="submit" variant="primary" size="sm">Save</Button>
             </div>
-            {#if showPreview}
-              <div class="p-8 min-h-64">
-                {#if editContent.trim()}
-                  <MarkdownRenderer content={editContent} />
-                {:else}
-                  <p class="text-text-muted text-sm italic">Nothing to preview.</p>
-                {/if}
-              </div>
-            {:else}
-              <textarea
+            <div class="p-2">
+              <MarkdownEditor
                 name="info"
                 bind:value={editContent}
-                rows="24"
+                rows={24}
                 placeholder="Write season info using Markdown...&#10;&#10;## Key Dates&#10;| Event | Date |&#10;|---|---|&#10;&#10;### Weekly Arena Schedule&#10;..."
-                class="w-full bg-transparent text-white text-sm font-mono p-6 resize-none outline-none placeholder-text-muted leading-relaxed"
-              ></textarea>
-            {/if}
+              />
+            </div>
           </div>
         </form>
       {:else}
@@ -296,7 +267,6 @@
                 onclick={() => {
                   editContent = data.seasonInfo ?? '';
                   isEditing = true;
-                  showPreview = false;
                 }}>Edit</Button
               >
             </div>

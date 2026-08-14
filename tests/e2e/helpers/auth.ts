@@ -65,7 +65,8 @@ export async function submitSeriesScores(
 }
 
 export async function postMatchMessage(page: Page, content: string): Promise<void> {
-  await page.locator('textarea[name="content"]').fill(content);
+  await page.getByRole('tab', { name: 'Raw' }).click();
+  await page.locator('textarea[data-markdown-raw]').fill(content);
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Post Message' }).click(),

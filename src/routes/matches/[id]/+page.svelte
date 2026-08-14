@@ -11,6 +11,7 @@
   import Card from '$lib/components/ui/Card.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+  import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { formatPlayoffRound } from '$lib/utils/playoffs';
 
@@ -1314,14 +1315,14 @@
           }}
         >
           <div class="mb-3">
-            <textarea
+            <MarkdownEditor
               name="content"
               bind:value={messageContent}
-              rows="3"
+              compact
+              rows={4}
               placeholder="Write your message..."
               disabled={isSubmittingMessage}
-              class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            ></textarea>
+            />
           </div>
           <div class="flex gap-3">
             <Button

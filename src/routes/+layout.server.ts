@@ -5,11 +5,12 @@
 
 import type { LayoutServerLoad } from './$types';
 import { hasAnySignupsOpen } from '$lib/server/services/settings';
-import { getUserActiveTeam } from '$lib/server/services/users';
+import { getUserActiveTeam, isSignedUpForAllOpenFormats } from '$lib/server/services/users';
 import { getNotificationsForDropdown } from '$lib/server/services/notifications';
 import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 import { getSiteSettings } from '$lib/server/services/siteSettings';
 import { getFormatsWithSeasons } from '$lib/server/services/formats';
+import { getOpenSignupFormats } from '$lib/server/services/signupSeasons';
 import { isRealtimeNotificationsEnabled } from '$lib/server/utils/env';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
@@ -40,23 +41,31 @@ export const load: LayoutServerLoad = async ({ locals }) => {
   }
 
   // Check if any active signup season has signups open and get formats
-  const [anySignupsOpen, siteSettings, formats] = await Promise.all([
+  const [anySignupsOpen, siteSettings, formats, openSignupFormats] = await Promise.all([
     hasAnySignupsOpen(),
     getSiteSettings(),
     getFormatsWithSeasons(),
+    getOpenSignupFormats(),
   ]);
   // Inverted: signupClosed = NOT anySignupsOpen
   const signupClosed = !anySignupsOpen;
 
-  // Check if user is in a team (to hide signup button if they are)
+  // Hide Sign Up only when the user already has an entry in every open format
   let isInTeam = false;
   let userTeam: { id: number; name: string } | null = null;
   let notifications: Awaited<ReturnType<typeof getNotificationsForDropdown>> = [];
   let notificationCount = 0;
 
   if (locals.user) {
-    userTeam = await getUserActiveTeam(locals.user.steamId);
-    isInTeam = !!userTeam;
+    const [activeTeam, signedUpForAllOpen] = await Promise.all([
+      getUserActiveTeam(locals.user.steamId),
+      isSignedUpForAllOpenFormats(
+        locals.user.steamId,
+        openSignupFormats.map((f) => f.id),
+      ),
+    ]);
+    userTeam = activeTeam;
+    isInTeam = signedUpForAllOpen;
 
     notifications = await getNotificationsForDropdown(locals.user.steamId);
     notificationCount = notifications.filter((n) => !n.isRead).length;

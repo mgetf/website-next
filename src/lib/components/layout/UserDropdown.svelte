@@ -63,7 +63,7 @@
       src={user.steamAvatar}
       alt="User Avatar"
     />
-    <div class="hidden md:flex flex-col items-start leading-tight">
+    <div class="hidden lg:flex flex-col items-start leading-tight">
       <span class="text-sm font-medium text-text-label">{displayName()}</span>
       {#if roleBadge()}
         <span class="text-[10px] font-medium {roleBadge()!.classes}">{roleBadge()!.label}</span>

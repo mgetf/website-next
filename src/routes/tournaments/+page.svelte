@@ -68,14 +68,6 @@
   }
 </script>
 
-<svelte:head>
-  <title>Tournaments - MGE.tf</title>
-  <meta
-    name="description"
-    content="Browse all MGE.tf tournaments including Cups, World Championships, and Fight Night events"
-  />
-</svelte:head>
-
 <div>
   <PageHero maxWidth="max-w-7xl" border>
     <div>

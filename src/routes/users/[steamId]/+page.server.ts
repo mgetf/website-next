@@ -21,6 +21,7 @@ import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getPlayerRatings } from '$lib/server/clients/mgePlatform';
+import { buildPageSeo } from '$lib/utils/seo';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
@@ -46,7 +47,31 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       divisions1v1 = allDivisions.filter((d) => d.regionId === profile.current1v1Entry!.regionId);
     }
 
+    const activeTeam = profile.currentTeams[0];
+    const active1v1 = profile.current1v1Entry;
+    const contextBits = [
+      activeTeam
+        ? `${activeTeam.teamName} · ${activeTeam.division} (${activeTeam.regionName}) · S${activeTeam.seasonNum}`
+        : null,
+      !activeTeam && active1v1
+        ? `1v1 · ${active1v1.division} (${active1v1.region}) · S${active1v1.seasonNum}`
+        : null,
+      profile.player.discordUsername ? `Discord: ${profile.player.discordUsername}` : null,
+    ].filter(Boolean);
+    const seoDescription =
+      contextBits.length > 0
+        ? `${profile.player.name} on MGE.tf — ${contextBits.join(' · ')}`
+        : `${profile.player.name}'s player profile on MGE.tf`;
+
     return {
+      seo: buildPageSeo(url.origin, {
+        title: `${profile.player.name} | MGE.tf`,
+        description: seoDescription,
+        image: profile.player.avatar,
+        imageAlt: `${profile.player.name}'s avatar`,
+        card: 'summary',
+        type: 'profile',
+      }),
       ...profile,
       ratings,
       isOwnProfile,

@@ -7,7 +7,6 @@
 import { prisma } from '$lib/server/db';
 import { TeamStatus, NotificationType } from '$prisma/client.js';
 import type { Prisma } from '$prisma/client.js';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { notFound, badRequest, forbidden } from '$lib/server/utils/errors';
 import { createNotificationForUser } from '$lib/server/services/notifications';
 
@@ -99,11 +98,18 @@ export async function getTeamsPublic(
   search?: string,
   regionId?: number,
   seasonId?: number,
+  formatId?: number,
 ) {
   const TEAMS_PER_PAGE = 50;
   const skip = (page - 1) * TEAMS_PER_PAGE;
 
-  const where: Prisma.TeamWhereInput = { formatId: FORMAT_2V2 };
+  const where: Prisma.TeamWhereInput = {
+    format: { isIndividual: false },
+  };
+
+  if (formatId) {
+    where.formatId = formatId;
+  }
 
   if (search && search.trim().length > 0) {
     where.OR = [
@@ -131,6 +137,13 @@ export async function getTeamsPublic(
         wins: true,
         losses: true,
         status: true,
+        format: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
         division: {
           select: {
             id: true,
@@ -517,6 +530,7 @@ export async function adminSetTeamStatus(id: number, status: TeamStatus) {
   const team = await prisma.team.findUnique({
     where: { id },
     include: {
+      format: { select: { requiredPaidPlayers: true } },
       division: { select: { signupCost: true } },
       players: {
         where: { active: 1 },
@@ -531,9 +545,10 @@ export async function adminSetTeamStatus(id: number, status: TeamStatus) {
     const isFreeDiv = !team.division || team.division.signupCost === 0;
     if (!isFreeDiv) {
       const paidCount = team.players.filter((p) => p.paymentStatus !== 0).length;
-      if (paidCount < MIN_PAID_PLAYERS_TO_READY) {
+      const requiredPaidPlayers = team.format.requiredPaidPlayers;
+      if (paidCount < requiredPaidPlayers) {
         badRequest(
-          `Cannot set team to ${status}: at least ${MIN_PAID_PLAYERS_TO_READY} active players must be marked as paid first`,
+          `Cannot set team to ${status}: at least ${requiredPaidPlayers} active players must be marked as paid first`,
         );
       }
     }
@@ -545,17 +560,16 @@ export async function adminSetTeamStatus(id: number, status: TeamStatus) {
   });
 }
 
-const MIN_PAID_PLAYERS_TO_READY = 2;
-
 /**
  * Toggle a team from UNREADY to PENDING.
  * Requires the caller to be a team admin (permissionLevel >= 1)
- * and at least MIN_PAID_PLAYERS_TO_READY active players to be paid.
+ * and at least format.requiredPaidPlayers active players to be paid.
  */
 export async function toggleTeamReady(teamId: number, userSteamId: string) {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
+      format: { select: { requiredPaidPlayers: true } },
       players: {
         where: { active: 1 },
         select: { playerSteamId: true, permissionLevel: true, paymentStatus: true },
@@ -578,8 +592,9 @@ export async function toggleTeamReady(teamId: number, userSteamId: string) {
   const isFreeDiv = !team.division || team.division.signupCost === 0;
   if (!isFreeDiv) {
     const paidCount = team.players.filter((p) => p.paymentStatus !== 0).length;
-    if (paidCount < MIN_PAID_PLAYERS_TO_READY) {
-      badRequest(`At least ${MIN_PAID_PLAYERS_TO_READY} players must be paid before readying up`);
+    const requiredPaidPlayers = team.format.requiredPaidPlayers;
+    if (paidCount < requiredPaidPlayers) {
+      badRequest(`At least ${requiredPaidPlayers} players must be paid before readying up`);
     }
   }
 
@@ -809,33 +824,6 @@ export async function getPlayerCurrentTeamName(
     include: { team: { select: { name: true } } },
   });
   return membership?.team?.name ?? '';
-}
-
-/**
- * Find the most recent season that has 1v1 entries with the given statuses
- * Returns { seasonId, regionId } or null if none found
- */
-export async function findRecent1v1SeasonWithEntries(
-  statuses: string[],
-  formatId: number,
-): Promise<{ seasonId: number; regionId: number } | null> {
-  const result = await prisma.team.findFirst({
-    where: {
-      formatId,
-      status: { in: statuses as any },
-    },
-    select: {
-      seasonId: true,
-      regionId: true,
-      season: { select: { seasonNum: true } },
-    },
-    orderBy: [{ season: { seasonNum: 'desc' } }],
-  });
-
-  if (result?.seasonId && result?.regionId) {
-    return { seasonId: result.seasonId, regionId: result.regionId };
-  }
-  return null;
 }
 
 /**

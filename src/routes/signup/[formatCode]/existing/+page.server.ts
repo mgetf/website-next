@@ -1,12 +1,12 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
+import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSignupContext, reregisterTeam } from '$lib/server/services/teamSignup';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
@@ -19,10 +19,16 @@ const reregisterTeamSchema = z.object({
   regionId: z.coerce.number().int().positive('Region is required'),
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
   requireAuth(locals.user);
 
-  const context = await getSignupContext(locals.user.steamId);
+  const format = await requireFormatByCode(params.formatCode);
+
+  if (format.isIndividual || !format.supportsReregistration) {
+    redirect(302, `/signup/${format.code}`);
+  }
+
+  const context = await getSignupContext(locals.user.steamId, format.id);
 
   // Load divisions and regions
   const [divisions, regions] = await Promise.all([getVisibleDivisions(), getVisibleRegions()]);
@@ -45,7 +51,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     disabledReason = 'Rosters are currently locked';
   } else if (context.hasActiveTeam) {
     canReregister = false;
-    disabledReason = 'You are already in an active 2v2 team';
+    disabledReason = `You are already in an active ${format.name} team for this season`;
   }
 
   // For re-registration, the user keeps whichever owned team they select.
@@ -56,6 +62,13 @@ export const load: PageServerLoad = async ({ locals }) => {
   );
 
   return {
+    format: {
+      id: format.id,
+      name: format.name,
+      code: format.code,
+      isIndividual: format.isIndividual,
+      themeKey: format.themeKey,
+    },
     ownedTeams: context.ownedTeams,
     divisions,
     regions,
@@ -66,10 +79,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  reregisterTeam: async ({ request, locals, getClientAddress }) => {
+  reregisterTeam: async ({ params, request, locals, getClientAddress }) => {
     requireNotBanned(locals.user);
 
-    const context = await getSignupContext(locals.user.steamId);
+    const format = await requireFormatByCode(params.formatCode);
+
+    if (format.isIndividual || !format.supportsReregistration) {
+      return fail(400, { error: 'This format does not support team re-registration' });
+    }
+
+    const context = await getSignupContext(locals.user.steamId, format.id);
 
     // Check if signups are closed
     if (context.signupClosed) {
@@ -86,7 +105,7 @@ export const actions: Actions = {
     try {
       const before = await getTeamAuditSnapshot(teamId);
       // Get the correct season ID for the selected region
-      const seasonId = await getSignupSeasonForRegion(regionId, FORMAT_2V2);
+      const seasonId = await getSignupSeasonForRegion(regionId, format.id);
 
       // Check if payment is required BEFORE re-registering
       const paymentInfo = await checkPaymentRequired({
@@ -100,6 +119,7 @@ export const actions: Actions = {
         divisionId,
         regionId,
         ownerSteamId: locals.user.steamId,
+        formatId: format.id,
       });
       const after = await getTeamAuditSnapshot(teamId);
 
@@ -127,6 +147,8 @@ export const actions: Actions = {
           regionNameAfter: after?.regionName ?? null,
           statusBefore: before?.status ?? null,
           statusAfter: after?.status ?? null,
+          formatId: format.id,
+          formatCode: format.code,
         },
         ipAddress: getClientAddress(),
       });

@@ -1,12 +1,12 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
+import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSignupContext, createTeam } from '$lib/server/services/teamSignup';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
@@ -28,10 +28,16 @@ const createTeamFormSchema = z.object({
   joinPassword: z.string().min(1, 'Join password is required'),
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
   requireAuth(locals.user);
 
-  const context = await getSignupContext(locals.user.steamId);
+  const format = await requireFormatByCode(params.formatCode);
+
+  if (format.isIndividual) {
+    redirect(302, `/signup/${format.code}`);
+  }
+
+  const context = await getSignupContext(locals.user.steamId, format.id);
 
   // Load divisions and regions
   const [divisions, regions] = await Promise.all([getVisibleDivisions(), getVisibleRegions()]);
@@ -48,13 +54,21 @@ export const load: PageServerLoad = async ({ locals }) => {
     disabledReason = 'Team signups are currently closed';
   } else if (context.hasActiveTeam) {
     canCreate = false;
-    disabledReason = 'You are already in an active 2v2 team';
+    disabledReason = `You are already in an active ${format.name} team for this season`;
   } else if (context.rosterLocked) {
     canCreate = false;
     disabledReason = 'Rosters are currently locked';
   }
 
   return {
+    format: {
+      id: format.id,
+      name: format.name,
+      code: format.code,
+      isIndividual: format.isIndividual,
+      supportsAcronym: format.supportsAcronym,
+      themeKey: format.themeKey,
+    },
     divisions,
     regions,
     canCreate,
@@ -64,10 +78,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  createTeam: async ({ request, locals, getClientAddress }) => {
+  createTeam: async ({ params, request, locals, getClientAddress }) => {
     requireNotBanned(locals.user);
 
-    const context = await getSignupContext(locals.user.steamId);
+    const format = await requireFormatByCode(params.formatCode);
+
+    if (format.isIndividual) {
+      return fail(400, { error: 'Cannot create team for individual format' });
+    }
+
+    const context = await getSignupContext(locals.user.steamId, format.id);
 
     // Check if signups are closed
     if (context.signupClosed) {
@@ -118,7 +138,7 @@ export const actions: Actions = {
 
     try {
       // Get the correct season ID for the selected region
-      const seasonId = await getSignupSeasonForRegion(regionId, FORMAT_2V2);
+      const seasonId = await getSignupSeasonForRegion(regionId, format.id);
 
       // Check if payment is required BEFORE creating the team
       const paymentInfo = await checkPaymentRequired({
@@ -130,12 +150,13 @@ export const actions: Actions = {
       // Create team
       const teamId = await createTeam({
         name,
-        acronym: acronym || undefined,
+        acronym: format.supportsAcronym && acronym ? acronym : undefined,
         avatar: avatarUrl,
         divisionId,
         regionId,
         joinPassword,
         ownerSteamId: locals.user.steamId,
+        formatId: format.id,
       });
 
       await logAudit({
@@ -147,7 +168,7 @@ export const actions: Actions = {
         targetId: String(teamId),
         metadata: {
           name,
-          acronym: acronym || null,
+          acronym: format.supportsAcronym && acronym ? acronym : null,
           divisionId,
           regionId,
           seasonId: seasonId ?? null,
@@ -155,6 +176,8 @@ export const actions: Actions = {
           alreadyPaid: paymentInfo.alreadyPaid,
           avatarUploaded: Boolean(avatarUrl),
           status: (await getTeamAuditSnapshot(teamId))?.status ?? null,
+          formatId: format.id,
+          formatCode: format.code,
         },
         ipAddress: getClientAddress(),
       });

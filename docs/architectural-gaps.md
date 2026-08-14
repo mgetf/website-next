@@ -977,7 +977,7 @@ This gap analysis does not exist in isolation. Three other proposals are in play
 
 The three proposals are independent of each other — they touch different parts of the stack. But the architectural gaps sit _underneath_ all of them:
 
-- **Format System** is explicitly parked. The only relevant action items (shared client constants, admin CRUD note) are covered by Gap 12 in this document. No execution needed unless a third format is planned.
+- **Format System** is implemented (admin-configurable Format rules, dynamic signup/league routes, Ultiduo/BBall seeds). Remaining polish may still touch hardcoded presentation on the home/profile pages.
 - **Tournament Unification** will rewrite `tournaments.ts`, `/tournaments` routes, and player profile tournament sections. Gap fixes applied to those files before the rewrite are wasted effort. This proposal now has a prerequisite: the **Bracket Rendering** proposal (`docs/proposals/bracket-rendering.md`), which designs the UI components and services that consume the unified schema. All tournament data is historical — there are no active events, and actual bracket data lives on external services (BracketHQ, Challonge) that will be imported once.
 - **UI Component Centralization** creates Button, Card, Badge components and design tokens. Tournament unification will produce new pages — those pages should be written _with_ the new components, not with inline Tailwind that gets migrated later.
 

@@ -199,7 +199,9 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   await expect(awayCaptain.page.getByRole('heading', { name: AWAY_TEAM_NAME })).toBeVisible();
 
   // --- Home captain creates team via signup UI ---
-  await expect(homeCaptain.page.getByRole('heading', { name: 'Create New Team' })).toBeVisible();
+  await expect(
+    homeCaptain.page.getByRole('heading', { name: 'Create New 2v2 Team' }),
+  ).toBeVisible();
   await homeCaptain.page.locator('#name').fill(HOME_TEAM_NAME);
   await homeCaptain.page.locator('#acronym').fill('ALP');
   await homeCaptain.page.locator('#regionId').selectOption({ label: 'E2E Region' });
@@ -212,7 +214,7 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
 
   await Promise.all([
     homeCaptain.page.waitForURL(/\/teams\/\d+/),
-    homeCaptain.page.getByRole('button', { name: 'Create Team' }).click(),
+    homeCaptain.page.getByRole('button', { name: 'Create 2v2 Team' }).click(),
   ]);
 
   const created = await getTeamByName(HOME_TEAM_NAME);

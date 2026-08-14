@@ -6,6 +6,7 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import { getFormatThemeClasses } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -14,6 +15,8 @@
   let avatarPreview: string | null = $state(null);
   let selectedRegionId = $state<number | null>(null);
   let divisionValue = $state('');
+
+  const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 
   // Get the selected region object
   const selectedRegion = $derived(data.regions.find((r) => r.id === selectedRegionId));
@@ -83,7 +86,7 @@
       >
         ← Back to Signup Options
       </a>
-      <h1 class="text-4xl font-bold text-white mb-2">Create New Team</h1>
+      <h1 class="text-4xl font-bold text-white mb-2">Create New {data.format.name} Team</h1>
       <p class="text-text-body">Fill out the form below to register your team for the season</p>
     </div>
 
@@ -150,13 +153,15 @@
             hint="No < or > characters allowed"
           />
 
-          <!-- Acronym -->
-          <FormInput
-            label="Team Acronym"
-            name="acronym"
-            maxlength={4}
-            placeholder="e.g., MGE (max 4 characters)"
-          />
+          <!-- Acronym (only if format supports it) -->
+          {#if data.format.supportsAcronym}
+            <FormInput
+              label="Team Acronym"
+              name="acronym"
+              maxlength={4}
+              placeholder="e.g., MGE (max 4 characters)"
+            />
+          {/if}
 
           <!-- Avatar Upload -->
           <div class="mb-6">
@@ -251,7 +256,7 @@
           <!-- Submit Button -->
           <div class="flex items-center gap-4">
             <Button type="submit" variant="primary" size="lg" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating Team...' : 'Create Team'}
+              {isSubmitting ? 'Creating Team...' : `Create ${data.format.name} Team`}
             </Button>
             <Button href="/signup" variant="secondary" size="lg">Cancel</Button>
           </div>

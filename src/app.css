@@ -9,15 +9,24 @@
   --color-primary-800: var(--color-orange-800);
   --color-primary-900: var(--color-orange-900);
 
-  /* ── Format: 2v2 ── */
-  --color-format-2v2-400: var(--color-blue-400);
-  --color-format-2v2-500: var(--color-blue-500);
-  --color-format-2v2-600: var(--color-blue-600);
+  /* ── Theme palettes (selected via Format.themeKey) ── */
+  --color-theme-blue-300: var(--color-blue-300);
+  --color-theme-blue-400: var(--color-blue-400);
+  --color-theme-blue-500: var(--color-blue-500);
+  --color-theme-blue-600: var(--color-blue-600);
 
-  /* ── Format: 1v1 ── */
-  --color-format-1v1-400: var(--color-purple-400);
-  --color-format-1v1-500: var(--color-purple-500);
-  --color-format-1v1-600: var(--color-purple-600);
+  --color-theme-purple-300: var(--color-purple-300);
+  --color-theme-purple-400: var(--color-purple-400);
+  --color-theme-purple-500: var(--color-purple-500);
+  --color-theme-purple-600: var(--color-purple-600);
+
+  /* Legacy aliases (prefer theme-* / themeKey helpers) */
+  --color-format-2v2-400: var(--color-theme-blue-400);
+  --color-format-2v2-500: var(--color-theme-blue-500);
+  --color-format-2v2-600: var(--color-theme-blue-600);
+  --color-format-1v1-400: var(--color-theme-purple-400);
+  --color-format-1v1-500: var(--color-theme-purple-500);
+  --color-format-1v1-600: var(--color-theme-purple-600);
 
   /* ── Surfaces ── */
   --color-surface-page: var(--color-zinc-950);

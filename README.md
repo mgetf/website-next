@@ -137,11 +137,17 @@ Schema: `prisma/schema.prisma`. Important models:
 
 ### Production migrations
 
+Local / one-off:
+
 ```bash
-bun prisma migrate deploy
-# or
+bun run migrate
+# or against a specific env file:
 bun run migrate:prod
 ```
+
+Docker/Railway production images run `bun run start:prod`, which applies `prisma migrate deploy` automatically before starting the app. Prefer that over running migrate by hand against remote DBs.
+
+Local development still uses `bunx prisma migrate dev` when creating new migrations.
 
 ## Deployment
 
@@ -154,11 +160,13 @@ docker compose up -d
 
 See `docker-compose.yml` for environment variables. Production deploys also set `APP_ENVIRONMENT` (`production` on mge.tf, `staging` on dev.mge.tf).
 
+Optional Railway **Release Command**: `bunx prisma migrate deploy` (safe even if `start:prod` also migrates; Prisma is idempotent).
+
 ### Manual
 
 ```bash
 bun run build
-bun run ./build/index.js
+bun run start:prod
 ```
 
 The Node/Bun adapter listens on `HOST` / `PORT` (defaults: `0.0.0.0:3000`).

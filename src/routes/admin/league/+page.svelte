@@ -12,8 +12,14 @@
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import { toast } from '$lib/state/toast.svelte';
+  import { FORMAT_THEME_KEYS } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
+
+  const themeKeyOptions = FORMAT_THEME_KEYS.map((key) => ({
+    value: key,
+    label: key,
+  }));
 
   const seasonColumns = $derived([
     { key: 'season', label: 'Season' },
@@ -52,9 +58,11 @@
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
     { key: 'code', label: 'Code' },
+    { key: 'type', label: 'Type' },
+    { key: 'roster', label: 'Roster' },
+    { key: 'themeKey', label: 'Theme' },
     { key: 'seasons', label: 'Seasons' },
-    { key: 'teams', label: 'Teams' },
-    { key: 'signups', label: 'Active Signups' },
+    { key: 'activeSignups', label: 'Active Signups' },
     ...(data.isStrictAdmin ? [{ key: 'actions', label: 'Actions', align: 'right' as const }] : []),
   ]);
 
@@ -1190,43 +1198,87 @@
             action="?/createFormat"
             use:enhance={() => {
               isSubmitting = true;
-              return async ({ update }) => {
+              return async ({ update, result }) => {
                 await update();
                 isSubmitting = false;
-                showFormatForm = false;
+                if (result.type === 'success') showFormatForm = false;
               };
             }}
             class="space-y-4"
           >
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label for="formatName" class="block text-sm font-medium text-text-label mb-2"
-                  >Name</label
-                >
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput label="Name" name="name" placeholder="e.g., Ultiduo" required />
+              <FormInput
+                label="Code"
+                name="code"
+                placeholder="e.g., ultiduo"
+                required
+                hint="Unique URL slug (lowercase)"
+              />
+              <FormInput
+                label="Min roster size"
+                name="minRosterSize"
+                type="number"
+                value="2"
+                required
+              />
+              <FormInput
+                label="Max roster size"
+                name="maxRosterSize"
+                type="number"
+                value="3"
+                required
+              />
+              <FormInput
+                label="Required paid players"
+                name="requiredPaidPlayers"
+                type="number"
+                value="2"
+                required
+              />
+              <FormSelect
+                label="Theme"
+                name="themeKey"
+                options={themeKeyOptions}
+                value="primary"
+                required
+              />
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-text-label">
+              <label class="flex items-center gap-2">
+                <input type="checkbox" name="isIndividual" value="true" class="rounded" />
+                Individual signup (1-person teams)
+              </label>
+              <label class="flex items-center gap-2">
                 <input
-                  type="text"
-                  id="formatName"
-                  name="name"
-                  placeholder="e.g., 1v1, 2v2, 3v3"
-                  required
-                  class="w-full px-4 py-2 bg-surface-card border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  type="checkbox"
+                  name="supportsJoinPassword"
+                  value="true"
+                  class="rounded"
+                  checked
                 />
-                <p class="text-xs text-text-muted mt-1">Display name shown to users</p>
-              </div>
-              <div>
-                <label for="formatCode" class="block text-sm font-medium text-text-label mb-2"
-                  >Code</label
-                >
+                Supports join password
+              </label>
+              <label class="flex items-center gap-2">
                 <input
-                  type="text"
-                  id="formatCode"
-                  name="code"
-                  placeholder="e.g., 1v1, 2v2, 3v3"
-                  required
-                  class="w-full px-4 py-2 bg-surface-card border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  type="checkbox"
+                  name="supportsAcronym"
+                  value="true"
+                  class="rounded"
+                  checked
                 />
-                <p class="text-xs text-text-muted mt-1">Unique identifier (must be unique)</p>
-              </div>
+                Supports team acronym
+              </label>
+              <label class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="supportsReregistration"
+                  value="true"
+                  class="rounded"
+                  checked
+                />
+                Supports re-registration
+              </label>
             </div>
             <div class="flex justify-end">
               <Button type="submit" variant="success" disabled={isSubmitting}>
@@ -1254,10 +1306,18 @@
               <span class="px-2 py-1 bg-surface-hover rounded text-text-label text-sm font-mono"
                 >{format.code}</span
               >
+            {:else if col.key === 'type'}
+              <Badge color={format.isIndividual ? 'purple' : 'blue'}
+                >{format.isIndividual ? 'Individual' : 'Team'}</Badge
+              >
+            {:else if col.key === 'roster'}
+              <span class="text-text-label text-sm"
+                >{format.minRosterSize}-{format.maxRosterSize} (pay {format.requiredPaidPlayers})</span
+              >
+            {:else if col.key === 'themeKey'}
+              <span class="text-text-label font-mono text-sm">{format.themeKey}</span>
             {:else if col.key === 'seasons'}
               <span class="text-text-label">{format.seasons}</span>
-            {:else if col.key === 'teams'}
-              <span class="text-text-label">{format.teams}</span>
             {:else if col.key === 'activeSignups'}
               <span class="text-text-label">{format.activeSignupSeasons}</span>
             {:else if col.key === 'actions'}
@@ -1303,6 +1363,7 @@
           }
         };
       }}
+      class="space-y-4"
     >
       <input type="hidden" name="formatId" value={editingFormat.id} />
 
@@ -1315,6 +1376,81 @@
         required
         hint="Must be unique across all formats"
       />
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <FormInput
+          label="Min roster"
+          name="minRosterSize"
+          type="number"
+          value={String(editingFormat.minRosterSize)}
+          required
+        />
+        <FormInput
+          label="Max roster"
+          name="maxRosterSize"
+          type="number"
+          value={String(editingFormat.maxRosterSize)}
+          required
+        />
+        <FormInput
+          label="Required paid"
+          name="requiredPaidPlayers"
+          type="number"
+          value={String(editingFormat.requiredPaidPlayers)}
+          required
+        />
+      </div>
+
+      <FormSelect
+        label="Theme"
+        name="themeKey"
+        options={themeKeyOptions}
+        value={editingFormat.themeKey}
+        required
+      />
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-text-label">
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="isIndividual"
+            value="true"
+            class="rounded"
+            checked={editingFormat.isIndividual}
+          />
+          Individual signup
+        </label>
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="supportsJoinPassword"
+            value="true"
+            class="rounded"
+            checked={editingFormat.supportsJoinPassword}
+          />
+          Supports join password
+        </label>
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="supportsAcronym"
+            value="true"
+            class="rounded"
+            checked={editingFormat.supportsAcronym}
+          />
+          Supports team acronym
+        </label>
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="supportsReregistration"
+            value="true"
+            class="rounded"
+            checked={editingFormat.supportsReregistration}
+          />
+          Supports re-registration
+        </label>
+      </div>
 
       <div class="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onclick={() => (editingFormat = null)}>

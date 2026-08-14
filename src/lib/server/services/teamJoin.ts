@@ -9,14 +9,15 @@ import { notFound, badRequest } from '$lib/server/utils/errors';
 import { validateJoinToken } from './teamSignup';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { isSeasonCurrentlyActive } from './settings';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 import { verifyPassword } from '$lib/server/utils/password';
+import { requireFormatById } from './formats';
 
 type TeamJoinTeam = Prisma.TeamGetPayload<{
   include: {
     division: true;
     region: true;
     season: true;
+    format: true;
     players: {
       include: {
         player: true;
@@ -49,6 +50,7 @@ export async function validateTokenAndGetTeam(
       division: true,
       region: true,
       season: true,
+      format: true,
       players: {
         where: { active: 1 },
         include: {
@@ -62,13 +64,13 @@ export async function validateTokenAndGetTeam(
     notFound('Team not found');
   }
 
-  // Block joining 1v1 "teams" - they're individual entries, not actual teams
-  if (team.formatId === FORMAT_1V1) {
+  // Block joining individual-format entries
+  if (team.format.isIndividual) {
     return {
       team,
       activePlayers: team.players,
       canJoin: false,
-      error: '1v1 entries cannot be joined - they are individual player entries',
+      error: 'Individual league entries cannot be joined',
     };
   }
 
@@ -90,12 +92,12 @@ export async function validateTokenAndGetTeam(
   }
 
   // Check if team is full
-  if (activePlayers.length >= 3) {
+  if (activePlayers.length >= team.format.maxRosterSize) {
     return {
       team,
       activePlayers,
       canJoin: false,
-      error: 'Team is full (maximum 3 players)',
+      error: `Team is full (maximum ${team.format.maxRosterSize} players)`,
     };
   }
 
@@ -145,6 +147,7 @@ export async function joinByPassword(
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
+      format: true,
       players: { where: { active: 1 } },
     },
   });
@@ -153,8 +156,8 @@ export async function joinByPassword(
     notFound('Team not found');
   }
 
-  if (team.formatId === FORMAT_1V1) {
-    badRequest('Cannot join 1v1 teams');
+  if (team.format.isIndividual) {
+    badRequest('Cannot join individual league entries');
   }
 
   if (team.seasonId) {
@@ -164,8 +167,8 @@ export async function joinByPassword(
     }
   }
 
-  if (team.players.length >= 3) {
-    badRequest('Team is full (maximum 3 players)');
+  if (team.players.length >= team.format.maxRosterSize) {
+    badRequest(`Team is full (maximum ${team.format.maxRosterSize} players)`);
   }
 
   const isTeamMember = team.players.some(
@@ -175,13 +178,13 @@ export async function joinByPassword(
     badRequest('You are already on this team');
   }
 
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
+  const currentSeasonIds = await getCurrentSignupSeasonIds(team.formatId);
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: team.formatId,
         seasonId: { in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1] },
       },
     },
@@ -216,8 +219,9 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
     notFound('Team not found');
   }
 
-  if (team.formatId === FORMAT_1V1) {
-    badRequest('Cannot join 1v1 teams');
+  const format = await requireFormatById(team.formatId);
+  if (format.isIndividual) {
+    badRequest('Cannot join individual league entries');
   }
 
   if (team.seasonId) {
@@ -234,17 +238,17 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
     badRequest('You cannot invite yourself to your own team');
   }
 
-  if (team.players.length >= 3) {
-    badRequest('Team is full (maximum 3 players)');
+  if (team.players.length >= format.maxRosterSize) {
+    badRequest(`Team is full (maximum ${format.maxRosterSize} players)`);
   }
 
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
+  const currentSeasonIds = await getCurrentSignupSeasonIds(team.formatId);
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: team.formatId,
         seasonId: { in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1] },
       },
     },
@@ -334,17 +338,17 @@ export async function isPlayerInTeam(steamId: string, teamId: number): Promise<b
 }
 
 /**
- * Check if a player is in any active 2v2 team for the current signup season
+ * Check if a player is in any active team for the given format's current signup seasons
  * (allows being in old season teams)
  */
-export async function isPlayerInAnyActiveTeam(steamId: string): Promise<boolean> {
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
+export async function isPlayerInAnyActiveTeam(steamId: string, formatId: number): Promise<boolean> {
+  const currentSeasonIds = await getCurrentSignupSeasonIds(formatId);
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId,
         seasonId: {
           in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
         },

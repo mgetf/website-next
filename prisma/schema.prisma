@@ -183,8 +183,17 @@ model ItemPaymentOrder {
 // ═══════════════════════════════════════════════════════════════════
 model Format {
   id   Int    @id @default(autoincrement())
-  name String // Display name: "1v1", "2v2"
-  code String @unique // Lookup key: "1v1", "2v2"
+  name String // Display name: "1v1", "2v2", "Ultiduo"
+  code String @unique // Lookup key: "1v1", "2v2", "ultiduo"
+
+  isIndividual           Boolean @default(false) @map("is_individual")
+  minRosterSize          Int     @default(2) @map("min_roster_size")
+  maxRosterSize          Int     @default(3) @map("max_roster_size")
+  requiredPaidPlayers    Int     @default(2) @map("required_paid_players")
+  supportsJoinPassword   Boolean @default(true) @map("supports_join_password")
+  supportsAcronym        Boolean @default(true) @map("supports_acronym")
+  supportsReregistration Boolean @default(true) @map("supports_reregistration")
+  themeKey               String  @default("primary") @map("theme_key")
 
   seasons             Season[]
   teams               Team[]

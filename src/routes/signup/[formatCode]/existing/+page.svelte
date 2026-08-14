@@ -5,6 +5,7 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import { getFormatThemeClasses } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -12,6 +13,8 @@
   let selectedTeamId = $state<number | null>(null);
   let selectedRegionId = $state<number | null>(null);
   let divisionValue = $state('');
+
+  const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 
   let selectedTeam = $derived(data.ownedTeams.find((t) => t.id === selectedTeamId) || null);
 
@@ -69,7 +72,9 @@
       >
         ← Back to Signup Options
       </a>
-      <h1 class="text-4xl font-bold text-white mb-2">Re-register Existing Team</h1>
+      <h1 class="text-4xl font-bold text-white mb-2">
+        Re-register Existing {data.format.name} Team
+      </h1>
       <p class="text-text-body">Sign up one of your existing teams for the new season</p>
     </div>
 
@@ -105,7 +110,9 @@
       <!-- Unavailable Message -->
       <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">🚫</div>
-        <h2 class="text-2xl font-bold text-white mb-4">Team Re-registration Unavailable</h2>
+        <h2 class="text-2xl font-bold text-white mb-4">
+          {data.format.name} Team Re-registration Unavailable
+        </h2>
         <p class="text-text-body text-lg mb-6">
           {data.disabledReason}
         </p>
@@ -133,9 +140,9 @@
             <div class="space-y-3">
               {#each data.ownedTeams as team}
                 <label
-                  class="flex items-center gap-4 p-4 bg-surface-input border border-border-input rounded-lg cursor-pointer hover:border-primary-500 transition-colors {selectedTeamId ===
+                  class="flex items-center gap-4 p-4 bg-surface-input border border-border-input rounded-lg cursor-pointer {themeClasses.hoverBorder500} transition-colors {selectedTeamId ===
                   team.id
-                    ? 'border-primary-500 bg-surface-input/80'
+                    ? `border-primary-500 ${themeClasses.bg500_10}`
                     : ''}"
                 >
                   <input
@@ -225,8 +232,10 @@
           </div>
 
           <!-- Info Box -->
-          <div class="mb-6 p-4 bg-info-500/10 border border-info-500/30 rounded-lg">
-            <p class="text-info-400 text-sm">
+          <div
+            class="mb-6 p-4 {themeClasses.bg500_10} border {themeClasses.border500_30} rounded-lg"
+          >
+            <p class="{themeClasses.text400} text-sm">
               <strong>Note:</strong> Re-registering will reset your team's stats (wins, losses, points)
               and update the season, region, and division.
             </p>
@@ -235,7 +244,7 @@
           <!-- Submit Button -->
           <div class="flex items-center gap-4">
             <Button type="submit" variant="primary" size="lg" disabled={isSubmitting}>
-              {isSubmitting ? 'Re-registering...' : 'Re-register Team'}
+              {isSubmitting ? 'Re-registering...' : `Re-register ${data.format.name} Team`}
             </Button>
             <Button href="/signup" variant="secondary" size="lg">Cancel</Button>
           </div>

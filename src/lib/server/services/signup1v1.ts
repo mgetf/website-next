@@ -42,20 +42,27 @@ interface Signup1v1Data {
   ownerSteamId: string;
   regionId: number;
   divisionId: number;
+  formatId?: number;
 }
 
 /**
  * Get 1v1 signup context for a user
  * Now uses per-season settings instead of global
  */
-export async function get1v1SignupContext(steamId: string | null): Promise<Signup1v1Context> {
-  // Get current signup season IDs for 1v1 format
-  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_1V1);
+export async function get1v1SignupContext(
+  steamId: string | null,
+  formatId?: number,
+): Promise<Signup1v1Context> {
+  // Use provided formatId or default to FORMAT_1V1 for backwards compatibility
+  const targetFormatId = formatId ?? FORMAT_1V1;
 
-  // Get active signup seasons with their settings for 1v1 format
+  // Get current signup season IDs for the format
+  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(targetFormatId);
+
+  // Get active signup seasons with their settings for the format
   const activeSignupSeasons = await prisma.activeSignupSeason.findMany({
     where: {
-      formatId: FORMAT_1V1,
+      formatId: targetFormatId,
     },
     include: {
       season: {
@@ -87,7 +94,7 @@ export async function get1v1SignupContext(steamId: string | null): Promise<Signu
 
     const existing1v1Entry = await prisma.team.findFirst({
       where: {
-        formatId: FORMAT_1V1,
+        formatId: targetFormatId,
         status: { in: ACTIVE_1V1_STATUSES },
         seasonId: {
           in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
@@ -115,12 +122,15 @@ export async function get1v1SignupContext(steamId: string | null): Promise<Signu
  * Validate 1v1 signup data
  */
 export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
-  // Get current signup season IDs for 1v1 format
-  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(FORMAT_1V1);
+  // Use provided formatId or default to FORMAT_1V1
+  const targetFormatId = data.formatId ?? FORMAT_1V1;
+
+  // Get current signup season IDs for the format
+  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(targetFormatId);
 
   const existing1v1Entry = await prisma.team.findFirst({
     where: {
-      formatId: FORMAT_1V1,
+      formatId: targetFormatId,
       status: { in: ACTIVE_1V1_STATUSES },
       seasonId: {
         in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
@@ -134,7 +144,7 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
   });
 
   if (existing1v1Entry) {
-    badRequest('You are already signed up for the 1v1 league this season');
+    badRequest(`You are already signed up for this individual league this season`);
   }
 
   // Validate division exists
@@ -155,20 +165,23 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
     badRequest('Invalid region selected');
   }
 
-  // Check if there's an active signup season for this region + 1v1 format
-  const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_1V1);
+  // Check if there's an active signup season for this region + format
+  const seasonId = await getSignupSeasonForRegion(data.regionId, targetFormatId);
 
   if (!seasonId) {
-    badRequest('No active 1v1 signup season for this region');
+    badRequest('No active signup season for this region and format');
   }
 }
 
 /**
- * Sign up a player for the 1v1 league
+ * Sign up a player for an individual league
  * If the player previously withdrew from the same region+division, reactivates that entry.
  * Otherwise creates a new 1-person "team" with the player's Steam name and avatar frozen at signup time.
  */
 export async function signup1v1(data: Signup1v1Data): Promise<number> {
+  // Use provided formatId or default to FORMAT_1V1
+  const targetFormatId = data.formatId ?? FORMAT_1V1;
+
   // Validate first
   await validate1v1Signup(data);
 
@@ -195,18 +208,18 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
     badRequest('Invalid division selected');
   }
 
-  // Get the signup season for this region + 1v1 format
-  const seasonId = await getSignupSeasonForRegion(data.regionId, FORMAT_1V1);
+  // Get the signup season for this region + format
+  const seasonId = await getSignupSeasonForRegion(data.regionId, targetFormatId);
 
   if (!seasonId) {
-    badRequest('No active 1v1 signup season for this region');
+    badRequest('No active signup season for this region and format');
   }
 
   // Check if user has a previously withdrawn (DEAD) entry for this exact season+division
   // If so, reactivate it instead of creating a duplicate
   const existingDeadEntry = await prisma.team.findFirst({
     where: {
-      formatId: FORMAT_1V1,
+      formatId: targetFormatId,
       seasonId: seasonId,
       divisionId: data.divisionId,
       status: 'DEAD',
@@ -275,17 +288,17 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
   const initialStatus = TeamStatus.UNREADY;
 
   // Create 1-person "team" with player's frozen name/avatar
-  // No acronym, no join password (nobody can join a 1v1 entry)
+  // No acronym, no join password (nobody can join an individual entry)
   const team = await prisma.team.create({
     data: {
       name: user.steamUsername, // Frozen at signup time
       avatar: user.steamAvatar, // Frozen at signup time
       acronym: null,
-      joinPassword: null, // No password - 1v1 entries can't be joined
+      joinPassword: null, // No password - individual entries can't be joined
       divisionId: data.divisionId,
       regionId: data.regionId,
       seasonId: seasonId,
-      formatId: FORMAT_1V1,
+      formatId: targetFormatId,
       status: initialStatus,
       paymentStatus: division.signupCost === 0 ? 2 : 0,
     },

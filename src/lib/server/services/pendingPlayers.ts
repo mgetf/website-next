@@ -8,7 +8,6 @@
 
 import { prisma } from '$lib/server/db';
 import { badRequest } from '$lib/server/utils/errors';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { logAudit, AuditCategory, AuditAction } from './auditLog';
 
@@ -67,20 +66,32 @@ export async function getPendingPlayers() {
  * cleans up stale memberships, and logs the action.
  */
 export async function approvePlayer(playerSteamId: string, teamId: number, audit: AuditContext) {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      division: { select: { signupCost: true } },
+      format: true,
+    },
+  });
+  if (!team?.seasonId || !team?.divisionId) {
+    badRequest('Team missing season or division');
+  }
+
+  const format = team.format;
   const activePlayersCount = await prisma.playerInTeam.count({
     where: { teamId, active: 1 },
   });
-  if (activePlayersCount >= 3) {
-    badRequest('Team is full (maximum 3 players)');
+  if (activePlayersCount >= format.maxRosterSize) {
+    badRequest(`Team is full (maximum ${format.maxRosterSize} players)`);
   }
 
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
+  const currentSeasonIds = await getCurrentSignupSeasonIds(team.formatId);
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: team.formatId,
         seasonId: {
           in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
         },
@@ -88,15 +99,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
     },
   });
   if (playerInOtherTeam) {
-    badRequest('Player is already in another 2v2 team for this season');
-  }
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    include: { division: { select: { signupCost: true } } },
-  });
-  if (!team?.seasonId || !team?.divisionId) {
-    badRequest('Team missing season or division');
+    badRequest('Player is already in another team for this format and season');
   }
 
   const payment = await prisma.paymentTracker.findUnique({
@@ -117,7 +120,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
         playerSteamId,
         active: 1,
         team: {
-          formatId: FORMAT_2V2,
+          formatId: team.formatId,
           seasonId: { not: team.seasonId },
         },
       },
@@ -163,7 +166,9 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
       });
       await tx.team.update({
         where: { id: teamId },
-        data: { paymentStatus: paidPlayersCount >= 2 ? 1 : 0 },
+        data: {
+          paymentStatus: paidPlayersCount >= format.requiredPaidPlayers ? 1 : 0,
+        },
       });
     }
   });

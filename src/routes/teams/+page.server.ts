@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getTeamsPublic } from '$lib/server/services/teams';
 import { getRegions } from '$lib/server/services/regions';
 import { getSeasons } from '$lib/server/services/seasons';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { getFormatsForFilter } from '$lib/server/services/formats';
 import { buildPageSeo } from '$lib/utils/seo';
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -14,14 +14,24 @@ export const load: PageServerLoad = async ({ url }) => {
   const seasonId = url.searchParams.get('season')
     ? parseInt(url.searchParams.get('season')!)
     : undefined;
+  const requestedFormatId = url.searchParams.get('format')
+    ? parseInt(url.searchParams.get('format')!)
+    : undefined;
 
-  const [{ teams, pagination }, regions, allSeasons] = await Promise.all([
-    getTeamsPublic(page, search, regionId, seasonId),
+  const [regions, allSeasons, allFormats] = await Promise.all([
     getRegions(),
     getSeasons(),
+    getFormatsForFilter(),
   ]);
 
-  const seasons = allSeasons.filter((s) => s.formatId === FORMAT_2V2);
+  const formats = allFormats.filter((f) => !f.isIndividual);
+  const formatId = formats.some((f) => f.id === requestedFormatId) ? requestedFormatId : undefined;
+
+  const { teams, pagination } = await getTeamsPublic(page, search, regionId, seasonId, formatId);
+
+  const seasons = allSeasons.filter((s) =>
+    formatId ? s.formatId === formatId : formats.some((f) => f.id === s.formatId),
+  );
 
   return {
     seo: buildPageSeo(url.origin, {
@@ -32,10 +42,12 @@ export const load: PageServerLoad = async ({ url }) => {
     pagination,
     regions,
     seasons,
+    formats: formats.map((f) => ({ id: f.id, name: f.name })),
     filters: {
       search: search || '',
       region: regionId || '',
       season: seasonId || '',
+      format: formatId || '',
     },
   };
 };

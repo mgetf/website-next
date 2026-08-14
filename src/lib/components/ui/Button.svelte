@@ -54,9 +54,9 @@
     ghost:
       'bg-transparent hover:bg-surface-input text-text-body disabled:opacity-50 disabled:cursor-not-allowed',
     'format-2v2':
-      'bg-format-2v2-600 hover:bg-format-2v2-500 text-white disabled:bg-format-2v2-600/50 disabled:cursor-not-allowed',
+      'bg-theme-blue-600 hover:bg-theme-blue-500 text-white disabled:bg-theme-blue-600/50 disabled:cursor-not-allowed',
     'format-1v1':
-      'bg-format-1v1-600 hover:bg-format-1v1-500 text-white disabled:bg-format-1v1-600/50 disabled:cursor-not-allowed',
+      'bg-theme-purple-600 hover:bg-theme-purple-500 text-white disabled:bg-theme-purple-600/50 disabled:cursor-not-allowed',
   };
 
   const sizeClasses: Record<Size, string> = {

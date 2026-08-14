@@ -6,7 +6,7 @@
 
 import { prisma } from '$lib/server/db';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
-import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
@@ -117,14 +117,15 @@ export async function getUserByDiscordId(discordId: string) {
 }
 
 /**
- * Get player's team memberships (current and past)
+ * Get player's team-format memberships (current and past).
+ * Individual-format entries are loaded separately via getPlayer1v1Entries.
  */
 export async function getPlayerTeams(steamId: string) {
   return await prisma.playerInTeam.findMany({
     where: {
       playerSteamId: steamId,
       team: {
-        formatId: FORMAT_2V2,
+        format: { isIndividual: false },
       },
     },
     include: {
@@ -133,6 +134,9 @@ export async function getPlayerTeams(steamId: string) {
           division: true,
           region: true,
           season: true,
+          format: {
+            select: { name: true },
+          },
         },
       },
     },
@@ -167,23 +171,35 @@ export async function isUserSignedUpForFormat(steamId: string, formatId: number)
 }
 
 /**
- * Get player's active 2v2 team (for navigation display)
- * Prioritizes teams in current signup seasons, falls back to any active team
- * Returns null if player is not in an active 2v2 team
+ * True when the user has an active non-dead entry in every given format.
+ * Empty formatIds (no open signups) returns true so the nav Sign Up button stays hidden.
+ */
+export async function isSignedUpForAllOpenFormats(
+  steamId: string,
+  formatIds: number[],
+): Promise<boolean> {
+  if (formatIds.length === 0) return true;
+  const results = await Promise.all(formatIds.map((id) => isUserSignedUpForFormat(steamId, id)));
+  return results.every(Boolean);
+}
+
+/**
+ * Get player's active team-format membership for navigation ("My Team").
+ * Prioritizes teams in current signup seasons, falls back to any active team.
+ * Individual-format entries are excluded.
  */
 export async function getUserActiveTeam(
   steamId: string,
 ): Promise<{ id: number; name: string } | null> {
   const currentSeasonIds = await getCurrentSignupSeasonIds();
 
-  // First, try to find a team in the current signup season
   if (currentSeasonIds.length > 0) {
     const currentSeasonTeam = await prisma.playerInTeam.findFirst({
       where: {
         playerSteamId: steamId,
         active: 1,
         team: {
-          formatId: FORMAT_2V2,
+          format: { isIndividual: false },
           seasonId: {
             in: currentSeasonIds,
           },
@@ -204,13 +220,12 @@ export async function getUserActiveTeam(
     }
   }
 
-  // Fall back to any active team (for users only in old season teams)
   const teamMembership = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        format: { isIndividual: false },
       },
     },
     include: {
@@ -296,6 +311,7 @@ export function transformCurrentTeams(playerTeams: any[]) {
     .map((pt) => ({
       teamId: pt.team.id,
       teamName: pt.team.name,
+      formatName: pt.team.format?.name || 'Team',
       division: pt.team.division?.name || 'N/A',
       regionName: pt.team.region?.name || 'N/A',
       seasonNum: pt.team.season?.seasonNum || 0,
@@ -317,6 +333,7 @@ export function transformTeamHistory(playerTeams: any[]) {
     .map((pt) => ({
       teamId: pt.team.id,
       teamName: pt.team.name,
+      formatName: pt.team.format?.name || 'Team',
       division: pt.team.division?.name || 'N/A',
       regionName: pt.team.region?.name || 'N/A',
       seasonNum: pt.team.season?.seasonNum || 0,

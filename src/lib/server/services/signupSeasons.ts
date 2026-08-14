@@ -53,30 +53,30 @@ export async function getAllActiveSignupSeasons() {
 }
 
 /**
- * Check whether any active signup season has signups currently open
+ * Formats that currently have at least one active signup season with signups open.
+ * Used by the signup hub to render one card per open format.
  */
-export async function hasAnyOpenSignup(): Promise<boolean> {
-  const result = await prisma.activeSignupSeason.findFirst({
-    where: {
-      season: { signupsOpen: true },
-    },
-  });
-  return result !== null;
-}
-
-/**
- * Get the format codes of all active signup seasons
- * Used to determine which format tabs to show on the signup page
- */
-export async function getActiveFormatCodes(): Promise<string[]> {
-  const activeFormats = await prisma.activeSignupSeason.findMany({
+export async function getOpenSignupFormats() {
+  const rows = await prisma.activeSignupSeason.findMany({
+    where: { season: { signupsOpen: true } },
     select: {
       formatId: true,
-      format: { select: { code: true } },
+      format: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          isIndividual: true,
+          supportsReregistration: true,
+          themeKey: true,
+        },
+      },
     },
     distinct: ['formatId'],
+    orderBy: { formatId: 'asc' },
   });
-  return activeFormats.map((f) => f.format.code);
+
+  return rows.map((row) => row.format);
 }
 
 /**

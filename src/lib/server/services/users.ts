@@ -13,6 +13,12 @@ import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoff
 import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
 import { conflict } from '$lib/server/utils/errors';
 import { isSafeUrl } from '$lib/utils/safeUrl';
+import {
+  mapStaffAssignmentForDisplay,
+  replaceStaffAssignments,
+  staffAssignmentInclude,
+  type StaffAssignmentPair,
+} from './staffAssignments';
 
 export type { ProfileMatch } from '$lib/types/match';
 
@@ -53,8 +59,8 @@ export async function getUserBySteamId(steamId: string) {
     where: { steamId },
     include: {
       discord: true,
-      staffDivisions: {
-        include: { region: true },
+      staffAssignments: {
+        include: staffAssignmentInclude,
       },
     },
   });
@@ -555,10 +561,7 @@ export async function getPlayerProfile(steamId: string) {
       punishmentCount,
       nameOverride: user.nameOverride,
       avatarOverride: user.avatarOverride,
-      staffDivisions: user.staffDivisions.map((d) => ({
-        name: d.name,
-        region: d.region.name,
-      })),
+      staffAssignments: user.staffAssignments.map(mapStaffAssignmentForDisplay),
     },
     currentTeams: currentTeamsWithMatches,
     teamHistory: teamHistoryWithMatches,
@@ -619,8 +622,8 @@ export async function getUsers(options: {
     where,
     include: {
       discord: true,
-      staffDivisions: {
-        include: { region: true },
+      staffAssignments: {
+        include: staffAssignmentInclude,
       },
     },
     orderBy: [{ steamUsername: 'asc' }, { steamId: 'asc' }],
@@ -672,7 +675,7 @@ export async function updateUser(
     permissionLevel?: string;
     banStatus?: string;
     nameOverride?: number;
-    staffDivisionIds?: number[];
+    staffAssignments?: StaffAssignmentPair[];
   },
 ) {
   const user = await prisma.user.findUnique({
@@ -697,12 +700,6 @@ export async function updateUser(
     updateData.nameOverride = data.nameOverride;
   }
 
-  if (data.staffDivisionIds !== undefined) {
-    updateData.staffDivisions = {
-      set: data.staffDivisionIds.map((id) => ({ id })),
-    };
-  }
-
   const permissionChanged =
     data.permissionLevel !== undefined && data.permissionLevel !== user.permissionLevel;
   const banChanged = data.banStatus !== undefined && data.banStatus !== user.banStatus;
@@ -715,38 +712,15 @@ export async function updateUser(
     data: updateData,
   });
 
+  if (data.staffAssignments !== undefined) {
+    await replaceStaffAssignments(steamId, data.staffAssignments);
+  }
+
   if (permissionChanged || banChanged) {
     invalidateCachedSessionVersion(steamId);
   }
 
   return updated;
-}
-
-/**
- * Get all staff members (users with MODERATOR or ADMIN permission level)
- * Used for staff lists on league pages
- */
-export async function getStaffMembers() {
-  return await prisma.user.findMany({
-    where: {
-      permissionLevel: {
-        in: ['MODERATOR', 'ADMIN'],
-      },
-    },
-    select: {
-      steamId: true,
-      steamUsername: true,
-      steamAvatar: true,
-      permissionLevel: true,
-      staffDivisions: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: [{ steamUsername: 'asc' }],
-  });
 }
 
 /**

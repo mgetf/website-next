@@ -67,7 +67,7 @@
       punishmentCount: number;
       nameOverride: number;
       avatarOverride: number;
-      staffDivisions: { name: string; region: string }[];
+      staffAssignments: { formatName: string; divisionName: string; regionName: string }[];
     };
     isOwnProfile: boolean;
     isAdmin: boolean;
@@ -357,8 +357,8 @@
       {#if player.permissionLevel !== 'GUEST'}
         <div class="flex flex-wrap gap-2 justify-center">
           {#if player.permissionLevel === 'ADMIN'}
-            {#if player.staffDivisions.length > 0}
-              {#each player.staffDivisions as div}
+            {#if player.staffAssignments.length > 0}
+              {#each player.staffAssignments as assignment (`${assignment.formatName}-${assignment.divisionName}-${assignment.regionName}`)}
                 <span
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.15)]"
                 >
@@ -369,7 +369,9 @@
                       clip-rule="evenodd"
                     />
                   </svg>
-                  Admin<span class="text-purple-500/70 font-normal mx-0.5">·</span>{div.name} · {div.region}
+                  Admin<span class="text-purple-500/70 font-normal mx-0.5">·</span
+                  >{assignment.formatName}
+                  · {assignment.divisionName} · {assignment.regionName}
                 </span>
               {/each}
             {:else}
@@ -387,8 +389,8 @@
               </span>
             {/if}
           {:else if player.permissionLevel === 'MODERATOR'}
-            {#if player.staffDivisions.length > 0}
-              {#each player.staffDivisions as div}
+            {#if player.staffAssignments.length > 0}
+              {#each player.staffAssignments as assignment (`${assignment.formatName}-${assignment.divisionName}-${assignment.regionName}`)}
                 <span
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-info-500/20 text-blue-300 border border-info-500/40 shadow-[0_0_10px_rgba(59,130,246,0.15)]"
                 >
@@ -399,7 +401,9 @@
                       clip-rule="evenodd"
                     />
                   </svg>
-                  Moderator<span class="text-blue-500/70 font-normal mx-0.5">·</span>{div.name} · {div.region}
+                  Moderator<span class="text-blue-500/70 font-normal mx-0.5">·</span
+                  >{assignment.formatName}
+                  · {assignment.divisionName} · {assignment.regionName}
                 </span>
               {/each}
             {:else}

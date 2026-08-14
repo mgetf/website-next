@@ -15,6 +15,8 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
+  import { getFormatThemeClasses } from '$lib/constants/formats';
+  import { groupStaffByFormatAndRegion, staffListChips } from '$lib/utils/staffDisplay';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -23,23 +25,81 @@
   let unlinkingDiscordUser: (typeof data.users)[0] | null = $state(null);
   let isSubmitting = $state(false);
   let lastFormResult: ActionData = null;
-  let selectedStaffDivisionIds: number[] = $state([]);
-  let addRegionId: number | null = $state(null);
+  let selectedStaffAssignments: { formatId: number; divisionId: number }[] = $state([]);
+  let addFormatId = $state('');
+  let addRegionId = $state('');
+  let addDivisionId = $state('');
 
-  const addFilteredDivisions = $derived(
-    addRegionId
-      ? data.divisions.filter(
-          (d: (typeof data.divisions)[0]) =>
-            d.regionId === addRegionId && !selectedStaffDivisionIds.includes(d.id),
+  const addFilteredRegions = $derived(
+    addFormatId
+      ? data.regions.filter((region) =>
+          (data.regionIdsByFormat[Number(addFormatId)] ?? []).includes(region.id),
         )
       : [],
   );
 
-  function selectedDivisionsInfo() {
-    return selectedStaffDivisionIds
-      .map((id) => data.divisions.find((d) => d.id === id))
-      .filter(Boolean) as (typeof data.divisions)[number][];
+  const addFilteredDivisions = $derived(
+    addFormatId && addRegionId
+      ? data.divisions.filter(
+          (division: (typeof data.divisions)[0]) =>
+            division.regionId === Number(addRegionId) &&
+            !selectedStaffAssignments.some(
+              (assignment) =>
+                assignment.formatId === Number(addFormatId) &&
+                assignment.divisionId === division.id,
+            ),
+        )
+      : [],
+  );
+
+  const formatOptions = $derived(
+    data.formats.map((format) => ({ value: String(format.id), label: format.name })),
+  );
+
+  const regionOptions = $derived(
+    addFilteredRegions.map((region) => ({ value: String(region.id), label: region.name })),
+  );
+
+  const divisionOptions = $derived(
+    addFilteredDivisions.map((division) => ({ value: String(division.id), label: division.name })),
+  );
+
+  const selectedAssignmentsInfo = $derived(
+    selectedStaffAssignments.map((assignment) => {
+      const format = data.formats.find((item) => item.id === assignment.formatId);
+      const division = data.divisions.find((item) => item.id === assignment.divisionId);
+      return {
+        formatId: assignment.formatId,
+        divisionId: assignment.divisionId,
+        formatName: format?.name ?? 'Unknown',
+        regionName: division?.regionName ?? 'Unknown',
+        divisionName: division?.name ?? 'Unknown',
+      };
+    }),
+  );
+
+  const selectedGrouped = $derived(groupStaffByFormatAndRegion(selectedAssignmentsInfo));
+
+  function formatTheme(formatId: number) {
+    const themeKey = data.formats.find((format) => format.id === formatId)?.themeKey;
+    return getFormatThemeClasses(themeKey);
   }
+
+  const regionPlaceholder = $derived(
+    !addFormatId
+      ? 'Pick a format first'
+      : addFilteredRegions.length === 0
+        ? 'No regions for this format'
+        : 'Select region...',
+  );
+
+  const divisionPlaceholder = $derived(
+    !addRegionId
+      ? 'Pick a region first'
+      : addFilteredDivisions.length === 0
+        ? 'No divisions left'
+        : 'Select division...',
+  );
 
   $effect(() => {
     if (form && form !== lastFormResult) {
@@ -159,25 +219,45 @@
 
   function openEditModal(user: (typeof data.users)[0]) {
     editingUser = { ...user };
-    selectedStaffDivisionIds = user.staffDivisions.map((d) => d.id);
-    addRegionId = null;
+    selectedStaffAssignments = user.staffAssignments.map((assignment) => ({
+      formatId: assignment.formatId,
+      divisionId: assignment.divisionId,
+    }));
+    addFormatId = '';
+    addRegionId = '';
+    addDivisionId = '';
   }
 
   function closeEditModal() {
     editingUser = null;
-    selectedStaffDivisionIds = [];
-    addRegionId = null;
+    selectedStaffAssignments = [];
+    addFormatId = '';
+    addRegionId = '';
+    addDivisionId = '';
   }
 
-  function addStaffDivision(divisionId: number) {
-    if (!selectedStaffDivisionIds.includes(divisionId)) {
-      selectedStaffDivisionIds = [...selectedStaffDivisionIds, divisionId];
+  function addStaffAssignment(formatId: number, divisionId: number) {
+    if (
+      !selectedStaffAssignments.some(
+        (assignment) => assignment.formatId === formatId && assignment.divisionId === divisionId,
+      )
+    ) {
+      selectedStaffAssignments = [...selectedStaffAssignments, { formatId, divisionId }];
     }
-    addRegionId = null;
+    addRegionId = '';
+    addDivisionId = '';
   }
 
-  function removeStaffDivision(divisionId: number) {
-    selectedStaffDivisionIds = selectedStaffDivisionIds.filter((id) => id !== divisionId);
+  function removeStaffAssignment(formatId: number, divisionId: number) {
+    selectedStaffAssignments = selectedStaffAssignments.filter(
+      (assignment) => !(assignment.formatId === formatId && assignment.divisionId === divisionId),
+    );
+  }
+
+  function removeFormatAssignments(formatId: number) {
+    selectedStaffAssignments = selectedStaffAssignments.filter(
+      (assignment) => assignment.formatId !== formatId,
+    );
   }
 
   function openBanModal(user: (typeof data.users)[0]) {
@@ -260,15 +340,23 @@
               {user.steamUsername}
             </a>
             {#if user.permissionLevel === 'MODERATOR' || user.permissionLevel === 'ADMIN'}
-              <p
-                class="text-xs truncate {user.permissionLevel === 'ADMIN'
-                  ? 'text-purple-400'
-                  : 'text-info-400'}"
-              >
-                Staff{user.staffDivisions.length > 0
-                  ? ` • ${user.staffDivisions.map((d) => d.name).join(', ')}`
-                  : ''}
-              </p>
+              {@const chips = staffListChips(user.staffAssignments)}
+              {#if chips.length > 0}
+                <div class="flex flex-wrap gap-1 mt-0.5">
+                  {#each chips as chip (chip.formatId)}
+                    {@const theme = formatTheme(chip.formatId)}
+                    <span
+                      class="inline-flex items-center gap-1 rounded-md border bg-surface-input px-1.5 py-0.5 text-[11px] leading-4 {theme.border500_30}"
+                      title={chip.title}
+                    >
+                      <span class="font-semibold {theme.text400}">{chip.formatName}</span>
+                      <span class="text-text-label">{chip.coverage}</span>
+                    </span>
+                  {/each}
+                </div>
+              {:else}
+                <p class="text-xs text-text-muted">Staff</p>
+              {/if}
             {/if}
           </div>
         </div>
@@ -329,8 +417,12 @@
       }}
     >
       <input type="hidden" name="steamId" value={editingUser.steamId} />
-      {#each selectedStaffDivisionIds as divId}
-        <input type="hidden" name="staffDivisionIds" value={divId} />
+      {#each selectedStaffAssignments as assignment (`${assignment.formatId}:${assignment.divisionId}`)}
+        <input
+          type="hidden"
+          name="staffAssignments"
+          value="{assignment.formatId}:{assignment.divisionId}"
+        />
       {/each}
 
       {#if data.isStrictAdmin}
@@ -356,22 +448,52 @@
         <div class="mb-6">
           <p class="block text-sm font-medium text-text-label mb-2">Staff Assignments</p>
 
-          {#if selectedStaffDivisionIds.length > 0}
-            <div class="space-y-2 mb-3">
-              {#each selectedDivisionsInfo() as div}
-                <div
-                  class="flex items-center justify-between px-3 py-2 bg-surface-input border border-border-input rounded-lg"
-                >
-                  <span class="text-sm text-white">
-                    {div.regionName} · {div.name}
-                  </span>
-                  <button
-                    type="button"
-                    onclick={() => removeStaffDivision(div.id)}
-                    class="text-danger-400 hover:text-danger-300 text-xs font-medium transition-colors"
-                  >
-                    Remove
-                  </button>
+          {#if selectedGrouped.length > 0}
+            <div
+              class="mb-3 space-y-3 rounded-lg border border-border-default bg-surface-input/50 p-3"
+            >
+              {#each selectedGrouped as formatGroup (formatGroup.formatId)}
+                {@const theme = formatTheme(formatGroup.formatId)}
+                <div>
+                  <div class="mb-1.5 flex items-center justify-between gap-2">
+                    <p class="text-xs font-semibold uppercase tracking-wide {theme.text400}">
+                      {formatGroup.formatName}
+                    </p>
+                    <button
+                      type="button"
+                      onclick={() => removeFormatAssignments(formatGroup.formatId)}
+                      class="text-[11px] font-medium text-text-muted hover:text-danger-400 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div class="space-y-1.5">
+                    {#each formatGroup.regions as regionGroup (regionGroup.regionName)}
+                      <div class="grid grid-cols-[2.75rem_1fr] items-start gap-x-2">
+                        <span class="pt-0.5 text-[11px] font-medium text-text-label">
+                          {regionGroup.regionName}
+                        </span>
+                        <div class="flex flex-wrap gap-1">
+                          {#each regionGroup.chips as chip (`${chip.formatId}:${chip.divisionId}`)}
+                            <span
+                              class="inline-flex items-center gap-0.5 rounded-full border border-border-input bg-surface-input py-0.5 pl-2 pr-0.5 text-xs text-white"
+                            >
+                              {chip.divisionName}
+                              <button
+                                type="button"
+                                onclick={() =>
+                                  removeStaffAssignment(chip.formatId, chip.divisionId)}
+                                class="rounded-full px-1 text-text-muted hover:text-danger-400 transition-colors"
+                                aria-label="Remove {formatGroup.formatName} {regionGroup.regionName} {chip.divisionName}"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          {/each}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
                 </div>
               {/each}
             </div>
@@ -379,47 +501,46 @@
             <p class="text-sm text-text-muted mb-3">No divisions assigned.</p>
           {/if}
 
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="sr-only" for="addStaffRegion">Region</label>
-              <select
-                id="addStaffRegion"
-                class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-                value={addRegionId ?? ''}
-                onchange={(e) => {
-                  const val = e.currentTarget.value;
-                  addRegionId = val ? parseInt(val) : null;
-                }}
-              >
-                <option value="">Select region...</option>
-                {#each data.regions as region}
-                  <option value={region.id}>{region.name}</option>
-                {/each}
-              </select>
-            </div>
-            <div>
-              <label class="sr-only" for="addStaffDivision">Division</label>
-              <select
-                id="addStaffDivision"
-                class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!addRegionId || addFilteredDivisions.length === 0}
-                value=""
-                onchange={(e) => {
-                  const val = e.currentTarget.value;
-                  if (val) addStaffDivision(parseInt(val));
-                }}
-              >
-                <option value=""
-                  >{addRegionId ? 'Select division...' : 'Pick a region first'}</option
-                >
-                {#each addFilteredDivisions as division}
-                  <option value={division.id}>{division.name}</option>
-                {/each}
-              </select>
-            </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 [&>div]:mb-0">
+            <FormSelect
+              label="Format"
+              name="addStaffFormat"
+              bind:value={addFormatId}
+              options={formatOptions}
+              placeholder="Select format..."
+              onChange={() => {
+                addRegionId = '';
+                addDivisionId = '';
+              }}
+            />
+            <FormSelect
+              label="Region"
+              name="addStaffRegion"
+              bind:value={addRegionId}
+              options={regionOptions}
+              placeholder={regionPlaceholder}
+              disabled={!addFormatId || addFilteredRegions.length === 0}
+              onChange={() => {
+                addDivisionId = '';
+              }}
+            />
+            <FormSelect
+              label="Division"
+              name="addStaffDivision"
+              bind:value={addDivisionId}
+              options={divisionOptions}
+              placeholder={divisionPlaceholder}
+              disabled={!addRegionId || addFilteredDivisions.length === 0}
+              onChange={(value) => {
+                if (value && addFormatId) {
+                  addStaffAssignment(Number(addFormatId), Number(value));
+                }
+              }}
+            />
           </div>
           <p class="mt-2 text-sm text-text-muted">
-            Which region/division(s) this staff member is assigned to (for display on league pages).
+            Which format/region/division(s) this staff member is assigned to (for display on league
+            pages).
           </p>
         </div>
       {/if}

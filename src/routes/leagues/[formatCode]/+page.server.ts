@@ -4,7 +4,8 @@ import { getSeasons, getSeasonInfo, updateSeasonInfo } from '$lib/server/service
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
-import { getStaffMembers, isUserSignedUpForFormat } from '$lib/server/services/users';
+import { isUserSignedUpForFormat } from '$lib/server/services/users';
+import { getStaffForLeague } from '$lib/server/services/staffAssignments';
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
@@ -111,62 +112,8 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
         )
       : [];
 
-  const allStaff = selectedRegionId != null ? await getStaffMembers() : [];
-
-  const regionDivisionIds = new Set(
-    divisions.filter((d) => d.regionId === selectedRegionId).map((d) => d.id),
-  );
-
-  const staffByDivisionMap = new Map<
-    number,
-    {
-      division: { id: number; name: string };
-      staff: Array<{
-        steamId: string;
-        name: string;
-        avatar: string | null;
-        role: string;
-      }>;
-    }
-  >();
-
-  allStaff.forEach((staff) => {
-    if (staff.staffDivisions.length === 0) return;
-
-    for (const div of staff.staffDivisions) {
-      if (!regionDivisionIds.has(div.id)) continue;
-
-      if (!staffByDivisionMap.has(div.id)) {
-        staffByDivisionMap.set(div.id, {
-          division: {
-            id: div.id,
-            name: div.name,
-          },
-          staff: [],
-        });
-      }
-
-      staffByDivisionMap.get(div.id)!.staff.push({
-        steamId: staff.steamId,
-        name: staff.steamUsername,
-        avatar: staff.steamAvatar,
-        role: staff.permissionLevel === 'ADMIN' ? 'Head Admin' : 'Moderator',
-      });
-    }
-  });
-
-  staffByDivisionMap.forEach((divisionData) => {
-    divisionData.staff.sort((a, b) => {
-      if (a.role !== b.role) {
-        return a.role === 'Head Admin' ? -1 : 1;
-      }
-      return a.name.localeCompare(b.name);
-    });
-  });
-
-  const staffByDivision = Array.from(staffByDivisionMap.values()).sort(
-    (a, b) => b.division.id - a.division.id,
-  );
+  const staffByDivision =
+    selectedRegionId != null ? await getStaffForLeague(format.id, selectedRegionId) : [];
 
   const selectedRegion = allRegions.find((r) => r.id === selectedRegionId);
   const selectedSeason = allSeasons.find((s) => s.id === selectedSeasonId);

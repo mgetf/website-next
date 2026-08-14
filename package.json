@@ -74,6 +74,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "archiver": "^8.0.0",
     "chart.js": "^4.5.1",
+    "diff": "^9.0.0",
     "flag-icons": "^7.5.0",
     "fuse.js": "^7.5.0",
     "jsonwebtoken": "^9.0.3",

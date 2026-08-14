@@ -92,11 +92,6 @@
   });
 </script>
 
-<svelte:head>
-  <title>Rulebook | MGE.tf</title>
-  <meta name="description" content="Official rules and regulations for MGE.tf competitive league" />
-</svelte:head>
-
 <div>
   <PageHero
     title="Rulebook"

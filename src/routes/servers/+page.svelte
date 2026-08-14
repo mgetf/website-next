@@ -99,19 +99,6 @@
   });
 </script>
 
-<svelte:head>
-  <title>MGE Servers | mge.tf</title>
-  <meta
-    name="description"
-    content="Live list of all public MGE TF2 servers — map, players, and one-click connect."
-  />
-  <meta property="og:title" content="MGE Servers | mge.tf" />
-  <meta
-    property="og:description"
-    content="Live list of all public MGE TF2 servers — map, players, and one-click connect."
-  />
-</svelte:head>
-
 <PageHero border maxWidth="max-w-7xl">
   {#snippet children()}
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">

@@ -14,7 +14,7 @@ import { removePlayer } from '$lib/server/services/teamManagement';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
-import { formatPlayoffRound } from '$lib/utils/playoffs';
+import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import {
   getPendingStatusForTeam,
@@ -25,6 +25,7 @@ import {
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { getByeWeeksForTeam } from '$lib/server/services/byeWeeks';
+import { buildPageSeo } from '$lib/utils/seo';
 
 const playerSteamIdSchema = z.object({
   playerSteamId: z.string().min(1, 'Player Steam ID is required'),
@@ -114,11 +115,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       opponent: m.homeTeam,
       isHome: false,
     })),
-  ].sort((a, b) => {
-    const dateA = a.matchDateTime?.getTime() || 0;
-    const dateB = b.matchDateTime?.getTime() || 0;
-    return dateB - dateA; // Most recent first
-  });
+  ];
 
   // Group matches by season
   const matchesBySeasonMap = new Map<number, any[]>();
@@ -147,12 +144,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       // Use centralized helper to calculate label (no code duplication)
       const calculatedLabel = calculateWeekLabel(match, teamMatchesForThisWeek);
       weekLabel = calculatedLabel ? `Week ${calculatedLabel}` : `Week ${match.weekNo}`;
-    } else if (match.playoffRound) {
+    } else if (match.playoffRound != null) {
       weekLabel = formatPlayoffRound(match.playoffRound);
     }
 
     matchesBySeasonMap.get(seasonId)?.push({
       week: weekLabel,
+      weekNo: match.weekNo,
+      playoffRound: match.playoffRound,
       opponent: match.opponent.name,
       opponentId: match.opponent.id,
       result: isDraw ? 'D' : isWin ? 'W' : match.status.toString() === 'PLAYED' ? 'L' : 'TBD',
@@ -176,6 +175,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       type: 'bye' as const,
       week: `Week ${bye.weekNo}`,
       weekNo: bye.weekNo,
+      playoffRound: null,
       opponent: null,
       opponentId: null,
       result: 'BYE' as const,
@@ -195,19 +195,27 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       const seasonData = allMatches.find((m) => m.season.id === seasonId)?.season;
       const seasonNum = seasonData?.seasonNum ?? byeSeasonNums.get(seasonId) ?? seasonId;
 
-      // Sort entries within a season: by weekNo ascending, bye weeks sorted alongside matches
-      matches.sort((a: any, b: any) => {
-        const weekA =
-          a.weekNo ?? (typeof a.week === 'string' ? parseInt(a.week.replace(/\D/g, '')) : 0);
-        const weekB =
-          b.weekNo ?? (typeof b.week === 'string' ? parseInt(b.week.replace(/\D/g, '')) : 0);
-        return weekA - weekB;
-      });
+      // Regular-season weeks first, then playoffs in bracket order
+      matches.sort(
+        (
+          a: { weekNo?: number | null; playoffRound?: number | null; matchId?: number | null },
+          b: { weekNo?: number | null; playoffRound?: number | null; matchId?: number | null },
+        ) =>
+          compareMatchHistoryOrder(
+            { weekNo: a.weekNo, playoffRound: a.playoffRound, id: a.matchId },
+            { weekNo: b.weekNo, playoffRound: b.playoffRound, id: b.matchId },
+          ),
+      );
+
+      // Strip sort-only fields before returning to the client
+      const publicMatches = matches.map(
+        ({ weekNo: _weekNo, playoffRound: _playoffRound, ...rest }) => rest,
+      );
 
       return {
         seasonId,
         season: `Season ${seasonNum}`,
-        matches,
+        matches: publicMatches,
       };
     })
     .sort((a, b) => b.seasonId - a.seasonId);
@@ -236,7 +244,29 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       ? allDivisions.filter((d) => d.regionId === team.regionId)
       : allDivisions;
 
+  const divisionLabel = [team.division?.name, team.region?.name ? `(${team.region.name})` : null]
+    .filter(Boolean)
+    .join(' ');
+  const seasonLabel = team.season?.seasonNum ? `Season ${team.season.seasonNum}` : null;
+  const recordLabel = `${team.wins}-${team.losses}`;
+  const seoDescription = [
+    team.acronym ? `${team.name} (${team.acronym})` : team.name,
+    divisionLabel || null,
+    seasonLabel,
+    `Record ${recordLabel}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return {
+    seo: buildPageSeo(url.origin, {
+      title: `${team.name} | MGE.tf`,
+      description: seoDescription,
+      image: team.avatar,
+      imageAlt: `${team.name} team avatar`,
+      card: 'summary',
+      type: 'profile',
+    }),
     team: {
       id: team.id,
       name: team.name,

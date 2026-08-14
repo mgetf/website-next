@@ -46,6 +46,8 @@ import {
 } from '$lib/server/services/adminMatches';
 import { getArenas } from '$lib/server/services/arenas';
 import { getContent, getDefaultContent, CONTENT_KEYS } from '$lib/server/services/siteContent';
+import { buildPageSeo } from '$lib/utils/seo';
+import { formatPlayoffRound } from '$lib/utils/playoffs';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -115,7 +117,7 @@ const adminUpdateScoresSchema = z.object({
     .refine((n) => [1, 3, 5, 7].includes(n), 'Best of must be 1, 3, 5, or 7'),
 });
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
   const matchId = parseInt(params.id);
   if (isNaN(matchId)) {
     throw error(400, 'Invalid match ID');
@@ -219,7 +221,36 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     getContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE),
   ]);
 
+  const homeName = match.homeTeam.name;
+  const awayName = match.awayTeam.name;
+  const roundBit =
+    match.playoffRound != null
+      ? formatPlayoffRound(match.playoffRound)
+      : weekLabel
+        ? `Week ${weekLabel}`
+        : match.weekNo != null
+          ? `Week ${match.weekNo}`
+          : null;
+  const scoreBit =
+    match.winnerScore != null && match.loserScore != null
+      ? match.winnerId === match.homeTeamId
+        ? `${match.winnerScore}-${match.loserScore}`
+        : `${match.loserScore}-${match.winnerScore}`
+      : match.status === MatchStatus.PLAYED
+        ? 'Final'
+        : 'Upcoming';
+  const seasonBit = match.season?.seasonNum != null ? `Season ${match.season.seasonNum}` : null;
+  const matchSeoDescription = [roundBit, seasonBit, scoreBit].filter(Boolean).join(' · ');
+
   return {
+    seo: buildPageSeo(url.origin, {
+      title: `${homeName} vs ${awayName} | MGE.tf`,
+      description: matchSeoDescription || `${homeName} vs ${awayName} on MGE.tf`,
+      image: match.homeTeam.avatar || match.awayTeam.avatar,
+      imageAlt: `${homeName} vs ${awayName}`,
+      card: 'summary',
+      type: 'website',
+    }),
     match,
     weekLabel,
     permissions,

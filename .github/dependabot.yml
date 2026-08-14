@@ -1,53 +1,35 @@
 version: 2
+
+multi-ecosystem-groups:
+  all:
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: staging
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+
 updates:
   - package-ecosystem: bun
     directory: /
-    target-branch: staging
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    commit-message:
-      prefix: chore
-      include: scope
-    groups:
-      production:
-        dependency-type: production
-        update-types:
-          - minor
-          - patch
-      development:
-        dependency-type: development
-        update-types:
-          - minor
-          - patch
+    patterns:
+      - '*'
+    multi-ecosystem-group: all
+    open-pull-requests-limit: 1
 
   - package-ecosystem: docker
     directory: /
-    target-branch: staging
-    schedule:
-      interval: weekly
-      day: monday
-    labels:
-      - dependencies
-    commit-message:
-      prefix: chore
-      include: scope
+    patterns:
+      - '*'
+    multi-ecosystem-group: all
+    open-pull-requests-limit: 1
 
   - package-ecosystem: github-actions
     directory: /
-    target-branch: staging
-    schedule:
-      interval: weekly
-      day: monday
-    labels:
-      - dependencies
-    commit-message:
-      prefix: chore
-      include: scope
-    groups:
-      github-actions:
-        patterns:
-          - '*'
+    patterns:
+      - '*'
+    multi-ecosystem-group: all
+    open-pull-requests-limit: 1

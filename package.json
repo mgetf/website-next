@@ -52,7 +52,7 @@
     "prisma": "^7.9.1",
     "svelte": "^5.56.8",
     "svelte-check": "^4.7.5",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
@@ -69,7 +69,7 @@
     "@prisma/client": "^7.9.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "archiver": "8.0.0",
+    "archiver": "^8.0.0",
     "chart.js": "^4.5.1",
     "flag-icons": "^7.5.0",
     "fuse.js": "^7.5.0",

@@ -14,34 +14,44 @@
   let searchInput = $state('');
   let regionFilter = $state('');
   let seasonFilter = $state('');
+  let formatFilter = $state('');
 
   $effect(() => {
     searchInput = data.filters.search;
     regionFilter = data.filters.region?.toString() || '';
     seasonFilter = data.filters.season?.toString() || '';
+    formatFilter = data.filters.format?.toString() || '';
   });
 
   const regionOptions = $derived(
     data.regions.map((r) => ({ value: r.id.toString(), label: r.name })),
   );
 
+  const formatOptions = $derived(
+    data.formats.map((f) => ({ value: f.id.toString(), label: f.name })),
+  );
+
   const filteredSeasons = $derived(
-    regionFilter
-      ? data.seasons.filter((s) => s.regionId.toString() === regionFilter)
-      : data.seasons,
+    data.seasons.filter((s) => {
+      if (regionFilter && s.regionId.toString() !== regionFilter) return false;
+      if (formatFilter && s.formatId.toString() !== formatFilter) return false;
+      return true;
+    }),
   );
 
   const seasonOptions = $derived(
-    filteredSeasons.map((s) => ({
-      value: s.id.toString(),
-      label: regionFilter
-        ? `Season ${s.seasonNum}`
-        : `${s.region?.name || 'Unknown'} - Season ${s.seasonNum}`,
-    })),
+    filteredSeasons.map((s) => {
+      const parts: string[] = [];
+      if (!regionFilter) parts.push(s.region?.name || 'Unknown');
+      if (!formatFilter) parts.push(s.format?.name || 'Unknown');
+      parts.push(`Season ${s.seasonNum}`);
+      return { value: s.id.toString(), label: parts.join(' - ') };
+    }),
   );
 
   const columns = [
     { key: 'team', label: 'Team' },
+    { key: 'format', label: 'Format' },
     { key: 'division', label: 'Division' },
     { key: 'region', label: 'Region / Season' },
     { key: 'record', label: 'Record' },
@@ -59,9 +69,27 @@
   }
 
   function handleRegionChange() {
-    if (regionFilter && seasonFilter) {
+    if (seasonFilter) {
       const seasonStillValid = data.seasons.some(
-        (s) => s.id.toString() === seasonFilter && s.regionId.toString() === regionFilter,
+        (s) =>
+          s.id.toString() === seasonFilter &&
+          (!regionFilter || s.regionId.toString() === regionFilter) &&
+          (!formatFilter || s.formatId.toString() === formatFilter),
+      );
+      if (!seasonStillValid) {
+        seasonFilter = '';
+      }
+    }
+    updateFilters();
+  }
+
+  function handleFormatChange() {
+    if (seasonFilter) {
+      const seasonStillValid = data.seasons.some(
+        (s) =>
+          s.id.toString() === seasonFilter &&
+          (!regionFilter || s.regionId.toString() === regionFilter) &&
+          (!formatFilter || s.formatId.toString() === formatFilter),
       );
       if (!seasonStillValid) {
         seasonFilter = '';
@@ -85,6 +113,10 @@
       params.set('region', regionFilter);
     }
 
+    if (formatFilter) {
+      params.set('format', formatFilter);
+    }
+
     if (seasonFilter) {
       params.set('season', seasonFilter);
     }
@@ -105,6 +137,10 @@
       params.set('region', data.filters.region.toString());
     }
 
+    if (data.filters.format) {
+      params.set('format', data.filters.format.toString());
+    }
+
     if (data.filters.season) {
       params.set('season', data.filters.season.toString());
     }
@@ -118,6 +154,7 @@
     searchInput = '';
     regionFilter = '';
     seasonFilter = '';
+    formatFilter = '';
     goto('/teams');
   }
 
@@ -157,6 +194,18 @@
           </div>
 
           <div class="md:w-48">
+            <label for="format" class="block text-sm font-medium text-text-body mb-2">
+              Format
+            </label>
+            <SelectFilter
+              bind:value={formatFilter}
+              options={formatOptions}
+              allLabel="All Formats"
+              onChange={handleFormatChange}
+            />
+          </div>
+
+          <div class="md:w-48">
             <label for="region" class="block text-sm font-medium text-text-body mb-2">
               Region
             </label>
@@ -184,7 +233,7 @@
         <div class="flex items-center gap-2">
           <Button type="submit">Search</Button>
 
-          {#if data.filters.search || data.filters.region || data.filters.season}
+          {#if data.filters.search || data.filters.region || data.filters.season || data.filters.format}
             <Button type="button" variant="secondary" onclick={clearFilters}>Clear</Button>
           {/if}
         </div>
@@ -228,6 +277,8 @@
               {/if}
             </div>
           </a>
+        {:else if col.key === 'format'}
+          <span class="text-sm text-text-label whitespace-nowrap">{team.format.name}</span>
         {:else if col.key === 'division'}
           {#if team.division}
             <span class="text-sm text-text-label whitespace-nowrap">{team.division.name}</span>

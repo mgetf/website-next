@@ -23,6 +23,7 @@
   interface TeamWithMatches {
     teamId: number;
     teamName: string;
+    formatName: string;
     division: string;
     regionName: string;
     seasonNum: number;
@@ -128,15 +129,14 @@
       (activeEntry.isPaid || !active1v1IsPaidDiv),
   );
 
-  // Merged 2v2 list: active teams first (current), then history, each sorted by seasonNum desc
-  const teams2v2 = $derived([
+  const leagueTeams = $derived([
     ...currentTeams.map((t) => ({ ...t, active: true })),
     ...teamHistory.map((t) => ({ ...t, active: false })),
   ]);
 
   // Accordion expanded state — active entries/teams start expanded
   let expanded1v1 = $state<Record<number, boolean>>({});
-  let expanded2v2 = $state<Record<number, boolean>>({});
+  let expandedTeams = $state<Record<number, boolean>>({});
 
   $effect(() => {
     const next1v1: Record<number, boolean> = {};
@@ -147,11 +147,11 @@
   });
 
   $effect(() => {
-    const next2v2: Record<number, boolean> = {};
-    for (const t of teams2v2) {
-      if (!(t.teamId in expanded2v2)) next2v2[t.teamId] = t.active;
+    const nextTeams: Record<number, boolean> = {};
+    for (const t of leagueTeams) {
+      if (!(t.teamId in expandedTeams)) nextTeams[t.teamId] = t.active;
     }
-    Object.assign(expanded2v2, next2v2);
+    Object.assign(expandedTeams, nextTeams);
   });
 
   // State for 1v1 withdrawal confirmation modal
@@ -912,25 +912,25 @@
           {/if}
         </div>
 
-        <!-- 2v2 League -->
+        <!-- Team leagues -->
         <div
           class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
         >
           <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
-            <h2 class="text-2xl font-bold text-white">2v2 League</h2>
+            <h2 class="text-2xl font-bold text-white">Team Leagues</h2>
             <p class="text-sm text-text-body mt-1">Team Competition</p>
           </div>
 
-          {#if teams2v2.length > 0}
+          {#if leagueTeams.length > 0}
             <div class="divide-y divide-border-default/50">
-              {#each teams2v2 as team (team.teamId)}
-                {@const isOpen = expanded2v2[team.teamId] ?? team.active}
+              {#each leagueTeams as team (team.teamId)}
+                {@const isOpen = expandedTeams[team.teamId] ?? team.active}
                 {@const pct = winPct(team.wins, team.losses)}
 
                 <div>
                   <button
                     type="button"
-                    onclick={() => (expanded2v2[team.teamId] = !isOpen)}
+                    onclick={() => (expandedTeams[team.teamId] = !isOpen)}
                     class="w-full flex items-center justify-between px-6 py-4 hover:bg-surface-input/30 transition-colors text-left {team.active
                       ? 'bg-success-500/5'
                       : 'opacity-70'}"
@@ -953,7 +953,7 @@
                             {team.teamName}
                           </a>
                           <span class="text-text-muted font-normal ml-1"
-                            >· {team.division} · {team.regionName}</span
+                            >· {team.formatName} · {team.division} · {team.regionName}</span
                           >
                         </span>
                         <div class="flex items-center gap-3 mt-0.5">
@@ -1061,12 +1061,10 @@
             </div>
           {:else}
             <div class="px-6 py-8 text-center space-y-4">
-              <p class="text-text-muted text-sm">No 2v2 season history</p>
+              <p class="text-text-muted text-sm">No team league history</p>
               {#if isOwnProfile}
                 <div>
-                  <Button href="/leagues/2v2" variant="format-2v2" size="sm">
-                    Browse 2v2 League
-                  </Button>
+                  <Button href="/teams" variant="secondary" size="sm">Browse Teams</Button>
                 </div>
               {/if}
             </div>

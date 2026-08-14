@@ -8,7 +8,6 @@ import type { Prisma } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { uploadToR2, saveTempFile, deleteTempFile, validateUploadedFile } from '../utils/r2Upload';
 import path from 'path';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
 import { createNotificationForUser } from './notifications';
 import { hashPassword } from '../utils/password';
 import { isSeasonCurrentlyActive } from './settings';

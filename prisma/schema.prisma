@@ -199,6 +199,7 @@ model Format {
   teams               Team[]
   teamHistory         TeamHistory[]
   activeSignupSeasons ActiveSignupSeason[]
+  staffAssignments    StaffAssignment[]
 
   @@map("formats")
 }
@@ -460,7 +461,7 @@ model User {
   avatarOverride  Int       @default(0) @map("avatar_override")
   sessionVersion  Int       @default(0) @map("session_version")
 
-  staffDivisions           Division[]                @relation("StaffAssignments")
+  staffAssignments         StaffAssignment[]
   discord                  Discord?
   punishmentsReceived      Punishment[]              @relation("PunishedPlayer")
   punishmentsGiven         Punishment[]              @relation("Punisher")
@@ -750,13 +751,29 @@ model Division {
   hidden     Int    @default(0)
   regionId   Int    @map("region_id")
 
-  region       Region               @relation(fields: [regionId], references: [id])
-  teams        Team[]
-  staffMembers User[]               @relation("StaffAssignments")
-  itemPayment  DivisionItemPayment?
+  region           Region               @relation(fields: [regionId], references: [id])
+  teams            Team[]
+  staffAssignments StaffAssignment[]
+  itemPayment      DivisionItemPayment?
 
   @@unique([name, regionId])
   @@map("divisions")
+}
+
+model StaffAssignment {
+  id         Int    @id @default(autoincrement())
+  userId     String @map("user_id")
+  formatId   Int    @map("format_id")
+  divisionId Int    @map("division_id")
+
+  user     User     @relation(fields: [userId], references: [steamId], onDelete: Cascade)
+  format   Format   @relation(fields: [formatId], references: [id], onDelete: Restrict)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, formatId, divisionId])
+  @@index([formatId])
+  @@index([divisionId])
+  @@map("staff_assignments")
 }
 
 model Region {

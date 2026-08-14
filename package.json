@@ -66,6 +66,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1107.0",
     "@aws-sdk/s3-request-presigner": "^3.1107.0",
+    "@milkdown/crepe": "^7.22.1",
+    "@milkdown/kit": "7.22.1",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@tailwindcss/vite": "^4.3.3",

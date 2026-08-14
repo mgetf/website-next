@@ -138,11 +138,6 @@
   }
 </script>
 
-<svelte:head>
-  <title>Teams - MGE.tf</title>
-  <meta name="description" content="Browse all MGE.tf teams" />
-</svelte:head>
-
 <div>
   <PageHero
     title="Teams"

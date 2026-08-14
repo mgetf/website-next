@@ -13,7 +13,10 @@ declare global {
       /** True if user is blocked from accessing the site (staging mode, non-admin) */
       devGated?: boolean;
     }
-    // interface PageData {}
+    interface PageData {
+      /** Optional per-page Open Graph / Discord preview metadata */
+      seo?: import('$lib/types/seo').PageSeo;
+    }
     // interface PageState {}
     // interface Platform {}
   }

@@ -628,7 +628,9 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
     [admin, '/admin/disputes', 'Dispute'],
   ] as const) {
     await session.page.goto(path);
-    await expect(session.page.getByText(new RegExp(check, 'i')).first()).toBeVisible({
+    await expect(
+      session.page.locator('#main-content').getByText(new RegExp(check, 'i')).first(),
+    ).toBeVisible({
       timeout: 15_000,
     });
   }

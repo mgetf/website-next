@@ -7,7 +7,7 @@ import {
 } from '$lib/server/auth/permissions';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
+import { formError, validateForm, validationError } from '$lib/server/utils/forms';
 import {
   getUsers,
   countUsers,
@@ -23,6 +23,13 @@ import {
 } from '$lib/server/services/users';
 import { getDivisions } from '$lib/server/services/divisions';
 import { getRegions } from '$lib/server/services/regions';
+import { getFormatsForFilter } from '$lib/server/services/formats';
+import {
+  getRegionIdsByFormat,
+  mapStaffAssignmentForDisplay,
+  parseStaffAssignmentTokens,
+} from '$lib/server/services/staffAssignments';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
 const steamIdSchema = z.object({
@@ -34,7 +41,7 @@ const updateUserSchema = z.object({
   permissionLevel: z.enum(['', 'GUEST', 'MODERATOR', 'ADMIN']).optional().default(''),
   banStatus: z.enum(['', 'NONE', 'WARNING', 'SUSPENDED', 'BANNED']).optional().default(''),
   nameOverride: z.string().optional().default(''),
-  staffDivisionIds: z.array(z.string()).optional().default([]),
+  staffAssignments: z.array(z.string()).optional().default([]),
 });
 
 const banUserSchema = z.object({
@@ -71,8 +78,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     banStatus: banStatusFilter || undefined,
   });
 
-  // Fetch users with pagination, divisions and regions for staff assignment
-  const [users, divisions, regions] = await Promise.all([
+  // Fetch users with pagination, divisions, regions and formats for staff assignment
+  const [users, divisions, regions, formats, regionIdsByFormat] = await Promise.all([
     getUsers({
       search,
       permissionLevel: permissionLevelFilter || undefined,
@@ -82,6 +89,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     }),
     getDivisions(),
     getRegions(),
+    getFormatsForFilter(),
+    getRegionIdsByFormat(),
   ]);
 
   return {
@@ -95,16 +104,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       nameOverride: user.nameOverride,
       discordLinked: !!user.discord,
       discordUsername: user.discord?.discordUsername,
-      staffDivisions: user.staffDivisions.map((d) => ({
-        id: d.id,
-        name: d.name,
-        regionId: d.region?.id,
-      })),
+      staffAssignments: user.staffAssignments.map(mapStaffAssignmentForDisplay),
     })),
     regions: regions.map((r) => ({
       id: r.id,
       name: r.name,
     })),
+    formats: formats.map((f) => ({
+      id: f.id,
+      name: f.name,
+      themeKey: f.themeKey,
+    })),
+    regionIdsByFormat,
     divisions: divisions.map((d) => ({
       id: d.id,
       name: d.name,
@@ -130,10 +141,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const validation = validateForm(formData, updateUserSchema, ['staffDivisionIds']);
+    const validation = validateForm(formData, updateUserSchema, ['staffAssignments']);
     if (!validation.success) return validationError(validation.errors);
 
-    const { steamId, permissionLevel, banStatus, nameOverride, staffDivisionIds } = validation.data;
+    const { steamId, permissionLevel, banStatus, nameOverride, staffAssignments } = validation.data;
 
     if (permissionLevel) {
       requireStrictAdmin(locals.user);
@@ -150,16 +161,13 @@ export const actions: Actions = {
     }
 
     try {
-      const parsedDivisionIds = staffDivisionIds
-        .filter((id) => id !== '')
-        .map((id) => parseInt(id))
-        .filter((id) => !isNaN(id));
+      const parsedAssignments = parseStaffAssignmentTokens(staffAssignments);
 
       await updateUser(steamId, {
         permissionLevel: permissionLevel || undefined,
         banStatus: banStatus || undefined,
         nameOverride: nameOverride ? parseInt(nameOverride) : undefined,
-        staffDivisionIds: parsedDivisionIds,
+        staffAssignments: parsedAssignments,
       });
 
       if (permissionLevel) {
@@ -178,9 +186,7 @@ export const actions: Actions = {
       return { success: true, message: 'User updated successfully!' };
     } catch (error) {
       console.error('Error updating user:', error);
-      return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to update user',
-      });
+      return formError(getErrorMessage(error, 'Failed to update user'), 400);
     }
   },
 

@@ -134,6 +134,7 @@ export async function deleteFormat(id: number) {
           teams: true,
           teamHistory: true,
           activeSignupSeasons: true,
+          staffAssignments: true,
         },
       },
     },
@@ -153,6 +154,10 @@ export async function deleteFormat(id: number) {
       `${format._count.teamHistory} team history record${format._count.teamHistory !== 1 ? 's' : ''}`,
     );
   if (format._count.activeSignupSeasons > 0) blockers.push('active signup configuration');
+  if (format._count.staffAssignments > 0)
+    blockers.push(
+      `${format._count.staffAssignments} staff assignment${format._count.staffAssignments !== 1 ? 's' : ''}`,
+    );
 
   if (blockers.length > 0) {
     badRequest(`Cannot delete format: it has ${blockers.join(', ')}.`);

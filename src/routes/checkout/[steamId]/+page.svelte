@@ -6,7 +6,6 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import type { CheckoutParticipation, CheckoutTeamSelection } from '$lib/types/checkout';
-  import { FORMAT_2V2 } from '$lib/constants/formats';
 
   let { data }: { data: PageData } = $props();
 
@@ -63,23 +62,19 @@
     playerSelections = next;
   }
 
-  // Build the teams array for the payment components.
-  // For 1v1 teams the current user is always the only payer (no player selection UI shown).
-  // For 2v2 teams the explicit player selection is used.
+  // Individual formats: the current user is always the only payer.
+  // Team formats: the explicit player selection is used.
   const checkoutTeams = $derived<CheckoutTeamSelection[]>(
     selectedParticipations.map((p) => ({
       teamId: p.teamId,
-      paidForSteamIds:
-        p.formatId === FORMAT_2V2
-          ? [...(playerSelections.get(p.teamId) ?? new Set())]
-          : [data.steamId],
+      paidForSteamIds: p.isIndividual
+        ? [data.steamId]
+        : [...(playerSelections.get(p.teamId) ?? new Set())],
     })),
   );
 
-  // Returns the effective selected steam IDs for a participation.
-  // 1v1: always the current user. 2v2: explicit player selections.
   function effectiveIds(p: CheckoutParticipation): Set<string> {
-    if (p.formatId !== FORMAT_2V2) return new Set([data.steamId]);
+    if (p.isIndividual) return new Set([data.steamId]);
     return playerSelections.get(p.teamId) ?? new Set<string>();
   }
 
@@ -148,11 +143,10 @@
       : 0,
   );
 
-  // Every selected 2v2 team must have at least one player checked before proceeding.
   const allTeamsReady = $derived(
     selectedParticipations.length > 0 &&
       selectedParticipations.every(
-        (p) => p.formatId !== FORMAT_2V2 || (playerSelections.get(p.teamId)?.size ?? 0) > 0,
+        (p) => p.isIndividual || (playerSelections.get(p.teamId)?.size ?? 0) > 0,
       ),
   );
 
@@ -296,7 +290,7 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-white font-medium text-sm truncate">{p.teamName}</p>
                   <p class="text-text-muted text-xs mt-0.5">
-                    <Badge color={p.formatId === FORMAT_2V2 ? 'blue' : 'purple'} size="sm">
+                    <Badge color={p.isIndividual ? 'purple' : 'blue'} size="sm">
                       {p.formatName}
                     </Badge>
                     {#if p.regionName}
@@ -316,9 +310,9 @@
           </div>
         </div>
 
-        <!-- Step 2: Per-team player selection (2v2 only) -->
+        <!-- Step 2: Per-team player selection (team formats only) -->
         {#each selectedParticipations as p (p.teamId)}
-          {#if p.formatId === FORMAT_2V2 && p.unpaidPlayers.length > 0}
+          {#if !p.isIndividual && p.unpaidPlayers.length > 0}
             <div class="p-6 border-b border-border-default">
               {#if selectedParticipations.length > 1}
                 <!-- Team header when multiple teams selected -->
@@ -352,7 +346,7 @@
                   <div class="min-w-0">
                     <p class="text-white font-bold">{p.teamName}</p>
                     <p class="text-sm text-text-body mt-0.5">
-                      <Badge color={p.formatId === FORMAT_2V2 ? 'blue' : 'purple'} size="sm">
+                      <Badge color={p.isIndividual ? 'purple' : 'blue'} size="sm">
                         {p.formatName}
                       </Badge>
                       {#if p.regionName}
@@ -420,7 +414,7 @@
         {#if selectedParticipations.length > 0 && !allTeamsReady}
           <div class="p-6 border-b border-border-default">
             <p class="text-text-muted text-sm text-center">
-              Select at least one player for each 2v2 team above to continue.
+              Select at least one player for each team above to continue.
             </p>
           </div>
         {/if}

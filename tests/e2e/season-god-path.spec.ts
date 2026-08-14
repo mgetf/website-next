@@ -610,27 +610,26 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   });
 
   // --- Browse smoke ---
-  for (const [session, path, check] of [
+  for (const [session, path, heading] of [
     [homeCaptain, '/signup', 'League Signups'],
     [homeCaptain, '/teams', 'Teams'],
     [homeCaptain, '/users', 'Users'],
     [homeCaptain, '/rulebook', 'Rulebook'],
-    [homeCaptain, '/leaderboard', 'Leaderboard'],
+    [homeCaptain, '/leaderboard', 'ELO Rankings'],
     [homeCaptain, '/servers', 'Servers'],
     [homeCaptain, '/logs', 'Match Logs'],
     [homeCaptain, '/maps', 'Maps'],
     [homeCaptain, '/tournaments', 'Tournaments'],
     [admin, '/admin/audit-logs', 'Audit Logs'],
-    [admin, '/admin/matches', 'Matches'],
-    [admin, '/admin/teams', 'Teams'],
-    [admin, '/admin/league', 'League'],
-    [admin, '/admin/demos', 'Demo'],
-    [admin, '/admin/disputes', 'Dispute'],
+    [admin, '/admin/matches', 'Match Management'],
+    [admin, '/admin/teams', 'Team Management'],
+    [admin, '/admin/league', 'League Configuration'],
+    [admin, '/admin/demos', 'Demo Reports'],
+    [admin, '/admin/disputes', 'Disputed Matches'],
   ] as const) {
     await session.page.goto(path);
-    await expect(
-      session.page.locator('#main-content').getByText(new RegExp(check, 'i')).first(),
-    ).toBeVisible({
+    await expect(session.page).toHaveURL((url) => url.pathname === path);
+    await expect(session.page.getByRole('heading', { name: heading }).first()).toBeVisible({
       timeout: 15_000,
     });
   }

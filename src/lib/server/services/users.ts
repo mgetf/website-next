@@ -6,7 +6,7 @@
 
 import { prisma } from '$lib/server/db';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
-import { FORMAT_2V2, FORMAT_1V1 } from '$lib/server/constants/formats';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { formatPlayoffRound } from '$lib/utils/playoffs';
@@ -121,7 +121,7 @@ export async function getPlayerTeams(steamId: string) {
     where: {
       playerSteamId: steamId,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: { not: FORMAT_1V1 },
       },
     },
     include: {
@@ -130,6 +130,7 @@ export async function getPlayerTeams(steamId: string) {
           division: true,
           region: true,
           season: true,
+          format: true,
         },
       },
     },
@@ -180,7 +181,7 @@ export async function getUserActiveTeam(
         playerSteamId: steamId,
         active: 1,
         team: {
-          formatId: FORMAT_2V2,
+          formatId: { not: FORMAT_1V1 },
           seasonId: {
             in: currentSeasonIds,
           },
@@ -207,7 +208,7 @@ export async function getUserActiveTeam(
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: { not: FORMAT_1V1 },
       },
     },
     include: {
@@ -295,6 +296,7 @@ export function transformCurrentTeams(playerTeams: any[]) {
       teamName: pt.team.name,
       division: pt.team.division?.name || 'N/A',
       regionName: pt.team.region?.name || 'N/A',
+      formatName: pt.team.format?.name || '2v2',
       seasonNum: pt.team.season?.seasonNum || 0,
       status: pt.team.status as string,
       wins: pt.team.wins,
@@ -316,6 +318,7 @@ export function transformTeamHistory(playerTeams: any[]) {
       teamName: pt.team.name,
       division: pt.team.division?.name || 'N/A',
       regionName: pt.team.region?.name || 'N/A',
+      formatName: pt.team.format?.name || '2v2',
       seasonNum: pt.team.season?.seasonNum || 0,
       status: pt.team.status as string,
       wins: pt.team.wins,

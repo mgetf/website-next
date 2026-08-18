@@ -9,7 +9,11 @@ import { notFound, badRequest } from '$lib/server/utils/errors';
 import { validateJoinToken } from './teamSignup';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { isSeasonCurrentlyActive } from './settings';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
+import {
+  FORMAT_1V1,
+  FORMAT_ID_TO_CODE,
+  formatLabel,
+} from '$lib/server/constants/formats';
 import { verifyPassword } from '$lib/server/utils/password';
 
 type TeamJoinTeam = Prisma.TeamGetPayload<{
@@ -175,20 +179,21 @@ export async function joinByPassword(
     badRequest('You are already on this team');
   }
 
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
+  const currentSeasonIds = await getCurrentSignupSeasonIds(team.formatId);
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: team.formatId,
         seasonId: { in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1] },
       },
     },
   });
 
   if (playerInOtherTeam) {
-    badRequest('You are already in another 2v2 team for this season');
+    const label = formatLabel(FORMAT_ID_TO_CODE[team.formatId] ?? 'team');
+    badRequest(`You are already in another ${label} team for this season`);
   }
 
   await prisma.pendingPlayer.upsert({
@@ -238,20 +243,21 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
     badRequest('Team is full (maximum 3 players)');
   }
 
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
+  const currentSeasonIds = await getCurrentSignupSeasonIds(team.formatId);
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: team.formatId,
         seasonId: { in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1] },
       },
     },
   });
 
   if (playerInOtherTeam) {
-    badRequest('You are already in another 2v2 team for this season');
+    const label = formatLabel(FORMAT_ID_TO_CODE[team.formatId] ?? 'team');
+    badRequest(`You are already in another ${label} team for this season`);
   }
 
   await prisma.pendingPlayer.upsert({
@@ -337,14 +343,17 @@ export async function isPlayerInTeam(steamId: string, teamId: number): Promise<b
  * Check if a player is in any active 2v2 team for the current signup season
  * (allows being in old season teams)
  */
-export async function isPlayerInAnyActiveTeam(steamId: string): Promise<boolean> {
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
+export async function isPlayerInAnyActiveTeam(
+  steamId: string,
+  formatId?: number,
+): Promise<boolean> {
+  const currentSeasonIds = await getCurrentSignupSeasonIds(formatId);
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        ...(formatId ? { formatId } : { formatId: { not: FORMAT_1V1 } }),
         seasonId: {
           in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
         },

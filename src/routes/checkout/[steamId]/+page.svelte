@@ -6,7 +6,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import type { CheckoutParticipation, CheckoutTeamSelection } from '$lib/types/checkout';
-  import { FORMAT_2V2 } from '$lib/constants/formats';
+  import { isTeamFormatId } from '$lib/constants/formats';
 
   let { data }: { data: PageData } = $props();
 
@@ -70,7 +70,7 @@
     selectedParticipations.map((p) => ({
       teamId: p.teamId,
       paidForSteamIds:
-        p.formatId === FORMAT_2V2
+        isTeamFormatId(p.formatId)
           ? [...(playerSelections.get(p.teamId) ?? new Set())]
           : [data.steamId],
     })),
@@ -79,7 +79,7 @@
   // Returns the effective selected steam IDs for a participation.
   // 1v1: always the current user. 2v2: explicit player selections.
   function effectiveIds(p: CheckoutParticipation): Set<string> {
-    if (p.formatId !== FORMAT_2V2) return new Set([data.steamId]);
+    if (!isTeamFormatId(p.formatId)) return new Set([data.steamId]);
     return playerSelections.get(p.teamId) ?? new Set<string>();
   }
 
@@ -152,7 +152,7 @@
   const allTeamsReady = $derived(
     selectedParticipations.length > 0 &&
       selectedParticipations.every(
-        (p) => p.formatId !== FORMAT_2V2 || (playerSelections.get(p.teamId)?.size ?? 0) > 0,
+        (p) => !isTeamFormatId(p.formatId) || (playerSelections.get(p.teamId)?.size ?? 0) > 0,
       ),
   );
 
@@ -296,7 +296,7 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-white font-medium text-sm truncate">{p.teamName}</p>
                   <p class="text-text-muted text-xs mt-0.5">
-                    <Badge color={p.formatId === FORMAT_2V2 ? 'blue' : 'purple'} size="sm">
+                    <Badge color={isTeamFormatId(p.formatId) ? 'blue' : 'purple'} size="sm">
                       {p.formatName}
                     </Badge>
                     {#if p.regionName}
@@ -318,7 +318,7 @@
 
         <!-- Step 2: Per-team player selection (2v2 only) -->
         {#each selectedParticipations as p (p.teamId)}
-          {#if p.formatId === FORMAT_2V2 && p.unpaidPlayers.length > 0}
+          {#if isTeamFormatId(p.formatId) && p.unpaidPlayers.length > 0}
             <div class="p-6 border-b border-border-default">
               {#if selectedParticipations.length > 1}
                 <!-- Team header when multiple teams selected -->
@@ -352,7 +352,7 @@
                   <div class="min-w-0">
                     <p class="text-white font-bold">{p.teamName}</p>
                     <p class="text-sm text-text-body mt-0.5">
-                      <Badge color={p.formatId === FORMAT_2V2 ? 'blue' : 'purple'} size="sm">
+                      <Badge color={isTeamFormatId(p.formatId) ? 'blue' : 'purple'} size="sm">
                         {p.formatName}
                       </Badge>
                       {#if p.regionName}

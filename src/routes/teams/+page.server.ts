@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getTeamsPublic } from '$lib/server/services/teams';
 import { getRegions } from '$lib/server/services/regions';
 import { getSeasons } from '$lib/server/services/seasons';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 
 export const load: PageServerLoad = async ({ url }) => {
   const page = parseInt(url.searchParams.get('page') || '1');
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ url }) => {
     getSeasons(),
   ]);
 
-  const seasons = allSeasons.filter((s) => s.formatId === FORMAT_2V2);
+  const seasons = allSeasons.filter((s) => s.formatId !== FORMAT_1V1);
 
   return {
     teams,

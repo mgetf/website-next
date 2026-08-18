@@ -7,7 +7,7 @@
 import { prisma } from '$lib/server/db';
 import { TeamStatus, NotificationType } from '$prisma/client.js';
 import type { Prisma } from '$prisma/client.js';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { notFound, badRequest, forbidden } from '$lib/server/utils/errors';
 import { createNotificationForUser } from '$lib/server/services/notifications';
 
@@ -103,7 +103,7 @@ export async function getTeamsPublic(
   const TEAMS_PER_PAGE = 50;
   const skip = (page - 1) * TEAMS_PER_PAGE;
 
-  const where: Prisma.TeamWhereInput = { formatId: FORMAT_2V2 };
+  const where: Prisma.TeamWhereInput = { formatId: { not: FORMAT_1V1 } };
 
   if (search && search.trim().length > 0) {
     where.OR = [

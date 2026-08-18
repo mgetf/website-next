@@ -183,8 +183,8 @@ model ItemPaymentOrder {
 // ═══════════════════════════════════════════════════════════════════
 model Format {
   id   Int    @id @default(autoincrement())
-  name String // Display name: "1v1", "2v2"
-  code String @unique // Lookup key: "1v1", "2v2"
+  name String // Display name: "1v1", "2v2", "Ultiduo", "BBall"
+  code String @unique // Lookup key: "1v1", "2v2", "ultiduo", "bball"
 
   seasons             Season[]
   teams               Team[]

@@ -6,8 +6,8 @@ import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
-import { fail, isRedirect, redirect } from '@sveltejs/kit';
+import { parseTeamFormatCode } from '$lib/server/constants/formats';
+import { error, fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
@@ -19,15 +19,21 @@ const reregisterTeamSchema = z.object({
   regionId: z.coerce.number().int().positive('Region is required'),
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
+function teamFormatOrThrow(raw: string | undefined) {
+  if (raw === '1v1') throw redirect(302, '/signup/1v1');
+  const format = parseTeamFormatCode(raw);
+  if (!format) throw error(404, 'Unknown league format');
+  return format;
+}
+
+export const load: PageServerLoad = async ({ locals, params }) => {
   requireAuth(locals.user);
+  const format = teamFormatOrThrow(params.format);
 
-  const context = await getSignupContext(locals.user.steamId);
+  const context = await getSignupContext(locals.user.steamId, format.id);
 
-  // Load divisions and regions
   const [divisions, regions] = await Promise.all([getVisibleDivisions(), getVisibleRegions()]);
 
-  // Determine if user can re-register and why not
   let canReregister = true;
   let disabledReason = '';
 
@@ -45,11 +51,9 @@ export const load: PageServerLoad = async ({ locals }) => {
     disabledReason = 'Rosters are currently locked';
   } else if (context.hasActiveTeam) {
     canReregister = false;
-    disabledReason = 'You are already in an active 2v2 team';
+    disabledReason = `You are already in an active ${format.label} team`;
   }
 
-  // For re-registration, the user keeps whichever owned team they select.
-  // Warn only about other old-season memberships (non-owned) that will be auto-removed.
   const ownedTeamIds = new Set(context.ownedTeams.map((t) => t.id));
   const previousSeasonNonOwnedTeams = context.previousSeasonTeams.filter(
     (t) => !ownedTeamIds.has(t.id),
@@ -62,22 +66,23 @@ export const load: PageServerLoad = async ({ locals }) => {
     canReregister,
     disabledReason,
     previousSeasonNonOwnedTeams,
+    formatCode: format.code,
+    formatLabel: format.label,
   };
 };
 
 export const actions: Actions = {
-  reregisterTeam: async ({ request, locals, getClientAddress }) => {
+  reregisterTeam: async ({ request, locals, getClientAddress, params }) => {
     requireNotBanned(locals.user);
+    const format = teamFormatOrThrow(params.format);
 
-    const context = await getSignupContext(locals.user.steamId);
+    const context = await getSignupContext(locals.user.steamId, format.id);
 
-    // Check if signups are closed
     if (context.signupClosed) {
       return fail(400, { error: 'Signups are currently closed' });
     }
 
     const formData = await request.formData();
-    // Validate required fields
     const validation = validateForm(formData, reregisterTeamSchema);
     if (!validation.success) return validationError(validation.errors);
 
@@ -85,10 +90,8 @@ export const actions: Actions = {
 
     try {
       const before = await getTeamAuditSnapshot(teamId);
-      // Get the correct season ID for the selected region
-      const seasonId = await getSignupSeasonForRegion(regionId, FORMAT_2V2);
+      const seasonId = await getSignupSeasonForRegion(regionId, format.id);
 
-      // Check if payment is required BEFORE re-registering
       const paymentInfo = await checkPaymentRequired({
         divisionId,
         steamId: locals.user.steamId,
@@ -100,6 +103,7 @@ export const actions: Actions = {
         divisionId,
         regionId,
         ownerSteamId: locals.user.steamId,
+        formatId: format.id,
       });
       const after = await getTeamAuditSnapshot(teamId);
 
@@ -113,6 +117,7 @@ export const actions: Actions = {
         metadata: {
           changedFields: 'seasonId,divisionId,regionId,status',
           reregistration: true,
+          formatId: format.id,
           seasonIdBefore: before?.seasonId ?? null,
           seasonIdAfter: after?.seasonId ?? null,
           seasonNumBefore: before?.seasonNum ?? null,

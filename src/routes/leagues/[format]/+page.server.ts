@@ -5,8 +5,9 @@ import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
 import { getStaffMembers, isUserSignedUpForFormat } from '$lib/server/services/users';
 import { getGlobalSettings } from '$lib/server/services/settings';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { formatLeagueTitle, parseTeamFormatCode } from '$lib/server/constants/formats';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
+import { error, redirect } from '@sveltejs/kit';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
 import { z } from 'zod';
 
@@ -15,7 +16,15 @@ const updateSeasonInfoSchema = z.object({
   info: z.string().optional().default(''),
 });
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, params }) => {
+  if (params.format === '1v1') {
+    throw redirect(302, '/leagues/1v1');
+  }
+  const format = parseTeamFormatCode(params.format);
+  if (!format) {
+    throw error(404, 'Unknown league format');
+  }
+
   try {
     // Get query parameters (if any)
     const seasonParam = url.searchParams.get('season');
@@ -37,10 +46,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     // Fetch all seasons and filter to only visible regions AND 2v2 format
     const allSeasonsRaw = await getSeasons();
     const allSeasons = allSeasonsRaw.filter(
-      (s) => visibleRegionIds.has(s.regionId) && s.formatId === FORMAT_2V2,
+      (s) => visibleRegionIds.has(s.regionId) && s.formatId === format.id,
     );
 
-    let defaultSeasonWithTeams = await findRecentSeasonWithTeams(visibleStatuses, FORMAT_2V2);
+    let defaultSeasonWithTeams = await findRecentSeasonWithTeams(visibleStatuses, format.id);
 
     // Determine selected season and region
     let selectedSeasonId: number | undefined;
@@ -158,7 +167,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
     let userAlreadySignedUp = false;
     if (locals.user) {
-      userAlreadySignedUp = await isUserSignedUpForFormat(locals.user.steamId, FORMAT_2V2);
+      userAlreadySignedUp = await isUserSignedUpForFormat(locals.user.steamId, format.id);
     }
 
     const seasonInfo = selectedSeasonId ? await getSeasonInfo(selectedSeasonId) : null;
@@ -188,9 +197,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       userAlreadySignedUp,
       seasonInfo,
       isAdmin: isAdmin(locals.user),
+      formatCode: format.code,
+      formatLabel: format.label,
+      formatTitle: formatLeagueTitle(format.code),
     };
-  } catch (error) {
-    console.error('Error loading 2v2 league page:', error);
+  } catch (err) {
+    console.error(`Error loading ${format.code} league page:`, err);
 
     // Return fallback data
     return {
@@ -210,6 +222,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       userAlreadySignedUp: false,
       seasonInfo: null,
       isAdmin: false,
+      formatCode: format.code,
+      formatLabel: format.label,
+      formatTitle: formatLeagueTitle(format.code),
     };
   }
 };

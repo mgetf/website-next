@@ -18,6 +18,10 @@
     na: 'us',
     eu: 'eu',
     as: 'sg',
+    asia: 'sg',
+    sa: 'br',
+    aus: 'au',
+    aur: 'au',
   };
 
   interface TeamWithMatches {
@@ -25,6 +29,7 @@
     teamName: string;
     division: string;
     regionName: string;
+    formatName?: string;
     seasonNum: number;
     status: string;
     wins: number;
@@ -912,13 +917,13 @@
           {/if}
         </div>
 
-        <!-- 2v2 League -->
+        <!-- Team leagues (2v2, Ultiduo, BBall) -->
         <div
           class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
         >
           <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
-            <h2 class="text-2xl font-bold text-white">2v2 League</h2>
-            <p class="text-sm text-text-body mt-1">Team Competition</p>
+            <h2 class="text-2xl font-bold text-white">Team Leagues</h2>
+            <p class="text-sm text-text-body mt-1">2v2, Ultiduo, and BBall</p>
           </div>
 
           {#if teams2v2.length > 0}
@@ -953,7 +958,7 @@
                             {team.teamName}
                           </a>
                           <span class="text-text-muted font-normal ml-1"
-                            >· {team.division} · {team.regionName}</span
+                            >· {team.formatName ?? '2v2'} · {team.division} · {team.regionName}</span
                           >
                         </span>
                         <div class="flex items-center gap-3 mt-0.5">
@@ -1061,11 +1066,11 @@
             </div>
           {:else}
             <div class="px-6 py-8 text-center space-y-4">
-              <p class="text-text-muted text-sm">No 2v2 season history</p>
+              <p class="text-text-muted text-sm">No team-league history yet</p>
               {#if isOwnProfile}
                 <div>
-                  <Button href="/leagues/2v2" variant="format-2v2" size="sm">
-                    Browse 2v2 League
+                  <Button href="/signup" variant="format-2v2" size="sm">
+                    Browse team leagues
                   </Button>
                 </div>
               {/if}

@@ -10,7 +10,7 @@
   <div class="max-w-5xl w-full">
     <div class="text-center mb-12">
       <h1 class="text-4xl font-bold text-white mb-4">League Signups</h1>
-      <p class="text-text-body text-lg">Sign up for the upcoming season</p>
+      <p class="text-text-body text-lg">Sign up for the upcoming season. Play as many formats as you want.</p>
     </div>
 
     {#if data.allSignupsClosed}
@@ -25,88 +25,93 @@
         </div>
       </Card>
     {:else}
-      <!-- 2v2 Team Section -->
-      <div class="mb-8">
-        <h2 class="text-xl font-semibold text-text-label mb-4">2v2 Teams</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Create New Team -->
-          {#if data.canCreateNew}
-            <a
-              href="/signup/2v2/create"
-              class="group bg-surface-card border border-border-default hover:border-primary-600 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-orange-500/20"
-            >
-              <div class="text-center">
-                <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">✨</div>
-                <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
-                <p class="text-text-body mb-4">Start fresh with a brand new team for this season</p>
-                <div
-                  class="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg group-hover:bg-primary-500 transition-colors"
-                >
-                  Get Started →
+      {#each data.teamFormats as fmt (fmt.code)}
+        <div class="mb-8">
+          <h2 class="text-xl font-semibold text-text-label mb-4">{fmt.label} Teams</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {#if fmt.canCreateNew}
+              <a
+                href="/signup/{fmt.code}/create"
+                class="group bg-surface-card border border-border-default hover:border-primary-600 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-orange-500/20"
+              >
+                <div class="text-center">
+                  <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">✨</div>
+                  <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
+                  <p class="text-text-body mb-4">
+                    Start a new {fmt.label} team for this season
+                  </p>
+                  <div
+                    class="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg group-hover:bg-primary-500 transition-colors"
+                  >
+                    Get Started →
+                  </div>
                 </div>
-              </div>
-            </a>
-          {:else}
-            <Card padding="lg" class="opacity-60 cursor-not-allowed">
-              <div class="text-center">
-                <div class="text-6xl mb-4">✨</div>
-                <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
-                <p class="text-text-body mb-4">Start fresh with a brand new team for this season</p>
-                <div
-                  class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
-                >
-                  Unavailable
+              </a>
+            {:else}
+              <Card padding="lg" class="opacity-60 cursor-not-allowed">
+                <div class="text-center">
+                  <div class="text-6xl mb-4">✨</div>
+                  <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
+                  <p class="text-text-body mb-4">
+                    Start a new {fmt.label} team for this season
+                  </p>
+                  <div
+                    class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
+                  >
+                    Unavailable
+                  </div>
+                  <p class="text-sm text-warning-400 mt-4">
+                    &#9888;&#65039; {fmt.createDisabledReason}
+                  </p>
                 </div>
-                <p class="text-sm text-warning-400 mt-4">
-                  &#9888;&#65039; {data.createDisabledReason}
-                </p>
-              </div>
-            </Card>
-          {/if}
+              </Card>
+            {/if}
 
-          <!-- Re-register Existing Team -->
-          {#if data.canReregister}
-            <a
-              href="/signup/2v2/existing"
-              class="group bg-surface-card border border-border-default hover:border-format-2v2-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-blue-500/20"
-            >
-              <div class="text-center">
-                <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">🔄</div>
-                <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
-                <p class="text-text-body mb-4">Sign up an existing team for the new season</p>
-                <div
-                  class="inline-block px-4 py-2 bg-format-2v2-600 text-white rounded-lg group-hover:bg-format-2v2-500 transition-colors"
-                >
-                  Continue →
+            {#if fmt.canReregister}
+              <a
+                href="/signup/{fmt.code}/existing"
+                class="group bg-surface-card border border-border-default hover:border-format-2v2-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-blue-500/20"
+              >
+                <div class="text-center">
+                  <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">🔄</div>
+                  <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
+                  <p class="text-text-body mb-4">
+                    Sign up an existing {fmt.label} team for the new season
+                  </p>
+                  <div
+                    class="inline-block px-4 py-2 bg-format-2v2-600 text-white rounded-lg group-hover:bg-format-2v2-500 transition-colors"
+                  >
+                    Continue →
+                  </div>
                 </div>
-              </div>
-            </a>
-          {:else}
-            <Card padding="lg" class="opacity-60 cursor-not-allowed">
-              <div class="text-center">
-                <div class="text-6xl mb-4">🔄</div>
-                <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
-                <p class="text-text-body mb-4">Sign up an existing team for the new season</p>
-                <div
-                  class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
-                >
-                  Unavailable
+              </a>
+            {:else}
+              <Card padding="lg" class="opacity-60 cursor-not-allowed">
+                <div class="text-center">
+                  <div class="text-6xl mb-4">🔄</div>
+                  <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
+                  <p class="text-text-body mb-4">
+                    Sign up an existing {fmt.label} team for the new season
+                  </p>
+                  <div
+                    class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
+                  >
+                    Unavailable
+                  </div>
+                  <p class="text-sm text-warning-400 mt-4">
+                    &#9888;&#65039; {fmt.reregisterDisabledReason}
+                  </p>
                 </div>
-                <p class="text-sm text-warning-400 mt-4">
-                  &#9888;&#65039; {data.reregisterDisabledReason}
-                </p>
-              </div>
-            </Card>
-          {/if}
+              </Card>
+            {/if}
+          </div>
         </div>
-      </div>
+      {/each}
 
-      <!-- 1v1 Individual Section -->
       {#if data.activeFormatCodes.includes('1v1')}
         <div class="mb-8">
           <h2 class="text-xl font-semibold text-text-label mb-4">1v1 Individual</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- 1v1 Signup -->
             {#if data.can1v1Signup}
               <a
                 href="/signup/1v1"

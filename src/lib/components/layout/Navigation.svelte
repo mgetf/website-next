@@ -77,7 +77,7 @@
               </svg>
             </button>
             <div
-              class="absolute left-0 mt-1 w-40 bg-surface-card border border-border-default rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
+              class="absolute left-0 mt-1 w-44 bg-surface-card border border-border-default rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
             >
               <a
                 href="/leagues/2v2"
@@ -87,9 +87,21 @@
               </a>
               <a
                 href="/leagues/1v1"
-                class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input rounded-b-lg"
+                class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input"
               >
                 1v1 League
+              </a>
+              <a
+                href="/leagues/ultiduo"
+                class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input"
+              >
+                Ultiduo League
+              </a>
+              <a
+                href="/leagues/bball"
+                class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input rounded-b-lg"
+              >
+                BBall League
               </a>
             </div>
           </div>
@@ -236,6 +248,18 @@
           class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
         >
           1v1 League
+        </a>
+        <a
+          href="/leagues/ultiduo"
+          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
+        >
+          Ultiduo League
+        </a>
+        <a
+          href="/leagues/bball"
+          class="block px-4 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input rounded-lg"
+        >
+          BBall League
         </a>
         <a
           href="/tournaments"

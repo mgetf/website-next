@@ -6,8 +6,8 @@ import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
 import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
-import { fail, isRedirect, redirect } from '@sveltejs/kit';
+import { parseTeamFormatCode } from '$lib/server/constants/formats';
+import { error, fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
@@ -28,10 +28,18 @@ const createTeamFormSchema = z.object({
   joinPassword: z.string().min(1, 'Join password is required'),
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
-  requireAuth(locals.user);
+function teamFormatOrThrow(raw: string | undefined) {
+  if (raw === '1v1') throw redirect(302, '/signup/1v1');
+  const format = parseTeamFormatCode(raw);
+  if (!format) throw error(404, 'Unknown league format');
+  return format;
+}
 
-  const context = await getSignupContext(locals.user.steamId);
+export const load: PageServerLoad = async ({ locals, params }) => {
+  requireAuth(locals.user);
+  const format = teamFormatOrThrow(params.format);
+
+  const context = await getSignupContext(locals.user.steamId, format.id);
 
   // Load divisions and regions
   const [divisions, regions] = await Promise.all([getVisibleDivisions(), getVisibleRegions()]);
@@ -48,7 +56,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     disabledReason = 'Team signups are currently closed';
   } else if (context.hasActiveTeam) {
     canCreate = false;
-    disabledReason = 'You are already in an active 2v2 team';
+    disabledReason = `You are already in an active ${format.label} team`;
   } else if (context.rosterLocked) {
     canCreate = false;
     disabledReason = 'Rosters are currently locked';
@@ -60,14 +68,17 @@ export const load: PageServerLoad = async ({ locals }) => {
     canCreate,
     disabledReason,
     previousSeasonTeams: context.previousSeasonTeams,
+    formatCode: format.code,
+    formatLabel: format.label,
   };
 };
 
 export const actions: Actions = {
-  createTeam: async ({ request, locals, getClientAddress }) => {
+  createTeam: async ({ request, locals, getClientAddress, params }) => {
     requireNotBanned(locals.user);
+    const format = teamFormatOrThrow(params.format);
 
-    const context = await getSignupContext(locals.user.steamId);
+    const context = await getSignupContext(locals.user.steamId, format.id);
 
     // Check if signups are closed
     if (context.signupClosed) {
@@ -118,7 +129,7 @@ export const actions: Actions = {
 
     try {
       // Get the correct season ID for the selected region
-      const seasonId = await getSignupSeasonForRegion(regionId, FORMAT_2V2);
+      const seasonId = await getSignupSeasonForRegion(regionId, format.id);
 
       // Check if payment is required BEFORE creating the team
       const paymentInfo = await checkPaymentRequired({
@@ -136,6 +147,7 @@ export const actions: Actions = {
         regionId,
         joinPassword,
         ownerSteamId: locals.user.steamId,
+        formatId: format.id,
       });
 
       await logAudit({

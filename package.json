@@ -32,7 +32,8 @@
     "test:watch": "vitest",
     "test:e2e": "bun --env-file=.env.test playwright test",
     "test:e2e:ui": "bun --env-file=.env.test playwright test --ui",
-    "migrate:test": "dotenv -e .env.test -- prisma migrate deploy"
+    "migrate:test": "dotenv -e .env.test -- prisma migrate deploy",
+    "formats:open-seasons": "bun run scripts/open-team-format-seasons.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",

@@ -6,7 +6,12 @@
 
 import { PrismaClient } from '../../../prisma/generated/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { FORMAT_1V1, FORMAT_2V2 } from '../../../src/lib/constants/formats';
+import {
+  FORMAT_1V1,
+  FORMAT_2V2,
+  FORMAT_BBALL,
+  FORMAT_ULTIDUO,
+} from '../../../src/lib/constants/formats';
 import { hashPassword } from '../../../src/lib/server/utils/password';
 
 export const E2E_USERS = {
@@ -116,6 +121,8 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
       data: [
         { id: FORMAT_1V1, name: '1v1', code: '1v1' },
         { id: FORMAT_2V2, name: '2v2', code: '2v2' },
+        { id: FORMAT_ULTIDUO, name: 'Ultiduo', code: 'ultiduo' },
+        { id: FORMAT_BBALL, name: 'BBall', code: 'bball' },
       ],
     });
     await prisma.$executeRawUnsafe(

@@ -8,7 +8,7 @@
 
 import { prisma } from '$lib/server/db';
 import { badRequest } from '$lib/server/utils/errors';
-import { FORMAT_2V2 } from '$lib/server/constants/formats';
+import { FORMAT_ID_TO_CODE, formatLabel } from '$lib/server/constants/formats';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { logAudit, AuditCategory, AuditAction } from './auditLog';
 
@@ -74,13 +74,21 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
     badRequest('Team is full (maximum 3 players)');
   }
 
-  const currentSeasonIds = await getCurrentSignupSeasonIds();
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: { division: { select: { signupCost: true } } },
+  });
+  if (!team?.seasonId || !team?.divisionId) {
+    badRequest('Team missing season or division');
+  }
+
+  const currentSeasonIds = await getCurrentSignupSeasonIds(team.formatId);
   const playerInOtherTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId,
       active: 1,
       team: {
-        formatId: FORMAT_2V2,
+        formatId: team.formatId,
         seasonId: {
           in: currentSeasonIds.length > 0 ? currentSeasonIds : [-1],
         },
@@ -88,15 +96,8 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
     },
   });
   if (playerInOtherTeam) {
-    badRequest('Player is already in another 2v2 team for this season');
-  }
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    include: { division: { select: { signupCost: true } } },
-  });
-  if (!team?.seasonId || !team?.divisionId) {
-    badRequest('Team missing season or division');
+    const label = formatLabel(FORMAT_ID_TO_CODE[team.formatId] ?? 'team');
+    badRequest(`Player is already in another ${label} team for this season`);
   }
 
   const payment = await prisma.paymentTracker.findUnique({
@@ -117,7 +118,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
         playerSteamId,
         active: 1,
         team: {
-          formatId: FORMAT_2V2,
+          formatId: team.formatId,
           seasonId: { not: team.seasonId },
         },
       },

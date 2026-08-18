@@ -14,7 +14,8 @@ Thanks for your interest in contributing. This document covers the practical ste
 bun install
 cp .env.example .env      # fill in your local values
 bun run generate          # generate the Prisma client
-bun run migrate           # run database migrations
+bun run migrate           # apply migrations locally (prisma migrate deploy)
+                          # staging/prod: migrate runs automatically via start:prod
 bun run dev                # start the dev server
 ```
 

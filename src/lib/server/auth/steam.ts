@@ -5,12 +5,19 @@
 
 import SteamAuth from 'node-steam-openid';
 import { env } from '$env/dynamic/private';
+import { getOptionalEnv } from '$lib/server/utils/env';
 
 /**
- * Get domain from request headers
- * Auto-detects http/https based on host
+ * Get canonical site origin for Steam OpenID realm/returnUrl.
+ * Prefer PUBLIC_URL so Host-header spoofing cannot redirect the OpenID flow.
+ * Falls back to the request Host only when PUBLIC_URL is unset (local dev).
  */
 export function getDomain(request: Request): string {
+  const configured = getOptionalEnv('PUBLIC_URL').replace(/\/$/, '');
+  if (configured) {
+    return configured;
+  }
+
   const host = request.headers.get('host') || 'localhost:5173';
   const protocol = host.includes('localhost') ? 'http' : 'https';
   return `${protocol}://${host}`;

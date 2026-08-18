@@ -93,11 +93,6 @@
   const placementMedals = ['🥇', '🥈', '🥉'];
 </script>
 
-<svelte:head>
-  <title>{event.name} - Tournaments - MGE.tf</title>
-  <meta name="description" content="{event.name} — {typeBadge.label} on MGE.tf" />
-</svelte:head>
-
 <div>
   <PageHero maxWidth="max-w-7xl" border>
     <div class="flex flex-col gap-4">

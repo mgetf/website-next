@@ -18,18 +18,14 @@
     na: 'us',
     eu: 'eu',
     as: 'sg',
-    asia: 'sg',
-    sa: 'br',
-    aus: 'au',
-    aur: 'au',
   };
 
   interface TeamWithMatches {
     teamId: number;
     teamName: string;
+    formatName: string;
     division: string;
     regionName: string;
-    formatName?: string;
     seasonNum: number;
     status: string;
     wins: number;
@@ -71,7 +67,7 @@
       punishmentCount: number;
       nameOverride: number;
       avatarOverride: number;
-      staffDivisions: { name: string; region: string }[];
+      staffAssignments: { formatName: string; divisionName: string; regionName: string }[];
     };
     isOwnProfile: boolean;
     isAdmin: boolean;
@@ -133,15 +129,14 @@
       (activeEntry.isPaid || !active1v1IsPaidDiv),
   );
 
-  // Merged 2v2 list: active teams first (current), then history, each sorted by seasonNum desc
-  const teams2v2 = $derived([
+  const leagueTeams = $derived([
     ...currentTeams.map((t) => ({ ...t, active: true })),
     ...teamHistory.map((t) => ({ ...t, active: false })),
   ]);
 
   // Accordion expanded state — active entries/teams start expanded
   let expanded1v1 = $state<Record<number, boolean>>({});
-  let expanded2v2 = $state<Record<number, boolean>>({});
+  let expandedTeams = $state<Record<number, boolean>>({});
 
   $effect(() => {
     const next1v1: Record<number, boolean> = {};
@@ -152,11 +147,11 @@
   });
 
   $effect(() => {
-    const next2v2: Record<number, boolean> = {};
-    for (const t of teams2v2) {
-      if (!(t.teamId in expanded2v2)) next2v2[t.teamId] = t.active;
+    const nextTeams: Record<number, boolean> = {};
+    for (const t of leagueTeams) {
+      if (!(t.teamId in expandedTeams)) nextTeams[t.teamId] = t.active;
     }
-    Object.assign(expanded2v2, next2v2);
+    Object.assign(expandedTeams, nextTeams);
   });
 
   // State for 1v1 withdrawal confirmation modal
@@ -362,8 +357,8 @@
       {#if player.permissionLevel !== 'GUEST'}
         <div class="flex flex-wrap gap-2 justify-center">
           {#if player.permissionLevel === 'ADMIN'}
-            {#if player.staffDivisions.length > 0}
-              {#each player.staffDivisions as div}
+            {#if player.staffAssignments.length > 0}
+              {#each player.staffAssignments as assignment (`${assignment.formatName}-${assignment.divisionName}-${assignment.regionName}`)}
                 <span
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.15)]"
                 >
@@ -374,7 +369,9 @@
                       clip-rule="evenodd"
                     />
                   </svg>
-                  Admin<span class="text-purple-500/70 font-normal mx-0.5">·</span>{div.name} · {div.region}
+                  Admin<span class="text-purple-500/70 font-normal mx-0.5">·</span
+                  >{assignment.formatName}
+                  · {assignment.divisionName} · {assignment.regionName}
                 </span>
               {/each}
             {:else}
@@ -392,8 +389,8 @@
               </span>
             {/if}
           {:else if player.permissionLevel === 'MODERATOR'}
-            {#if player.staffDivisions.length > 0}
-              {#each player.staffDivisions as div}
+            {#if player.staffAssignments.length > 0}
+              {#each player.staffAssignments as assignment (`${assignment.formatName}-${assignment.divisionName}-${assignment.regionName}`)}
                 <span
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-info-500/20 text-blue-300 border border-info-500/40 shadow-[0_0_10px_rgba(59,130,246,0.15)]"
                 >
@@ -404,7 +401,9 @@
                       clip-rule="evenodd"
                     />
                   </svg>
-                  Moderator<span class="text-blue-500/70 font-normal mx-0.5">·</span>{div.name} · {div.region}
+                  Moderator<span class="text-blue-500/70 font-normal mx-0.5">·</span
+                  >{assignment.formatName}
+                  · {assignment.divisionName} · {assignment.regionName}
                 </span>
               {/each}
             {:else}
@@ -917,25 +916,25 @@
           {/if}
         </div>
 
-        <!-- Team leagues (2v2, Ultiduo, BBall) -->
+        <!-- Team leagues -->
         <div
           class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
         >
           <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
             <h2 class="text-2xl font-bold text-white">Team Leagues</h2>
-            <p class="text-sm text-text-body mt-1">2v2, Ultiduo, and BBall</p>
+            <p class="text-sm text-text-body mt-1">Team Competition</p>
           </div>
 
-          {#if teams2v2.length > 0}
+          {#if leagueTeams.length > 0}
             <div class="divide-y divide-border-default/50">
-              {#each teams2v2 as team (team.teamId)}
-                {@const isOpen = expanded2v2[team.teamId] ?? team.active}
+              {#each leagueTeams as team (team.teamId)}
+                {@const isOpen = expandedTeams[team.teamId] ?? team.active}
                 {@const pct = winPct(team.wins, team.losses)}
 
                 <div>
                   <button
                     type="button"
-                    onclick={() => (expanded2v2[team.teamId] = !isOpen)}
+                    onclick={() => (expandedTeams[team.teamId] = !isOpen)}
                     class="w-full flex items-center justify-between px-6 py-4 hover:bg-surface-input/30 transition-colors text-left {team.active
                       ? 'bg-success-500/5'
                       : 'opacity-70'}"
@@ -958,7 +957,7 @@
                             {team.teamName}
                           </a>
                           <span class="text-text-muted font-normal ml-1"
-                            >· {team.formatName ?? '2v2'} · {team.division} · {team.regionName}</span
+                            >· {team.formatName} · {team.division} · {team.regionName}</span
                           >
                         </span>
                         <div class="flex items-center gap-3 mt-0.5">
@@ -1066,12 +1065,10 @@
             </div>
           {:else}
             <div class="px-6 py-8 text-center space-y-4">
-              <p class="text-text-muted text-sm">No team-league history yet</p>
+              <p class="text-text-muted text-sm">No team league history</p>
               {#if isOwnProfile}
                 <div>
-                  <Button href="/signup" variant="format-2v2" size="sm">
-                    Browse team leagues
-                  </Button>
+                  <Button href="/teams" variant="secondary" size="sm">Browse Teams</Button>
                 </div>
               {/if}
             </div>

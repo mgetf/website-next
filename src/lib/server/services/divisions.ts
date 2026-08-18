@@ -194,7 +194,7 @@ export async function deleteDivision(id: number) {
       _count: {
         select: {
           teams: true,
-          staffMembers: true,
+          staffAssignments: true,
         },
       },
     },
@@ -207,9 +207,9 @@ export async function deleteDivision(id: number) {
   const blockers: string[] = [];
   if (division._count.teams > 0)
     blockers.push(`${division._count.teams} team${division._count.teams !== 1 ? 's' : ''}`);
-  if (division._count.staffMembers > 0)
+  if (division._count.staffAssignments > 0)
     blockers.push(
-      `${division._count.staffMembers} staff member${division._count.staffMembers !== 1 ? 's' : ''} assigned to it`,
+      `${division._count.staffAssignments} staff member${division._count.staffAssignments !== 1 ? 's' : ''} assigned to it`,
     );
 
   if (blockers.length > 0) {

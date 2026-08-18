@@ -7,13 +7,13 @@ import {
   hasAnyPendingRequest,
 } from '$lib/server/services/teamJoin';
 import { getTeamById } from '$lib/server/services/teams';
+import { requireFormatById } from '$lib/server/services/formats';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { createNotificationForTeam } from '$lib/server/services/notifications';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { passwordRateLimiter, checkFormActionRateLimit } from '$lib/server/utils/rateLimit';
 
@@ -65,11 +65,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   }
 
-  // Check if team is 1v1
-  if (team.formatId === FORMAT_1V1) {
+  const format = await requireFormatById(team.formatId);
+
+  if (format.isIndividual) {
     return {
       team,
-      error: 'Cannot join 1v1 teams',
+      error: 'Cannot join individual league entries',
       canJoin: false,
       rosterLocked: false,
     };
@@ -80,10 +81,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     : false;
 
   const activePlayerCount = team.players.filter((p) => p.active === 1).length;
-  if (activePlayerCount >= 3) {
+  if (activePlayerCount >= format.maxRosterSize) {
     return {
       team,
-      error: 'Team is full (maximum 3 players)',
+      error: `Team is full (maximum ${format.maxRosterSize} players)`,
       canJoin: false,
       rosterLocked,
     };
@@ -100,12 +101,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   }
 
-  const playerInOtherTeam = await isPlayerInAnyActiveTeam(locals.user.steamId);
+  const playerInOtherTeam = await isPlayerInAnyActiveTeam(locals.user.steamId, team.formatId);
 
   if (playerInOtherTeam) {
     return {
       team,
-      error: 'You are already in another 2v2 team',
+      error: 'You are already in another team for this format',
       canJoin: false,
       rosterLocked,
     };

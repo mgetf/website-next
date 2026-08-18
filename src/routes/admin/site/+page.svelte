@@ -1,12 +1,17 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+  import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
+  import DiffView from '$lib/components/markdown/DiffView.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import Dialog from '$lib/components/ui/Dialog.svelte';
+  import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import type { PageData } from './$types';
   import { toast } from '$lib/state/toast.svelte';
+  import { diffText } from '$lib/utils/textDiff';
+  import { RULEBOOK_MESSAGE_MIN_LENGTH } from '$lib/utils/rulebookPublish';
 
   let { data }: { data: PageData } = $props();
 
@@ -65,9 +70,17 @@
     matchCreatedMessage = data.matchCreatedMessage;
   });
 
-  // Preview toggles
-  let showPreview = $state(false);
-  let showMatchMessagePreview = $state(false);
+  let showPublishDialog = $state(false);
+  let publishMessage = $state<string | null>('');
+
+  const hasRulebookChanges = $derived(rulebookContent !== data.rulebookContent);
+  const publishHunks = $derived(diffText(data.rulebookContent, rulebookContent));
+  const canPublishRulebook = $derived(
+    data.isHeadAdmin &&
+      hasRulebookChanges &&
+      (publishMessage?.trim().length ?? 0) >= RULEBOOK_MESSAGE_MIN_LENGTH &&
+      !isSubmitting,
+  );
 
   function handleEnhance(action: string) {
     return () => {
@@ -469,26 +482,16 @@
             <label for="about" class="block text-sm font-medium text-text-label mb-2">
               "What is MGE?" Section
             </label>
-            <textarea
+            <MarkdownEditor
               id="about"
               name="about"
               bind:value={homepageAbout}
-              rows="10"
+              rows={10}
               disabled={!data.isHeadAdmin}
-              class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="## What is MGE?&#10;&#10;Write your content here using Markdown..."
-            ></textarea>
+            />
             <p class="text-xs text-text-muted mt-1">Supports Markdown formatting</p>
           </div>
-
-          {#if homepageAbout.trim()}
-            <div>
-              <h4 class="text-sm font-medium text-text-label mb-2">Preview</h4>
-              <div class="bg-surface-input border border-border-input rounded-lg p-4">
-                <MarkdownRenderer content={homepageAbout} />
-              </div>
-            </div>
-          {/if}
 
           <div class="pt-4">
             <Button type="submit" variant="primary" disabled={isSubmitting || !data.isHeadAdmin}>
@@ -643,62 +646,109 @@
         {/if}
       </div>
     {:else if activeTab === 'rulebook'}
-      <!-- Rulebook Editor -->
-      <form method="POST" action="?/updateRulebook" use:enhance={handleEnhance('rulebook')}>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-lg font-semibold text-white">Rulebook Editor</h3>
-              <p class="text-sm text-text-body">Edit the official rulebook using Markdown</p>
-            </div>
-            <div class="flex items-center gap-3">
-              <a
-                href="/rulebook"
-                target="_blank"
-                class="text-sm text-primary-400 hover:text-primary-300"
-              >
-                View live →
-              </a>
-              <button
-                type="button"
-                onclick={() => (showPreview = !showPreview)}
-                class="px-4 py-2 bg-surface-input hover:bg-surface-hover text-white text-sm rounded-lg transition"
-              >
-                {showPreview ? 'Hide Preview' : 'Show Preview'}
-              </button>
-            </div>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-semibold text-white">Rulebook Editor</h3>
+            <p class="text-sm text-text-body">Edit the official rulebook using Markdown</p>
           </div>
-
-          <div class="grid grid-cols-1 {showPreview ? 'lg:grid-cols-2' : ''} gap-4">
-            <!-- Editor -->
-            <div>
-              <textarea
-                name="content"
-                bind:value={rulebookContent}
-                rows="30"
-                disabled={!data.isHeadAdmin}
-                class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="# Rulebook&#10;&#10;## Section 1&#10;..."></textarea>
-            </div>
-
-            <!-- Preview -->
-            {#if showPreview}
-              <div
-                class="bg-surface-input border border-border-input rounded-lg p-6 overflow-y-auto max-h-[700px]"
-              >
-                <MarkdownRenderer content={rulebookContent} />
-              </div>
+          <div class="flex items-center gap-3">
+            {#if data.rulebookVersion > 0}
+              <Badge color="green">Revision {data.rulebookVersion}</Badge>
             {/if}
-          </div>
-
-          <div class="pt-4 flex items-center gap-4">
-            <Button type="submit" variant="success" disabled={isSubmitting || !data.isHeadAdmin}>
-              {isSubmitting ? 'Saving...' : 'Save Rulebook'}
-            </Button>
-            <span class="text-sm text-text-muted"> Changes are published immediately </span>
+            <Button variant="ghost" size="sm" href="/rulebook" target="_blank">View live</Button>
           </div>
         </div>
-      </form>
+
+        <MarkdownEditor
+          bind:value={rulebookContent}
+          rows={30}
+          disabled={!data.isHeadAdmin}
+          placeholder="# Rulebook&#10;&#10;## Section 1&#10;..."
+        />
+
+        <div class="pt-4 flex items-center gap-4">
+          <Button
+            type="button"
+            variant="success"
+            disabled={!data.isHeadAdmin || !hasRulebookChanges || isSubmitting}
+            onclick={() => (showPublishDialog = true)}
+          >
+            Publish
+          </Button>
+          <span class="text-sm text-text-muted">
+            {#if hasRulebookChanges}
+              Unpublished edits are not live until you publish
+            {:else}
+              No unpublished changes
+            {/if}
+          </span>
+        </div>
+      </div>
+
+      <Dialog
+        open={showPublishDialog}
+        title="Publish rulebook"
+        maxWidth="2xl"
+        onClose={() => {
+          if (!isSubmitting) showPublishDialog = false;
+        }}
+      >
+        <form
+          method="POST"
+          action="?/publishRulebook"
+          use:enhance={() => {
+            isSubmitting = true;
+            return async ({ result, update }) => {
+              isSubmitting = false;
+              if (result.type === 'success') {
+                const payload = result.data as { message?: string } | undefined;
+                toast.success(payload?.message || 'Rulebook published');
+                showPublishDialog = false;
+                publishMessage = '';
+              } else if (result.type === 'failure') {
+                const payload = result.data as { error?: string } | undefined;
+                toast.error(payload?.error || 'Failed to publish');
+              }
+              await update();
+            };
+          }}
+        >
+          <input type="hidden" name="content" value={rulebookContent} />
+          <input type="hidden" name="expectedVersion" value={data.rulebookVersion} />
+
+          <p class="text-sm text-text-body mb-4">
+            Review the changes, then explain them before publishing a new public revision.
+          </p>
+
+          <div class="mb-4 max-h-72 overflow-y-auto">
+            <DiffView hunks={publishHunks} />
+          </div>
+
+          <FormInput
+            label="Change message"
+            name="message"
+            bind:value={publishMessage}
+            required
+            maxlength={500}
+            hint={`At least ${RULEBOOK_MESSAGE_MIN_LENGTH} characters. Players will see this in the public history.`}
+          />
+
+          <div class="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isSubmitting}
+              onclick={() => (showPublishDialog = false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="success" disabled={!canPublishRulebook}>
+              {isSubmitting ? 'Publishing...' : 'Publish'}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     {:else if activeTab === 'match_message'}
       <!-- Match Created Message Editor -->
       <form
@@ -707,44 +757,21 @@
         use:enhance={handleEnhance('match_message')}
       >
         <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-lg font-semibold text-white">Match Created Message</h3>
-              <p class="text-sm text-text-body">
-                This message is posted as a system comment whenever a new match is created. Supports
-                Markdown.
-              </p>
-            </div>
-            <button
-              type="button"
-              onclick={() => (showMatchMessagePreview = !showMatchMessagePreview)}
-              class="px-4 py-2 bg-surface-input hover:bg-surface-hover text-white text-sm rounded-lg transition"
-            >
-              {showMatchMessagePreview ? 'Hide Preview' : 'Show Preview'}
-            </button>
+          <div>
+            <h3 class="text-lg font-semibold text-white">Match Created Message</h3>
+            <p class="text-sm text-text-body">
+              This message is posted as a system comment whenever a new match is created. Supports
+              Markdown.
+            </p>
           </div>
 
-          <div class="grid grid-cols-1 {showMatchMessagePreview ? 'lg:grid-cols-2' : ''} gap-4">
-            <!-- Editor -->
-            <div>
-              <textarea
-                name="content"
-                bind:value={matchCreatedMessage}
-                rows="20"
-                disabled={!data.isHeadAdmin}
-                class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="**Match Created!** ..."></textarea>
-            </div>
-
-            <!-- Preview -->
-            {#if showMatchMessagePreview}
-              <div
-                class="bg-surface-input border border-border-input rounded-lg p-6 overflow-y-auto max-h-[500px]"
-              >
-                <MarkdownRenderer content={matchCreatedMessage} />
-              </div>
-            {/if}
-          </div>
+          <MarkdownEditor
+            name="content"
+            bind:value={matchCreatedMessage}
+            rows={20}
+            disabled={!data.isHeadAdmin}
+            placeholder="**Match Created!** ..."
+          />
 
           <div class="pt-4 flex items-center gap-4">
             <Button type="submit" variant="success" disabled={isSubmitting || !data.isHeadAdmin}>

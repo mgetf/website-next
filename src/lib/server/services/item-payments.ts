@@ -1,6 +1,5 @@
 import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import type { CheckoutTeamSelection } from '$lib/types/checkout';
 
@@ -369,7 +368,7 @@ export async function confirmItemPayment(data: {
     const teamIds = checkoutTeams.map((t) => t.teamId);
     const teamRecords = await prisma.team.findMany({
       where: { id: { in: teamIds } },
-      include: { division: true },
+      include: { division: true, format: true },
     });
     const teamMap = new Map(teamRecords.map((t) => [t.id, t]));
 
@@ -439,7 +438,7 @@ export async function confirmItemPayment(data: {
           where: { teamId: teamSel.teamId, active: 1, paymentStatus: 1 },
         });
 
-        const requiredPaidPlayers = team.formatId === FORMAT_1V1 ? 1 : 2;
+        const requiredPaidPlayers = team.format.requiredPaidPlayers;
 
         if (paidPlayersCount >= requiredPaidPlayers) {
           await tx.team.update({
@@ -455,7 +454,7 @@ export async function confirmItemPayment(data: {
 
   const team = await prisma.team.findUnique({
     where: { id: order.teamId },
-    include: { division: true },
+    include: { division: true, format: true },
   });
 
   if (!team) {
@@ -519,7 +518,7 @@ export async function confirmItemPayment(data: {
       where: { teamId: order.teamId, active: 1, paymentStatus: 1 },
     });
 
-    const requiredPaidPlayers = team.formatId === FORMAT_1V1 ? 1 : 2;
+    const requiredPaidPlayers = team.format.requiredPaidPlayers;
 
     if (paidPlayersCount >= requiredPaidPlayers) {
       await tx.team.update({

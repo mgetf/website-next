@@ -1,4 +1,4 @@
-import { redirect, error, type RequestHandler } from '@sveltejs/kit';
+import { redirect, error, isHttpError, type RequestHandler } from '@sveltejs/kit';
 import {
   exchangeDiscordCode,
   verifyDiscordOAuthState,
@@ -39,7 +39,15 @@ export const GET: RequestHandler = async ({ url, request, cookies, locals, getCl
   const discordUsername = formatDiscordUsername(discordUser);
   const discordAvatar = getDiscordAvatarUrl(discordUser);
 
-  await linkDiscordAccount(discordUser.id, discordUsername, discordAvatar, steamId);
+  try {
+    await linkDiscordAccount(discordUser.id, discordUsername, discordAvatar, steamId);
+  } catch (err) {
+    if (isHttpError(err) && err.status === 409) {
+      redirect(302, '/?error=discord_already_linked');
+    }
+    console.error('[Discord OAuth] Link failed:', err);
+    redirect(302, '/?error=discord_link_failed');
+  }
 
   await logAudit({
     actorId: steamId,

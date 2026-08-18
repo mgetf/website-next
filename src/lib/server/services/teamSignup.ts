@@ -9,7 +9,7 @@ import type { Prisma } from '$prisma/client.js';
 import jwt from 'jsonwebtoken';
 import { badRequest, forbidden } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
-import { formatLabel, FORMAT_ID_TO_CODE, FORMAT_2V2 } from '$lib/server/constants/formats';
+import { requireFormatById } from './formats';
 import { getJwtSecret } from '$lib/server/utils/env';
 import { hashPassword } from '$lib/server/utils/password';
 
@@ -59,16 +59,19 @@ interface TeamReregistrationData {
 }
 
 /**
- * Get signup context for a user
- * Now uses per-season settings instead of global
+ * Get signup context for a user for a specific team format
  */
 export async function getSignupContext(
   steamId: string | null,
-  formatId: number = FORMAT_2V2,
+  formatId: number,
 ): Promise<SignupContext> {
+  const format = await requireFormatById(formatId);
+  if (format.isIndividual) {
+    badRequest('Use individual signup for this format');
+  }
+
   const currentSignupSeasonIds = await getCurrentSignupSeasonIds(formatId);
 
-  // Get active signup seasons with their settings
   const activeSignupSeasons = await prisma.activeSignupSeason.findMany({
     where: {
       formatId,
@@ -114,8 +117,7 @@ export async function getSignupContext(
     });
     ownedTeams = ownedMemberships.map((membership) => membership.team);
 
-    // Check if user is in any active 2v2 team that's ALREADY in a current signup season
-    // This allows users to re-register teams from previous seasons
+    // Check if user is in any active team for this format already in a current signup season
     const activeTeamMembership = await prisma.playerInTeam.findFirst({
       where: {
         playerSteamId: steamId,
@@ -123,7 +125,7 @@ export async function getSignupContext(
         team: {
           formatId,
           seasonId: {
-            in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1], // Use -1 as fallback to match nothing
+            in: currentSignupSeasonIds.length > 0 ? currentSignupSeasonIds : [-1],
           },
         },
       },
@@ -133,7 +135,6 @@ export async function getSignupContext(
   }
 
   // Find active memberships on old-season teams that would be auto-removed on signup.
-  // Only relevant when the user can actually proceed (no current-season team blocking them).
   let previousSeasonTeams: { id: number; name: string }[] = [];
   if (steamId && !hasActiveTeam) {
     const oldMemberships = await prisma.playerInTeam.findMany({
@@ -169,10 +170,13 @@ export async function getSignupContext(
  * Validate team creation data
  */
 export async function validateTeamCreation(data: TeamCreationData): Promise<void> {
-  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(data.formatId);
-  const label = formatLabel(FORMAT_ID_TO_CODE[data.formatId] ?? 'team');
+  const format = await requireFormatById(data.formatId);
+  if (format.isIndividual) {
+    badRequest('Use individual signup for this format');
+  }
 
-  // Check if user is already in an active team for this format + current signup season
+  const currentSignupSeasonIds = await getCurrentSignupSeasonIds(data.formatId);
+
   const existingTeam = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: data.ownerSteamId,
@@ -187,7 +191,7 @@ export async function validateTeamCreation(data: TeamCreationData): Promise<void
   });
 
   if (existingTeam) {
-    badRequest(`You are already in an active ${label} team for this season`);
+    badRequest('You are already in an active 2v2 team for this season');
   }
 
   // Validate team name
@@ -273,7 +277,6 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   const playerPaymentStatus =
     division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
 
-  // Deactivate stale memberships on other teams of this format from previous seasons
   await prisma.playerInTeam.updateMany({
     where: {
       playerSteamId: data.ownerSteamId,
@@ -329,8 +332,12 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
   }
 
   if (ownership.team.formatId !== data.formatId) {
-    const label = formatLabel(FORMAT_ID_TO_CODE[data.formatId] ?? 'team');
-    badRequest(`Only ${label} teams can be re-registered on this page`);
+    badRequest('Team format does not match this signup flow');
+  }
+
+  const format = await requireFormatById(data.formatId);
+  if (format.isIndividual || !format.supportsReregistration) {
+    badRequest('This format does not support team re-registration');
   }
 
   const seasonId = await getSignupSeasonForRegion(data.regionId, data.formatId);

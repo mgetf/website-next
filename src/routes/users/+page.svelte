@@ -109,11 +109,6 @@
   }
 </script>
 
-<svelte:head>
-  <title>Users - MGE.tf</title>
-  <meta name="description" content="Browse all MGE.tf users and players" />
-</svelte:head>
-
 <div>
   <PageHero
     title="Users"

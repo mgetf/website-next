@@ -9,7 +9,16 @@ import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
-import { formatPlayoffRound } from '$lib/utils/playoffs';
+import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
+import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
+import { conflict } from '$lib/server/utils/errors';
+import { isSafeUrl } from '$lib/utils/safeUrl';
+import {
+  mapStaffAssignmentForDisplay,
+  replaceStaffAssignments,
+  staffAssignmentInclude,
+  type StaffAssignmentPair,
+} from './staffAssignments';
 
 export type { ProfileMatch } from '$lib/types/match';
 
@@ -50,8 +59,8 @@ export async function getUserBySteamId(steamId: string) {
     where: { steamId },
     include: {
       discord: true,
-      staffDivisions: {
-        include: { region: true },
+      staffAssignments: {
+        include: staffAssignmentInclude,
       },
     },
   });
@@ -114,14 +123,15 @@ export async function getUserByDiscordId(discordId: string) {
 }
 
 /**
- * Get player's team memberships (current and past)
+ * Get player's team-format memberships (current and past).
+ * Individual-format entries are loaded separately via getPlayer1v1Entries.
  */
 export async function getPlayerTeams(steamId: string) {
   return await prisma.playerInTeam.findMany({
     where: {
       playerSteamId: steamId,
       team: {
-        formatId: { not: FORMAT_1V1 },
+        format: { isIndividual: false },
       },
     },
     include: {
@@ -130,7 +140,9 @@ export async function getPlayerTeams(steamId: string) {
           division: true,
           region: true,
           season: true,
-          format: true,
+          format: {
+            select: { name: true },
+          },
         },
       },
     },
@@ -165,23 +177,35 @@ export async function isUserSignedUpForFormat(steamId: string, formatId: number)
 }
 
 /**
- * Get player's active 2v2 team (for navigation display)
- * Prioritizes teams in current signup seasons, falls back to any active team
- * Returns null if player is not in an active 2v2 team
+ * True when the user has an active non-dead entry in every given format.
+ * Empty formatIds (no open signups) returns true so the nav Sign Up button stays hidden.
+ */
+export async function isSignedUpForAllOpenFormats(
+  steamId: string,
+  formatIds: number[],
+): Promise<boolean> {
+  if (formatIds.length === 0) return true;
+  const results = await Promise.all(formatIds.map((id) => isUserSignedUpForFormat(steamId, id)));
+  return results.every(Boolean);
+}
+
+/**
+ * Get player's active team-format membership for navigation ("My Team").
+ * Prioritizes teams in current signup seasons, falls back to any active team.
+ * Individual-format entries are excluded.
  */
 export async function getUserActiveTeam(
   steamId: string,
 ): Promise<{ id: number; name: string } | null> {
   const currentSeasonIds = await getCurrentSignupSeasonIds();
 
-  // First, try to find a team in the current signup season
   if (currentSeasonIds.length > 0) {
     const currentSeasonTeam = await prisma.playerInTeam.findFirst({
       where: {
         playerSteamId: steamId,
         active: 1,
         team: {
-          formatId: { not: FORMAT_1V1 },
+          format: { isIndividual: false },
           seasonId: {
             in: currentSeasonIds,
           },
@@ -202,13 +226,12 @@ export async function getUserActiveTeam(
     }
   }
 
-  // Fall back to any active team (for users only in old season teams)
   const teamMembership = await prisma.playerInTeam.findFirst({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
-        formatId: { not: FORMAT_1V1 },
+        format: { isIndividual: false },
       },
     },
     include: {
@@ -294,9 +317,9 @@ export function transformCurrentTeams(playerTeams: any[]) {
     .map((pt) => ({
       teamId: pt.team.id,
       teamName: pt.team.name,
+      formatName: pt.team.format?.name || 'Team',
       division: pt.team.division?.name || 'N/A',
       regionName: pt.team.region?.name || 'N/A',
-      formatName: pt.team.format?.name || '2v2',
       seasonNum: pt.team.season?.seasonNum || 0,
       status: pt.team.status as string,
       wins: pt.team.wins,
@@ -316,9 +339,9 @@ export function transformTeamHistory(playerTeams: any[]) {
     .map((pt) => ({
       teamId: pt.team.id,
       teamName: pt.team.name,
+      formatName: pt.team.format?.name || 'Team',
       division: pt.team.division?.name || 'N/A',
       regionName: pt.team.region?.name || 'N/A',
-      formatName: pt.team.format?.name || '2v2',
       seasonNum: pt.team.season?.seasonNum || 0,
       status: pt.team.status as string,
       wins: pt.team.wins,
@@ -401,8 +424,17 @@ async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, Profi
       homeTeam: { select: { id: true, name: true } },
       awayTeam: { select: { id: true, name: true } },
     },
-    orderBy: [{ weekNo: 'asc' }, { playoffRound: 'asc' }],
+    orderBy: [{ weekNo: 'asc' }, { id: 'asc' }],
   });
+
+  // Regular season first, then playoffs in bracket order (signed playoffRound
+  // cannot be sorted correctly by a simple Prisma orderBy).
+  matches.sort((a, b) =>
+    compareMatchHistoryOrder(
+      { weekNo: a.weekNo, playoffRound: a.playoffRound, id: a.id },
+      { weekNo: b.weekNo, playoffRound: b.playoffRound, id: b.id },
+    ),
+  );
 
   const result = new Map<number, ProfileMatch[]>();
   for (const id of teamIds) result.set(id, []);
@@ -529,10 +561,7 @@ export async function getPlayerProfile(steamId: string) {
       punishmentCount,
       nameOverride: user.nameOverride,
       avatarOverride: user.avatarOverride,
-      staffDivisions: user.staffDivisions.map((d) => ({
-        name: d.name,
-        region: d.region.name,
-      })),
+      staffAssignments: user.staffAssignments.map(mapStaffAssignmentForDisplay),
     },
     currentTeams: currentTeamsWithMatches,
     teamHistory: teamHistoryWithMatches,
@@ -593,8 +622,8 @@ export async function getUsers(options: {
     where,
     include: {
       discord: true,
-      staffDivisions: {
-        include: { region: true },
+      staffAssignments: {
+        include: staffAssignmentInclude,
       },
     },
     orderBy: [{ steamUsername: 'asc' }, { steamId: 'asc' }],
@@ -646,7 +675,7 @@ export async function updateUser(
     permissionLevel?: string;
     banStatus?: string;
     nameOverride?: number;
-    staffDivisionIds?: number[];
+    staffAssignments?: StaffAssignmentPair[];
   },
 ) {
   const user = await prisma.user.findUnique({
@@ -671,12 +700,6 @@ export async function updateUser(
     updateData.nameOverride = data.nameOverride;
   }
 
-  if (data.staffDivisionIds !== undefined) {
-    updateData.staffDivisions = {
-      set: data.staffDivisionIds.map((id) => ({ id })),
-    };
-  }
-
   const permissionChanged =
     data.permissionLevel !== undefined && data.permissionLevel !== user.permissionLevel;
   const banChanged = data.banStatus !== undefined && data.banStatus !== user.banStatus;
@@ -684,37 +707,20 @@ export async function updateUser(
     updateData.sessionVersion = { increment: 1 };
   }
 
-  return await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { steamId },
     data: updateData,
   });
-}
 
-/**
- * Get all staff members (users with MODERATOR or ADMIN permission level)
- * Used for staff lists on league pages
- */
-export async function getStaffMembers() {
-  return await prisma.user.findMany({
-    where: {
-      permissionLevel: {
-        in: ['MODERATOR', 'ADMIN'],
-      },
-    },
-    select: {
-      steamId: true,
-      steamUsername: true,
-      steamAvatar: true,
-      permissionLevel: true,
-      staffDivisions: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: [{ steamUsername: 'asc' }],
-  });
+  if (data.staffAssignments !== undefined) {
+    await replaceStaffAssignments(steamId, data.staffAssignments);
+  }
+
+  if (permissionChanged || banChanged) {
+    invalidateCachedSessionVersion(steamId);
+  }
+
+  return updated;
 }
 
 /**
@@ -726,6 +732,7 @@ export async function getStaffMembers() {
 export async function clearPunishment(steamId: string, clearedBy: string) {
   const user = await prisma.user.findUnique({ where: { steamId } });
   if (!user) throw new Error('User not found');
+  void clearedBy;
 
   await prisma.user.update({
     where: { steamId },
@@ -740,6 +747,8 @@ export async function clearPunishment(steamId: string, clearedBy: string) {
     where: { playerSteamId: steamId, status: 1 },
     data: { status: 0 },
   });
+
+  invalidateCachedSessionVersion(steamId);
 }
 
 export async function banUser(
@@ -756,6 +765,8 @@ export async function banUser(
       sessionVersion: { increment: 1 },
     },
   });
+
+  invalidateCachedSessionVersion(steamId);
 
   // Create punishment record
   return await prisma.punishment.create({
@@ -891,10 +902,13 @@ export async function lockUserAvatar(steamId: string, avatarUrl: string) {
     throw new Error('Avatar URL is required');
   }
 
-  try {
-    new URL(trimmed);
-  } catch {
-    throw new Error('Invalid URL format');
+  // Avatars are rendered in <img src> — only allow https (and http for local fixtures)
+  if (!isSafeUrl(trimmed) || trimmed.startsWith('/') || trimmed.startsWith('#')) {
+    throw new Error('Avatar URL must be an http(s) URL');
+  }
+  const protocol = new URL(trimmed).protocol.toLowerCase();
+  if (protocol !== 'https:' && protocol !== 'http:') {
+    throw new Error('Avatar URL must be an http(s) URL');
   }
 
   return await prisma.user.update({
@@ -1164,6 +1178,17 @@ export async function linkDiscordAccount(
   discordAvatar: string | null,
   steamId: string,
 ): Promise<void> {
+  const existingByDiscord = await prisma.discord.findUnique({ where: { discordId } });
+  if (existingByDiscord?.playerSteamId && existingByDiscord.playerSteamId !== steamId) {
+    conflict('This Discord account is already linked to another user');
+  }
+
+  const existingBySteam = await prisma.discord.findUnique({ where: { playerSteamId: steamId } });
+  if (existingBySteam && existingBySteam.discordId !== discordId) {
+    // User is re-linking to a different Discord — drop the old association first
+    await prisma.discord.delete({ where: { discordId: existingBySteam.discordId } });
+  }
+
   await prisma.discord.upsert({
     where: { discordId },
     create: { discordId, discordUsername, discordAvatar, playerSteamId: steamId },

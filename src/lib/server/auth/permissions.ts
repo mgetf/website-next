@@ -35,10 +35,25 @@ export function isAdmin(user: SessionUser | null): boolean {
 }
 
 /**
- * Check if user is a strict admin (level 3+)
+ * Check if user is a strict admin (ADMIN only)
  */
 export function isStrictAdmin(user: SessionUser | null): boolean {
   return hasRole(user, UserRole.ADMIN);
+}
+
+/**
+ * Whether actor may punish / change ban status for a target with the given role.
+ * Moderators may moderate GUEST users only. Staff (MODERATOR/ADMIN) require ADMIN.
+ */
+export function canModerateUser(
+  actor: SessionUser | null,
+  targetPermissionLevel: UserRole | string,
+): boolean {
+  if (!isAdmin(actor)) return false;
+  if (targetPermissionLevel === UserRole.MODERATOR || targetPermissionLevel === UserRole.ADMIN) {
+    return isStrictAdmin(actor);
+  }
+  return true;
 }
 
 /**
@@ -105,13 +120,27 @@ export function requireAdmin(user: SessionUser | null): asserts user is SessionU
 }
 
 /**
- * Require user to be a strict admin (level 3+)
+ * Require user to be a strict admin (ADMIN only)
  * Throws 401 if not authenticated, 403 if not strict admin
  */
 export function requireStrictAdmin(user: SessionUser | null): asserts user is SessionUser {
   requireAuth(user);
   if (!isStrictAdmin(user)) {
     forbidden('You must be a full administrator to access this resource');
+  }
+}
+
+/**
+ * Require actor may moderate the target user (ban / clear / banStatus edits).
+ * Throws 403 when a moderator targets staff.
+ */
+export function requireCanModerateUser(
+  actor: SessionUser | null,
+  targetPermissionLevel: UserRole | string,
+): asserts actor is SessionUser {
+  requireAdmin(actor);
+  if (!canModerateUser(actor, targetPermissionLevel)) {
+    forbidden('Only a full administrator can moderate staff accounts');
   }
 }
 

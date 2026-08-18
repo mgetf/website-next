@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import { Readable } from 'stream';
 import { getMapFilesByIds } from '$lib/server/services/mapFiles';
 import { mapDownloadRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
@@ -100,7 +100,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   const { PassThrough } = await import('stream');
   const passthrough = new PassThrough();
 
-  const archive = archiver('zip', { zlib: { level: 6 } });
+  const archive = new ZipArchive({ zlib: { level: 6 } });
 
   archive.on('error', (err) => {
     console.error('Archiver error:', err);

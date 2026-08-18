@@ -5,10 +5,15 @@
  */
 
 import type { Handle, HandleServerError } from '@sveltejs/kit';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { getSession, setSession, clearSession } from '$lib/server/session';
 import { dev } from '$app/environment';
-import { isStaging, isUngatedRoute, getAppEnvironment } from '$lib/server/utils/environment';
+import {
+  isStaging,
+  isUngatedRoute,
+  getAppEnvironment,
+  shouldBypassStagingGateForCrawler,
+} from '$lib/server/utils/environment';
 import { isAdmin } from '$lib/server/auth/permissions';
 import { validateEnvironment } from '$lib/server/utils/env';
 import { getSessionVersion, getSessionFields } from '$lib/server/services/users';
@@ -59,13 +64,32 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.appEnvironment = getAppEnvironment();
 
   // ===== DEV/STAGING ENVIRONMENT GATE =====
-  // In staging environment, only admins can access the site
-  // Non-admins see only a login page
-  if (isStaging() && !isUngatedRoute(event.url.pathname)) {
-    if (!isAdmin(user)) {
-      // Return early with a minimal response that will be handled by the layout
-      // The layout will show the DevGate component
-      event.locals.devGated = true;
+  // In staging, only moderators/admins may use the site. Non-staff see DevGate
+  // at `/` only — APIs, mutations, and other page loads are hard-blocked so
+  // child `load` functions and form actions cannot leak or mutate data.
+  // Link-preview crawlers (Discordbot, etc.) may GET public pages so OG embeds
+  // scrape real titles/images instead of the gated homepage.
+  const crawlerBypass = shouldBypassStagingGateForCrawler(
+    event.request.headers.get('user-agent'),
+    event.request.method,
+    event.url.pathname,
+  );
+  if (isStaging() && !isUngatedRoute(event.url.pathname) && !isAdmin(user) && !crawlerBypass) {
+    event.locals.devGated = true;
+
+    const method = event.request.method.toUpperCase();
+    const path = event.url.pathname;
+    const isSafeRead = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+
+    if (path.startsWith('/api/') || !isSafeRead) {
+      return new Response(JSON.stringify({ error: 'Staging access restricted to staff' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (path !== '/') {
+      throw redirect(303, '/');
     }
   }
 

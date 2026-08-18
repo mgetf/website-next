@@ -199,7 +199,9 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   await expect(awayCaptain.page.getByRole('heading', { name: AWAY_TEAM_NAME })).toBeVisible();
 
   // --- Home captain creates team via signup UI ---
-  await expect(homeCaptain.page.getByRole('heading', { name: 'Create New Team' })).toBeVisible();
+  await expect(
+    homeCaptain.page.getByRole('heading', { name: 'Create New 2v2 Team' }),
+  ).toBeVisible();
   await homeCaptain.page.locator('#name').fill(HOME_TEAM_NAME);
   await homeCaptain.page.locator('#acronym').fill('ALP');
   await homeCaptain.page.locator('#regionId').selectOption({ label: 'E2E Region' });
@@ -212,7 +214,7 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
 
   await Promise.all([
     homeCaptain.page.waitForURL(/\/teams\/\d+/),
-    homeCaptain.page.getByRole('button', { name: 'Create Team' }).click(),
+    homeCaptain.page.getByRole('button', { name: 'Create 2v2 Team' }).click(),
   ]);
 
   const created = await getTeamByName(HOME_TEAM_NAME);
@@ -608,25 +610,26 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   });
 
   // --- Browse smoke ---
-  for (const [session, path, check] of [
+  for (const [session, path, heading] of [
     [homeCaptain, '/signup', 'League Signups'],
     [homeCaptain, '/teams', 'Teams'],
     [homeCaptain, '/users', 'Users'],
     [homeCaptain, '/rulebook', 'Rulebook'],
-    [homeCaptain, '/leaderboard', 'Leaderboard'],
+    [homeCaptain, '/leaderboard', 'ELO Rankings'],
     [homeCaptain, '/servers', 'Servers'],
     [homeCaptain, '/logs', 'Match Logs'],
     [homeCaptain, '/maps', 'Maps'],
     [homeCaptain, '/tournaments', 'Tournaments'],
     [admin, '/admin/audit-logs', 'Audit Logs'],
-    [admin, '/admin/matches', 'Matches'],
-    [admin, '/admin/teams', 'Teams'],
-    [admin, '/admin/league', 'League'],
-    [admin, '/admin/demos', 'Demo'],
-    [admin, '/admin/disputes', 'Dispute'],
+    [admin, '/admin/matches', 'Match Management'],
+    [admin, '/admin/teams', 'Team Management'],
+    [admin, '/admin/league', 'League Configuration'],
+    [admin, '/admin/demos', 'Demo Reports'],
+    [admin, '/admin/disputes', 'Disputed Matches'],
   ] as const) {
     await session.page.goto(path);
-    await expect(session.page.getByText(new RegExp(check, 'i')).first()).toBeVisible({
+    await expect(session.page).toHaveURL((url) => url.pathname === path);
+    await expect(session.page.getByRole('heading', { name: heading }).first()).toBeVisible({
       timeout: 15_000,
     });
   }

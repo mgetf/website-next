@@ -4,20 +4,28 @@
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
+  import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import { getFormatThemeClasses } from '$lib/constants/formats';
 
   const standingsColumns = [
-    { key: 'player', label: 'Player' },
+    { key: 'team', label: 'Team' },
     { key: 'record', label: 'Record' },
     { key: 'points', label: 'Avg Points' },
   ];
 
   let activeTab = $state<'standings' | 'info'>('standings');
   let isEditing = $state(false);
-  let showPreview = $state(false);
   let editContent = $state('');
   interface PageData {
     user: any;
+    format: {
+      id: number;
+      name: string;
+      code: string;
+      isIndividual: boolean;
+      themeKey: string;
+    };
     seasons: Array<{
       id: number;
       name: string;
@@ -25,23 +33,24 @@
       regionId: number;
     }>;
     regions: Array<{ id: number; name: string }>;
-    selectedSeasonId: number;
-    selectedRegionId: number;
+    selectedSeasonId: number | null;
+    selectedRegionId: number | null;
     selectedRegionName: string;
     selectedSeasonNum: number;
-    entriesByDivision: Array<{
+    teamsByDivision: Array<{
       division: { id: number; name: string };
-      entries: Array<{
+      teams: Array<{
         id: number;
-        teamId: number;
         name: string;
-        avatar: string | null;
-        steamId: string | null;
+        avatar?: string | null;
         wins: number;
         losses: number;
         points: number;
         status: string;
         isWithdrawn?: boolean;
+        playerName?: string;
+        playerId?: string;
+        playerAvatar?: string;
       }>;
     }>;
     staffByDivision: Array<{
@@ -65,7 +74,8 @@
 
   let { data } = $props<{ data: PageData }>();
 
-  const signupHref = $derived(data.user ? '/signup/1v1' : '/auth/login?redirect=%2Fsignup%2F1v1');
+  const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
+  const signupHref = $derived(data.user ? '/signup' : '/auth/login?redirect=%2Fsignup');
 
   const canSignUp = $derived(
     !data.deadlines.signupClosed &&
@@ -80,16 +90,33 @@
   let isInitialized = $state(false);
 
   $effect(() => {
-    selectedSeason = data.selectedSeasonId;
-    selectedRegion = data.selectedRegionId;
+    selectedSeason = data.selectedSeasonId ?? 0;
+    selectedRegion = data.selectedRegionId ?? 0;
   });
 
+  const regionsWithSeasons = $derived(
+    data.regions.filter((region: (typeof data.regions)[number]) =>
+      data.seasons.some((s: (typeof data.seasons)[number]) => s.regionId === region.id),
+    ),
+  );
+
+  function teamRowClass(team: PageData['teamsByDivision'][0]['teams'][0]): string {
+    if (team.isWithdrawn) return 'shadow-[inset_4px_0_0_0_var(--color-text-muted)]';
+    if (team.status === 'READY') return 'shadow-[inset_4px_0_0_0_var(--color-success-500)]';
+    if (team.status === 'PENDING') return 'shadow-[inset_4px_0_0_0_var(--color-warning-500)]';
+    if (team.status === 'UNREADY') return 'shadow-[inset_4px_0_0_0_var(--color-danger-500)]';
+    if (team.status === 'PLACEMENT') return 'shadow-[inset_4px_0_0_0_var(--color-info-500)]';
+    return '';
+  }
+
   $effect(() => {
+    if (data.seasons.length === 0) return;
+
     const seasonsForRegion = data.seasons.filter(
       (s: (typeof data.seasons)[number]) => s.regionId === selectedRegion,
     );
     if (!seasonsForRegion.find((s: (typeof data.seasons)[number]) => s.id === selectedSeason)) {
-      selectedSeason = seasonsForRegion[0]?.id || data.selectedSeasonId;
+      selectedSeason = seasonsForRegion[0]?.id || data.selectedSeasonId || 0;
     }
   });
 
@@ -98,6 +125,8 @@
       isInitialized = true;
       return;
     }
+
+    if (data.seasons.length === 0 || !selectedSeason || !selectedRegion) return;
 
     const params = new URLSearchParams();
     params.set('season', selectedSeason.toString());
@@ -115,30 +144,17 @@
     if (region.name.toLowerCase().includes('asia')) return 'ASIA';
     return region.name.substring(0, 3).toUpperCase();
   }
-
-  const regionsWithSeasons = $derived(
-    data.regions.filter((region: (typeof data.regions)[number]) =>
-      data.seasons.some((s: (typeof data.seasons)[number]) => s.regionId === region.id),
-    ),
-  );
-
-  function entryRowClass(entry: PageData['entriesByDivision'][0]['entries'][0]): string {
-    if (entry.isWithdrawn) return 'shadow-[inset_4px_0_0_0_var(--color-text-muted)]';
-    if (entry.status === 'READY') return 'shadow-[inset_4px_0_0_0_var(--color-success-500)]';
-    if (entry.status === 'PENDING') return 'shadow-[inset_4px_0_0_0_var(--color-warning-500)]';
-    if (entry.status === 'UNREADY') return 'shadow-[inset_4px_0_0_0_var(--color-danger-500)]';
-    if (entry.status === 'PLACEMENT') return 'shadow-[inset_4px_0_0_0_var(--color-info-500)]';
-    return '';
-  }
 </script>
 
 <div class="min-h-screen pb-16">
   <!-- Hero Header -->
   <PageHero maxWidth="max-w-7xl" class="pt-12 pb-6 text-center">
-    <h1 class="text-6xl font-black mb-8 text-white drop-shadow-2xl">1v1 MGE League</h1>
+    <h1 class="text-6xl font-black mb-8 text-white drop-shadow-2xl">
+      {data.format.name} MGE League
+    </h1>
 
     {#if data.seasons.length === 0}
-      <p class="text-text-body text-lg">No 1v1 seasons have been created yet.</p>
+      <p class="text-text-body text-lg">No {data.format.name} seasons have been created yet.</p>
     {:else}
       <!-- Region & Season Controls -->
       <div class="flex items-start justify-center gap-8">
@@ -196,7 +212,7 @@
     {/if}
   </PageHero>
 
-  {#if activeTab === 'info'}
+  {#if data.seasons.length > 0 && activeTab === 'info'}
     <div class="max-w-4xl mx-auto px-6 py-4">
       {#if isEditing}
         <form
@@ -206,7 +222,6 @@
             return async ({ update }) => {
               await update({ reset: false });
               isEditing = false;
-              showPreview = false;
             };
           }}
         >
@@ -215,54 +230,26 @@
             class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
           >
             <div
-              class="flex items-center justify-between px-4 py-3 border-b border-border-default bg-surface-page/50"
+              class="flex items-center justify-end gap-2 px-4 py-3 border-b border-border-default bg-surface-page/50"
             >
-              <div class="flex items-center gap-1 bg-surface-input/60 rounded-md p-1">
-                <button
-                  type="button"
-                  onclick={() => (showPreview = false)}
-                  class="px-3 py-1 rounded text-xs font-semibold transition-all {!showPreview
-                    ? 'bg-zinc-600 text-white'
-                    : 'text-text-body hover:text-white'}">Edit</button
-                >
-                <button
-                  type="button"
-                  onclick={() => (showPreview = true)}
-                  class="px-3 py-1 rounded text-xs font-semibold transition-all {showPreview
-                    ? 'bg-zinc-600 text-white'
-                    : 'text-text-body hover:text-white'}">Preview</button
-                >
-              </div>
-              <div class="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onclick={() => {
-                    isEditing = false;
-                    showPreview = false;
-                  }}>Cancel</Button
-                >
-                <Button type="submit" variant="primary" size="sm">Save</Button>
-              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onclick={() => {
+                  isEditing = false;
+                }}>Cancel</Button
+              >
+              <Button type="submit" variant="primary" size="sm">Save</Button>
             </div>
-            {#if showPreview}
-              <div class="p-8 min-h-64">
-                {#if editContent.trim()}
-                  <MarkdownRenderer content={editContent} />
-                {:else}
-                  <p class="text-text-muted text-sm italic">Nothing to preview.</p>
-                {/if}
-              </div>
-            {:else}
-              <textarea
+            <div class="p-2">
+              <MarkdownEditor
                 name="info"
                 bind:value={editContent}
-                rows="24"
+                rows={24}
                 placeholder="Write season info using Markdown...&#10;&#10;## Key Dates&#10;| Event | Date |&#10;|---|---|&#10;&#10;### Weekly Arena Schedule&#10;..."
-                class="w-full bg-transparent text-text-label text-sm font-mono p-6 resize-none outline-none placeholder-text-muted leading-relaxed"
-              ></textarea>
-            {/if}
+              />
+            </div>
           </div>
         </form>
       {:else}
@@ -280,7 +267,6 @@
                 onclick={() => {
                   editContent = data.seasonInfo ?? '';
                   isEditing = true;
-                  showPreview = false;
                 }}>Edit</Button
               >
             </div>
@@ -320,15 +306,17 @@
         </div>
       {/if}
     </div>
-  {:else}
+  {:else if data.seasons.length > 0}
     <!-- Main Content with Sidebars -->
     <div class="max-w-[1600px] mx-auto px-6 py-4">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <!-- Left Sidebar - Deadlines -->
         <aside class="lg:col-span-3 space-y-4">
-          <!-- Player Registration Deadline -->
+          <!-- Team Registration Deadline -->
           <div class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default p-6">
-            <h3 class="text-sm font-medium text-text-body mb-3">Player Registration</h3>
+            <h3 class="text-sm font-medium text-text-body mb-3">
+              {data.format.isIndividual ? 'Player' : 'Team'} Registration
+            </h3>
             <div
               class="text-4xl font-black {data.deadlines.signupClosed
                 ? 'text-danger-500'
@@ -337,7 +325,7 @@
               {data.deadlines.signupClosed ? 'CLOSED' : 'OPEN'}
             </div>
             {#if canSignUp}
-              <Button href={signupHref} variant="format-1v1" size="md">Sign Up Now</Button>
+              <Button href={signupHref} class={themeClasses.button} size="md">Sign Up Now</Button>
             {/if}
           </div>
 
@@ -352,41 +340,47 @@
               {data.deadlines.paymentRequired ? 'REQUIRED' : 'NOT REQUIRED'}
             </div>
             {#if data.deadlines.paymentRequired}
-              <p class="text-xs text-text-body">Players must pay registration fees</p>
+              <p class="text-xs text-text-body">
+                {data.format.isIndividual ? 'Players' : 'Teams'} must pay registration fees
+              </p>
             {/if}
           </div>
 
-          <!-- Roster Lock Status -->
-          <div class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default p-6">
-            <h3 class="text-sm font-medium text-text-body mb-3">Registration Status</h3>
+          <!-- Roster Lock Status (only for team formats) -->
+          {#if !data.format.isIndividual}
             <div
-              class="text-3xl font-black {data.deadlines.rosterLocked
-                ? 'text-danger-500'
-                : 'text-success-500'} mb-2"
+              class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default p-6"
             >
-              {data.deadlines.rosterLocked ? 'LOCKED' : 'OPEN'}
+              <h3 class="text-sm font-medium text-text-body mb-3">Roster Status</h3>
+              <div
+                class="text-3xl font-black {data.deadlines.rosterLocked
+                  ? 'text-danger-500'
+                  : 'text-success-500'} mb-2"
+              >
+                {data.deadlines.rosterLocked ? 'LOCKED' : 'OPEN'}
+              </div>
+              <p class="text-xs text-text-body">
+                {data.deadlines.rosterLocked ? 'Rosters are frozen' : 'Teams can change rosters'}
+              </p>
             </div>
-            <p class="text-xs text-text-body">
-              {data.deadlines.rosterLocked
-                ? 'Registrations are frozen'
-                : 'Players can still register'}
-            </p>
-          </div>
+          {/if}
         </aside>
 
-        <!-- Center - Standings -->
+        <!-- Center - Division Tables -->
         <main class="lg:col-span-6 space-y-8">
-          {#if data.entriesByDivision.length === 0}
+          {#if data.teamsByDivision.length === 0}
             <div
               class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default p-12 text-center"
             >
-              <p class="text-text-body text-lg">No players found for this season and region.</p>
+              <p class="text-text-body text-lg">
+                No {data.format.isIndividual ? 'players' : 'teams'} found for this season and region.
+              </p>
               <p class="text-text-muted text-sm mt-2">
                 Check back later or select a different season.
               </p>
             </div>
           {:else}
-            {#each data.entriesByDivision as divisionData}
+            {#each data.teamsByDivision as divisionData}
               <div
                 class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default overflow-hidden"
               >
@@ -400,42 +394,67 @@
 
                 <!-- Standings Table -->
                 <DataTable
-                  data={divisionData.entries}
+                  data={divisionData.teams}
                   columns={standingsColumns}
-                  emptyMessage="No players in this division"
-                  rowClass={entryRowClass}
+                  emptyMessage={`No ${data.format.isIndividual ? 'players' : 'teams'} in this division`}
+                  rowClass={teamRowClass}
                 >
-                  {#snippet cell(entry: PageData['entriesByDivision'][0]['entries'][0], col)}
-                    {#if col.key === 'player'}
-                      <a
-                        href={entry.steamId ? `/users/${entry.steamId}` : `/teams/${entry.teamId}`}
-                        class="flex items-center gap-2 text-sm font-medium hover:text-format-1v1-400 transition-colors {entry.isWithdrawn
-                          ? 'text-text-body'
-                          : 'text-white'}"
-                      >
-                        <img
-                          src={entry.avatar ||
-                            `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
-                          alt={entry.name}
-                          class="w-8 h-8 rounded object-cover {entry.isWithdrawn
-                            ? 'grayscale'
-                            : ''}"
-                        />
-                        <span>{entry.name}</span>
-                        {#if entry.isWithdrawn}
-                          <span
-                            class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"
-                            >WITHDRAWN</span
-                          >
-                        {/if}
-                      </a>
+                  {#snippet cell(team: PageData['teamsByDivision'][0]['teams'][0], col)}
+                    {#if col.key === 'team'}
+                      {#if data.format.isIndividual}
+                        <a
+                          href="/users/{team.playerId}"
+                          class="flex items-center gap-2 text-sm font-medium hover:{themeClasses.hoverText400} transition-colors {team.isWithdrawn
+                            ? 'text-text-body'
+                            : 'text-white'}"
+                        >
+                          <img
+                            src={team.playerAvatar ||
+                              `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
+                            alt="{team.playerName} avatar"
+                            class="w-8 h-8 rounded object-cover {team.isWithdrawn
+                              ? 'grayscale'
+                              : ''}"
+                          />
+                          <span>{team.playerName}</span>
+                          {#if team.isWithdrawn}
+                            <span
+                              class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"
+                              >WITHDRAWN</span
+                            >
+                          {/if}
+                        </a>
+                      {:else}
+                        <a
+                          href="/teams/{team.id}"
+                          class="flex items-center gap-2 text-sm font-medium hover:{themeClasses.hoverText400} transition-colors {team.isWithdrawn
+                            ? 'text-text-body'
+                            : 'text-white'}"
+                        >
+                          <img
+                            src={team.avatar ||
+                              `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
+                            alt="{team.name} logo"
+                            class="w-8 h-8 rounded object-cover {team.isWithdrawn
+                              ? 'grayscale'
+                              : ''}"
+                          />
+                          <span>{team.name}</span>
+                          {#if team.isWithdrawn}
+                            <span
+                              class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"
+                              >WITHDRAWN</span
+                            >
+                          {/if}
+                        </a>
+                      {/if}
                     {:else if col.key === 'record'}
-                      <span class="text-text-label text-sm">{entry.wins}-{entry.losses}</span>
+                      <span class="text-text-label text-sm">{team.wins}-{team.losses}</span>
                     {:else if col.key === 'points'}
                       <span
-                        class="{entry.isWithdrawn
+                        class="{team.isWithdrawn
                           ? 'text-text-body'
-                          : 'text-white'} text-sm font-medium">{entry.points.toFixed(1)}</span
+                          : 'text-white'} text-sm font-medium">{team.points.toFixed(1)}</span
                       >
                     {/if}
                   {/snippet}

@@ -54,3 +54,34 @@ export const UNGATED_ROUTES = [
 export function isUngatedRoute(pathname: string): boolean {
   return UNGATED_ROUTES.some((route) => pathname.startsWith(route));
 }
+
+/**
+ * Known link-preview crawlers (Discord, Slack, etc.).
+ * Staging gates non-admins, but these bots must reach public pages to
+ * scrape Open Graph tags — otherwise embeds show the DevGate homepage.
+ */
+const LINK_PREVIEW_CRAWLER_RE =
+  /Discordbot|Slackbot|Twitterbot|facebookexternalhit|Facebot|LinkedInBot|TelegramBot|WhatsApp|Iframely|Embedly|SkypeUriPreview|vkShare|Pinterestbot|Redditbot/i;
+
+/**
+ * True when the request User-Agent is a social/link-preview crawler.
+ */
+export function isLinkPreviewCrawler(userAgent: string | null): boolean {
+  if (!userAgent) return false;
+  return LINK_PREVIEW_CRAWLER_RE.test(userAgent);
+}
+
+/**
+ * Staging-gate bypass for link-preview crawlers on public page reads.
+ * Never opens APIs, admin, or non-GET traffic.
+ */
+export function shouldBypassStagingGateForCrawler(
+  userAgent: string | null,
+  method: string,
+  pathname: string,
+): boolean {
+  const upper = method.toUpperCase();
+  if (upper !== 'GET' && upper !== 'HEAD' && upper !== 'OPTIONS') return false;
+  if (pathname.startsWith('/api/') || pathname.startsWith('/admin')) return false;
+  return isLinkPreviewCrawler(userAgent);
+}

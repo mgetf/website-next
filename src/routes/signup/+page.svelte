@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import { getFormatThemeClasses } from '$lib/constants/formats';
 
   let { data }: { data: PageData } = $props();
 </script>
@@ -10,7 +11,7 @@
   <div class="max-w-5xl w-full">
     <div class="text-center mb-12">
       <h1 class="text-4xl font-bold text-white mb-4">League Signups</h1>
-      <p class="text-text-body text-lg">Sign up for the upcoming season. Play as many formats as you want.</p>
+      <p class="text-text-body text-lg">Sign up for the upcoming season</p>
     </div>
 
     {#if data.allSignupsClosed}
@@ -25,131 +26,137 @@
         </div>
       </Card>
     {:else}
-      {#each data.teamFormats as fmt (fmt.code)}
-        <div class="mb-8">
-          <h2 class="text-xl font-semibold text-text-label mb-4">{fmt.label} Teams</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {#if fmt.canCreateNew}
-              <a
-                href="/signup/{fmt.code}/create"
-                class="group bg-surface-card border border-border-default hover:border-primary-600 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-orange-500/20"
-              >
-                <div class="text-center">
-                  <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">✨</div>
-                  <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
-                  <p class="text-text-body mb-4">
-                    Start a new {fmt.label} team for this season
-                  </p>
-                  <div
-                    class="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg group-hover:bg-primary-500 transition-colors"
-                  >
-                    Get Started →
-                  </div>
-                </div>
-              </a>
-            {:else}
-              <Card padding="lg" class="opacity-60 cursor-not-allowed">
-                <div class="text-center">
-                  <div class="text-6xl mb-4">✨</div>
-                  <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
-                  <p class="text-text-body mb-4">
-                    Start a new {fmt.label} team for this season
-                  </p>
-                  <div
-                    class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
-                  >
-                    Unavailable
-                  </div>
-                  <p class="text-sm text-warning-400 mt-4">
-                    &#9888;&#65039; {fmt.createDisabledReason}
-                  </p>
-                </div>
-              </Card>
-            {/if}
+      {#each data.formatSignups as formatSignup (formatSignup.format.id)}
+        {@const themeClasses = getFormatThemeClasses(formatSignup.format.themeKey)}
 
-            {#if fmt.canReregister}
-              <a
-                href="/signup/{fmt.code}/existing"
-                class="group bg-surface-card border border-border-default hover:border-format-2v2-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-blue-500/20"
-              >
-                <div class="text-center">
-                  <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">🔄</div>
-                  <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
-                  <p class="text-text-body mb-4">
-                    Sign up an existing {fmt.label} team for the new season
-                  </p>
-                  <div
-                    class="inline-block px-4 py-2 bg-format-2v2-600 text-white rounded-lg group-hover:bg-format-2v2-500 transition-colors"
-                  >
-                    Continue →
+        <div class="mb-8">
+          <h2 class="text-xl font-semibold text-text-label mb-4">{formatSignup.format.name}</h2>
+
+          {#if formatSignup.format.isIndividual}
+            <!-- Individual format -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {#if formatSignup.canSignup}
+                <a
+                  href="/signup/{formatSignup.format.code}"
+                  class="group bg-surface-card border border-border-default {themeClasses.hoverBorder500} rounded-lg p-8 transition-all hover:shadow-lg {themeClasses.shadow500_25}"
+                >
+                  <div class="text-center">
+                    <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">🏆</div>
+                    <h2 class="text-2xl font-bold text-white mb-3">
+                      {formatSignup.format.name} League
+                    </h2>
+                    <p class="text-text-body mb-4">Sign up as an individual player</p>
+                    <div class="inline-block px-4 py-2 rounded-lg {themeClasses.button}">
+                      Sign Up →
+                    </div>
                   </div>
-                </div>
-              </a>
-            {:else}
-              <Card padding="lg" class="opacity-60 cursor-not-allowed">
-                <div class="text-center">
-                  <div class="text-6xl mb-4">🔄</div>
-                  <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
-                  <p class="text-text-body mb-4">
-                    Sign up an existing {fmt.label} team for the new season
-                  </p>
-                  <div
-                    class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
-                  >
-                    Unavailable
+                </a>
+              {:else}
+                <Card padding="lg" class="opacity-60 cursor-not-allowed">
+                  <div class="text-center">
+                    <div class="text-6xl mb-4">🏆</div>
+                    <h2 class="text-2xl font-bold text-white mb-3">
+                      {formatSignup.format.name} League
+                    </h2>
+                    <p class="text-text-body mb-4">Sign up as an individual player</p>
+                    <div
+                      class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
+                    >
+                      Unavailable
+                    </div>
+                    {#if formatSignup.disabledReason}
+                      <p class="text-sm text-warning-400 mt-4">
+                        ⚠️ {formatSignup.disabledReason}
+                      </p>
+                    {/if}
                   </div>
-                  <p class="text-sm text-warning-400 mt-4">
-                    &#9888;&#65039; {fmt.reregisterDisabledReason}
-                  </p>
-                </div>
-              </Card>
-            {/if}
-          </div>
+                </Card>
+              {/if}
+            </div>
+          {:else}
+            <!-- Team format -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Create New Team -->
+              {#if formatSignup.canSignup}
+                <a
+                  href="/signup/{formatSignup.format.code}/create"
+                  class="group bg-surface-card border border-border-default hover:border-primary-600 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-orange-500/20"
+                >
+                  <div class="text-center">
+                    <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">✨</div>
+                    <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
+                    <p class="text-text-body mb-4">
+                      Start fresh with a brand new {formatSignup.format.name} team
+                    </p>
+                    <div
+                      class="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg group-hover:bg-primary-500 transition-colors"
+                    >
+                      Get Started →
+                    </div>
+                  </div>
+                </a>
+              {:else}
+                <Card padding="lg" class="opacity-60 cursor-not-allowed">
+                  <div class="text-center">
+                    <div class="text-6xl mb-4">✨</div>
+                    <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
+                    <p class="text-text-body mb-4">
+                      Start fresh with a brand new {formatSignup.format.name} team
+                    </p>
+                    <div
+                      class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
+                    >
+                      Unavailable
+                    </div>
+                    {#if formatSignup.disabledReason}
+                      <p class="text-sm text-warning-400 mt-4">
+                        ⚠️ {formatSignup.disabledReason}
+                      </p>
+                    {/if}
+                  </div>
+                </Card>
+              {/if}
+
+              <!-- Re-register Existing Team (if supported) -->
+              {#if formatSignup.canReregister !== undefined}
+                {#if formatSignup.canReregister}
+                  <a
+                    href="/signup/{formatSignup.format.code}/existing"
+                    class="group bg-surface-card border border-border-default {themeClasses.hoverBorder500} rounded-lg p-8 transition-all hover:shadow-lg {themeClasses.shadow500_25}"
+                  >
+                    <div class="text-center">
+                      <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">🔄</div>
+                      <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
+                      <p class="text-text-body mb-4">Sign up an existing team for the new season</p>
+                      <div class="inline-block px-4 py-2 rounded-lg {themeClasses.button}">
+                        Continue →
+                      </div>
+                    </div>
+                  </a>
+                {:else}
+                  <Card padding="lg" class="opacity-60 cursor-not-allowed">
+                    <div class="text-center">
+                      <div class="text-6xl mb-4">🔄</div>
+                      <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
+                      <p class="text-text-body mb-4">Sign up an existing team for the new season</p>
+                      <div
+                        class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
+                      >
+                        Unavailable
+                      </div>
+                      {#if formatSignup.reregisterDisabledReason}
+                        <p class="text-sm text-warning-400 mt-4">
+                          ⚠️ {formatSignup.reregisterDisabledReason}
+                        </p>
+                      {/if}
+                    </div>
+                  </Card>
+                {/if}
+              {/if}
+            </div>
+          {/if}
         </div>
       {/each}
-
-      {#if data.activeFormatCodes.includes('1v1')}
-        <div class="mb-8">
-          <h2 class="text-xl font-semibold text-text-label mb-4">1v1 Individual</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {#if data.can1v1Signup}
-              <a
-                href="/signup/1v1"
-                class="group bg-surface-card border border-border-default hover:border-format-1v1-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-purple-500/20"
-              >
-                <div class="text-center">
-                  <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">
-                    &#127919;
-                  </div>
-                  <h2 class="text-2xl font-bold text-white mb-3">1v1 League</h2>
-                  <p class="text-text-body mb-4">Sign up as an individual player for 1v1 matches</p>
-                  <div
-                    class="inline-block px-4 py-2 bg-format-1v1-600 text-white rounded-lg group-hover:bg-format-1v1-500 transition-colors"
-                  >
-                    Sign Up &rarr;
-                  </div>
-                </div>
-              </a>
-            {:else}
-              <Card padding="lg" class="opacity-60 cursor-not-allowed">
-                <div class="text-center">
-                  <div class="text-6xl mb-4">&#127919;</div>
-                  <h2 class="text-2xl font-bold text-white mb-3">1v1 League</h2>
-                  <p class="text-text-body mb-4">Sign up as an individual player for 1v1 matches</p>
-                  <div
-                    class="inline-block px-4 py-2 bg-gray-600 text-text-label rounded-lg cursor-not-allowed"
-                  >
-                    Unavailable
-                  </div>
-                  <p class="text-sm text-warning-400 mt-4">
-                    &#9888;&#65039; {data.signup1v1DisabledReason}
-                  </p>
-                </div>
-              </Card>
-            {/if}
-          </div>
-        </div>
-      {/if}
 
       <div class="mt-8 text-center text-text-muted text-sm">
         <p>

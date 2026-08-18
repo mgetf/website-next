@@ -123,9 +123,22 @@ const managePlayoffSchema = z
     },
   );
 
+const boolFromCheckbox = z.preprocess(
+  (v) => v === 'true' || v === 'on' || v === true || v === '1',
+  z.boolean(),
+);
+
 const createFormatSchema = z.object({
   name: z.string().min(1, 'Format name is required'),
   code: z.string().min(1, 'Format code is required'),
+  isIndividual: boolFromCheckbox.optional().default(false),
+  minRosterSize: z.coerce.number().int().positive(),
+  maxRosterSize: z.coerce.number().int().positive(),
+  requiredPaidPlayers: z.coerce.number().int().positive(),
+  supportsJoinPassword: boolFromCheckbox.optional().default(false),
+  supportsAcronym: boolFromCheckbox.optional().default(false),
+  supportsReregistration: boolFromCheckbox.optional().default(false),
+  themeKey: z.enum(['blue', 'purple', 'primary', 'orange', 'zinc']),
 });
 const updateFormatSchema = createFormatSchema.extend({
   formatId: z.coerce.number().int().positive(),
@@ -239,6 +252,14 @@ export const load: PageServerLoad = async ({ locals }) => {
       id: f.id,
       name: f.name,
       code: f.code,
+      isIndividual: f.isIndividual,
+      minRosterSize: f.minRosterSize,
+      maxRosterSize: f.maxRosterSize,
+      requiredPaidPlayers: f.requiredPaidPlayers,
+      supportsJoinPassword: f.supportsJoinPassword,
+      supportsAcronym: f.supportsAcronym,
+      supportsReregistration: f.supportsReregistration,
+      themeKey: f.themeKey,
       seasons: f._count.seasons,
       teams: f._count.teams,
       activeSignupSeasons: f._count.activeSignupSeasons,
@@ -866,16 +887,16 @@ export const actions: Actions = {
     const formData = await request.formData();
     const validation = validateForm(formData, createFormatSchema);
     if (!validation.success) return validationError(validation.errors);
-    const { name, code } = validation.data;
+    const formatData = validation.data;
 
     try {
-      await createFormat({ name, code });
+      await createFormat(formatData);
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
         category: AuditCategory.LEAGUE_CONFIG,
         action: AuditAction.FORMAT_CREATED,
-        metadata: { name, code },
+        metadata: formatData,
         ipAddress: getClientAddress(),
       });
       return { success: true, message: 'Format created successfully!' };
@@ -893,10 +914,10 @@ export const actions: Actions = {
     const formData = await request.formData();
     const validation = validateForm(formData, updateFormatSchema);
     if (!validation.success) return validationError(validation.errors);
-    const { formatId, name, code } = validation.data;
+    const { formatId, ...formatData } = validation.data;
 
     try {
-      await updateFormat(formatId, { name, code });
+      await updateFormat(formatId, formatData);
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
@@ -904,7 +925,7 @@ export const actions: Actions = {
         action: AuditAction.FORMAT_UPDATED,
         targetType: 'Format',
         targetId: String(formatId),
-        metadata: { name, code },
+        metadata: formatData,
         ipAddress: getClientAddress(),
       });
       return { success: true, message: 'Format updated successfully!' };

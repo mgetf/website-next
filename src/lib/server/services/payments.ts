@@ -6,7 +6,7 @@
 
 import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { requireFormatById } from './formats';
 import type { CheckoutParticipation } from '$lib/types/checkout';
 
 export interface UnpaidPlayer {
@@ -16,6 +16,113 @@ export interface UnpaidPlayer {
   signupCost: number;
   leagueFees: number;
   totalCost: number;
+}
+
+export type CheckoutTeamSelection = {
+  teamId: number;
+  paidForSteamIds: string[];
+};
+
+export type ResolvedCheckoutQuote = {
+  amount: number;
+  currency: string;
+  teams: CheckoutTeamSelection[];
+};
+
+/**
+ * Compare money amounts in cents to avoid float drift.
+ */
+export function paypalAmountsMatch(expected: number, actual: number): boolean {
+  return Math.round(expected * 100) === Math.round(actual * 100);
+}
+
+/**
+ * Pure helper: sum selected unpaid players' totalCost.
+ * Throws via badRequest when a selected steamId is not unpaid on that team.
+ */
+export function sumSelectedCheckoutAmount(
+  selections: { paidForSteamIds: string[]; unpaidPlayers: UnpaidPlayer[] }[],
+): number {
+  let total = 0;
+
+  for (const selection of selections) {
+    if (selection.paidForSteamIds.length === 0) {
+      badRequest('At least one unpaid player must be selected per team');
+    }
+
+    const unpaidById = new Map(selection.unpaidPlayers.map((p) => [p.steamId, p]));
+    for (const steamId of selection.paidForSteamIds) {
+      const player = unpaidById.get(steamId);
+      if (!player) {
+        badRequest('One or more selected players are not unpaid members of the team');
+      }
+      total += player.totalCost;
+    }
+  }
+
+  return total;
+}
+
+/**
+ * Server-side PayPal quote. Never trust client-supplied amounts.
+ * Validates every selected player is an active unpaid member and returns
+ * the exact amount + currency that must be charged / captured.
+ */
+export async function resolvePayPalCheckoutQuote(
+  teams: CheckoutTeamSelection[],
+): Promise<ResolvedCheckoutQuote> {
+  if (!Array.isArray(teams) || teams.length === 0) {
+    badRequest('At least one team is required');
+  }
+
+  const teamIds = teams.map((t) => t.teamId);
+  const teamRecords = await prisma.team.findMany({
+    where: { id: { in: teamIds } },
+    include: {
+      division: true,
+      region: true,
+    },
+  });
+  const teamMap = new Map(teamRecords.map((t) => [t.id, t]));
+
+  const selectionDetails: { paidForSteamIds: string[]; unpaidPlayers: UnpaidPlayer[] }[] = [];
+  const normalizedTeams: CheckoutTeamSelection[] = [];
+  let currency: string | null = null;
+
+  for (const selection of teams) {
+    const team = teamMap.get(selection.teamId);
+    if (!team?.seasonId) {
+      badRequest('Team or season not found');
+    }
+
+    const teamCurrency = team.region?.currencyCode ?? 'USD';
+    if (currency === null) {
+      currency = teamCurrency;
+    } else if (currency !== teamCurrency) {
+      badRequest('Cannot checkout teams with different currencies in one payment');
+    }
+
+    const unpaidPlayers = await getTeamUnpaidPlayers(team.id, team.seasonId);
+    const requestedIds =
+      selection.paidForSteamIds.length > 0
+        ? [...new Set(selection.paidForSteamIds)]
+        : unpaidPlayers.map((p) => p.steamId);
+
+    selectionDetails.push({ paidForSteamIds: requestedIds, unpaidPlayers });
+    normalizedTeams.push({ teamId: team.id, paidForSteamIds: requestedIds });
+  }
+
+  const amount = sumSelectedCheckoutAmount(selectionDetails);
+
+  if (amount <= 0) {
+    badRequest('Payment amount must be greater than zero');
+  }
+
+  return {
+    amount,
+    currency: currency ?? 'USD',
+    teams: normalizedTeams,
+  };
 }
 
 /**
@@ -148,7 +255,8 @@ export async function markPlayerAsPaidManually(
       where: { teamId, active: 1, paymentStatus: 1 },
     });
 
-    const requiredPaidPlayers = playerInTeam.team.formatId === FORMAT_1V1 ? 1 : 2;
+    const format = await requireFormatById(playerInTeam.team.formatId);
+    const requiredPaidPlayers = format.requiredPaidPlayers;
 
     if (paidPlayersCount >= requiredPaidPlayers) {
       await tx.team.update({
@@ -175,7 +283,7 @@ export async function recordPayPalCapture(options: {
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
-    include: { division: true },
+    include: { division: true, format: true },
   });
 
   if (!team?.seasonId) {
@@ -223,7 +331,7 @@ export async function recordPayPalCapture(options: {
       where: { teamId, active: 1, paymentStatus: 1 },
     });
 
-    const requiredPaidPlayers = team.formatId === FORMAT_1V1 ? 1 : 2;
+    const requiredPaidPlayers = team.format.requiredPaidPlayers;
 
     if (paidPlayersCount >= requiredPaidPlayers) {
       await tx.team.update({
@@ -370,6 +478,7 @@ export async function getAllUnpaidParticipations(
       teamAvatar: team.avatar,
       formatName: team.format.name,
       formatId: team.formatId,
+      isIndividual: team.format.isIndividual,
       divisionName: division.name,
       divisionId: division.id,
       regionName: region?.name ?? null,
@@ -407,7 +516,7 @@ export async function recordMultiTeamPayPalCapture(options: {
 
   const teamRecords = await prisma.team.findMany({
     where: { id: { in: teams.map((t) => t.teamId) } },
-    include: { division: true },
+    include: { division: true, format: true },
   });
 
   const teamMap = new Map(teamRecords.map((t) => [t.id, t]));
@@ -462,7 +571,7 @@ export async function recordMultiTeamPayPalCapture(options: {
         where: { teamId, active: 1, paymentStatus: 1 },
       });
 
-      const requiredPaidPlayers = team.formatId === FORMAT_1V1 ? 1 : 2;
+      const requiredPaidPlayers = team.format.requiredPaidPlayers;
 
       if (paidPlayersCount >= requiredPaidPlayers) {
         await tx.team.update({

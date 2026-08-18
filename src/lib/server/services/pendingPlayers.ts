@@ -8,7 +8,6 @@
 
 import { prisma } from '$lib/server/db';
 import { badRequest } from '$lib/server/utils/errors';
-import { FORMAT_ID_TO_CODE, formatLabel } from '$lib/server/constants/formats';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { logAudit, AuditCategory, AuditAction } from './auditLog';
 
@@ -67,19 +66,23 @@ export async function getPendingPlayers() {
  * cleans up stale memberships, and logs the action.
  */
 export async function approvePlayer(playerSteamId: string, teamId: number, audit: AuditContext) {
-  const activePlayersCount = await prisma.playerInTeam.count({
-    where: { teamId, active: 1 },
-  });
-  if (activePlayersCount >= 3) {
-    badRequest('Team is full (maximum 3 players)');
-  }
-
   const team = await prisma.team.findUnique({
     where: { id: teamId },
-    include: { division: { select: { signupCost: true } } },
+    include: {
+      division: { select: { signupCost: true } },
+      format: true,
+    },
   });
   if (!team?.seasonId || !team?.divisionId) {
     badRequest('Team missing season or division');
+  }
+
+  const format = team.format;
+  const activePlayersCount = await prisma.playerInTeam.count({
+    where: { teamId, active: 1 },
+  });
+  if (activePlayersCount >= format.maxRosterSize) {
+    badRequest(`Team is full (maximum ${format.maxRosterSize} players)`);
   }
 
   const currentSeasonIds = await getCurrentSignupSeasonIds(team.formatId);
@@ -96,8 +99,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
     },
   });
   if (playerInOtherTeam) {
-    const label = formatLabel(FORMAT_ID_TO_CODE[team.formatId] ?? 'team');
-    badRequest(`Player is already in another ${label} team for this season`);
+    badRequest('Player is already in another team for this format and season');
   }
 
   const payment = await prisma.paymentTracker.findUnique({
@@ -164,7 +166,9 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
       });
       await tx.team.update({
         where: { id: teamId },
-        data: { paymentStatus: paidPlayersCount >= 2 ? 1 : 0 },
+        data: {
+          paymentStatus: paidPlayersCount >= format.requiredPaidPlayers ? 1 : 0,
+        },
       });
     }
   });

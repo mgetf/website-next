@@ -22,6 +22,12 @@ const REGION_ORDER: Record<string, number> = {
   as: 2,
   asia: 2,
   sea: 2,
+  sa: 3,
+  'south america': 3,
+  aus: 4,
+  aur: 4,
+  australia: 4,
+  oceania: 4,
 };
 
 function regionSortKey(name: string): number {

@@ -2,7 +2,7 @@ import { prisma } from '$lib/server/db';
 
 /**
  * Get all current signup season IDs, optionally filtered by format
- * @param formatId - Optional format ID to filter by (1 = 1v1, 2 = 2v2)
+ * @param formatId - Optional format ID to filter by
  * @returns Array of season IDs that are currently open for signups
  */
 export async function getCurrentSignupSeasonIds(formatId?: number): Promise<number[]> {
@@ -15,7 +15,7 @@ export async function getCurrentSignupSeasonIds(formatId?: number): Promise<numb
 /**
  * Get the current signup season for a specific region and format
  * @param regionId - Region ID (1=NA, 2=EU, 3=AUS, 4=SA, 5=ASIA)
- * @param formatId - Format ID (1=1v1, 2=2v2)
+ * @param formatId - Format ID
  * @returns Season ID if found, null otherwise
  */
 export async function getSignupSeasonForRegion(

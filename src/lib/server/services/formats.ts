@@ -60,9 +60,14 @@ export async function getFormats() {
 }
 
 export async function getFormatByCode(code: string) {
-  return prisma.format.findUnique({
-    where: { code },
+  const normalized = code.trim().toLowerCase();
+  const exact = await prisma.format.findUnique({
+    where: { code: normalized },
   });
+  if (exact) return exact;
+
+  const formats = await prisma.format.findMany();
+  return formats.find((f) => f.code.toLowerCase() === normalized) ?? null;
 }
 
 export async function getFormatById(id: number) {

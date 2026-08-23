@@ -16,5 +16,12 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     environment: 'node',
     setupFiles: ['src/vitest.setup.ts'],
+    // Zod 4's `export { z }` is dropped when Vitest evaluates the module under
+    // Bun (`z.string` is undefined). Inlining makes Vite transform zod itself.
+    server: {
+      deps: {
+        inline: ['zod'],
+      },
+    },
   },
 });

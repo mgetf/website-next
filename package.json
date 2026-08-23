@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "bun@1.x.x",
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20.0.0",
     "npm": ">=999999.0.0",
     "pnpm": ">=999999.0.0",
     "yarn": ">=999999.0.0"
@@ -29,11 +29,13 @@
     "db:studio": "prisma studio",
     "db:studio:prod": "dotenv -e .env.production -- prisma studio",
     "knip": "knip",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "bun --bun vitest run",
+    "test:watch": "bun --bun vitest",
     "test:e2e": "bun --env-file=.env.test playwright test",
     "test:e2e:ui": "bun --env-file=.env.test playwright test --ui",
-    "migrate:test": "dotenv -e .env.test -- prisma migrate deploy",
+    "test:e2e:signup": "bun --env-file=.env.test playwright test tests/e2e/signup-matrix.spec.ts",
+    "test:e2e:staging": "PLAYWRIGHT_BASE_URL=https://dev.mge.tf bun --env-file=.env.test playwright test tests/e2e/signup-matrix.spec.ts --config=playwright.config.ts",
+    "migrate:test": "bun --env-file=.env.test x prisma migrate deploy",
     "formats:open-seasons": "bun run scripts/open-team-format-seasons.ts"
   },
   "devDependencies": {

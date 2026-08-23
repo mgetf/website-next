@@ -139,3 +139,16 @@ const THEME_CLASS_MAP: Record<FormatThemeKey, FormatThemeClasses> = {
 export function getFormatThemeClasses(themeKey: string | null | undefined): FormatThemeClasses {
   return THEME_CLASS_MAP[normalizeFormatThemeKey(themeKey)];
 }
+
+export const FORMAT_CODE_1V1 = '1v1';
+export const FORMAT_CODE_2V2 = '2v2';
+export const FORMAT_CODE_ULTIDUO = 'ultiduo';
+export const FORMAT_CODE_BBALL = 'bball';
+
+export function normalizeFormatCode(code: string): string {
+  return code.trim().toLowerCase();
+}
+
+export function isIndividualFormatCode(code: string): boolean {
+  return normalizeFormatCode(code) === FORMAT_CODE_1V1;
+}

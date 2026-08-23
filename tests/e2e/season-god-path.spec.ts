@@ -120,7 +120,7 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   browser,
 }) => {
   test.setTimeout(300_000);
-  process.env.DATABASE_URL ??= 'postgresql://mgetf:mgetf@localhost:5432/mgetf_test';
+  process.env.DATABASE_URL ??= 'postgresql://mgetf:mgetf@localhost:5433/mgetf_test';
 
   await resetDatabase();
   await seedUsers();

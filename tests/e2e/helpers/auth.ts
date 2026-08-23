@@ -24,6 +24,34 @@ export async function loginAs(
   return { context, page };
 }
 
+/**
+ * Set a Svelte-controlled <select> without Playwright selectOption (that can
+ * submit the parent form via Enter). Dispatches input/change so onChange runs.
+ */
+export async function selectControlled(
+  page: Page,
+  selector: string,
+  option: { label?: string; value?: string },
+): Promise<void> {
+  const select = page.locator(selector);
+  await expect(select).toBeEnabled();
+  const value = await select.evaluate((el, opt) => {
+    const node = el as HTMLSelectElement;
+    const match = [...node.options].find((o) =>
+      opt.value !== undefined ? o.value === opt.value : o.text === opt.label,
+    );
+    if (!match) {
+      const labels = [...node.options].map((o) => o.text).join(', ');
+      throw new Error(`No option ${JSON.stringify(opt)} in [${labels}]`);
+    }
+    node.value = match.value;
+    node.dispatchEvent(new Event('input', { bubbles: true }));
+    node.dispatchEvent(new Event('change', { bubbles: true }));
+    return match.value;
+  }, option);
+  await expect(select).toHaveValue(value);
+}
+
 /** Svelte-controlled number inputs use value= + oninput; fill() alone can be wiped. */
 export async function fillControlled(page: Page, selector: string, value: string): Promise<void> {
   const input = page.locator(selector);

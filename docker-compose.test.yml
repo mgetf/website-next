@@ -7,6 +7,8 @@ services:
       POSTGRES_USER: mgetf
       POSTGRES_PASSWORD: mgetf
       POSTGRES_DB: mgetf_test
+    tmpfs:
+      - /var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U mgetf -d mgetf_test']
       interval: 2s

@@ -79,13 +79,6 @@ export async function getOpenSignupFormats() {
   return rows.map((row) => row.format);
 }
 
-export async function hasAnyOpenSignup(): Promise<boolean> {
-  const result = await prisma.activeSignupSeason.findFirst({
-    where: { season: { signupsOpen: true } },
-  });
-  return result !== null;
-}
-
 /** Visible regions with an open, unlocked signup season for this format. */
 export async function getRegionsOpenForSignup(formatId: number) {
   const rows = await prisma.activeSignupSeason.findMany({

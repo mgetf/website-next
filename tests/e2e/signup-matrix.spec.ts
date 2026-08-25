@@ -58,7 +58,9 @@ test('hub lists every open format', async ({ browser }) => {
   await expect(session.page.getByRole('heading', { name: 'League Signups' })).toBeVisible();
 
   for (const format of matrix.formats) {
-    await expect(session.page.getByRole('heading', { name: format.name, exact: true })).toBeVisible();
+    await expect(
+      session.page.getByRole('heading', { name: format.name, exact: true }),
+    ).toBeVisible();
   }
 
   await session.context.close();

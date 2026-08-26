@@ -454,7 +454,7 @@
               type="button"
               onclick={() => (showUnlinkDiscordConfirm = true)}
               disabled={isUnlinkingDiscord}
-              class="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-surface-input border border-border-input text-text-body hover:bg-danger-500/50 hover:border-danger-500/50 hover:text-white opacity-0 group-hover/discord:opacity-100 transition-all disabled:opacity-50"
+              class="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-surface-input border border-border-input text-text-body hover:bg-danger-500/50 hover:border-danger-500/50 hover:text-white opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/discord:opacity-100 transition-all disabled:opacity-50"
               title="Unlink Discord (Admin)"
             >
               <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

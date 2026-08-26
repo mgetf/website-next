@@ -7,6 +7,7 @@
   import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
+  import { getRegionAbbr as abbreviateRegion } from '$lib/utils/region';
 
   const standingsColumns = [
     { key: 'team', label: 'Team' },
@@ -136,13 +137,7 @@
 
   function getRegionAbbr(regionId: number): string {
     const region = data.regions.find((r: (typeof data.regions)[number]) => r.id === regionId);
-    if (!region) return 'NA';
-    if (region.name.toLowerCase().includes('north america')) return 'NA';
-    if (region.name.toLowerCase().includes('europe')) return 'EU';
-    if (region.name.toLowerCase().includes('south america')) return 'SA';
-    if (region.name.toLowerCase().includes('australia')) return 'AUS';
-    if (region.name.toLowerCase().includes('asia')) return 'ASIA';
-    return region.name.substring(0, 3).toUpperCase();
+    return region ? abbreviateRegion(region.name) : 'NA';
   }
 </script>
 

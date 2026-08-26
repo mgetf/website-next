@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import type { MgeRating } from '$lib/types/mge';
+import { displayedElo, sortByDisplayedElo } from '$lib/utils/mgeRating';
 import { steamId32FromSteamId64 } from '$lib/utils/steamid';
 
 function getPlatformUrl(): string {
@@ -16,7 +17,10 @@ export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.ratings ?? []) as MgeRating[];
+    return ((data.ratings ?? []) as MgeRating[]).map((rating) => ({
+      ...rating,
+      elo: displayedElo(rating),
+    }));
   } catch {
     return [];
   }
@@ -64,6 +68,7 @@ export interface PlatformLeaderboardEntry {
   steamId: string;
   name: string | null;
   elo: number;
+  displayRating?: number | null;
   eloRank: number;
   wins: number | null;
   losses: number | null;
@@ -94,20 +99,27 @@ export async function getLeaderboard(
   const base = getPlatformUrl();
   if (!base) return empty;
   try {
-    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      sortBy,
+      sortDir,
+    });
     if (minElo !== undefined) params.set('minElo', String(minElo));
-    if (sortBy !== 'elo') params.set('sortBy', sortBy);
-    if (sortDir !== 'desc') params.set('sortDir', sortDir);
     const url = `${base}/api/v1/regions/${encodeURIComponent(region)}/leaderboard?${params}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return empty;
     const data = await res.json();
+    const entries = ((data.entries ?? []) as PlatformLeaderboardEntry[]).map((entry) => ({
+      ...entry,
+      elo: displayedElo(entry),
+    }));
     return {
       region: data.region ?? region,
       total: Number(data.total ?? 0),
       limit: Number(data.limit ?? limit),
       offset: Number(data.offset ?? offset),
-      entries: (data.entries ?? []) as PlatformLeaderboardEntry[],
+      entries: sortBy === 'elo' ? sortByDisplayedElo(entries, sortDir) : entries,
     };
   } catch {
     return empty;

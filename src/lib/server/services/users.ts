@@ -8,6 +8,7 @@ import { prisma } from '$lib/server/db';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { ProfileMatch } from '$lib/types/match';
+import { BanStatus, UserRole } from '$lib/types/user';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
 import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
@@ -582,6 +583,35 @@ export async function getPlayerProfile(steamId: string) {
         }
       : null,
     entries1v1,
+  };
+}
+
+/**
+ * Public profile for a platform player who has never signed into mge.tf.
+ * Used so ELO leaderboard links can land on /users/:steamId instead of Steam.
+ */
+export function getGuestPlayerProfile(steamId: string, name: string | null) {
+  return {
+    player: {
+      steamId,
+      name: name ?? 'Unknown Player',
+      avatar: null,
+      discordLinked: false,
+      discordUsername: null,
+      permissionLevel: UserRole.GUEST,
+      banStatus: BanStatus.NONE,
+      punishmentCount: 0,
+      nameOverride: 0,
+      avatarOverride: 0,
+      staffDivisions: [] as { name: string; region: string }[],
+    },
+    currentTeams: [],
+    teamHistory: [],
+    tournaments: [],
+    fightNights: [],
+    achievements: [],
+    current1v1Entry: null,
+    entries1v1: [],
   };
 }
 

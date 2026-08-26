@@ -2,6 +2,8 @@ import { error, fail, isHttpError } from '@sveltejs/kit';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import {
   getPlayerProfile,
+  getGuestPlayerProfile,
+  fetchSteamNames,
   getUserBySteamId,
   unlinkDiscord,
   lockUserName,
@@ -32,23 +34,32 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       getPlayerRatings(steamId),
     ]);
 
-    if (!profile) {
+    const resolvedProfile =
+      profile ??
+      (ratings.length > 0
+        ? getGuestPlayerProfile(steamId, (await fetchSteamNames([steamId]))[steamId] ?? null)
+        : null);
+
+    if (!resolvedProfile) {
       throw error(404, 'User not found');
     }
 
-    const isOwnProfile = locals.user?.steamId === steamId;
-    const isUserAdmin = isAdmin(locals.user);
+    const isRegistered = profile !== null;
+    const isOwnProfile = isRegistered && locals.user?.steamId === steamId;
+    const isUserAdmin = isRegistered && isAdmin(locals.user);
     const signupSuccess = url.searchParams.get('signup');
 
     // Load divisions for the admin division-change control on the active 1v1 entry
     let divisions1v1: { id: number; name: string; signupCost: number; regionId: number }[] = [];
-    if (isUserAdmin && profile.current1v1Entry?.regionId) {
+    if (isUserAdmin && resolvedProfile.current1v1Entry?.regionId) {
       const allDivisions = await getVisibleDivisions();
-      divisions1v1 = allDivisions.filter((d) => d.regionId === profile.current1v1Entry!.regionId);
+      divisions1v1 = allDivisions.filter(
+        (d) => d.regionId === resolvedProfile.current1v1Entry!.regionId,
+      );
     }
 
-    const activeTeam = profile.currentTeams[0];
-    const active1v1 = profile.current1v1Entry;
+    const activeTeam = resolvedProfile.currentTeams[0];
+    const active1v1 = resolvedProfile.current1v1Entry;
     const contextBits = [
       activeTeam
         ? `${activeTeam.teamName} · ${activeTeam.division} (${activeTeam.regionName}) · S${activeTeam.seasonNum}`
@@ -56,23 +67,25 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       !activeTeam && active1v1
         ? `1v1 · ${active1v1.division} (${active1v1.region}) · S${active1v1.seasonNum}`
         : null,
-      profile.player.discordUsername ? `Discord: ${profile.player.discordUsername}` : null,
+      resolvedProfile.player.discordUsername
+        ? `Discord: ${resolvedProfile.player.discordUsername}`
+        : null,
     ].filter(Boolean);
     const seoDescription =
       contextBits.length > 0
-        ? `${profile.player.name} on MGE.tf — ${contextBits.join(' · ')}`
-        : `${profile.player.name}'s player profile on MGE.tf`;
+        ? `${resolvedProfile.player.name} on MGE.tf — ${contextBits.join(' · ')}`
+        : `${resolvedProfile.player.name}'s player profile on MGE.tf`;
 
     return {
       seo: buildPageSeo(url.origin, {
-        title: `${profile.player.name} | MGE.tf`,
+        title: `${resolvedProfile.player.name} | MGE.tf`,
         description: seoDescription,
-        image: profile.player.avatar,
-        imageAlt: `${profile.player.name}'s avatar`,
+        image: resolvedProfile.player.avatar,
+        imageAlt: `${resolvedProfile.player.name}'s avatar`,
         card: 'summary',
         type: 'profile',
       }),
-      ...profile,
+      ...resolvedProfile,
       ratings,
       isOwnProfile,
       isAdmin: isUserAdmin,

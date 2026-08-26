@@ -9,6 +9,7 @@ import { getContent, CONTENT_KEYS, getDefaultContent } from '$lib/server/service
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { getUserDisplaysByIds, fetchSteamNames } from '$lib/server/services/users';
 import { getRegions, getLeaderboard } from '$lib/server/clients/mgePlatform';
+import { sortByDisplayedElo } from '$lib/utils/mgeRating';
 import { steamId64FromSteamId32 } from '$lib/utils/steamid';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 import { TeamStatus } from '$prisma/client.js';
@@ -123,18 +124,20 @@ export const load = async () => {
         if (entries.length === 0) continue;
         eloLeaderboard.push({
           region,
-          entries: entries.map(({ steam32, elo, platformName }) => {
-            const steam64 = steamId64FromSteamId32(steam32) ?? '';
-            const display = userDisplays[steam64] ?? null;
-            const isRegistered = display !== null;
-            return {
-              elo,
-              steamId64: steam64,
-              isRegistered,
-              name: display?.name ?? platformName ?? steamNames[steam64] ?? null,
-              avatar: display?.avatar ?? null,
-            };
-          }),
+          entries: sortByDisplayedElo(
+            entries.map(({ steam32, elo, platformName }) => {
+              const steam64 = steamId64FromSteamId32(steam32) ?? '';
+              const display = userDisplays[steam64] ?? null;
+              const isRegistered = display !== null;
+              return {
+                elo,
+                steamId64: steam64,
+                isRegistered,
+                name: display?.name ?? platformName ?? steamNames[steam64] ?? null,
+                avatar: display?.avatar ?? null,
+              };
+            }),
+          ),
         });
       }
     }

@@ -186,30 +186,16 @@
                     </div>
                   {/if}
                   <div class="flex-1 min-w-0">
-                    {#if entry.isRegistered && entry.name}
-                      <a
-                        href="/users/{entry.steamId64}"
-                        class="block truncate hover:text-primary-400 transition-colors {isFirst
-                          ? 'font-semibold text-white text-base'
-                          : isMedal
-                            ? 'font-semibold text-text-label text-sm'
-                            : 'font-medium text-text-muted text-xs'}"
-                      >
-                        {entry.name}
-                      </a>
-                    {:else}
-                      <a
-                        href="https://steamcommunity.com/profiles/{entry.steamId64}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="block truncate hover:text-primary-400 transition-colors {isFirst
-                          ? 'font-semibold text-white text-base'
-                          : isMedal
-                            ? 'font-semibold text-text-label text-sm'
-                            : 'font-medium text-text-muted text-xs'}"
-                        >{entry.name ?? 'Unknown Player'}</a
-                      >
-                    {/if}
+                    <a
+                      href="/users/{entry.steamId64}"
+                      class="block truncate hover:text-primary-400 transition-colors {isFirst
+                        ? 'font-semibold text-white text-base'
+                        : isMedal
+                          ? 'font-semibold text-text-label text-sm'
+                          : 'font-medium text-text-muted text-xs'}"
+                    >
+                      {entry.name ?? 'Unknown Player'}
+                    </a>
                   </div>
                   <span
                     class="tabular-nums shrink-0 {isFirst

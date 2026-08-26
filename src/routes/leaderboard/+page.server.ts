@@ -19,12 +19,13 @@ export const load: PageServerLoad = async ({ url }) => {
   const availableRegions = await getRegions();
   const defaultRegion = availableRegions[0] ?? '';
 
-  const rawRegion = url.searchParams.get('region') || defaultRegion;
+  const regionParam = url.searchParams.get('region');
+  const rawRegion = (typeof regionParam === 'string' && regionParam) || defaultRegion;
   const regions = rawRegion
     .split(',')
     .map((r) => r.trim())
     .filter((r) => r.length > 0 && availableRegions.includes(r));
-  const safeRegions = regions.length > 0 ? regions : [defaultRegion];
+  const safeRegions = regions.length > 0 ? regions : defaultRegion ? [defaultRegion] : [];
 
   const search = url.searchParams.get('search')?.trim() ?? '';
 

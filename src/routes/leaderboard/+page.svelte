@@ -39,6 +39,7 @@
   }
 
   function regionToFlagCode(name: string): string {
+    if (typeof name !== 'string' || !name) return '';
     const n = name.toLowerCase();
     if (n.includes('eu') || n.includes('europe')) return 'eu';
     if (n.includes('na') || n.includes('north america') || n === 'us') return 'us';

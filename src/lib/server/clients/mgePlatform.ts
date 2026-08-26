@@ -22,6 +22,30 @@ export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
   }
 }
 
+/**
+ * Platform `/api/v1/regions` currently returns `{ code, flag }` objects.
+ * Older payloads were bare strings — accept both so a shape change cannot 500 the site.
+ */
+export function parsePlatformRegionCodes(payload: unknown): string[] {
+  if (!payload || typeof payload !== 'object' || !('regions' in payload)) return [];
+  const regions = (payload as { regions: unknown }).regions;
+  if (!Array.isArray(regions)) return [];
+
+  const codes: string[] = [];
+  for (const region of regions) {
+    if (typeof region === 'string') {
+      const code = region.trim();
+      if (code) codes.push(code);
+      continue;
+    }
+    if (region && typeof region === 'object' && 'code' in region) {
+      const code = (region as { code: unknown }).code;
+      if (typeof code === 'string' && code.trim()) codes.push(code.trim());
+    }
+  }
+  return codes;
+}
+
 export async function getRegions(): Promise<string[]> {
   const base = getPlatformUrl();
   if (!base) return [];
@@ -30,8 +54,7 @@ export async function getRegions(): Promise<string[]> {
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return [];
-    const data = await res.json();
-    return (data.regions ?? []) as string[];
+    return parsePlatformRegionCodes(await res.json());
   } catch {
     return [];
   }

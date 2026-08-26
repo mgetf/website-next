@@ -494,6 +494,7 @@ model User {
   eventDraftsUpdated          EventDraft[]           @relation("EventDraftUpdatedBy")
   eventRevisionsPublished     EventRevision[]        @relation("EventRevisionPublishedBy")
   rulebookRevisionsPublished  RulebookRevision[]     @relation("RulebookRevisionPublishedBy")
+  blogPosts                   BlogPost[]
 
   @@map("users")
 }
@@ -1020,6 +1021,24 @@ model SiteContent {
   updatedBy String?  @map("updated_by") // Steam ID of last editor
 
   @@map("site_content")
+}
+
+model BlogPost {
+  id          Int       @id @default(autoincrement())
+  title       String
+  excerpt     String?
+  content     String
+  coverImage  String?   @map("cover_image")
+  published   Boolean   @default(false)
+  publishedAt DateTime? @map("published_at")
+  authorId    String?   @map("author_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  author User? @relation(fields: [authorId], references: [steamId])
+
+  @@index([published, publishedAt])
+  @@map("blog_posts")
 }
 
 model RulebookRevision {

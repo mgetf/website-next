@@ -60,6 +60,7 @@
   const primaryLinks: NavLink[] = [
     { href: '/tournaments', label: 'Tournaments' },
     { href: '/leaderboard', label: 'Leaderboard', badge: true },
+    { href: '/blog', label: 'Blog' },
     { href: '/users', label: 'Users' },
     { href: '/teams', label: 'Teams' },
   ];

@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import type { MgeRating } from '$lib/types/mge';
+import type { MgeRating, PlatformRegion } from '$lib/types/mge';
 import { steamId32FromSteamId64 } from '$lib/utils/steamid';
 
 function getPlatformUrl(): string {
@@ -28,7 +28,27 @@ export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
   }
 }
 
-export async function getRegions(): Promise<string[]> {
+function parseRegions(raw: unknown): PlatformRegion[] {
+  if (!Array.isArray(raw)) return [];
+  const regions: PlatformRegion[] = [];
+  for (const item of raw) {
+    if (typeof item === 'string' && item.length > 0) {
+      regions.push({ code: item, flag: null });
+      continue;
+    }
+    if (!item || typeof item !== 'object' || !('code' in item)) continue;
+    const code = (item as { code: unknown }).code;
+    if (typeof code !== 'string' || code.length === 0) continue;
+    const flag = (item as { flag?: unknown }).flag;
+    regions.push({
+      code,
+      flag: typeof flag === 'string' && flag.length > 0 ? flag : null,
+    });
+  }
+  return regions;
+}
+
+export async function getRegions(): Promise<PlatformRegion[]> {
   const base = getPlatformUrl();
   if (!base) return [];
   try {
@@ -37,7 +57,7 @@ export async function getRegions(): Promise<string[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.regions ?? []) as string[];
+    return parseRegions(data.regions);
   } catch {
     return [];
   }

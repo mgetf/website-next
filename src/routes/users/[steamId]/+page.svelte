@@ -11,15 +11,10 @@
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import type { ProfileMatch } from '$lib/types/match';
-  import type { MgeRating } from '$lib/types/mge';
+  import type { MgeRating, PlatformRegion } from '$lib/types/mge';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
   import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
-
-  const REGION_FLAGS: Record<string, string> = {
-    na: 'us',
-    eu: 'eu',
-    as: 'sg',
-  };
+  import { flagForRegion } from '$lib/utils/regions';
 
   interface TeamWithMatches {
     teamId: number;
@@ -106,6 +101,7 @@
     entries1v1: Entry1v1WithMatches[];
     divisions1v1: Array<{ id: number; name: string; signupCost: number; regionId: number }>;
     ratings: MgeRating[];
+    platformRegions: PlatformRegion[];
   }
 
   let { data }: { data: PlayerData } = $props();
@@ -593,7 +589,7 @@
             </div>
             <div class="divide-y divide-border-default/50">
               {#each mgeRatings as rating (rating.region)}
-                {@const flagCode = REGION_FLAGS[rating.region] ?? rating.region}
+                {@const flagCode = flagForRegion(rating.region, data.platformRegions ?? [])}
                 <div class="flex items-center justify-between px-4 py-3">
                   <div class="flex items-center gap-2">
                     <FlagIcon code={flagCode} class="w-6 h-4 rounded" />

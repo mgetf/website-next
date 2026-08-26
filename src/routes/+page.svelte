@@ -3,16 +3,7 @@
   import Card from '$lib/components/ui/Card.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
-
-  function regionToFlagCode(name: string): string {
-    const n = name.toLowerCase();
-    if (n.includes('eu') || n.includes('europe')) return 'eu';
-    if (n.includes('na') || n.includes('north america') || n === 'us') return 'us';
-    if (n.includes('as') || n.includes('asia')) return 'sg';
-    if (n.includes('au') || n.includes('oceania')) return 'au';
-    if (/^[a-z]{2}$/.test(n)) return n;
-    return '';
-  }
+  import { resolveRegionFlag } from '$lib/utils/regions';
 
   interface EloEntry {
     elo: number;
@@ -26,6 +17,7 @@
 
   interface EloRegion {
     region: string;
+    flag: string | null;
     entries: EloEntry[];
   }
 
@@ -111,7 +103,7 @@
         class="flex sm:grid gap-4 sm:gap-5 overflow-x-auto sm:overflow-visible snap-x sm:snap-none snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:[grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))]"
       >
         {#each eloLeaderboard as regionData (regionData.region)}
-          {@const fc = regionToFlagCode(regionData.region)}
+          {@const fc = resolveRegionFlag(regionData.flag)}
           <div
             class="relative snap-center shrink-0 w-[min(calc(100vw-2rem),22.5rem)] sm:w-auto sm:shrink rounded-xl border border-primary-500/20 bg-surface-card overflow-hidden shadow-xl shadow-primary-500/5"
           >
@@ -125,7 +117,7 @@
               class="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-border-default/50"
             >
               <div class="flex items-center gap-2">
-                {#if fc}<FlagIcon code={fc} class="w-6 h-4 rounded-sm" />{/if}
+                <FlagIcon code={fc} class="w-6 h-4 rounded-sm" />
                 <span class="text-sm font-bold uppercase tracking-widest text-white">
                   {regionData.region.toUpperCase()}
                 </span>
@@ -269,13 +261,11 @@
             style="grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));"
           >
             {#each leaderboard2v2 as region (region.regionName)}
-              {@const fc = regionToFlagCode(region.regionName)}
               <Card padding="none" class="overflow-hidden">
                 <div class="h-1 bg-format-2v2-500"></div>
                 <div class="p-5">
                   <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
-                      {#if fc}<FlagIcon code={fc} class="w-5 h-3.5 rounded-sm" />{/if}
                       <span class="text-xs font-bold uppercase tracking-widest text-text-muted">
                         {region.regionName}
                       </span>
@@ -352,13 +342,11 @@
             style="grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));"
           >
             {#each leaderboard1v1 as region (region.regionName)}
-              {@const fc = regionToFlagCode(region.regionName)}
               <Card padding="none" class="overflow-hidden">
                 <div class="h-1 bg-format-1v1-500"></div>
                 <div class="p-5">
                   <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
-                      {#if fc}<FlagIcon code={fc} class="w-5 h-3.5 rounded-sm" />{/if}
                       <span class="text-xs font-bold uppercase tracking-widest text-text-muted">
                         {region.regionName}
                       </span>

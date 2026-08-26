@@ -10,3 +10,8 @@ export interface MgeRating {
   lastPlayed: string | null;
   updatedAt: string;
 }
+
+export interface PlatformRegion {
+  code: string;
+  flag: string | null;
+}

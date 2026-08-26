@@ -7,6 +7,7 @@
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
+  import { flagForRegion } from '$lib/utils/regions';
 
   let { data } = $props();
 
@@ -37,16 +38,6 @@
     const months = Math.floor(days / 30);
     if (months < 12) return `${months}mo ago`;
     return `${Math.floor(months / 12)}y ago`;
-  }
-
-  function regionToFlagCode(name: string): string {
-    const n = name.toLowerCase();
-    if (n.includes('eu') || n.includes('europe')) return 'eu';
-    if (n.includes('na') || n.includes('north america') || n === 'us') return 'us';
-    if (n.includes('as') || n.includes('asia') || n === 'sea') return 'sg';
-    if (n.includes('au') || n.includes('oceania')) return 'au';
-    if (/^[a-z]{2}$/.test(n)) return n;
-    return '';
   }
 
   function winRate(wins: number | null, losses: number | null): string {
@@ -146,18 +137,18 @@
     <div class="flex flex-col gap-4">
       <!-- Region selector -->
       <div class="flex gap-1 flex-wrap">
-        {#each data.regions as region (region)}
-          {@const fc = regionToFlagCode(region)}
-          {@const isActive = selectedRegions.includes(region)}
+        {#each data.regions as region (region.code)}
+          {@const fc = flagForRegion(region.code, data.regions)}
+          {@const isActive = selectedRegions.includes(region.code)}
           <button
             type="button"
-            onclick={() => toggleRegion(region)}
+            onclick={() => toggleRegion(region.code)}
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {isActive
               ? 'bg-primary-600 text-white'
               : 'bg-surface-input text-text-label hover:bg-surface-hover hover:text-white'}"
           >
-            {#if fc}<FlagIcon code={fc} class="w-5 h-3.5 rounded-sm" />{/if}
-            {region.toUpperCase()}
+            <FlagIcon code={fc} class="w-5 h-3.5 rounded-sm" />
+            {region.code.toUpperCase()}
           </button>
         {/each}
       </div>
@@ -246,10 +237,9 @@
           #{row.rank}
         </span>
       {:else if col.key === 'region'}
+        {@const fc = flagForRegion(row.region, data.regions)}
         <div class="flex items-center gap-1.5">
-          {#if regionToFlagCode(row.region)}
-            <FlagIcon code={regionToFlagCode(row.region)} class="w-5 h-3.5 rounded-sm shrink-0" />
-          {/if}
+          <FlagIcon code={fc} class="w-5 h-3.5 rounded-sm shrink-0" />
           <span class="text-sm font-medium text-text-label uppercase">{row.region}</span>
         </div>
       {:else if col.key === 'player'}

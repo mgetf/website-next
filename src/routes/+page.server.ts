@@ -61,6 +61,7 @@ export const load = async () => {
     // --- MGE rating leaderboard (from platform API) ---
     const eloLeaderboard: {
       region: string;
+      flag: string | null;
       entries: {
         elo: number;
         displayRating: number;
@@ -73,13 +74,14 @@ export const load = async () => {
 
     if (platformRegions.length > 0) {
       const regionEntries = await Promise.all(
-        platformRegions.map((region) => getLeaderboard(region, 10)),
+        platformRegions.map((region) => getLeaderboard(region.code, 10)),
       );
 
       // Collect all unique Steam64 IDs to batch-lookup names/avatars
       const allSteam64s: string[] = [];
       const regionEntryMaps: {
         region: string;
+        flag: string | null;
         entries: {
           steam32: string;
           elo: number;
@@ -120,7 +122,8 @@ export const load = async () => {
 
         for (const e of mapped) allSteam64s.push(e.steam64);
         regionEntryMaps.push({
-          region: platformRegions[i],
+          region: platformRegions[i].code,
+          flag: platformRegions[i].flag,
           entries: mapped.map((e) => ({
             steam32: e.steam32,
             elo: e.elo,
@@ -143,10 +146,11 @@ export const load = async () => {
       });
       const steamNames = needsSteamLookup.length > 0 ? await fetchSteamNames(needsSteamLookup) : {};
 
-      for (const { region, entries } of regionEntryMaps) {
+      for (const { region, flag, entries } of regionEntryMaps) {
         if (entries.length === 0) continue;
         eloLeaderboard.push({
           region,
+          flag,
           entries: entries.map(({ steam32, elo, displayRating, provisional, platformName }) => {
             const steam64 = steamId64FromSteamId32(steam32) ?? '';
             const display = userDisplays[steam64] ?? null;

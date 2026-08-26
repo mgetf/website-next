@@ -20,16 +20,17 @@ import { isAdmin, requireCanModerateUser, requireStrictAdmin } from '$lib/server
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getPlayerRatings } from '$lib/server/clients/mgePlatform';
+import { getPlayerRatings, getRegions } from '$lib/server/clients/mgePlatform';
 import { buildPageSeo } from '$lib/utils/seo';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
 
   try {
-    const [profile, ratings] = await Promise.all([
+    const [profile, ratings, platformRegions] = await Promise.all([
       getPlayerProfile(steamId),
       getPlayerRatings(steamId),
+      getRegions(),
     ]);
 
     if (!profile) {
@@ -74,6 +75,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       }),
       ...profile,
       ratings,
+      platformRegions,
       isOwnProfile,
       isAdmin: isUserAdmin,
       signupSuccess,

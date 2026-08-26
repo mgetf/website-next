@@ -50,7 +50,15 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   ) {
     selectedSeasonId = seasonFromUrl;
     selectedRegionId = regionFromUrl;
-  } else {
+  } else if (Number.isFinite(regionFromUrl)) {
+    const latestForRegion = allSeasons.find((s) => s.regionId === regionFromUrl);
+    if (latestForRegion) {
+      selectedSeasonId = latestForRegion.id;
+      selectedRegionId = latestForRegion.regionId;
+    }
+  }
+
+  if (selectedSeasonId == null || selectedRegionId == null) {
     const defaultSeasonWithTeams = await findRecentSeasonWithTeams(visibleStatuses, format.id);
     const defaultFromTeams =
       defaultSeasonWithTeams &&

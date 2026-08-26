@@ -9,9 +9,10 @@ import { getUserActiveTeam, isSignedUpForAllOpenFormats } from '$lib/server/serv
 import { getNotificationsForDropdown } from '$lib/server/services/notifications';
 import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 import { getSiteSettings } from '$lib/server/services/siteSettings';
-import { getFormatsWithSeasons } from '$lib/server/services/formats';
+import { getLeagueNav } from '$lib/server/services/seasons';
 import { getOpenSignupFormats } from '$lib/server/services/signupSeasons';
 import { isRealtimeNotificationsEnabled } from '$lib/server/utils/env';
+import { EMPTY_LEAGUE_NAV } from '$lib/types/league';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   // If site is dev-gated (staging mode, non-admin user), return minimal data
@@ -28,7 +29,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
       signupClosed: true,
       isInTeam: false,
       userTeam: null,
-      formats: [],
+      leagueNav: EMPTY_LEAGUE_NAV,
       siteSettings: {
         siteTitle: 'MGE.tf Dev',
         faviconPath: null,
@@ -40,11 +41,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     };
   }
 
-  // Check if any active signup season has signups open and get formats
-  const [anySignupsOpen, siteSettings, formats, openSignupFormats] = await Promise.all([
+  // Check if any active signup season has signups open and load the leagues grid
+  const [anySignupsOpen, siteSettings, leagueNav, openSignupFormats] = await Promise.all([
     hasAnySignupsOpen(),
     getSiteSettings(),
-    getFormatsWithSeasons(),
+    getLeagueNav(),
     getOpenSignupFormats(),
   ]);
   // Inverted: signupClosed = NOT anySignupsOpen
@@ -85,7 +86,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     signupClosed,
     isInTeam,
     userTeam,
-    formats: formats.map((f) => ({ name: f.name, code: f.code })),
+    leagueNav,
     siteSettings: {
       siteTitle: siteSettings.siteTitle,
       faviconPath: siteSettings.faviconPath,

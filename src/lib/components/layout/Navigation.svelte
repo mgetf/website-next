@@ -1,8 +1,11 @@
 <script lang="ts">
   import type { SessionUser } from '$lib/types/user';
   import type { Notification } from '$lib/state/notifications.svelte';
+  import { EMPTY_LEAGUE_NAV, type LeagueNav } from '$lib/types/league';
   import NotificationDropdown from './NotificationDropdown.svelte';
   import UserDropdown from './UserDropdown.svelte';
+  import LeaguesDropdown from './LeaguesDropdown.svelte';
+  import LeaguesNavGrid from './LeaguesNavGrid.svelte';
   import { afterNavigate } from '$app/navigation';
   import { page } from '$app/state';
   import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
@@ -19,7 +22,7 @@
     isInTeam?: boolean;
     userTeam?: { id: number; name: string } | null;
     realtimeEnabled?: boolean;
-    formats?: Array<{ name: string; code: string }>;
+    leagueNav?: LeagueNav;
   };
 
   type NavLink = {
@@ -35,7 +38,7 @@
     isInTeam = false,
     userTeam = null,
     realtimeEnabled = true,
-    formats = [],
+    leagueNav = EMPTY_LEAGUE_NAV,
   }: Props = $props();
 
   let mobileMenuOpen = $state(false);
@@ -119,37 +122,9 @@
           </a>
 
           <div class="hidden lg:flex items-center gap-0.5">
-            <div class="relative group">
-              <button
-                type="button"
-                class="px-3 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap"
-              >
-                Leagues
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-              <div
-                class="absolute left-0 mt-1 w-44 bg-surface-card border border-border-default rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all z-50"
-              >
-                {#each formats as format, index (format.code)}
-                  <a
-                    href="/leagues/{format.code}"
-                    class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input {index ===
-                    0
-                      ? 'rounded-t-lg'
-                      : ''} {index === formats.length - 1 ? 'rounded-b-lg' : ''}"
-                  >
-                    {format.name} League
-                  </a>
-                {/each}
-              </div>
-            </div>
+            {#if leagueNav.formats.length > 0}
+              <LeaguesDropdown {leagueNav} />
+            {/if}
 
             {#each primaryLinks as link (link.href)}
               <a
@@ -299,27 +274,14 @@
       style:top="{mobileMenuTop}px"
     >
       <div class="px-3 py-3">
-        {#if formats.length > 0}
+        {#if leagueNav.formats.length > 0}
           <p
             class="px-3 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-muted"
           >
             Leagues
           </p>
-          <div class="flex flex-col">
-            {#each formats as format (format.code)}
-              <a
-                href="/leagues/{format.code}"
-                class={[
-                  'flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-lg',
-                  isActive(`/leagues/${format.code}`)
-                    ? 'text-white bg-surface-input'
-                    : 'text-text-label hover:text-white hover:bg-surface-input',
-                ]}
-                onclick={closeMobileMenu}
-              >
-                {format.name} League
-              </a>
-            {/each}
+          <div class="px-3 pb-1">
+            <LeaguesNavGrid {leagueNav} onNavigate={closeMobileMenu} />
           </div>
         {/if}
 

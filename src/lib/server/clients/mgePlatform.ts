@@ -28,24 +28,38 @@ export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
   }
 }
 
+/**
+ * Platform `/api/v1/regions` currently returns `{ code, flag }` objects.
+ * Older payloads were bare strings — accept both so a shape change cannot 500 the site.
+ */
 function parseRegions(raw: unknown): PlatformRegion[] {
   if (!Array.isArray(raw)) return [];
   const regions: PlatformRegion[] = [];
   for (const item of raw) {
-    if (typeof item === 'string' && item.length > 0) {
-      regions.push({ code: item, flag: null });
+    if (typeof item === 'string') {
+      const code = item.trim();
+      if (code) regions.push({ code, flag: null });
       continue;
     }
     if (!item || typeof item !== 'object' || !('code' in item)) continue;
     const code = (item as { code: unknown }).code;
-    if (typeof code !== 'string' || code.length === 0) continue;
+    if (typeof code !== 'string' || !code.trim()) continue;
     const flag = (item as { flag?: unknown }).flag;
     regions.push({
-      code,
+      code: code.trim(),
       flag: typeof flag === 'string' && flag.length > 0 ? flag : null,
     });
   }
   return regions;
+}
+
+function parsePlatformRegions(payload: unknown): PlatformRegion[] {
+  if (!payload || typeof payload !== 'object' || !('regions' in payload)) return [];
+  return parseRegions((payload as { regions: unknown }).regions);
+}
+
+export function parsePlatformRegionCodes(payload: unknown): string[] {
+  return parsePlatformRegions(payload).map((region) => region.code);
 }
 
 export async function getRegions(): Promise<PlatformRegion[]> {
@@ -56,8 +70,7 @@ export async function getRegions(): Promise<PlatformRegion[]> {
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return [];
-    const data = await res.json();
-    return parseRegions(data.regions);
+    return parsePlatformRegions(await res.json());
   } catch {
     return [];
   }

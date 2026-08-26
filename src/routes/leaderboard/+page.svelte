@@ -6,6 +6,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
 
   let { data } = $props();
 
@@ -117,7 +118,7 @@
     { key: 'rank', label: '#', width: '60px' },
     ...(showRegionCol ? [{ key: 'region', label: 'Region', width: '90px' } as Column] : []),
     { key: 'player', label: 'Player' },
-    { key: 'elo', label: 'ELO', align: 'right' as const, width: '80px', sortable: true },
+    { key: 'elo', label: 'Rating', align: 'right' as const, width: '80px', sortable: true },
     { key: 'games', label: 'Games', align: 'center' as const, width: '70px', sortable: true },
     { key: 'wins', label: 'W', align: 'center' as const, width: '50px', sortable: true },
     { key: 'losses', label: 'L', align: 'center' as const, width: '50px', sortable: true },
@@ -133,8 +134,8 @@
 </script>
 
 <PageHero
-  title="ELO Rankings"
-  subtitle="Global ELO standings from all active regions"
+  title="Rankings"
+  subtitle="Global rating standings from all active regions"
   maxWidth="max-w-7xl"
   border={true}
 />
@@ -293,7 +294,14 @@
           {/if}
         </div>
       {:else if col.key === 'elo'}
-        <span class="font-black tabular-nums text-primary-400">{row.elo}</span>
+        <span
+          class="font-black tabular-nums text-primary-400"
+          title={row.provisional ? PROVISIONAL_RATING_TITLE : undefined}
+        >
+          {ratingValue(row.displayRating, row.elo)}{#if row.provisional}<span
+              class="text-text-muted">?</span
+            >{/if}
+        </span>
       {:else if col.key === 'games'}
         <span class="tabular-nums text-white text-sm">
           {#if row.wins != null || row.losses != null}

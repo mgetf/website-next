@@ -58,10 +58,17 @@ export const load = async () => {
         : ['READY', 'PENDING']
     ).filter((s) => s === 'READY' || s === 'PENDING') as TeamStatus[];
 
-    // --- MGE ELO Leaderboard (from platform API) ---
+    // --- MGE rating leaderboard (from platform API) ---
     const eloLeaderboard: {
       region: string;
-      entries: { elo: number; steamId64: string; name: string | null; avatar: string | null }[];
+      entries: {
+        elo: number;
+        displayRating: number;
+        provisional: boolean;
+        steamId64: string;
+        name: string | null;
+        avatar: string | null;
+      }[];
     }[] = [];
 
     if (platformRegions.length > 0) {
@@ -73,7 +80,13 @@ export const load = async () => {
       const allSteam64s: string[] = [];
       const regionEntryMaps: {
         region: string;
-        entries: { steam32: string; elo: number; platformName: string | null }[];
+        entries: {
+          steam32: string;
+          elo: number;
+          displayRating: number;
+          provisional: boolean;
+          platformName: string | null;
+        }[];
       }[] = [];
 
       for (let i = 0; i < platformRegions.length; i++) {
@@ -82,7 +95,14 @@ export const load = async () => {
           .map((e) => {
             const steam64 = steamId64FromSteamId32(e.steamId);
             return steam64
-              ? { steam32: e.steamId, steam64, elo: e.elo, platformName: e.name ?? null }
+              ? {
+                  steam32: e.steamId,
+                  steam64,
+                  elo: e.elo,
+                  displayRating: e.displayRating ?? e.elo,
+                  provisional: e.provisional ?? false,
+                  platformName: e.name ?? null,
+                }
               : null;
           })
           .filter(
@@ -92,6 +112,8 @@ export const load = async () => {
               steam32: string;
               steam64: string;
               elo: number;
+              displayRating: number;
+              provisional: boolean;
               platformName: string | null;
             } => e !== null,
           );
@@ -102,6 +124,8 @@ export const load = async () => {
           entries: mapped.map((e) => ({
             steam32: e.steam32,
             elo: e.elo,
+            displayRating: e.displayRating,
+            provisional: e.provisional,
             platformName: e.platformName,
           })),
         });
@@ -123,12 +147,14 @@ export const load = async () => {
         if (entries.length === 0) continue;
         eloLeaderboard.push({
           region,
-          entries: entries.map(({ steam32, elo, platformName }) => {
+          entries: entries.map(({ steam32, elo, displayRating, provisional, platformName }) => {
             const steam64 = steamId64FromSteamId32(steam32) ?? '';
             const display = userDisplays[steam64] ?? null;
             const isRegistered = display !== null;
             return {
               elo,
+              displayRating,
+              provisional,
               steamId64: steam64,
               isRegistered,
               name: display?.name ?? platformName ?? steamNames[steam64] ?? null,

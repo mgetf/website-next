@@ -16,7 +16,13 @@ export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.ratings ?? []) as MgeRating[];
+    return ((data.ratings ?? []) as MgeRating[]).map((r) => ({
+      ...r,
+      rd: r.rd ?? null,
+      volatility: r.volatility ?? null,
+      displayRating: r.displayRating ?? r.elo,
+      provisional: r.provisional ?? false,
+    }));
   } catch {
     return [];
   }
@@ -41,6 +47,10 @@ export interface PlatformLeaderboardEntry {
   steamId: string;
   name: string | null;
   elo: number;
+  rd: number | null;
+  volatility: number | null;
+  displayRating: number;
+  provisional: boolean;
   eloRank: number;
   wins: number | null;
   losses: number | null;
@@ -84,7 +94,13 @@ export async function getLeaderboard(
       total: Number(data.total ?? 0),
       limit: Number(data.limit ?? limit),
       offset: Number(data.offset ?? offset),
-      entries: (data.entries ?? []) as PlatformLeaderboardEntry[],
+      entries: ((data.entries ?? []) as PlatformLeaderboardEntry[]).map((e) => ({
+        ...e,
+        rd: e.rd ?? null,
+        volatility: e.volatility ?? null,
+        displayRating: e.displayRating ?? e.elo,
+        provisional: e.provisional ?? false,
+      })),
     };
   } catch {
     return empty;

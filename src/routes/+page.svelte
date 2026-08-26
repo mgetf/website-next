@@ -2,6 +2,7 @@
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
+  import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
 
   function regionToFlagCode(name: string): string {
     const n = name.toLowerCase();
@@ -15,6 +16,8 @@
 
   interface EloEntry {
     elo: number;
+    displayRating: number;
+    provisional: boolean;
     steamId64: string;
     isRegistered: boolean;
     name: string | null;
@@ -93,13 +96,13 @@
     </div>
   </section>
 
-  <!-- MGE ELO Leaderboard -->
+  <!-- MGE rating leaderboard -->
   {#if showEloLeaderboard}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mb-10 sm:mb-14">
       <!-- Section header -->
       <div class="mb-5 sm:mb-6 text-center">
         <h2 class="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight mb-1">
-          MGE <span class="text-primary-400">ELO</span> Rankings
+          MGE <span class="text-primary-400">Rating</span> Rankings
         </h2>
         <p class="text-text-muted text-sm">Live standings from all active regions</p>
       </div>
@@ -217,8 +220,13 @@
                       : isMedal
                         ? 'font-black text-primary-500 text-base'
                         : 'font-semibold text-primary-600 text-sm'}"
+                    title={entry.provisional && !isCompact ? PROVISIONAL_RATING_TITLE : undefined}
                   >
-                    {entry.elo}
+                    {ratingValue(
+                      entry.displayRating,
+                      entry.elo,
+                    )}{#if entry.provisional && !isCompact}<span class="text-text-muted">?</span
+                      >{/if}
                   </span>
                 </div>
               {/each}

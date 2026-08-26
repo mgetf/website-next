@@ -13,6 +13,7 @@
   import type { ProfileMatch } from '$lib/types/match';
   import type { MgeRating } from '$lib/types/mge';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
+  import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
 
   const REGION_FLAGS: Record<string, string> = {
     na: 'us',
@@ -579,7 +580,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <!-- Left Sidebar -->
       <aside class="lg:col-span-3 space-y-6">
-        <!-- MGE ELO -->
+        <!-- MGE Rating -->
         {#if mgeRatings.length > 0}
           <div
             class="bg-surface-card/80 backdrop-blur rounded-lg border border-border-default overflow-hidden"
@@ -587,11 +588,11 @@
             <div
               class="bg-surface-page/80 px-4 py-3 border-b border-border-default flex items-center justify-between"
             >
-              <h3 class="text-lg font-bold text-white">MGE ELO</h3>
+              <h3 class="text-lg font-bold text-white">MGE Rating</h3>
               <Button variant="primary" size="sm" href="/logs?player={player.steamId}">Logs</Button>
             </div>
             <div class="divide-y divide-border-default/50">
-              {#each mgeRatings as rating}
+              {#each mgeRatings as rating (rating.region)}
                 {@const flagCode = REGION_FLAGS[rating.region] ?? rating.region}
                 <div class="flex items-center justify-between px-4 py-3">
                   <div class="flex items-center gap-2">
@@ -601,7 +602,14 @@
                     >
                   </div>
                   <div class="text-right">
-                    <span class="text-lg font-black text-white">{rating.elo}</span>
+                    <span
+                      class="text-lg font-black text-white"
+                      title={rating.provisional ? PROVISIONAL_RATING_TITLE : undefined}
+                    >
+                      {ratingValue(rating.displayRating, rating.elo)}{#if rating.provisional}<span
+                          class="text-text-muted">?</span
+                        >{/if}
+                    </span>
                     {#if rating.wins !== null || rating.losses !== null}
                       <div class="text-xs text-text-muted">
                         <span class="text-success-400">{rating.wins ?? 0}W</span>

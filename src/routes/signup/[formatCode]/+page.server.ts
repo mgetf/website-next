@@ -4,9 +4,11 @@ import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permis
 import { requireFormatByCode } from '$lib/server/services/formats';
 import { get1v1SignupContext, signup1v1 } from '$lib/server/services/signup1v1';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { getVisibleRegions } from '$lib/server/services/regions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
-import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
+import {
+  getSignupSeasonForRegion,
+  getRegionsOpenForSignup,
+} from '$lib/server/services/signupSeasons';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
@@ -27,8 +29,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     // Individual format - handle signup directly here
     const context = await get1v1SignupContext(locals.user.steamId, format.id);
 
-    // Load divisions and regions
-    const [divisions, regions] = await Promise.all([getVisibleDivisions(), getVisibleRegions()]);
+    const [divisions, availableRegions] = await Promise.all([
+      getVisibleDivisions(),
+      getRegionsOpenForSignup(format.id),
+    ]);
 
     // Determine if user can sign up and why not
     let canSignup = true;
@@ -44,20 +48,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       canSignup = false;
       disabledReason = `You are already signed up for the ${format.name} league this season`;
     }
-
-    // Check which regions have active signup seasons for this format
-    const regionsWithSeasons = await Promise.all(
-      regions.map(async (region) => {
-        const seasonId = await getSignupSeasonForRegion(region.id, format.id);
-        return {
-          ...region,
-          hasSeasonForFormat: !!seasonId,
-        };
-      }),
-    );
-
-    // Filter to only regions with seasons for this format
-    const availableRegions = regionsWithSeasons.filter((r) => r.hasSeasonForFormat);
 
     if (canSignup && availableRegions.length === 0) {
       canSignup = false;

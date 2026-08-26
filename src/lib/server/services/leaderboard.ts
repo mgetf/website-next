@@ -53,8 +53,20 @@ function getSortKey(e: PlatformLeaderboardEntry, sortBy: LeaderboardSortField): 
     case 'lastPlayed':
       return e.lastPlayed ? new Date(e.lastPlayed).getTime() : 0;
     default:
-      return e.elo;
+      return e.displayRating ?? e.elo;
   }
+}
+
+function ratingFields(
+  e: Pick<PlatformLeaderboardEntry, 'elo' | 'rd' | 'volatility' | 'displayRating' | 'provisional'>,
+) {
+  return {
+    elo: e.elo,
+    rd: e.rd ?? null,
+    volatility: e.volatility ?? null,
+    displayRating: e.displayRating ?? e.elo,
+    provisional: e.provisional ?? false,
+  };
 }
 
 export interface EloLeaderboardEntry {
@@ -64,6 +76,10 @@ export interface EloLeaderboardEntry {
   name: string | null;
   avatar: string | null;
   elo: number;
+  rd: number | null;
+  volatility: number | null;
+  displayRating: number;
+  provisional: boolean;
   wins: number | null;
   losses: number | null;
   lastPlayed: string | null;
@@ -144,7 +160,7 @@ export async function getEloLeaderboardPage(
         steamId64: steam64,
         name: display?.name ?? e.name ?? steamNamesForUnregistered[steam64] ?? null,
         avatar: display?.avatar ?? null,
-        elo: e.elo,
+        ...ratingFields(e),
         wins: e.wins,
         losses: e.losses,
         lastPlayed: e.lastPlayed ? new Date(e.lastPlayed).toISOString() : null,
@@ -176,7 +192,7 @@ export async function getEloLeaderboardPage(
 
   const sortedTagged = [...tagged].sort((a, b) => {
     const diff = getSortKey(b, sortBy) - getSortKey(a, sortBy);
-    return dirMult * diff || b.elo - a.elo;
+    return dirMult * diff || (b.displayRating ?? b.elo) - (a.displayRating ?? a.elo);
   });
 
   if (registeredOnly) {
@@ -204,7 +220,7 @@ export async function getEloLeaderboardPage(
         steamId64: e.steam64,
         name: display.name,
         avatar: display.avatar,
-        elo: e.elo,
+        ...ratingFields(e),
         wins: e.wins,
         losses: e.losses,
         lastPlayed: e.lastPlayed ? new Date(e.lastPlayed).toISOString() : null,
@@ -252,7 +268,7 @@ export async function getEloLeaderboardPage(
       steamId64: steam64,
       name: display?.name ?? e.name ?? steamNamesForUnregistered[steam64] ?? null,
       avatar: display?.avatar ?? null,
-      elo: e.elo,
+      ...ratingFields(e),
       wins: e.wins,
       losses: e.losses,
       lastPlayed: e.lastPlayed ? new Date(e.lastPlayed).toISOString() : null,
@@ -313,7 +329,7 @@ export async function searchEloLeaderboard(params: {
           name,
           avatar,
           region: r.region,
-          elo: r.elo,
+          ...ratingFields(r),
           wins: r.wins,
           losses: r.losses,
           lastPlayed: r.lastPlayed ?? null,
@@ -324,11 +340,11 @@ export async function searchEloLeaderboard(params: {
   const flat = results.flat();
   if (flat.length === 0) return { entries: [], total: 0, totalPages: 0 };
 
-  flat.sort((a, b) => b.elo - a.elo);
+  flat.sort((a, b) => b.displayRating - a.displayRating);
 
   const ranked = await Promise.all(
     flat.map(async (e) => {
-      const above = await getLeaderboard(e.region, 1, 0, e.elo + 1);
+      const above = await getLeaderboard(e.region, 1, 0, e.displayRating + 1);
       return { ...e, rank: above.total + 1 };
     }),
   );
@@ -340,6 +356,10 @@ export async function searchEloLeaderboard(params: {
     name: e.name,
     avatar: e.avatar,
     elo: e.elo,
+    rd: e.rd,
+    volatility: e.volatility,
+    displayRating: e.displayRating,
+    provisional: e.provisional,
     wins: e.wins,
     losses: e.losses,
     lastPlayed: e.lastPlayed,

@@ -52,6 +52,7 @@
     { name: 'Disputes', path: '/admin/disputes', icon: maceIcon, adminOnly: false, badge: '' },
     { name: 'Users', path: '/admin/users', icon: userIcon, adminOnly: false, badge: '' },
     { name: 'Global', path: '/admin/global', icon: webIcon, adminOnly: false, badge: '' },
+    { name: 'Blog', path: '/admin/blog', icon: webIcon, adminOnly: false, badge: '' },
     {
       name: 'Item Orders',
       path: '/admin/item-payments',

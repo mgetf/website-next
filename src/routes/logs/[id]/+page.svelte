@@ -63,7 +63,7 @@
   const showHero = $derived(!log.aborted && winningPlayers.length > 0 && losingPlayers.length > 0);
   const isOneVsOne = $derived(log.format === '1v1' && players.length === 2);
 
-  // ELO summary used in the hero (only meaningful in 1v1 where each side is a single player)
+  // Rating summary used in the hero (only meaningful in 1v1 where each side is a single player)
   const winnerEloDelta = $derived(isOneVsOne ? (winningPlayers[0]?.elo?.delta ?? null) : null);
   const loserEloDelta = $derived(isOneVsOne ? (losingPlayers[0]?.elo?.delta ?? null) : null);
   const winnerEloAfter = $derived(isOneVsOne ? (winningPlayers[0]?.elo?.after ?? null) : null);
@@ -119,7 +119,7 @@
     return new Date(iso).toLocaleString();
   }
 
-  function formatEloDelta(delta: number | null): string {
+  function formatRatingDelta(delta: number | null): string {
     if (delta === null) return '—';
     if (delta > 0) return `+${delta}`;
     if (delta < 0) return `${delta}`;
@@ -316,7 +316,7 @@
             </div>
             {#if winnerEloDelta !== null}
               <div class="text-success-400 font-bold text-sm tabular-nums">
-                {formatEloDelta(winnerEloDelta)} ELO
+                {formatRatingDelta(winnerEloDelta)} Rating
               </div>
             {/if}
             {#if winnerEloBefore !== null && winnerEloAfter !== null}
@@ -386,7 +386,7 @@
             </div>
             {#if loserEloDelta !== null}
               <div class="font-bold text-sm tabular-nums text-danger-400/70">
-                {formatEloDelta(loserEloDelta)} ELO
+                {formatRatingDelta(loserEloDelta)} Rating
               </div>
             {/if}
             {#if loserEloBefore !== null && loserEloAfter !== null}

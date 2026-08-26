@@ -22,6 +22,7 @@ export const AuditCategory = {
   LEAGUE_CONFIG: 'LEAGUE_CONFIG',
   TOURNAMENT: 'TOURNAMENT',
   SITE: 'SITE',
+  BLOG: 'BLOG',
 } as const;
 
 export type AuditCategory = (typeof AuditCategory)[keyof typeof AuditCategory];
@@ -147,6 +148,13 @@ export const AuditAction = {
   ANNOUNCEMENT_TOGGLED: 'ANNOUNCEMENT_TOGGLED',
   ANNOUNCEMENT_DELETED: 'ANNOUNCEMENT_DELETED',
   GLOBAL_SETTINGS_UPDATED: 'GLOBAL_SETTINGS_UPDATED',
+
+  // BLOG
+  BLOG_POST_CREATED: 'BLOG_POST_CREATED',
+  BLOG_POST_UPDATED: 'BLOG_POST_UPDATED',
+  BLOG_POST_PUBLISHED: 'BLOG_POST_PUBLISHED',
+  BLOG_POST_UNPUBLISHED: 'BLOG_POST_UNPUBLISHED',
+  BLOG_POST_DELETED: 'BLOG_POST_DELETED',
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

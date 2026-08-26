@@ -6,6 +6,8 @@
   import Button from '$lib/components/ui/Button.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
+  import { flagForRegion } from '$lib/utils/regions';
 
   let { data } = $props();
 
@@ -36,17 +38,6 @@
     const months = Math.floor(days / 30);
     if (months < 12) return `${months}mo ago`;
     return `${Math.floor(months / 12)}y ago`;
-  }
-
-  function regionToFlagCode(name: string): string {
-    if (typeof name !== 'string' || !name) return '';
-    const n = name.toLowerCase();
-    if (n.includes('eu') || n.includes('europe')) return 'eu';
-    if (n.includes('na') || n.includes('north america') || n === 'us') return 'us';
-    if (n.includes('as') || n.includes('asia') || n === 'sea') return 'sg';
-    if (n.includes('au') || n.includes('oceania')) return 'au';
-    if (/^[a-z]{2}$/.test(n)) return n;
-    return '';
   }
 
   function winRate(wins: number | null, losses: number | null): string {
@@ -118,7 +109,7 @@
     { key: 'rank', label: '#', width: '60px' },
     ...(showRegionCol ? [{ key: 'region', label: 'Region', width: '90px' } as Column] : []),
     { key: 'player', label: 'Player' },
-    { key: 'elo', label: 'ELO', align: 'right' as const, width: '80px', sortable: true },
+    { key: 'elo', label: 'Rating', align: 'right' as const, width: '80px', sortable: true },
     { key: 'games', label: 'Games', align: 'center' as const, width: '70px', sortable: true },
     { key: 'wins', label: 'W', align: 'center' as const, width: '50px', sortable: true },
     { key: 'losses', label: 'L', align: 'center' as const, width: '50px', sortable: true },
@@ -134,8 +125,8 @@
 </script>
 
 <PageHero
-  title="ELO Rankings"
-  subtitle="Global ELO standings from all active regions"
+  title="Rankings"
+  subtitle="Global rating standings from all active regions"
   maxWidth="max-w-7xl"
   border={true}
 />
@@ -146,18 +137,18 @@
     <div class="flex flex-col gap-4">
       <!-- Region selector -->
       <div class="flex gap-1 flex-wrap">
-        {#each data.regions as region (region)}
-          {@const fc = regionToFlagCode(region)}
-          {@const isActive = selectedRegions.includes(region)}
+        {#each data.regions as region (region.code)}
+          {@const fc = flagForRegion(region.code, data.regions)}
+          {@const isActive = selectedRegions.includes(region.code)}
           <button
             type="button"
-            onclick={() => toggleRegion(region)}
+            onclick={() => toggleRegion(region.code)}
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {isActive
               ? 'bg-primary-600 text-white'
               : 'bg-surface-input text-text-label hover:bg-surface-hover hover:text-white'}"
           >
-            {#if fc}<FlagIcon code={fc} class="w-5 h-3.5 rounded-sm" />{/if}
-            {region.toUpperCase()}
+            <FlagIcon code={fc} class="w-5 h-3.5 rounded-sm" />
+            {region.code.toUpperCase()}
           </button>
         {/each}
       </div>
@@ -246,10 +237,9 @@
           #{row.rank}
         </span>
       {:else if col.key === 'region'}
+        {@const fc = flagForRegion(row.region, data.regions)}
         <div class="flex items-center gap-1.5">
-          {#if regionToFlagCode(row.region)}
-            <FlagIcon code={regionToFlagCode(row.region)} class="w-5 h-3.5 rounded-sm shrink-0" />
-          {/if}
+          <FlagIcon code={fc} class="w-5 h-3.5 rounded-sm shrink-0" />
           <span class="text-sm font-medium text-text-label uppercase">{row.region}</span>
         </div>
       {:else if col.key === 'player'}
@@ -294,7 +284,14 @@
           {/if}
         </div>
       {:else if col.key === 'elo'}
-        <span class="font-black tabular-nums text-primary-400">{row.elo}</span>
+        <span
+          class="font-black tabular-nums text-primary-400"
+          title={row.provisional ? PROVISIONAL_RATING_TITLE : undefined}
+        >
+          {ratingValue(row.displayRating, row.elo)}{#if row.provisional}<span
+              class="text-text-muted">?</span
+            >{/if}
+        </span>
       {:else if col.key === 'games'}
         <span class="tabular-nums text-white text-sm">
           {#if row.wins != null || row.losses != null}

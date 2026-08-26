@@ -31,7 +31,7 @@
     {last ? '' : 'border-b border-border-default'}
     hover:bg-surface-input/20 transition-colors"
 >
-  <!-- Display name + ELO -->
+  <!-- Display name + rated badge -->
   <div class="flex items-center gap-2 min-w-0">
     <span
       class="font-semibold text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis"
@@ -40,7 +40,7 @@
       {server.displayName}
     </span>
     {#if server.elo}
-      <Badge color="blue" class="shrink-0">ELO</Badge>
+      <Badge color="blue" class="shrink-0">Rated</Badge>
     {/if}
   </div>
 
@@ -88,7 +88,7 @@
           >{server.displayName}</span
         >
         {#if server.elo}
-          <Badge color="blue" class="shrink-0">ELO</Badge>
+          <Badge color="blue" class="shrink-0">Rated</Badge>
         {/if}
       </div>
       <p class="font-mono text-xs text-text-muted mt-0.5 truncate">{server.map}</p>

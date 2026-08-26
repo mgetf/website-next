@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PublicGameServer } from '$lib/types/servers';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
+  import { resolveRegionFlag } from '$lib/utils/regions';
   import ServerRow from './ServerRow.svelte';
 
   let {
@@ -17,9 +18,7 @@
 
   const activePlayers = $derived(servers.reduce((n, s) => n + s.playerCount, 0));
 
-  const flagCode = $derived(
-    regionFlag && /^[A-Za-z]{2,3}$/.test(regionFlag) ? regionFlag : regionSlug,
-  );
+  const flagCode = $derived(resolveRegionFlag(regionFlag));
 
   function formatLocationName(slug: string): string {
     return slug

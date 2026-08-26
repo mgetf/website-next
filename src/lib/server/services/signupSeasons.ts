@@ -79,6 +79,30 @@ export async function getOpenSignupFormats() {
   return rows.map((row) => row.format);
 }
 
+/** Visible regions with an open, unlocked signup season for this format. */
+export async function getRegionsOpenForSignup(formatId: number) {
+  const rows = await prisma.activeSignupSeason.findMany({
+    where: {
+      formatId,
+      season: { signupsOpen: true, rosterLocked: false },
+      region: { hidden: 0 },
+    },
+    include: {
+      region: {
+        select: {
+          id: true,
+          name: true,
+          currencySymbol: true,
+          currencyCode: true,
+        },
+      },
+    },
+    orderBy: { regionId: 'asc' },
+  });
+
+  return rows.map((row) => row.region);
+}
+
 /**
  * Get all active signup seasons including per-season deadline fields
  * Used for the admin dashboard urgency display

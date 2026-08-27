@@ -285,13 +285,13 @@ model EventMatch {
   loserNextMatchId  Int?            @map("loser_next_match_id")
   loserNextSide     Int?            @map("loser_next_side")
 
-  stage             EventStage         @relation(fields: [stageId], references: [id])
-  players           EventMatchPlayer[]
-  games             EventGame[]
-  winnerNextMatch   EventMatch?        @relation("MatchWinnerProgression", fields: [winnerNextMatchId], references: [id], onDelete: SetNull)
-  winnerFedFrom     EventMatch[]       @relation("MatchWinnerProgression")
-  loserNextMatch    EventMatch?        @relation("MatchLoserProgression", fields: [loserNextMatchId], references: [id], onDelete: SetNull)
-  loserFedFrom      EventMatch[]       @relation("MatchLoserProgression")
+  stage           EventStage         @relation(fields: [stageId], references: [id])
+  players         EventMatchPlayer[]
+  games           EventGame[]
+  winnerNextMatch EventMatch?        @relation("MatchWinnerProgression", fields: [winnerNextMatchId], references: [id], onDelete: SetNull)
+  winnerFedFrom   EventMatch[]       @relation("MatchWinnerProgression")
+  loserNextMatch  EventMatch?        @relation("MatchLoserProgression", fields: [loserNextMatchId], references: [id], onDelete: SetNull)
+  loserFedFrom    EventMatch[]       @relation("MatchLoserProgression")
 
   @@index([stageId, round, orderNum])
   @@index([winnerNextMatchId])
@@ -415,11 +415,11 @@ model Demo {
   title         String?
   description   String?
 
-  player            User?              @relation("DemoPlayer", fields: [playerSteamId], references: [steamId])
-  submitter         User?              @relation("DemoSubmitter", fields: [submittedBy], references: [steamId])
-  match Match? @relation(fields: [matchId], references: [id])
-  event Event? @relation(fields: [eventId], references: [id])
-  reports           DemoReport[]
+  player    User?        @relation("DemoPlayer", fields: [playerSteamId], references: [steamId])
+  submitter User?        @relation("DemoSubmitter", fields: [submittedBy], references: [steamId])
+  match     Match?       @relation(fields: [matchId], references: [id])
+  event     Event?       @relation(fields: [eventId], references: [id])
+  reports   DemoReport[]
 
   @@map("demos")
 }
@@ -461,40 +461,40 @@ model User {
   avatarOverride  Int       @default(0) @map("avatar_override")
   sessionVersion  Int       @default(0) @map("session_version")
 
-  staffAssignments         StaffAssignment[]
-  discord                  Discord?
-  punishmentsReceived      Punishment[]              @relation("PunishedPlayer")
-  punishmentsGiven         Punishment[]              @relation("Punisher")
-  threads                  Thread[]
-  posts                    Post[]
-  activities               Activity[]
-  matchesSubmitted         Match[]
-  matchComms               MatchComm[]
-  pendingTeams             PendingPlayer[]
-  deniedFromTeams          DeniedPlayer[]
-  teamsPlayed              PlayerInTeam[]
-  paymentsMadeFor          Payment[]                 @relation("PaymentFor")
-  paymentsMadeBy           Payment[]                 @relation("PaymentBy")
-  paymentTrackers          PaymentTracker[]
-  demosAsPlayer            Demo[]                    @relation("DemoPlayer")
-  demosSubmitted           Demo[]                    @relation("DemoSubmitter")
-  demoReportsSubmitted     DemoReport[]              @relation("DemoReporter")
-  demoReportsHandled       DemoReport[]              @relation("DemoReportAdmin")
-  mapBanActions            MapBanAction[]
-  notificationsReceived    Notification[]            @relation("NotificationRecipient")
-  notificationsTriggered   Notification[]            @relation("NotificationActor")
-  auditLogs AuditLog[]
-  apiKeys                  ApiKey[]
-  eventMatchPlayers        EventMatchPlayer[]
-  eventParticipants        EventParticipant[]
-  eventPlacements          EventPlacement[]
-  itemPaymentOrders        ItemPaymentOrder[]
-  mapFilesUploaded         MapFile[]
-  eventDraftsCreated          EventDraft[]           @relation("EventDraftCreatedBy")
-  eventDraftsUpdated          EventDraft[]           @relation("EventDraftUpdatedBy")
-  eventRevisionsPublished     EventRevision[]        @relation("EventRevisionPublishedBy")
-  rulebookRevisionsPublished  RulebookRevision[]     @relation("RulebookRevisionPublishedBy")
-  blogPosts                   BlogPost[]
+  staffAssignments           StaffAssignment[]
+  discord                    Discord?
+  punishmentsReceived        Punishment[]       @relation("PunishedPlayer")
+  punishmentsGiven           Punishment[]       @relation("Punisher")
+  threads                    Thread[]
+  posts                      Post[]
+  activities                 Activity[]
+  matchesSubmitted           Match[]
+  matchComms                 MatchComm[]
+  pendingTeams               PendingPlayer[]
+  deniedFromTeams            DeniedPlayer[]
+  teamsPlayed                PlayerInTeam[]
+  paymentsMadeFor            Payment[]          @relation("PaymentFor")
+  paymentsMadeBy             Payment[]          @relation("PaymentBy")
+  paymentTrackers            PaymentTracker[]
+  demosAsPlayer              Demo[]             @relation("DemoPlayer")
+  demosSubmitted             Demo[]             @relation("DemoSubmitter")
+  demoReportsSubmitted       DemoReport[]       @relation("DemoReporter")
+  demoReportsHandled         DemoReport[]       @relation("DemoReportAdmin")
+  mapBanActions              MapBanAction[]
+  notificationsReceived      Notification[]     @relation("NotificationRecipient")
+  notificationsTriggered     Notification[]     @relation("NotificationActor")
+  auditLogs                  AuditLog[]
+  apiKeys                    ApiKey[]
+  eventMatchPlayers          EventMatchPlayer[]
+  eventParticipants          EventParticipant[]
+  eventPlacements            EventPlacement[]
+  itemPaymentOrders          ItemPaymentOrder[]
+  mapFilesUploaded           MapFile[]
+  eventDraftsCreated         EventDraft[]       @relation("EventDraftCreatedBy")
+  eventDraftsUpdated         EventDraft[]       @relation("EventDraftUpdatedBy")
+  eventRevisionsPublished    EventRevision[]    @relation("EventRevisionPublishedBy")
+  rulebookRevisionsPublished RulebookRevision[] @relation("RulebookRevisionPublishedBy")
+  blogPosts                  BlogPost[]
 
   @@map("users")
 }
@@ -567,7 +567,6 @@ model Activity {
 
   @@map("activity")
 }
-
 
 model Arena {
   id         Int     @id @default(autoincrement())
@@ -645,22 +644,22 @@ model Team {
   joinPassword        String?    @map("join_password")
   createdAt           DateTime   @default(now()) @map("created_at")
 
-  division       Division?         @relation(fields: [divisionId], references: [id])
-  region         Region?           @relation(fields: [regionId], references: [id])
-  season         Season?           @relation(fields: [seasonId], references: [id])
-  format         Format            @relation(fields: [formatId], references: [id])
-  homeMatches    Match[]           @relation("HomeTeam")
-  awayMatches    Match[]           @relation("AwayTeam")
-  wonMatches     Match[]           @relation("WinnerTeam")
-  history        TeamHistory[]
-  nameHistory    TeamNameHistory[]
-  players        PlayerInTeam[]
-  pendingPlayers PendingPlayer[]
-  deniedPlayers  DeniedPlayer[]
-  payments           Payment[]
-  mapBanActions      MapBanAction[]
-  itemPaymentOrders  ItemPaymentOrder[]
-  byeWeeks           ByeWeek[]
+  division          Division?          @relation(fields: [divisionId], references: [id])
+  region            Region?            @relation(fields: [regionId], references: [id])
+  season            Season?            @relation(fields: [seasonId], references: [id])
+  format            Format             @relation(fields: [formatId], references: [id])
+  homeMatches       Match[]            @relation("HomeTeam")
+  awayMatches       Match[]            @relation("AwayTeam")
+  wonMatches        Match[]            @relation("WinnerTeam")
+  history           TeamHistory[]
+  nameHistory       TeamNameHistory[]
+  players           PlayerInTeam[]
+  pendingPlayers    PendingPlayer[]
+  deniedPlayers     DeniedPlayer[]
+  payments          Payment[]
+  mapBanActions     MapBanAction[]
+  itemPaymentOrders ItemPaymentOrder[]
+  byeWeeks          ByeWeek[]
 
   @@map("teams")
 }
@@ -707,9 +706,9 @@ model Match {
   weekNo        Int?        @map("week_no")
   boSeries      Int?        @map("bo_series")
   boGames       Int?        @map("bo_games")
-  matchDateTime    DateTime? @map("match_date_time")
-  matchTimezone    String?   @map("match_timezone")
-  status           MatchStatus @default(UNPLAYED)
+  matchDateTime DateTime?   @map("match_date_time")
+  matchTimezone String?     @map("match_timezone")
+  status        MatchStatus @default(UNPLAYED)
   submittedBy   String?     @map("submitted_by")
   submittedAt   DateTime?   @map("submitted_at")
 
@@ -808,12 +807,12 @@ model MatchComm {
 }
 
 model Game {
-  id                   Int  @id @default(autoincrement())
-  matchId Int? @map("match_id")
-  gameNum Int  @map("game_num")
-  homeTeamScore        Int? @map("home_team_score")
-  awayTeamScore        Int? @map("away_team_score")
-  arenaId              Int? @map("arena_id")
+  id            Int  @id @default(autoincrement())
+  matchId       Int? @map("match_id")
+  gameNum       Int  @map("game_num")
+  homeTeamScore Int? @map("home_team_score")
+  awayTeamScore Int? @map("away_team_score")
+  arenaId       Int? @map("arena_id")
 
   match Match? @relation(fields: [matchId], references: [id])
   arena Arena? @relation(fields: [arenaId], references: [id])
@@ -1016,7 +1015,7 @@ model AuditLog {
 model SiteContent {
   id        Int      @id @default(autoincrement())
   key       String   @unique // e.g., "rulebook", "homepage_subtitle", "homepage_about"
-  content   String   // Markdown or plain text
+  content   String // Markdown or plain text
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy String?  @map("updated_by") // Steam ID of last editor
 
@@ -1024,16 +1023,17 @@ model SiteContent {
 }
 
 model BlogPost {
-  id          Int       @id @default(autoincrement())
-  title       String
-  excerpt     String?
-  content     String
-  coverImage  String?   @map("cover_image")
-  published   Boolean   @default(false)
-  publishedAt DateTime? @map("published_at")
-  authorId    String?   @map("author_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id                Int       @id @default(autoincrement())
+  title             String
+  excerpt           String?
+  content           String
+  coverImage        String?   @map("cover_image")
+  coverImageCaption String?   @map("cover_image_caption")
+  published         Boolean   @default(false)
+  publishedAt       DateTime? @map("published_at")
+  authorId          String?   @map("author_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   author User? @relation(fields: [authorId], references: [steamId])
 
@@ -1070,16 +1070,16 @@ model SiteSettings {
 
 // Map File Downloads
 model MapFile {
-  id           Int      @id @default(autoincrement())
-  name         String   @unique // e.g. "mge_chillypunch_final4"
-  bspUrl       String   @map("bsp_url")
-  bspSize      BigInt   @map("bsp_size")
-  cfgUrl       String   @map("cfg_url")
-  cfgSize      BigInt   @map("cfg_size")
-  description  String?
-  uploadedBy   String   @map("uploaded_by")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // e.g. "mge_chillypunch_final4"
+  bspUrl      String   @map("bsp_url")
+  bspSize     BigInt   @map("bsp_size")
+  cfgUrl      String   @map("cfg_url")
+  cfgSize     BigInt   @map("cfg_size")
+  description String?
+  uploadedBy  String   @map("uploaded_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   uploader User @relation(fields: [uploadedBy], references: [steamId])
 
@@ -1088,15 +1088,15 @@ model MapFile {
 
 // API Key Management
 model ApiKey {
-  id          Int       @id @default(autoincrement())
-  name        String
-  key         String    @unique
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  lastUsedAt  DateTime? @map("last_used_at")
-  createdBy   String    @map("created_by")
+  id         Int       @id @default(autoincrement())
+  name       String
+  key        String    @unique
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdBy  String    @map("created_by")
 
-  creator     User      @relation(fields: [createdBy], references: [steamId])
+  creator User @relation(fields: [createdBy], references: [steamId])
 
   @@map("api_keys")
 }

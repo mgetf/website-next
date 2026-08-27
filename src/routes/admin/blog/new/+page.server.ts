@@ -30,6 +30,7 @@ async function savePost(
   const title = validation.data.title;
   const excerpt = validation.data.excerpt.trim() || null;
   const content = validation.data.content;
+  const coverImageCaption = validation.data.coverImageCaption.trim() || null;
 
   try {
     const coverImage = (await coverImageFromFormData(formData)) ?? null;
@@ -38,6 +39,7 @@ async function savePost(
       excerpt,
       content,
       coverImage,
+      coverImageCaption,
       authorId: locals.user.steamId,
       published: publish,
     });

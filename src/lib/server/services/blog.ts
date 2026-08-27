@@ -25,6 +25,11 @@ export const blogPostFormSchema = z.object({
     .max(200, 'Title must be less than 200 characters'),
   excerpt: z.string().max(500, 'Excerpt must be less than 500 characters').optional().default(''),
   content: z.string().min(1, 'Content is required'),
+  coverImageCaption: z
+    .string()
+    .max(200, 'Caption must be less than 200 characters')
+    .optional()
+    .default(''),
 });
 
 export const blogPostIdSchema = z.object({
@@ -51,6 +56,7 @@ type BlogPostRow = {
   excerpt: string | null;
   content: string;
   coverImage: string | null;
+  coverImageCaption: string | null;
   published: boolean;
   publishedAt: Date | null;
   createdAt: Date;
@@ -63,6 +69,7 @@ type CreateBlogPostInput = {
   excerpt: string | null;
   content: string;
   coverImage: string | null;
+  coverImageCaption: string | null;
   authorId: string;
   published?: boolean;
 };
@@ -72,6 +79,7 @@ type UpdateBlogPostInput = {
   excerpt: string | null;
   content: string;
   coverImage?: string | null;
+  coverImageCaption: string | null;
 };
 
 function toAuthor(author: AuthorRow | null): BlogPostAuthor | null {
@@ -89,6 +97,7 @@ function toSummary(post: BlogPostRow): BlogPostSummary {
     title: post.title,
     excerpt: post.excerpt,
     coverImage: post.coverImage,
+    coverImageCaption: post.coverImageCaption,
     published: post.published,
     publishedAt: post.publishedAt?.toISOString() ?? null,
     createdAt: post.createdAt.toISOString(),
@@ -168,6 +177,7 @@ export async function createBlogPost(data: CreateBlogPostInput): Promise<BlogPos
       excerpt: data.excerpt,
       content: data.content,
       coverImage: data.coverImage,
+      coverImageCaption: data.coverImageCaption,
       authorId: data.authorId,
       published: data.published ?? false,
       publishedAt: data.published ? now : null,
@@ -191,6 +201,7 @@ export async function updateBlogPost(
       title: data.title,
       excerpt: data.excerpt,
       content: data.content,
+      coverImageCaption: data.coverImageCaption,
       ...(data.coverImage !== undefined ? { coverImage: data.coverImage } : {}),
     },
     include: { author: { select: AUTHOR_SELECT } },
@@ -253,6 +264,27 @@ export async function uploadCoverImage(file: File): Promise<string> {
     const publicUrl = await uploadToR2(tempPath, remotePath);
     if (!publicUrl) {
       badRequest('Failed to upload cover image');
+    }
+    return publicUrl;
+  } finally {
+    deleteTempFile(tempPath);
+  }
+}
+
+export async function uploadContentImage(file: File): Promise<string> {
+  if (!isR2Available()) {
+    badRequest('File storage is not configured');
+  }
+
+  validateUploadedFile(file, 'image');
+
+  const tempPath = await saveTempFile(file);
+  try {
+    const ext = extensionForImageMime(file.type).replace(/^\./, '');
+    const remotePath = `blog/content/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const publicUrl = await uploadToR2(tempPath, remotePath);
+    if (!publicUrl) {
+      badRequest('Failed to upload image');
     }
     return publicUrl;
   } finally {

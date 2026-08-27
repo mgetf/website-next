@@ -9,6 +9,7 @@ export interface BlogPostSummary {
   title: string;
   excerpt: string | null;
   coverImage: string | null;
+  coverImageCaption: string | null;
   published: boolean;
   publishedAt: string | null;
   createdAt: string;

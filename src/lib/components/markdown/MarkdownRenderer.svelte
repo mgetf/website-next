@@ -1,6 +1,8 @@
 <script lang="ts">
   import Markdown from 'svelte-exmarkdown';
   import { gfmPlugin } from 'svelte-exmarkdown/gfm';
+  import rehypeRaw from 'rehype-raw';
+  import type { HTMLImgAttributes } from 'svelte/elements';
   import { rehypeSanitizeUrls } from '$lib/utils/markdownSanitize';
 
   interface Props {
@@ -11,11 +13,24 @@
   let { content, class: className = '' }: Props = $props();
 
   // Pass the plugin factory (not the return value) — unified calls it as an attacher.
-  const plugins = [gfmPlugin(), { rehypePlugin: rehypeSanitizeUrls }];
+  // rehypeRaw turns embedded raw HTML (e.g. the `<br />` Milkdown emits for blank
+  // lines) into real elements instead of literal escaped text.
+  const plugins = [gfmPlugin(), { rehypePlugin: rehypeRaw }, { rehypePlugin: rehypeSanitizeUrls }];
 </script>
 
-<div class="markdown-content prose prose-invert max-w-none {className}">
-  <Markdown md={content} {plugins} />
+{#snippet imgWithCaption(props: HTMLImgAttributes)}
+  {#if props.title}
+    <figure class="markdown-image-figure">
+      <img src={props.src} alt={props.title} />
+      <figcaption>{props.title}</figcaption>
+    </figure>
+  {:else}
+    <img src={props.src} alt={props.alt ?? ''} />
+  {/if}
+{/snippet}
+
+<div class="markdown-content max-w-none {className}">
+  <Markdown md={content} {plugins} img={imgWithCaption} />
 </div>
 
 <style>
@@ -59,15 +74,27 @@
     margin-bottom: 1rem;
   }
 
-  .markdown-content :global(ul),
+  .markdown-content :global(ul) {
+    list-style-type: disc;
+    color: var(--color-zinc-400);
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
   .markdown-content :global(ol) {
+    list-style-type: decimal;
     color: var(--color-zinc-400);
     margin-left: 1.5rem;
     margin-bottom: 1rem;
   }
 
   .markdown-content :global(li) {
+    display: list-item;
     margin-bottom: 0.25rem;
+  }
+
+  .markdown-content :global(li)::marker {
+    color: var(--color-zinc-500);
   }
 
   .markdown-content :global(a) {
@@ -143,6 +170,21 @@
   .markdown-content :global(img) {
     max-width: 100%;
     border-radius: 0.5rem;
+  }
+
+  .markdown-content :global(.markdown-image-figure) {
+    margin-bottom: 1rem;
+  }
+
+  .markdown-content :global(.markdown-image-figure img) {
+    margin-bottom: 0;
+  }
+
+  .markdown-content :global(.markdown-image-figure figcaption) {
+    margin-top: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    text-align: center;
   }
 
   /* Add IDs to headings for anchor links */

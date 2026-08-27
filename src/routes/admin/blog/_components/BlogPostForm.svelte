@@ -9,6 +9,7 @@
     initialExcerpt = '',
     initialContent = '',
     initialCoverImage = null,
+    initialCoverImageCaption = '',
     isPublished = false,
     errors = {},
   }: {
@@ -16,6 +17,7 @@
     initialExcerpt?: string;
     initialContent?: string;
     initialCoverImage?: string | null;
+    initialCoverImageCaption?: string;
     isPublished?: boolean;
     errors?: Record<string, string>;
   } = $props();
@@ -23,6 +25,7 @@
   let title = $derived(initialTitle);
   let excerpt = $derived(initialExcerpt);
   let content = $derived(initialContent);
+  let coverImageCaption = $derived(initialCoverImageCaption);
   let coverPreviewUrl = $state<string | null>(null);
   let isSubmitting = $state(false);
 
@@ -32,6 +35,18 @@
     const file = (event.currentTarget as HTMLInputElement).files?.[0];
     if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
     coverPreviewUrl = file ? URL.createObjectURL(file) : null;
+  }
+
+  async function uploadContentImage(file: File): Promise<string> {
+    const body = new FormData();
+    body.append('file', file);
+    const response = await fetch('/api/admin/blog/upload-image', { method: 'POST', body });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.message ?? 'Failed to upload image');
+    }
+    const data = await response.json();
+    return data.url as string;
   }
 </script>
 
@@ -95,6 +110,15 @@
     <p class="mt-1 text-xs text-text-muted">PNG, JPG, GIF, or WebP. Max 5MB. Optional.</p>
   </div>
 
+  <FormInput
+    label="Image caption"
+    name="coverImageCaption"
+    bind:value={coverImageCaption}
+    maxlength={200}
+    placeholder="Photo by valve, taken from the TF2 promotional trailer"
+    error={errors.coverImageCaption}
+  />
+
   <div>
     <label for="content" class="mb-2 block text-sm font-medium text-text-label">
       Body
@@ -107,6 +131,7 @@
       minHeight="24rem"
       placeholder="Write your post..."
       required
+      uploadImage={uploadContentImage}
     />
     {#if errors.content}
       <p class="mt-1 text-xs text-danger-400">{errors.content}</p>

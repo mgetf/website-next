@@ -81,6 +81,7 @@
     "jsonwebtoken": "^9.0.3",
     "node-steam-openid": "^2.0.0",
     "pg": "^8.23.0",
+    "rehype-raw": "^7.0.0",
     "svelte-dnd-action": "^0.9.79",
     "svelte-exmarkdown": "^5.0.2",
     "tailwindcss": "^4.3.3",

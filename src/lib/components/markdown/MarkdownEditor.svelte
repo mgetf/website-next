@@ -17,6 +17,7 @@
     compact = false,
     required = false,
     class: extraClass = '',
+    uploadImage,
   }: {
     value?: string;
     name?: string;
@@ -28,6 +29,8 @@
     compact?: boolean;
     required?: boolean;
     class?: string;
+    /** When provided, enables the image block feature and uploads files through this callback. */
+    uploadImage?: (file: File) => Promise<string>;
   } = $props();
 
   let mode = $state<Mode>('live');
@@ -57,6 +60,7 @@
     const initialValue = snapshot;
     const placeholderText = placeholder;
     const isCompact = compact;
+    const onUploadImage = uploadImage;
 
     function syncFromValue() {
       const next = value;
@@ -80,7 +84,7 @@
         defaultValue: initialValue,
         features: {
           [Crepe.Feature.Latex]: false,
-          [Crepe.Feature.ImageBlock]: false,
+          [Crepe.Feature.ImageBlock]: Boolean(onUploadImage),
           [Crepe.Feature.AI]: false,
           [Crepe.Feature.TopBar]: false,
           ...(isCompact
@@ -96,6 +100,13 @@
             text: placeholderText || 'Start writing...',
             mode: 'block',
           },
+          ...(onUploadImage
+            ? {
+                [Crepe.Feature.ImageBlock]: {
+                  onUpload: onUploadImage,
+                },
+              }
+            : {}),
         },
       });
 
@@ -239,7 +250,7 @@
     --crepe-color-surface-low: var(--color-surface-page);
     --crepe-color-on-surface: var(--color-white);
     --crepe-color-on-surface-variant: var(--color-text-body);
-    --crepe-color-outline: var(--color-border-input);
+    --crepe-color-outline: var(--color-text-label);
     --crepe-color-primary: var(--color-primary-500);
     --crepe-color-secondary: var(--color-surface-hover);
     --crepe-color-on-secondary: var(--color-white);
@@ -252,7 +263,7 @@
     --crepe-color-inline-area: var(--color-surface-card);
     --crepe-font-default: inherit;
     --crepe-font-title: inherit;
-    --crepe-base-font-size: 14px;
+    --crepe-base-font-size: 16px;
     min-height: var(--editor-min-height);
     background: transparent;
   }
@@ -261,5 +272,14 @@
     padding: 0.75rem 1rem;
     min-height: var(--editor-min-height);
     outline: none;
+    color: var(--color-white);
+  }
+
+  .editor-live :global(.milkdown .ProseMirror p) {
+    line-height: 1.65;
+  }
+
+  .editor-live :global(.milkdown .ProseMirror blockquote) {
+    color: var(--color-text-label);
   }
 </style>

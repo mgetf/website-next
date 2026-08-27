@@ -37,6 +37,7 @@
     initialExcerpt={data.post.excerpt ?? ''}
     initialContent={data.post.content}
     initialCoverImage={data.post.coverImage}
+    initialCoverImageCaption={data.post.coverImageCaption ?? ''}
     isPublished={data.post.published}
     {errors}
   />

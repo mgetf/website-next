@@ -40,6 +40,7 @@ async function savePost(
   const title = validation.data.title;
   const excerpt = validation.data.excerpt.trim() || null;
   const content = validation.data.content;
+  const coverImageCaption = validation.data.coverImageCaption.trim() || null;
 
   try {
     const existing = await getBlogPostById(id, { includeUnpublished: true });
@@ -49,6 +50,7 @@ async function savePost(
       title,
       excerpt,
       content,
+      coverImageCaption,
       ...(newCover ? { coverImage: newCover } : {}),
     });
 

@@ -6,6 +6,9 @@
 
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '$prisma/client.js';
+import { getFormatsWithSeasons } from '$lib/server/services/formats';
+import type { LeagueNav } from '$lib/types/league';
+import { buildLeagueNav } from '$lib/utils/leagueNav';
 
 /**
  * Get all seasons with their region and team/match counts
@@ -65,6 +68,36 @@ export async function getLatestSeasonPerRegionByFormat(formatId: number) {
     seen.add(s.regionId);
     return true;
   });
+}
+
+/**
+ * Format × region grid for the public leagues mega-menu.
+ * Each cell links to the most recent season in that pair.
+ */
+export async function getLeagueNav(): Promise<LeagueNav> {
+  const [formats, seasons] = await Promise.all([
+    getFormatsWithSeasons(),
+    prisma.season.findMany({
+      where: { region: { hidden: 0 } },
+      select: {
+        id: true,
+        seasonNum: true,
+        regionId: true,
+        formatId: true,
+        region: { select: { id: true, name: true } },
+      },
+      orderBy: [{ seasonNum: 'desc' }, { id: 'desc' }],
+    }),
+  ]);
+
+  const regionMap = new Map<number, { id: number; name: string }>();
+  for (const season of seasons) {
+    if (!regionMap.has(season.regionId)) {
+      regionMap.set(season.regionId, season.region);
+    }
+  }
+
+  return buildLeagueNav(formats, [...regionMap.values()], seasons);
 }
 
 /**

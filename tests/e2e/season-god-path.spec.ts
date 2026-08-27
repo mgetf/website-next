@@ -615,7 +615,7 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
     [homeCaptain, '/teams', 'Teams'],
     [homeCaptain, '/users', 'Users'],
     [homeCaptain, '/rulebook', 'Rulebook'],
-    [homeCaptain, '/leaderboard', 'ELO Rankings'],
+    [homeCaptain, '/leaderboard', 'Rankings'],
     [homeCaptain, '/servers', 'Servers'],
     [homeCaptain, '/logs', 'Match Logs'],
     [homeCaptain, '/maps', 'Maps'],

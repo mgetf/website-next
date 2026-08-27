@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import CommentSection from '../_components/CommentSection.svelte';
   import { formatDateTime } from '$lib/utils/datetime';
 
   let { data } = $props();
@@ -77,5 +79,13 @@
 
       <MarkdownRenderer content={post.content} />
     </div>
+  </div>
+
+  <div class="mt-8">
+    <CommentSection
+      postId={post.id}
+      comments={data.comments}
+      isLoggedIn={Boolean(page.data.user)}
+    />
   </div>
 </article>

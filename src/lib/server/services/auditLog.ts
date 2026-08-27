@@ -155,6 +155,7 @@ export const AuditAction = {
   BLOG_POST_PUBLISHED: 'BLOG_POST_PUBLISHED',
   BLOG_POST_UNPUBLISHED: 'BLOG_POST_UNPUBLISHED',
   BLOG_POST_DELETED: 'BLOG_POST_DELETED',
+  BLOG_COMMENT_DELETED: 'BLOG_COMMENT_DELETED',
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

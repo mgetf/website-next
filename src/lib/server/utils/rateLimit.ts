@@ -172,6 +172,15 @@ export const mapDownloadRateLimiter = new RateLimiter({
 });
 
 /**
+ * Rate limiter for blog comments
+ * 8 comments per 5 minutes per user
+ */
+export const blogCommentRateLimiter = new RateLimiter({
+  maxRequests: 8,
+  windowMs: 5 * 60 * 1000, // 5 minutes
+});
+
+/**
  * Fallback helper to get a client IP directly from a Request, for call
  * sites that don't have access to SvelteKit's getClientAddress().
  * @lintignore kept as a fallback for non-SvelteKit-handler call sites

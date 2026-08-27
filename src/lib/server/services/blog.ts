@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { badRequest, notFound } from '$lib/server/utils/errors';
+import { getCommentCountsForPosts } from '$lib/server/services/blogComments';
 import {
   deleteFromR2,
   deleteTempFile,
@@ -91,7 +92,7 @@ function toAuthor(author: AuthorRow | null): BlogPostAuthor | null {
   };
 }
 
-function toSummary(post: BlogPostRow): BlogPostSummary {
+function toSummary(post: BlogPostRow, commentCount = 0): BlogPostSummary {
   return {
     id: post.id,
     title: post.title,
@@ -103,12 +104,13 @@ function toSummary(post: BlogPostRow): BlogPostSummary {
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
     author: toAuthor(post.author),
+    commentCount,
   };
 }
 
-function toDetail(post: BlogPostRow): BlogPostDetail {
+function toDetail(post: BlogPostRow, commentCount = 0): BlogPostDetail {
   return {
-    ...toSummary(post),
+    ...toSummary(post, commentCount),
     content: post.content,
   };
 }
@@ -133,8 +135,10 @@ export async function getPublishedBlogPosts({
     include: { author: { select: AUTHOR_SELECT } },
   });
 
+  const commentCounts = await getCommentCountsForPosts(posts.map((post) => post.id));
+
   return {
-    posts: posts.map(toSummary),
+    posts: posts.map((post) => toSummary(post, commentCounts.get(post.id) ?? 0)),
     pagination: {
       page: safePage,
       pageSize,
@@ -157,7 +161,9 @@ export async function getBlogPostById(
     notFound('Blog post not found');
   }
 
-  return toDetail(post);
+  const commentCount = (await getCommentCountsForPosts([post.id])).get(post.id) ?? 0;
+
+  return toDetail(post, commentCount);
 }
 
 export async function getAllBlogPostsForAdmin(): Promise<BlogPostSummary[]> {
@@ -166,7 +172,9 @@ export async function getAllBlogPostsForAdmin(): Promise<BlogPostSummary[]> {
     include: { author: { select: AUTHOR_SELECT } },
   });
 
-  return posts.map(toSummary);
+  const commentCounts = await getCommentCountsForPosts(posts.map((post) => post.id));
+
+  return posts.map((post) => toSummary(post, commentCounts.get(post.id) ?? 0));
 }
 
 export async function createBlogPost(data: CreateBlogPostInput): Promise<BlogPostDetail> {

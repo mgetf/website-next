@@ -15,6 +15,7 @@ export interface BlogPostSummary {
   createdAt: string;
   updatedAt: string;
   author: BlogPostAuthor | null;
+  commentCount: number;
 }
 
 export interface BlogPostDetail extends BlogPostSummary {

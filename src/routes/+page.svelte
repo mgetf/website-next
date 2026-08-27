@@ -214,10 +214,8 @@
                         : 'font-semibold text-primary-600 text-sm'}"
                     title={entry.provisional && !isCompact ? PROVISIONAL_RATING_TITLE : undefined}
                   >
-                    {ratingValue(
-                      entry.displayRating,
-                      entry.elo,
-                    )}{#if entry.provisional && !isCompact}<span class="text-text-muted">?</span
+                    {ratingValue(entry.elo)}{#if entry.provisional && !isCompact}<span
+                        class="text-text-muted">?</span
                       >{/if}
                   </span>
                 </div>

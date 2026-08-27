@@ -288,9 +288,7 @@
           class="font-black tabular-nums text-primary-400"
           title={row.provisional ? PROVISIONAL_RATING_TITLE : undefined}
         >
-          {ratingValue(row.displayRating, row.elo)}{#if row.provisional}<span
-              class="text-text-muted">?</span
-            >{/if}
+          {ratingValue(row.elo)}{#if row.provisional}<span class="text-text-muted">?</span>{/if}
         </span>
       {:else if col.key === 'games'}
         <span class="tabular-nums text-white text-sm">

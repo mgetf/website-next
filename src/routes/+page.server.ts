@@ -101,7 +101,7 @@ export const load = async () => {
                   steam32: e.steamId,
                   steam64,
                   elo: e.elo,
-                  displayRating: e.displayRating ?? e.elo,
+                  displayRating: e.elo,
                   provisional: e.provisional ?? false,
                   platformName: e.name ?? null,
                 }

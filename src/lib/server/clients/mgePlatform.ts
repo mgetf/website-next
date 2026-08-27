@@ -20,7 +20,7 @@ export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
       ...r,
       rd: r.rd ?? null,
       volatility: r.volatility ?? null,
-      displayRating: r.displayRating ?? r.elo,
+      displayRating: r.elo,
       provisional: r.provisional ?? false,
     }));
   } catch {
@@ -131,7 +131,7 @@ export async function getLeaderboard(
         ...e,
         rd: e.rd ?? null,
         volatility: e.volatility ?? null,
-        displayRating: e.displayRating ?? e.elo,
+        displayRating: e.elo,
         provisional: e.provisional ?? false,
       })),
     };

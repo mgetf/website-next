@@ -53,7 +53,7 @@ function getSortKey(e: PlatformLeaderboardEntry, sortBy: LeaderboardSortField): 
     case 'lastPlayed':
       return e.lastPlayed ? new Date(e.lastPlayed).getTime() : 0;
     default:
-      return e.displayRating ?? e.elo;
+      return e.elo;
   }
 }
 
@@ -64,7 +64,7 @@ function ratingFields(
     elo: e.elo,
     rd: e.rd ?? null,
     volatility: e.volatility ?? null,
-    displayRating: e.displayRating ?? e.elo,
+    displayRating: e.elo,
     provisional: e.provisional ?? false,
   };
 }
@@ -192,7 +192,7 @@ export async function getEloLeaderboardPage(
 
   const sortedTagged = [...tagged].sort((a, b) => {
     const diff = getSortKey(b, sortBy) - getSortKey(a, sortBy);
-    return dirMult * diff || (b.displayRating ?? b.elo) - (a.displayRating ?? a.elo);
+    return dirMult * diff || b.elo - a.elo;
   });
 
   if (registeredOnly) {
@@ -340,11 +340,11 @@ export async function searchEloLeaderboard(params: {
   const flat = results.flat();
   if (flat.length === 0) return { entries: [], total: 0, totalPages: 0 };
 
-  flat.sort((a, b) => b.displayRating - a.displayRating);
+  flat.sort((a, b) => b.elo - a.elo);
 
   const ranked = await Promise.all(
     flat.map(async (e) => {
-      const above = await getLeaderboard(e.region, 1, 0, e.displayRating + 1);
+      const above = await getLeaderboard(e.region, 1, 0, e.elo + 1);
       return { ...e, rank: above.total + 1 };
     }),
   );

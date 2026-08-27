@@ -602,8 +602,8 @@
                       class="text-lg font-black text-white"
                       title={rating.provisional ? PROVISIONAL_RATING_TITLE : undefined}
                     >
-                      {ratingValue(rating.displayRating, rating.elo)}{#if rating.provisional}<span
-                          class="text-text-muted">?</span
+                      {ratingValue(rating.elo)}{#if rating.provisional}<span class="text-text-muted"
+                          >?</span
                         >{/if}
                     </span>
                     {#if rating.wins !== null || rating.losses !== null}

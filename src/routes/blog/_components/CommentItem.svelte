@@ -5,6 +5,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import CommentForm from './CommentForm.svelte';
   import CommentItem from './CommentItem.svelte';
+  import LikeButton from './LikeButton.svelte';
   import { formatDateTime } from '$lib/utils/datetime';
 
   const MAX_VISUAL_DEPTH = 6;
@@ -64,6 +65,17 @@
         </p>
 
         <div class="mt-1 flex items-center gap-3">
+          {#if !comment.deleted}
+            <LikeButton
+              action="?/toggleCommentLike"
+              fieldName="commentId"
+              fieldValue={comment.id}
+              likeCount={comment.likeCount}
+              likedByMe={comment.likedByMe}
+              {isLoggedIn}
+              compact
+            />
+          {/if}
           {#if isLoggedIn && !comment.deleted}
             <button
               type="button"

@@ -181,6 +181,15 @@ export const blogCommentRateLimiter = new RateLimiter({
 });
 
 /**
+ * Rate limiter for blog likes
+ * 40 toggles per minute per user
+ */
+export const blogLikeRateLimiter = new RateLimiter({
+  maxRequests: 40,
+  windowMs: 60 * 1000, // 1 minute
+});
+
+/**
  * Fallback helper to get a client IP directly from a Request, for call
  * sites that don't have access to SvelteKit's getClientAddress().
  * @lintignore kept as a fallback for non-SvelteKit-handler call sites

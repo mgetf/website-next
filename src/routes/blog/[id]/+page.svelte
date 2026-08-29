@@ -4,6 +4,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import CommentSection from '../_components/CommentSection.svelte';
+  import LikeButton from '../_components/LikeButton.svelte';
   import { formatDateTime } from '$lib/utils/datetime';
 
   let { data } = $props();
@@ -75,6 +76,16 @@
         {#if post.publishedAt}
           <time datetime={post.publishedAt}>{formatDateTime(post.publishedAt)}</time>
         {/if}
+        <div class="ml-auto">
+          <LikeButton
+            action="?/togglePostLike"
+            fieldName="postId"
+            fieldValue={post.id}
+            likeCount={post.likeCount}
+            likedByMe={post.likedByMe}
+            isLoggedIn={Boolean(page.data.user)}
+          />
+        </div>
       </div>
 
       <MarkdownRenderer content={post.content} />

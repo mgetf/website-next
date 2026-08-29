@@ -7,17 +7,30 @@ import {
   deleteBlogComment,
   getCommentsForPost,
 } from '$lib/server/services/blogComments';
+import {
+  toggleBlogPostLike,
+  toggleBlogCommentLike,
+  togglePostLikeSchema,
+  toggleCommentLikeSchema,
+} from '$lib/server/services/blogLikes';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { isAdmin, requireAuth, requireNotBanned } from '$lib/server/auth/permissions';
 import { buildPageSeo } from '$lib/utils/seo';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
-import { blogCommentRateLimiter, checkFormActionRateLimit } from '$lib/server/utils/rateLimit';
+import {
+  blogCommentRateLimiter,
+  blogLikeRateLimiter,
+  checkFormActionRateLimit,
+} from '$lib/server/utils/rateLimit';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const id = parseBlogPostId(params.id);
   const canEdit = isAdmin(locals.user);
-  const post = await getBlogPostById(id, { includeUnpublished: canEdit });
+  const post = await getBlogPostById(id, {
+    includeUnpublished: canEdit,
+    viewerSteamId: locals.user?.steamId,
+  });
   const viewer = locals.user
     ? { steamId: locals.user.steamId, isAdmin: isAdmin(locals.user) }
     : null;
@@ -95,6 +108,44 @@ export const actions: Actions = {
       return formSuccess();
     } catch (err) {
       return formError(getErrorMessage(err, 'Failed to delete comment'), 500);
+    }
+  },
+
+  togglePostLike: async ({ request, locals }) => {
+    requireAuth(locals.user);
+    requireNotBanned(locals.user);
+
+    const rateLimited = checkFormActionRateLimit(blogLikeRateLimiter, locals.user.steamId);
+    if (rateLimited) return rateLimited;
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, togglePostLikeSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const result = await toggleBlogPostLike(validation.data.postId, locals.user.steamId);
+      return formSuccess(result);
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to update like'), 500);
+    }
+  },
+
+  toggleCommentLike: async ({ request, locals }) => {
+    requireAuth(locals.user);
+    requireNotBanned(locals.user);
+
+    const rateLimited = checkFormActionRateLimit(blogLikeRateLimiter, locals.user.steamId);
+    if (rateLimited) return rateLimited;
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, toggleCommentLikeSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const result = await toggleBlogCommentLike(validation.data.commentId, locals.user.steamId);
+      return formSuccess(result);
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to update like'), 500);
     }
   },
 };

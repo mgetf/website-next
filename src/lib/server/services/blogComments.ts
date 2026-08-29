@@ -33,6 +33,8 @@ type CommentRow = {
   deletedAt: Date | null;
   createdAt: Date;
   author: AuthorRow;
+  _count: { likes: number };
+  likes?: { userId: string }[];
 };
 
 type Viewer = { steamId: string; isAdmin: boolean } | null;
@@ -63,6 +65,8 @@ function toNode(
     isOP: !isDeleted && postAuthorId !== null && comment.authorId === postAuthorId,
     canDelete:
       !isDeleted && viewer !== null && (viewer.steamId === comment.authorId || viewer.isAdmin),
+    likeCount: isDeleted ? 0 : comment._count.likes,
+    likedByMe: isDeleted ? false : (comment.likes?.length ?? 0) > 0,
     replies: children.map((child) => toNode(child, byParent, postAuthorId, viewer)),
   };
 }
@@ -78,7 +82,11 @@ export async function getCommentsForPost(
 ): Promise<BlogCommentNode[]> {
   const comments = await prisma.blogComment.findMany({
     where: { postId },
-    include: { author: { select: AUTHOR_SELECT } },
+    include: {
+      author: { select: AUTHOR_SELECT },
+      _count: { select: { likes: true } },
+      likes: viewer ? { where: { userId: viewer.steamId }, select: { userId: true } } : false,
+    },
     orderBy: { createdAt: 'asc' },
   });
 

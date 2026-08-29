@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { badRequest, notFound } from '$lib/server/utils/errors';
 import { getCommentCountsForPosts } from '$lib/server/services/blogComments';
+import { getLikeCountsForPosts } from '$lib/server/services/blogLikes';
 import {
   deleteFromR2,
   deleteTempFile,
@@ -92,7 +93,12 @@ function toAuthor(author: AuthorRow | null): BlogPostAuthor | null {
   };
 }
 
-function toSummary(post: BlogPostRow, commentCount = 0): BlogPostSummary {
+function toSummary(
+  post: BlogPostRow,
+  commentCount = 0,
+  likeCount = 0,
+  likedByMe = false,
+): BlogPostSummary {
   return {
     id: post.id,
     title: post.title,
@@ -105,12 +111,19 @@ function toSummary(post: BlogPostRow, commentCount = 0): BlogPostSummary {
     updatedAt: post.updatedAt.toISOString(),
     author: toAuthor(post.author),
     commentCount,
+    likeCount,
+    likedByMe,
   };
 }
 
-function toDetail(post: BlogPostRow, commentCount = 0): BlogPostDetail {
+function toDetail(
+  post: BlogPostRow,
+  commentCount = 0,
+  likeCount = 0,
+  likedByMe = false,
+): BlogPostDetail {
   return {
-    ...toSummary(post, commentCount),
+    ...toSummary(post, commentCount, likeCount, likedByMe),
     content: post.content,
   };
 }
@@ -135,10 +148,16 @@ export async function getPublishedBlogPosts({
     include: { author: { select: AUTHOR_SELECT } },
   });
 
-  const commentCounts = await getCommentCountsForPosts(posts.map((post) => post.id));
+  const postIds = posts.map((post) => post.id);
+  const [commentCounts, likeCounts] = await Promise.all([
+    getCommentCountsForPosts(postIds),
+    getLikeCountsForPosts(postIds),
+  ]);
 
   return {
-    posts: posts.map((post) => toSummary(post, commentCounts.get(post.id) ?? 0)),
+    posts: posts.map((post) =>
+      toSummary(post, commentCounts.get(post.id) ?? 0, likeCounts.get(post.id) ?? 0),
+    ),
     pagination: {
       page: safePage,
       pageSize,
@@ -150,11 +169,20 @@ export async function getPublishedBlogPosts({
 
 export async function getBlogPostById(
   id: number,
-  { includeUnpublished = false }: { includeUnpublished?: boolean } = {},
+  {
+    includeUnpublished = false,
+    viewerSteamId,
+  }: { includeUnpublished?: boolean; viewerSteamId?: string } = {},
 ): Promise<BlogPostDetail> {
   const post = await prisma.blogPost.findUnique({
     where: { id },
-    include: { author: { select: AUTHOR_SELECT } },
+    include: {
+      author: { select: AUTHOR_SELECT },
+      _count: { select: { likes: true } },
+      likes: viewerSteamId
+        ? { where: { userId: viewerSteamId }, select: { userId: true }, take: 1 }
+        : false,
+    },
   });
 
   if (!post || (!post.published && !includeUnpublished)) {
@@ -162,8 +190,9 @@ export async function getBlogPostById(
   }
 
   const commentCount = (await getCommentCountsForPosts([post.id])).get(post.id) ?? 0;
+  const likedByMe = Boolean(viewerSteamId && Array.isArray(post.likes) && post.likes.length > 0);
 
-  return toDetail(post, commentCount);
+  return toDetail(post, commentCount, post._count.likes, likedByMe);
 }
 
 export async function getAllBlogPostsForAdmin(): Promise<BlogPostSummary[]> {
@@ -172,9 +201,15 @@ export async function getAllBlogPostsForAdmin(): Promise<BlogPostSummary[]> {
     include: { author: { select: AUTHOR_SELECT } },
   });
 
-  const commentCounts = await getCommentCountsForPosts(posts.map((post) => post.id));
+  const postIds = posts.map((post) => post.id);
+  const [commentCounts, likeCounts] = await Promise.all([
+    getCommentCountsForPosts(postIds),
+    getLikeCountsForPosts(postIds),
+  ]);
 
-  return posts.map((post) => toSummary(post, commentCounts.get(post.id) ?? 0));
+  return posts.map((post) =>
+    toSummary(post, commentCounts.get(post.id) ?? 0, likeCounts.get(post.id) ?? 0),
+  );
 }
 
 export async function createBlogPost(data: CreateBlogPostInput): Promise<BlogPostDetail> {

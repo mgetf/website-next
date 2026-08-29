@@ -16,6 +16,8 @@ export interface BlogPostSummary {
   updatedAt: string;
   author: BlogPostAuthor | null;
   commentCount: number;
+  likeCount: number;
+  likedByMe: boolean;
 }
 
 export interface BlogPostDetail extends BlogPostSummary {

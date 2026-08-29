@@ -496,6 +496,8 @@ model User {
   rulebookRevisionsPublished RulebookRevision[] @relation("RulebookRevisionPublishedBy")
   blogPosts                  BlogPost[]
   blogComments               BlogComment[]
+  blogPostLikes              BlogPostLike[]
+  blogCommentLikes           BlogCommentLike[]
 
   @@map("users")
 }
@@ -1036,8 +1038,9 @@ model BlogPost {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  author   User?         @relation(fields: [authorId], references: [steamId])
+  author   User?          @relation(fields: [authorId], references: [steamId])
   comments BlogComment[]
+  likes    BlogPostLike[]
 
   @@index([published, publishedAt])
   @@map("blog_posts")
@@ -1053,13 +1056,38 @@ model BlogComment {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  post    BlogPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author  User          @relation(fields: [authorId], references: [steamId])
-  parent  BlogComment?  @relation("BlogCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies BlogComment[] @relation("BlogCommentReplies")
+  post    BlogPost           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User               @relation(fields: [authorId], references: [steamId])
+  parent  BlogComment?       @relation("BlogCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies BlogComment[]      @relation("BlogCommentReplies")
+  likes   BlogCommentLike[]
 
   @@index([postId, parentId])
   @@map("blog_comments")
+}
+
+model BlogPostLike {
+  postId    Int      @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [steamId], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@map("blog_post_likes")
+}
+
+model BlogCommentLike {
+  commentId Int      @map("comment_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comment BlogComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [steamId], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@map("blog_comment_likes")
 }
 
 model RulebookRevision {

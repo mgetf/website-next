@@ -14,5 +14,7 @@ export interface BlogCommentNode {
   isOP: boolean;
   /** True when the current viewer may delete this comment (own comment or admin). */
   canDelete: boolean;
+  likeCount: number;
+  likedByMe: boolean;
   replies: BlogCommentNode[];
 }

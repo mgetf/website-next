@@ -60,16 +60,50 @@
   const winnerNames = $derived(winningPlayers.map((p) => p.name).join(' & '));
   const loserNames = $derived(losingPlayers.map((p) => p.name).join(' & '));
 
-  const showHero = $derived(!log.aborted && winningPlayers.length > 0 && losingPlayers.length > 0);
+  const redPlayers = $derived(players.filter((p) => p.team === 'Red'));
+  const bluPlayers = $derived(players.filter((p) => p.team === 'Blue'));
+  const redScore = $derived(
+    redPlayers.length > 0 ? Math.max(...redPlayers.map((p) => p.score)) : 0,
+  );
+  const bluScore = $derived(
+    bluPlayers.length > 0 ? Math.max(...bluPlayers.map((p) => p.score)) : 0,
+  );
+
+  const leftPlayers = $derived(log.aborted ? redPlayers : winningPlayers);
+  const rightPlayers = $derived(log.aborted ? bluPlayers : losingPlayers);
+  const leftScore = $derived(log.aborted ? redScore : winnerScore);
+  const rightScore = $derived(log.aborted ? bluScore : loserScore);
+  const leftTeam = $derived(log.aborted ? 'Red' : winnerTeam);
+  const rightTeam = $derived(log.aborted ? 'Blue' : loserTeam);
+
+  const showAbortedScoreboard = $derived(
+    log.aborted && redPlayers.length > 0 && bluPlayers.length > 0,
+  );
+  const showHero = $derived(
+    (!log.aborted && winningPlayers.length > 0 && losingPlayers.length > 0) ||
+      showAbortedScoreboard,
+  );
   const isOneVsOne = $derived(log.format === '1v1' && players.length === 2);
 
   // Rating summary used in the hero (only meaningful in 1v1 where each side is a single player)
-  const winnerEloDelta = $derived(isOneVsOne ? (winningPlayers[0]?.elo?.delta ?? null) : null);
-  const loserEloDelta = $derived(isOneVsOne ? (losingPlayers[0]?.elo?.delta ?? null) : null);
-  const winnerEloAfter = $derived(isOneVsOne ? (winningPlayers[0]?.elo?.after ?? null) : null);
-  const winnerEloBefore = $derived(isOneVsOne ? (winningPlayers[0]?.elo?.before ?? null) : null);
-  const loserEloAfter = $derived(isOneVsOne ? (losingPlayers[0]?.elo?.after ?? null) : null);
-  const loserEloBefore = $derived(isOneVsOne ? (losingPlayers[0]?.elo?.before ?? null) : null);
+  const winnerEloDelta = $derived(
+    !log.aborted && isOneVsOne ? (winningPlayers[0]?.elo?.delta ?? null) : null,
+  );
+  const loserEloDelta = $derived(
+    !log.aborted && isOneVsOne ? (losingPlayers[0]?.elo?.delta ?? null) : null,
+  );
+  const winnerEloAfter = $derived(
+    !log.aborted && isOneVsOne ? (winningPlayers[0]?.elo?.after ?? null) : null,
+  );
+  const winnerEloBefore = $derived(
+    !log.aborted && isOneVsOne ? (winningPlayers[0]?.elo?.before ?? null) : null,
+  );
+  const loserEloAfter = $derived(
+    !log.aborted && isOneVsOne ? (losingPlayers[0]?.elo?.after ?? null) : null,
+  );
+  const loserEloBefore = $derived(
+    !log.aborted && isOneVsOne ? (losingPlayers[0]?.elo?.before ?? null) : null,
+  );
 
   // Team-aggregated stats for the head-to-head comparison strip.
   // 1v1: just the player's own stats. 2v2: damage summed, dpm averaged, accuracy weighted by shots fired.
@@ -93,6 +127,7 @@
 
   const showComparison = $derived(
     showHero &&
+      !log.aborted &&
       (winnerStats.damage > 0 ||
         loserStats.damage > 0 ||
         winnerStats.accuracy !== null ||
@@ -196,8 +231,8 @@
     return Math.round((w.damage / player.stats.damageDone) * 100);
   }
 
-  const winnerWeaponPlayers = $derived(winningPlayers.filter((p) => filteredWeapons(p).length > 0));
-  const loserWeaponPlayers = $derived(losingPlayers.filter((p) => filteredWeapons(p).length > 0));
+  const winnerWeaponPlayers = $derived(leftPlayers.filter((p) => filteredWeapons(p).length > 0));
+  const loserWeaponPlayers = $derived(rightPlayers.filter((p) => filteredWeapons(p).length > 0));
 
   const cleanedArena = $derived(cleanArenaName(log.arena));
 
@@ -230,7 +265,9 @@
 
 <svelte:head>
   <title
-    >{showHero ? `${winnerNames} defeated ${loserNames}` : (log.hostname ?? 'Match Log')} — MGE.TF</title
+    >{showHero && !log.aborted
+      ? `${winnerNames} defeated ${loserNames}`
+      : (log.hostname ?? 'Match Log')} — MGE.TF</title
   >
 </svelte:head>
 
@@ -279,7 +316,7 @@
           <!-- Winner side: right-aligned, content pulls toward center -->
           <div class="space-y-3 text-right min-w-0">
             <div class="space-y-1">
-              {#each winningPlayers as player (player.steamId)}
+              {#each leftPlayers as player (player.steamId)}
                 {@const icon = classIcon(player.startClass)}
                 {@const link = playerLink(player.steamId)}
                 <div class="flex items-center gap-2 sm:gap-3 justify-end">
@@ -297,7 +334,7 @@
                       class="font-bold text-white leading-tight whitespace-nowrap hover:text-primary-400 transition-colors {nameFontClass(
                         player.name,
                       )}"
-                      style={teamShadow(winnerTeam, 'name', 'bold')}
+                      style={teamShadow(leftTeam, 'name', 'bold')}
                     >
                       {player.name}
                     </a>
@@ -306,7 +343,7 @@
                       class="font-bold text-white leading-tight whitespace-nowrap {nameFontClass(
                         player.name,
                       )}"
-                      style={teamShadow(winnerTeam, 'name', 'bold')}
+                      style={teamShadow(leftTeam, 'name', 'bold')}
                     >
                       {player.name}
                     </span>
@@ -330,45 +367,47 @@
           <div class="flex items-center gap-2 sm:gap-4 md:gap-6">
             <span
               class="text-6xl sm:text-7xl md:text-9xl font-black text-white tabular-nums leading-none tracking-tighter"
-              style={teamShadow(winnerTeam, 'score', 'bold')}
+              style={teamShadow(leftTeam, 'score', 'bold')}
             >
-              {winnerScore}
+              {leftScore}
             </span>
             <span
               class="text-3xl sm:text-4xl md:text-6xl text-text-muted font-light leading-none select-none"
               aria-hidden="true">—</span
             >
             <span
-              class="text-6xl sm:text-7xl md:text-9xl font-black text-text-label tabular-nums leading-none tracking-tighter"
-              style={teamShadow(loserTeam, 'score', 'muted')}
+              class="text-6xl sm:text-7xl md:text-9xl font-black tabular-nums leading-none tracking-tighter {log.aborted
+                ? 'text-white'
+                : 'text-text-label'}"
+              style={teamShadow(rightTeam, 'score', log.aborted ? 'bold' : 'muted')}
             >
-              {loserScore}
+              {rightScore}
             </span>
           </div>
 
           <!-- Loser side: left-aligned, content pulls toward center -->
           <div class="space-y-3 text-left min-w-0">
             <div class="space-y-1">
-              {#each losingPlayers as player (player.steamId)}
+              {#each rightPlayers as player (player.steamId)}
                 {@const icon = classIcon(player.startClass)}
                 {@const link = playerLink(player.steamId)}
                 <div class="flex items-center gap-2 sm:gap-3 justify-start">
                   {#if link}
                     <a
                       href={link}
-                      class="font-bold text-text-label leading-tight whitespace-nowrap hover:text-primary-400 transition-colors {nameFontClass(
-                        player.name,
-                      )}"
-                      style={teamShadow(loserTeam, 'name', 'muted')}
+                      class="font-bold leading-tight whitespace-nowrap hover:text-primary-400 transition-colors {log.aborted
+                        ? 'text-white'
+                        : 'text-text-label'} {nameFontClass(player.name)}"
+                      style={teamShadow(rightTeam, 'name', log.aborted ? 'bold' : 'muted')}
                     >
                       {player.name}
                     </a>
                   {:else}
                     <span
-                      class="font-bold text-text-label leading-tight whitespace-nowrap {nameFontClass(
-                        player.name,
-                      )}"
-                      style={teamShadow(loserTeam, 'name', 'muted')}
+                      class="font-bold leading-tight whitespace-nowrap {log.aborted
+                        ? 'text-white'
+                        : 'text-text-label'} {nameFontClass(player.name)}"
+                      style={teamShadow(rightTeam, 'name', log.aborted ? 'bold' : 'muted')}
                     >
                       {player.name}
                     </span>
@@ -396,8 +435,10 @@
             {/if}
           </div>
         </div>
+        {#if log.aborted}
+          <p class="text-center text-text-muted text-sm">Match aborted. No winner recorded.</p>
+        {/if}
       {:else if log.aborted}
-        <!-- Aborted match — no winner/loser, just a notice -->
         <div class="text-center py-6">
           <div class="text-4xl font-bold text-danger-400 mb-2">Match Aborted</div>
           <div class="text-text-muted text-sm">No final result recorded.</div>

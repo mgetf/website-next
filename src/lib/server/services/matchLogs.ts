@@ -9,6 +9,8 @@ import type {
   MatchLogSummary,
   MatchLogDetail,
   MatchPreview,
+  MatchPreviewSide,
+  PlayerRecord,
 } from '$lib/types/matchLog';
 
 const LOGS_PER_PAGE = 50;
@@ -20,26 +22,31 @@ export class ParseError extends Error {
   }
 }
 
+function sideFromPlayers(group: PlayerRecord[]): MatchPreviewSide | null {
+  if (group.length === 0) return null;
+  return {
+    names: group.map((p) => p.name),
+    classes: group.map((p) => p.startClass),
+    score: Math.max(...group.map((p) => p.score)),
+    team: group[0]!.team,
+  };
+}
+
 function buildPreview(parsed: ParsedMatch): MatchPreview | null {
-  if (parsed.meta.aborted) return null;
+  if (parsed.meta.aborted) {
+    const red = sideFromPlayers(parsed.players.filter((p) => p.team === 'Red'));
+    const blu = sideFromPlayers(parsed.players.filter((p) => p.team === 'Blue'));
+    if (!red || !blu) return null;
+    return { winner: red, loser: blu };
+  }
+
   const winners = parsed.players.filter((p) => p.won);
   const losers = parsed.players.filter((p) => !p.won);
-  if (winners.length === 0 || losers.length === 0) return null;
+  const winner = sideFromPlayers(winners);
+  const loser = sideFromPlayers(losers);
+  if (!winner || !loser) return null;
 
-  return {
-    winner: {
-      names: winners.map((p) => p.name),
-      classes: winners.map((p) => p.startClass),
-      score: Math.max(...winners.map((p) => p.score)),
-      team: winners[0].team,
-    },
-    loser: {
-      names: losers.map((p) => p.name),
-      classes: losers.map((p) => p.startClass),
-      score: Math.max(...losers.map((p) => p.score)),
-      team: losers[0].team,
-    },
-  };
+  return { winner, loser };
 }
 
 function toSummary(

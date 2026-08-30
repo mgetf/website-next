@@ -90,7 +90,6 @@
       {#if col.key === 'match'}
         {#if log.preview}
           <a href="/logs/{log.id}" class="flex items-center gap-2 sm:gap-3 min-w-0 group py-0.5">
-            <!-- Winner: icons → name → score -->
             <div class="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
               <div class="flex items-center gap-0.5 shrink-0">
                 {#each log.preview.winner.classes as cls, i (i)}
@@ -110,15 +109,19 @@
               </span>
             </div>
 
-            <!-- Center divider -->
             <span class="text-text-muted text-sm shrink-0 select-none" aria-hidden="true">—</span>
 
-            <!-- Loser: score ← name ← icons -->
             <div class="flex items-center gap-1.5 min-w-0 flex-1 justify-start">
-              <span class="text-text-muted font-black text-base tabular-nums shrink-0">
+              <span
+                class="font-black text-base tabular-nums shrink-0 {log.aborted
+                  ? 'text-white'
+                  : 'text-text-muted'}"
+              >
                 {log.preview.loser.score}
               </span>
-              <span class="text-text-label text-sm font-bold truncate">
+              <span
+                class="text-sm font-bold truncate {log.aborted ? 'text-white' : 'text-text-label'}"
+              >
                 {log.preview.loser.names.join(' & ')}
               </span>
               <div class="flex items-center gap-0.5 shrink-0 opacity-80">
@@ -130,6 +133,9 @@
                 {/each}
               </div>
             </div>
+            {#if log.aborted}
+              <Badge color="red">Aborted</Badge>
+            {/if}
           </a>
         {:else}
           <a

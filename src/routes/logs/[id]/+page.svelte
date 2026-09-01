@@ -69,20 +69,16 @@
     bluPlayers.length > 0 ? Math.max(...bluPlayers.map((p) => p.score)) : 0,
   );
 
-  const leftPlayers = $derived(log.aborted ? redPlayers : winningPlayers);
-  const rightPlayers = $derived(log.aborted ? bluPlayers : losingPlayers);
-  const leftScore = $derived(log.aborted ? redScore : winnerScore);
-  const rightScore = $derived(log.aborted ? bluScore : loserScore);
-  const leftTeam = $derived(log.aborted ? 'Red' : winnerTeam);
-  const rightTeam = $derived(log.aborted ? 'Blue' : loserTeam);
+  const hasWinnerAndLoser = $derived(winningPlayers.length > 0 && losingPlayers.length > 0);
+  const useTeamLayout = $derived(log.aborted || !hasWinnerAndLoser);
+  const leftPlayers = $derived(useTeamLayout ? redPlayers : winningPlayers);
+  const rightPlayers = $derived(useTeamLayout ? bluPlayers : losingPlayers);
+  const leftScore = $derived(useTeamLayout ? redScore : winnerScore);
+  const rightScore = $derived(useTeamLayout ? bluScore : loserScore);
+  const leftTeam = $derived(useTeamLayout ? 'Red' : winnerTeam);
+  const rightTeam = $derived(useTeamLayout ? 'Blue' : loserTeam);
 
-  const showAbortedScoreboard = $derived(
-    log.aborted && redPlayers.length > 0 && bluPlayers.length > 0,
-  );
-  const showHero = $derived(
-    (!log.aborted && winningPlayers.length > 0 && losingPlayers.length > 0) ||
-      showAbortedScoreboard,
-  );
+  const showHero = $derived(leftPlayers.length > 0 || rightPlayers.length > 0);
   const isOneVsOne = $derived(log.format === '1v1' && players.length === 2);
 
   // Rating summary used in the hero (only meaningful in 1v1 where each side is a single player)
@@ -128,6 +124,7 @@
   const showComparison = $derived(
     showHero &&
       !log.aborted &&
+      hasWinnerAndLoser &&
       (winnerStats.damage > 0 ||
         loserStats.damage > 0 ||
         winnerStats.accuracy !== null ||
@@ -265,7 +262,7 @@
 
 <svelte:head>
   <title
-    >{showHero && !log.aborted
+    >{showHero && !log.aborted && hasWinnerAndLoser
       ? `${winnerNames} defeated ${loserNames}`
       : (log.hostname ?? 'Match Log')} — MGE.TF</title
   >

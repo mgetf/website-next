@@ -34,7 +34,9 @@ test('guest can open signup without being sent to login', async ({ page }) => {
 
   await page.goto('/signup');
   await expect(page.getByRole('heading', { name: 'League Signups' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Start fresh with a brand new 2v2 team/ })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: /Start fresh with a brand new 2v2 team/ }),
+  ).toBeVisible();
 
   await page.goto('/signup/2v2/create');
   await expect(page.getByRole('heading', { name: 'Create New 2v2 Team' })).toBeVisible();

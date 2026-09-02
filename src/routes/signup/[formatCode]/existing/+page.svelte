@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
+  import { page } from '$app/state';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import { parseSignupDraft } from '$lib/utils/signupDraft';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
@@ -13,6 +15,13 @@
   let selectedTeamId = $state<number | null>(null);
   let selectedRegionId = $state<number | null>(null);
   let divisionValue = $state('');
+
+  $effect(() => {
+    const draft = parseSignupDraft(page.url.searchParams);
+    if (draft.teamId) selectedTeamId = draft.teamId;
+    if (draft.regionId) selectedRegionId = draft.regionId;
+    if (draft.divisionId) divisionValue = draft.divisionId;
+  });
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 
@@ -149,6 +158,7 @@
                     type="radio"
                     name="teamId"
                     value={team.id}
+                    checked={selectedTeamId === team.id}
                     required
                     onchange={() => (selectedTeamId = team.id)}
                     class="w-4 h-4 text-primary-600 border-border-input bg-surface-input focus:ring-primary-500"
@@ -192,6 +202,7 @@
             <FormSelect
               label="New Region"
               name="regionId"
+              value={selectedRegionId?.toString() ?? ''}
               options={regionOptions}
               placeholder="Select Region"
               required

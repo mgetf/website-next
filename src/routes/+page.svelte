@@ -70,7 +70,7 @@
   const leaderboard2v2 = $derived(data.leaderboard2v2 ?? []);
   const leaderboard1v1 = $derived(data.leaderboard1v1 ?? []);
   const siteContent = $derived(data.siteContent ?? { subtitle: '', about: '' });
-  const signupHref = $derived(data.user ? '/signup' : '/auth/login?redirect=%2Fsignup');
+  const signupHref = '/signup';
   const showEloLeaderboard = $derived(eloLeaderboard.length > 0);
 </script>
 

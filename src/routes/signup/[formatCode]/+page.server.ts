@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail, isRedirect } from '@sveltejs/kit';
-import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
+import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import { requireFormatByCode } from '$lib/server/services/formats';
 import { get1v1SignupContext, signup1v1 } from '$lib/server/services/signup1v1';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { signupLoginPath } from '$lib/utils/signupDraft';
 
 // Zod schema for individual signup form
 const signupSchema = z.object({
@@ -21,13 +22,11 @@ const signupSchema = z.object({
 });
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-  requireAuth(locals.user);
-
   const format = await requireFormatByCode(params.formatCode);
 
   if (format.isIndividual) {
     // Individual format - handle signup directly here
-    const context = await get1v1SignupContext(locals.user.steamId, format.id);
+    const context = await get1v1SignupContext(locals.user?.steamId ?? null, format.id);
 
     const [divisions, availableRegions] = await Promise.all([
       getVisibleDivisions(),
@@ -38,7 +37,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     let canSignup = true;
     let disabledReason = '';
 
-    if (isBanned(locals.user)) {
+    if (locals.user && isBanned(locals.user)) {
       canSignup = false;
       disabledReason = 'Your account is suspended or banned';
     } else if (context.signupClosed) {
@@ -75,7 +74,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-  signup: async ({ params, request, locals, getClientAddress }) => {
+  signup: async ({ params, request, locals, url, getClientAddress }) => {
+    if (!locals.user) {
+      const formData = await request.formData();
+      redirect(302, signupLoginPath(url.pathname, formData));
+    }
     requireNotBanned(locals.user);
 
     const format = await requireFormatByCode(params.formatCode);

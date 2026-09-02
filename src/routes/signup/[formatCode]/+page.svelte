@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
+  import { page } from '$app/state';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import { parseSignupDraft } from '$lib/utils/signupDraft';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
@@ -12,6 +14,12 @@
   let isSubmitting = $state(false);
   let selectedRegionId = $state<number | null>(null);
   let divisionValue = $state('');
+
+  $effect(() => {
+    const draft = parseSignupDraft(page.url.searchParams);
+    if (draft.regionId) selectedRegionId = draft.regionId;
+    if (draft.divisionId) divisionValue = draft.divisionId;
+  });
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 
@@ -101,31 +109,32 @@
         <Button href="/signup" variant="secondary" size="lg">← Back to Signup Options</Button>
       </Card>
     {:else}
-      <!-- User Info Card -->
-      <Card class="mb-6">
-        <h3 class="text-sm font-medium text-text-body mb-3">Signing Up As</h3>
-        <div class="flex items-center gap-4">
-          {#if data.user?.steamAvatar}
-            <img
-              src={data.user.steamAvatar}
-              alt="Your avatar"
-              class="w-16 h-16 rounded-lg border border-border-input"
-            />
-          {:else}
-            <div
-              class="w-16 h-16 rounded-lg bg-surface-input border border-border-input flex items-center justify-center"
-            >
-              <span class="text-text-muted text-2xl">?</span>
+      {#if data.user}
+        <Card class="mb-6">
+          <h3 class="text-sm font-medium text-text-body mb-3">Signing Up As</h3>
+          <div class="flex items-center gap-4">
+            {#if data.user.steamAvatar}
+              <img
+                src={data.user.steamAvatar}
+                alt="Your avatar"
+                class="w-16 h-16 rounded-lg border border-border-input"
+              />
+            {:else}
+              <div
+                class="w-16 h-16 rounded-lg bg-surface-input border border-border-input flex items-center justify-center"
+              >
+                <span class="text-text-muted text-2xl">?</span>
+              </div>
+            {/if}
+            <div>
+              <p class="text-xl font-bold text-white">{data.user.steamUsername}</p>
+              <p class="text-sm text-text-muted">
+                Your name and avatar will be frozen for this season
+              </p>
             </div>
-          {/if}
-          <div>
-            <p class="text-xl font-bold text-white">{data.user?.steamUsername}</p>
-            <p class="text-sm text-text-muted">
-              Your name and avatar will be frozen for this season
-            </p>
           </div>
-        </div>
-      </Card>
+        </Card>
+      {/if}
 
       <!-- Form -->
       <Card padding="lg">
@@ -144,6 +153,7 @@
           <FormSelect
             label="Region"
             name="regionId"
+            value={selectedRegionId?.toString() ?? ''}
             options={regionOptions}
             placeholder="Select Region"
             required

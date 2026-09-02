@@ -1,5 +1,4 @@
 import type { PageServerLoad } from './$types';
-import { requireAuth } from '$lib/server/auth/permissions';
 import { getSignupContext } from '$lib/server/services/teamSignup';
 import { get1v1SignupContext } from '$lib/server/services/signup1v1';
 import { getOpenSignupFormats } from '$lib/server/services/signupSeasons';
@@ -23,7 +22,7 @@ interface FormatSignupInfo {
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-  requireAuth(locals.user);
+  const steamId = locals.user?.steamId ?? null;
 
   const openFormats = await getOpenSignupFormats();
   const allSignupsClosed = openFormats.length === 0;
@@ -33,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   for (const format of openFormats) {
     if (format.isIndividual) {
       // Handle individual format (1v1)
-      const context = await get1v1SignupContext(locals.user.steamId, format.id);
+      const context = await get1v1SignupContext(steamId, format.id);
 
       formatSignups.push({
         format,
@@ -46,13 +45,13 @@ export const load: PageServerLoad = async ({ locals }) => {
       });
     } else {
       // Handle team format
-      const context = await getSignupContext(locals.user.steamId, format.id);
+      const context = await getSignupContext(steamId, format.id);
 
       let currentTeamName = '';
-      if (context.hasActiveTeam) {
+      if (context.hasActiveTeam && steamId) {
         const currentSignupSeasonIds = await getCurrentSignupSeasonIds(format.id);
         currentTeamName = await getPlayerCurrentTeamName(
-          locals.user.steamId,
+          steamId,
           format.id,
           currentSignupSeasonIds,
         );
@@ -102,10 +101,9 @@ export const load: PageServerLoad = async ({ locals }) => {
         format,
         canSignup: canCreateNew,
         disabledReason: createDisabledReason,
-        canReregister: format.supportsReregistration ? canReregister : undefined,
-        reregisterDisabledReason: format.supportsReregistration
-          ? reregisterDisabledReason
-          : undefined,
+        canReregister: steamId && format.supportsReregistration ? canReregister : undefined,
+        reregisterDisabledReason:
+          steamId && format.supportsReregistration ? reregisterDisabledReason : undefined,
         currentTeamName,
       });
     }

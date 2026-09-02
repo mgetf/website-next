@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
+  import { page } from '$app/state';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
+  import { parseSignupDraft } from '$lib/utils/signupDraft';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -15,6 +17,16 @@
   let avatarPreview: string | null = $state(null);
   let selectedRegionId = $state<number | null>(null);
   let divisionValue = $state('');
+  let teamName = $state('');
+  let acronym = $state('');
+
+  $effect(() => {
+    const draft = parseSignupDraft(page.url.searchParams);
+    if (draft.regionId) selectedRegionId = draft.regionId;
+    if (draft.divisionId) divisionValue = draft.divisionId;
+    if (draft.name) teamName = draft.name;
+    if (draft.acronym) acronym = draft.acronym;
+  });
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 
@@ -147,6 +159,7 @@
           <FormInput
             label="Team Name"
             name="name"
+            bind:value={teamName}
             required
             maxlength={25}
             placeholder="Enter team name (max 25 characters)"
@@ -158,6 +171,7 @@
             <FormInput
               label="Team Acronym"
               name="acronym"
+              bind:value={acronym}
               maxlength={4}
               placeholder="e.g., MGE (max 4 characters)"
             />
@@ -205,6 +219,7 @@
             <FormSelect
               label="Region"
               name="regionId"
+              value={selectedRegionId?.toString() ?? ''}
               options={regionOptions}
               placeholder="Select Region"
               required

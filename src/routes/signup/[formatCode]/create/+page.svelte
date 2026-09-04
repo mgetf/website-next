@@ -6,6 +6,7 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import SignupLoginGate from '$lib/components/signup/SignupLoginGate.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -15,6 +16,8 @@
   let avatarPreview: string | null = $state(null);
   let selectedRegionId = $state<number | null>(null);
   let divisionValue = $state('');
+  let teamName = $state('');
+  let acronym = $state('');
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 
@@ -118,7 +121,9 @@
       </div>
     {/if}
 
-    {#if !data.canCreate}
+    {#if data.needsLogin}
+      <SignupLoginGate />
+    {:else if !data.canCreate}
       <!-- Unavailable Message -->
       <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">🚫</div>
@@ -147,6 +152,7 @@
           <FormInput
             label="Team Name"
             name="name"
+            bind:value={teamName}
             required
             maxlength={25}
             placeholder="Enter team name (max 25 characters)"
@@ -158,6 +164,7 @@
             <FormInput
               label="Team Acronym"
               name="acronym"
+              bind:value={acronym}
               maxlength={4}
               placeholder="e.g., MGE (max 4 characters)"
             />
@@ -205,6 +212,7 @@
             <FormSelect
               label="Region"
               name="regionId"
+              value={selectedRegionId?.toString() ?? ''}
               options={regionOptions}
               placeholder="Select Region"
               required

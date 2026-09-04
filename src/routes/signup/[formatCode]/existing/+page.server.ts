@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
+import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSignupContext, reregisterTeam } from '$lib/server/services/teamSignup';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { loginToParticipateHref } from '$lib/utils/signupLogin';
 
 const reregisterTeamSchema = z.object({
   teamId: z.coerce.number().int().positive('Team is required'),
@@ -22,15 +23,13 @@ const reregisterTeamSchema = z.object({
 });
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-  requireAuth(locals.user);
-
   const format = await requireFormatByCode(params.formatCode);
 
   if (format.isIndividual || !format.supportsReregistration) {
     redirect(302, `/signup/${format.code}`);
   }
 
-  const context = await getSignupContext(locals.user.steamId, format.id);
+  const context = await getSignupContext(locals.user?.steamId ?? null, format.id);
 
   // Load divisions and regions
   const [divisions, regions] = await Promise.all([
@@ -42,13 +41,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   let canReregister = true;
   let disabledReason = '';
 
-  if (isBanned(locals.user)) {
+  if (locals.user && isBanned(locals.user)) {
     canReregister = false;
     disabledReason = 'Your account is suspended or banned';
   } else if (context.signupClosed) {
     canReregister = false;
     disabledReason = 'Team signups are currently closed';
-  } else if (context.ownedTeams.length === 0) {
+  } else if (locals.user && context.ownedTeams.length === 0) {
     canReregister = false;
     disabledReason = 'You have no teams available to re-register';
   } else if (context.rosterLocked) {
@@ -79,12 +78,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     regions,
     canReregister,
     disabledReason,
+    needsLogin: !locals.user && canReregister,
     previousSeasonNonOwnedTeams,
   };
 };
 
 export const actions: Actions = {
-  reregisterTeam: async ({ params, request, locals, getClientAddress }) => {
+  reregisterTeam: async ({ params, request, locals, url, getClientAddress }) => {
+    if (!locals.user) {
+      redirect(302, loginToParticipateHref(url.pathname));
+    }
     requireNotBanned(locals.user);
 
     const format = await requireFormatByCode(params.formatCode);

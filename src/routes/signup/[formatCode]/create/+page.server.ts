@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
+import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSignupContext, createTeam } from '$lib/server/services/teamSignup';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
@@ -21,6 +21,7 @@ import {
 } from '$lib/server/utils/r2Upload';
 import path from 'path';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { loginToParticipateHref } from '$lib/utils/signupLogin';
 
 const createTeamFormSchema = z.object({
   name: z.string().min(1, 'Team name is required'),
@@ -31,15 +32,13 @@ const createTeamFormSchema = z.object({
 });
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-  requireAuth(locals.user);
-
   const format = await requireFormatByCode(params.formatCode);
 
   if (format.isIndividual) {
     redirect(302, `/signup/${format.code}`);
   }
 
-  const context = await getSignupContext(locals.user.steamId, format.id);
+  const context = await getSignupContext(locals.user?.steamId ?? null, format.id);
 
   // Load divisions and regions
   const [divisions, regions] = await Promise.all([
@@ -51,7 +50,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   let canCreate = true;
   let disabledReason = '';
 
-  if (isBanned(locals.user)) {
+  if (locals.user && isBanned(locals.user)) {
     canCreate = false;
     disabledReason = 'Your account is suspended or banned';
   } else if (context.signupClosed) {
@@ -78,12 +77,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     regions,
     canCreate,
     disabledReason,
+    needsLogin: !locals.user && canCreate,
     previousSeasonTeams: context.previousSeasonTeams,
   };
 };
 
 export const actions: Actions = {
-  createTeam: async ({ params, request, locals, getClientAddress }) => {
+  createTeam: async ({ params, request, locals, url, getClientAddress }) => {
+    if (!locals.user) {
+      redirect(302, loginToParticipateHref(url.pathname));
+    }
     requireNotBanned(locals.user);
 
     const format = await requireFormatByCode(params.formatCode);

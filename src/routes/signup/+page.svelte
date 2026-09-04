@@ -3,8 +3,17 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
+  import { loginToParticipateHref } from '$lib/utils/signupLogin';
 
   let { data }: { data: PageData } = $props();
+
+  function actionHref(path: string) {
+    return data.user ? path : loginToParticipateHref(path);
+  }
+
+  function actionLabel(whenLoggedIn: string) {
+    return data.user ? whenLoggedIn : 'Login to participate!';
+  }
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
@@ -37,7 +46,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               {#if formatSignup.canSignup}
                 <a
-                  href="/signup/{formatSignup.format.code}"
+                  href={actionHref(`/signup/${formatSignup.format.code}`)}
                   class="group bg-surface-card border border-border-default {themeClasses.hoverBorder500} rounded-lg p-8 transition-all hover:shadow-lg {themeClasses.shadow500_25}"
                 >
                   <div class="text-center">
@@ -47,7 +56,7 @@
                     </h2>
                     <p class="text-text-body mb-4">Sign up as an individual player</p>
                     <div class="inline-block px-4 py-2 rounded-lg {themeClasses.button}">
-                      Sign Up →
+                      {actionLabel('Sign Up →')}
                     </div>
                   </div>
                 </a>
@@ -79,7 +88,7 @@
               <!-- Create New Team -->
               {#if formatSignup.canSignup}
                 <a
-                  href="/signup/{formatSignup.format.code}/create"
+                  href={actionHref(`/signup/${formatSignup.format.code}/create`)}
                   class="group bg-surface-card border border-border-default hover:border-primary-600 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-orange-500/20"
                 >
                   <div class="text-center">
@@ -91,7 +100,7 @@
                     <div
                       class="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg group-hover:bg-primary-500 transition-colors"
                     >
-                      Get Started →
+                      {actionLabel('Get Started →')}
                     </div>
                   </div>
                 </a>
@@ -121,7 +130,7 @@
               {#if formatSignup.canReregister !== undefined}
                 {#if formatSignup.canReregister}
                   <a
-                    href="/signup/{formatSignup.format.code}/existing"
+                    href={actionHref(`/signup/${formatSignup.format.code}/existing`)}
                     class="group bg-surface-card border border-border-default {themeClasses.hoverBorder500} rounded-lg p-8 transition-all hover:shadow-lg {themeClasses.shadow500_25}"
                   >
                     <div class="text-center">
@@ -129,7 +138,7 @@
                       <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
                       <p class="text-text-body mb-4">Sign up an existing team for the new season</p>
                       <div class="inline-block px-4 py-2 rounded-lg {themeClasses.button}">
-                        Continue →
+                        {actionLabel('Continue →')}
                       </div>
                     </div>
                   </a>

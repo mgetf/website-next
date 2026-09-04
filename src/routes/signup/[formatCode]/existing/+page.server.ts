@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { signupLoginPath } from '$lib/utils/signupDraft';
+import { loginToParticipateHref } from '$lib/utils/signupLogin';
 
 const reregisterTeamSchema = z.object({
   teamId: z.coerce.number().int().positive('Team is required'),
@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   } else if (context.signupClosed) {
     canReregister = false;
     disabledReason = 'Team signups are currently closed';
-  } else if (context.ownedTeams.length === 0) {
+  } else if (locals.user && context.ownedTeams.length === 0) {
     canReregister = false;
     disabledReason = 'You have no teams available to re-register';
   } else if (context.rosterLocked) {
@@ -78,6 +78,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     regions,
     canReregister,
     disabledReason,
+    needsLogin: !locals.user && canReregister,
     previousSeasonNonOwnedTeams,
   };
 };
@@ -85,8 +86,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 export const actions: Actions = {
   reregisterTeam: async ({ params, request, locals, url, getClientAddress }) => {
     if (!locals.user) {
-      const formData = await request.formData();
-      redirect(302, signupLoginPath(url.pathname, formData));
+      redirect(302, loginToParticipateHref(url.pathname));
     }
     requireNotBanned(locals.user);
 

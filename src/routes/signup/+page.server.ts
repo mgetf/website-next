@@ -81,7 +81,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         if (context.signupClosed) {
           canReregister = false;
           reregisterDisabledReason = `${format.name} signups are currently closed. Check our Discord for announcements about when signups will open.`;
-        } else if (context.ownedTeams.length === 0) {
+        } else if (steamId && context.ownedTeams.length === 0) {
           canReregister = false;
           reregisterDisabledReason =
             'You don\'t own any teams from previous seasons. Use "Create New Team" instead to get started.';
@@ -101,9 +101,10 @@ export const load: PageServerLoad = async ({ locals }) => {
         format,
         canSignup: canCreateNew,
         disabledReason: createDisabledReason,
-        canReregister: steamId && format.supportsReregistration ? canReregister : undefined,
-        reregisterDisabledReason:
-          steamId && format.supportsReregistration ? reregisterDisabledReason : undefined,
+        canReregister: format.supportsReregistration ? canReregister : undefined,
+        reregisterDisabledReason: format.supportsReregistration
+          ? reregisterDisabledReason
+          : undefined,
         currentTeamName,
       });
     }

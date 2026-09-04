@@ -21,7 +21,7 @@ import {
 } from '$lib/server/utils/r2Upload';
 import path from 'path';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { signupLoginPath } from '$lib/utils/signupDraft';
+import { loginToParticipateHref } from '$lib/utils/signupLogin';
 
 const createTeamFormSchema = z.object({
   name: z.string().min(1, 'Team name is required'),
@@ -77,6 +77,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     regions,
     canCreate,
     disabledReason,
+    needsLogin: !locals.user && canCreate,
     previousSeasonTeams: context.previousSeasonTeams,
   };
 };
@@ -84,8 +85,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 export const actions: Actions = {
   createTeam: async ({ params, request, locals, url, getClientAddress }) => {
     if (!locals.user) {
-      const formData = await request.formData();
-      redirect(302, signupLoginPath(url.pathname, formData));
+      redirect(302, loginToParticipateHref(url.pathname));
     }
     requireNotBanned(locals.user);
 

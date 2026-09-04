@@ -1,12 +1,11 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
-  import { page } from '$app/state';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import { parseSignupDraft } from '$lib/utils/signupDraft';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import SignupLoginGate from '$lib/components/signup/SignupLoginGate.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -15,13 +14,6 @@
   let selectedTeamId = $state<number | null>(null);
   let selectedRegionId = $state<number | null>(null);
   let divisionValue = $state('');
-
-  $effect(() => {
-    const draft = parseSignupDraft(page.url.searchParams);
-    if (draft.teamId) selectedTeamId = draft.teamId;
-    if (draft.regionId) selectedRegionId = draft.regionId;
-    if (draft.divisionId) divisionValue = draft.divisionId;
-  });
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 
@@ -115,7 +107,9 @@
       </div>
     {/if}
 
-    {#if !data.canReregister}
+    {#if data.needsLogin}
+      <SignupLoginGate />
+    {:else if !data.canReregister}
       <!-- Unavailable Message -->
       <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">🚫</div>

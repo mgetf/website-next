@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { signupLoginPath } from '$lib/utils/signupDraft';
+import { loginToParticipateHref } from '$lib/utils/signupLogin';
 
 // Zod schema for individual signup form
 const signupSchema = z.object({
@@ -65,6 +65,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       regions: availableRegions,
       canSignup,
       disabledReason,
+      needsLogin: !locals.user && canSignup,
       user: context.user,
     };
   } else {
@@ -76,8 +77,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 export const actions: Actions = {
   signup: async ({ params, request, locals, url, getClientAddress }) => {
     if (!locals.user) {
-      const formData = await request.formData();
-      redirect(302, signupLoginPath(url.pathname, formData));
+      redirect(302, loginToParticipateHref(url.pathname));
     }
     requireNotBanned(locals.user);
 

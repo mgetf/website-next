@@ -5,6 +5,7 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import SignupLoginGate from '$lib/components/signup/SignupLoginGate.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -106,7 +107,9 @@
       </div>
     {/if}
 
-    {#if !data.canReregister}
+    {#if data.needsLogin}
+      <SignupLoginGate />
+    {:else if !data.canReregister}
       <!-- Unavailable Message -->
       <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">🚫</div>
@@ -149,6 +152,7 @@
                     type="radio"
                     name="teamId"
                     value={team.id}
+                    checked={selectedTeamId === team.id}
                     required
                     onchange={() => (selectedTeamId = team.id)}
                     class="w-4 h-4 text-primary-600 border-border-input bg-surface-input focus:ring-primary-500"
@@ -192,6 +196,7 @@
             <FormSelect
               label="New Region"
               name="regionId"
+              value={selectedRegionId?.toString() ?? ''}
               options={regionOptions}
               placeholder="Select Region"
               required

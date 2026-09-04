@@ -76,14 +76,13 @@
   let { data } = $props<{ data: PageData }>();
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
-  const signupHref = $derived(data.user ? '/signup' : '/auth/login?redirect=%2Fsignup');
+  const signupHref = '/signup';
 
   const canSignUp = $derived(
     !data.deadlines.signupClosed &&
       !data.userAlreadySignedUp &&
-      data.user &&
-      data.user.banStatus !== 'SUSPENDED' &&
-      data.user.banStatus !== 'BANNED',
+      data.user?.banStatus !== 'SUSPENDED' &&
+      data.user?.banStatus !== 'BANNED',
   );
 
   let selectedSeason = $state(0);

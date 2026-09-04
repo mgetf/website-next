@@ -47,11 +47,7 @@
   const loginUrl = $derived(`/auth/login?redirect=${encodeURIComponent(page.url.pathname)}`);
 
   const canSignUp = $derived(
-    user &&
-      !signupClosed &&
-      !isInTeam &&
-      user.banStatus !== 'SUSPENDED' &&
-      user.banStatus !== 'BANNED',
+    !signupClosed && !isInTeam && user?.banStatus !== 'SUSPENDED' && user?.banStatus !== 'BANNED',
   );
 
   const moreItems: NavLink[] = [

@@ -2,6 +2,7 @@ import {
   getTeamsForStandings,
   calculateStandingsStats,
   getTop1v1EntriesForHomepage,
+  getUnassignedTeams,
 } from '$lib/server/services/teams';
 import { getLatestSeasonPerRegionByFormat } from '$lib/server/services/seasons';
 import { findTopDivisionByRegion } from '$lib/server/services/divisions';
@@ -174,7 +175,6 @@ export const load = async () => {
       return Promise.all(
         seasons2v2.map(async (season) => {
           const division = await findTopDivisionByRegion(season.regionId);
-          if (!division) return null;
 
           let topTeams: {
             rank: number;
@@ -185,7 +185,24 @@ export const load = async () => {
             id: number;
           }[] = [];
 
-          if (!season.signupsOpen) {
+          if (season.signupsOpen) {
+            const unplaced = await getUnassignedTeams(season.id, season.regionId, [
+              'UNREADY',
+              'PENDING',
+              'READY',
+            ]);
+            topTeams = unplaced.slice(0, 8).map((team, index) => ({
+              rank: index + 1,
+              name: team.name,
+              avatar: team.avatar ?? null,
+              record: team.players
+                .map((p) => p.player?.steamUsername)
+                .filter(Boolean)
+                .join(', '),
+              points: 0,
+              id: team.id,
+            }));
+          } else if (division) {
             const teams = await getTeamsForStandings({
               seasonId: season.id,
               divisionId: division.id,
@@ -219,7 +236,6 @@ export const load = async () => {
       return Promise.all(
         seasons1v1.map(async (season) => {
           const division = await findTopDivisionByRegion(season.regionId);
-          if (!division) return null;
 
           let topEntries: {
             rank: number;
@@ -231,7 +247,25 @@ export const load = async () => {
             points: number;
           }[] = [];
 
-          if (!season.signupsOpen) {
+          if (season.signupsOpen) {
+            const unplaced = await getUnassignedTeams(season.id, season.regionId, [
+              'UNREADY',
+              'PENDING',
+              'READY',
+            ]);
+            topEntries = unplaced.slice(0, 8).map((team, index) => {
+              const player = team.players[0];
+              return {
+                rank: index + 1,
+                id: team.id,
+                name: player?.player?.steamUsername || team.name,
+                avatar: player?.player?.steamAvatar || team.avatar,
+                steamId: player?.playerSteamId ?? null,
+                record: '',
+                points: 0,
+              };
+            });
+          } else if (division) {
             const entries = await getTop1v1EntriesForHomepage({
               seasonId: season.id,
               divisionId: division.id,

@@ -43,7 +43,6 @@ interface TeamCreationData {
   name: string;
   acronym?: string;
   avatar?: string;
-  divisionId: number;
   regionId: number;
   joinPassword: string;
   ownerSteamId: string;
@@ -52,7 +51,6 @@ interface TeamCreationData {
 
 interface TeamReregistrationData {
   teamId: number;
-  divisionId: number;
   regionId: number;
   ownerSteamId: string;
   formatId: number;
@@ -227,15 +225,6 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   // Validate first
   await validateTeamCreation(data);
 
-  // Get division to determine status
-  const division = await prisma.division.findUnique({
-    where: { id: data.divisionId },
-  });
-
-  if (!division) {
-    badRequest('Invalid division selected');
-  }
-
   const seasonId = await getSignupSeasonForRegion(data.regionId, data.formatId);
 
   if (!seasonId) {
@@ -247,35 +236,23 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   // Hash the join password for secure storage
   const hashedPassword = await hashPassword(data.joinPassword);
 
-  // Create team
+  // Division is assigned after signups close. Stay unpaid until then.
   const team = await prisma.team.create({
     data: {
       name: data.name,
       acronym: data.acronym,
       avatar: data.avatar,
-      divisionId: data.divisionId,
+      divisionId: null,
       regionId: data.regionId,
       seasonId: seasonId,
       formatId: data.formatId,
       status: initialStatus,
       joinPassword: hashedPassword,
-      paymentStatus: division.signupCost === 0 ? 2 : 0,
+      paymentStatus: 0,
     },
   });
 
-  // Check if user has already paid
-  const existingPayment = await prisma.paymentTracker.findUnique({
-    where: {
-      playerSteamId_seasonId: {
-        playerSteamId: data.ownerSteamId,
-        seasonId: seasonId,
-      },
-    },
-  });
-
-  const amountPaid = existingPayment?.amount || 0;
-  const playerPaymentStatus =
-    division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
+  const playerPaymentStatus = 0;
 
   await prisma.playerInTeam.updateMany({
     where: {
@@ -346,16 +323,7 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
     badRequest('No active signup season for this region');
   }
 
-  // Get division info
-  const division = await prisma.division.findUnique({
-    where: { id: data.divisionId },
-  });
-
-  if (!division) {
-    badRequest('Invalid division selected');
-  }
-
-  const initialPaymentStatus = division.signupCost === 0 ? 2 : 0;
+  const initialPaymentStatus = 0;
   const initialStatus = TeamStatus.UNREADY;
 
   await prisma.playerInTeam.updateMany({
@@ -380,7 +348,7 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
     data: {
       seasonId: seasonId,
       regionId: data.regionId,
-      divisionId: data.divisionId,
+      divisionId: null,
       status: initialStatus,
       paymentStatus: initialPaymentStatus,
       wins: 0,

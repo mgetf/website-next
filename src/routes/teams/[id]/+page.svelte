@@ -168,8 +168,12 @@
         {/if}
 
         <div class="flex flex-wrap gap-3 justify-center md:justify-start mb-4">
-          {#if team.division && team.region}
-            <Badge color="blue" size="md">{team.division} ({team.region})</Badge>
+          {#if team.region}
+            <Badge color="blue" size="md">{team.division ?? 'Unassigned'} ({team.region})</Badge>
+          {:else if team.division}
+            <Badge color="blue" size="md">{team.division}</Badge>
+          {:else}
+            <Badge color="zinc" size="md">Unassigned</Badge>
           {/if}
           {#if team.seasonNum}
             <Badge color="purple" size="md">Season {team.seasonNum}</Badge>

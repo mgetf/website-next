@@ -319,6 +319,7 @@ export async function getTeamsByDivision(
             select: {
               steamId: true,
               steamUsername: true,
+              steamAvatar: true,
             },
           },
         },
@@ -352,6 +353,76 @@ export async function getTeamsByDivision(
       return b._sortKey - a._sortKey;
     })
     .map(({ _sortKey, ...team }) => team); // Remove temporary sort key
+}
+
+/**
+ * Get teams that have signed up but have not been assigned a division yet.
+ * Uses the same standings shape as getTeamsByDivision.
+ */
+export async function getUnassignedTeams(seasonId: number, regionId: number, statuses: string[]) {
+  const teams = await prisma.team.findMany({
+    where: {
+      seasonId,
+      regionId,
+      divisionId: null,
+      status: { in: statuses as any },
+    },
+    select: {
+      id: true,
+      name: true,
+      acronym: true,
+      avatar: true,
+      status: true,
+      wins: true,
+      losses: true,
+      gamesWon: true,
+      gamesLost: true,
+      pointsScored: true,
+      pointsScoredAgainst: true,
+      paymentStatus: true,
+      players: {
+        where: { active: 1 },
+        select: {
+          playerSteamId: true,
+          player: {
+            select: {
+              steamId: true,
+              steamUsername: true,
+              steamAvatar: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  return teams
+    .map((team) => {
+      const totalGames = team.gamesWon + team.gamesLost;
+      const avgPoints = totalGames > 0 ? team.pointsScored / totalGames : 0;
+
+      return {
+        id: team.id,
+        name: team.name,
+        acronym: team.acronym,
+        avatar: team.avatar,
+        status: team.status,
+        wins: team.wins,
+        losses: team.losses,
+        points: parseFloat(avgPoints.toFixed(1)),
+        paymentStatus: team.paymentStatus,
+        players: team.players,
+        _sortKey: avgPoints,
+      };
+    })
+    .sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (a.losses !== b.losses) return a.losses - b.losses;
+      if (b._sortKey !== a._sortKey) return b._sortKey - a._sortKey;
+      return a.name.localeCompare(b.name);
+    })
+    .map(({ _sortKey, ...team }) => team);
 }
 
 /**

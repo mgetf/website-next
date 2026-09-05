@@ -52,6 +52,7 @@
         playerName?: string;
         playerId?: string;
         playerAvatar?: string;
+        players?: Array<{ steamId: string; name: string; avatar: string | null }>;
       }>;
     }>;
     staffByDivision: Array<{
@@ -384,6 +385,11 @@
                     {divisionData.division.name}
                     <span class="text-text-muted">({getRegionAbbr(selectedRegion)})</span>
                   </h2>
+                  {#if divisionData.division.id === 0}
+                    <p class="text-sm text-text-body mt-1">
+                      Signed up and waiting for a division. See who else is playing this season.
+                    </p>
+                  {/if}
                 </div>
 
                 <!-- Standings Table -->
@@ -433,7 +439,14 @@
                               ? 'grayscale'
                               : ''}"
                           />
-                          <span>{team.name}</span>
+                          <span class="min-w-0">
+                            <span class="block">{team.name}</span>
+                            {#if team.players && team.players.length > 0}
+                              <span class="block text-xs text-text-muted truncate">
+                                {team.players.map((player) => player.name).join(', ')}
+                              </span>
+                            {/if}
+                          </span>
                           {#if team.isWithdrawn}
                             <span
                               class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"

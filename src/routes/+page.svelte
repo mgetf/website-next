@@ -271,17 +271,50 @@
                     <span class="text-xs text-text-muted">{region.season}</span>
                   </div>
                   {#if region.signupsOpen}
-                    <div class="py-3 text-center">
-                      <span class="text-format-2v2-400 text-sm font-bold block mb-1"
-                        >Signups Open!</span
-                      >
-                      <a
-                        href={signupHref}
-                        class="text-xs text-text-muted hover:text-format-2v2-400 transition-colors"
-                      >
-                        Register your team →
-                      </a>
+                    <div class="mb-3">
+                      <span class="text-format-2v2-400 text-sm font-bold block">Signups Open!</span>
+                      <p class="text-xs text-text-muted mt-1">Unplaced teams this season</p>
                     </div>
+                    {#if region.topTeams.length > 0}
+                      <div class="space-y-2 mb-3">
+                        {#each region.topTeams as team (team.id)}
+                          <a
+                            href="/teams/{team.id}"
+                            class="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-surface-hover transition-colors"
+                          >
+                            <div class="flex items-center gap-2 min-w-0">
+                              {#if team.avatar}
+                                <img
+                                  src={team.avatar}
+                                  alt={team.name}
+                                  class="w-5 h-5 rounded shrink-0"
+                                />
+                              {:else}
+                                <div class="w-5 h-5 rounded bg-surface-input shrink-0"></div>
+                              {/if}
+                              <div class="min-w-0">
+                                <span class="text-white font-medium text-sm truncate block"
+                                  >{team.name}</span
+                                >
+                                {#if team.record}
+                                  <span class="text-xs text-text-muted truncate block"
+                                    >{team.record}</span
+                                  >
+                                {/if}
+                              </div>
+                            </div>
+                          </a>
+                        {/each}
+                      </div>
+                    {:else}
+                      <p class="text-xs text-text-muted mb-3">No teams signed up yet.</p>
+                    {/if}
+                    <a
+                      href={signupHref}
+                      class="text-xs text-text-muted hover:text-format-2v2-400 transition-colors"
+                    >
+                      Register your team →
+                    </a>
                   {:else if region.topTeams.length > 0}
                     <div class="space-y-2">
                       {#each region.topTeams as team (team.id)}
@@ -352,17 +385,40 @@
                     <span class="text-xs text-text-muted">{region.season}</span>
                   </div>
                   {#if region.signupsOpen}
-                    <div class="py-3 text-center">
-                      <span class="text-format-1v1-400 text-sm font-bold block mb-1"
-                        >Signups Open!</span
-                      >
-                      <a
-                        href={signupHref}
-                        class="text-xs text-text-muted hover:text-format-1v1-400 transition-colors"
-                      >
-                        Sign up now →
-                      </a>
+                    <div class="mb-3">
+                      <span class="text-format-1v1-400 text-sm font-bold block">Signups Open!</span>
+                      <p class="text-xs text-text-muted mt-1">Unplaced players this season</p>
                     </div>
+                    {#if region.topEntries.length > 0}
+                      <div class="space-y-2 mb-3">
+                        {#each region.topEntries as entry (entry.id)}
+                          <a
+                            href={entry.steamId ? `/users/${entry.steamId}` : `/leagues/1v1`}
+                            class="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-hover transition-colors min-w-0"
+                          >
+                            {#if entry.avatar}
+                              <img
+                                src={entry.avatar}
+                                alt={entry.name}
+                                class="w-5 h-5 rounded shrink-0"
+                              />
+                            {:else}
+                              <div class="w-5 h-5 rounded bg-surface-input shrink-0"></div>
+                            {/if}
+                            <span class="text-white font-medium text-sm truncate">{entry.name}</span
+                            >
+                          </a>
+                        {/each}
+                      </div>
+                    {:else}
+                      <p class="text-xs text-text-muted mb-3">No players signed up yet.</p>
+                    {/if}
+                    <a
+                      href={signupHref}
+                      class="text-xs text-text-muted hover:text-format-1v1-400 transition-colors"
+                    >
+                      Sign up now →
+                    </a>
                   {:else if region.topEntries.length > 0}
                     <div class="space-y-2">
                       {#each region.topEntries as entry (entry.id)}

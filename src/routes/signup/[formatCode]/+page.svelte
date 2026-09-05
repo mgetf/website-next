@@ -1,75 +1,18 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import SignupLoginGate from '$lib/components/signup/SignupLoginGate.svelte';
+  import SignupPicks from '$lib/components/signup/SignupPicks.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let isSubmitting = $state(false);
-  let selectedRegionId = $state<number | null>(null);
-  let divisionValue = $state('');
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
-
-  // Get the selected region object
-  const selectedRegion = $derived(
-    data.regions.find((r: (typeof data.regions)[number]) => r.id === selectedRegionId),
-  );
-
-  // Filter divisions based on selected region
-  const filteredDivisions = $derived(
-    selectedRegionId
-      ? data.divisions.filter(
-          (d: (typeof data.divisions)[number]) => d.regionId === selectedRegionId,
-        )
-      : [],
-  );
-
-  // Get currency symbol from selected region (default to $)
-  const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '$');
-
-  // Options for FormSelect components
-  const regionOptions = $derived(
-    data.regions.map((r: (typeof data.regions)[number]) => ({
-      value: r.id.toString(),
-      label: r.name,
-    })),
-  );
-
-  const divisionOptions = $derived(
-    filteredDivisions.map((d: (typeof filteredDivisions)[number]) => ({
-      value: d.id.toString(),
-      label:
-        d.signupCost > 0
-          ? `${d.name} - ${currencySymbol}${d.signupCost.toFixed(2)}`
-          : `${d.name} - FREE`,
-    })),
-  );
-
-  const isNewcomerSelected = $derived(
-    filteredDivisions.some(
-      (d: (typeof filteredDivisions)[number]) =>
-        d.id.toString() === divisionValue && d.name.toLowerCase().includes('newcomer'),
-    ),
-  );
-
-  function handleRegionChange(value: string) {
-    selectedRegionId = value ? parseInt(value) : null;
-    const regionId = selectedRegionId;
-    if (regionId) {
-      const regionDivisions = data.divisions.filter(
-        (d: (typeof data.divisions)[number]) => d.regionId === regionId,
-      );
-      divisionValue = regionDivisions.length > 0 ? regionDivisions[0].id.toString() : '';
-    } else {
-      divisionValue = '';
-    }
-  }
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] px-4 py-12">
@@ -84,7 +27,8 @@
       </a>
       <h1 class="text-4xl font-bold text-white mb-2">{data.format.name} League Signup</h1>
       <p class="text-text-body">
-        Sign up as an individual player for the {data.format.name} league
+        Sign up as an individual player. Pick a format and region — skill divisions are assigned
+        after registration closes.
       </p>
     </div>
 
@@ -144,30 +88,10 @@
             };
           }}
         >
-          <!-- Region -->
-          <FormSelect
-            label="Region"
-            name="regionId"
-            value={selectedRegionId?.toString() ?? ''}
-            options={regionOptions}
-            placeholder="Select Region"
-            required
-            onChange={handleRegionChange}
-          />
-
-          <!-- Division -->
-          <FormSelect
-            label="Division"
-            name="divisionId"
-            bind:value={divisionValue}
-            options={divisionOptions}
-            placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
-            required
-            disabled={!selectedRegionId}
-            hint={isNewcomerSelected
-              ? 'Newcomer is ONLY for players with no previous competitive experience!'
-              : undefined}
-            hintVariant={isNewcomerSelected ? 'warning' : 'default'}
+          <SignupPicks
+            formats={data.formats}
+            regions={data.regions}
+            currentFormatId={data.format.id}
           />
 
           <!-- Info Box -->
@@ -180,8 +104,8 @@
             <ul class="text-sm text-text-body space-y-1">
               <li>• You sign up as an individual player, not a team</li>
               <li>• Your Steam name and avatar are frozen at signup time</li>
+              <li>• Skill divisions are assigned after signups close — you do not pick one here</li>
               <li>• Matches are played 1v1 against other players</li>
-              <li>• Same match infrastructure as team formats (scheduling, map bans, demos)</li>
             </ul>
           </div>
 
@@ -192,13 +116,14 @@
                 type="checkbox"
                 name="rules"
                 required
-                class="mt-1 w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500 focus:ring-offset-zinc-900"
+                class="mt-1 w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
               />
               <span class="text-sm text-text-label">
                 I agree to follow the
                 <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-400">
                   League Rules
                 </a>
+                and understand I may owe a signup fee after placement
               </span>
             </label>
           </div>

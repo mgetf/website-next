@@ -590,6 +590,8 @@ export async function recordMultiTeamPayPalCapture(options: {
  * Payment logic (matching old website):
  * - First-time payer: totalCost = signupCost + leagueFees
  * - Has existing payment: totalCost = signupCost only (league fees already paid)
+ *
+ * @lintignore used after deferred placement when assigned divisions start charging
  */
 export async function checkPaymentRequired(options: {
   divisionId: number;

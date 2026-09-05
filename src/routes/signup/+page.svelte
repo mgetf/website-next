@@ -21,6 +21,10 @@
     <div class="text-center mb-12">
       <h1 class="text-4xl font-bold text-white mb-4">League Signups</h1>
       <p class="text-text-body text-lg">Sign up for the upcoming season</p>
+      <p class="text-warning-400 text-sm mt-3">
+        Newcomer is free if admin-seeded there. Other divisions are $10 USD ($4 Asia) in keys or
+        PayPal. Fill out signup once per format to play more than one.
+      </p>
     </div>
 
     {#if data.allSignupsClosed}

@@ -114,10 +114,7 @@ async function completeSignup(
         session.page.getByRole('heading', { name: `${format.name} League Signup` }),
       ).toBeVisible();
       await selectControlled(session.page, '#regionId', { label: region.name });
-      await expect(
-        session.page.locator('#divisionId option').filter({ hasNotText: /Select/ }),
-      ).not.toHaveCount(0, { timeout: 10_000 });
-      await selectControlled(session.page, '#divisionId', { value: String(region.divisionId) });
+      await expect(session.page.getByText(/Newcomer is free/i)).toBeVisible();
       await session.page.locator('input[name="rules"]').check();
       await Promise.all([
         session.page.waitForURL(new RegExp(`/users/${user.steamId}`), { timeout: 30_000 }),
@@ -130,10 +127,7 @@ async function completeSignup(
       await session.page.locator('#name').fill(teamName);
       await session.page.locator('#acronym').fill(format.code.slice(0, 4).toUpperCase());
       await selectControlled(session.page, '#regionId', { label: region.name });
-      await expect(
-        session.page.locator('#divisionId option').filter({ hasNotText: /Select/ }),
-      ).not.toHaveCount(0, { timeout: 10_000 });
-      await selectControlled(session.page, '#divisionId', { value: String(region.divisionId) });
+      await expect(session.page.getByText(/Newcomer is free/i)).toBeVisible();
       await session.page.locator('#joinPassword').fill(JOIN_PASSWORD);
       await session.page.locator('input[name="rules"]').check();
       await Promise.all([
@@ -150,6 +144,7 @@ async function completeSignup(
     expect(created, `${format.code} / ${region.name} did not create a team`).not.toBeNull();
     expect(created!.formatId).toBe(format.id);
     expect(created!.regionId).toBe(region.id);
+    expect(created!.divisionId).toBeNull();
     expect(created!.status).toBe('UNREADY');
   } finally {
     await session.context.close();

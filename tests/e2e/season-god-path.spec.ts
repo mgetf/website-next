@@ -205,10 +205,7 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   await homeCaptain.page.locator('#name').fill(HOME_TEAM_NAME);
   await homeCaptain.page.locator('#acronym').fill('ALP');
   await homeCaptain.page.locator('#regionId').selectOption({ label: 'E2E Region' });
-  await expect(
-    homeCaptain.page.locator('#divisionId option').filter({ hasText: 'Invite' }),
-  ).toHaveCount(1, { timeout: 10_000 });
-  await homeCaptain.page.locator('#divisionId').selectOption(String(league.divisionId));
+  await expect(homeCaptain.page.getByText(/Newcomer is free/i)).toBeVisible();
   await homeCaptain.page.locator('#joinPassword').fill(JOIN_PASSWORD);
   await homeCaptain.page.locator('input[name="rules"]').check();
 
@@ -220,6 +217,14 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   const created = await getTeamByName(HOME_TEAM_NAME);
   homeTeamId = created.id;
   expect(created.status).toBe('UNREADY');
+
+  await admin.page.goto(`/teams/${homeTeamId}`);
+  await expect(admin.page.getByRole('heading', { name: HOME_TEAM_NAME })).toBeVisible();
+  await admin.page.locator('#divisionId').selectOption(String(league.divisionId));
+  await Promise.all([
+    admin.page.waitForLoadState('networkidle'),
+    admin.page.getByRole('button', { name: 'Update Division' }).click(),
+  ]);
 });
 
 test('join approve ready; decline pending; invite/promote/remove; link join; decline/cancel invite', async () => {
@@ -517,10 +522,7 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   await solo1v1.page.goto('/signup/1v1');
   await expect(solo1v1.page.getByRole('heading', { name: '1v1 League Signup' })).toBeVisible();
   await solo1v1.page.locator('#regionId').selectOption(String(league.regionId));
-  await expect(
-    solo1v1.page.locator('#divisionId option').filter({ hasText: 'Invite' }),
-  ).toHaveCount(1, { timeout: 10_000 });
-  await solo1v1.page.locator('#divisionId').selectOption(String(league.divisionId));
+  await expect(solo1v1.page.getByText(/Newcomer is free/i)).toBeVisible();
   await solo1v1.page.locator('input[name="rules"]').check();
   await Promise.all([
     solo1v1.page.waitForURL(new RegExp(`/users/${E2E_USERS.solo1v1.steamId}`)),

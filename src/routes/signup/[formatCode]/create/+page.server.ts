@@ -2,11 +2,10 @@ import type { PageServerLoad, Actions } from './$types';
 import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSignupContext, createTeam } from '$lib/server/services/teamSignup';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { checkPaymentRequired } from '$lib/server/services/payments';
 import {
   getSignupSeasonForRegion,
   getRegionsOpenForSignup,
+  getOpenSignupFormats,
 } from '$lib/server/services/signupSeasons';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
@@ -26,7 +25,6 @@ import { loginToParticipateHref } from '$lib/utils/signupLogin';
 const createTeamFormSchema = z.object({
   name: z.string().min(1, 'Team name is required'),
   acronym: z.string().optional().default(''),
-  divisionId: z.coerce.number().int().positive('Division is required'),
   regionId: z.coerce.number().int().positive('Region is required'),
   joinPassword: z.string().min(1, 'Join password is required'),
 });
@@ -40,10 +38,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const context = await getSignupContext(locals.user?.steamId ?? null, format.id);
 
-  // Load divisions and regions
-  const [divisions, regions] = await Promise.all([
-    getVisibleDivisions(),
+  const [regions, openFormats] = await Promise.all([
     getRegionsOpenForSignup(format.id),
+    getOpenSignupFormats(),
   ]);
 
   // Determine if user can create a team and why not
@@ -73,7 +70,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       supportsAcronym: format.supportsAcronym,
       themeKey: format.themeKey,
     },
-    divisions,
+    formats: openFormats.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      code: entry.code,
+      isIndividual: entry.isIndividual,
+    })),
     regions,
     canCreate,
     disabledReason,
@@ -107,7 +109,7 @@ export const actions: Actions = {
     const validation = validateForm(formData, createTeamFormSchema);
     if (!validation.success) return validationError(validation.errors);
 
-    const { name, acronym, divisionId, regionId, joinPassword } = validation.data;
+    const { name, acronym, regionId, joinPassword } = validation.data;
     const avatar = formData.get('avatar');
 
     // Handle avatar upload if provided
@@ -148,19 +150,11 @@ export const actions: Actions = {
       // Get the correct season ID for the selected region
       const seasonId = await getSignupSeasonForRegion(regionId, format.id);
 
-      // Check if payment is required BEFORE creating the team
-      const paymentInfo = await checkPaymentRequired({
-        divisionId,
-        steamId: locals.user.steamId,
-        seasonId: seasonId ?? undefined,
-      });
-
       // Create team
       const teamId = await createTeam({
         name,
         acronym: format.supportsAcronym && acronym ? acronym : undefined,
         avatar: avatarUrl,
-        divisionId,
         regionId,
         joinPassword,
         ownerSteamId: locals.user.steamId,
@@ -177,11 +171,11 @@ export const actions: Actions = {
         metadata: {
           name,
           acronym: format.supportsAcronym && acronym ? acronym : null,
-          divisionId,
+          divisionId: null,
           regionId,
           seasonId: seasonId ?? null,
-          paymentRequired: paymentInfo.required,
-          alreadyPaid: paymentInfo.alreadyPaid,
+          paymentRequired: false,
+          alreadyPaid: false,
           avatarUploaded: Boolean(avatarUrl),
           status: (await getTeamAuditSnapshot(teamId))?.status ?? null,
           formatId: format.id,
@@ -189,10 +183,6 @@ export const actions: Actions = {
         },
         ipAddress: getClientAddress(),
       });
-
-      if (paymentInfo.required && !paymentInfo.alreadyPaid) {
-        throw redirect(303, `/checkout/${locals.user.steamId}`);
-      }
 
       throw redirect(303, `/teams/${teamId}?signup=created`);
     } catch (err) {

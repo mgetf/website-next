@@ -3,7 +3,11 @@ import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSeasons, getSeasonInfo, updateSeasonInfo } from '$lib/server/services/seasons';
 import { getVisibleRegions } from '$lib/server/services/regions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { getTeamsByDivision, findRecentSeasonWithTeams } from '$lib/server/services/teams';
+import {
+  getTeamsByDivision,
+  getUnassignedTeams,
+  findRecentSeasonWithTeams,
+} from '$lib/server/services/teams';
 import { isUserSignedUpForFormat } from '$lib/server/services/users';
 import { getStaffForLeague } from '$lib/server/services/staffAssignments';
 import { getGlobalSettings } from '$lib/server/services/settings';
@@ -31,6 +35,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   const visibleStatuses = globalSettings?.standingsVisibleStatuses?.length
     ? globalSettings.standingsVisibleStatuses
     : ['READY', 'PENDING'];
+  const unassignedStatuses = [...new Set([...visibleStatuses, 'UNREADY', 'PENDING'])];
 
   const allSeasonsRaw = await getSeasons();
   const allSeasons = allSeasonsRaw.filter(
@@ -59,7 +64,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   }
 
   if (selectedSeasonId == null || selectedRegionId == null) {
-    const defaultSeasonWithTeams = await findRecentSeasonWithTeams(visibleStatuses, format.id);
+    const defaultSeasonWithTeams = await findRecentSeasonWithTeams(unassignedStatuses, format.id);
     const defaultFromTeams =
       defaultSeasonWithTeams &&
       allSeasons.find(
@@ -79,45 +84,62 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 
   const divisions = await getVisibleDivisions();
 
+  const mapLeagueTeams = (teams: Awaited<ReturnType<typeof getTeamsByDivision>>) =>
+    teams
+      .filter((team) => team.status !== 'DEAD' || team.wins + team.losses > 0)
+      .map((team) => {
+        const players = (team.players ?? []).map((membership) => ({
+          steamId: membership.playerSteamId,
+          name: membership.player?.steamUsername || 'Unknown',
+          avatar: membership.player?.steamAvatar || null,
+        }));
+        const player = players[0];
+
+        return {
+          id: team.id,
+          name: team.name,
+          avatar: team.avatar,
+          wins: team.wins,
+          losses: team.losses,
+          points: team.points,
+          status: team.status,
+          isWithdrawn: team.status === 'DEAD',
+          playerName: player?.name || team.name,
+          playerId: player?.steamId,
+          playerAvatar: player?.avatar || team.avatar,
+          players,
+        };
+      });
+
   const teamsByDivision =
     selectedSeasonId != null && selectedRegionId != null
-      ? await Promise.all(
-          divisions.map(async (division) => {
-            const teams = await getTeamsByDivision(
-              division.id,
-              selectedSeasonId,
-              selectedRegionId,
-              visibleStatuses,
-            );
-
-            const filtered = teams
-              .filter((team: any) => team.status !== 'DEAD' || team.wins + team.losses > 0)
-              .map((team: any) => {
-                if (format.isIndividual) {
-                  const player = team.players?.[0];
-                  return {
-                    ...team,
-                    isWithdrawn: team.status === 'DEAD',
-                    playerName: player?.player?.steamUsername || team.name,
-                    playerId: player?.playerSteamId,
-                    playerAvatar: player?.player?.steamAvatar || team.avatar,
-                  };
-                }
-                return {
-                  ...team,
-                  isWithdrawn: team.status === 'DEAD',
-                };
-              });
-
-            return {
+      ? [
+          {
+            division: {
+              id: 0,
+              name: 'Unplaced',
+            },
+            teams: mapLeagueTeams(
+              await getUnassignedTeams(selectedSeasonId, selectedRegionId, unassignedStatuses),
+            ),
+          },
+          ...(await Promise.all(
+            divisions.map(async (division) => ({
               division: {
                 id: division.id,
                 name: division.name,
               },
-              teams: filtered,
-            };
-          }),
-        )
+              teams: mapLeagueTeams(
+                await getTeamsByDivision(
+                  division.id,
+                  selectedSeasonId,
+                  selectedRegionId,
+                  visibleStatuses,
+                ),
+              ),
+            })),
+          )),
+        ]
       : [];
 
   const staffByDivision =

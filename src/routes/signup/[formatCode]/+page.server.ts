@@ -3,11 +3,10 @@ import { redirect, fail, isRedirect } from '@sveltejs/kit';
 import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import { requireFormatByCode } from '$lib/server/services/formats';
 import { get1v1SignupContext, signup1v1 } from '$lib/server/services/signup1v1';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { checkPaymentRequired } from '$lib/server/services/payments';
 import {
   getSignupSeasonForRegion,
   getRegionsOpenForSignup,
+  getOpenSignupFormats,
 } from '$lib/server/services/signupSeasons';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
@@ -17,7 +16,6 @@ import { loginToParticipateHref } from '$lib/utils/signupLogin';
 
 // Zod schema for individual signup form
 const signupSchema = z.object({
-  divisionId: z.coerce.number().int().positive('Invalid division'),
   regionId: z.coerce.number().int().positive('Invalid region'),
 });
 
@@ -28,9 +26,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     // Individual format - handle signup directly here
     const context = await get1v1SignupContext(locals.user?.steamId ?? null, format.id);
 
-    const [divisions, availableRegions] = await Promise.all([
-      getVisibleDivisions(),
+    const [availableRegions, openFormats] = await Promise.all([
       getRegionsOpenForSignup(format.id),
+      getOpenSignupFormats(),
     ]);
 
     // Determine if user can sign up and why not
@@ -61,7 +59,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         isIndividual: format.isIndividual,
         themeKey: format.themeKey,
       },
-      divisions,
+      formats: openFormats.map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        code: entry.code,
+        isIndividual: entry.isIndividual,
+      })),
       regions: availableRegions,
       canSignup,
       disabledReason,
@@ -109,7 +112,7 @@ export const actions: Actions = {
       return validationError(validation.errors, 'Invalid form data');
     }
 
-    const { divisionId, regionId } = validation.data;
+    const { regionId } = validation.data;
 
     try {
       // Get the correct season ID for the selected region
@@ -121,17 +124,9 @@ export const actions: Actions = {
         });
       }
 
-      // Check if payment is required BEFORE signing up
-      const paymentInfo = await checkPaymentRequired({
-        divisionId,
-        steamId: locals.user.steamId,
-        seasonId,
-      });
-
       const teamId = await signup1v1({
         ownerSteamId: locals.user.steamId,
         regionId,
-        divisionId,
         formatId: format.id,
       });
 
@@ -142,13 +137,9 @@ export const actions: Actions = {
         action: AuditAction.SIGNUP_1V1_CREATED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { divisionId, regionId, formatId: format.id, formatCode: format.code },
+        metadata: { regionId, formatId: format.id, formatCode: format.code, divisionId: null },
         ipAddress: getClientAddress(),
       });
-
-      if (paymentInfo.required && !paymentInfo.alreadyPaid) {
-        throw redirect(303, `/checkout/${locals.user.steamId}`);
-      }
 
       throw redirect(303, `/users/${locals.user.steamId}?signup=${format.code}`);
     } catch (err) {

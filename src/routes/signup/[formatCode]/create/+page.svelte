@@ -2,79 +2,29 @@
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import SignupLoginGate from '$lib/components/signup/SignupLoginGate.svelte';
-  import { getFormatThemeClasses } from '$lib/constants/formats';
+  import SignupPicks from '$lib/components/signup/SignupPicks.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let isSubmitting = $state(false);
-  let avatarFile: File | null = $state(null);
   let avatarPreview: string | null = $state(null);
-  let selectedRegionId = $state<number | null>(null);
-  let divisionValue = $state('');
   let teamName = $state('');
   let acronym = $state('');
-
-  const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
-
-  // Get the selected region object
-  const selectedRegion = $derived(data.regions.find((r) => r.id === selectedRegionId));
-
-  // Filter divisions based on selected region
-  const filteredDivisions = $derived(
-    selectedRegionId ? data.divisions.filter((d) => d.regionId === selectedRegionId) : [],
-  );
-
-  // Get currency symbol from selected region (default to $)
-  const currencySymbol = $derived(selectedRegion?.currencySymbol ?? '$');
-
-  // Options for FormSelect components
-  const regionOptions = $derived(
-    data.regions.map((r) => ({ value: r.id.toString(), label: r.name })),
-  );
-
-  const divisionOptions = $derived(
-    filteredDivisions.map((d) => ({
-      value: d.id.toString(),
-      label:
-        d.signupCost > 0
-          ? `${d.name} - ${currencySymbol}${d.signupCost.toFixed(2)}`
-          : `${d.name} - FREE`,
-    })),
-  );
-
-  const isNewcomerSelected = $derived(
-    filteredDivisions.some(
-      (d) => d.id.toString() === divisionValue && d.name.toLowerCase().includes('newcomer'),
-    ),
-  );
 
   function handleAvatarChange(event: Event) {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
 
     if (file) {
-      avatarFile = file;
       const reader = new FileReader();
       reader.onload = (e) => {
         avatarPreview = e.target?.result as string;
       };
       reader.readAsDataURL(file);
-    }
-  }
-
-  function handleRegionChange(value: string) {
-    selectedRegionId = value ? parseInt(value) : null;
-    const regionId = selectedRegionId;
-    if (regionId) {
-      const regionDivisions = data.divisions.filter((d) => d.regionId === regionId);
-      divisionValue = regionDivisions.length > 0 ? regionDivisions[0].id.toString() : '';
-    } else {
-      divisionValue = '';
     }
   }
 </script>
@@ -90,7 +40,10 @@
         ← Back to Signup Options
       </a>
       <h1 class="text-4xl font-bold text-white mb-2">Create New {data.format.name} Team</h1>
-      <p class="text-text-body">Fill out the form below to register your team for the season</p>
+      <p class="text-text-body">
+        Pick a format and region for your team. Skill divisions are assigned after registration
+        closes.
+      </p>
     </div>
 
     <!-- Error Message -->
@@ -207,32 +160,11 @@
             <p class="text-xs text-text-muted mt-2">JPEG, PNG, GIF, or WebP. Max 5MB.</p>
           </div>
 
-          <!-- Region & Division Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormSelect
-              label="Region"
-              name="regionId"
-              value={selectedRegionId?.toString() ?? ''}
-              options={regionOptions}
-              placeholder="Select Region"
-              required
-              onChange={handleRegionChange}
-            />
-
-            <FormSelect
-              label="Division"
-              name="divisionId"
-              bind:value={divisionValue}
-              options={divisionOptions}
-              placeholder={!selectedRegionId ? 'Select a region first' : 'Select Division'}
-              required
-              disabled={!selectedRegionId}
-              hint={isNewcomerSelected
-                ? 'Newcomer is ONLY for players with no previous competitive experience'
-                : undefined}
-              hintVariant={isNewcomerSelected ? 'warning' : 'default'}
-            />
-          </div>
+          <SignupPicks
+            formats={data.formats}
+            regions={data.regions}
+            currentFormatId={data.format.id}
+          />
 
           <!-- Join Password -->
           <FormInput
@@ -250,13 +182,14 @@
                 type="checkbox"
                 name="rules"
                 required
-                class="mt-1 w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500 focus:ring-offset-zinc-900"
+                class="mt-1 w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
               />
               <span class="text-sm text-text-label">
                 I agree to follow the
                 <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-400">
                   League Rules
                 </a>
+                and understand I may owe a signup fee after placement
               </span>
             </label>
           </div>

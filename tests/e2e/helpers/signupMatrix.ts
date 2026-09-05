@@ -177,7 +177,13 @@ export async function getCreatedSignupTeam(params: {
   formatId: number;
   regionId: number;
   ownerSteamId: string;
-}): Promise<{ id: number; formatId: number; regionId: number; status: string } | null> {
+}): Promise<{
+  id: number;
+  formatId: number;
+  regionId: number;
+  divisionId: number | null;
+  status: string;
+} | null> {
   const prisma = createPrisma();
   try {
     const membership = await prisma.playerInTeam.findFirst({
@@ -191,7 +197,9 @@ export async function getCreatedSignupTeam(params: {
         },
       },
       include: {
-        team: { select: { id: true, formatId: true, regionId: true, status: true } },
+        team: {
+          select: { id: true, formatId: true, regionId: true, divisionId: true, status: true },
+        },
       },
     });
     const team = membership?.team;
@@ -200,6 +208,7 @@ export async function getCreatedSignupTeam(params: {
       id: team.id,
       formatId: team.formatId,
       regionId: team.regionId,
+      divisionId: team.divisionId,
       status: team.status,
     };
   } finally {

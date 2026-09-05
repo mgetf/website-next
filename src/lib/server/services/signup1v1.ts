@@ -41,7 +41,6 @@ interface Signup1v1Context {
 interface Signup1v1Data {
   ownerSteamId: string;
   regionId: number;
-  divisionId: number;
   formatId?: number;
 }
 
@@ -147,15 +146,6 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
     badRequest(`You are already signed up for this individual league this season`);
   }
 
-  // Validate division exists
-  const division = await prisma.division.findUnique({
-    where: { id: data.divisionId },
-  });
-
-  if (!division) {
-    badRequest('Invalid division selected');
-  }
-
   // Validate region exists
   const region = await prisma.region.findUnique({
     where: { id: data.regionId },
@@ -175,7 +165,7 @@ export async function validate1v1Signup(data: Signup1v1Data): Promise<void> {
 
 /**
  * Sign up a player for an individual league
- * If the player previously withdrew from the same region+division, reactivates that entry.
+ * If the player previously withdrew from the same season+region, reactivates that entry.
  * Otherwise creates a new 1-person "team" with the player's Steam name and avatar frozen at signup time.
  */
 export async function signup1v1(data: Signup1v1Data): Promise<number> {
@@ -199,15 +189,6 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
     badRequest('User not found');
   }
 
-  // Get division to determine status and cost
-  const division = await prisma.division.findUnique({
-    where: { id: data.divisionId },
-  });
-
-  if (!division) {
-    badRequest('Invalid division selected');
-  }
-
   // Get the signup season for this region + format
   const seasonId = await getSignupSeasonForRegion(data.regionId, targetFormatId);
 
@@ -215,13 +196,13 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
     badRequest('No active signup season for this region and format');
   }
 
-  // Check if user has a previously withdrawn (DEAD) entry for this exact season+division
+  // Check if user has a previously withdrawn (DEAD) entry for this season+region
   // If so, reactivate it instead of creating a duplicate
   const existingDeadEntry = await prisma.team.findFirst({
     where: {
       formatId: targetFormatId,
       seasonId: seasonId,
-      divisionId: data.divisionId,
+      regionId: data.regionId,
       status: 'DEAD',
       players: {
         some: {
@@ -239,18 +220,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
   if (existingDeadEntry) {
     const initialStatus = TeamStatus.UNREADY;
 
-    // Check payment status
-    const existingPayment = await prisma.paymentTracker.findUnique({
-      where: {
-        playerSteamId_seasonId: {
-          playerSteamId: data.ownerSteamId,
-          seasonId: seasonId,
-        },
-      },
-    });
-    const amountPaid = existingPayment?.amount || 0;
-    const reactivationPaymentStatus =
-      division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
+    const reactivationPaymentStatus = 0;
 
     await prisma.team.update({
       where: { id: existingDeadEntry.id },
@@ -259,6 +229,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
         // Update name/avatar to current values
         name: user.steamUsername,
         avatar: user.steamAvatar,
+        divisionId: null,
         paymentStatus: reactivationPaymentStatus,
       },
     });
@@ -295,28 +266,14 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
       avatar: user.steamAvatar, // Frozen at signup time
       acronym: null,
       joinPassword: null, // No password - individual entries can't be joined
-      divisionId: data.divisionId,
+      divisionId: null,
       regionId: data.regionId,
       seasonId: seasonId,
       formatId: targetFormatId,
       status: initialStatus,
-      paymentStatus: division.signupCost === 0 ? 2 : 0,
+      paymentStatus: 0,
     },
   });
-
-  // Check if user has already paid for this season
-  const existingPayment = await prisma.paymentTracker.findUnique({
-    where: {
-      playerSteamId_seasonId: {
-        playerSteamId: data.ownerSteamId,
-        seasonId: seasonId,
-      },
-    },
-  });
-
-  const amountPaid = existingPayment?.amount || 0;
-  const playerPaymentStatus =
-    division.signupCost === 0 ? 2 : amountPaid >= division.signupCost ? 1 : 0;
 
   // Add player as sole owner (permissionLevel = 2)
   await prisma.playerInTeam.create({
@@ -324,7 +281,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
       playerSteamId: data.ownerSteamId,
       teamId: team.id,
       permissionLevel: 2, // Owner
-      paymentStatus: playerPaymentStatus,
+      paymentStatus: 0,
       active: 1,
     },
   });

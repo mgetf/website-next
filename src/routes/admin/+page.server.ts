@@ -14,9 +14,10 @@ import {
 import type { AuditContext } from '$lib/server/services/pendingPlayers';
 import { getRecentUnplayedMatches } from '$lib/server/services/adminMatches';
 import { getActiveSignupSeasonsWithDeadlines } from '$lib/server/services/signupSeasons';
-import { fail } from '@sveltejs/kit';
+import { isHttpError } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
+import { formError, validateForm, validationError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 
 const approveSchema = z.object({
   playerSteamId: z.string().min(1, 'Invalid player'),
@@ -80,9 +81,9 @@ export const actions: Actions = {
     try {
       await approvePlayer(playerSteamId, teamId, audit);
       return { success: true, message: 'Player approved successfully' };
-    } catch (error) {
-      console.error('Error approving player:', error);
-      return fail(500, { error: 'Failed to approve player' });
+    } catch (err) {
+      const status = isHttpError(err) ? err.status : 500;
+      return formError(getErrorMessage(err, 'Failed to approve player'), status);
     }
   },
 
@@ -104,9 +105,9 @@ export const actions: Actions = {
     try {
       await declinePlayer(playerSteamId, teamId, audit, reason);
       return { success: true, message: 'Player declined successfully' };
-    } catch (error) {
-      console.error('Error declining player:', error);
-      return fail(500, { error: 'Failed to decline player' });
+    } catch (err) {
+      const status = isHttpError(err) ? err.status : 500;
+      return formError(getErrorMessage(err, 'Failed to decline player'), status);
     }
   },
 };

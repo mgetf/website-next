@@ -422,12 +422,14 @@ export async function getLatestMatchId(opts?: {
   }
 }
 
-export async function getTeamByName(name: string): Promise<{ id: number; status: string }> {
+export async function getTeamByName(
+  name: string,
+): Promise<{ id: number; status: string; divisionId: number | null }> {
   const prisma = createPrisma();
   try {
     const team = await prisma.team.findFirstOrThrow({
       where: { name },
-      select: { id: true, status: true },
+      select: { id: true, status: true, divisionId: true },
     });
     return team;
   } finally {

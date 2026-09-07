@@ -61,9 +61,24 @@ export async function getPendingPlayers() {
 }
 
 /**
+ * Payment status for a newly approved roster member.
+ * Unplaced teams (no division yet) stay unpaid until an admin assigns one.
+ */
+export function playerPaymentStatusOnApprove(options: {
+  hasDivision: boolean;
+  signupCost: number;
+  amountPaid: number;
+}): number {
+  if (!options.hasDivision) return 0;
+  if (options.signupCost === 0) return 2;
+  return options.amountPaid >= options.signupCost ? 1 : 0;
+}
+
+/**
  * Approve a pending player and add them to the team.
  * Validates roster size, duplicate season membership, computes payment status,
  * cleans up stale memberships, and logs the action.
+ * Teams may be unplaced (`divisionId` null) after deferred signup.
  */
 export async function approvePlayer(playerSteamId: string, teamId: number, audit: AuditContext) {
   const team = await prisma.team.findUnique({
@@ -73,11 +88,12 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
       format: true,
     },
   });
-  if (!team?.seasonId || !team?.divisionId) {
-    badRequest('Team missing season or division');
+  if (!team?.seasonId) {
+    badRequest('Team missing season');
   }
 
   const format = team.format;
+  const hasDivision = team.divisionId != null;
   const activePlayersCount = await prisma.playerInTeam.count({
     where: { teamId, active: 1 },
   });
@@ -112,7 +128,11 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
   });
   const amountPaid = payment?.amount || 0;
   const signupCost = team.division?.signupCost || 0;
-  const paymentStatus = signupCost === 0 ? 2 : amountPaid >= signupCost ? 1 : 0;
+  const paymentStatus = playerPaymentStatusOnApprove({
+    hasDivision,
+    signupCost,
+    amountPaid,
+  });
 
   await prisma.$transaction(async (tx) => {
     await tx.playerInTeam.updateMany({
@@ -155,12 +175,13 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
       },
     });
 
-    if (signupCost === 0) {
+    // Unplaced teams stay unpaid until a division (and its fee) is assigned.
+    if (hasDivision && signupCost === 0) {
       await tx.team.update({
         where: { id: teamId },
         data: { paymentStatus: 2 },
       });
-    } else {
+    } else if (hasDivision) {
       const paidPlayersCount = await tx.playerInTeam.count({
         where: { teamId, active: 1, paymentStatus: 1 },
       });

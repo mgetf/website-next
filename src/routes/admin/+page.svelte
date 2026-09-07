@@ -1,13 +1,15 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import type { PageData } from './$types';
+  import type { ActionData, PageData } from './$types';
   import BarChart from '$lib/components/charts/BarChart.svelte';
   import DoughnutChart from '$lib/components/charts/DoughnutChart.svelte';
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import FormError from '$lib/components/ui/form/FormError.svelte';
+  import { toast } from '$lib/state/toast.svelte';
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
 
   const matchColumns = [
     { key: 'match', label: 'Match' },
@@ -35,6 +37,18 @@
   let isSubmitting = $state(false);
   let decliningPlayerId = $state<string | null>(null);
   let declineReasons = $state<Record<string, string>>({});
+  let lastFormResult: ActionData = null;
+
+  $effect(() => {
+    if (form && form !== lastFormResult) {
+      lastFormResult = form;
+      if (form.success && form.message) {
+        toast.success(form.message);
+      } else if (form.error) {
+        toast.error(form.error);
+      }
+    }
+  });
 
   const deadlineInfo = $derived(() => {
     if (!matchDeadline) return null;
@@ -84,6 +98,8 @@
     <h1 class="text-3xl font-bold text-white mb-2">Dashboard</h1>
     <p class="text-text-body">Manage your division's day-to-day operations</p>
   </div>
+
+  <FormError error={form?.error} success={form?.success && form?.message ? form.message : null} />
 
   <!-- Match Creation Deadline Card -->
   {#if currentMatchWeek || matchDeadline}

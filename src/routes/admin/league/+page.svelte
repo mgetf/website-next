@@ -1235,6 +1235,7 @@
                 type="number"
                 value="2"
                 required
+                hint="Capped to the current roster size"
               />
               <FormSelect
                 label="Theme"
@@ -1398,6 +1399,7 @@
           type="number"
           value={String(editingFormat.requiredPaidPlayers)}
           required
+          hint="Capped to the current roster size"
         />
       </div>
 

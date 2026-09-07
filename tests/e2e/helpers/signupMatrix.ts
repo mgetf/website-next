@@ -106,7 +106,7 @@ export async function seedSignupMatrix(): Promise<SignupMatrix> {
           isIndividual: false,
           minRosterSize: 2,
           maxRosterSize: 3,
-          requiredPaidPlayers: 2,
+          requiredPaidPlayers: 3,
           supportsJoinPassword: true,
           supportsAcronym: true,
           supportsReregistration: true,

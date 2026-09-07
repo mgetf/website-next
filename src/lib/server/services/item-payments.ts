@@ -1,6 +1,7 @@
 import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { syncTeamPaymentStatus } from '$lib/server/services/payments';
 import type { CheckoutTeamSelection } from '$lib/types/checkout';
 
 const ITEM_ORDER_EXPIRY_MS = 30 * 60 * 1000;
@@ -434,18 +435,7 @@ export async function confirmItemPayment(data: {
           paymentIndex++;
         }
 
-        const paidPlayersCount = await tx.playerInTeam.count({
-          where: { teamId: teamSel.teamId, active: 1, paymentStatus: 1 },
-        });
-
-        const requiredPaidPlayers = team.format.requiredPaidPlayers;
-
-        if (paidPlayersCount >= requiredPaidPlayers) {
-          await tx.team.update({
-            where: { id: teamSel.teamId },
-            data: { paymentStatus: 1 },
-          });
-        }
+        await syncTeamPaymentStatus(tx, teamSel.teamId, team.format.requiredPaidPlayers);
       }
     });
 
@@ -514,18 +504,7 @@ export async function confirmItemPayment(data: {
       });
     }
 
-    const paidPlayersCount = await tx.playerInTeam.count({
-      where: { teamId: order.teamId, active: 1, paymentStatus: 1 },
-    });
-
-    const requiredPaidPlayers = team.format.requiredPaidPlayers;
-
-    if (paidPlayersCount >= requiredPaidPlayers) {
-      await tx.team.update({
-        where: { id: order.teamId },
-        data: { paymentStatus: 1 },
-      });
-    }
+    await syncTeamPaymentStatus(tx, order.teamId, team.format.requiredPaidPlayers);
   });
 }
 

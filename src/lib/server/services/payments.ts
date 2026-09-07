@@ -6,8 +6,44 @@
 
 import { prisma } from '$lib/server/db';
 import { notFound, badRequest } from '$lib/server/utils/errors';
+import { hasMetPaidPlayerRequirement } from '$lib/utils/rosterPayments';
+import type { Prisma } from '$prisma/client.js';
 import { requireFormatById } from './formats';
 import type { CheckoutParticipation } from '$lib/types/checkout';
+
+type TeamPaymentDb = Pick<Prisma.TransactionClient, 'playerInTeam' | 'team'>;
+
+/**
+ * Set team.paymentStatus from current active roster payments.
+ * Counts any non-zero player paymentStatus (paid or exempt).
+ */
+export async function syncTeamPaymentStatus(
+  db: TeamPaymentDb,
+  teamId: number,
+  requiredPaidPlayers: number,
+): Promise<boolean> {
+  const [paidPlayersCount, activePlayersCount] = await Promise.all([
+    db.playerInTeam.count({
+      where: { teamId, active: 1, paymentStatus: { not: 0 } },
+    }),
+    db.playerInTeam.count({
+      where: { teamId, active: 1 },
+    }),
+  ]);
+
+  const met = hasMetPaidPlayerRequirement(
+    paidPlayersCount,
+    requiredPaidPlayers,
+    activePlayersCount,
+  );
+
+  await db.team.update({
+    where: { id: teamId },
+    data: { paymentStatus: met ? 1 : 0 },
+  });
+
+  return met;
+}
 
 export interface UnpaidPlayer {
   steamId: string;
@@ -251,19 +287,8 @@ export async function markPlayerAsPaidManually(
       data: { paymentStatus: 1 },
     });
 
-    const paidPlayersCount = await tx.playerInTeam.count({
-      where: { teamId, active: 1, paymentStatus: 1 },
-    });
-
     const format = await requireFormatById(playerInTeam.team.formatId);
-    const requiredPaidPlayers = format.requiredPaidPlayers;
-
-    if (paidPlayersCount >= requiredPaidPlayers) {
-      await tx.team.update({
-        where: { id: teamId },
-        data: { paymentStatus: 1 },
-      });
-    }
+    await syncTeamPaymentStatus(tx, teamId, format.requiredPaidPlayers);
   });
 }
 
@@ -327,18 +352,7 @@ export async function recordPayPalCapture(options: {
       });
     }
 
-    const paidPlayersCount = await tx.playerInTeam.count({
-      where: { teamId, active: 1, paymentStatus: 1 },
-    });
-
-    const requiredPaidPlayers = team.format.requiredPaidPlayers;
-
-    if (paidPlayersCount >= requiredPaidPlayers) {
-      await tx.team.update({
-        where: { id: teamId },
-        data: { paymentStatus: 1 },
-      });
-    }
+    await syncTeamPaymentStatus(tx, teamId, team.format.requiredPaidPlayers);
   });
 }
 
@@ -567,18 +581,7 @@ export async function recordMultiTeamPayPalCapture(options: {
         paymentIndex++;
       }
 
-      const paidPlayersCount = await tx.playerInTeam.count({
-        where: { teamId, active: 1, paymentStatus: 1 },
-      });
-
-      const requiredPaidPlayers = team.format.requiredPaidPlayers;
-
-      if (paidPlayersCount >= requiredPaidPlayers) {
-        await tx.team.update({
-          where: { id: teamId },
-          data: { paymentStatus: 1 },
-        });
-      }
+      await syncTeamPaymentStatus(tx, teamId, team.format.requiredPaidPlayers);
     }
   });
 }

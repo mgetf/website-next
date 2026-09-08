@@ -3,8 +3,12 @@ import { UserRole } from '$prisma/client.js';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 import {
   catalogDiscordRoleIds,
+  classifyStaffSyncResult,
+  formatStaffResyncSummary,
+  formatStaffSyncMessage,
   resolveDiscordRoleIds,
   resolveSourcebansPayload,
+  wouldRemoveLastAdmin,
   type StaffMappingSnapshot,
 } from './staff';
 
@@ -118,5 +122,82 @@ describe('resolveSourcebansPayload', () => {
       immunity: 80,
       serverIds: null,
     });
+  });
+});
+
+describe('wouldRemoveLastAdmin', () => {
+  it('blocks demoting the last admin', () => {
+    expect(wouldRemoveLastAdmin(UserRole.ADMIN, UserRole.MODERATOR, 1)).toBe(true);
+    expect(wouldRemoveLastAdmin(UserRole.ADMIN, UserRole.GUEST, 1)).toBe(true);
+  });
+
+  it('allows demoting an admin when another remains', () => {
+    expect(wouldRemoveLastAdmin(UserRole.ADMIN, UserRole.MODERATOR, 2)).toBe(false);
+  });
+
+  it('allows moderator changes and admin-to-admin', () => {
+    expect(wouldRemoveLastAdmin(UserRole.MODERATOR, UserRole.GUEST, 1)).toBe(false);
+    expect(wouldRemoveLastAdmin(UserRole.ADMIN, UserRole.ADMIN, 1)).toBe(false);
+  });
+});
+
+describe('classifyStaffSyncResult', () => {
+  it('prefers error over pending over ok', () => {
+    expect(
+      classifyStaffSyncResult({
+        sourcebansStatus: 'ERROR',
+        sourcebansError: 'boom',
+        discordStatus: 'PENDING',
+        discordError: null,
+      }),
+    ).toBe('error');
+    expect(
+      classifyStaffSyncResult({
+        sourcebansStatus: 'OK',
+        sourcebansError: null,
+        discordStatus: 'PENDING',
+        discordError: 'not linked',
+      }),
+    ).toBe('pending');
+    expect(
+      classifyStaffSyncResult({
+        sourcebansStatus: 'OK',
+        sourcebansError: null,
+        discordStatus: 'OK',
+        discordError: null,
+      }),
+    ).toBe('ok');
+  });
+});
+
+describe('formatStaffSyncMessage', () => {
+  it('formats both arms and includes errors when not ok', () => {
+    expect(
+      formatStaffSyncMessage({
+        sourcebansStatus: 'OK',
+        sourcebansError: null,
+        discordStatus: 'ERROR',
+        discordError: 'Missing Permissions',
+      }),
+    ).toBe('SB ok · DC error: Missing Permissions');
+  });
+
+  it('omits error text when the arm is ok', () => {
+    expect(
+      formatStaffSyncMessage({
+        sourcebansStatus: 'OK',
+        sourcebansError: 'stale',
+        discordStatus: 'OK',
+        discordError: null,
+      }),
+    ).toBe('SB ok · DC ok');
+  });
+});
+
+describe('formatStaffResyncSummary', () => {
+  it('summarizes resync counts', () => {
+    expect(formatStaffResyncSummary({ total: 4, ok: 2, pending: 1, error: 1 })).toBe(
+      'Resynced 4 staff: 2 ok, 1 pending, 1 error',
+    );
   });
 });

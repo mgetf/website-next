@@ -3,6 +3,7 @@
   import { enhance } from '$app/forms';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
@@ -102,6 +103,57 @@
   const sourcebansServerOptions = $derived(
     data.sourcebansServers.map((server) => ({ value: String(server.id), label: server.label })),
   );
+
+  function withMissingOption(
+    options: { value: string; label: string }[],
+    storedId: string,
+    missingLabel: string,
+  ) {
+    if (!storedId || options.some((option) => option.value === storedId)) return options;
+    return [...options, { value: storedId, label: missingLabel }];
+  }
+
+  const moderatorServerGroupSelectOptions = $derived(
+    withMissingOption(
+      serverGroupOptions,
+      moderatorServerGroupId,
+      `Missing group ${moderatorServerGroupId}`,
+    ),
+  );
+  const moderatorWebGroupSelectOptions = $derived(
+    withMissingOption(webGroupOptions, moderatorWebGroupId, `Missing group ${moderatorWebGroupId}`),
+  );
+  const adminServerGroupSelectOptions = $derived(
+    withMissingOption(
+      serverGroupOptions,
+      adminServerGroupId,
+      `Missing group ${adminServerGroupId}`,
+    ),
+  );
+  const adminWebGroupSelectOptions = $derived(
+    withMissingOption(webGroupOptions, adminWebGroupId, `Missing group ${adminWebGroupId}`),
+  );
+
+  function discordRoleMissing(id: string) {
+    return data.discordConfigured && !data.discordRoles.some((role) => role.id === id);
+  }
+
+  function sourcebansGroupMissing(id: string, kind: 'server' | 'web') {
+    if (!id || !data.sourcebansConfigured) return false;
+    const groups = kind === 'server' ? data.sourcebansGroups.server : data.sourcebansGroups.web;
+    return !groups.some((group) => String(group.id) === id);
+  }
+
+  function sourcebansServerMissing(id: string) {
+    return (
+      data.sourcebansConfigured &&
+      !data.sourcebansServers.some((server) => String(server.id) === id)
+    );
+  }
+
+  function missingDiscordRoleIds(ids: string[]) {
+    return ids.filter((id) => discordRoleMissing(id));
+  }
 
   function roleName(id: string) {
     return data.discordRoles.find((role) => role.id === id)?.name ?? id;
@@ -227,19 +279,38 @@
         label="SourceBans server group"
         name="moderatorServerGroupId"
         bind:value={moderatorServerGroupId}
-        options={serverGroupOptions}
+        options={moderatorServerGroupSelectOptions}
         placeholder="None"
         disabled={!data.sourcebansConfigured}
+        hint={sourcebansGroupMissing(moderatorServerGroupId, 'server')
+          ? 'Missing on SourceBans'
+          : undefined}
+        hintVariant={sourcebansGroupMissing(moderatorServerGroupId, 'server')
+          ? 'warning'
+          : 'default'}
       />
+      {#if sourcebansGroupMissing(moderatorServerGroupId, 'server')}
+        <div class="mb-4">
+          <Badge color="yellow">Missing on SourceBans</Badge>
+        </div>
+      {/if}
       <FormSelect
         label="SourceBans web group"
         name="moderatorWebGroupId"
         bind:value={moderatorWebGroupId}
-        options={webGroupOptions}
+        options={moderatorWebGroupSelectOptions}
         placeholder="None"
         disabled={!data.sourcebansConfigured}
-        hint="Optional panel access. Uses a noreply email on the SourceBans admin row."
+        hint={sourcebansGroupMissing(moderatorWebGroupId, 'web')
+          ? 'Missing on SourceBans'
+          : 'Optional panel access. Uses a noreply email on the SourceBans admin row.'}
+        hintVariant={sourcebansGroupMissing(moderatorWebGroupId, 'web') ? 'warning' : 'default'}
       />
+      {#if sourcebansGroupMissing(moderatorWebGroupId, 'web')}
+        <div class="mb-4">
+          <Badge color="yellow">Missing on SourceBans</Badge>
+        </div>
+      {/if}
       <FormInput
         label="Immunity"
         name="moderatorImmunity"
@@ -272,6 +343,12 @@
             {/each}
           </div>
         {/if}
+        {#each missingDiscordRoleIds(moderatorDiscordRoleIds) as missingId (missingId)}
+          <div class="mt-2 flex items-center gap-2">
+            <span class="text-sm font-mono text-text-muted">{missingId}</span>
+            <Badge color="yellow">Missing on Discord</Badge>
+          </div>
+        {/each}
       </fieldset>
     </Card>
 
@@ -283,18 +360,34 @@
         label="SourceBans server group"
         name="adminServerGroupId"
         bind:value={adminServerGroupId}
-        options={serverGroupOptions}
+        options={adminServerGroupSelectOptions}
         placeholder="None"
         disabled={!data.sourcebansConfigured}
+        hint={sourcebansGroupMissing(adminServerGroupId, 'server')
+          ? 'Missing on SourceBans'
+          : undefined}
+        hintVariant={sourcebansGroupMissing(adminServerGroupId, 'server') ? 'warning' : 'default'}
       />
+      {#if sourcebansGroupMissing(adminServerGroupId, 'server')}
+        <div class="mb-4">
+          <Badge color="yellow">Missing on SourceBans</Badge>
+        </div>
+      {/if}
       <FormSelect
         label="SourceBans web group"
         name="adminWebGroupId"
         bind:value={adminWebGroupId}
-        options={webGroupOptions}
+        options={adminWebGroupSelectOptions}
         placeholder="None"
         disabled={!data.sourcebansConfigured}
+        hint={sourcebansGroupMissing(adminWebGroupId, 'web') ? 'Missing on SourceBans' : undefined}
+        hintVariant={sourcebansGroupMissing(adminWebGroupId, 'web') ? 'warning' : 'default'}
       />
+      {#if sourcebansGroupMissing(adminWebGroupId, 'web')}
+        <div class="mb-4">
+          <Badge color="yellow">Missing on SourceBans</Badge>
+        </div>
+      {/if}
       <FormInput label="Immunity" name="adminImmunity" type="number" bind:value={adminImmunity} />
       <fieldset class="mb-2">
         <legend class="block text-sm font-medium text-text-label mb-2"
@@ -322,6 +415,12 @@
             {/each}
           </div>
         {/if}
+        {#each missingDiscordRoleIds(adminDiscordRoleIds) as missingId (missingId)}
+          <div class="mt-2 flex items-center gap-2">
+            <span class="text-sm font-mono text-text-muted">{missingId}</span>
+            <Badge color="yellow">Missing on Discord</Badge>
+          </div>
+        {/each}
       </fieldset>
     </Card>
 
@@ -339,10 +438,15 @@
         <ul class="mb-4 divide-y divide-border-default">
           {#each discordRules as rule, index (`${rule.discordRoleId}-${index}`)}
             <li class="flex items-center justify-between gap-3 py-2">
-              <p class="text-sm text-text-label">
-                {permissionLabel(rule.permissionLevel)} · {formatName(rule.formatId)} ·
-                {regionName(rule.regionId)} → {roleName(rule.discordRoleId)}
-              </p>
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                <p class="text-sm text-text-label">
+                  {permissionLabel(rule.permissionLevel)} · {formatName(rule.formatId)} ·
+                  {regionName(rule.regionId)} → {roleName(rule.discordRoleId)}
+                </p>
+                {#if discordRoleMissing(rule.discordRoleId)}
+                  <Badge color="yellow">Missing on Discord</Badge>
+                {/if}
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -411,12 +515,17 @@
         <ul class="mb-4 divide-y divide-border-default">
           {#each sourcebansServers as row, index (`${row.regionId}:${row.sourcebansServerId}-${index}`)}
             <li class="flex items-center justify-between gap-3 py-2">
-              <p class="text-sm text-text-label">
-                {regionName(row.regionId)} →
-                {data.sourcebansServers.find(
-                  (server) => String(server.id) === row.sourcebansServerId,
-                )?.label ?? row.sourcebansServerId}
-              </p>
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                <p class="text-sm text-text-label">
+                  {regionName(row.regionId)} →
+                  {data.sourcebansServers.find(
+                    (server) => String(server.id) === row.sourcebansServerId,
+                  )?.label ?? row.sourcebansServerId}
+                </p>
+                {#if sourcebansServerMissing(row.sourcebansServerId)}
+                  <Badge color="yellow">Missing on SourceBans</Badge>
+                {/if}
+              </div>
               <Button
                 type="button"
                 variant="ghost"

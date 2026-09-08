@@ -149,6 +149,10 @@
   function closeBanModal() {
     banningUser = null;
   }
+
+  function isStaffPermission(level: string) {
+    return level === 'MODERATOR' || level === 'ADMIN';
+  }
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
@@ -269,7 +273,15 @@
         <div class="flex items-center justify-end gap-1">
           <Button variant="primary" size="sm" href="/users/{user.steamId}">View</Button>
           <Button variant="secondary" size="sm" onclick={() => openEditModal(user)}>Edit</Button>
-          <Button variant="danger" size="sm" onclick={() => openBanModal(user)}>Punish</Button>
+          <Button
+            variant="danger"
+            size="sm"
+            disabled={isStaffPermission(user.permissionLevel)}
+            title={isStaffPermission(user.permissionLevel)
+              ? 'Demote this user from /admin/staff before punishing them.'
+              : undefined}
+            onclick={() => openBanModal(user)}>Punish</Button
+          >
         </div>
       {/if}
     {/snippet}
@@ -450,68 +462,79 @@
       </div>
     </div>
 
-    <form
-      method="POST"
-      action="?/banUser"
-      use:enhance={() => {
-        isSubmitting = true;
-        return async ({ update, result }) => {
-          await update();
-          isSubmitting = false;
-          if (result.type === 'success') {
-            closeBanModal();
-          }
-        };
-      }}
-    >
-      <input type="hidden" name="steamId" value={banningUser.steamId} />
-
-      <FormSelect
-        label="Severity"
-        name="severity"
-        required
-        options={[
-          { value: 'WARNING', label: 'Warning' },
-          { value: 'SUSPENDED', label: 'Suspended' },
-          { value: 'BANNED', label: 'Banned' },
-        ]}
-        placeholder="Select severity..."
-      />
-
-      <FormInput
-        label="Duration (days)"
-        name="duration"
-        type="number"
-        placeholder="Leave empty for permanent"
-        hint="Leave empty for permanent punishment"
-      />
-
-      <div class="mb-6">
-        <label for="ban-reason" class="block text-sm font-medium text-text-label mb-2">
-          Reason <span class="text-danger-400">*</span>
-        </label>
-        <textarea
-          id="ban-reason"
-          name="reason"
-          rows="4"
-          required
-          placeholder="Explain why this user is being punished..."
-          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
-        ></textarea>
-      </div>
-
-      <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-6">
-        <p class="text-danger-400 text-sm">
-          This will create a punishment record and update the user's status.
+    {#if isStaffPermission(banningUser.permissionLevel)}
+      <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-6">
+        <p class="text-warning-400 text-sm">
+          Demote this user from /admin/staff before punishing them.
         </p>
       </div>
-
       <div class="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onclick={closeBanModal}>Cancel</Button>
-        <Button type="submit" variant="danger" disabled={isSubmitting}>
-          {isSubmitting ? 'Processing...' : 'Apply Punishment'}
-        </Button>
+        <Button type="button" variant="secondary" onclick={closeBanModal}>Close</Button>
       </div>
-    </form>
+    {:else}
+      <form
+        method="POST"
+        action="?/banUser"
+        use:enhance={() => {
+          isSubmitting = true;
+          return async ({ update, result }) => {
+            await update();
+            isSubmitting = false;
+            if (result.type === 'success') {
+              closeBanModal();
+            }
+          };
+        }}
+      >
+        <input type="hidden" name="steamId" value={banningUser.steamId} />
+
+        <FormSelect
+          label="Severity"
+          name="severity"
+          required
+          options={[
+            { value: 'WARNING', label: 'Warning' },
+            { value: 'SUSPENDED', label: 'Suspended' },
+            { value: 'BANNED', label: 'Banned' },
+          ]}
+          placeholder="Select severity..."
+        />
+
+        <FormInput
+          label="Duration (days)"
+          name="duration"
+          type="number"
+          placeholder="Leave empty for permanent"
+          hint="Leave empty for permanent punishment"
+        />
+
+        <div class="mb-6">
+          <label for="ban-reason" class="block text-sm font-medium text-text-label mb-2">
+            Reason <span class="text-danger-400">*</span>
+          </label>
+          <textarea
+            id="ban-reason"
+            name="reason"
+            rows="4"
+            required
+            placeholder="Explain why this user is being punished..."
+            class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
+          ></textarea>
+        </div>
+
+        <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-6">
+          <p class="text-danger-400 text-sm">
+            This will create a punishment record and update the user's status.
+          </p>
+        </div>
+
+        <div class="flex gap-3 justify-end">
+          <Button type="button" variant="secondary" onclick={closeBanModal}>Cancel</Button>
+          <Button type="submit" variant="danger" disabled={isSubmitting}>
+            {isSubmitting ? 'Processing...' : 'Apply Punishment'}
+          </Button>
+        </div>
+      </form>
+    {/if}
   </Dialog>
 {/if}

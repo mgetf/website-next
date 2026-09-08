@@ -24,8 +24,6 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
-  type RosterRow = PageData['roster'][number];
-
   type DesignateTarget = {
     steamId: string;
     steamUsername: string;
@@ -40,6 +38,7 @@
   let designatePermission = $state('MODERATOR');
   let selectedStaffAssignments: { formatId: number; divisionId: number }[] = $state([]);
   let demoting: DesignateTarget | null = $state(null);
+  let syncingAll = $state(false);
   let isSubmitting = $state(false);
   let lastFormResult: ActionData = null;
 
@@ -92,13 +91,18 @@
     return 'zinc';
   }
 
-  function needsRetry(row: RosterRow): boolean {
-    return (
-      row.sourcebansStatus === 'ERROR' ||
-      row.sourcebansStatus === 'PENDING' ||
-      row.discordStatus === 'ERROR' ||
-      row.discordStatus === 'PENDING'
-    );
+  function formatRelativeTime(isoString: string | null): string {
+    if (!isoString) return 'Never synced';
+    const diff = Date.now() - new Date(isoString).getTime();
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 60) return `${Math.max(seconds, 0)}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(isoString).toLocaleDateString();
   }
 
   function handleSearch() {
@@ -133,7 +137,12 @@
         Designate site roles, league scope, in-game admin, and Discord roles from one place.
       </p>
     </div>
-    <Button variant="secondary" href="/admin/staff/settings">Mappings</Button>
+    <div class="flex gap-2">
+      <Button variant="secondary" href="/admin/staff/settings">Mappings</Button>
+      <Button variant="primary" onclick={() => (syncingAll = true)} disabled={isSubmitting}>
+        Sync all
+      </Button>
+    </div>
   </div>
 
   <FilterBar
@@ -242,37 +251,43 @@
               {permissionNames[row.permissionLevel]}
             </Badge>
           {:else if col.key === 'sync'}
-            <div class="flex items-center gap-1">
-              <Badge
-                color={syncBadge(row.sourcebansStatus)}
-                tooltip={row.sourcebansError ?? undefined}
+            <div class="space-y-1">
+              <div class="flex items-center gap-1">
+                <Badge
+                  color={syncBadge(row.sourcebansStatus)}
+                  tooltip={row.sourcebansError ?? undefined}
+                >
+                  SB {row.sourcebansStatus.toLowerCase()}
+                </Badge>
+                <Badge color={syncBadge(row.discordStatus)} tooltip={row.discordError ?? undefined}>
+                  DC {row.discordStatus.toLowerCase()}
+                </Badge>
+              </div>
+              <p
+                class="text-[11px] text-text-muted"
+                title={row.lastSyncedAt ? new Date(row.lastSyncedAt).toLocaleString() : undefined}
               >
-                SB {row.sourcebansStatus.toLowerCase()}
-              </Badge>
-              <Badge color={syncBadge(row.discordStatus)} tooltip={row.discordError ?? undefined}>
-                DC {row.discordStatus.toLowerCase()}
-              </Badge>
+                {formatRelativeTime(row.lastSyncedAt)}
+              </p>
             </div>
           {:else if col.key === 'actions'}
             <div class="flex justify-end gap-1">
-              {#if needsRetry(row)}
-                <form
-                  method="POST"
-                  action="?/retry"
-                  use:enhance={() => {
-                    isSubmitting = true;
-                    return async ({ update }) => {
-                      await update();
-                      isSubmitting = false;
-                    };
-                  }}
+              <form
+                method="POST"
+                action="?/retry"
+                use:enhance={() => {
+                  isSubmitting = true;
+                  return async ({ update }) => {
+                    await update();
+                    isSubmitting = false;
+                  };
+                }}
+              >
+                <input type="hidden" name="steamId" value={row.steamId} />
+                <Button type="submit" variant="ghost" size="sm" disabled={isSubmitting}
+                  >Retry</Button
                 >
-                  <input type="hidden" name="steamId" value={row.steamId} />
-                  <Button type="submit" variant="ghost" size="sm" disabled={isSubmitting}
-                    >Retry</Button
-                  >
-                </form>
-              {/if}
+              </form>
               <Button variant="secondary" size="sm" onclick={() => openDesignate(row)}>Edit</Button>
               {#if row.steamId !== data.currentSteamId}
                 <Button variant="danger" size="sm" onclick={() => (demoting = row)}>Demote</Button>
@@ -387,3 +402,32 @@
 >
   <input type="hidden" name="steamId" value={demoting?.steamId ?? ''} />
 </form>
+
+<ConfirmDialog
+  open={syncingAll}
+  title="Sync all staff"
+  description="Re-run SourceBans and Discord sync for every designated staff member?"
+  confirmLabel="Sync all"
+  variant="warning"
+  isLoading={isSubmitting}
+  onCancel={() => (syncingAll = false)}
+  onConfirm={() => {
+    const formEl = document.getElementById('staff-sync-all-form');
+    if (formEl instanceof HTMLFormElement) formEl.requestSubmit();
+  }}
+/>
+
+<form
+  id="staff-sync-all-form"
+  method="POST"
+  action="?/syncAll"
+  class="hidden"
+  use:enhance={() => {
+    isSubmitting = true;
+    return async ({ update, result }) => {
+      await update();
+      isSubmitting = false;
+      if (result.type === 'success') syncingAll = false;
+    };
+  }}
+></form>

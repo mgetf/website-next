@@ -1,7 +1,7 @@
 import type { Actions, PageServerLoad } from './$types';
 import { requireStrictAdmin } from '$lib/server/auth/permissions';
 import { z } from 'zod';
-import { formError, validateForm, validationError } from '$lib/server/utils/forms';
+import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getDivisions } from '$lib/server/services/divisions';
@@ -14,8 +14,11 @@ import {
 import {
   demoteStaff,
   designateStaff,
+  formatStaffResyncSummary,
+  formatStaffSyncMessage,
   getStaffRoster,
   isStaffRole,
+  resyncAllStaff,
   retryStaffSync,
   searchUsersForStaff,
 } from '$lib/server/services/staff';
@@ -104,7 +107,7 @@ export const actions: Actions = {
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: 'Staff member saved. Sync ran for SourceBans and Discord.' };
+      return formSuccess(undefined, formatStaffSyncMessage(result));
     } catch (error) {
       return formError(getErrorMessage(error, 'Failed to designate staff'), 400);
     }
@@ -134,7 +137,7 @@ export const actions: Actions = {
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: 'Staff member demoted.' };
+      return formSuccess(undefined, formatStaffSyncMessage(result));
     } catch (error) {
       return formError(getErrorMessage(error, 'Failed to demote staff'), 400);
     }
@@ -164,9 +167,32 @@ export const actions: Actions = {
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: 'Staff sync retried.' };
+      return formSuccess(undefined, formatStaffSyncMessage(result));
     } catch (error) {
       return formError(getErrorMessage(error, 'Failed to retry staff sync'), 400);
+    }
+  },
+
+  syncAll: async ({ locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    try {
+      const counts = await resyncAllStaff();
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.STAFF,
+        action: AuditAction.STAFF_SYNC_ALL,
+        targetType: 'Staff',
+        targetId: 'all',
+        metadata: counts,
+        ipAddress: getClientAddress(),
+      });
+
+      return formSuccess(undefined, formatStaffResyncSummary(counts));
+    } catch (error) {
+      return formError(getErrorMessage(error, 'Failed to resync staff'), 400);
     }
   },
 };

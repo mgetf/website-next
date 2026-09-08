@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getRegionAbbr, getRegionFlagCode, sortRegionsByAbbr } from './region';
+import { getRegionAbbr, sortRegionsByAbbr } from './region';
 
 describe('getRegionAbbr', () => {
   it('maps common league region names', () => {
@@ -17,18 +17,6 @@ describe('getRegionAbbr', () => {
   it('falls back to a short label for unknown names', () => {
     expect(getRegionAbbr('E2E Region')).toBe('E2E');
     expect(getRegionAbbr('Latam')).toBe('LATAM');
-  });
-});
-
-describe('getRegionFlagCode', () => {
-  it('maps regions to flag-icons codes', () => {
-    expect(getRegionFlagCode('North America')).toBe('us');
-    expect(getRegionFlagCode('Europe')).toBe('eu');
-    expect(getRegionFlagCode('South America')).toBe('br');
-    expect(getRegionFlagCode('Asia')).toBe('sg');
-    expect(getRegionFlagCode('Australia')).toBe('au');
-    expect(getRegionFlagCode('xx')).toBe('xx');
-    expect(getRegionFlagCode('Unknown Place')).toBe('');
   });
 });
 

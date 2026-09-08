@@ -17,7 +17,8 @@
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
-  import { getRegionFlagCode } from '$lib/utils/region';
+  import { getRegionAbbr } from '$lib/utils/region';
+  import { flagForRegion } from '$lib/utils/regions';
   import { groupStaffRosterByRegion, staffListChips } from '$lib/utils/staffDisplay';
   import type { StaffAssignmentDisplay, StaffSyncStatusDisplay } from '$lib/types/staff';
 
@@ -182,7 +183,7 @@
   {/if}
 
   {#each rosterGroups as group (group.regionId ?? 'none')}
-    {@const flagCode = group.regionId ? getRegionFlagCode(group.regionName) : ''}
+    {@const flagCode = group.regionId ? flagForRegion(getRegionAbbr(group.regionName)) : ''}
     <section class="space-y-2">
       <div class="flex items-center gap-2 px-1">
         {#if flagCode}

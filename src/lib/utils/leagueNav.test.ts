@@ -33,6 +33,7 @@ describe('buildLeagueNav', () => {
     ]);
 
     expect(nav.regions.map((r) => r.abbr)).toEqual(['NA', 'EU', 'ASIA']);
+    expect(nav.regions.map((r) => r.flagCode)).toEqual(['us', 'eu', 'sg']);
     expect(nav.formats.map((f) => f.code)).toEqual(['2v2', '1v1', 'ultiduo']);
 
     const twoVTwo = nav.formats[0];
@@ -59,6 +60,7 @@ describe('buildLeagueNav', () => {
 
     expect(nav.formats.map((f) => f.code)).toEqual(['bball']);
     expect(nav.regions.map((r) => r.abbr)).toEqual(['SA']);
+    expect(nav.regions.map((r) => r.flagCode)).toEqual(['ar']);
     expect(nav.formats[0]?.cells[0]?.href).toBe('/leagues/bball?season=1&region=13');
   });
 });

@@ -7,6 +7,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import { onMount } from 'svelte';
   import { toast } from '$lib/state/toast.svelte';
+  import { hasMetPaidPlayerRequirement, paidPlayersNeeded } from '$lib/utils/rosterPayments';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -32,7 +33,12 @@
   const canToggleReady = $derived(
     data.canManageTeam &&
       team.status === 'UNREADY' &&
-      (data.isFreeDivision || data.paidPlayerCount >= 2),
+      (data.isFreeDivision ||
+        hasMetPaidPlayerRequirement(
+          data.paidPlayerCount,
+          data.requiredPaidPlayers,
+          currentRoster.length,
+        )),
   );
 
   onMount(() => {
@@ -118,7 +124,17 @@
   const currentUserIsPaid = $derived(
     currentRoster.find((p) => p.steamId === data.currentUserSteamId)?.isPaid ?? true,
   );
-  const paymentStepComplete = $derived(data.isFreeDivision || data.paidPlayerCount >= 2);
+  const paymentStepComplete = $derived(
+    data.isFreeDivision ||
+      hasMetPaidPlayerRequirement(
+        data.paidPlayerCount,
+        data.requiredPaidPlayers,
+        currentRoster.length,
+      ),
+  );
+  const playersNeededToPay = $derived(
+    paidPlayersNeeded(data.requiredPaidPlayers, currentRoster.length),
+  );
 
   function makeEnhance(action: string) {
     return ({ cancel }: { cancel: () => void }) => {
@@ -312,7 +328,7 @@
               <p class="text-sm text-text-body mt-1">
                 You need to pay your signup fee before the team can ready up.
                 <span class="text-warning-400 font-medium">
-                  ({data.paidPlayerCount}/2 paid)
+                  ({data.paidPlayerCount}/{playersNeededToPay} paid)
                 </span>
               </p>
             {:else}
@@ -324,7 +340,7 @@
                   ? 's'
                   : ''} to pay before the team can ready up.
                 <span class="text-warning-400 font-medium">
-                  ({data.paidPlayerCount}/2 paid)
+                  ({data.paidPlayerCount}/{playersNeededToPay} paid)
                 </span>
               </p>
             {/if}
@@ -595,7 +611,7 @@
                       ? 'text-success-400'
                       : 'text-warning-400'} font-medium ml-auto"
                   >
-                    {data.paidPlayerCount}/2 paid
+                    {data.paidPlayerCount}/{playersNeededToPay} paid
                   </span>
                 </div>
                 {#if !paymentStepComplete}
@@ -603,7 +619,9 @@
                     <div class="w-full bg-surface-input rounded-full h-1.5">
                       <div
                         class="bg-warning-500 h-1.5 rounded-full transition-all"
-                        style="width: {(data.paidPlayerCount / 2) * 100}%"
+                        style="width: {(playersNeededToPay > 0
+                          ? data.paidPlayerCount / playersNeededToPay
+                          : 0) * 100}%"
                       ></div>
                     </div>
                     <div class="space-y-1">
@@ -675,9 +693,11 @@
                   >
                     Ready Up
                   </Button>
-                {:else if !data.isFreeDivision && data.paidPlayerCount < 2}
+                {:else if !data.isFreeDivision && !paymentStepComplete}
                   <p class="text-sm text-text-muted">
-                    Available after at least 2 players have paid their signup fees.
+                    Available after at least {playersNeededToPay} player{playersNeededToPay === 1
+                      ? ''
+                      : 's'} have paid their signup fees.
                   </p>
                 {/if}
               </div>

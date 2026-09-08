@@ -1,16 +1,30 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import type { PageData } from './$types';
+  import type { ActionData, PageData } from './$types';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import FormError from '$lib/components/ui/form/FormError.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import { toast } from '$lib/state/toast.svelte';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let isSubmitting = $state(false);
   let decliningPlayerId = $state<string | null>(null);
   let declineReasons = $state<Record<string, string>>({});
+  let lastFormResult: ActionData = null;
+
+  $effect(() => {
+    if (form && form !== lastFormResult) {
+      lastFormResult = form;
+      if (form.success && form.message) {
+        toast.success(form.message);
+      } else if (form.error) {
+        toast.error(form.error);
+      }
+    }
+  });
 
   let selectedDivision = $state<string>('all');
   let selectedRegion = $state<string>('all');
@@ -63,6 +77,8 @@
     <h2 class="text-3xl font-bold text-white mb-2">Pending Players</h2>
     <p class="text-text-body">Approve or deny team join requests</p>
   </div>
+
+  <FormError error={form?.error} success={form?.success && form?.message ? form.message : null} />
 
   <!-- Filters -->
   <Card padding="sm">

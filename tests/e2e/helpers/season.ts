@@ -134,7 +134,7 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
           isIndividual: false,
           minRosterSize: 2,
           maxRosterSize: 3,
-          requiredPaidPlayers: 2,
+          requiredPaidPlayers: 3,
           supportsJoinPassword: true,
           supportsAcronym: true,
           supportsReregistration: true,
@@ -422,12 +422,14 @@ export async function getLatestMatchId(opts?: {
   }
 }
 
-export async function getTeamByName(name: string): Promise<{ id: number; status: string }> {
+export async function getTeamByName(
+  name: string,
+): Promise<{ id: number; status: string; divisionId: number | null }> {
   const prisma = createPrisma();
   try {
     const team = await prisma.team.findFirstOrThrow({
       where: { name },
-      select: { id: true, status: true },
+      select: { id: true, status: true, divisionId: true },
     });
     return team;
   } finally {

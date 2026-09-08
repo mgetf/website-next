@@ -217,14 +217,7 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   const created = await getTeamByName(HOME_TEAM_NAME);
   homeTeamId = created.id;
   expect(created.status).toBe('UNREADY');
-
-  await admin.page.goto(`/teams/${homeTeamId}`);
-  await expect(admin.page.getByRole('heading', { name: HOME_TEAM_NAME })).toBeVisible();
-  await admin.page.locator('#divisionId').selectOption(String(league.divisionId));
-  await Promise.all([
-    admin.page.waitForLoadState('networkidle'),
-    admin.page.getByRole('button', { name: 'Update Division' }).click(),
-  ]);
+  expect(created.divisionId).toBeNull();
 });
 
 test('join approve ready; decline pending; invite/promote/remove; link join; decline/cancel invite', async () => {
@@ -242,7 +235,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
     homeTeammate.page.getByRole('button', { name: 'Request to Join' }).click(),
   ]);
 
-  // Admin approves teammate
+  // Admin approves teammate while the team is still unplaced (no division).
   await admin.page.goto('/admin/pending-players');
   await expect(admin.page.getByText(E2E_USERS.homeTeammate.username)).toBeVisible();
   await Promise.all([
@@ -252,6 +245,15 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
   await expect(admin.page.getByText('No pending player requests')).toBeVisible({
     timeout: 15_000,
   });
+
+  await admin.page.goto(`/teams/${homeTeamId}`);
+  await expect(admin.page.getByRole('heading', { name: HOME_TEAM_NAME })).toBeVisible();
+  await expect(admin.page.getByText(E2E_USERS.homeTeammate.username)).toBeVisible();
+  await admin.page.locator('#divisionId').selectOption(String(league.divisionId));
+  await Promise.all([
+    admin.page.waitForLoadState('networkidle'),
+    admin.page.getByRole('button', { name: 'Update Division' }).click(),
+  ]);
 
   // Decline path: password join → admin declines with reason
   await homeDeclined.page.goto(`/teams/${homeTeamId}/join`);

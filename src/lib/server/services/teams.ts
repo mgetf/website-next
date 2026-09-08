@@ -9,6 +9,7 @@ import { TeamStatus, NotificationType } from '$prisma/client.js';
 import type { Prisma } from '$prisma/client.js';
 import { notFound, badRequest, forbidden } from '$lib/server/utils/errors';
 import { createNotificationForUser } from '$lib/server/services/notifications';
+import { paidPlayersNeeded } from '$lib/utils/rosterPayments';
 
 /**
  * Get teams with filtering, search, and pagination
@@ -435,6 +436,7 @@ export async function getTeamById(id: number) {
       division: true,
       region: true,
       season: true,
+      format: { select: { requiredPaidPlayers: true } },
       players: {
         include: {
           player: {
@@ -593,9 +595,10 @@ export async function updateTeam(
 /**
  * Set a team's status with payment enforcement (admin action).
  *
- * Setting to READY is hard-blocked for paid divisions unless all required
- * players already have a non-zero paymentStatus. Admins must use the
- * "Mark as paid" action first.
+ * Setting to READY is hard-blocked for paid divisions unless enough
+ * active players already have a non-zero paymentStatus (capped to the
+ * current roster so a 2-player team is not blocked by a 3-player cap).
+ * Admins must use the "Mark as paid" action first.
  */
 export async function adminSetTeamStatus(id: number, status: TeamStatus) {
   const team = await prisma.team.findUnique({
@@ -616,10 +619,10 @@ export async function adminSetTeamStatus(id: number, status: TeamStatus) {
     const isFreeDiv = !team.division || team.division.signupCost === 0;
     if (!isFreeDiv) {
       const paidCount = team.players.filter((p) => p.paymentStatus !== 0).length;
-      const requiredPaidPlayers = team.format.requiredPaidPlayers;
-      if (paidCount < requiredPaidPlayers) {
+      const needed = paidPlayersNeeded(team.format.requiredPaidPlayers, team.players.length);
+      if (paidCount < needed) {
         badRequest(
-          `Cannot set team to ${status}: at least ${requiredPaidPlayers} active players must be marked as paid first`,
+          `Cannot set team to ${status}: at least ${needed} active players must be marked as paid first`,
         );
       }
     }
@@ -634,7 +637,7 @@ export async function adminSetTeamStatus(id: number, status: TeamStatus) {
 /**
  * Toggle a team from UNREADY to PENDING.
  * Requires the caller to be a team admin (permissionLevel >= 1)
- * and at least format.requiredPaidPlayers active players to be paid.
+ * and enough active players to be paid (capped to current roster size).
  */
 export async function toggleTeamReady(teamId: number, userSteamId: string) {
   const team = await prisma.team.findUnique({
@@ -663,9 +666,9 @@ export async function toggleTeamReady(teamId: number, userSteamId: string) {
   const isFreeDiv = !team.division || team.division.signupCost === 0;
   if (!isFreeDiv) {
     const paidCount = team.players.filter((p) => p.paymentStatus !== 0).length;
-    const requiredPaidPlayers = team.format.requiredPaidPlayers;
-    if (paidCount < requiredPaidPlayers) {
-      badRequest(`At least ${requiredPaidPlayers} players must be paid before readying up`);
+    const needed = paidPlayersNeeded(team.format.requiredPaidPlayers, team.players.length);
+    if (paidCount < needed) {
+      badRequest(`At least ${needed} players must be paid before readying up`);
     }
   }
 

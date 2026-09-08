@@ -11,6 +11,7 @@ import path from 'path';
 import { createNotificationForUser } from './notifications';
 import { hashPassword } from '../utils/password';
 import { isSeasonCurrentlyActive } from './settings';
+import { syncTeamPaymentStatus } from './payments';
 
 type TeamEditTeam = Prisma.TeamGetPayload<{
   include: {
@@ -274,6 +275,17 @@ export async function removePlayer(teamId: number, playerSteamId: string): Promi
       leftAt: new Date(),
     },
   });
+
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      format: { select: { requiredPaidPlayers: true } },
+      division: { select: { signupCost: true } },
+    },
+  });
+  if (team?.division && team.division.signupCost > 0) {
+    await syncTeamPaymentStatus(prisma, teamId, team.format.requiredPaidPlayers);
+  }
 }
 
 /**

@@ -32,7 +32,9 @@ test('guest can open signup and CTAs ask them to log in', async ({ page }) => {
   await expect(page.getByText('Ultiduo & BBall')).toBeVisible();
   await expect(page.getByText(/Free to enter this season/i)).toBeVisible();
   await expect(page.getByText('MGE 1v1 & 2v2')).toBeVisible();
-  await expect(page.getByText('SA: $5')).toBeVisible();
+  await expect(page.getByText('SA: $5 / 3 keys')).toBeVisible();
+  await expect(page.getByText('NA: $10 / 6 keys')).toBeVisible();
+  await expect(page.getByText('Asia: $4 / 2 keys')).toBeVisible();
   await expect(page.getByText(/Newcomer division is/i)).toBeVisible();
 
   const createCard = page.getByRole('link', { name: /brand new 2v2 team/i });

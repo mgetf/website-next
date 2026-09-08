@@ -1,12 +1,10 @@
 <script lang="ts">
-  import Badge from '$lib/components/ui/Badge.svelte';
-
   const mgePrices = [
-    { region: 'NA', amount: '$10' },
-    { region: 'EU', amount: '$10' },
-    { region: 'Asia', amount: '$4' },
-    { region: 'AU', amount: '$10' },
-    { region: 'SA', amount: '$5' },
+    { region: 'NA', usd: '$10', keys: '6 keys' },
+    { region: 'EU', usd: '$10', keys: '6 keys' },
+    { region: 'Asia', usd: '$4', keys: '2 keys' },
+    { region: 'AU', usd: '$10', keys: '6 keys' },
+    { region: 'SA', usd: '$5', keys: '3 keys' },
   ] as const;
 </script>
 
@@ -23,9 +21,11 @@
 
     <div>
       <p class="font-semibold text-white mb-2">MGE 1v1 &amp; 2v2</p>
-      <div class="flex flex-wrap gap-2 mb-2">
-        {#each mgePrices as { region, amount } (region)}
-          <Badge color="zinc">{region}: {amount}</Badge>
+      <div class="flex flex-wrap gap-x-3 gap-y-1 mb-2 text-text-label">
+        {#each mgePrices as { region, usd, keys } (region)}
+          <span>
+            <span class="font-semibold text-white">{region}</span>: {usd} / {keys}
+          </span>
         {/each}
       </div>
       <p class="text-text-label">

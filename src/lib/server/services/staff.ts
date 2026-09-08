@@ -581,6 +581,38 @@ export async function getManagedDiscordRoleIds(): Promise<string[]> {
   return [...catalogDiscordRoleIds(snapshot)];
 }
 
+export async function getDesiredDiscordRoleIdsByDiscordId(discordId: string): Promise<string[]> {
+  const trimmed = discordId.trim();
+  if (!trimmed) return [];
+
+  const link = await prisma.discord.findUnique({
+    where: { discordId: trimmed },
+    select: {
+      player: {
+        select: {
+          permissionLevel: true,
+          staffAssignments: {
+            select: {
+              formatId: true,
+              division: { select: { regionId: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const player = link?.player;
+  if (!player || !isStaffRole(player.permissionLevel)) return [];
+
+  const snapshot = await loadMappingSnapshot();
+  const scopes: AssignmentScope[] = player.staffAssignments.map((row) => ({
+    formatId: row.formatId,
+    regionId: row.division.regionId,
+  }));
+  return resolveDiscordRoleIds(player.permissionLevel, scopes, snapshot);
+}
+
 export async function stripManagedDiscordRoles(
   discordId: string,
   integrations: StaffIntegrations = defaultIntegrations(),

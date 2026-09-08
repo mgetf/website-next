@@ -1,23 +1,32 @@
 <script lang="ts">
   import type { LayoutData } from './$types';
+  import type { Component } from 'svelte';
+  import type { SvelteHTMLElements } from 'svelte/elements';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import Button from '$lib/components/ui/Button.svelte';
-
-  import dashboardIcon from '$lib/assets/icons/dashboard.png';
-  import trophyIcon from '$lib/assets/icons/trophy.png';
-  import groupIcon from '$lib/assets/icons/group.png';
-  import battleIcon from '$lib/assets/icons/battle.png';
-  import hourglassIcon from '$lib/assets/icons/hourglass.png';
-  import videoCameraIcon from '$lib/assets/icons/video-camera.png';
-  import maceIcon from '$lib/assets/icons/mace.png';
-  import userIcon from '$lib/assets/icons/user.png';
-  import webIcon from '$lib/assets/icons/web.png';
-  import settingIcon from '$lib/assets/icons/setting.png';
-  import auditIcon from '$lib/assets/icons/audit.png';
-  import mapIcon from '$lib/assets/icons/location.png';
+  import ArrowLeft from '~icons/lucide/arrow-left';
+  import LayoutDashboard from '~icons/lucide/layout-dashboard';
+  import Trophy from '~icons/lucide/trophy';
+  import Medal from '~icons/lucide/medal';
+  import Users from '~icons/lucide/users';
+  import Swords from '~icons/lucide/swords';
+  import Hourglass from '~icons/lucide/hourglass';
+  import Video from '~icons/lucide/video';
+  import Map from '~icons/lucide/map';
+  import Gavel from '~icons/lucide/gavel';
+  import User from '~icons/lucide/user';
+  import UserCog from '~icons/lucide/user-cog';
+  import Globe from '~icons/lucide/globe';
+  import Newspaper from '~icons/lucide/newspaper';
+  import Package from '~icons/lucide/package';
+  import Settings from '~icons/lucide/settings';
+  import ClipboardList from '~icons/lucide/clipboard-list';
+  import Menu from '~icons/lucide/menu';
 
   let { data, children }: { data: LayoutData; children: any } = $props();
+
+  type Icon = Component<SvelteHTMLElements['svg']>;
 
   // Determine active page for sidebar highlighting
   const isActive = (path: string) => {
@@ -27,43 +36,50 @@
     return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
   };
 
-  // Sidebar menu items
   const allMenuItems = [
-    { name: 'Dashboard', path: '/admin', icon: dashboardIcon, adminOnly: false, badge: '' },
-    { name: 'League', path: '/admin/league', icon: trophyIcon, adminOnly: false, badge: '' },
-    {
-      name: 'Tournaments',
-      path: '/admin/tournaments',
-      icon: trophyIcon,
-      adminOnly: true,
-      badge: '',
-    },
-    { name: 'Teams', path: '/admin/teams', icon: groupIcon, adminOnly: false, badge: '' },
-    { name: 'Matches', path: '/admin/matches', icon: battleIcon, adminOnly: false, badge: '' },
+    { name: 'Dashboard', path: '/admin', icon: LayoutDashboard, adminOnly: false, badge: '' },
+    { name: 'League', path: '/admin/league', icon: Trophy, adminOnly: false, badge: '' },
+    { name: 'Tournaments', path: '/admin/tournaments', icon: Medal, adminOnly: true, badge: '' },
+    { name: 'Teams', path: '/admin/teams', icon: Users, adminOnly: false, badge: '' },
+    { name: 'Matches', path: '/admin/matches', icon: Swords, adminOnly: false, badge: '' },
     {
       name: 'Pending Players',
       path: '/admin/pending-players',
-      icon: hourglassIcon,
+      icon: Hourglass,
       adminOnly: false,
       badge: '',
     },
-    { name: 'Demos', path: '/admin/demos', icon: videoCameraIcon, adminOnly: false, badge: '' },
-    { name: 'Maps', path: '/admin/maps', icon: mapIcon, adminOnly: false, badge: '' },
-    { name: 'Disputes', path: '/admin/disputes', icon: maceIcon, adminOnly: false, badge: '' },
-    { name: 'Users', path: '/admin/users', icon: userIcon, adminOnly: false, badge: '' },
-    { name: 'Staff', path: '/admin/staff', icon: userIcon, adminOnly: true, badge: '' },
-    { name: 'Global', path: '/admin/global', icon: webIcon, adminOnly: false, badge: '' },
-    { name: 'Blog', path: '/admin/blog', icon: webIcon, adminOnly: false, badge: '' },
+    { name: 'Demos', path: '/admin/demos', icon: Video, adminOnly: false, badge: '' },
+    { name: 'Maps', path: '/admin/maps', icon: Map, adminOnly: false, badge: '' },
+    { name: 'Disputes', path: '/admin/disputes', icon: Gavel, adminOnly: false, badge: '' },
+    { name: 'Users', path: '/admin/users', icon: User, adminOnly: false, badge: '' },
+    { name: 'Staff', path: '/admin/staff', icon: UserCog, adminOnly: true, badge: '' },
+    { name: 'Global', path: '/admin/global', icon: Globe, adminOnly: false, badge: '' },
+    { name: 'Blog', path: '/admin/blog', icon: Newspaper, adminOnly: false, badge: '' },
     {
       name: 'Item Orders',
       path: '/admin/item-payments',
-      icon: hourglassIcon,
+      icon: Package,
       adminOnly: false,
       badge: '',
     },
-    { name: 'Site', path: '/admin/site', icon: settingIcon, adminOnly: false, badge: '' },
-    { name: 'Audit Logs', path: '/admin/audit-logs', icon: auditIcon, adminOnly: true, badge: '' },
-  ] as const;
+    { name: 'Site', path: '/admin/site', icon: Settings, adminOnly: false, badge: '' },
+    {
+      name: 'Audit Logs',
+      path: '/admin/audit-logs',
+      icon: ClipboardList,
+      adminOnly: true,
+      badge: '',
+    },
+  ] as const satisfies readonly {
+    name: string;
+    path: string;
+    icon: Icon;
+    adminOnly: boolean;
+    badge: string;
+  }[];
+
+  type MenuItem = (typeof allMenuItems)[number];
 
   const menuItems = $derived(allMenuItems.filter((item) => !item.adminOnly || data.isStrictAdmin));
 
@@ -75,39 +91,49 @@
   <title>Admin Panel - MGE.tf</title>
 </svelte:head>
 
+{#snippet navItem(item: MenuItem, closeMobile = false)}
+  <a
+    href={resolve(item.path)}
+    onclick={() => {
+      if (closeMobile) mobileMenuOpen = false;
+    }}
+    class="relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(item.path)
+      ? 'bg-primary-500/20 text-primary-400 font-medium'
+      : 'text-text-label hover:bg-surface-input hover:text-white'}"
+  >
+    <item.icon class="size-5 shrink-0" />
+    <span>{item.name}</span>
+    {#if item.badge}
+      <span
+        class="ml-auto text-[9px] font-bold uppercase tracking-wide px-1.5 py-px rounded-full bg-danger-500 text-white leading-none"
+        >{item.badge}</span
+      >
+    {/if}
+  </a>
+{/snippet}
+
+{#snippet backToSite(closeMobile = false)}
+  <a
+    href={resolve('/')}
+    onclick={() => {
+      if (closeMobile) mobileMenuOpen = false;
+    }}
+    class="flex items-center gap-3 px-4 py-3 mb-4 bg-surface-input hover:bg-surface-hover rounded-lg transition-all text-text-label hover:text-white"
+  >
+    <ArrowLeft class="size-5 shrink-0" />
+    <span>Back to Site</span>
+  </a>
+{/snippet}
+
 <div class="min-h-screen bg-surface-page text-text-label flex">
   <!-- Sidebar -->
   <aside
     class="hidden lg:block w-64 bg-surface-card border-r border-border-default min-h-screen sticky top-0"
   >
     <nav class="p-4 space-y-1">
-      <!-- Back to Site Button -->
-      <a
-        href={resolve('/')}
-        class="flex items-center gap-3 px-4 py-3 mb-4 bg-surface-input hover:bg-surface-hover rounded-lg transition-all text-text-label hover:text-white"
-      >
-        <span class="text-xl">←</span>
-        <span>Back to Site</span>
-      </a>
-
+      {@render backToSite()}
       {#each menuItems as item (item.path)}
-        <a
-          href={resolve(item.path)}
-          class="relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(
-            item.path,
-          )
-            ? 'bg-primary-500/20 text-primary-400 font-medium'
-            : 'text-text-label hover:bg-surface-input hover:text-white'}"
-        >
-          <img src={item.icon} alt={item.name} class="w-6 h-6 brightness-0 invert opacity-70" />
-          <span>{item.name}</span>
-          {#if item.badge}
-            <span
-              class="ml-auto text-[9px] font-bold uppercase tracking-wide px-1.5 py-px rounded-full bg-danger-500 text-white leading-none"
-              >{item.badge}</span
-            >
-          {/if}
-        </a>
+        {@render navItem(item)}
       {/each}
     </nav>
   </aside>
@@ -119,14 +145,7 @@
     aria-label="Toggle menu"
     class="lg:hidden fixed bottom-6 right-6 z-50 p-4! rounded-full! shadow-lg"
   >
-    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        d="M4 6h16M4 12h16M4 18h16"
-      />
-    </svg>
+    <Menu class="size-6 text-white" />
   </Button>
 
   <!-- Mobile Sidebar -->
@@ -144,34 +163,9 @@
         tabindex="-1"
       >
         <nav class="p-4 space-y-1">
-          <!-- Back to Site Button -->
-          <a
-            href={resolve('/')}
-            onclick={() => (mobileMenuOpen = false)}
-            class="flex items-center gap-3 px-4 py-3 mb-4 bg-surface-input hover:bg-surface-hover rounded-lg transition-all text-text-label hover:text-white"
-          >
-            <span class="text-xl">←</span>
-            <span>Back to Site</span>
-          </a>
+          {@render backToSite(true)}
           {#each menuItems as item (item.path)}
-            <a
-              href={resolve(item.path)}
-              onclick={() => (mobileMenuOpen = false)}
-              class="relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all {isActive(
-                item.path,
-              )
-                ? 'bg-primary-500/20 text-primary-400 font-medium'
-                : 'text-text-label hover:bg-surface-input hover:text-white'}"
-            >
-              <img src={item.icon} alt={item.name} class="w-5 h-5 brightness-0 invert opacity-70" />
-              <span>{item.name}</span>
-              {#if item.badge}
-                <span
-                  class="ml-auto text-[9px] font-bold uppercase tracking-wide px-1.5 py-px rounded-full bg-danger-500 text-white leading-none"
-                  >{item.badge}</span
-                >
-              {/if}
-            </a>
+            {@render navItem(item, true)}
           {/each}
         </nav>
       </div>

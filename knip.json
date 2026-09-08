@@ -1,7 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
-  "ignoreDependencies": ["@prisma/client"],
+  "ignoreDependencies": ["@prisma/client", "@iconify-json/lucide"],
+  "ignoreUnresolved": ["^~icons/"],
   "ignore": ["src/test-mocks/**"],
   "ignoreFiles": ["src/lib/index.ts", "scripts/**"],
   "ignoreExportsUsedInFile": true,

@@ -1,7 +1,12 @@
 <script lang="ts">
   import type { SessionUser } from '$lib/types/user';
   import { UserRole } from '$lib/types/user';
-  import transactionHistoryIcon from '$lib/assets/icons/transaction-history.png';
+  import ChevronDown from '~icons/lucide/chevron-down';
+  import User from '~icons/lucide/user';
+  import Users from '~icons/lucide/users';
+  import Receipt from '~icons/lucide/receipt';
+  import Settings from '~icons/lucide/settings';
+  import LogOut from '~icons/lucide/log-out';
 
   type Props = {
     user: SessionUser;
@@ -14,7 +19,7 @@
   let dropdownOpen = $state(false);
 
   // User display name truncation for main button
-  let displayName = $derived(() => {
+  let displayName = $derived.by(() => {
     const maxLength = 15;
     return user.steamUsername.length > maxLength
       ? user.steamUsername.slice(0, maxLength) + '...'
@@ -37,7 +42,7 @@
     user.permissionLevel === UserRole.ADMIN || user.permissionLevel === UserRole.MODERATOR,
   );
 
-  const roleBadge = $derived(() => {
+  const roleBadge = $derived.by(() => {
     switch (user.permissionLevel) {
       case UserRole.ADMIN:
         return { label: 'Admin', classes: 'text-purple-400' };
@@ -64,20 +69,15 @@
       alt="User Avatar"
     />
     <div class="hidden lg:flex flex-col items-start leading-tight">
-      <span class="text-sm font-medium text-text-label">{displayName()}</span>
-      {#if roleBadge()}
-        <span class="text-[10px] font-medium {roleBadge()!.classes}">{roleBadge()!.label}</span>
+      <span class="text-sm font-medium text-text-label">{displayName}</span>
+      {#if roleBadge}
+        <span class="text-[10px] font-medium {roleBadge.classes}">{roleBadge.label}</span>
       {/if}
     </div>
     <!-- Chevron Icon -->
-    <svg
-      class="w-4 h-4 text-text-body transition-transform {dropdownOpen ? 'rotate-180' : ''}"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-    </svg>
+    <ChevronDown
+      class="size-4 text-text-body transition-transform {dropdownOpen ? 'rotate-180' : ''}"
+    />
   </button>
 
   <!-- Dropdown Menu -->
@@ -117,14 +117,7 @@
           class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
           onclick={() => (dropdownOpen = false)}
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
+          <User class="size-5 shrink-0" />
           <span>My Profile</span>
         </a>
 
@@ -134,14 +127,7 @@
             class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
             onclick={() => (dropdownOpen = false)}
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
+            <Users class="size-5 shrink-0" />
             <span>My Team: {userTeam.name}</span>
           </a>
         {/if}
@@ -151,7 +137,7 @@
           class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
           onclick={() => (dropdownOpen = false)}
         >
-          <img src={transactionHistoryIcon} alt="" class="w-5 h-5 brightness-0 invert opacity-70" />
+          <Receipt class="size-5 shrink-0" />
           <span>Payment History</span>
         </a>
 
@@ -161,20 +147,7 @@
             class="flex items-center gap-3 px-4 py-2.5 text-sm text-purple-400 hover:bg-surface-input/50 hover:text-purple-300 transition-all"
             onclick={() => (dropdownOpen = false)}
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
+            <Settings class="size-5 shrink-0" />
             <span>Admin Panel</span>
           </a>
         {/if}
@@ -187,14 +160,7 @@
             type="submit"
             class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-danger-400 hover:bg-surface-input/50 hover:text-danger-300 transition-all text-left"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
+            <LogOut class="size-5 shrink-0" />
             <span>Sign Out</span>
           </button>
         </form>

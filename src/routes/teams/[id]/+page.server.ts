@@ -303,6 +303,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     paymentSuccess,
     signupSuccess,
     paidPlayerCount: currentRoster.filter((p) => p.isPaid).length,
+    requiredPaidPlayers: team.format.requiredPaidPlayers,
     isFreeDivision: !team.division || team.division.signupCost === 0,
   };
 };

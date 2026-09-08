@@ -1194,4 +1194,7 @@ export async function linkDiscordAccount(
     create: { discordId, discordUsername, discordAvatar, playerSteamId: steamId },
     update: { discordUsername, discordAvatar, playerSteamId: steamId },
   });
+
+  const { syncStaffDiscordIfNeeded } = await import('./staff');
+  await syncStaffDiscordIfNeeded(steamId);
 }

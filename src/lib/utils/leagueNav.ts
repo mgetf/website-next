@@ -1,5 +1,6 @@
 import type { LeagueNav, LeagueNavCell, LeagueNavFormat, LeagueNavRegion } from '$lib/types/league';
-import { getRegionAbbr, getRegionFlagCode, sortRegionsByAbbr } from '$lib/utils/region';
+import { getRegionAbbr, sortRegionsByAbbr } from '$lib/utils/region';
+import { flagForRegion } from '$lib/utils/regions';
 
 /** Flagship formats first, then remaining formats in the order provided. */
 const PREFERRED_FORMAT_CODES = ['2v2', '1v1'];
@@ -52,12 +53,15 @@ export function buildLeagueNav(
   const navRegions: LeagueNavRegion[] = sortRegionsByAbbr(
     regions
       .filter((region) => usedRegionIds.has(region.id))
-      .map((region) => ({
-        id: region.id,
-        name: region.name,
-        abbr: getRegionAbbr(region.name),
-        flagCode: getRegionFlagCode(region.name),
-      })),
+      .map((region) => {
+        const abbr = getRegionAbbr(region.name);
+        return {
+          id: region.id,
+          name: region.name,
+          abbr,
+          flagCode: flagForRegion(abbr),
+        };
+      }),
   );
 
   const navFormats: LeagueNavFormat[] = sortFormats(formats)

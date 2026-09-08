@@ -12,6 +12,12 @@
  * For Railway deployment:
  *   - Production service: APP_ENVIRONMENT=production
  *   - Staging service: APP_ENVIRONMENT=staging
+ *
+ * Staff hub (optional — /admin/staff sync degrades to pending/skipped):
+ *   SOURCEBANS_API_URL     SourceBans++ origin or /api/v1 base
+ *   SOURCEBANS_API_TOKEN   PAT (sbpp_pat_…)
+ *   DISCORD_BOT_TOKEN      Same bot token as discord-bot (guild role sync)
+ *   DISCORD_GUILD_ID       Guild whose roles are assigned to staff
  */
 
 /**
@@ -39,6 +45,10 @@ const RECOMMENDED_VARS = [
   'MGE_PLATFORM_URL',
   'PARSER_URL',
   'REALTIME_NOTIFICATIONS_ENABLED',
+  'SOURCEBANS_API_URL',
+  'SOURCEBANS_API_TOKEN',
+  'DISCORD_BOT_TOKEN',
+  'DISCORD_GUILD_ID',
 ] as const;
 
 type RequiredSecret = (typeof REQUIRED_SECRETS)[number];
@@ -160,4 +170,20 @@ export function getParserUrl(): string {
  */
 export function isRealtimeNotificationsEnabled(): boolean {
   return getOptionalEnv('REALTIME_NOTIFICATIONS_ENABLED', 'true') !== 'false';
+}
+
+export function getSourcebansApiUrl(): string {
+  return getOptionalEnv('SOURCEBANS_API_URL').replace(/\/$/, '');
+}
+
+export function getSourcebansApiToken(): string {
+  return getOptionalEnv('SOURCEBANS_API_TOKEN').trim();
+}
+
+export function getDiscordBotToken(): string {
+  return getOptionalEnv('DISCORD_BOT_TOKEN').trim();
+}
+
+export function getDiscordGuildId(): string {
+  return getOptionalEnv('DISCORD_GUILD_ID').trim();
 }

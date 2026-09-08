@@ -1,15 +1,16 @@
-const REGION_RULES: { match: RegExp; abbr: string; flag: string }[] = [
-  { match: /north\s*america|\bna\b|^us$/i, abbr: 'NA', flag: 'us' },
-  { match: /south\s*america|\bsa\b|^br$/i, abbr: 'SA', flag: 'br' },
-  { match: /europe|\beu\b/i, abbr: 'EU', flag: 'eu' },
-  { match: /australia|oceania|\baus\b|\boce\b/i, abbr: 'AUS', flag: 'au' },
-  { match: /asia|\bsea\b/i, abbr: 'ASIA', flag: 'sg' },
+const REGION_RULES: { match: RegExp; abbr: string }[] = [
+  { match: /north\s*america|\bna\b|^us$/i, abbr: 'NA' },
+  { match: /south\s*america|\bsa\b|^ar$/i, abbr: 'SA' },
+  { match: /europe|\beu\b/i, abbr: 'EU' },
+  { match: /australia|oceania|\baus\b|\boce\b/i, abbr: 'AUS' },
+  { match: /asia|\bsea\b/i, abbr: 'ASIA' },
 ];
 
 const REGION_SORT_ORDER = ['NA', 'SA', 'EU', 'ASIA', 'AUS'];
 
 /**
  * Short label for a region name (NA, EU, ASIA, …).
+ * Flags are `flagForRegion(abbr)` in `$lib/utils/regions`.
  */
 export function getRegionAbbr(name: string): string {
   const rule = REGION_RULES.find((r) => r.match.test(name));
@@ -22,19 +23,6 @@ export function getRegionAbbr(name: string): string {
   const firstWord = trimmed.split(/\s+/)[0] ?? trimmed;
   if (firstWord.length <= 5) return firstWord.toUpperCase();
   return firstWord.slice(0, 3).toUpperCase();
-}
-
-/**
- * flag-icons country/region code for a region name.
- * Returns an empty string when no mapping is known.
- */
-export function getRegionFlagCode(name: string): string {
-  const rule = REGION_RULES.find((r) => r.match.test(name));
-  if (rule) return rule.flag;
-
-  const trimmed = name.trim();
-  if (/^[a-z]{2}$/i.test(trimmed)) return trimmed.toLowerCase();
-  return '';
 }
 
 /**

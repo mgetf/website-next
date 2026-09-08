@@ -6,3 +6,5 @@ export interface StaffAssignmentDisplay {
   regionId: number;
   regionName: string;
 }
+
+export type StaffSyncStatusDisplay = 'OK' | 'PENDING' | 'ERROR' | 'SKIPPED';

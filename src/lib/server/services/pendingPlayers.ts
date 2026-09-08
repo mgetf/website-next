@@ -10,6 +10,7 @@ import { prisma } from '$lib/server/db';
 import { badRequest } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { logAudit, AuditCategory, AuditAction } from './auditLog';
+import { syncTeamPaymentStatus } from './payments';
 
 export interface AuditContext {
   actorId: string;
@@ -182,15 +183,7 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
         data: { paymentStatus: 2 },
       });
     } else if (hasDivision) {
-      const paidPlayersCount = await tx.playerInTeam.count({
-        where: { teamId, active: 1, paymentStatus: 1 },
-      });
-      await tx.team.update({
-        where: { id: teamId },
-        data: {
-          paymentStatus: paidPlayersCount >= format.requiredPaidPlayers ? 1 : 0,
-        },
-      });
+      await syncTeamPaymentStatus(tx, teamId, format.requiredPaidPlayers);
     }
   });
 

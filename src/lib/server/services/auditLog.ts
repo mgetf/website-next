@@ -164,6 +164,7 @@ export const AuditAction = {
   STAFF_MAPPING_UPDATED: 'STAFF_MAPPING_UPDATED',
   STAFF_SYNC_RETRY: 'STAFF_SYNC_RETRY',
   STAFF_SYNC_ALL: 'STAFF_SYNC_ALL',
+  STAFF_DISCORD_ORPHAN_STRIPPED: 'STAFF_DISCORD_ORPHAN_STRIPPED',
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

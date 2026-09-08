@@ -6,6 +6,7 @@ import {
   classifyStaffSyncResult,
   formatStaffResyncSummary,
   formatStaffSyncMessage,
+  formatOrphanDiscordStripSummary,
   resolveDiscordRoleIds,
   resolveSourcebansPayload,
   wouldRemoveLastAdmin,
@@ -198,6 +199,19 @@ describe('formatStaffResyncSummary', () => {
   it('summarizes resync counts', () => {
     expect(formatStaffResyncSummary({ total: 4, ok: 2, pending: 1, error: 1 })).toBe(
       'Resynced 4 staff: 2 ok, 1 pending, 1 error',
+    );
+  });
+});
+
+describe('formatOrphanDiscordStripSummary', () => {
+  it('reports a clean strip', () => {
+    expect(formatOrphanDiscordStripSummary(1, 0)).toBe('Removed hub Discord roles from 1 member');
+    expect(formatOrphanDiscordStripSummary(3, 0)).toBe('Removed hub Discord roles from 3 members');
+  });
+
+  it('includes failures when any strip missed', () => {
+    expect(formatOrphanDiscordStripSummary(2, 1)).toBe(
+      'Removed hub Discord roles from 2 members, 1 failed',
     );
   });
 });

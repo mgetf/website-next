@@ -14,17 +14,25 @@ import {
 import {
   demoteStaff,
   designateStaff,
+  formatOrphanDiscordStripSummary,
   formatStaffResyncSummary,
   formatStaffSyncMessage,
+  getOrphanManagedDiscordMembers,
   getStaffRoster,
   isStaffRole,
   resyncAllStaff,
   retryStaffSync,
   searchUsersForStaff,
+  stripAllOrphanManagedDiscordRoles,
+  stripOrphanManagedDiscordRoles,
 } from '$lib/server/services/staff';
 
 const steamIdSchema = z.object({
   steamId: z.string().min(1, 'Invalid user ID'),
+});
+
+const discordIdSchema = z.object({
+  discordId: z.string().regex(/^\d+$/, 'Invalid Discord ID'),
 });
 
 const designateSchema = z.object({
@@ -38,20 +46,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   const search = url.searchParams.get('q') ?? '';
 
-  const [roster, divisions, regions, formats, regionIdsByFormat, searchResults] = await Promise.all(
-    [
+  const [roster, divisions, regions, formats, regionIdsByFormat, searchResults, orphanDiscord] =
+    await Promise.all([
       getStaffRoster(),
       getDivisions(),
       getRegions(),
       getFormatsForFilter(),
       getRegionIdsByFormat(),
       search ? searchUsersForStaff(search) : Promise.resolve([]),
-    ],
-  );
+      getOrphanManagedDiscordMembers(),
+    ]);
 
   return {
     currentSteamId: locals.user.steamId,
     roster,
+    orphanDiscord,
     search,
     searchResults,
     regions: regions.map((region) => ({ id: region.id, name: region.name })),
@@ -193,6 +202,59 @@ export const actions: Actions = {
       return formSuccess(undefined, formatStaffResyncSummary(counts));
     } catch (error) {
       return formError(getErrorMessage(error, 'Failed to resync staff'), 400);
+    }
+  },
+
+  stripOrphanDiscord: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, discordIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await stripOrphanManagedDiscordRoles(validation.data.discordId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.STAFF,
+        action: AuditAction.STAFF_DISCORD_ORPHAN_STRIPPED,
+        targetType: 'DiscordUser',
+        targetId: validation.data.discordId,
+        metadata: { count: 1 },
+        ipAddress: getClientAddress(),
+      });
+
+      return formSuccess(undefined, formatOrphanDiscordStripSummary(1, 0));
+    } catch (error) {
+      return formError(getErrorMessage(error, 'Failed to remove Discord staff roles'), 400);
+    }
+  },
+
+  stripAllOrphanDiscord: async ({ locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    try {
+      const result = await stripAllOrphanManagedDiscordRoles();
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.STAFF,
+        action: AuditAction.STAFF_DISCORD_ORPHAN_STRIPPED,
+        targetType: 'DiscordUser',
+        targetId: 'orphans',
+        metadata: result,
+        ipAddress: getClientAddress(),
+      });
+
+      return formSuccess(
+        undefined,
+        formatOrphanDiscordStripSummary(result.stripped, result.failed),
+      );
+    } catch (error) {
+      return formError(getErrorMessage(error, 'Failed to remove Discord staff roles'), 400);
     }
   },
 };

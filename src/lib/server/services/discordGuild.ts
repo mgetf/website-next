@@ -22,6 +22,25 @@ export type DiscordGuildRole = {
   position: number;
 };
 
+export type DiscordGuildMemberSnapshot = {
+  discordId: string;
+  username: string;
+  displayName: string;
+  bot: boolean;
+  roleIds: string[];
+};
+
+export type OrphanManagedRoleHolder = {
+  discordId: string;
+  username: string;
+  displayName: string;
+  roleIds: string[];
+  roleNames: string[];
+};
+
+const MEMBER_PAGE_SIZE = 1000;
+const MAX_MEMBER_PAGES = 20;
+
 export function isDiscordGuildConfigured(): boolean {
   return getDiscordBotToken().length > 0 && getDiscordGuildId().length > 0;
 }
@@ -34,6 +53,29 @@ export function nextMemberRoleIds(
   const unmanaged = currentRoleIds.filter((roleId) => roleId && !managedRoleIds.has(roleId));
   const desired = desiredRoleIds.filter((roleId) => roleId && managedRoleIds.has(roleId));
   return [...new Set([...unmanaged, ...desired])];
+}
+
+export function filterOrphanManagedRoleHolders(
+  members: DiscordGuildMemberSnapshot[],
+  staffDiscordIds: ReadonlySet<string>,
+  managedRoleIds: ReadonlySet<string>,
+  roleNamesById: ReadonlyMap<string, string>,
+): OrphanManagedRoleHolder[] {
+  const holders: OrphanManagedRoleHolder[] = [];
+  for (const member of members) {
+    if (member.bot) continue;
+    if (staffDiscordIds.has(member.discordId)) continue;
+    const held = [...new Set(member.roleIds.filter((roleId) => managedRoleIds.has(roleId)))];
+    if (held.length === 0) continue;
+    holders.push({
+      discordId: member.discordId,
+      username: member.username,
+      displayName: member.displayName,
+      roleIds: held,
+      roleNames: held.map((roleId) => roleNamesById.get(roleId) ?? roleId),
+    });
+  }
+  return holders.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 function sleep(ms: number): Promise<void> {
@@ -64,6 +106,9 @@ function discordErrorMessage(status: number, payload: unknown): string {
       : '';
 
   if (status === 403) {
+    if (/missing access/i.test(apiMessage)) {
+      return 'Cannot list Discord members. Enable Server Members Intent for the bot.';
+    }
     if (apiMessage && apiMessage !== 'Missing Permissions') return apiMessage;
     return 'The bot cannot manage that Discord role. Move the bot role above it in Server Settings → Roles.';
   }
@@ -113,6 +158,57 @@ async function discordFetch<T>(path: string, init: RequestInit = {}): Promise<T>
   }
 
   throw new DiscordGuildError('Discord rate limit exceeded', 429);
+}
+
+export async function listDiscordGuildMembers(): Promise<DiscordGuildMemberSnapshot[]> {
+  const guildId = getDiscordGuildId();
+  if (!guildId) {
+    throw new DiscordGuildError('Discord guild is not configured', 503);
+  }
+
+  const members: DiscordGuildMemberSnapshot[] = [];
+  let after: string | undefined;
+
+  for (let page = 0; page < MAX_MEMBER_PAGES; page++) {
+    const query = new URLSearchParams({ limit: String(MEMBER_PAGE_SIZE) });
+    if (after) query.set('after', after);
+
+    const rows = await discordFetch<
+      Array<{
+        nick?: string | null;
+        roles?: string[];
+        user?: {
+          id?: string;
+          username?: string;
+          global_name?: string | null;
+          bot?: boolean;
+        };
+      }>
+    >(`/guilds/${guildId}/members?${query.toString()}`);
+
+    if (!rows || rows.length === 0) break;
+
+    for (const row of rows) {
+      const user = row.user;
+      const discordId = user?.id;
+      if (!discordId) continue;
+      const username = user.username || discordId;
+      members.push({
+        discordId,
+        username,
+        displayName: row.nick || user.global_name || username,
+        bot: Boolean(user.bot),
+        roleIds: row.roles ?? [],
+      });
+    }
+
+    if (rows.length < MEMBER_PAGE_SIZE) break;
+    const lastId = rows[rows.length - 1]?.user?.id;
+    if (!lastId) break;
+    after = lastId;
+  }
+
+  return members;
 }
 
 export async function listDiscordGuildRoles(): Promise<DiscordGuildRole[]> {

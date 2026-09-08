@@ -20,7 +20,11 @@
   import { getRegionAbbr } from '$lib/utils/region';
   import { flagForRegion } from '$lib/utils/regions';
   import { groupStaffRosterByRegion, staffListChips } from '$lib/utils/staffDisplay';
-  import type { StaffAssignmentDisplay, StaffSyncStatusDisplay } from '$lib/types/staff';
+  import type {
+    OrphanManagedDiscordMember,
+    StaffAssignmentDisplay,
+    StaffSyncStatusDisplay,
+  } from '$lib/types/staff';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -39,6 +43,8 @@
   let selectedStaffAssignments: { formatId: number; divisionId: number }[] = $state([]);
   let demoting: DesignateTarget | null = $state(null);
   let syncingAll = $state(false);
+  let stripping: OrphanManagedDiscordMember | null = $state(null);
+  let strippingAll = $state(false);
   let isSubmitting = $state(false);
   let lastFormResult: ActionData = null;
 
@@ -58,12 +64,21 @@
   });
 
   const rosterGroups = $derived(groupStaffRosterByRegion(data.roster, data.regions));
+  const orphanMembers = $derived(data.orphanDiscord.members);
+  const showOrphanAudit = $derived(data.orphanDiscord.configured || !!data.orphanDiscord.error);
 
   const columns: Column[] = [
     { key: 'user', label: 'Staff' },
     { key: 'discord', label: 'Discord' },
     { key: 'role', label: 'Role' },
     { key: 'sync', label: 'Sync' },
+    { key: 'actions', label: 'Actions', align: 'right' },
+  ];
+
+  const orphanColumns: Column[] = [
+    { key: 'discord', label: 'Discord' },
+    { key: 'roles', label: 'Hub roles' },
+    { key: 'site', label: 'Site account' },
     { key: 'actions', label: 'Actions', align: 'right' },
   ];
 
@@ -144,6 +159,85 @@
       </Button>
     </div>
   </div>
+
+  {#if showOrphanAudit}
+    <section class="space-y-2">
+      <div class="flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-white">Unmanaged Discord roles</h3>
+          <p class="text-xs text-text-muted">
+            Members who hold hub-managed roles but are not designated staff on this site.
+          </p>
+        </div>
+        {#if orphanMembers.length > 0}
+          <div class="flex items-center gap-2">
+            <Badge color="yellow">{orphanMembers.length}</Badge>
+            <Button
+              variant="danger"
+              size="sm"
+              onclick={() => (strippingAll = true)}
+              disabled={isSubmitting}
+            >
+              Strip all
+            </Button>
+          </div>
+        {/if}
+      </div>
+
+      {#if data.orphanDiscord.error}
+        <Card>
+          <p class="text-sm text-danger-400">{data.orphanDiscord.error}</p>
+        </Card>
+      {:else if orphanMembers.length === 0}
+        <Card>
+          <p class="text-sm text-text-muted">
+            No Discord members hold hub-managed roles without a staff designation.
+          </p>
+        </Card>
+      {:else}
+        <DataTable data={orphanMembers} columns={orphanColumns} compact>
+          {#snippet cell(row, col)}
+            {#if col.key === 'discord'}
+              <div class="min-w-0">
+                <p class="text-white text-sm font-medium truncate">{row.displayName}</p>
+                <p class="text-xs text-text-muted font-mono truncate" title={row.discordId}>
+                  {row.username} · {row.discordId}
+                </p>
+              </div>
+            {:else if col.key === 'roles'}
+              <div class="flex flex-wrap gap-1">
+                {#each row.roleNames as roleName, index (row.roleIds[index] ?? roleName)}
+                  <Badge color="yellow">{roleName}</Badge>
+                {/each}
+              </div>
+            {:else if col.key === 'site'}
+              {#if row.linkedSteamId}
+                <a
+                  href="/users/{row.linkedSteamId}"
+                  class="text-sm text-white hover:text-primary-400 truncate"
+                >
+                  {row.linkedSteamUsername ?? row.linkedSteamId}
+                </a>
+              {:else}
+                <span class="text-sm text-text-muted">Not on site</span>
+              {/if}
+            {:else if col.key === 'actions'}
+              <div class="flex justify-end">
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onclick={() => (stripping = row)}
+                  disabled={isSubmitting}
+                >
+                  Strip roles
+                </Button>
+              </div>
+            {/if}
+          {/snippet}
+        </DataTable>
+      {/if}
+    </section>
+  {/if}
 
   <FilterBar
     onSubmit={handleSearch}
@@ -428,6 +522,69 @@
       await update();
       isSubmitting = false;
       if (result.type === 'success') syncingAll = false;
+    };
+  }}
+></form>
+
+<ConfirmDialog
+  open={!!stripping}
+  title="Strip unmanaged Discord roles"
+  description={stripping
+    ? `Remove hub-managed Discord roles from ${stripping.displayName}? They are not designated staff on this site.`
+    : ''}
+  confirmLabel="Strip roles"
+  variant="danger"
+  isLoading={isSubmitting}
+  onCancel={() => (stripping = null)}
+  onConfirm={() => {
+    if (!stripping) return;
+    const formEl = document.getElementById('staff-strip-orphan-form');
+    if (formEl instanceof HTMLFormElement) formEl.requestSubmit();
+  }}
+/>
+
+<form
+  id="staff-strip-orphan-form"
+  method="POST"
+  action="?/stripOrphanDiscord"
+  class="hidden"
+  use:enhance={() => {
+    isSubmitting = true;
+    return async ({ update, result }) => {
+      await update();
+      isSubmitting = false;
+      if (result.type === 'success') stripping = null;
+    };
+  }}
+>
+  <input type="hidden" name="discordId" value={stripping?.discordId ?? ''} />
+</form>
+
+<ConfirmDialog
+  open={strippingAll}
+  title="Strip all unmanaged Discord roles"
+  description="Remove hub-managed Discord roles from every member who is not designated staff on this site?"
+  confirmLabel="Strip all"
+  variant="danger"
+  isLoading={isSubmitting}
+  onCancel={() => (strippingAll = false)}
+  onConfirm={() => {
+    const formEl = document.getElementById('staff-strip-all-orphan-form');
+    if (formEl instanceof HTMLFormElement) formEl.requestSubmit();
+  }}
+/>
+
+<form
+  id="staff-strip-all-orphan-form"
+  method="POST"
+  action="?/stripAllOrphanDiscord"
+  class="hidden"
+  use:enhance={() => {
+    isSubmitting = true;
+    return async ({ update, result }) => {
+      await update();
+      isSubmitting = false;
+      if (result.type === 'success') strippingAll = false;
     };
   }}
 ></form>

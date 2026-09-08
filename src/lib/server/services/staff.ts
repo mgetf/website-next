@@ -21,10 +21,17 @@ import {
 } from './sourcebans';
 import {
   DiscordGuildError,
+  filterOrphanManagedRoleHolders,
   isDiscordGuildConfigured,
+  listDiscordGuildMembers,
+  listDiscordGuildRoles,
   syncDiscordMemberRoles,
 } from './discordGuild';
-import type { StaffAssignmentDisplay, StaffSyncStatusDisplay } from '$lib/types/staff';
+import type {
+  OrphanManagedDiscordAudit,
+  StaffAssignmentDisplay,
+  StaffSyncStatusDisplay,
+} from '$lib/types/staff';
 
 export const STAFF_ROLES = [UserRole.MODERATOR, UserRole.ADMIN] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
@@ -77,6 +84,8 @@ export type StaffIntegrations = {
 export const LAST_ADMIN_MESSAGE = 'Cannot demote or downgrade the last admin.';
 export const STAFF_PUNISH_BLOCKED_MESSAGE =
   'Demote this user from /admin/staff before punishing them.';
+export const ORPHAN_IS_STAFF_MESSAGE =
+  'That Discord account belongs to designated staff. Demote them from this page instead.';
 
 export function isStaffRole(value: string): value is StaffRole {
   return value === UserRole.MODERATOR || value === UserRole.ADMIN;
@@ -122,6 +131,13 @@ export function formatStaffSyncMessage(result: StaffSyncResult): string {
 
 export function formatStaffResyncSummary(counts: StaffResyncCounts): string {
   return `Resynced ${counts.total} staff: ${counts.ok} ok, ${counts.pending} pending, ${counts.error} error`;
+}
+
+export function formatOrphanDiscordStripSummary(stripped: number, failed: number): string {
+  if (failed > 0) {
+    return `Removed hub Discord roles from ${stripped} member${stripped === 1 ? '' : 's'}, ${failed} failed`;
+  }
+  return `Removed hub Discord roles from ${stripped} member${stripped === 1 ? '' : 's'}`;
 }
 
 const staffSyncLocks = new Map<string, Promise<unknown>>();
@@ -574,6 +590,123 @@ export async function stripManagedDiscordRoles(
   const managed = catalogDiscordRoleIds(snapshot);
   if (managed.size === 0) return;
   await integrations.discord.syncMemberRoles(discordId, [], managed);
+}
+
+async function staffDiscordIdSet(): Promise<Set<string>> {
+  const rows = await prisma.user.findMany({
+    where: { permissionLevel: { in: [...STAFF_ROLES] }, discord: { isNot: null } },
+    select: { discord: { select: { discordId: true } } },
+  });
+  const ids = new Set<string>();
+  for (const row of rows) {
+    if (row.discord?.discordId) ids.add(row.discord.discordId);
+  }
+  return ids;
+}
+
+export async function getOrphanManagedDiscordMembers(): Promise<OrphanManagedDiscordAudit> {
+  if (!isDiscordGuildConfigured()) {
+    return { configured: false, error: null, members: [] };
+  }
+
+  const snapshot = await loadMappingSnapshot();
+  const managed = catalogDiscordRoleIds(snapshot);
+  if (managed.size === 0) {
+    return { configured: true, error: null, members: [] };
+  }
+
+  try {
+    const [guildMembers, guildRoles, staffDiscordIds] = await Promise.all([
+      listDiscordGuildMembers(),
+      listDiscordGuildRoles(),
+      staffDiscordIdSet(),
+    ]);
+
+    const roleNamesById = new Map(guildRoles.map((role) => [role.id, role.name]));
+    const orphans = filterOrphanManagedRoleHolders(
+      guildMembers,
+      staffDiscordIds,
+      managed,
+      roleNamesById,
+    );
+
+    if (orphans.length === 0) {
+      return { configured: true, error: null, members: [] };
+    }
+
+    const links = await prisma.discord.findMany({
+      where: { discordId: { in: orphans.map((orphan) => orphan.discordId) } },
+      select: {
+        discordId: true,
+        playerSteamId: true,
+        player: { select: { steamUsername: true } },
+      },
+    });
+    const linkById = new Map(
+      links.map((link) => [
+        link.discordId,
+        {
+          steamId: link.playerSteamId,
+          steamUsername: link.player?.steamUsername ?? null,
+        },
+      ]),
+    );
+
+    return {
+      configured: true,
+      error: null,
+      members: orphans.map((orphan) => {
+        const linked = linkById.get(orphan.discordId);
+        return {
+          ...orphan,
+          linkedSteamId: linked?.steamId ?? null,
+          linkedSteamUsername: linked?.steamUsername ?? null,
+        };
+      }),
+    };
+  } catch (err) {
+    const message =
+      err instanceof DiscordGuildError ? err.message : 'Could not list Discord members';
+    return { configured: true, error: clipError(message), members: [] };
+  }
+}
+
+export async function stripOrphanManagedDiscordRoles(
+  discordId: string,
+  integrations: StaffIntegrations = defaultIntegrations(),
+): Promise<void> {
+  const trimmed = discordId.trim();
+  if (!trimmed) badRequest('Invalid Discord ID');
+
+  const staff = await prisma.user.findFirst({
+    where: {
+      permissionLevel: { in: [...STAFF_ROLES] },
+      discord: { discordId: trimmed },
+    },
+    select: { steamId: true },
+  });
+  if (staff) badRequest(ORPHAN_IS_STAFF_MESSAGE);
+
+  await stripManagedDiscordRoles(trimmed, integrations);
+}
+
+export async function stripAllOrphanManagedDiscordRoles(
+  integrations: StaffIntegrations = defaultIntegrations(),
+): Promise<{ stripped: number; failed: number }> {
+  const audit = await getOrphanManagedDiscordMembers();
+  if (audit.error) badRequest(audit.error);
+
+  let stripped = 0;
+  let failed = 0;
+  for (const member of audit.members) {
+    try {
+      await stripOrphanManagedDiscordRoles(member.discordId, integrations);
+      stripped += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { stripped, failed };
 }
 
 export async function markStaffDiscordUnlinked(steamId: string): Promise<void> {

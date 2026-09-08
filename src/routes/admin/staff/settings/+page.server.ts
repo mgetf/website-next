@@ -1,14 +1,16 @@
 import type { Actions, PageServerLoad } from './$types';
 import { requireStrictAdmin } from '$lib/server/auth/permissions';
 import { z } from 'zod';
-import { formError, validateForm, validationError } from '$lib/server/utils/forms';
+import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getFormatsForFilter } from '$lib/server/services/formats';
 import { getRegions } from '$lib/server/services/regions';
 import {
+  formatStaffResyncSummary,
   getStaffMappings,
   isStaffRole,
+  resyncAllStaff,
   saveStaffMappings,
   type StaffDiscordRuleInput,
   type StaffRoleMappingInput,
@@ -150,6 +152,7 @@ export const actions: Actions = {
 
     try {
       await saveStaffMappings({ roleMappings, discordRules, sourcebansServers });
+      const counts = await resyncAllStaff();
 
       await logAudit({
         actorId: locals.user.steamId,
@@ -158,10 +161,11 @@ export const actions: Actions = {
         action: AuditAction.STAFF_MAPPING_UPDATED,
         targetType: 'StaffMappings',
         targetId: 'default',
+        metadata: counts,
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: 'Staff mappings saved.' };
+      return formSuccess(undefined, `Staff mappings saved. ${formatStaffResyncSummary(counts)}`);
     } catch (error) {
       return formError(getErrorMessage(error, 'Failed to save mappings'), 400);
     }

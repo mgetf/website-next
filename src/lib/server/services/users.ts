@@ -11,7 +11,13 @@ import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
 import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
-import { conflict } from '$lib/server/utils/errors';
+import { badRequest, conflict } from '$lib/server/utils/errors';
+import {
+  isStaffRole,
+  markStaffDiscordUnlinked,
+  STAFF_PUNISH_BLOCKED_MESSAGE,
+  stripManagedDiscordRoles,
+} from './staff';
 import { isSafeUrl } from '$lib/utils/safeUrl';
 import {
   mapStaffAssignmentForDisplay,
@@ -686,6 +692,12 @@ export async function updateUser(
     throw new Error('User not found');
   }
 
+  const punishing =
+    data.banStatus === 'WARNING' || data.banStatus === 'SUSPENDED' || data.banStatus === 'BANNED';
+  if (punishing && data.banStatus !== user.banStatus && isStaffRole(user.permissionLevel)) {
+    badRequest(STAFF_PUNISH_BLOCKED_MESSAGE);
+  }
+
   const updateData: any = {};
 
   if (data.permissionLevel !== undefined) {
@@ -758,6 +770,15 @@ export async function banUser(
   reason: string,
   duration?: number,
 ) {
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    select: { permissionLevel: true },
+  });
+  if (!user) throw new Error('User not found');
+  if (isStaffRole(user.permissionLevel)) {
+    badRequest(STAFF_PUNISH_BLOCKED_MESSAGE);
+  }
+
   await prisma.user.update({
     where: { steamId },
     data: {
@@ -958,9 +979,13 @@ export async function unlinkDiscord(steamId: string) {
     throw new Error('No Discord account linked');
   }
 
+  await stripManagedDiscordRoles(user.discord.discordId);
+
   await prisma.discord.delete({
     where: { discordId: user.discord.discordId },
   });
+
+  await markStaffDiscordUnlinked(steamId);
 
   return { success: true };
 }
@@ -1185,7 +1210,7 @@ export async function linkDiscordAccount(
 
   const existingBySteam = await prisma.discord.findUnique({ where: { playerSteamId: steamId } });
   if (existingBySteam && existingBySteam.discordId !== discordId) {
-    // User is re-linking to a different Discord — drop the old association first
+    await stripManagedDiscordRoles(existingBySteam.discordId);
     await prisma.discord.delete({ where: { discordId: existingBySteam.discordId } });
   }
 

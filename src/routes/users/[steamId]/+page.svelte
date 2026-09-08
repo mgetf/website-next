@@ -107,6 +107,9 @@
   let { data }: { data: PlayerData } = $props();
 
   const player = $derived(data.player);
+  const isStaffPlayer = $derived(
+    player.permissionLevel === 'MODERATOR' || player.permissionLevel === 'ADMIN',
+  );
   const mgeRatings = $derived(data.ratings);
   const currentTeams = $derived(data.currentTeams);
   const teamHistory = $derived(data.teamHistory);
@@ -1861,6 +1864,14 @@
     {/if}
   </div>
 
+  {#if isStaffPlayer}
+    <div class="p-3 bg-warning-500/10 border border-warning-500/30 rounded-lg mb-4">
+      <p class="text-warning-400 text-xs">
+        Demote this user from /admin/staff before punishing them.
+      </p>
+    </div>
+  {/if}
+
   <form
     id="form-punish"
     method="POST"
@@ -1893,9 +1904,9 @@
       >
         <option value="" disabled>Select status...</option>
         <option value="NONE">None (Clear punishment)</option>
-        <option value="WARNING">Warning</option>
-        <option value="SUSPENDED">Suspended</option>
-        <option value="BANNED">Banned</option>
+        <option value="WARNING" disabled={isStaffPlayer}>Warning</option>
+        <option value="SUSPENDED" disabled={isStaffPlayer}>Suspended</option>
+        <option value="BANNED" disabled={isStaffPlayer}>Banned</option>
       </select>
     </div>
 
@@ -1962,7 +1973,9 @@
       form="form-punish"
       variant={punishSeverity === 'NONE' ? 'success' : 'danger'}
       class="flex-1"
-      disabled={isAdminSubmitting || !punishSeverity}
+      disabled={isAdminSubmitting ||
+        !punishSeverity ||
+        (isStaffPlayer && punishSeverity !== 'NONE')}
     >
       {isAdminSubmitting
         ? 'Applying...'

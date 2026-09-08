@@ -4,6 +4,7 @@ import { SourcebansError } from './sourcebans';
 import {
   syncDiscordForStaff,
   syncSourcebansForStaff,
+  withStaffSyncLock,
   type StaffIntegrations,
   type StaffMappingSnapshot,
 } from './staff';
@@ -96,5 +97,62 @@ describe('syncDiscordForStaff', () => {
     });
     expect(result.status).toBe('PENDING');
     expect(syncMemberRoles).toHaveBeenCalledWith('123', ['mod'], expect.any(Set));
+  });
+});
+
+describe('withStaffSyncLock', () => {
+  it('serializes work for the same steamId', async () => {
+    const order: string[] = [];
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let startedFirst!: () => void;
+    const startedFirstPromise = new Promise<void>((resolve) => {
+      startedFirst = resolve;
+    });
+
+    const first = withStaffSyncLock('76561198000000000', async () => {
+      order.push('first-start');
+      startedFirst();
+      await firstGate;
+      order.push('first-end');
+      return 1;
+    });
+    const second = withStaffSyncLock('76561198000000000', async () => {
+      order.push('second');
+      return 2;
+    });
+
+    await startedFirstPromise;
+    expect(order).toEqual(['first-start']);
+    releaseFirst();
+
+    await expect(Promise.all([first, second])).resolves.toEqual([1, 2]);
+    expect(order).toEqual(['first-start', 'first-end', 'second']);
+  });
+
+  it('does not block a different steamId', async () => {
+    let releaseA!: () => void;
+    const gateA = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+    let startedB!: () => void;
+    const startedBPromise = new Promise<void>((resolve) => {
+      startedB = resolve;
+    });
+
+    const a = withStaffSyncLock('aaa', async () => {
+      await gateA;
+      return 'a';
+    });
+    const b = withStaffSyncLock('bbb', async () => {
+      startedB();
+      return 'b';
+    });
+
+    await startedBPromise;
+    releaseA();
+    await expect(Promise.all([a, b])).resolves.toEqual(['a', 'b']);
   });
 });

@@ -74,8 +74,69 @@ export type StaffIntegrations = {
   };
 };
 
+export const LAST_ADMIN_MESSAGE = 'Cannot demote or downgrade the last admin.';
+export const STAFF_PUNISH_BLOCKED_MESSAGE =
+  'Demote this user from /admin/staff before punishing them.';
+
 export function isStaffRole(value: string): value is StaffRole {
   return value === UserRole.MODERATOR || value === UserRole.ADMIN;
+}
+
+export function wouldRemoveLastAdmin(
+  currentRole: string,
+  nextRole: string,
+  adminCount: number,
+): boolean {
+  return currentRole === UserRole.ADMIN && nextRole !== UserRole.ADMIN && adminCount <= 1;
+}
+
+export type StaffSyncResult = {
+  sourcebansStatus: StaffSyncStatus;
+  sourcebansError: string | null;
+  discordStatus: StaffSyncStatus;
+  discordError: string | null;
+};
+
+export type StaffResyncCounts = {
+  total: number;
+  ok: number;
+  error: number;
+  pending: number;
+};
+
+export function classifyStaffSyncResult(result: StaffSyncResult): 'ok' | 'error' | 'pending' {
+  if (result.sourcebansStatus === 'ERROR' || result.discordStatus === 'ERROR') return 'error';
+  if (result.sourcebansStatus === 'PENDING' || result.discordStatus === 'PENDING') return 'pending';
+  return 'ok';
+}
+
+function formatSyncArm(status: StaffSyncStatus, error: string | null): string {
+  const label = status.toLowerCase();
+  if (error && status !== 'OK') return `${label}: ${error}`;
+  return label;
+}
+
+export function formatStaffSyncMessage(result: StaffSyncResult): string {
+  return `SB ${formatSyncArm(result.sourcebansStatus, result.sourcebansError)} · DC ${formatSyncArm(result.discordStatus, result.discordError)}`;
+}
+
+export function formatStaffResyncSummary(counts: StaffResyncCounts): string {
+  return `Resynced ${counts.total} staff: ${counts.ok} ok, ${counts.pending} pending, ${counts.error} error`;
+}
+
+const staffSyncLocks = new Map<string, Promise<unknown>>();
+
+export async function withStaffSyncLock<T>(steamId: string, work: () => Promise<T>): Promise<T> {
+  const previous = staffSyncLocks.get(steamId) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(work);
+  staffSyncLocks.set(steamId, next);
+  try {
+    return await next;
+  } finally {
+    if (staffSyncLocks.get(steamId) === next) {
+      staffSyncLocks.delete(steamId);
+    }
+  }
 }
 
 export function resolveDiscordRoleIds(
@@ -311,10 +372,23 @@ export async function syncDiscordForStaff(
   }
 }
 
-async function syncStaffUser(
+async function assertNotLastAdmin(steamId: string, nextRole: string) {
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    select: { permissionLevel: true },
+  });
+  if (!user) notFound('User not found');
+  if (user.permissionLevel !== UserRole.ADMIN || nextRole === UserRole.ADMIN) return;
+  const adminCount = await prisma.user.count({ where: { permissionLevel: UserRole.ADMIN } });
+  if (wouldRemoveLastAdmin(user.permissionLevel, nextRole, adminCount)) {
+    badRequest(LAST_ADMIN_MESSAGE);
+  }
+}
+
+async function syncStaffUserUnlocked(
   steamId: string,
   mode: 'designate' | 'demote',
-  integrations: StaffIntegrations = defaultIntegrations(),
+  integrations: StaffIntegrations,
 ) {
   const user = await prisma.user.findUnique({
     where: { steamId },
@@ -396,6 +470,14 @@ async function syncStaffUser(
   return { sourcebansStatus, sourcebansError, discordStatus, discordError };
 }
 
+async function syncStaffUser(
+  steamId: string,
+  mode: 'designate' | 'demote',
+  integrations: StaffIntegrations = defaultIntegrations(),
+) {
+  return withStaffSyncLock(steamId, () => syncStaffUserUnlocked(steamId, mode, integrations));
+}
+
 export async function designateStaff(
   _actorSteamId: string,
   steamId: string,
@@ -405,6 +487,7 @@ export async function designateStaff(
 ) {
   const user = await prisma.user.findUnique({ where: { steamId } });
   if (!user) notFound('User not found');
+  await assertNotLastAdmin(steamId, permissionLevel);
 
   const permissionChanged = user.permissionLevel !== permissionLevel;
 
@@ -438,6 +521,7 @@ export async function demoteStaff(
   if (!isStaffRole(user.permissionLevel)) {
     badRequest('User is not staff');
   }
+  await assertNotLastAdmin(steamId, UserRole.GUEST);
 
   await prisma.user.update({
     where: { steamId },
@@ -474,6 +558,71 @@ export async function syncStaffDiscordIfNeeded(steamId: string): Promise<void> {
   } catch (err) {
     console.error('[staff] Discord link sync failed', err);
   }
+}
+
+export async function getManagedDiscordRoleIds(): Promise<string[]> {
+  const snapshot = await loadMappingSnapshot();
+  return [...catalogDiscordRoleIds(snapshot)];
+}
+
+export async function stripManagedDiscordRoles(
+  discordId: string,
+  integrations: StaffIntegrations = defaultIntegrations(),
+): Promise<void> {
+  if (!discordId || !integrations.discord.configured) return;
+  const snapshot = await loadMappingSnapshot();
+  const managed = catalogDiscordRoleIds(snapshot);
+  if (managed.size === 0) return;
+  await integrations.discord.syncMemberRoles(discordId, [], managed);
+}
+
+export async function markStaffDiscordUnlinked(steamId: string): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    select: { permissionLevel: true },
+  });
+  if (!user || !isStaffRole(user.permissionLevel)) return;
+
+  const existing = await prisma.staffSyncState.findUnique({ where: { steamId } });
+  if (!existing) {
+    await prisma.staffSyncState.create({
+      data: {
+        steamId,
+        sourcebansStatus: 'PENDING',
+        sourcebansError: null,
+        discordStatus: 'PENDING',
+        discordError: 'Discord is not linked',
+        lastSyncedAt: new Date(),
+      },
+    });
+    return;
+  }
+
+  await prisma.staffSyncState.update({
+    where: { steamId },
+    data: {
+      discordStatus: 'PENDING',
+      discordError: 'Discord is not linked',
+      lastSyncedAt: new Date(),
+    },
+  });
+}
+
+export async function resyncAllStaff(
+  integrations: StaffIntegrations = defaultIntegrations(),
+): Promise<StaffResyncCounts> {
+  const users = await prisma.user.findMany({
+    where: { permissionLevel: { in: [...STAFF_ROLES] } },
+    select: { steamId: true },
+    orderBy: { steamId: 'asc' },
+  });
+
+  const counts: StaffResyncCounts = { total: users.length, ok: 0, error: 0, pending: 0 };
+  for (const user of users) {
+    const result = await retryStaffSync(user.steamId, integrations);
+    counts[classifyStaffSyncResult(result)] += 1;
+  }
+  return counts;
 }
 
 export async function getStaffRoster() {

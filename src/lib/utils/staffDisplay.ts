@@ -1,9 +1,10 @@
 import type { StaffAssignmentDisplay } from '$lib/types/staff';
+import { getRegionAbbr, sortRegionsByAbbr } from '$lib/utils/region';
 
 type StaffDisplayItem = Pick<
   StaffAssignmentDisplay,
   'formatId' | 'formatName' | 'divisionId' | 'divisionName' | 'regionName'
->;
+> & { regionId?: number };
 
 type StaffListChip = {
   formatId: number;
@@ -35,19 +36,28 @@ type FormatSummaryAcc = {
   regions: Map<string, string[]>;
 };
 
-function coverageLabel(regions: Map<string, string[]>): string {
+function coverageLabel(regions: Map<string, string[]>, omitRegion: boolean): string {
   const regionNames = [...regions.keys()];
   const divisions = [...regions.values()].flat();
+  if (omitRegion) return divisions.join(', ');
   if (divisions.length === 1) {
     return `${regionNames[0]} ${divisions[0]}`;
   }
   return regionNames.join('/');
 }
 
-export function staffListChips(assignments: StaffDisplayItem[]): StaffListChip[] {
+export function staffListChips(
+  assignments: StaffDisplayItem[],
+  options?: { regionId?: number },
+): StaffListChip[] {
+  const scoped =
+    options?.regionId == null
+      ? assignments
+      : assignments.filter((assignment) => assignment.regionId === options.regionId);
+  const omitRegion = options?.regionId != null;
   const map = new Map<number, FormatSummaryAcc>();
 
-  for (const assignment of assignments) {
+  for (const assignment of scoped) {
     let existing = map.get(assignment.formatId);
     if (!existing) {
       existing = {
@@ -65,11 +75,50 @@ export function staffListChips(assignments: StaffDisplayItem[]): StaffListChip[]
   return [...map.values()].map((entry) => ({
     formatId: entry.formatId,
     formatName: entry.formatName,
-    coverage: coverageLabel(entry.regions),
+    coverage: coverageLabel(entry.regions, omitRegion),
     title: [...entry.regions.entries()]
       .map(([region, divisions]) => `${region}: ${divisions.join(', ')}`)
       .join(' · '),
   }));
+}
+
+type StaffRosterGroupable = {
+  steamId: string;
+  steamUsername: string;
+  permissionLevel: string;
+  staffAssignments: StaffAssignmentDisplay[];
+};
+
+type StaffRegionRosterGroup<T extends StaffRosterGroupable> = {
+  regionId: number | null;
+  regionName: string;
+  members: T[];
+};
+
+export function groupStaffRosterByRegion<T extends StaffRosterGroupable>(
+  roster: T[],
+  regions: { id: number; name: string }[],
+): StaffRegionRosterGroup<T>[] {
+  const orderedRegions = sortRegionsByAbbr(
+    regions.map((region) => ({ ...region, abbr: getRegionAbbr(region.name) })),
+  );
+
+  const groups: StaffRegionRosterGroup<T>[] = [];
+
+  for (const region of orderedRegions) {
+    const members = roster.filter((member) =>
+      member.staffAssignments.some((assignment) => assignment.regionId === region.id),
+    );
+    if (members.length === 0) continue;
+    groups.push({ regionId: region.id, regionName: region.name, members });
+  }
+
+  const unassigned = roster.filter((member) => member.staffAssignments.length === 0);
+  if (unassigned.length > 0) {
+    groups.push({ regionId: null, regionName: 'No region', members: unassigned });
+  }
+
+  return groups;
 }
 
 export function groupStaffByFormatAndRegion(assignments: StaffDisplayItem[]): StaffFormatGroup[] {

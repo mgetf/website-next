@@ -21,6 +21,13 @@ enum BanStatus {
   BANNED // 3
 }
 
+enum StaffSyncStatus {
+  OK
+  PENDING
+  ERROR
+  SKIPPED
+}
+
 enum Severity {
   WARNING // 0
   SUSPENDED // 1
@@ -200,6 +207,7 @@ model Format {
   teamHistory         TeamHistory[]
   activeSignupSeasons ActiveSignupSeason[]
   staffAssignments    StaffAssignment[]
+  staffDiscordRules   StaffDiscordRule[]
 
   @@map("formats")
 }
@@ -462,6 +470,7 @@ model User {
   sessionVersion  Int       @default(0) @map("session_version")
 
   staffAssignments           StaffAssignment[]
+  staffSyncState             StaffSyncState?
   discord                    Discord?
   punishmentsReceived        Punishment[]       @relation("PunishedPlayer")
   punishmentsGiven           Punishment[]       @relation("Punisher")
@@ -779,6 +788,58 @@ model StaffAssignment {
   @@map("staff_assignments")
 }
 
+model StaffRoleMapping {
+  id                      Int      @id @default(autoincrement())
+  permissionLevel         UserRole @unique @map("permission_level")
+  sourcebansServerGroupId Int?     @map("sourcebans_server_group_id")
+  sourcebansWebGroupId    Int?     @map("sourcebans_web_group_id")
+  sourcebansImmunity      Int      @default(0) @map("sourcebans_immunity")
+  discordRoleIds          String[] @default([]) @map("discord_role_ids")
+  updatedAt               DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("staff_role_mappings")
+}
+
+model StaffDiscordRule {
+  id              Int       @id @default(autoincrement())
+  permissionLevel UserRole? @map("permission_level")
+  formatId        Int?      @map("format_id")
+  regionId        Int?      @map("region_id")
+  discordRoleId   String    @map("discord_role_id")
+
+  format Format? @relation(fields: [formatId], references: [id], onDelete: Cascade)
+  region Region? @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@index([formatId])
+  @@index([regionId])
+  @@map("staff_discord_rules")
+}
+
+model StaffSourcebansServer {
+  id                 Int @id @default(autoincrement())
+  regionId           Int @map("region_id")
+  sourcebansServerId Int @map("sourcebans_server_id")
+
+  region Region @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@unique([regionId, sourcebansServerId])
+  @@map("staff_sourcebans_servers")
+}
+
+model StaffSyncState {
+  steamId           String          @id @map("steam_id")
+  sourcebansAdminId Int?            @map("sourcebans_admin_id")
+  sourcebansStatus  StaffSyncStatus @default(PENDING) @map("sourcebans_status")
+  sourcebansError   String?         @map("sourcebans_error")
+  discordStatus     StaffSyncStatus @default(PENDING) @map("discord_status")
+  discordError      String?         @map("discord_error")
+  lastSyncedAt      DateTime?       @map("last_synced_at")
+
+  user User @relation(fields: [steamId], references: [steamId], onDelete: Cascade)
+
+  @@map("staff_sync_states")
+}
+
 model Region {
   id             Int    @id @default(autoincrement())
   name           String
@@ -786,10 +847,12 @@ model Region {
   currencySymbol String @default("€") @map("currency_symbol")
   currencyCode   String @default("EUR") @map("currency_code")
 
-  seasons             Season[]
-  teams               Team[]
-  divisions           Division[]
-  activeSignupSeasons ActiveSignupSeason[]
+  seasons                Season[]
+  teams                  Team[]
+  divisions              Division[]
+  activeSignupSeasons    ActiveSignupSeason[]
+  staffDiscordRules      StaffDiscordRule[]
+  staffSourcebansServers StaffSourcebansServer[]
 
   @@map("regions")
 }

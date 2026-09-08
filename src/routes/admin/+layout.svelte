@@ -51,6 +51,7 @@
     { name: 'Maps', path: '/admin/maps', icon: mapIcon, adminOnly: false, badge: '' },
     { name: 'Disputes', path: '/admin/disputes', icon: maceIcon, adminOnly: false, badge: '' },
     { name: 'Users', path: '/admin/users', icon: userIcon, adminOnly: false, badge: '' },
+    { name: 'Staff', path: '/admin/staff', icon: userIcon, adminOnly: true, badge: '' },
     { name: 'Global', path: '/admin/global', icon: webIcon, adminOnly: false, badge: '' },
     { name: 'Blog', path: '/admin/blog', icon: webIcon, adminOnly: false, badge: '' },
     {

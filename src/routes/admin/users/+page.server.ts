@@ -21,14 +21,8 @@ import {
   lockUserAvatar,
   unlockUserAvatar,
 } from '$lib/server/services/users';
-import { getDivisions } from '$lib/server/services/divisions';
-import { getRegions } from '$lib/server/services/regions';
 import { getFormatsForFilter } from '$lib/server/services/formats';
-import {
-  getRegionIdsByFormat,
-  mapStaffAssignmentForDisplay,
-  parseStaffAssignmentTokens,
-} from '$lib/server/services/staffAssignments';
+import { mapStaffAssignmentForDisplay } from '$lib/server/services/staffAssignments';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
@@ -38,10 +32,8 @@ const steamIdSchema = z.object({
 
 const updateUserSchema = z.object({
   steamId: z.string().min(1, 'Invalid user ID'),
-  permissionLevel: z.enum(['', 'GUEST', 'MODERATOR', 'ADMIN']).optional().default(''),
   banStatus: z.enum(['', 'NONE', 'WARNING', 'SUSPENDED', 'BANNED']).optional().default(''),
   nameOverride: z.string().optional().default(''),
-  staffAssignments: z.array(z.string()).optional().default([]),
 });
 
 const banUserSchema = z.object({
@@ -79,7 +71,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   });
 
   // Fetch users with pagination, divisions, regions and formats for staff assignment
-  const [users, divisions, regions, formats, regionIdsByFormat] = await Promise.all([
+  const [users, formats] = await Promise.all([
     getUsers({
       search,
       permissionLevel: permissionLevelFilter || undefined,
@@ -87,10 +79,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       page,
       pageSize,
     }),
-    getDivisions(),
-    getRegions(),
     getFormatsForFilter(),
-    getRegionIdsByFormat(),
   ]);
 
   return {
@@ -106,21 +95,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       discordUsername: user.discord?.discordUsername,
       staffAssignments: user.staffAssignments.map(mapStaffAssignmentForDisplay),
     })),
-    regions: regions.map((r) => ({
-      id: r.id,
-      name: r.name,
-    })),
     formats: formats.map((f) => ({
       id: f.id,
       name: f.name,
       themeKey: f.themeKey,
-    })),
-    regionIdsByFormat,
-    divisions: divisions.map((d) => ({
-      id: d.id,
-      name: d.name,
-      regionId: d.regionId,
-      regionName: d.region?.name,
     })),
     pagination: {
       page,
@@ -141,14 +119,10 @@ export const actions: Actions = {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const validation = validateForm(formData, updateUserSchema, ['staffAssignments']);
+    const validation = validateForm(formData, updateUserSchema);
     if (!validation.success) return validationError(validation.errors);
 
-    const { steamId, permissionLevel, banStatus, nameOverride, staffAssignments } = validation.data;
-
-    if (permissionLevel) {
-      requireStrictAdmin(locals.user);
-    }
+    const { steamId, banStatus, nameOverride } = validation.data;
 
     // Ban status changes (including clearing via NONE) require the same
     // staff-protection rules as the dedicated ban/clear actions.
@@ -161,27 +135,10 @@ export const actions: Actions = {
     }
 
     try {
-      const parsedAssignments = parseStaffAssignmentTokens(staffAssignments);
-
       await updateUser(steamId, {
-        permissionLevel: permissionLevel || undefined,
         banStatus: banStatus || undefined,
         nameOverride: nameOverride ? parseInt(nameOverride) : undefined,
-        staffAssignments: parsedAssignments,
       });
-
-      if (permissionLevel) {
-        await logAudit({
-          actorId: locals.user?.steamId,
-          actorRole: locals.user?.permissionLevel,
-          category: AuditCategory.USER,
-          action: AuditAction.USER_ROLE_CHANGED,
-          targetType: 'User',
-          targetId: steamId,
-          metadata: { newRole: permissionLevel },
-          ipAddress: getClientAddress(),
-        });
-      }
 
       return { success: true, message: 'User updated successfully!' };
     } catch (error) {

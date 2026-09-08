@@ -23,6 +23,7 @@ export const AuditCategory = {
   TOURNAMENT: 'TOURNAMENT',
   SITE: 'SITE',
   BLOG: 'BLOG',
+  STAFF: 'STAFF',
 } as const;
 
 export type AuditCategory = (typeof AuditCategory)[keyof typeof AuditCategory];
@@ -156,6 +157,12 @@ export const AuditAction = {
   BLOG_POST_UNPUBLISHED: 'BLOG_POST_UNPUBLISHED',
   BLOG_POST_DELETED: 'BLOG_POST_DELETED',
   BLOG_COMMENT_DELETED: 'BLOG_COMMENT_DELETED',
+
+  // STAFF
+  STAFF_DESIGNATED: 'STAFF_DESIGNATED',
+  STAFF_DEMOTED: 'STAFF_DEMOTED',
+  STAFF_MAPPING_UPDATED: 'STAFF_MAPPING_UPDATED',
+  STAFF_SYNC_RETRY: 'STAFF_SYNC_RETRY',
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

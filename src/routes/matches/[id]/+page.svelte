@@ -1599,6 +1599,7 @@
       name="matchTimezone"
       bind:value={editMatchTimezone}
       options={TIMEZONES}
+      required
     />
     <p class="text-xs text-text-muted mt-2 mb-4">
       Enter the date and time in the selected timezone. Leave the date blank to set the schedule to

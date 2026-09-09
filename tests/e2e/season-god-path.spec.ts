@@ -245,7 +245,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
     admin.page.waitForLoadState('networkidle'),
     admin.page.getByRole('button', { name: '✓ Approve' }).click(),
   ]);
-  await expect(admin.page.getByText('No pending player requests')).toBeVisible({
+  await expect(admin.page.getByText('No pending approvals')).toBeVisible({
     timeout: 15_000,
   });
 
@@ -270,7 +270,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
     E2E_USERS.homeDeclined.username,
     'E2E decline reason',
   );
-  await expect(admin.page.getByText('No pending player requests')).toBeVisible({
+  await expect(admin.page.getByText('No pending approvals')).toBeVisible({
     timeout: 15_000,
   });
 
@@ -318,7 +318,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
     admin.page.waitForLoadState('networkidle'),
     admin.page.getByRole('button', { name: '✓ Approve' }).click(),
   ]);
-  await expect(admin.page.getByText('No pending player requests')).toBeVisible({
+  await expect(admin.page.getByText('No pending approvals')).toBeVisible({
     timeout: 15_000,
   });
 
@@ -347,7 +347,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
     admin.page.waitForLoadState('networkidle'),
     admin.page.getByRole('button', { name: '✓ Approve' }).click(),
   ]);
-  await expect(admin.page.getByText('No pending player requests')).toBeVisible({
+  await expect(admin.page.getByText('No pending approvals')).toBeVisible({
     timeout: 15_000,
   });
 

@@ -56,6 +56,14 @@ export async function selectControlled(
     return;
   }
 
+  const fieldName = selector.startsWith('#') ? selector.slice(1) : undefined;
+  if (fieldName && option.value !== undefined) {
+    const named = page.locator(`input[name="${fieldName}"], select[name="${fieldName}"]`);
+    if ((await named.count()) > 0 && (await named.first().inputValue()) === option.value) {
+      return;
+    }
+  }
+
   await control.click();
   const listbox = page.getByRole('listbox');
   await expect(listbox).toBeVisible({ timeout: 15_000 });
@@ -64,7 +72,17 @@ export async function selectControlled(
       ? listbox.getByRole('option', { name: option.label, exact: true })
       : listbox.locator(`[data-value="${option.value}"]`);
   await expect(optionLocator).toBeVisible({ timeout: 15_000 });
-  await optionLocator.click();
+
+  // Clicking the current value with allowDeselect leaves the list open and blocks the form.
+  const alreadySelected = await optionLocator.evaluate((el) => {
+    return el.getAttribute('aria-selected') === 'true' || el.hasAttribute('data-selected');
+  });
+  if (alreadySelected) {
+    await page.keyboard.press('Escape');
+  } else {
+    await optionLocator.click();
+  }
+  await expect(listbox).toBeHidden({ timeout: 15_000 });
 }
 
 /** Svelte-controlled number inputs use value= + oninput; fill() alone can be wiped. */
@@ -182,7 +200,7 @@ export async function adminResolveDisputePanel(page: Page): Promise<void> {
   // Default status is already PLAYED
   await Promise.all([
     page.waitForLoadState('networkidle'),
-    page.getByRole('button', { name: 'Resolve' }).click(),
+    page.getByRole('button', { name: 'Resolve', exact: true }).click(),
   ]);
 }
 

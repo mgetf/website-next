@@ -1,12 +1,18 @@
 <script lang="ts">
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
-  import { filterDivisionsByRegion, filterRegionsByFormat } from '$lib/utils/leagueScope';
+  import { filterDivisionsByRegionAndFormat, filterRegionsByFormat } from '$lib/utils/leagueScope';
   import { groupStaffByFormatAndRegion } from '$lib/utils/staffDisplay';
 
   type FormatOption = { id: number; name: string; themeKey: string };
   type RegionOption = { id: number; name: string };
-  type DivisionOption = { id: number; name: string; regionId: number; regionName: string };
+  type DivisionOption = {
+    id: number;
+    name: string;
+    regionId: number;
+    regionName: string;
+    formatId: number;
+  };
 
   let {
     assignments = $bindable([]),
@@ -32,7 +38,7 @@
 
   const addFilteredDivisions = $derived(
     addFormatId && addRegionId
-      ? filterDivisionsByRegion(divisions, addRegionId).filter(
+      ? filterDivisionsByRegionAndFormat(divisions, addRegionId, addFormatId).filter(
           (division) =>
             !assignments.some(
               (assignment) =>

@@ -740,6 +740,10 @@ export async function changeTeamDivision(
     badRequest('Division must be in the same region as the team');
   }
 
+  if (newDivision.formatId !== team.formatId) {
+    badRequest('Division must be in the same format as the team');
+  }
+
   const oldDiv = team.division;
   const oldIsFree = !oldDiv || oldDiv.signupCost === 0;
   const newIsFree = newDivision.signupCost === 0;

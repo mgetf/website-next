@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   filterDivisionsByRegion,
+  filterDivisionsByRegionAndFormat,
   filterRegionsByFormat,
   isRegionAllowedForFormat,
   regionIdsByFormatFromSeasons,
@@ -13,9 +14,10 @@ const regions = [
 ];
 
 const divisions = [
-  { id: 10, name: 'Invite', regionId: 1 },
-  { id: 11, name: 'Invite', regionId: 2 },
-  { id: 12, name: 'Open', regionId: 1 },
+  { id: 10, name: 'Invite', regionId: 1, formatId: 2 },
+  { id: 11, name: 'Invite', regionId: 2, formatId: 2 },
+  { id: 12, name: 'Open', regionId: 1, formatId: 2 },
+  { id: 13, name: 'Invite', regionId: 1, formatId: 1 },
 ];
 
 const regionIdsByFormat = {
@@ -50,8 +52,27 @@ describe('filterDivisionsByRegion', () => {
   });
 
   it('returns only divisions in the selected region', () => {
-    expect(filterDivisionsByRegion(divisions, '1').map((d) => d.id)).toEqual([10, 12]);
+    expect(filterDivisionsByRegion(divisions, '1').map((d) => d.id)).toEqual([10, 12, 13]);
     expect(filterDivisionsByRegion(divisions, '2').map((d) => d.id)).toEqual([11]);
+  });
+});
+
+describe('filterDivisionsByRegionAndFormat', () => {
+  it('returns nothing until a region is selected', () => {
+    expect(filterDivisionsByRegionAndFormat(divisions, '', '2').map((d) => d.id)).toEqual([]);
+  });
+
+  it('returns the region catalog when format is unset', () => {
+    expect(filterDivisionsByRegionAndFormat(divisions, '1', '').map((d) => d.id)).toEqual([
+      10, 12, 13,
+    ]);
+  });
+
+  it('narrows to the selected format', () => {
+    expect(filterDivisionsByRegionAndFormat(divisions, '1', '2').map((d) => d.id)).toEqual([
+      10, 12,
+    ]);
+    expect(filterDivisionsByRegionAndFormat(divisions, '1', '1').map((d) => d.id)).toEqual([13]);
   });
 });
 

@@ -174,7 +174,7 @@ export const load = async () => {
     const buildLeague2v2 = async () => {
       return Promise.all(
         seasons2v2.map(async (season) => {
-          const division = await findTopDivisionByRegion(season.regionId);
+          const division = await findTopDivisionByRegion(season.regionId, season.formatId);
 
           let topTeams: {
             rank: number;
@@ -235,7 +235,7 @@ export const load = async () => {
     const buildLeague1v1 = async () => {
       return Promise.all(
         seasons1v1.map(async (season) => {
-          const division = await findTopDivisionByRegion(season.regionId);
+          const division = await findTopDivisionByRegion(season.regionId, season.formatId);
 
           let topEntries: {
             rank: number;

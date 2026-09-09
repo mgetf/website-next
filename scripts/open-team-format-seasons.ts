@@ -104,18 +104,44 @@ async function main() {
     const existingDivs = await prisma.division.findMany({
       where: { regionId: region.id },
     });
+    const newFormatIds = formats.filter((format) => format.id > 0).map((format) => format.id);
+
     if (existingDivs.length === 0) {
+      const allFormats = dryRun
+        ? newFormatIds
+        : (await prisma.format.findMany({ select: { id: true } })).map((row) => row.id);
       console.log(
         `  ${region.name}: no divisions — ${dryRun ? 'would copy' : 'copying'} fallback ladder`,
       );
       if (!dryRun) {
-        for (const div of FALLBACK_DIVISIONS) {
+        for (const formatId of allFormats) {
+          for (const div of FALLBACK_DIVISIONS) {
+            await prisma.division.create({
+              data: {
+                name: div.name,
+                signupCost: div.signupCost,
+                hidden: 0,
+                regionId: region.id,
+                formatId,
+              },
+            });
+          }
+        }
+      }
+    } else if (!dryRun) {
+      for (const formatId of newFormatIds) {
+        const hasCatalog = existingDivs.some((div) => div.formatId === formatId);
+        if (hasCatalog) continue;
+        const templateFormatId = existingDivs[0]?.formatId;
+        const template = existingDivs.filter((div) => div.formatId === templateFormatId);
+        for (const div of template) {
           await prisma.division.create({
             data: {
               name: div.name,
               signupCost: div.signupCost,
-              hidden: 0,
+              hidden: div.hidden,
               regionId: region.id,
+              formatId,
             },
           });
         }

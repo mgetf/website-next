@@ -415,12 +415,14 @@ export async function adminCreateLeagueRegion(page: Page, name: string): Promise
 
 export async function adminCreateLeagueDivision(
   page: Page,
-  opts: { name: string; regionLabel: string; signupCost?: string },
+  opts: { name: string; regionLabel: string; formatLabel?: string; signupCost?: string },
 ): Promise<void> {
+  const formatLabel = opts.formatLabel ?? '2v2';
   await page.goto('/admin/league?tab=divisions');
   await page.getByRole('button', { name: '+ Add Division' }).click();
   await page.locator('#division-name').fill(opts.name);
-  await page.locator('#division-region').selectOption({ label: opts.regionLabel });
+  await page.getByRole('checkbox', { name: formatLabel, exact: true }).check();
+  await page.getByRole('checkbox', { name: opts.regionLabel, exact: true }).check();
   if (opts.signupCost !== undefined) {
     await page.locator('#signup-cost').fill(opts.signupCost);
   }
@@ -428,6 +430,7 @@ export async function adminCreateLeagueDivision(
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Create Division' }).click(),
   ]);
+  await page.getByRole('button', { name: new RegExp(`^${formatLabel}\\b`) }).click();
   await expect(page.getByText(opts.name)).toBeVisible({ timeout: 15_000 });
 }
 

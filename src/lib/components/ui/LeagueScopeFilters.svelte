@@ -1,7 +1,7 @@
 <script lang="ts">
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
   import {
-    filterDivisionsByRegion,
+    filterDivisionsByRegionAndFormat,
     filterRegionsByFormat,
     type DivisionScopeOption,
     type ScopeOption,
@@ -38,7 +38,9 @@
     filteredRegions.map((region) => ({ value: String(region.id), label: region.name })),
   );
 
-  const filteredDivisions = $derived(filterDivisionsByRegion(divisions, regionId));
+  const filteredDivisions = $derived(
+    filterDivisionsByRegionAndFormat(divisions, regionId, formatId),
+  );
   const divisionOptions = $derived(
     filteredDivisions.map((division) => ({ value: String(division.id), label: division.name })),
   );

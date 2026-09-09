@@ -183,7 +183,7 @@ export async function replaceStaffAssignments(userId: string, assignments: Staff
       prisma.format.findMany({ where: { id: { in: formatIds } }, select: { id: true } }),
       prisma.division.findMany({
         where: { id: { in: divisionIds } },
-        select: { id: true, regionId: true },
+        select: { id: true, regionId: true, formatId: true },
       }),
       prisma.season.findMany({
         where: { formatId: { in: formatIds } },
@@ -200,6 +200,9 @@ export async function replaceStaffAssignments(userId: string, assignments: Staff
       if (!formatSet.has(assignment.formatId)) badRequest('Format not found');
       const division = divisionById.get(assignment.divisionId);
       if (!division) badRequest('Division not found');
+      if (division.formatId !== assignment.formatId) {
+        badRequest('Division does not belong to that format');
+      }
       if (!seasonSet.has(`${assignment.formatId}:${division.regionId}`)) {
         badRequest('That format is not available in the selected region');
       }

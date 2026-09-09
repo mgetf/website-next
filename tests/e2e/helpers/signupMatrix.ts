@@ -54,10 +54,15 @@ async function createRegionWithDivision(prisma: PrismaClient, name: string): Pro
       currencyCode: name === 'EU' ? 'EUR' : 'USD',
     },
   });
-  const division = await prisma.division.create({
-    data: { name: 'Invite', signupCost: 0, regionId: region.id },
-  });
-  return { id: region.id, name: region.name, divisionId: division.id };
+  const formats = await prisma.format.findMany({ select: { id: true } });
+  let divisionId = 0;
+  for (const format of formats) {
+    const division = await prisma.division.create({
+      data: { name: 'Invite', signupCost: 0, regionId: region.id, formatId: format.id },
+    });
+    if (format.id === FORMAT_2V2) divisionId = division.id;
+  }
+  return { id: region.id, name: region.name, divisionId };
 }
 
 async function openSignupSeason(

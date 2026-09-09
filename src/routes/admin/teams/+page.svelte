@@ -45,7 +45,13 @@
   );
 
   const editModalDivisionOptions = $derived(
-    editModalRegionId ? data.divisions.filter((d) => d.regionId === editModalRegionId) : [],
+    editModalRegionId
+      ? data.divisions.filter(
+          (d) =>
+            d.regionId === editModalRegionId &&
+            (!editingTeam || d.formatId === editingTeam.formatId),
+        )
+      : [],
   );
 
   $effect(() => {

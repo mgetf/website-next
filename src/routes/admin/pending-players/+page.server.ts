@@ -42,6 +42,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       id: division.id,
       name: division.name,
       regionId: division.regionId,
+      formatId: division.formatId,
     })),
     regions: regions.map((region) => ({ id: region.id, name: region.name })),
     formats: formats.map((format) => ({ id: format.id, name: format.name })),

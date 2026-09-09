@@ -241,7 +241,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const allDivisions = isGlobalAdmin ? await getVisibleDivisions() : [];
   const divisions =
     isGlobalAdmin && team.regionId
-      ? allDivisions.filter((d) => d.regionId === team.regionId)
+      ? allDivisions.filter((d) => d.regionId === team.regionId && d.formatId === team.formatId)
       : allDivisions;
 
   const divisionLabel = [team.division?.name, team.region?.name ? `(${team.region.name})` : null]

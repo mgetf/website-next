@@ -1,5 +1,5 @@
 export type ScopeOption = { id: number; name: string };
-export type DivisionScopeOption = ScopeOption & { regionId: number };
+export type DivisionScopeOption = ScopeOption & { regionId: number; formatId: number };
 
 /**
  * Regions available for a format. Empty formatId means all regions (filter "all").
@@ -16,15 +16,32 @@ export function filterRegionsByFormat(
 }
 
 /**
- * Divisions in a region. Empty regionId returns nothing so callers disable the
+ * Divisions in a region, optionally narrowed to a format.
+ * Empty regionId returns nothing so callers disable the
  * division dropdown instead of listing every region's Invite/Premier mixed together.
  */
 export function filterDivisionsByRegion(
   divisions: DivisionScopeOption[],
   regionId: string,
 ): DivisionScopeOption[] {
+  return filterDivisionsByRegionAndFormat(divisions, regionId, '');
+}
+
+export function filterDivisionsByRegionAndFormat(
+  divisions: DivisionScopeOption[],
+  regionId: string,
+  formatId: string,
+): DivisionScopeOption[] {
   if (!regionId) return [];
-  return divisions.filter((division) => division.regionId === Number(regionId));
+  const region = Number(regionId);
+  const format = formatId ? Number(formatId) : null;
+  return divisions.filter((division) => {
+    if (division.regionId !== region) return false;
+    if (format != null && Number.isFinite(format) && format > 0) {
+      return division.formatId === format;
+    }
+    return true;
+  });
 }
 
 export function isRegionAllowedForFormat(

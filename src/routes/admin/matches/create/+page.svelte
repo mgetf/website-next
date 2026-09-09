@@ -80,7 +80,13 @@
   );
 
   const divisionsForRegion = $derived(
-    selectedRegionId ? data.divisions.filter((d) => d.regionId === selectedRegionId) : [],
+    selectedRegionId
+      ? data.divisions.filter((d) => {
+          if (d.regionId !== selectedRegionId) return false;
+          if (selectedSeason) return d.formatId === selectedSeason.formatId;
+          return true;
+        })
+      : [],
   );
 
   const canPreview = $derived(

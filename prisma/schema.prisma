@@ -208,6 +208,7 @@ model Format {
   activeSignupSeasons ActiveSignupSeason[]
   staffAssignments    StaffAssignment[]
   staffDiscordRules   StaffDiscordRule[]
+  divisions           Division[]
 
   @@map("formats")
 }
@@ -762,13 +763,16 @@ model Division {
   signupCost Float  @default(0.00) @map("signup_cost")
   hidden     Int    @default(0)
   regionId   Int    @map("region_id")
+  formatId   Int    @map("format_id")
 
   region           Region               @relation(fields: [regionId], references: [id])
+  format           Format               @relation(fields: [formatId], references: [id])
   teams            Team[]
   staffAssignments StaffAssignment[]
   itemPayment      DivisionItemPayment?
 
-  @@unique([name, regionId])
+  @@unique([name, regionId, formatId])
+  @@index([formatId])
   @@map("divisions")
 }
 

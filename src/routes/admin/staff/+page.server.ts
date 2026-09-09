@@ -65,6 +65,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       id: division.id,
       name: division.name,
       regionId: division.regionId,
+      formatId: division.formatId,
       regionName: division.region?.name ?? '',
     })),
   };

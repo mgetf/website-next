@@ -17,6 +17,7 @@ import { TeamStatus } from '$prisma/client.js';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { isAdmin, requireCanModerateUser, requireStrictAdmin } from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
@@ -48,7 +49,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     let divisions1v1: { id: number; name: string; signupCost: number; regionId: number }[] = [];
     if (isUserAdmin && profile.current1v1Entry?.regionId) {
       const allDivisions = await getVisibleDivisions();
-      divisions1v1 = allDivisions.filter((d) => d.regionId === profile.current1v1Entry!.regionId);
+      divisions1v1 = allDivisions.filter(
+        (d) => d.regionId === profile.current1v1Entry!.regionId && d.formatId === FORMAT_1V1,
+      );
     }
 
     const activeTeam = profile.currentTeams[0];

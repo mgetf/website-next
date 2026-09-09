@@ -175,9 +175,10 @@ export async function getSignupFeeSummaries(
     regionIds.length === 0
       ? []
       : await prisma.division.findMany({
-          where: { hidden: 0, regionId: { in: regionIds } },
+          where: { hidden: 0, regionId: { in: regionIds }, formatId: { in: formatIds } },
           select: {
             regionId: true,
+            formatId: true,
             signupCost: true,
             region: { select: { currencySymbol: true } },
             itemPayment: {
@@ -189,9 +190,10 @@ export async function getSignupFeeSummaries(
           },
         });
 
-  const divisionsByRegion = new Map<number, DivisionFeeInput[]>();
+  const divisionsByFormatRegion = new Map<string, DivisionFeeInput[]>();
   for (const division of divisions) {
-    const list = divisionsByRegion.get(division.regionId) ?? [];
+    const key = `${division.formatId}:${division.regionId}`;
+    const list = divisionsByFormatRegion.get(key) ?? [];
     list.push({
       regionId: division.regionId,
       signupCost: division.signupCost,
@@ -200,7 +202,7 @@ export async function getSignupFeeSummaries(
       itemName: division.itemPayment?.steamItem.name ?? null,
       itemIconUrl: division.itemPayment?.steamItem.iconUrl ?? null,
     });
-    divisionsByRegion.set(division.regionId, list);
+    divisionsByFormatRegion.set(key, list);
   }
 
   const regionsByFormat = new Map<number, RegionFeeInput[]>();
@@ -217,7 +219,7 @@ export async function getSignupFeeSummaries(
       regionId: row.regionId,
       name: row.region.name,
       paymentRequired: row.season.paymentRequired,
-      divisions: divisionsByRegion.get(row.regionId) ?? [],
+      divisions: divisionsByFormatRegion.get(key) ?? [],
     });
   }
 

@@ -95,7 +95,7 @@
     </p>
   </div>
 
-  <FormError error={form?.error} success={form?.success && form?.message ? form.message : null} />
+  <FormError error={form?.error} />
 
   <FilterBar onClear={clearFilters} {hasActiveFilters}>
     {#snippet filters()}

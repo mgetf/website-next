@@ -13,8 +13,21 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
+  import { toast } from '$lib/state/toast.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
+  let lastFormResult: ActionData = null;
+
+  $effect(() => {
+    if (form && form !== lastFormResult) {
+      lastFormResult = form;
+      if (form.success && form.message) {
+        toast.success(form.message);
+      } else if (form.error) {
+        toast.error(form.error);
+      }
+    }
+  });
 
   class EditorState {
     draft = $state<EventDraftPayload>(createEmptyDraftPayload());
@@ -108,7 +121,7 @@
     </div>
   </header>
 
-  <FormError error={form?.error} success={form?.success && form?.message ? form.message : null} />
+  <FormError error={form?.error} />
 
   <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]">
     <div class="space-y-6">

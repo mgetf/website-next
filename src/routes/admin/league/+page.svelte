@@ -288,12 +288,6 @@
             </div>
           {/if}
 
-          {#if form?.success}
-            <div class="mb-4 p-4 bg-success-500/20 border border-success-500/50 rounded-lg">
-              <p class="text-success-400 text-sm">{form.message}</p>
-            </div>
-          {/if}
-
           <form
             method="POST"
             action="?/createSeason"

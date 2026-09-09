@@ -100,7 +100,7 @@
     <p class="text-text-body">Manage your division's day-to-day operations</p>
   </div>
 
-  <FormError error={form?.error} success={form?.success && form?.message ? form.message : null} />
+  <FormError error={form?.error} />
 
   <!-- Match Creation Deadline Card -->
   {#if currentMatchWeek || matchDeadline}

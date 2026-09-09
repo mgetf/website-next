@@ -22,6 +22,17 @@ export type DiscordGuildRole = {
   position: number;
 };
 
+export type DiscordApiUser = {
+  id: string;
+  username: string;
+  discriminator: string;
+  avatar: string | null;
+  global_name: string | null;
+};
+
+export type DiscordUserLookupResult =
+  { status: 'ok'; user: DiscordApiUser } | { status: 'not_configured' } | { status: 'not_found' };
+
 export function isDiscordGuildConfigured(): boolean {
   return getDiscordBotToken().length > 0 && getDiscordGuildId().length > 0;
 }
@@ -113,6 +124,22 @@ async function discordFetch<T>(path: string, init: RequestInit = {}): Promise<T>
   }
 
   throw new DiscordGuildError('Discord rate limit exceeded', 429);
+}
+
+export async function lookupDiscordUser(discordId: string): Promise<DiscordUserLookupResult> {
+  if (!getDiscordBotToken()) {
+    return { status: 'not_configured' };
+  }
+
+  try {
+    const user = await discordFetch<DiscordApiUser>(`/users/${discordId}`);
+    return { status: 'ok', user };
+  } catch (err) {
+    if (err instanceof DiscordGuildError && (err.status === 404 || err.status === 400)) {
+      return { status: 'not_found' };
+    }
+    throw err;
+  }
 }
 
 export async function listDiscordGuildRoles(): Promise<DiscordGuildRole[]> {

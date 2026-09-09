@@ -11,7 +11,10 @@ import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
 import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
-import { badRequest, conflict } from '$lib/server/utils/errors';
+import { badRequest, conflict, notFound } from '$lib/server/utils/errors';
+import { parseDiscordUserId } from '$lib/server/utils/discordId';
+import { formatDiscordUsername, getDiscordAvatarUrl } from '$lib/server/auth/discord';
+import { lookupDiscordUser } from './discordGuild';
 import {
   isStaffRole,
   markStaffDiscordUnlinked,
@@ -1222,4 +1225,42 @@ export async function linkDiscordAccount(
 
   const { syncStaffDiscordIfNeeded } = await import('./staff');
   await syncStaffDiscordIfNeeded(steamId);
+}
+
+/**
+ * Link a Discord snowflake (or mention / profile URL) to a Steam user.
+ * Resolves username and avatar via the bot token when configured.
+ */
+export async function linkDiscordAccountById(
+  steamId: string,
+  rawDiscordId: string,
+): Promise<{ discordId: string; discordUsername: string | null }> {
+  const discordId = parseDiscordUserId(rawDiscordId);
+  if (!discordId) {
+    badRequest('Enter a Discord user ID, mention, or profile URL');
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    select: { steamId: true },
+  });
+  if (!user) {
+    notFound('User not found');
+  }
+
+  let discordUsername = '';
+  let discordAvatar: string | null = null;
+
+  const lookup = await lookupDiscordUser(discordId);
+  if (lookup.status === 'not_found') {
+    badRequest('No Discord user found for that ID');
+  }
+  if (lookup.status === 'ok') {
+    discordUsername = formatDiscordUsername(lookup.user);
+    discordAvatar = getDiscordAvatarUrl(lookup.user);
+  }
+
+  await linkDiscordAccount(discordId, discordUsername, discordAvatar, steamId);
+
+  return { discordId, discordUsername: discordUsername || null };
 }

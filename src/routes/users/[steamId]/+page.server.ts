@@ -4,6 +4,7 @@ import {
   getPlayerProfile,
   getUserBySteamId,
   unlinkDiscord,
+  linkDiscordAccountById,
   lockUserName,
   unlockUserName,
   lockUserAvatar,
@@ -22,6 +23,8 @@ import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getPlayerRatings, getRegions } from '$lib/server/clients/mgePlatform';
 import { buildPageSeo } from '$lib/utils/seo';
+import { z } from 'zod';
+import { formError, validateForm, validationError } from '$lib/server/utils/forms';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
@@ -196,6 +199,42 @@ export const actions: Actions = {
       return fail(400, {
         error: getErrorMessage(err, 'Failed to unlink Discord'),
       });
+    }
+  },
+
+  linkDiscord: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user || !isAdmin(locals.user)) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const { steamId } = params;
+    const formData = await request.formData();
+    const validation = validateForm(
+      formData,
+      z.object({
+        discordId: z.string().min(1, 'Discord ID is required'),
+      }),
+    );
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const linked = await linkDiscordAccountById(steamId, validation.data.discordId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_DISCORD_LINKED,
+        targetType: 'User',
+        targetId: steamId,
+        metadata: { discordId: linked.discordId, discordUsername: linked.discordUsername },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Discord account linked' };
+    } catch (err) {
+      console.error('Error linking Discord:', err);
+      return formError(getErrorMessage(err, 'Failed to link Discord'), 400);
     }
   },
 

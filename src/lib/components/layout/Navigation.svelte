@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SessionUser } from '$lib/types/user';
+  import type { SessionUser, NavUserTeam } from '$lib/types/user';
   import type { Notification } from '$lib/state/notifications.svelte';
   import { EMPTY_LEAGUE_NAV, type LeagueNav } from '$lib/types/league';
   import NotificationDropdown from './NotificationDropdown.svelte';
@@ -20,7 +20,7 @@
     notificationCount: number;
     signupClosed?: boolean;
     isInTeam?: boolean;
-    userTeam?: { id: number; name: string } | null;
+    userTeams?: NavUserTeam[];
     realtimeEnabled?: boolean;
     leagueNav?: LeagueNav;
   };
@@ -36,7 +36,7 @@
     notifications,
     signupClosed = true,
     isInTeam = false,
-    userTeam = null,
+    userTeams = [],
     realtimeEnabled = true,
     leagueNav = EMPTY_LEAGUE_NAV,
   }: Props = $props();
@@ -139,6 +139,18 @@
               </a>
             {/each}
 
+            <a
+              href="/rulebook"
+              class={[
+                'px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap',
+                isActive('/rulebook')
+                  ? 'text-white bg-surface-input/50'
+                  : 'text-text-label hover:text-white hover:bg-surface-input/50',
+              ]}
+            >
+              Rules
+            </a>
+
             <div class="relative group">
               <button
                 type="button"
@@ -170,18 +182,6 @@
                 {/each}
               </div>
             </div>
-
-            <a
-              href="/rulebook"
-              class={[
-                'px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap',
-                isActive('/rulebook')
-                  ? 'text-white bg-surface-input/50'
-                  : 'text-text-label hover:text-white hover:bg-surface-input/50',
-              ]}
-            >
-              Rules
-            </a>
           </div>
         </div>
 
@@ -227,7 +227,7 @@
             </a>
           {:else}
             <div class="flex items-center gap-3">
-              <UserDropdown {user} {userTeam} />
+              <UserDropdown {user} {userTeams} />
               <NotificationDropdown {notifications} userSteamId={user.steamId} {realtimeEnabled} />
             </div>
           {/if}
@@ -306,6 +306,18 @@
         <div class="my-2 border-t border-border-default"></div>
 
         <div class="flex flex-col">
+          <a
+            href="/rulebook"
+            class={[
+              'flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-lg',
+              isActive('/rulebook')
+                ? 'text-white bg-surface-input'
+                : 'text-text-label hover:text-white hover:bg-surface-input',
+            ]}
+            onclick={closeMobileMenu}
+          >
+            Rules
+          </a>
           {#each moreItems as item (item.href)}
             <a
               href={item.href}
@@ -320,18 +332,6 @@
               {item.label}
             </a>
           {/each}
-          <a
-            href="/rulebook"
-            class={[
-              'flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-lg',
-              isActive('/rulebook')
-                ? 'text-white bg-surface-input'
-                : 'text-text-label hover:text-white hover:bg-surface-input',
-            ]}
-            onclick={closeMobileMenu}
-          >
-            Rules
-          </a>
         </div>
       </div>
 

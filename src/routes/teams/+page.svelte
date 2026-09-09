@@ -8,6 +8,8 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import Users from '~icons/lucide/users';
 
   let { data }: { data: PageData } = $props();
 
@@ -244,7 +246,6 @@
       data={data.teams}
       {columns}
       emptyMessage="No Teams Found"
-      emptyIcon="👥"
       pagination={{
         currentPage: data.pagination.currentPage,
         totalPages: data.pagination.totalPages,
@@ -252,6 +253,9 @@
         infoText: paginationInfo,
       }}
     >
+      {#snippet emptyVisual()}
+        <Users class="size-12" />
+      {/snippet}
       {#snippet cell(team, col)}
         {#if col.key === 'team'}
           <a href="/teams/{team.id}" class="flex items-center space-x-3 group whitespace-nowrap">
@@ -278,7 +282,7 @@
             </div>
           </a>
         {:else if col.key === 'format'}
-          <span class="text-sm text-text-label whitespace-nowrap">{team.format.name}</span>
+          <FormatBadge name={team.format.name} themeKey={team.format.themeKey} />
         {:else if col.key === 'division'}
           {#if team.division}
             <span class="text-sm text-text-label whitespace-nowrap">{team.division.name}</span>

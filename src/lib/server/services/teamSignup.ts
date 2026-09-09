@@ -12,6 +12,11 @@ import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSea
 import { requireFormatById } from './formats';
 import { getJwtSecret } from '$lib/server/utils/env';
 import { hashPassword } from '$lib/server/utils/password';
+import {
+  initialPlayerPaymentStatus,
+  initialTeamPaymentStatus,
+  requireSignupDivision,
+} from './signupDivision';
 
 // Token expiry reduced from 7d to 1h for security (shorter exposure window)
 const TOKEN_EXPIRY = '1h';
@@ -43,17 +48,21 @@ interface TeamCreationData {
   name: string;
   acronym?: string;
   avatar?: string;
+  divisionId: number;
   regionId: number;
   joinPassword: string;
   ownerSteamId: string;
   formatId: number;
+  freeDivisionAcknowledged: boolean;
 }
 
 interface TeamReregistrationData {
   teamId: number;
+  divisionId: number;
   regionId: number;
   ownerSteamId: string;
   formatId: number;
+  freeDivisionAcknowledged: boolean;
 }
 
 /**
@@ -189,7 +198,7 @@ export async function validateTeamCreation(data: TeamCreationData): Promise<void
   });
 
   if (existingTeam) {
-    badRequest('You are already in an active 2v2 team for this season');
+    badRequest(`You are already in an active ${format.name} team for this season`);
   }
 
   // Validate team name
@@ -225,6 +234,13 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   // Validate first
   await validateTeamCreation(data);
 
+  const division = await requireSignupDivision({
+    divisionId: data.divisionId,
+    regionId: data.regionId,
+    formatId: data.formatId,
+    freeDivisionAcknowledged: data.freeDivisionAcknowledged,
+  });
+
   const seasonId = await getSignupSeasonForRegion(data.regionId, data.formatId);
 
   if (!seasonId) {
@@ -236,23 +252,26 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
   // Hash the join password for secure storage
   const hashedPassword = await hashPassword(data.joinPassword);
 
-  // Division is assigned after signups close. Stay unpaid until then.
   const team = await prisma.team.create({
     data: {
       name: data.name,
       acronym: data.acronym,
       avatar: data.avatar,
-      divisionId: null,
+      divisionId: division.id,
       regionId: data.regionId,
       seasonId: seasonId,
       formatId: data.formatId,
       status: initialStatus,
       joinPassword: hashedPassword,
-      paymentStatus: 0,
+      paymentStatus: initialTeamPaymentStatus(division.signupCost),
     },
   });
 
-  const playerPaymentStatus = 0;
+  const playerPaymentStatus = await initialPlayerPaymentStatus({
+    signupCost: division.signupCost,
+    steamId: data.ownerSteamId,
+    seasonId,
+  });
 
   await prisma.playerInTeam.updateMany({
     where: {
@@ -323,7 +342,14 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
     badRequest('No active signup season for this region');
   }
 
-  const initialPaymentStatus = 0;
+  const division = await requireSignupDivision({
+    divisionId: data.divisionId,
+    regionId: data.regionId,
+    formatId: data.formatId,
+    freeDivisionAcknowledged: data.freeDivisionAcknowledged,
+  });
+
+  const initialPaymentStatus = initialTeamPaymentStatus(division.signupCost);
   const initialStatus = TeamStatus.UNREADY;
 
   await prisma.playerInTeam.updateMany({
@@ -348,7 +374,7 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
     data: {
       seasonId: seasonId,
       regionId: data.regionId,
-      divisionId: null,
+      divisionId: division.id,
       status: initialStatus,
       paymentStatus: initialPaymentStatus,
       wins: 0,

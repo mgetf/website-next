@@ -159,6 +159,7 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
         name: 'Invite',
         signupCost: 0,
         regionId: region.id,
+        formatId: FORMAT_2V2,
       },
     });
 
@@ -167,7 +168,15 @@ export async function seedLeagueInfrastructure(): Promise<SeasonSeed> {
         name: 'Paid',
         signupCost: 10,
         regionId: region.id,
+        formatId: FORMAT_2V2,
       },
+    });
+
+    await prisma.division.createMany({
+      data: [
+        { name: 'Invite', signupCost: 0, regionId: region.id, formatId: FORMAT_1V1 },
+        { name: 'Paid', signupCost: 10, regionId: region.id, formatId: FORMAT_1V1 },
+      ],
     });
 
     const season = await prisma.season.create({

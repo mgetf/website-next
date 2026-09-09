@@ -4,6 +4,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import CircleCheck from '~icons/lucide/circle-check';
 
   let { data }: { data: PageData } = $props();
 
@@ -47,7 +48,9 @@
   <div class="space-y-4">
     {#if data.disputedMatches.length === 0}
       <Card padding="none" class="p-12 text-center">
-        <div class="text-6xl mb-4">✅</div>
+        <div class="mb-4 flex justify-center text-success-400">
+          <CircleCheck class="size-16" />
+        </div>
         <h3 class="text-xl font-bold text-white mb-2">No Disputed Matches</h3>
         <p class="text-text-body">All matches have been resolved</p>
       </Card>

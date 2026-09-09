@@ -10,11 +10,14 @@
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
+  import LeagueScopeFilters from '$lib/components/ui/LeagueScopeFilters.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { FORMAT_1V1 } from '$lib/constants/formats';
+  import { regionIdsByFormatFromSeasons } from '$lib/utils/leagueScope';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -42,7 +45,13 @@
   );
 
   const editModalDivisionOptions = $derived(
-    editModalRegionId ? data.divisions.filter((d) => d.regionId === editModalRegionId) : [],
+    editModalRegionId
+      ? data.divisions.filter(
+          (d) =>
+            d.regionId === editModalRegionId &&
+            (!editingTeam || d.formatId === editingTeam.formatId),
+        )
+      : [],
   );
 
   $effect(() => {
@@ -67,6 +76,8 @@
     { key: 'payment', label: 'Payment' },
     { key: 'actions', label: 'Actions', align: 'right' as const },
   ];
+
+  const regionIdsByFormat = $derived(regionIdsByFormatFromSeasons(data.seasons));
 
   const paginationInfo = $derived(
     `Showing ${(data.pagination.page - 1) * data.pagination.pageSize + 1} to ${Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalTeams)} of ${data.pagination.totalTeams} teams`,
@@ -93,27 +104,6 @@
       return { value: s.id.toString(), label };
     });
   });
-
-  const divisionOptions = $derived(() => {
-    let divisions = data.divisions;
-    if (data.filters.region) {
-      const regionId = parseInt(data.filters.region);
-      divisions = divisions.filter((d) => d.regionId === regionId);
-    }
-    const needRegion = !data.filters.region;
-    return divisions.map((d) => ({
-      value: d.id.toString(),
-      label: needRegion ? `${d.name} (${d.region.name})` : d.name,
-    }));
-  });
-
-  const regionOptions = $derived(
-    data.regions.map((r) => ({ value: r.id.toString(), label: r.name })),
-  );
-
-  const formatOptions = $derived(
-    (data.formats ?? []).map((f) => ({ value: f.id.toString(), label: f.name })),
-  );
 
   const statusOptions = [
     { value: '2', label: 'Ready' },
@@ -157,6 +147,10 @@
 
   function updateFilters(updates: Record<string, string>) {
     const params = new URLSearchParams(page.url.searchParams);
+
+    if (updates.region !== undefined && !updates.region) {
+      params.delete('season');
+    }
 
     if (updates.region !== undefined || updates.format !== undefined) {
       const newRegionId =
@@ -270,43 +264,30 @@
         <SearchInput bind:value={searchInput} placeholder="Search teams..." />
       </div>
 
-      <div class="md:w-40">
-        <label for="format" class="block text-sm font-medium text-text-body mb-2">Format</label>
-        <SelectFilter
-          value={data.filters.format}
-          options={formatOptions}
-          allLabel="All Formats"
-          onChange={(v) => updateFilters({ format: v })}
-        />
-      </div>
-
-      <div class="md:w-40">
-        <label for="region" class="block text-sm font-medium text-text-body mb-2">Region</label>
-        <SelectFilter
-          value={data.filters.region}
-          options={regionOptions}
-          allLabel="All Regions"
-          onChange={(v) => updateFilters({ region: v })}
-        />
-      </div>
+      <LeagueScopeFilters
+        formats={data.formats ?? []}
+        regions={data.regions}
+        divisions={data.divisions}
+        {regionIdsByFormat}
+        formatId={data.filters.format}
+        regionId={data.filters.region}
+        divisionId={data.filters.division}
+        onChange={(next) =>
+          updateFilters({
+            format: next.formatId,
+            region: next.regionId,
+            division: next.divisionId,
+          })}
+      />
 
       <div class="md:w-44">
         <label for="season" class="block text-sm font-medium text-text-body mb-2">Season</label>
         <SelectFilter
           value={data.filters.season}
           options={seasonOptions()}
-          allLabel="All Seasons"
+          allLabel={data.filters.region ? 'All Seasons' : 'Pick a region first'}
+          disabled={!data.filters.region}
           onChange={(v) => updateFilters({ season: v })}
-        />
-      </div>
-
-      <div class="md:w-44">
-        <label for="division" class="block text-sm font-medium text-text-body mb-2">Division</label>
-        <SelectFilter
-          value={data.filters.division}
-          options={divisionOptions()}
-          allLabel="All Divisions"
-          onChange={(v) => updateFilters({ division: v })}
         />
       </div>
 
@@ -364,10 +345,7 @@
           </div>
         </div>
       {:else if col.key === 'format'}
-        {@const format = data.formats?.find((f) => f.id === team.formatId)}
-        <Badge color={team.formatId === FORMAT_1V1 ? 'purple' : 'blue'}>
-          {format?.name ?? team.formatId}
-        </Badge>
+        <FormatBadge name={team.formatName} themeKey={team.formatThemeKey} />
       {:else if col.key === 'season'}
         {#if team.season}
           <span class="text-text-label">S{team.season.seasonNum}</span>

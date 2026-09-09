@@ -4,6 +4,9 @@
   import { toast } from '$lib/state/toast.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import Inbox from '~icons/lucide/inbox';
+  import Lock from '~icons/lucide/lock';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -43,15 +46,18 @@
 
     {#if data.rosterLocked}
       <div class="mb-6 p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg">
-        <p class="text-warning-400 text-sm">
-          🔒 Rosters are currently locked. You cannot accept invitations at this time.
+        <p class="text-warning-400 text-sm flex items-start gap-2">
+          <Lock class="size-4 shrink-0 mt-0.5" />
+          <span>Rosters are currently locked. You cannot accept invitations at this time.</span>
         </p>
       </div>
     {/if}
 
     {#if data.invitations.length === 0}
       <Card padding="none" class="p-12 text-center">
-        <div class="text-6xl mb-4">📭</div>
+        <div class="mb-4 flex justify-center text-text-muted">
+          <Inbox class="size-16" />
+        </div>
         <h2 class="text-2xl font-bold text-white mb-4">No Pending Invitations</h2>
         <p class="text-text-body text-lg">
           You don't have any pending team invitations or join requests.
@@ -80,7 +86,13 @@
 
                 <div class="flex-1 min-w-0">
                   <h3 class="text-xl font-bold text-white mb-1 truncate">{invitation.team.name}</h3>
-                  <div class="flex flex-wrap gap-2 text-sm text-text-body">
+                  <div class="flex flex-wrap items-center gap-2 text-sm text-text-body">
+                    {#if invitation.team.format}
+                      <FormatBadge
+                        name={invitation.team.format.name}
+                        themeKey={invitation.team.format.themeKey}
+                      />
+                    {/if}
                     {#if invitation.team.division}
                       <span class="px-2 py-1 bg-surface-input rounded"
                         >{invitation.team.division.name}</span
@@ -97,7 +109,8 @@
                       >
                     {/if}
                     <span class="px-2 py-1 bg-surface-input rounded"
-                      >{invitation.team.players.length}/3 Players</span
+                      >{invitation.team.players.length}/{invitation.team.format?.maxRosterSize ??
+                        invitation.team.players.length} Players</span
                     >
                   </div>
                 </div>

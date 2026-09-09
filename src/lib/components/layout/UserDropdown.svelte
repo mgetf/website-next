@@ -1,7 +1,9 @@
 <script lang="ts">
-  import type { SessionUser } from '$lib/types/user';
+  import { DropdownMenu } from 'bits-ui';
+  import type { NavUserTeam, SessionUser } from '$lib/types/user';
   import { UserRole } from '$lib/types/user';
   import ChevronDown from '~icons/lucide/chevron-down';
+  import ChevronRight from '~icons/lucide/chevron-right';
   import User from '~icons/lucide/user';
   import Users from '~icons/lucide/users';
   import Receipt from '~icons/lucide/receipt';
@@ -10,33 +12,24 @@
 
   type Props = {
     user: SessionUser;
-    userTeam?: { id: number; name: string } | null;
+    userTeams?: NavUserTeam[];
   };
 
-  let { user, userTeam = null }: Props = $props();
+  let { user, userTeams = [] }: Props = $props();
 
-  // Dropdown state
-  let dropdownOpen = $state(false);
+  let open = $state(false);
 
-  // User display name truncation for main button
+  const itemClass =
+    'flex cursor-pointer select-none items-center gap-3 rounded-md px-4 py-2.5 text-sm text-text-label outline-none data-highlighted:bg-surface-input/50 data-highlighted:text-white';
+  const contentClass =
+    'z-50 w-64 rounded-lg border border-border-default bg-surface-card p-0 shadow-xl outline-none';
+
   let displayName = $derived.by(() => {
     const maxLength = 15;
     return user.steamUsername.length > maxLength
       ? user.steamUsername.slice(0, maxLength) + '...'
       : user.steamUsername;
   });
-
-  function toggleDropdown() {
-    dropdownOpen = !dropdownOpen;
-  }
-
-  // Close dropdown when clicking outside
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.user-dropdown-container')) {
-      dropdownOpen = false;
-    }
-  }
 
   const isAdminUser = $derived(
     user.permissionLevel === UserRole.ADMIN || user.permissionLevel === UserRole.MODERATOR,
@@ -54,12 +47,8 @@
   });
 </script>
 
-<svelte:window onclick={handleClickOutside} />
-
-<div class="user-dropdown-container relative">
-  <!-- User Button -->
-  <button
-    onclick={toggleDropdown}
+<DropdownMenu.Root bind:open>
+  <DropdownMenu.Trigger
     class="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-input/50 rounded-lg transition-all"
     aria-label="User menu"
   >
@@ -74,19 +63,11 @@
         <span class="text-[10px] font-medium {roleBadge.classes}">{roleBadge.label}</span>
       {/if}
     </div>
-    <!-- Chevron Icon -->
-    <ChevronDown
-      class="size-4 text-text-body transition-transform {dropdownOpen ? 'rotate-180' : ''}"
-    />
-  </button>
-
-  <!-- Dropdown Menu -->
-  {#if dropdownOpen}
-    <div
-      class="absolute right-0 mt-2 w-64 bg-surface-card border border-border-default rounded-lg shadow-xl overflow-hidden z-50"
-    >
-      <!-- User Info Header -->
-      <div class="px-4 py-3 border-b border-border-default bg-surface-input/50">
+    <ChevronDown class="size-4 text-text-body transition-transform {open ? 'rotate-180' : ''}" />
+  </DropdownMenu.Trigger>
+  <DropdownMenu.Portal>
+    <DropdownMenu.Content class={contentClass} align="end" sideOffset={8}>
+      <div class="px-4 py-3 border-b border-border-default bg-surface-input/50 rounded-t-lg">
         <div class="flex items-center gap-3">
           <img
             class="h-12 w-12 rounded-full ring-2 ring-zinc-700"
@@ -110,68 +91,89 @@
         </div>
       </div>
 
-      <!-- Menu Items -->
       <div class="py-2">
-        <a
-          href="/users/{user.steamId}"
-          class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
-          onclick={() => (dropdownOpen = false)}
-        >
-          <User class="size-5 shrink-0" />
-          <span>My Profile</span>
-        </a>
+        <DropdownMenu.Item class={itemClass}>
+          {#snippet child({ props })}
+            <a href="/users/{user.steamId}" {...props}>
+              <User class="size-5 shrink-0" />
+              <span>My Profile</span>
+            </a>
+          {/snippet}
+        </DropdownMenu.Item>
 
-        {#if userTeam}
-          <a
-            href="/teams/{userTeam.id}"
-            class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
-            onclick={() => (dropdownOpen = false)}
-          >
-            <Users class="size-5 shrink-0" />
-            <span>My Team: {userTeam.name}</span>
-          </a>
+        {#if userTeams.length > 0}
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger class="{itemClass} justify-between">
+              <span class="flex items-center gap-3">
+                <Users class="size-5 shrink-0" />
+                <span>My Teams</span>
+              </span>
+              <ChevronRight class="size-4 shrink-0 text-text-muted" />
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.SubContent class="{contentClass} w-56 py-1" sideOffset={6}>
+              {#each userTeams as team (team.id)}
+                <DropdownMenu.Item class={itemClass}>
+                  {#snippet child({ props })}
+                    <a href="/teams/{team.id}" {...props}>
+                      {#if team.avatar}
+                        <img
+                          src={team.avatar}
+                          alt=""
+                          class="w-8 h-8 rounded-md object-cover shrink-0"
+                        />
+                      {:else}
+                        <span
+                          class="w-8 h-8 rounded-md bg-surface-hover text-text-body flex items-center justify-center text-sm font-bold shrink-0"
+                        >
+                          {team.name.charAt(0).toUpperCase()}
+                        </span>
+                      {/if}
+                      <span class="min-w-0">
+                        <span class="block truncate text-white">{team.name}</span>
+                        <span class="block truncate text-xs text-text-muted">{team.formatName}</span
+                        >
+                      </span>
+                    </a>
+                  {/snippet}
+                </DropdownMenu.Item>
+              {/each}
+            </DropdownMenu.SubContent>
+          </DropdownMenu.Sub>
         {/if}
 
-        <a
-          href="/users/{user.steamId}/payments"
-          class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
-          onclick={() => (dropdownOpen = false)}
-        >
-          <Receipt class="size-5 shrink-0" />
-          <span>Payment History</span>
-        </a>
+        <DropdownMenu.Item class={itemClass}>
+          {#snippet child({ props })}
+            <a href="/users/{user.steamId}/payments" {...props}>
+              <Receipt class="size-5 shrink-0" />
+              <span>Payment History</span>
+            </a>
+          {/snippet}
+        </DropdownMenu.Item>
 
         {#if isAdminUser}
-          <a
-            href="/admin"
-            class="flex items-center gap-3 px-4 py-2.5 text-sm text-purple-400 hover:bg-surface-input/50 hover:text-purple-300 transition-all"
-            onclick={() => (dropdownOpen = false)}
-          >
-            <Settings class="size-5 shrink-0" />
-            <span>Admin Panel</span>
-          </a>
+          <DropdownMenu.Item class="{itemClass} text-purple-400 data-highlighted:text-purple-300">
+            {#snippet child({ props })}
+              <a href="/admin" {...props}>
+                <Settings class="size-5 shrink-0" />
+                <span>Admin Panel</span>
+              </a>
+            {/snippet}
+          </DropdownMenu.Item>
         {/if}
 
-        <div class="my-2 border-t border-border-default"></div>
+        <DropdownMenu.Separator class="my-2 h-px bg-border-default" />
 
-        <!-- Logout Form -->
         <form method="POST" action="/auth/logout">
-          <button
-            type="submit"
-            class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-danger-400 hover:bg-surface-input/50 hover:text-danger-300 transition-all text-left"
-          >
-            <LogOut class="size-5 shrink-0" />
-            <span>Sign Out</span>
-          </button>
+          <DropdownMenu.Item class="{itemClass} text-danger-400 data-highlighted:text-danger-300">
+            {#snippet child({ props })}
+              <button type="submit" {...props}>
+                <LogOut class="size-5 shrink-0" />
+                <span>Sign Out</span>
+              </button>
+            {/snippet}
+          </DropdownMenu.Item>
         </form>
       </div>
-    </div>
-  {/if}
-</div>
-
-<style>
-  /* Ensure dropdown appears above other elements */
-  .user-dropdown-container {
-    z-index: 50;
-  }
-</style>
+    </DropdownMenu.Content>
+  </DropdownMenu.Portal>
+</DropdownMenu.Root>

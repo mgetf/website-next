@@ -7,10 +7,15 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { badRequest } from '$lib/server/utils/errors';
+import { TeamStatus } from '$prisma/client.js';
+import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import type { PendingApproval } from '$lib/types/pendingApproval';
+import { badRequest, notFound } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { logAudit, AuditCategory, AuditAction } from './auditLog';
 import { syncTeamPaymentStatus } from './payments';
+import { change1v1Status } from './signup1v1';
+import { adminSetTeamStatus } from './teams';
 
 export interface AuditContext {
   actorId: string;
@@ -18,10 +23,40 @@ export interface AuditContext {
   ipAddress: string;
 }
 
+const pendingTeamSelect = {
+  id: true,
+  name: true,
+  seasonId: true,
+  divisionId: true,
+  regionId: true,
+  formatId: true,
+  format: {
+    select: {
+      id: true,
+      name: true,
+      themeKey: true,
+      isIndividual: true,
+    },
+  },
+  division: {
+    select: {
+      id: true,
+      name: true,
+      signupCost: true,
+    },
+  },
+  region: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} as const;
+
 /**
- * Get all pending player requests with related data
+ * Join requests waiting for admin roster approval (PendingPlayer status=1).
  */
-export async function getPendingPlayers() {
+async function getPendingPlayers() {
   return await prisma.pendingPlayer.findMany({
     where: { status: 1 },
     include: {
@@ -32,33 +67,157 @@ export async function getPendingPlayers() {
           steamAvatar: true,
         },
       },
-      team: {
-        select: {
-          id: true,
-          name: true,
-          seasonId: true,
-          divisionId: true,
-          regionId: true,
-          division: {
-            select: {
-              id: true,
-              name: true,
-              signupCost: true,
-            },
-          },
-          region: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      },
+      team: { select: pendingTeamSelect },
     },
     orderBy: {
       playerSteamId: 'asc',
     },
   });
+}
+
+/**
+ * Unified admin inbox: roster join requests plus 1v1/2v2 entries that readied up
+ * and are waiting for READY.
+ */
+export async function getPendingApprovals(): Promise<PendingApproval[]> {
+  const [joinRequests, pendingEntries] = await Promise.all([
+    getPendingPlayers(),
+    prisma.team.findMany({
+      where: { status: TeamStatus.PENDING },
+      select: {
+        ...pendingTeamSelect,
+        players: {
+          where: { active: 1 },
+          select: {
+            permissionLevel: true,
+            paymentStatus: true,
+            player: {
+              select: {
+                steamId: true,
+                steamUsername: true,
+                steamAvatar: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { id: 'asc' },
+    }),
+  ]);
+
+  const joins: PendingApproval[] = joinRequests.map((request) => ({
+    kind: 'JOIN_REQUEST',
+    key: `join-${request.team.id}-${request.player.steamId}`,
+    playerSteamId: request.player.steamId,
+    playerUsername: request.player.steamUsername,
+    playerAvatar: request.player.steamAvatar,
+    teamId: request.team.id,
+    teamName: request.team.name,
+    formatId: request.team.format.id,
+    formatName: request.team.format.name,
+    formatThemeKey: request.team.format.themeKey,
+    isIndividual: request.team.format.isIndividual,
+    divisionId: request.team.divisionId,
+    divisionName: request.team.division?.name ?? null,
+    regionId: request.team.regionId,
+    regionName: request.team.region?.name ?? null,
+    paid: true,
+  }));
+
+  const entries: PendingApproval[] = pendingEntries.map((team) => {
+    const captain =
+      team.players.find((player) => player.permissionLevel >= 2) ?? team.players[0] ?? null;
+    return {
+      kind: 'ENTRY_READY',
+      key: `entry-${team.id}`,
+      playerSteamId: captain?.player.steamId ?? '',
+      playerUsername: captain?.player.steamUsername ?? team.name,
+      playerAvatar: captain?.player.steamAvatar ?? null,
+      teamId: team.id,
+      teamName: team.name,
+      formatId: team.format.id,
+      formatName: team.format.name,
+      formatThemeKey: team.format.themeKey,
+      isIndividual: team.format.isIndividual,
+      divisionId: team.divisionId,
+      divisionName: team.division?.name ?? null,
+      regionId: team.regionId,
+      regionName: team.region?.name ?? null,
+      paid: captain ? captain.paymentStatus !== 0 : false,
+    };
+  });
+
+  return [...joins, ...entries];
+}
+
+async function setPendingEntryStatus(
+  teamId: number,
+  newStatus: typeof TeamStatus.READY | typeof TeamStatus.UNREADY,
+  audit: AuditContext,
+  extraMetadata?: Record<string, string>,
+) {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { id: true, formatId: true, status: true },
+  });
+  if (!team) notFound('Entry not found');
+  if (team.status !== TeamStatus.PENDING) {
+    badRequest('This entry is not awaiting approval');
+  }
+
+  if (team.formatId === FORMAT_1V1) {
+    await change1v1Status(teamId, newStatus);
+  } else {
+    await adminSetTeamStatus(teamId, newStatus);
+  }
+
+  await logAudit({
+    actorId: audit.actorId,
+    actorRole: audit.actorRole,
+    category: AuditCategory.TEAM,
+    action: AuditAction.TEAM_STATUS_CHANGED,
+    targetType: 'Team',
+    targetId: String(teamId),
+    metadata: { oldStatus: TeamStatus.PENDING, newStatus, ...extraMetadata },
+    ipAddress: audit.ipAddress,
+  });
+}
+
+async function approvePendingEntry(teamId: number, audit: AuditContext) {
+  await setPendingEntryStatus(teamId, TeamStatus.READY, audit);
+}
+
+async function declinePendingEntry(teamId: number, audit: AuditContext, reason?: string) {
+  await setPendingEntryStatus(teamId, TeamStatus.UNREADY, audit, reason ? { reason } : undefined);
+}
+
+export async function approvePendingItem(
+  kind: PendingApproval['kind'],
+  teamId: number,
+  playerSteamId: string,
+  audit: AuditContext,
+) {
+  if (kind === 'ENTRY_READY') {
+    await approvePendingEntry(teamId, audit);
+    return;
+  }
+  if (!playerSteamId) badRequest('Invalid player');
+  await approvePlayer(playerSteamId, teamId, audit);
+}
+
+export async function declinePendingItem(
+  kind: PendingApproval['kind'],
+  teamId: number,
+  playerSteamId: string,
+  audit: AuditContext,
+  reason?: string,
+) {
+  if (kind === 'ENTRY_READY') {
+    await declinePendingEntry(teamId, audit, reason);
+    return;
+  }
+  if (!playerSteamId) badRequest('Invalid player');
+  await declinePlayer(playerSteamId, teamId, audit, reason);
 }
 
 /**

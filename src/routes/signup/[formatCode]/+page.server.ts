@@ -9,6 +9,9 @@ import {
   getOpenSignupFormats,
 } from '$lib/server/services/signupSeasons';
 import { getSignupFeeSummary } from '$lib/server/services/signupFees';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { checkPaymentRequired } from '$lib/server/services/payments';
+import { formAcknowledgedFreeDivision } from '$lib/server/services/signupDivision';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
@@ -18,6 +21,7 @@ import { loginToParticipateHref } from '$lib/utils/signupLogin';
 // Zod schema for individual signup form
 const signupSchema = z.object({
   regionId: z.coerce.number().int().positive('Invalid region'),
+  divisionId: z.coerce.number().int().positive('Invalid division'),
 });
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -27,10 +31,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     // Individual format - handle signup directly here
     const context = await get1v1SignupContext(locals.user?.steamId ?? null, format.id);
 
-    const [availableRegions, openFormats, fee] = await Promise.all([
+    const [availableRegions, openFormats, fee, divisions] = await Promise.all([
       getRegionsOpenForSignup(format.id),
       getOpenSignupFormats(),
       getSignupFeeSummary(format.id),
+      getVisibleDivisions(format.id),
     ]);
 
     // Determine if user can sign up and why not
@@ -68,6 +73,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         isIndividual: entry.isIndividual,
       })),
       regions: availableRegions,
+      divisions,
       fee,
       canSignup,
       disabledReason,
@@ -115,7 +121,8 @@ export const actions: Actions = {
       return validationError(validation.errors, 'Invalid form data');
     }
 
-    const { regionId } = validation.data;
+    const { regionId, divisionId } = validation.data;
+    const freeDivisionAcknowledged = formAcknowledgedFreeDivision(formData);
 
     try {
       // Get the correct season ID for the selected region
@@ -127,10 +134,18 @@ export const actions: Actions = {
         });
       }
 
+      const paymentInfo = await checkPaymentRequired({
+        divisionId,
+        steamId: locals.user.steamId,
+        seasonId,
+      });
+
       const teamId = await signup1v1({
         ownerSteamId: locals.user.steamId,
         regionId,
+        divisionId,
         formatId: format.id,
+        freeDivisionAcknowledged,
       });
 
       await logAudit({
@@ -140,9 +155,18 @@ export const actions: Actions = {
         action: AuditAction.SIGNUP_1V1_CREATED,
         targetType: 'Team',
         targetId: String(teamId),
-        metadata: { regionId, formatId: format.id, formatCode: format.code, divisionId: null },
+        metadata: {
+          regionId,
+          formatId: format.id,
+          formatCode: format.code,
+          divisionId,
+        },
         ipAddress: getClientAddress(),
       });
+
+      if (paymentInfo.required && !paymentInfo.alreadyPaid) {
+        throw redirect(303, `/checkout/${locals.user.steamId}`);
+      }
 
       throw redirect(303, `/users/${locals.user.steamId}?signup=${format.code}`);
     } catch (err) {

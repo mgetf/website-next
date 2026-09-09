@@ -16,7 +16,11 @@ export type MatrixFormat = {
   code: string;
   isIndividual: boolean;
 };
-export type MatrixRegion = { id: number; name: string; divisionId: number };
+export type MatrixRegion = {
+  id: number;
+  name: string;
+  divisions: Record<number, number>;
+};
 export type MatrixUser = { steamId: string; username: string };
 
 export type SignupMatrix = {
@@ -54,10 +58,15 @@ async function createRegionWithDivision(prisma: PrismaClient, name: string): Pro
       currencyCode: name === 'EU' ? 'EUR' : 'USD',
     },
   });
-  const division = await prisma.division.create({
-    data: { name: 'Invite', signupCost: 0, regionId: region.id },
-  });
-  return { id: region.id, name: region.name, divisionId: division.id };
+  const formats = await prisma.format.findMany({ select: { id: true } });
+  const divisions: Record<number, number> = {};
+  for (const format of formats) {
+    const division = await prisma.division.create({
+      data: { name: 'Invite', signupCost: 0, regionId: region.id, formatId: format.id },
+    });
+    divisions[format.id] = division.id;
+  }
+  return { id: region.id, name: region.name, divisions };
 }
 
 async function openSignupSeason(

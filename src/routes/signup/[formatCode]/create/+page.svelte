@@ -40,10 +40,7 @@
         ← Back to Signup Options
       </a>
       <h1 class="text-4xl font-bold text-white mb-2">Create New {data.format.name} Team</h1>
-      <p class="text-text-body">
-        Pick a format and region for your team. Skill divisions are assigned after registration
-        closes.
-      </p>
+      <p class="text-text-body">Fill out the form below to register your team for the season</p>
     </div>
 
     <!-- Error Message -->
@@ -163,6 +160,7 @@
           <SignupPicks
             formats={data.formats}
             regions={data.regions}
+            divisions={data.divisions}
             currentFormatId={data.format.id}
             fee={data.fee}
           />
@@ -190,7 +188,6 @@
                 <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-400">
                   League Rules
                 </a>
-                and understand I may owe a signup fee after placement
               </span>
             </label>
           </div>

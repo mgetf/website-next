@@ -6,6 +6,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -79,7 +80,13 @@
   );
 
   const divisionsForRegion = $derived(
-    selectedRegionId ? data.divisions.filter((d) => d.regionId === selectedRegionId) : [],
+    selectedRegionId
+      ? data.divisions.filter((d) => {
+          if (d.regionId !== selectedRegionId) return false;
+          if (selectedSeason) return d.formatId === selectedSeason.formatId;
+          return true;
+        })
+      : [],
   );
 
   const canPreview = $derived(
@@ -299,18 +306,13 @@
             }}
           />
           {#if selectedSeason}
-            {@const formatName = selectedSeason.format.name}
-            {@const colorClasses =
-              formatName === '1v1'
-                ? 'bg-format-1v1-500/10 border-format-1v1-500/30 text-format-1v1-300'
-                : formatName === '2v2'
-                  ? 'bg-info-500/10 border-info-500/30 text-info-300'
-                  : 'bg-surface-input border-border-input text-text-label'}
-            <p
-              class="mt-2 px-3 py-1.5 rounded-md border text-sm font-medium inline-block {colorClasses}"
-            >
-              Format: {formatName}
-            </p>
+            <div class="mt-2">
+              <FormatBadge
+                name={selectedSeason.format.name}
+                themeKey={selectedSeason.format.themeKey}
+                size="md"
+              />
+            </div>
           {/if}
         </div>
 

@@ -9,6 +9,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import User from '~icons/lucide/user';
 
   let { data }: { data: PageData } = $props();
 
@@ -153,7 +154,6 @@
       data={data.users}
       {columns}
       emptyMessage="No Users Found"
-      emptyIcon="👤"
       pagination={{
         currentPage: data.pagination.currentPage,
         totalPages: data.pagination.totalPages,
@@ -161,6 +161,9 @@
         infoText: paginationInfo,
       }}
     >
+      {#snippet emptyVisual()}
+        <User class="size-12" />
+      {/snippet}
       {#snippet cell(user, col)}
         {#if col.key === 'player'}
           <a

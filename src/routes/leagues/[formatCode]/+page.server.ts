@@ -82,7 +82,9 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     }
   }
 
-  const divisions = await getVisibleDivisions();
+  const divisions = (await getVisibleDivisions()).filter(
+    (division) => division.formatId === format.id,
+  );
 
   const mapLeagueTeams = (teams: Awaited<ReturnType<typeof getTeamsByDivision>>) =>
     teams

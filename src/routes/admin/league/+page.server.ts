@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
+import { validateForm, validationError, formError } from '$lib/server/utils/forms';
 import {
   getSeasons,
   createSeason,
@@ -19,10 +19,15 @@ import {
 } from '$lib/server/services/regions';
 import {
   getDivisions,
-  createDivision,
+  createDivisionsForScopes,
   updateDivision,
   deleteDivision,
+  deleteDivisions,
   toggleDivisionVisibility,
+  copyDivisions,
+  parseDivisionScopeTokens,
+  setDivisionsHidden,
+  updateDivisionsSignupCost,
 } from '$lib/server/services/divisions';
 import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/services/arenas';
 import {
@@ -80,12 +85,33 @@ const updateRegionSchema = regionIdSchema.extend({
 const createDivisionSchema = z.object({
   name: z.string().min(1, 'Division name is required'),
   signupCost: z.coerce.number().min(0).catch(0),
-  regionId: z.coerce.number().int().positive(),
+  regionIds: z.array(z.coerce.number().int().positive()).min(1, 'Select at least one region'),
+  formatIds: z.array(z.coerce.number().int().positive()).min(1, 'Select at least one format'),
   steamItemId: z.coerce.number().int().catch(0),
   itemQuantity: z.coerce.number().int().catch(0),
 });
-const updateDivisionSchema = createDivisionSchema.extend({
+const updateDivisionSchema = z.object({
   divisionId: z.coerce.number().int().positive(),
+  name: z.string().min(1, 'Division name is required'),
+  signupCost: z.coerce.number().min(0).catch(0),
+  regionId: z.coerce.number().int().positive(),
+  formatId: z.coerce.number().int().positive(),
+  steamItemId: z.coerce.number().int().catch(0),
+  itemQuantity: z.coerce.number().int().catch(0),
+});
+const copyDivisionsSchema = z.object({
+  sourceRegionId: z.coerce.number().int().positive().optional().catch(undefined),
+  sourceFormatId: z.coerce.number().int().positive().optional().catch(undefined),
+  targetScopes: z.array(z.string()).min(1, 'Select at least one destination'),
+  divisionIds: z.array(z.coerce.number().int().positive()).optional().default([]),
+});
+const bulkDivisionIdsSchema = z.object({
+  divisionIds: z.array(z.coerce.number().int().positive()).min(1, 'Select at least one division'),
+});
+const bulkSignupCostSchema = bulkDivisionIdsSchema.extend({
+  signupCost: z.coerce.number().min(0),
+  steamItemId: z.coerce.number().int().catch(0),
+  itemQuantity: z.coerce.number().int().catch(0),
 });
 
 const createArenaSchema = z.object({
@@ -219,6 +245,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       signupCost: d.signupCost,
       hidden: d.hidden,
       regionId: d.regionId,
+      formatId: d.formatId,
+      formatName: d.format.name,
       teams: d._count.teams,
       itemPayment: d.itemPayment
         ? {
@@ -424,31 +452,42 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const validation = validateForm(formData, createDivisionSchema);
+    const validation = validateForm(formData, createDivisionSchema, ['regionIds', 'formatIds']);
     if (!validation.success) return validationError(validation.errors);
-    const { name, signupCost, regionId, steamItemId, itemQuantity } = validation.data;
+    const { name, signupCost, regionIds, formatIds, steamItemId, itemQuantity } = validation.data;
 
     try {
-      const division = await createDivision({ name, signupCost, regionId });
-
-      if (steamItemId && itemQuantity && itemQuantity > 0) {
-        await upsertDivisionItemPayment(division.id, { steamItemId, itemQuantity });
-      }
+      const itemPayment =
+        steamItemId && itemQuantity && itemQuantity > 0 ? { steamItemId, itemQuantity } : undefined;
+      const result = await createDivisionsForScopes({
+        name,
+        signupCost,
+        regionIds,
+        formatIds,
+        itemPayment,
+      });
 
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
         category: AuditCategory.LEAGUE_CONFIG,
         action: AuditAction.DIVISION_CREATED,
-        metadata: { name, signupCost, regionId },
+        metadata: { name, signupCost, regionIds, formatIds, ...result },
         ipAddress: getClientAddress(),
       });
-      return { success: true, message: 'Division created successfully!' };
+
+      if (result.created === 0) {
+        return formError('That division name already exists in every selected region and format');
+      }
+
+      const skippedNote = result.skipped > 0 ? `, skipped ${result.skipped} existing` : '';
+      return {
+        success: true,
+        message: `Created ${result.created} division${result.created === 1 ? '' : 's'}${skippedNote}`,
+      };
     } catch (error) {
       console.error('Error creating division:', error);
-      return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to create division',
-      });
+      return formError(error instanceof Error ? error.message : 'Failed to create division');
     }
   },
 
@@ -458,10 +497,11 @@ export const actions: Actions = {
     const formData = await request.formData();
     const validation = validateForm(formData, updateDivisionSchema);
     if (!validation.success) return validationError(validation.errors);
-    const { divisionId, name, signupCost, regionId, steamItemId, itemQuantity } = validation.data;
+    const { divisionId, name, signupCost, regionId, formatId, steamItemId, itemQuantity } =
+      validation.data;
 
     try {
-      await updateDivision(divisionId, { name, signupCost, regionId });
+      await updateDivision(divisionId, { name, signupCost, regionId, formatId });
 
       if (steamItemId && itemQuantity && itemQuantity > 0) {
         await upsertDivisionItemPayment(divisionId, { steamItemId, itemQuantity });
@@ -476,15 +516,161 @@ export const actions: Actions = {
         action: AuditAction.DIVISION_UPDATED,
         targetType: 'Division',
         targetId: String(divisionId),
-        metadata: { name, signupCost, regionId },
+        metadata: { name, signupCost, regionId, formatId },
         ipAddress: getClientAddress(),
       });
       return { success: true, message: 'Division updated successfully!' };
     } catch (error) {
       console.error('Error updating division:', error);
-      return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to update division',
+      return formError(error instanceof Error ? error.message : 'Failed to update division');
+    }
+  },
+
+  copyDivisions: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, copyDivisionsSchema, ['targetScopes', 'divisionIds']);
+    if (!validation.success) return validationError(validation.errors);
+    const { sourceRegionId, sourceFormatId, targetScopes, divisionIds } = validation.data;
+
+    try {
+      const result = await copyDivisions({
+        sourceRegionId,
+        sourceFormatId,
+        targetScopes: parseDivisionScopeTokens(targetScopes),
+        divisionIds,
       });
+
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_BULK_COPIED,
+        metadata: { sourceRegionId, sourceFormatId, targetScopes, divisionIds, ...result },
+        ipAddress: getClientAddress(),
+      });
+
+      if (result.created === 0) {
+        return formError(
+          'Nothing to copy — those names already exist in the selected destinations',
+        );
+      }
+
+      const skippedNote = result.skipped > 0 ? `, skipped ${result.skipped} existing` : '';
+      return {
+        success: true,
+        message: `Copied ${result.created} division${result.created === 1 ? '' : 's'}${skippedNote}`,
+      };
+    } catch (error) {
+      console.error('Error copying divisions:', error);
+      return formError(error instanceof Error ? error.message : 'Failed to copy divisions');
+    }
+  },
+
+  bulkHideDivisions: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, bulkDivisionIdsSchema, ['divisionIds']);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await setDivisionsHidden(validation.data.divisionIds, 1);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_UPDATED,
+        metadata: { hidden: 1, divisionIds: validation.data.divisionIds },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Divisions hidden' };
+    } catch (error) {
+      console.error('Error hiding divisions:', error);
+      return formError(error instanceof Error ? error.message : 'Failed to hide divisions');
+    }
+  },
+
+  bulkShowDivisions: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, bulkDivisionIdsSchema, ['divisionIds']);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await setDivisionsHidden(validation.data.divisionIds, 0);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_UPDATED,
+        metadata: { hidden: 0, divisionIds: validation.data.divisionIds },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Divisions shown' };
+    } catch (error) {
+      console.error('Error showing divisions:', error);
+      return formError(error instanceof Error ? error.message : 'Failed to show divisions');
+    }
+  },
+
+  bulkUpdateDivisionCost: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, bulkSignupCostSchema, ['divisionIds']);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const { divisionIds, signupCost, steamItemId, itemQuantity } = validation.data;
+      const itemPayment = steamItemId > 0 ? { steamItemId, itemQuantity } : null;
+      await updateDivisionsSignupCost(divisionIds, signupCost, itemPayment);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_UPDATED,
+        metadata: {
+          signupCost,
+          steamItemId: itemPayment?.steamItemId ?? null,
+          itemQuantity: itemPayment?.itemQuantity ?? null,
+          divisionIds,
+        },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Signup cost updated' };
+    } catch (error) {
+      console.error('Error updating division cost:', error);
+      return formError(error instanceof Error ? error.message : 'Failed to update signup cost');
+    }
+  },
+
+  bulkDeleteDivisions: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, bulkDivisionIdsSchema, ['divisionIds']);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const result = await deleteDivisions(validation.data.divisionIds);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_DELETED,
+        metadata: { divisionIds: validation.data.divisionIds, deleted: result.deleted },
+        ipAddress: getClientAddress(),
+      });
+      return {
+        success: true,
+        message: `Deleted ${result.deleted} division${result.deleted === 1 ? '' : 's'}`,
+      };
+    } catch (error) {
+      console.error('Error deleting divisions:', error);
+      return formError(error instanceof Error ? error.message : 'Failed to delete divisions');
     }
   },
 

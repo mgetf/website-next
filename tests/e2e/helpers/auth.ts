@@ -25,31 +25,64 @@ export async function loginAs(
 }
 
 /**
- * Set a Svelte-controlled <select> without Playwright selectOption (that can
- * submit the parent form via Enter). Dispatches input/change so onChange runs.
+ * Set a native <select> or a Bits UI SelectMenu trigger (button with the same #id).
+ * Native path avoids Playwright selectOption (that can submit the parent form via Enter).
  */
 export async function selectControlled(
   page: Page,
   selector: string,
   option: { label?: string; value?: string },
 ): Promise<void> {
-  const select = page.locator(selector);
-  await expect(select).toBeEnabled();
-  const value = await select.evaluate((el, opt) => {
-    const node = el as HTMLSelectElement;
-    const match = [...node.options].find((o) =>
-      opt.value !== undefined ? o.value === opt.value : o.text === opt.label,
-    );
-    if (!match) {
-      const labels = [...node.options].map((o) => o.text).join(', ');
-      throw new Error(`No option ${JSON.stringify(opt)} in [${labels}]`);
+  const control = page.locator(selector).first();
+  await expect(control).toBeEnabled({ timeout: 15_000 });
+
+  const tag = await control.evaluate((el) => el.tagName);
+  if (tag === 'SELECT') {
+    const value = await control.evaluate((el, opt) => {
+      const node = el as HTMLSelectElement;
+      const match = [...node.options].find((o) =>
+        opt.value !== undefined ? o.value === opt.value : o.text === opt.label,
+      );
+      if (!match) {
+        const labels = [...node.options].map((o) => o.text).join(', ');
+        throw new Error(`No option ${JSON.stringify(opt)} in [${labels}]`);
+      }
+      node.value = match.value;
+      node.dispatchEvent(new Event('input', { bubbles: true }));
+      node.dispatchEvent(new Event('change', { bubbles: true }));
+      return match.value;
+    }, option);
+    await expect(control).toHaveValue(value);
+    return;
+  }
+
+  const fieldName = selector.startsWith('#') ? selector.slice(1) : undefined;
+  if (fieldName && option.value !== undefined) {
+    const named = page.locator(`input[name="${fieldName}"], select[name="${fieldName}"]`);
+    if ((await named.count()) > 0 && (await named.first().inputValue()) === option.value) {
+      return;
     }
-    node.value = match.value;
-    node.dispatchEvent(new Event('input', { bubbles: true }));
-    node.dispatchEvent(new Event('change', { bubbles: true }));
-    return match.value;
-  }, option);
-  await expect(select).toHaveValue(value);
+  }
+
+  await control.click();
+  const listbox = page.getByRole('listbox');
+  await expect(listbox).toBeVisible({ timeout: 15_000 });
+  const optionLocator =
+    option.label !== undefined
+      ? listbox.getByRole('option', { name: option.label, exact: true })
+      : listbox.locator(`[data-value="${option.value}"]`);
+  await expect(optionLocator).toBeVisible({ timeout: 15_000 });
+
+  // Clicking the current value with allowDeselect leaves the list open and blocks the form.
+  const alreadySelected = await optionLocator.evaluate((el) => {
+    return el.getAttribute('aria-selected') === 'true' || el.hasAttribute('data-selected');
+  });
+  if (alreadySelected) {
+    await page.keyboard.press('Escape');
+  } else {
+    await optionLocator.click();
+  }
+  await expect(listbox).toBeHidden({ timeout: 15_000 });
 }
 
 /** Svelte-controlled number inputs use value= + oninput; fill() alone can be wiped. */
@@ -105,7 +138,7 @@ export async function postMatchMessage(page: Page, content: string): Promise<voi
 export async function requestReschedule(page: Page, proposedLocal: string): Promise<void> {
   await page.getByRole('button', { name: 'Request Reschedule' }).click();
   await page.locator('#proposedDateTime').fill(proposedLocal);
-  await page.locator('#proposedTimezone').selectOption('UTC');
+  await selectControlled(page, '#proposedTimezone', { value: 'UTC' });
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Send Request' }).click(),
@@ -167,7 +200,7 @@ export async function adminResolveDisputePanel(page: Page): Promise<void> {
   // Default status is already PLAYED
   await Promise.all([
     page.waitForLoadState('networkidle'),
-    page.getByRole('button', { name: 'Resolve' }).click(),
+    page.getByRole('button', { name: 'Resolve', exact: true }).click(),
   ]);
 }
 
@@ -207,15 +240,12 @@ export async function adminCreateWeekMatch(
   await page.goto('/admin/matches/create');
   await expect(page.getByRole('heading', { name: 'Create Match Set' })).toBeVisible();
 
-  await page.locator('#regionId').selectOption(String(league.regionId));
-  await expect(page.locator('#divisionId option').filter({ hasText: 'Invite' })).toHaveCount(1, {
-    timeout: 10_000,
-  });
-  await page.locator('#divisionId').selectOption(String(league.divisionId));
-  await page.locator('#seasonId').selectOption(String(league.seasonId));
+  await selectControlled(page, '#regionId', { value: String(league.regionId) });
+  await selectControlled(page, '#divisionId', { value: String(league.divisionId) });
+  await selectControlled(page, '#seasonId', { value: String(league.seasonId) });
   await page.locator('#weekNo').fill(String(weekNo));
-  await page.locator('#arenaId').selectOption(String(arenaId));
-  await page.locator('#boSeries').selectOption(String(boSeries));
+  await selectControlled(page, '#arenaId', { value: String(arenaId) });
+  await selectControlled(page, '#boSeries', { value: String(boSeries) });
 
   await page.getByRole('button', { name: 'Preview Match Set' }).click();
   await expect(page.getByText('Match Preview')).toBeVisible({ timeout: 15_000 });
@@ -238,27 +268,19 @@ export async function adminCreatePlayoffMatch(
   await expect(page.getByRole('heading', { name: 'Create Match Set' })).toBeVisible();
 
   await page.locator('input[name="isPlayoff"]').check();
-  await page.locator('#regionId').selectOption(String(league.regionId));
-  await expect(page.locator('#divisionId option').filter({ hasText: 'Invite' })).toHaveCount(1, {
-    timeout: 10_000,
-  });
-  await page.locator('#divisionId').selectOption(String(league.divisionId));
-  await page.locator('#seasonId').selectOption(String(league.seasonId));
-  await expect(page.locator('#playoffRound option').filter({ hasText: 'Upper Round' })).toHaveCount(
-    1,
-    { timeout: 10_000 },
-  );
-  await page.locator('#playoffRound').selectOption('1');
-  await page.locator('#mapBanPoolId').selectOption(String(league.mapBanPoolId));
-  await page.locator('#boSeries').selectOption(String(boSeries));
+  await selectControlled(page, '#regionId', { value: String(league.regionId) });
+  await selectControlled(page, '#divisionId', { value: String(league.divisionId) });
+  await selectControlled(page, '#seasonId', { value: String(league.seasonId) });
+  await selectControlled(page, '#playoffRound', { value: '1' });
+  await selectControlled(page, '#mapBanPoolId', { value: String(league.mapBanPoolId) });
+  await selectControlled(page, '#boSeries', { value: String(boSeries) });
 
   await page.getByRole('button', { name: 'Preview Match Set' }).click();
   await expect(page.getByText('Match Preview')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/Select teams manually/i)).toBeVisible();
 
-  // Playoff form uses name=homeTeamIds / awayTeamIds (may share ids with FormSelect)
-  await page.locator('select[name="homeTeamIds"]').selectOption(String(opts.homeTeamId));
-  await page.locator('select[name="awayTeamIds"]').selectOption(String(opts.awayTeamId));
+  await selectControlled(page, '#homeTeamIds', { value: String(opts.homeTeamId) });
+  await selectControlled(page, '#awayTeamIds', { value: String(opts.awayTeamId) });
 
   await Promise.all([
     page.waitForURL(/\/admin\/matches\?created=/),
@@ -270,7 +292,7 @@ export async function adminEditSchedule(page: Page, proposedLocal: string): Prom
   await page.getByRole('button', { name: 'Edit Schedule' }).click();
   await expect(page.getByText('Edit Match Schedule')).toBeVisible();
   await page.locator('#adminMatchDateTime').fill(proposedLocal);
-  await page.locator('#matchTimezone').selectOption('UTC');
+  await selectControlled(page, '#matchTimezone', { value: 'UTC' });
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Save Schedule' }).click(),
@@ -281,8 +303,7 @@ export async function adminEditArenas(page: Page, arenaName: string): Promise<vo
   await page.getByRole('button', { name: 'Edit Arenas' }).click();
   await expect(page.getByText('Edit Match Arenas')).toBeVisible();
   // First game arena select
-  const arenaSelect = page.locator('select[name="arenaId"]').first();
-  await arenaSelect.selectOption({ label: arenaName });
+  await selectControlled(page, '#arenaId', { label: arenaName });
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Save Arenas' }).click(),
@@ -394,7 +415,7 @@ export async function adminResolveDemoReport(
 ): Promise<void> {
   await page.goto('/admin/demos');
   await expect(page.getByRole('heading', { name: 'Demo Reports' })).toBeVisible();
-  await page.locator('select[name="status"]').first().selectOption(status);
+  await selectControlled(page, '#status', { value: status });
   await page.locator('textarea[name="adminComments"]').first().fill(comment);
   await Promise.all([
     page.waitForLoadState('networkidle'),
@@ -415,12 +436,14 @@ export async function adminCreateLeagueRegion(page: Page, name: string): Promise
 
 export async function adminCreateLeagueDivision(
   page: Page,
-  opts: { name: string; regionLabel: string; signupCost?: string },
+  opts: { name: string; regionLabel: string; formatLabel?: string; signupCost?: string },
 ): Promise<void> {
+  const formatLabel = opts.formatLabel ?? '2v2';
   await page.goto('/admin/league?tab=divisions');
   await page.getByRole('button', { name: '+ Add Division' }).click();
   await page.locator('#division-name').fill(opts.name);
-  await page.locator('#division-region').selectOption({ label: opts.regionLabel });
+  await page.getByRole('checkbox', { name: formatLabel, exact: true }).check();
+  await page.getByRole('checkbox', { name: opts.regionLabel, exact: true }).check();
   if (opts.signupCost !== undefined) {
     await page.locator('#signup-cost').fill(opts.signupCost);
   }
@@ -428,6 +451,7 @@ export async function adminCreateLeagueDivision(
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Create Division' }).click(),
   ]);
+  await page.getByRole('button', { name: new RegExp(`^${formatLabel}\\b`) }).click();
   await expect(page.getByText(opts.name)).toBeVisible({ timeout: 15_000 });
 }
 
@@ -449,8 +473,8 @@ export async function adminCreateLeagueSeason(
   await page.goto('/admin/league?tab=seasons');
   await page.getByRole('button', { name: '+ Create Season' }).click();
   await page.locator('#seasonNum').fill(String(opts.seasonNum));
-  await page.locator('#regionId').selectOption({ label: opts.regionLabel });
-  await page.locator('#formatId').selectOption({ label: opts.formatLabel });
+  await selectControlled(page, '#regionId', { label: opts.regionLabel });
+  await selectControlled(page, '#formatId', { label: opts.formatLabel });
   await page.locator('#numWeeks').fill(String(opts.numWeeks));
   await Promise.all([
     page.waitForLoadState('networkidle'),

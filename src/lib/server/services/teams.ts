@@ -76,6 +76,13 @@ export async function getTeams(options: {
           seasonNum: true,
         },
       },
+      format: {
+        select: {
+          id: true,
+          name: true,
+          themeKey: true,
+        },
+      },
       _count: {
         select: {
           homeMatches: true,
@@ -143,6 +150,7 @@ export async function getTeamsPublic(
             id: true,
             name: true,
             code: true,
+            themeKey: true,
           },
         },
         division: {
@@ -436,7 +444,15 @@ export async function getTeamById(id: number) {
       division: true,
       region: true,
       season: true,
-      format: { select: { requiredPaidPlayers: true } },
+      format: {
+        select: {
+          name: true,
+          code: true,
+          themeKey: true,
+          requiredPaidPlayers: true,
+          maxRosterSize: true,
+        },
+      },
       players: {
         include: {
           player: {
@@ -722,6 +738,10 @@ export async function changeTeamDivision(
 
   if (team.regionId && newDivision.regionId !== team.regionId) {
     badRequest('Division must be in the same region as the team');
+  }
+
+  if (newDivision.formatId !== team.formatId) {
+    badRequest('Division must be in the same format as the team');
   }
 
   const oldDiv = team.division;

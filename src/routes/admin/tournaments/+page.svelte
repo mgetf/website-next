@@ -10,8 +10,22 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import { toast } from '$lib/state/toast.svelte';
+  import Trophy from '~icons/lucide/trophy';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
+  let lastFormResult: ActionData = null;
+
+  $effect(() => {
+    if (form && form !== lastFormResult) {
+      lastFormResult = form;
+      if (form.success && form.message) {
+        toast.success(form.message);
+      } else if (form.error) {
+        toast.error(form.error);
+      }
+    }
+  });
 
   let name = $state('');
   let type = $state('CUP');
@@ -60,7 +74,7 @@
     </p>
   </header>
 
-  <FormError error={form?.error} success={form?.success && form?.message ? form.message : null} />
+  <FormError error={form?.error} />
 
   <div class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
     <Card>
@@ -132,8 +146,10 @@
       data={data.tournaments}
       {columns}
       emptyMessage="No tournament drafts or published tournaments found"
-      emptyIcon="🏆"
     >
+      {#snippet emptyVisual()}
+        <Trophy class="size-12" />
+      {/snippet}
       {#snippet cell(tournament, column)}
         {#if column.key === 'name'}
           <div>

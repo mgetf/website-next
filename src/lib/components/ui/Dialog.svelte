@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { Dialog as BitsDialog } from 'bits-ui';
+  import X from '~icons/lucide/x';
 
   interface Props {
     open: boolean;
@@ -20,58 +22,31 @@
     '2xl': 'max-w-2xl',
   };
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      onClose();
-    }
+  function getOpen() {
+    return open;
   }
 
-  function handleBackdropClick() {
-    onClose();
-  }
-
-  function handleDialogClick(e: MouseEvent) {
-    e.stopPropagation();
+  function setOpen(next: boolean) {
+    if (!next) onClose();
   }
 </script>
 
-<svelte:window onkeydown={open ? handleKeydown : undefined} />
-
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div
-    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-    onclick={handleBackdropClick}
-    role="button"
-    tabindex="-1"
-  >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div
-      class="bg-surface-card border border-border-default rounded-lg p-6 w-full {maxWidthClasses[
+<BitsDialog.Root bind:open={getOpen, setOpen}>
+  <BitsDialog.Portal>
+    <BitsDialog.Overlay class="fixed inset-0 z-50 bg-black/50" />
+    <BitsDialog.Content
+      class="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] {maxWidthClasses[
         maxWidth
-      ]} max-h-[90vh] overflow-y-auto"
-      onclick={handleDialogClick}
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
+      ]} max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-border-default bg-surface-card p-6 outline-none"
     >
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-xl font-bold text-white">{title}</h3>
-        <button
-          type="button"
-          onclick={onClose}
-          class="text-text-body hover:text-white transition-colors"
+      <div class="mb-4 flex items-center justify-between">
+        <BitsDialog.Title level={3} class="text-xl font-bold text-white">{title}</BitsDialog.Title>
+        <BitsDialog.Close
+          class="text-text-body transition-colors hover:text-white"
           aria-label="Close dialog"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+          <X class="size-5" />
+        </BitsDialog.Close>
       </div>
 
       <div>
@@ -79,10 +54,10 @@
       </div>
 
       {#if footer}
-        <div class="mt-6 flex gap-3 justify-end">
+        <div class="mt-6 flex justify-end gap-3">
           {@render footer()}
         </div>
       {/if}
-    </div>
-  </div>
-{/if}
+    </BitsDialog.Content>
+  </BitsDialog.Portal>
+</BitsDialog.Root>

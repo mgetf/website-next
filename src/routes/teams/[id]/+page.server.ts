@@ -241,7 +241,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const allDivisions = isGlobalAdmin ? await getVisibleDivisions() : [];
   const divisions =
     isGlobalAdmin && team.regionId
-      ? allDivisions.filter((d) => d.regionId === team.regionId)
+      ? allDivisions.filter((d) => d.regionId === team.regionId && d.formatId === team.formatId)
       : allDivisions;
 
   const divisionLabel = [team.division?.name, team.region?.name ? `(${team.region.name})` : null]
@@ -251,6 +251,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const recordLabel = `${team.wins}-${team.losses}`;
   const seoDescription = [
     team.acronym ? `${team.name} (${team.acronym})` : team.name,
+    team.format.name,
     divisionLabel || null,
     seasonLabel,
     `Record ${recordLabel}`,
@@ -285,6 +286,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       status: team.status,
       createdAt: team.createdAt,
       seasonNum: team.season?.seasonNum,
+      formatName: team.format.name,
+      formatThemeKey: team.format.themeKey,
     },
     currentRoster,
     pastRoster,

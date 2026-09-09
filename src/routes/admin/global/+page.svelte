@@ -6,6 +6,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
+  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import { toast } from '$lib/state/toast.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -46,6 +47,18 @@
   }
 
   let selectedFormatId = $state(getFirstAvailableFormatId());
+  let seasonFieldValues = $state<Record<string, string>>({});
+
+  $effect(() => {
+    const formatId = selectedFormatId;
+    const next: Record<string, string> = {};
+    for (const region of getRegionsWithSeasonsForFormat(formatId)) {
+      const fieldName = `season_${region.id}_${formatId}`;
+      const currentSeasonId = data.activeSeasonMap[`${region.id}-${formatId}`];
+      next[fieldName] = currentSeasonId ? String(currentSeasonId) : '';
+    }
+    seasonFieldValues = next;
+  });
 
   function getSeasonsForRegionAndFormat(regionName: string, formatId: number) {
     const regionSeasons = data.seasonsByRegion[regionName] || [];
@@ -358,19 +371,28 @@
                       <div class="flex items-center gap-4">
                         <div class="w-24 text-white font-medium">{region.name}</div>
                         <div class="flex-1">
-                          <select
+                          <SelectMenu
                             id={fieldName}
                             name={fieldName}
-                            class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          >
-                            <option value="">No Season Selected</option>
-                            {#each regionSeasons as season}
-                              <option value={season.id} selected={currentSeasonId === season.id}>
-                                Season {season.seasonNum} ({season._count.teams} teams, {season
-                                  ._count.matches} matches)
-                              </option>
-                            {/each}
-                          </select>
+                            value={seasonFieldValues[fieldName] ?? ''}
+                            items={[
+                              { value: '', label: 'No Season Selected' },
+                              ...regionSeasons.map(
+                                (season: {
+                                  id: number;
+                                  seasonNum: number;
+                                  _count: { teams: number; matches: number };
+                                }) => ({
+                                  value: String(season.id),
+                                  label: `Season ${season.seasonNum} (${season._count.teams} teams, ${season._count.matches} matches)`,
+                                }),
+                              ),
+                            ]}
+                            size="sm"
+                            onChange={(val) => {
+                              seasonFieldValues = { ...seasonFieldValues, [fieldName]: val };
+                            }}
+                          />
                         </div>
                         {#if currentSeasonId}
                           <div class="text-success-400 text-sm">Active</div>

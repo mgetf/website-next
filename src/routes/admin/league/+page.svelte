@@ -5,12 +5,15 @@
   import { page } from '$app/state';
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
+  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { FORMAT_THEME_KEYS } from '$lib/constants/formats';
 
@@ -20,6 +23,21 @@
     value: key,
     label: key,
   }));
+
+  const steamItemOptions = $derived([
+    { value: '', label: 'None' },
+    ...(data.steamItems ?? []).map((item) => ({
+      value: String(item.id),
+      label: `${item.name} (App ${item.appId})`,
+    })),
+  ]);
+
+  const regionSelectOptions = $derived(
+    data.regions.map((region) => ({ value: String(region.id), label: region.name })),
+  );
+  const formatSelectOptions = $derived(
+    data.formats.map((format) => ({ value: String(format.id), label: format.name })),
+  );
 
   const seasonColumns = $derived([
     { key: 'season', label: 'Season' },
@@ -40,6 +58,7 @@
   ]);
 
   const divisionColumns = $derived([
+    ...(data.isStrictAdmin ? [{ key: 'select', label: '', width: '2.5rem' }] : []),
     { key: 'division', label: 'Division' },
     { key: 'cost', label: 'Signup Cost' },
     { key: 'visibility', label: 'Visibility' },
@@ -75,6 +94,20 @@
 
   let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' | 'formats' = $state(initialTab);
   let isSubmitting = $state(false);
+  let createSeasonRegionId = $state('');
+  let createSeasonFormatId = $state('');
+  let createSteamItemId = $state('');
+  let createPlayoffMap = $state('false');
+  let editSteamItemId = $state('');
+
+  $effect(() => {
+    if (!createSeasonRegionId && data.regions[0]) {
+      createSeasonRegionId = String(data.regions[0].id);
+    }
+    if (!createSeasonFormatId && data.formats[0]) {
+      createSeasonFormatId = String(data.formats[0].id);
+    }
+  });
 
   // Seasons state
   let showSeasonForm = $state(false);
@@ -90,13 +123,160 @@
   let showDivisionForm = $state(false);
   let editingDivision: (typeof data.divisions)[0] | null = $state(null);
   let deletingDivision: (typeof data.divisions)[0] | null = $state(null);
-  let selectedCreateRegionId: number | null = $state(null);
+  let selectedCreateRegionIds = $state<number[]>([]);
+  let selectedCreateFormatIds = $state<number[]>([]);
   let selectedEditRegionId: number | null = $state(null);
+  let selectedEditFormatId: number | null = $state(null);
+
+  $effect(() => {
+    editSteamItemId = editingDivision?.itemPayment?.steamItemId
+      ? String(editingDivision.itemPayment.steamItemId)
+      : '';
+  });
+  let selectedDivisionFormatId = $state<number | null>(null);
+  let selectedDivisionIds = $state<number[]>([]);
+  let showCopyDialog = $state(false);
+  let copySourceRegionId = $state<number | null>(null);
+  let copySourceFormatId = $state<number | null>(null);
+  let copySelectedOnly = $state(false);
+  let copyTargetKeys = $state<string[]>([]);
+  let showBulkCostDialog = $state(false);
+  let showBulkDeleteConfirm = $state(false);
+  let bulkCostValue = $state('0');
+  let bulkSteamItemId = $state('');
+  let bulkItemQuantity = $state('');
+  let bulkDeleteFormEl: HTMLFormElement | undefined = $state();
 
   function getCurrencySymbol(regionId: number | null): string {
     if (!regionId) return '€';
     const region = data.regions.find((r) => r.id === regionId);
     return region?.currencySymbol || '€';
+  }
+
+  function toggleCreateRegion(regionId: number, checked: boolean) {
+    if (checked) {
+      selectedCreateRegionIds = [...selectedCreateRegionIds, regionId];
+    } else {
+      selectedCreateRegionIds = selectedCreateRegionIds.filter((id) => id !== regionId);
+    }
+  }
+
+  function toggleCreateFormat(formatId: number, checked: boolean) {
+    if (checked) {
+      selectedCreateFormatIds = [...selectedCreateFormatIds, formatId];
+    } else {
+      selectedCreateFormatIds = selectedCreateFormatIds.filter((id) => id !== formatId);
+    }
+  }
+
+  function isDivisionSelected(id: number) {
+    return selectedDivisionIds.includes(id);
+  }
+
+  function toggleDivisionSelected(id: number, checked: boolean) {
+    if (checked) {
+      if (!selectedDivisionIds.includes(id)) selectedDivisionIds = [...selectedDivisionIds, id];
+    } else {
+      selectedDivisionIds = selectedDivisionIds.filter((value) => value !== id);
+    }
+  }
+
+  function toggleRegionSelection(regionDivisions: typeof data.divisions, checked: boolean) {
+    const ids = regionDivisions.map((division) => division.id);
+    if (checked) {
+      selectedDivisionIds = [...new Set([...selectedDivisionIds, ...ids])];
+    } else {
+      selectedDivisionIds = selectedDivisionIds.filter((id) => !ids.includes(id));
+    }
+  }
+
+  function openCopyDialog(opts: { regionId?: number; formatId: number; selectedOnly: boolean }) {
+    copySourceRegionId = opts.regionId ?? null;
+    copySourceFormatId = opts.formatId;
+    copySelectedOnly = opts.selectedOnly;
+    copyTargetKeys = [];
+    showCopyDialog = true;
+  }
+
+  function closeCopyDialog() {
+    showCopyDialog = false;
+    copyTargetKeys = [];
+  }
+
+  function openBulkCostDialog() {
+    bulkCostValue = '0';
+    bulkSteamItemId = '';
+    bulkItemQuantity = '';
+    showBulkCostDialog = true;
+  }
+
+  function closeBulkCostDialog() {
+    showBulkCostDialog = false;
+    bulkSteamItemId = '';
+    bulkItemQuantity = '';
+  }
+
+  const copyRegionsSorted = $derived(
+    [...data.regions].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    ),
+  );
+
+  function copyScopeKey(regionId: number, formatId: number) {
+    return `${regionId}:${formatId}`;
+  }
+
+  function isCopySourceScope(regionId: number, formatId: number) {
+    return !copySelectedOnly && copySourceRegionId === regionId && copySourceFormatId === formatId;
+  }
+
+  function isCopyTargetSelected(regionId: number, formatId: number) {
+    return copyTargetKeys.includes(copyScopeKey(regionId, formatId));
+  }
+
+  function toggleCopyTarget(regionId: number, formatId: number, checked: boolean) {
+    if (isCopySourceScope(regionId, formatId)) return;
+    const key = copyScopeKey(regionId, formatId);
+    if (checked) {
+      if (!copyTargetKeys.includes(key)) copyTargetKeys = [...copyTargetKeys, key];
+    } else {
+      copyTargetKeys = copyTargetKeys.filter((value) => value !== key);
+    }
+  }
+
+  function selectableCopyKeysForRegion(regionId: number) {
+    return data.formats
+      .filter((format) => !isCopySourceScope(regionId, format.id))
+      .map((format) => copyScopeKey(regionId, format.id));
+  }
+
+  function selectableCopyKeysForFormat(formatId: number) {
+    return data.regions
+      .filter((region) => !isCopySourceScope(region.id, formatId))
+      .map((region) => copyScopeKey(region.id, formatId));
+  }
+
+  function setCopyKeys(keys: string[], checked: boolean) {
+    if (checked) {
+      copyTargetKeys = [...new Set([...copyTargetKeys, ...keys])];
+    } else {
+      copyTargetKeys = copyTargetKeys.filter((key) => !keys.includes(key));
+    }
+  }
+
+  function isGroupFullySelected(keys: string[]) {
+    return keys.length > 0 && keys.every((key) => copyTargetKeys.includes(key));
+  }
+
+  function isGroupPartiallySelected(keys: string[]) {
+    const selected = keys.filter((key) => copyTargetKeys.includes(key)).length;
+    return selected > 0 && selected < keys.length;
+  }
+
+  function selectAllCopyTargets() {
+    copyTargetKeys = [
+      ...new Set(data.regions.flatMap((region) => selectableCopyKeysForRegion(region.id))),
+    ];
   }
 
   // Arenas state
@@ -174,29 +354,48 @@
     }
   });
 
-  // Group divisions by region
-  let divisionsByRegion = $derived(
-    data.divisions.reduce(
-      (acc, division) => {
-        const region = data.regions.find((r) => r.id === division.regionId);
-        const regionName = region?.name || 'Unknown';
-        if (!acc[regionName]) {
-          acc[regionName] = { region, divisions: [] };
-        }
-        acc[regionName].divisions.push(division);
-        return acc;
-      },
-      {} as Record<
+  // Group divisions by format, then region
+  let groupedDivisions = $derived.by(() => {
+    const acc: Record<
+      number,
+      Record<
         string,
         {
           region: (typeof data.regions)[0] | undefined;
           divisions: typeof data.divisions;
         }
-      >,
-    ),
+      >
+    > = {};
+    for (const format of data.formats) {
+      acc[format.id] = {};
+    }
+    for (const division of data.divisions) {
+      const region = data.regions.find((r) => r.id === division.regionId);
+      const regionName = region?.name || 'Unknown';
+      if (!acc[division.formatId]) acc[division.formatId] = {};
+      if (!acc[division.formatId][regionName]) {
+        acc[division.formatId][regionName] = { region, divisions: [] };
+      }
+      acc[division.formatId][regionName].divisions.push(division);
+    }
+    return acc;
+  });
+
+  let selectedDivisionFormat = $derived(
+    data.formats.find((format) => format.id === selectedDivisionFormatId) ?? data.formats[0],
   );
 
-  let divisionRegionNames = $derived(Object.keys(divisionsByRegion).sort());
+  $effect(() => {
+    if (selectedDivisionFormatId == null && data.formats[0]) {
+      selectedDivisionFormatId = data.formats[0].id;
+    }
+  });
+
+  $effect(() => {
+    const formatId = selectedDivisionFormatId;
+    selectedDivisionIds = [];
+    void formatId;
+  });
 
   function getStatusDot(status: string) {
     if (status === 'Active') return 'bg-success-500';
@@ -288,12 +487,6 @@
             </div>
           {/if}
 
-          {#if form?.success}
-            <div class="mb-4 p-4 bg-success-500/20 border border-success-500/50 rounded-lg">
-              <p class="text-success-400 text-sm">{form.message}</p>
-            </div>
-          {/if}
-
           <form
             method="POST"
             action="?/createSeason"
@@ -327,31 +520,27 @@
                 <label for="regionId" class="block text-sm font-medium text-text-label mb-2"
                   >Region</label
                 >
-                <select
+                <SelectMenu
                   id="regionId"
                   name="regionId"
+                  bind:value={createSeasonRegionId}
+                  items={regionSelectOptions}
                   required
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                >
-                  {#each data.regions as region}
-                    <option value={region.id}>{region.name}</option>
-                  {/each}
-                </select>
+                  size="sm"
+                />
               </div>
               <div>
                 <label for="formatId" class="block text-sm font-medium text-text-label mb-2"
                   >Format</label
                 >
-                <select
+                <SelectMenu
                   id="formatId"
                   name="formatId"
+                  bind:value={createSeasonFormatId}
+                  items={formatSelectOptions}
                   required
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                >
-                  {#each data.formats as format}
-                    <option value={format.id}>{format.name}</option>
-                  {/each}
-                </select>
+                  size="sm"
+                />
               </div>
               <div>
                 <label for="numWeeks" class="block text-sm font-medium text-text-label mb-2"
@@ -625,7 +814,7 @@
 
       {#if showDivisionForm && data.isStrictAdmin}
         <Card padding="none" class="p-6 mb-6">
-          <h4 class="text-lg font-semibold text-white mb-4">Create New Division</h4>
+          <h4 class="text-lg font-semibold text-white mb-4">Create Division</h4>
           <form
             method="POST"
             action="?/createDivision"
@@ -636,11 +825,13 @@
                 isSubmitting = false;
                 if (result.type === 'success') {
                   showDivisionForm = false;
+                  selectedCreateRegionIds = [];
+                  selectedCreateFormatIds = [];
                 }
               };
             }}
           >
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label for="division-name" class="block text-sm font-medium text-text-label mb-2"
                   >Division Name</label
@@ -655,32 +846,12 @@
                 />
               </div>
               <div>
-                <label for="division-region" class="block text-sm font-medium text-text-label mb-2"
-                  >Region <span class="text-danger-400">*</span></label
-                >
-                <select
-                  id="division-region"
-                  name="regionId"
-                  required
-                  onchange={(e) => {
-                    const val = e.currentTarget.value;
-                    selectedCreateRegionId = val ? parseInt(val) : null;
-                  }}
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                >
-                  <option value="">Select a region</option>
-                  {#each data.regions as region}
-                    <option value={region.id}>{region.name}</option>
-                  {/each}
-                </select>
-              </div>
-              <div>
                 <label for="signup-cost" class="block text-sm font-medium text-text-label mb-2">
-                  Signup Cost ({getCurrencySymbol(selectedCreateRegionId)})
+                  Signup Cost ({getCurrencySymbol(selectedCreateRegionIds[0] ?? null)})
                 </label>
                 <div class="relative">
                   <span class="absolute left-3 top-1/2 -translate-y-1/2 text-text-body"
-                    >{getCurrencySymbol(selectedCreateRegionId)}</span
+                    >{getCurrencySymbol(selectedCreateRegionIds[0] ?? null)}</span
                   >
                   <input
                     id="signup-cost"
@@ -694,6 +865,44 @@
                 </div>
               </div>
             </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <fieldset>
+                <legend class="block text-sm font-medium text-text-label mb-2">Formats</legend>
+                <div class="space-y-2">
+                  {#each data.formats as format}
+                    <label class="flex items-center gap-2 text-sm text-text-label">
+                      <input
+                        type="checkbox"
+                        name="formatIds"
+                        value={format.id}
+                        checked={selectedCreateFormatIds.includes(format.id)}
+                        onchange={(e) => toggleCreateFormat(format.id, e.currentTarget.checked)}
+                      />
+                      {format.name}
+                    </label>
+                  {/each}
+                </div>
+              </fieldset>
+              <fieldset id="division-region">
+                <legend class="block text-sm font-medium text-text-label mb-2">Regions</legend>
+                <div class="space-y-2">
+                  {#each data.regions as region}
+                    <label class="flex items-center gap-2 text-sm text-text-label">
+                      <input
+                        type="checkbox"
+                        name="regionIds"
+                        value={region.id}
+                        checked={selectedCreateRegionIds.includes(region.id)}
+                        onchange={(e) => toggleCreateRegion(region.id, e.currentTarget.checked)}
+                      />
+                      {region.name}
+                    </label>
+                  {/each}
+                </div>
+              </fieldset>
+            </div>
+
             {#if data.steamItems && data.steamItems.length > 0}
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
@@ -703,16 +912,13 @@
                   >
                     Item Payment (optional)
                   </label>
-                  <select
+                  <SelectMenu
                     id="create-steamItemId"
                     name="steamItemId"
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                  >
-                    <option value="">None</option>
-                    {#each data.steamItems as item}
-                      <option value={item.id}>{item.name} (App {item.appId})</option>
-                    {/each}
-                  </select>
+                    bind:value={createSteamItemId}
+                    items={steamItemOptions}
+                    size="sm"
+                  />
                 </div>
                 <div>
                   <label
@@ -733,8 +939,8 @@
               </div>
             {/if}
             <p class="text-xs text-text-muted mt-2">
-              Each division belongs to a specific region. You can create divisions with the same
-              name in different regions (e.g., "Open" for NA and "Open" for EU).
+              Creates this division for every selected region × format. Names that already exist in
+              a destination are skipped.
             </p>
             <div class="mt-4 flex justify-end gap-3">
               <Button type="button" variant="secondary" onclick={() => (showDivisionForm = false)}>
@@ -748,105 +954,220 @@
         </Card>
       {/if}
 
-      {#if data.divisions.length === 0}
+      {#if data.formats.length === 0}
         <Card padding="none" class="p-12 text-center">
-          <p class="text-text-body text-lg mb-4">No divisions found</p>
-          <p class="text-text-muted text-sm">Create your first division to get started</p>
+          <p class="text-text-body text-lg mb-4">No formats found</p>
+          <p class="text-text-muted text-sm">Create a format before adding divisions</p>
         </Card>
       {:else}
-        <div class="space-y-6">
-          {#each divisionRegionNames as regionName}
-            {@const regionData = divisionsByRegion[regionName]}
-            <Card padding="none" class="overflow-hidden">
-              <div class="bg-surface-input/50 px-6 py-4 border-b border-border-default">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h3 class="text-xl font-bold text-white">{regionName}</h3>
-                    <p class="text-sm text-text-body mt-1">
-                      {regionData.divisions.length} division{regionData.divisions.length !== 1
-                        ? 's'
-                        : ''}
-                      • Currency: {regionData.region?.currencySymbol || '€'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <DataTable data={regionData.divisions} columns={divisionColumns}>
-                {#snippet cell(division, col)}
-                  {#if col.key === 'division'}
-                    <div class="flex items-center gap-3">
-                      <div
-                        class="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center"
-                      >
-                        <span class="text-lg font-bold text-primary-400"
-                          >{division.name.charAt(0).toUpperCase()}</span
-                        >
-                      </div>
-                      <div>
-                        <div class="font-semibold text-white">{division.name}</div>
-                        <div class="text-xs text-text-muted">ID: {division.id}</div>
-                      </div>
-                    </div>
-                  {:else if col.key === 'cost'}
-                    <div class="flex items-center gap-2">
-                      {#if division.signupCost > 0}
-                        <span class="text-sm font-medium text-success-400"
-                          >{regionData.region?.currencySymbol || '€'}{division.signupCost.toFixed(
-                            2,
-                          )}</span
-                        >
-                      {:else}
-                        <span class="text-sm text-text-muted">Free</span>
-                      {/if}
-                      {#if division.itemPayment}
-                        <span
-                          class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                        >
-                          {division.itemPayment.itemQuantity}x {division.itemPayment.steamItemName}
-                        </span>
-                      {/if}
-                    </div>
-                  {:else if col.key === 'visibility'}
-                    <Badge color={division.hidden === 0 ? 'green' : 'zinc'}>
-                      {division.hidden === 0 ? 'Visible' : 'Hidden'}
-                    </Badge>
-                  {:else if col.key === 'teams'}
-                    <span class="text-sm font-medium text-white">{division.teams}</span>
-                    <span class="text-xs text-text-muted ml-1">teams</span>
-                  {:else if col.key === 'actions'}
-                    {#if data.isStrictAdmin}
-                      <div class="flex items-center justify-end gap-2">
-                        <form method="POST" action="?/toggleDivisionVisibility" use:enhance>
-                          <input type="hidden" name="divisionId" value={division.id} />
-                          <Button type="submit" variant="secondary" size="sm">
-                            {division.hidden === 0 ? 'Hide' : 'Show'}
-                          </Button>
-                        </form>
-                        <button
-                          onclick={() => (editingDivision = division)}
-                          class="px-3 py-1 text-sm bg-surface-input text-text-label hover:bg-surface-hover rounded transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onclick={() => {
-                            deletingDivision = division;
-                            deleteConfirmText = '';
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    {/if}
-                  {/if}
-                {/snippet}
-              </DataTable>
-            </Card>
+        <div class="flex gap-1 border-b border-border-default mb-6">
+          {#each data.formats as format}
+            {@const count = data.divisions.filter((d) => d.formatId === format.id).length}
+            <button
+              onclick={() => (selectedDivisionFormatId = format.id)}
+              class="relative px-5 py-2.5 text-sm font-medium transition-colors {selectedDivisionFormatId ===
+              format.id
+                ? 'text-primary-400'
+                : 'text-text-body hover:text-white'}"
+            >
+              {format.name}
+              <span
+                class="ml-1.5 text-xs {selectedDivisionFormatId === format.id
+                  ? 'text-primary-400/70'
+                  : 'text-text-muted'}">{count}</span
+              >
+              {#if selectedDivisionFormatId === format.id}
+                <span class="absolute bottom-0 inset-x-0 h-0.5 bg-primary-400 rounded-full"></span>
+              {/if}
+            </button>
           {/each}
         </div>
+
+        {#if data.isStrictAdmin && selectedDivisionIds.length > 0}
+          <Card padding="sm" class="mb-4 sticky top-0 z-20 shadow-lg">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm text-text-label mr-2">{selectedDivisionIds.length} selected</span
+              >
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={() =>
+                  openCopyDialog({
+                    formatId: selectedDivisionFormatId ?? selectedDivisionFormat.id,
+                    selectedOnly: true,
+                  })}
+              >
+                Copy selected
+              </Button>
+              <form method="POST" action="?/bulkHideDivisions" use:enhance>
+                {#each selectedDivisionIds as id}
+                  <input type="hidden" name="divisionIds" value={id} />
+                {/each}
+                <Button type="submit" variant="secondary" size="sm">Hide</Button>
+              </form>
+              <form method="POST" action="?/bulkShowDivisions" use:enhance>
+                {#each selectedDivisionIds as id}
+                  <input type="hidden" name="divisionIds" value={id} />
+                {/each}
+                <Button type="submit" variant="secondary" size="sm">Show</Button>
+              </form>
+              <Button variant="secondary" size="sm" onclick={openBulkCostDialog}>Set cost</Button>
+              <Button variant="danger" size="sm" onclick={() => (showBulkDeleteConfirm = true)}>
+                Delete
+              </Button>
+            </div>
+          </Card>
+        {/if}
+
+        {#if selectedDivisionFormat}
+          {@const regionMap = groupedDivisions[selectedDivisionFormat.id] ?? {}}
+          {@const regionNamesForFormat = Object.keys(regionMap).sort()}
+
+          {#if regionNamesForFormat.length === 0}
+            <Card padding="none" class="p-12 text-center">
+              <p class="text-text-body text-lg mb-4">No divisions for this format</p>
+              <p class="text-text-muted text-sm">
+                Create one, or copy a catalog from another format.
+              </p>
+            </Card>
+          {:else}
+            <div class="space-y-6">
+              {#each regionNamesForFormat as regionName}
+                {@const regionData = regionMap[regionName]}
+                {@const regionSelectedCount = regionData.divisions.filter((d) =>
+                  isDivisionSelected(d.id),
+                ).length}
+                <Card padding="none" class="overflow-hidden">
+                  <div class="bg-surface-input/50 px-6 py-4 border-b border-border-default">
+                    <div class="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 class="text-xl font-bold text-white">{regionName}</h3>
+                        <p class="text-sm text-text-body mt-1">
+                          {regionData.divisions.length} division{regionData.divisions.length !== 1
+                            ? 's'
+                            : ''}
+                          • Currency: {regionData.region?.currencySymbol || '€'}
+                        </p>
+                      </div>
+                      {#if data.isStrictAdmin && regionData.region}
+                        <div class="flex items-center gap-2">
+                          <label class="flex items-center gap-2 text-sm text-text-label">
+                            <input
+                              type="checkbox"
+                              checked={regionSelectedCount === regionData.divisions.length &&
+                                regionData.divisions.length > 0}
+                              onchange={(e) =>
+                                toggleRegionSelection(
+                                  regionData.divisions,
+                                  e.currentTarget.checked,
+                                )}
+                            />
+                            Select all
+                          </label>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onclick={() =>
+                              openCopyDialog({
+                                regionId: regionData.region!.id,
+                                formatId: selectedDivisionFormat.id,
+                                selectedOnly: false,
+                              })}
+                          >
+                            Copy catalog
+                          </Button>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+
+                  <DataTable data={regionData.divisions} columns={divisionColumns}>
+                    {#snippet cell(division, col)}
+                      {#if col.key === 'select'}
+                        <input
+                          type="checkbox"
+                          checked={isDivisionSelected(division.id)}
+                          onchange={(e) =>
+                            toggleDivisionSelected(division.id, e.currentTarget.checked)}
+                        />
+                      {:else if col.key === 'division'}
+                        <div class="flex items-center gap-3">
+                          <div
+                            class="w-10 h-10 rounded-lg bg-primary-500/10 border border-primary-500/30 flex items-center justify-center"
+                          >
+                            <span class="text-lg font-bold text-primary-400"
+                              >{division.name.charAt(0).toUpperCase()}</span
+                            >
+                          </div>
+                          <div>
+                            <div class="font-semibold text-white">{division.name}</div>
+                            <div class="text-xs text-text-muted">ID: {division.id}</div>
+                          </div>
+                        </div>
+                      {:else if col.key === 'cost'}
+                        <div class="flex items-center gap-2">
+                          {#if division.signupCost > 0}
+                            <span class="text-sm font-medium text-success-400"
+                              >{regionData.region?.currencySymbol ||
+                                '€'}{division.signupCost.toFixed(2)}</span
+                            >
+                          {:else}
+                            <span class="text-sm text-text-muted">Free</span>
+                          {/if}
+                          {#if division.itemPayment}
+                            <Badge color="purple"
+                              >{division.itemPayment.itemQuantity}x {division.itemPayment
+                                .steamItemName}</Badge
+                            >
+                          {/if}
+                        </div>
+                      {:else if col.key === 'visibility'}
+                        <Badge color={division.hidden === 0 ? 'green' : 'zinc'}>
+                          {division.hidden === 0 ? 'Visible' : 'Hidden'}
+                        </Badge>
+                      {:else if col.key === 'teams'}
+                        <span class="text-sm font-medium text-white">{division.teams}</span>
+                        <span class="text-xs text-text-muted ml-1">teams</span>
+                      {:else if col.key === 'actions'}
+                        {#if data.isStrictAdmin}
+                          <div class="flex items-center justify-end gap-2">
+                            <form method="POST" action="?/toggleDivisionVisibility" use:enhance>
+                              <input type="hidden" name="divisionId" value={division.id} />
+                              <Button type="submit" variant="secondary" size="sm">
+                                {division.hidden === 0 ? 'Hide' : 'Show'}
+                              </Button>
+                            </form>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onclick={() => {
+                                editingDivision = division;
+                                selectedEditRegionId = division.regionId;
+                                selectedEditFormatId = division.formatId;
+                              }}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onclick={() => {
+                                deletingDivision = division;
+                                deleteConfirmText = '';
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        {/if}
+                      {/if}
+                    {/snippet}
+                  </DataTable>
+                </Card>
+              {/each}
+            </div>
+          {/if}
+        {/if}
       {/if}
     </div>
   {:else if activeTab === 'arenas'}
@@ -919,14 +1240,16 @@
                   <label for="playoff-map" class="block text-sm font-medium text-text-label mb-2"
                     >Playoff Map</label
                   >
-                  <select
+                  <SelectMenu
                     id="playoff-map"
                     name="playoffMap"
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                  >
-                    <option value="false">No</option>
-                    <option value="true">Yes</option>
-                  </select>
+                    bind:value={createPlayoffMap}
+                    items={[
+                      { value: 'false', label: 'No' },
+                      { value: 'true', label: 'Yes' },
+                    ]}
+                    size="sm"
+                  />
                 </div>
               </div>
               <div class="mt-4">
@@ -1586,6 +1909,7 @@
     onClose={() => {
       editingDivision = null;
       selectedEditRegionId = null;
+      selectedEditFormatId = null;
     }}
   >
     <form
@@ -1599,6 +1923,7 @@
           if (result.type === 'success') {
             editingDivision = null;
             selectedEditRegionId = null;
+            selectedEditFormatId = null;
           }
         };
       }}
@@ -1608,12 +1933,26 @@
       <FormInput label="Division Name" name="name" value={editingDivision.name} required />
 
       <FormSelect
+        label="Format"
+        name="formatId"
+        value={String(selectedEditFormatId ?? editingDivision.formatId)}
+        options={data.formats.map((f) => ({ value: String(f.id), label: f.name }))}
+        required
+        hint={editingDivision.teams > 0
+          ? 'Region and format cannot change while teams are assigned.'
+          : undefined}
+        onChange={(val) => {
+          selectedEditFormatId = val ? parseInt(val) : null;
+        }}
+      />
+
+      <FormSelect
         label="Region"
         name="regionId"
         value={String(editingDivision.regionId)}
         options={data.regions.map((r) => ({ value: String(r.id), label: r.name }))}
         required
-        hint="Changing region allows you to have same-named divisions in different regions with different pricing."
+        hint="Changing region or format is blocked while teams or staff are assigned."
         onChange={(val) => {
           selectedEditRegionId = val ? parseInt(val) : null;
         }}
@@ -1645,19 +1984,12 @@
             <label for="edit-steamItemId" class="block text-sm font-medium text-text-label mb-2">
               Item Payment
             </label>
-            <select
+            <SelectMenu
               id="edit-steamItemId"
               name="steamItemId"
-              value={editingDivision.itemPayment?.steamItemId
-                ? String(editingDivision.itemPayment.steamItemId)
-                : ''}
-              class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="">None</option>
-              {#each data.steamItems as item}
-                <option value={item.id}>{item.name} (App {item.appId})</option>
-              {/each}
-            </select>
+              bind:value={editSteamItemId}
+              items={steamItemOptions}
+            />
           </div>
           <div>
             <label for="edit-itemQuantity" class="block text-sm font-medium text-text-label mb-2">
@@ -1683,6 +2015,7 @@
           onclick={() => {
             editingDivision = null;
             selectedEditRegionId = null;
+            selectedEditFormatId = null;
           }}
         >
           Cancel
@@ -1694,6 +2027,232 @@
     </form>
   </Dialog>
 {/if}
+
+{#if showCopyDialog}
+  <Dialog
+    open={true}
+    maxWidth="xl"
+    title={copySelectedOnly ? 'Copy selected divisions' : 'Copy division catalog'}
+    onClose={closeCopyDialog}
+  >
+    <form
+      method="POST"
+      action="?/copyDivisions"
+      use:enhance={() => {
+        isSubmitting = true;
+        return async ({ update, result }) => {
+          await update();
+          isSubmitting = false;
+          if (result.type === 'success') {
+            closeCopyDialog();
+            selectedDivisionIds = [];
+          }
+        };
+      }}
+    >
+      {#if copySelectedOnly}
+        {#each selectedDivisionIds as id}
+          <input type="hidden" name="divisionIds" value={id} />
+        {/each}
+      {:else if copySourceRegionId != null && copySourceFormatId != null}
+        <input type="hidden" name="sourceRegionId" value={copySourceRegionId} />
+        <input type="hidden" name="sourceFormatId" value={copySourceFormatId} />
+      {/if}
+      {#each copyTargetKeys as key (key)}
+        <input type="hidden" name="targetScopes" value={key} />
+      {/each}
+
+      <p class="text-sm text-text-body mb-4">
+        Choose destinations. Existing names in a destination are skipped. Cost, visibility, and item
+        payment are copied.
+      </p>
+
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <p class="text-sm text-text-label">
+          {copyTargetKeys.length} destination{copyTargetKeys.length === 1 ? '' : 's'} selected
+        </p>
+        <div class="flex gap-2">
+          <Button type="button" variant="ghost" size="sm" onclick={selectAllCopyTargets}>
+            Select all
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onclick={() => (copyTargetKeys = [])}>
+            Clear
+          </Button>
+        </div>
+      </div>
+
+      <fieldset class="mb-4">
+        <legend class="block text-sm font-medium text-text-label mb-2">
+          All regions for a format
+        </legend>
+        <div class="flex flex-wrap gap-x-4 gap-y-2">
+          {#each data.formats as format (format.id)}
+            {@const formatKeys = selectableCopyKeysForFormat(format.id)}
+            <label class="flex items-center gap-2 text-sm text-text-label">
+              <input
+                type="checkbox"
+                checked={isGroupFullySelected(formatKeys)}
+                indeterminate={isGroupPartiallySelected(formatKeys)}
+                disabled={formatKeys.length === 0}
+                onchange={(e) => setCopyKeys(formatKeys, e.currentTarget.checked)}
+              />
+              <FormatBadge name={format.name} themeKey={format.themeKey} />
+            </label>
+          {/each}
+        </div>
+      </fieldset>
+
+      <fieldset class="mb-6">
+        <legend class="block text-sm font-medium text-text-label mb-2"
+          >Destinations by region</legend
+        >
+        <div class="max-h-80 overflow-y-auto space-y-3">
+          {#each copyRegionsSorted as region (region.id)}
+            {@const regionKeys = selectableCopyKeysForRegion(region.id)}
+            <div class="rounded-lg border border-border-default bg-surface-input/50 p-3">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <span class="font-medium text-white">{region.name}</span>
+                <label class="flex items-center gap-2 text-sm text-text-label shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={isGroupFullySelected(regionKeys)}
+                    indeterminate={isGroupPartiallySelected(regionKeys)}
+                    disabled={regionKeys.length === 0}
+                    onchange={(e) => setCopyKeys(regionKeys, e.currentTarget.checked)}
+                  />
+                  All formats
+                </label>
+              </div>
+              <div class="flex flex-wrap gap-x-4 gap-y-2">
+                {#each data.formats as format (format.id)}
+                  {@const isSource = isCopySourceScope(region.id, format.id)}
+                  <label
+                    class="flex items-center gap-2 text-sm {isSource
+                      ? 'text-text-muted'
+                      : 'text-text-label'}"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isCopyTargetSelected(region.id, format.id)}
+                      disabled={isSource}
+                      onchange={(e) =>
+                        toggleCopyTarget(region.id, format.id, e.currentTarget.checked)}
+                    />
+                    <FormatBadge name={format.name} themeKey={format.themeKey} />
+                    {#if isSource}
+                      <span class="text-xs text-text-muted">(source)</span>
+                    {/if}
+                  </label>
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+      </fieldset>
+
+      <div class="flex gap-3 justify-end">
+        <Button type="button" variant="secondary" onclick={closeCopyDialog}>Cancel</Button>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={isSubmitting || copyTargetKeys.length === 0}
+        >
+          {isSubmitting ? 'Copying...' : 'Copy'}
+        </Button>
+      </div>
+    </form>
+  </Dialog>
+{/if}
+
+{#if showBulkCostDialog}
+  <Dialog open={true} title="Set signup cost" onClose={closeBulkCostDialog}>
+    <form
+      method="POST"
+      action="?/bulkUpdateDivisionCost"
+      use:enhance={() => {
+        isSubmitting = true;
+        return async ({ update, result }) => {
+          await update();
+          isSubmitting = false;
+          if (result.type === 'success') {
+            closeBulkCostDialog();
+            selectedDivisionIds = [];
+          }
+        };
+      }}
+    >
+      {#each selectedDivisionIds as id (id)}
+        <input type="hidden" name="divisionIds" value={id} />
+      {/each}
+      <FormInput
+        label="Signup cost"
+        name="signupCost"
+        type="number"
+        bind:value={bulkCostValue}
+        required
+        hint="Applied as-is to every selected division, using each region's currency."
+      />
+      {#if data.steamItems && data.steamItems.length > 0}
+        <FormSelect
+          label="Item payment"
+          name="steamItemId"
+          bind:value={bulkSteamItemId}
+          placeholder="None"
+          options={data.steamItems.map((item) => ({
+            value: String(item.id),
+            label: `${item.name} (App ${item.appId})`,
+          }))}
+          hint="Choose None to remove item payment from the selected divisions."
+        />
+        <FormInput
+          label="Item quantity"
+          name="itemQuantity"
+          type="number"
+          bind:value={bulkItemQuantity}
+          placeholder="e.g. 3"
+          hint="Required when an item is selected."
+        />
+      {/if}
+      <div class="flex gap-3 justify-end">
+        <Button type="button" variant="secondary" onclick={closeBulkCostDialog}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving...' : 'Update cost'}
+        </Button>
+      </div>
+    </form>
+  </Dialog>
+{/if}
+
+<form
+  bind:this={bulkDeleteFormEl}
+  method="POST"
+  action="?/bulkDeleteDivisions"
+  use:enhance={() => {
+    isSubmitting = true;
+    return async ({ update, result }) => {
+      await update();
+      isSubmitting = false;
+      if (result.type === 'success') {
+        showBulkDeleteConfirm = false;
+        selectedDivisionIds = [];
+      }
+    };
+  }}
+>
+  {#each selectedDivisionIds as id}
+    <input type="hidden" name="divisionIds" value={id} />
+  {/each}
+</form>
+<ConfirmDialog
+  open={showBulkDeleteConfirm}
+  title="Delete selected divisions"
+  description="Unused selected divisions will be deleted. Rows with teams or staff are blocked."
+  variant="danger"
+  confirmLabel="Delete"
+  isLoading={isSubmitting}
+  onConfirm={() => bulkDeleteFormEl?.requestSubmit()}
+  onCancel={() => (showBulkDeleteConfirm = false)}
+/>
 
 {#if editingArena}
   <Dialog open={true} title="Edit Arena" onClose={() => (editingArena = null)}>

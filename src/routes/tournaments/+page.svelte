@@ -6,6 +6,9 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import Trophy from '~icons/lucide/trophy';
+  import Globe from '~icons/lucide/globe';
+  import Swords from '~icons/lucide/swords';
 
   let { data }: { data: PageData } = $props();
 
@@ -136,7 +139,10 @@
 
     <!-- Cups Tab -->
     {#if activeTab === 'cups'}
-      <DataTable data={cups} columns={cupsColumns} emptyMessage="No Cups Yet" emptyIcon="🏆">
+      <DataTable data={cups} columns={cupsColumns} emptyMessage="No Cups Yet">
+        {#snippet emptyVisual()}
+          <Trophy class="size-12" />
+        {/snippet}
         {#snippet cell(event, col)}
           {#if col.key === 'name'}
             <a
@@ -147,9 +153,9 @@
                 <img src={event.avatar} alt={event.name} class="w-12 h-12 rounded object-cover" />
               {:else}
                 <div
-                  class="w-12 h-12 rounded bg-surface-input flex items-center justify-center text-2xl"
+                  class="w-12 h-12 rounded bg-surface-input flex items-center justify-center text-text-muted"
                 >
-                  🏆
+                  <Trophy class="size-6" />
                 </div>
               {/if}
               <div class="flex-1">
@@ -171,9 +177,9 @@
             </div>
           {:else if col.key === 'format'}
             {#if event.isTeamEvent}
-              <Badge color="purple">2v2</Badge>
+              <Badge color="orange">Team</Badge>
             {:else}
-              <Badge color="blue">1v1</Badge>
+              <Badge color="purple">1v1</Badge>
             {/if}
           {:else if col.key === 'winner'}
             {@const winner = getWinner(event)}
@@ -232,8 +238,10 @@
         data={championships}
         columns={championshipsColumns}
         emptyMessage="No Championships Yet"
-        emptyIcon="🌍"
       >
+        {#snippet emptyVisual()}
+          <Globe class="size-12" />
+        {/snippet}
         {#snippet cell(event, col)}
           {#if col.key === 'name'}
             <a
@@ -244,9 +252,9 @@
                 <img src={event.avatar} alt={event.name} class="w-12 h-12 rounded object-cover" />
               {:else}
                 <div
-                  class="w-12 h-12 rounded bg-linear-to-br from-surface-hover to-surface-card flex items-center justify-center text-2xl"
+                  class="w-12 h-12 rounded bg-linear-to-br from-surface-hover to-surface-card flex items-center justify-center text-text-muted"
                 >
-                  🌍
+                  <Globe class="size-6" />
                 </div>
               {/if}
               <div>
@@ -315,12 +323,10 @@
 
     <!-- Fight Nights Tab -->
     {#if activeTab === 'fightnights'}
-      <DataTable
-        data={fightNights}
-        columns={fightNightsColumns}
-        emptyMessage="No Fight Nights Yet"
-        emptyIcon="🥊"
-      >
+      <DataTable data={fightNights} columns={fightNightsColumns} emptyMessage="No Fight Nights Yet">
+        {#snippet emptyVisual()}
+          <Swords class="size-12" />
+        {/snippet}
         {#snippet cell(event, col)}
           {#if col.key === 'name'}
             <a
@@ -335,9 +341,9 @@
                 />
               {:else}
                 <div
-                  class="w-12 h-12 rounded bg-linear-to-br from-danger-900/30 to-surface-card flex items-center justify-center text-2xl shrink-0"
+                  class="w-12 h-12 rounded bg-linear-to-br from-danger-900/30 to-surface-card flex items-center justify-center text-text-muted shrink-0"
                 >
-                  🥊
+                  <Swords class="size-6" />
                 </div>
               {/if}
               <div>

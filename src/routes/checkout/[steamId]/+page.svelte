@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import PaypalCheckout from './PaypalCheckout.svelte';
   import ItemPaymentCheckout from './ItemPaymentCheckout.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import type { CheckoutParticipation, CheckoutTeamSelection } from '$lib/types/checkout';
@@ -290,9 +290,7 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-white font-medium text-sm truncate">{p.teamName}</p>
                   <p class="text-text-muted text-xs mt-0.5">
-                    <Badge color={p.isIndividual ? 'purple' : 'blue'} size="sm">
-                      {p.formatName}
-                    </Badge>
+                    <FormatBadge name={p.formatName} themeKey={p.formatThemeKey} size="sm" />
                     {#if p.regionName}
                       <span class="mx-1">&middot;</span>{p.regionName}
                     {/if}
@@ -346,9 +344,7 @@
                   <div class="min-w-0">
                     <p class="text-white font-bold">{p.teamName}</p>
                     <p class="text-sm text-text-body mt-0.5">
-                      <Badge color={p.isIndividual ? 'purple' : 'blue'} size="sm">
-                        {p.formatName}
-                      </Badge>
+                      <FormatBadge name={p.formatName} themeKey={p.formatThemeKey} size="sm" />
                       {#if p.regionName}
                         <span class="mx-1 text-text-muted">&middot;</span>{p.regionName}
                       {/if}

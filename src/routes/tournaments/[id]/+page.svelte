@@ -7,6 +7,9 @@
   import Card from '$lib/components/ui/Card.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import BracketRenderer from '$lib/components/brackets/BracketRenderer.svelte';
+  import Trophy from '~icons/lucide/trophy';
+  import Globe from '~icons/lucide/globe';
+  import Swords from '~icons/lucide/swords';
 
   let { data }: { data: PageData } = $props();
 
@@ -17,7 +20,7 @@
 
   const typeBadge = $derived(
     event.type === 'CUP'
-      ? { color: 'blue' as const, label: event.isTeamEvent ? '2v2 Cup' : '1v1 Cup' }
+      ? { color: 'orange' as const, label: event.isTeamEvent ? 'Team Cup' : '1v1 Cup' }
       : event.type === 'CHAMPIONSHIP'
         ? { color: 'purple' as const, label: 'World Championship' }
         : { color: 'orange' as const, label: 'Fight Night' },
@@ -108,9 +111,15 @@
           />
         {:else}
           <div
-            class="w-20 h-20 rounded-lg bg-surface-input flex items-center justify-center text-4xl shrink-0"
+            class="w-20 h-20 rounded-lg bg-surface-input flex items-center justify-center text-text-muted shrink-0"
           >
-            {event.type === 'FIGHT_NIGHT' ? '🥊' : event.type === 'CHAMPIONSHIP' ? '🌍' : '🏆'}
+            {#if event.type === 'FIGHT_NIGHT'}
+              <Swords class="size-10" />
+            {:else if event.type === 'CHAMPIONSHIP'}
+              <Globe class="size-10" />
+            {:else}
+              <Trophy class="size-10" />
+            {/if}
           </div>
         {/if}
         <div class="flex-1 min-w-0">

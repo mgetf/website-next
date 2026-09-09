@@ -4,6 +4,10 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import CircleX from '~icons/lucide/circle-x';
+  import Lock from '~icons/lucide/lock';
+  import TriangleAlert from '~icons/lucide/triangle-alert';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -14,7 +18,9 @@
   <div class="max-w-2xl w-full">
     {#if data.error || !data.team}
       <Card padding="lg" class="text-center">
-        <div class="text-6xl mb-4">❌</div>
+        <div class="mb-4 flex justify-center text-text-muted">
+          <CircleX class="size-16" />
+        </div>
         <h2 class="text-2xl font-bold text-white mb-4">Invalid Invitation</h2>
         <p class="text-text-body text-lg mb-6">
           {data.error || 'This invitation link is invalid or has expired.'}
@@ -23,7 +29,9 @@
       </Card>
     {:else if data.rosterLocked}
       <Card padding="lg" class="text-center">
-        <div class="text-6xl mb-4">🔒</div>
+        <div class="mb-4 flex justify-center text-text-muted">
+          <Lock class="size-16" />
+        </div>
         <h2 class="text-2xl font-bold text-white mb-4">Rosters Locked</h2>
         <p class="text-text-body text-lg mb-6">
           Team rosters are currently locked. You cannot join teams at this time.
@@ -32,7 +40,9 @@
       </Card>
     {:else if !data.canJoin}
       <Card padding="lg" class="text-center">
-        <div class="text-6xl mb-4">⚠️</div>
+        <div class="mb-4 flex justify-center text-warning-400">
+          <TriangleAlert class="size-16" />
+        </div>
         <h2 class="text-2xl font-bold text-white mb-4">Cannot Join Team</h2>
         <p class="text-text-body text-lg mb-6">
           {data.error || 'You cannot join this team at this time.'}
@@ -62,6 +72,15 @@
             </div>
           {/if}
           <h1 class="text-3xl font-bold text-white mb-2">{data.team.name}</h1>
+          {#if data.team.format}
+            <div class="mb-2 flex justify-center">
+              <FormatBadge
+                name={data.team.format.name}
+                themeKey={data.team.format.themeKey}
+                size="md"
+              />
+            </div>
+          {/if}
           <p class="text-text-body">You've been invited to join this team</p>
         </div>
 
@@ -83,7 +102,9 @@
             </div>
             <div class="bg-surface-input rounded-lg p-4 text-center">
               <div class="text-sm text-text-body mb-1">Roster</div>
-              <div class="font-semibold text-white">{data.activePlayers.length}/3 Players</div>
+              <div class="font-semibold text-white">
+                {data.activePlayers.length}/{data.team.format.maxRosterSize} Players
+              </div>
             </div>
           </div>
 

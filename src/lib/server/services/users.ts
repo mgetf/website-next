@@ -5,8 +5,10 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { TeamStatus } from '$prisma/client.js';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import type { NavUserTeam } from '$lib/types/user';
 import type { ProfileMatch } from '$lib/types/match';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
@@ -150,7 +152,7 @@ export async function getPlayerTeams(steamId: string) {
           region: true,
           season: true,
           format: {
-            select: { name: true },
+            select: { name: true, themeKey: true },
           },
         },
       },
@@ -199,61 +201,62 @@ export async function isSignedUpForAllOpenFormats(
 }
 
 /**
- * Get player's active team-format membership for navigation ("My Team").
- * Prioritizes teams in current signup seasons, falls back to any active team.
- * Individual-format entries are excluded.
+ * Get the player's active team-format memberships for navigation ("My Teams").
+ * Current signup-season teams are listed first. Individual-format entries (1v1) are excluded.
  */
-export async function getUserActiveTeam(
-  steamId: string,
-): Promise<{ id: number; name: string } | null> {
+export async function getUserActiveTeams(steamId: string): Promise<NavUserTeam[]> {
   const currentSeasonIds = await getCurrentSignupSeasonIds();
 
-  if (currentSeasonIds.length > 0) {
-    const currentSeasonTeam = await prisma.playerInTeam.findFirst({
-      where: {
-        playerSteamId: steamId,
-        active: 1,
-        team: {
-          format: { isIndividual: false },
-          seasonId: {
-            in: currentSeasonIds,
-          },
-        },
-      },
-      include: {
-        team: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    if (currentSeasonTeam?.team) {
-      return currentSeasonTeam.team;
-    }
-  }
-
-  const teamMembership = await prisma.playerInTeam.findFirst({
+  const memberships = await prisma.playerInTeam.findMany({
     where: {
       playerSteamId: steamId,
       active: 1,
       team: {
         format: { isIndividual: false },
+        status: { not: TeamStatus.DEAD },
       },
     },
-    include: {
+    select: {
       team: {
         select: {
           id: true,
           name: true,
+          avatar: true,
+          seasonId: true,
+          format: {
+            select: {
+              name: true,
+            },
+          },
         },
       },
     },
+    orderBy: { startedAt: 'desc' },
   });
 
-  return teamMembership?.team || null;
+  const currentSeasonSet = new Set(currentSeasonIds);
+  const seen = new Set<number>();
+  const teams: NavUserTeam[] = [];
+
+  const sorted = [...memberships].sort((a, b) => {
+    const aCurrent = a.team.seasonId != null && currentSeasonSet.has(a.team.seasonId) ? 0 : 1;
+    const bCurrent = b.team.seasonId != null && currentSeasonSet.has(b.team.seasonId) ? 0 : 1;
+    return aCurrent - bCurrent;
+  });
+
+  for (const membership of sorted) {
+    const team = membership.team;
+    if (seen.has(team.id)) continue;
+    seen.add(team.id);
+    teams.push({
+      id: team.id,
+      name: team.name,
+      avatar: team.avatar,
+      formatName: team.format.name,
+    });
+  }
+
+  return teams;
 }
 
 /**
@@ -327,6 +330,7 @@ export function transformCurrentTeams(playerTeams: any[]) {
       teamId: pt.team.id,
       teamName: pt.team.name,
       formatName: pt.team.format?.name || 'Team',
+      formatThemeKey: pt.team.format?.themeKey || 'primary',
       division: pt.team.division?.name || 'Unassigned',
       regionName: pt.team.region?.name || 'N/A',
       seasonNum: pt.team.season?.seasonNum || 0,
@@ -349,6 +353,7 @@ export function transformTeamHistory(playerTeams: any[]) {
       teamId: pt.team.id,
       teamName: pt.team.name,
       formatName: pt.team.format?.name || 'Team',
+      formatThemeKey: pt.team.format?.themeKey || 'primary',
       division: pt.team.division?.name || 'Unassigned',
       regionName: pt.team.region?.name || 'N/A',
       seasonNum: pt.team.season?.seasonNum || 0,

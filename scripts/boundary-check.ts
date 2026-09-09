@@ -390,6 +390,7 @@ const UI_PRIMITIVES = [
   'FilterBar.svelte',
   'SearchInput.svelte',
   'SelectFilter.svelte',
+  'SelectMenu.svelte',
   'Paginator.svelte',
 ];
 

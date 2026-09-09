@@ -491,6 +491,7 @@ export async function getAllUnpaidParticipations(
       teamName: team.name,
       teamAvatar: team.avatar,
       formatName: team.format.name,
+      formatThemeKey: team.format.themeKey,
       formatId: team.formatId,
       isIndividual: team.format.isIndividual,
       divisionName: division.name,
@@ -594,7 +595,7 @@ export async function recordMultiTeamPayPalCapture(options: {
  * - First-time payer: totalCost = signupCost + leagueFees
  * - Has existing payment: totalCost = signupCost only (league fees already paid)
  *
- * @lintignore used after deferred placement when assigned divisions start charging
+ * Used at signup (and later if an admin reassigns a team to a paid division).
  */
 export async function checkPaymentRequired(options: {
   divisionId: number;

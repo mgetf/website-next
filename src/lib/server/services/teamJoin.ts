@@ -191,7 +191,7 @@ export async function joinByPassword(
   });
 
   if (playerInOtherTeam) {
-    badRequest('You are already in another 2v2 team for this season');
+    badRequest(`You are already in another ${team.format.name} team for this season`);
   }
 
   await prisma.pendingPlayer.upsert({
@@ -255,7 +255,7 @@ export async function acceptInviteByToken(token: string, steamId: string): Promi
   });
 
   if (playerInOtherTeam) {
-    badRequest('You are already in another 2v2 team for this season');
+    badRequest(`You are already in another ${format.name} team for this season`);
   }
 
   await prisma.pendingPlayer.upsert({
@@ -311,6 +311,7 @@ export async function getUserPendingInvites(steamId: string) {
           division: true,
           region: true,
           season: true,
+          format: { select: { name: true, themeKey: true, maxRosterSize: true } },
           players: { where: { active: 1 } },
         },
       },

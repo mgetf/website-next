@@ -5,6 +5,8 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import TriangleAlert from '~icons/lucide/triangle-alert';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -31,15 +33,22 @@
           </div>
         {/if}
         <h1 class="text-2xl font-bold text-white mb-2">{data.team.name}</h1>
-        <p class="text-sm text-text-body">
-          {data.team.division?.name || ''} • {data.team.region?.name || ''}
-        </p>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          {#if data.team.format}
+            <FormatBadge name={data.team.format.name} themeKey={data.team.format.themeKey} />
+          {/if}
+          <p class="text-sm text-text-body">
+            {data.team.division?.name || ''} • {data.team.region?.name || ''}
+          </p>
+        </div>
       </div>
 
       <div class="p-8">
         {#if !data.canJoin}
           <div class="text-center">
-            <div class="text-5xl mb-4">🔒</div>
+            <div class="mb-4 flex justify-center text-text-muted">
+              <TriangleAlert class="size-12" />
+            </div>
             <p class="text-text-body mb-6">{data.error}</p>
             <Button href="/teams/{data.team.id}" variant="primary">View Team Page</Button>
           </div>

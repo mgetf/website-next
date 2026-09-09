@@ -1,7 +1,14 @@
 <script lang="ts">
+  import { Popover } from 'bits-ui';
   import { notificationState, type Notification } from '$lib/state/notifications.svelte';
   import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
+  import MessageSquare from '~icons/lucide/message-square';
+  import User from '~icons/lucide/user';
+  import Swords from '~icons/lucide/swords';
+  import Mail from '~icons/lucide/mail';
+  import Shield from '~icons/lucide/shield';
+  import Bell from '~icons/lucide/bell';
 
   type Props = {
     notifications: Notification[];
@@ -41,18 +48,6 @@
     notificationState.disconnect();
   });
 
-  function toggleDropdown() {
-    open = !open;
-  }
-
-  // Close dropdown when clicking outside
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.notification-dropdown-container')) {
-      open = false;
-    }
-  }
-
   async function handleNotificationClick(notification: Notification) {
     if (!notification.isRead) {
       await notificationState.markAsRead(notification.id);
@@ -70,20 +65,20 @@
     await notificationState.markAllRead();
   }
 
-  function getNotificationIcon(type: string): string {
+  function getNotificationIcon(type: string) {
     switch (type) {
       case 'MATCH_COMM':
-        return '💬';
+        return MessageSquare;
       case 'PENDING_PLAYER':
-        return '👤';
+        return User;
       case 'MATCH_CREATED':
-        return '⚔️';
+        return Swords;
       case 'PLAYER_INVITE':
-        return '📩';
+        return Mail;
       case 'ADMIN_ACTION':
-        return '🛡️';
+        return Shield;
       default:
-        return '🔔';
+        return Bell;
     }
   }
 
@@ -130,11 +125,8 @@
   }
 </script>
 
-<svelte:window onclick={handleClickOutside} />
-
-<div class="notification-dropdown-container relative">
-  <button
-    onclick={toggleDropdown}
+<Popover.Root bind:open>
+  <Popover.Trigger
     class="relative p-2 text-text-body hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
     aria-label="Notifications"
   >
@@ -160,11 +152,13 @@
         {notificationState.unreadCount > 9 ? '9+' : notificationState.unreadCount}
       </div>
     {/if}
-  </button>
+  </Popover.Trigger>
 
-  {#if open}
-    <div
-      class="absolute right-0 mt-2 w-80 bg-surface-card border border-border-default rounded-lg shadow-xl overflow-hidden z-50"
+  <Popover.Portal>
+    <Popover.Content
+      class="z-50 w-80 overflow-hidden rounded-lg border border-border-default bg-surface-card p-0 shadow-xl outline-none"
+      align="end"
+      sideOffset={8}
     >
       <!-- Header -->
       <div class="px-4 py-2 border-b border-border-default flex justify-between items-center">
@@ -202,10 +196,11 @@
                       class="w-8 h-8 rounded-full"
                     />
                   {:else}
+                    {@const Icon = getNotificationIcon(notification.type)}
                     <div
-                      class="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-lg"
+                      class="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-text-muted"
                     >
-                      {getNotificationIcon(notification.type)}
+                      <Icon class="size-4" />
                     </div>
                   {/if}
                 </div>
@@ -298,6 +293,6 @@
           <p class="text-text-muted text-xs mt-1">You're all caught up!</p>
         </div>
       {/if}
-    </div>
-  {/if}
-</div>
+    </Popover.Content>
+  </Popover.Portal>
+</Popover.Root>

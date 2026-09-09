@@ -2,16 +2,20 @@
   import { enhance } from '$app/forms';
   import type { ActionData, PageData } from './$types';
   import Button from '$lib/components/ui/Button.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
+  import FilterBar from '$lib/components/ui/FilterBar.svelte';
+  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+  import LeagueScopeFilters from '$lib/components/ui/LeagueScopeFilters.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
+  import type { PendingApprovalKind } from '$lib/types/pendingApproval';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let isSubmitting = $state(false);
-  let decliningPlayerId = $state<string | null>(null);
+  let decliningKey = $state<string | null>(null);
   let declineReasons = $state<Record<string, string>>({});
   let lastFormResult: ActionData = null;
 
@@ -26,28 +30,40 @@
     }
   });
 
-  let selectedDivision = $state<string>('all');
-  let selectedRegion = $state<string>('all');
+  let selectedKind = $state('');
+  let selectedFormat = $state('');
+  let selectedRegion = $state('');
+  let selectedDivision = $state('');
 
-  const filteredPlayers = $derived(() => {
-    return data.pendingPlayers.filter((request) => {
-      if (
-        selectedDivision !== 'all' &&
-        selectedDivision !== '' &&
-        request.team.divisionId?.toString() !== selectedDivision
-      ) {
-        return false;
-      }
-      if (
-        selectedRegion !== 'all' &&
-        selectedRegion !== '' &&
-        request.team.regionId?.toString() !== selectedRegion
-      ) {
-        return false;
-      }
+  const hasActiveFilters = $derived(
+    !!(selectedKind || selectedFormat || selectedRegion || selectedDivision),
+  );
+
+  const filteredItems = $derived(
+    data.pendingApprovals.filter((item) => {
+      if (selectedKind && item.kind !== selectedKind) return false;
+      if (selectedFormat && String(item.formatId) !== selectedFormat) return false;
+      if (selectedRegion && String(item.regionId ?? '') !== selectedRegion) return false;
+      if (selectedDivision && String(item.divisionId ?? '') !== selectedDivision) return false;
       return true;
-    });
-  });
+    }),
+  );
+
+  const kindOptions = [
+    { value: 'JOIN_REQUEST', label: 'Join requests' },
+    { value: 'ENTRY_READY', label: 'Ready-up' },
+  ];
+
+  function clearFilters() {
+    selectedKind = '';
+    selectedFormat = '';
+    selectedRegion = '';
+    selectedDivision = '';
+  }
+
+  function kindLabel(kind: PendingApprovalKind): string {
+    return kind === 'ENTRY_READY' ? 'Ready-up' : 'Join request';
+  }
 
   function getRglUrl(steamId: string): string {
     return `https://rgl.gg/Public/PlayerProfile.aspx?p=${steamId}`;
@@ -72,191 +88,188 @@
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
-  <!-- Page Header -->
   <div>
     <h2 class="text-3xl font-bold text-white mb-2">Pending Players</h2>
-    <p class="text-text-body">Approve or deny team join requests</p>
+    <p class="text-text-body">
+      Approve or deny roster join requests and 1v1/2v2 ready-ups awaiting admin review.
+    </p>
   </div>
 
   <FormError error={form?.error} success={form?.success && form?.message ? form.message : null} />
 
-  <!-- Filters -->
-  <Card padding="sm">
-    <div class="flex flex-wrap items-start gap-4">
-      <div class="min-w-[180px]">
-        <FormSelect
-          label="Division"
-          name="divisionFilter"
-          bind:value={selectedDivision}
-          required
-          placeholder="All Divisions"
-          options={[
-            { value: 'all', label: 'All Divisions' },
-            ...data.divisions.map((d) => ({ value: String(d.id), label: d.name })),
-          ]}
+  <FilterBar onClear={clearFilters} {hasActiveFilters}>
+    {#snippet filters()}
+      <div class="md:w-44">
+        <div class="block text-sm font-medium text-text-body mb-2">Type</div>
+        <SelectFilter
+          bind:value={selectedKind}
+          options={kindOptions}
+          allLabel="All types"
+          onChange={(value) => (selectedKind = value)}
         />
       </div>
 
-      <div class="min-w-[180px]">
-        <FormSelect
-          label="Region"
-          name="regionFilter"
-          bind:value={selectedRegion}
-          required
-          placeholder="All Regions"
-          options={[
-            { value: 'all', label: 'All Regions' },
-            ...data.regions.map((r) => ({ value: String(r.id), label: r.name })),
-          ]}
-        />
+      <LeagueScopeFilters
+        formats={data.formats}
+        regions={data.regions}
+        divisions={data.divisions}
+        regionIdsByFormat={data.regionIdsByFormat}
+        bind:formatId={selectedFormat}
+        bind:regionId={selectedRegion}
+        bind:divisionId={selectedDivision}
+      />
+
+      <div class="ml-auto text-sm text-text-muted pb-2">
+        Showing {filteredItems.length} of {data.pendingApprovals.length} items
       </div>
+    {/snippet}
+  </FilterBar>
 
-      {#if selectedDivision !== 'all' || selectedRegion !== 'all'}
-        <button
-          onclick={() => {
-            selectedDivision = 'all';
-            selectedRegion = 'all';
-          }}
-          class="text-sm text-text-body hover:text-white transition"
-        >
-          Clear filters
-        </button>
-      {/if}
-
-      <div class="ml-auto text-sm text-text-muted">
-        Showing {filteredPlayers().length} of {data.pendingPlayers.length} requests
-      </div>
-    </div>
-  </Card>
-
-  <!-- Pending Requests -->
   <Card padding="none" class="divide-y divide-border-default">
-    {#if filteredPlayers().length === 0}
+    {#if filteredItems.length === 0}
       <div class="py-12 text-center">
         <span class="text-6xl mb-4 block">✅</span>
         <p class="text-text-body">
-          {#if data.pendingPlayers.length === 0}
-            No pending player requests
+          {#if data.pendingApprovals.length === 0}
+            No pending approvals
           {:else}
-            No requests match your filters
+            No items match your filters
           {/if}
         </p>
       </div>
     {:else}
-      {#each filteredPlayers() as request}
+      {#each filteredItems as item (item.key)}
         <div class="p-4 hover:bg-surface-input/50 transition-colors">
           <div class="flex flex-col lg:flex-row lg:items-center gap-4">
-            <!-- Player Info -->
             <div class="flex items-center gap-3 flex-1 min-w-0">
-              <a href="/users/{request.player.steamId}" class="flex-shrink-0">
-                <img
-                  src={request.player.steamAvatar || '/default-avatar.png'}
-                  alt={request.player.steamUsername}
-                  class="w-12 h-12 rounded-lg hover:opacity-80 transition-opacity"
-                />
-              </a>
+              {#if item.playerSteamId}
+                <a href="/users/{item.playerSteamId}" class="flex-shrink-0">
+                  <img
+                    src={item.playerAvatar || '/default-avatar.png'}
+                    alt={item.playerUsername}
+                    class="w-12 h-12 rounded-lg hover:opacity-80 transition-opacity"
+                  />
+                </a>
+              {:else}
+                <div
+                  class="w-12 h-12 rounded-lg bg-surface-input flex items-center justify-center text-sm font-bold text-text-body flex-shrink-0"
+                >
+                  {item.teamName.slice(0, 2).toUpperCase()}
+                </div>
+              {/if}
 
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 flex-wrap mb-1">
-                  <a
-                    href="/users/{request.player.steamId}"
-                    class="text-white font-semibold hover:text-primary-400 transition-colors"
-                  >
-                    {request.player.steamUsername}
-                  </a>
-                  <span class="text-text-muted">→</span>
-                  <a
-                    href="/teams/{request.team.id}"
-                    class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
-                  >
-                    {request.team.name}
-                  </a>
+                  {#if item.playerSteamId}
+                    <a
+                      href="/users/{item.playerSteamId}"
+                      class="text-white font-semibold hover:text-primary-400 transition-colors"
+                    >
+                      {item.playerUsername}
+                    </a>
+                  {:else}
+                    <span class="text-white font-semibold">{item.playerUsername}</span>
+                  {/if}
+                  {#if item.kind === 'JOIN_REQUEST'}
+                    <span class="text-text-muted">→</span>
+                    <a
+                      href="/teams/{item.teamId}"
+                      class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                    >
+                      {item.teamName}
+                    </a>
+                  {:else if !item.isIndividual}
+                    <span class="text-text-muted">·</span>
+                    <a
+                      href="/teams/{item.teamId}"
+                      class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                    >
+                      {item.teamName}
+                    </a>
+                  {/if}
                 </div>
-                <div class="flex items-center gap-2 text-sm text-text-body">
-                  <span
-                    class="px-2 py-0.5 bg-surface-input rounded text-xs font-medium text-text-label"
-                  >
-                    {request.team.division?.name || 'No Division'}
-                  </span>
-                  <span
-                    class="px-2 py-0.5 bg-surface-input rounded text-xs font-medium text-text-label"
-                  >
-                    {request.team.region?.name || 'No Region'}
-                  </span>
+                <div class="flex items-center gap-2 flex-wrap text-sm text-text-body">
+                  <Badge color={item.isIndividual ? 'purple' : 'blue'}>{item.formatName}</Badge>
+                  <Badge color="yellow">{kindLabel(item.kind)}</Badge>
+                  <Badge color="zinc">{item.divisionName || 'No Division'}</Badge>
+                  <Badge color="zinc">{item.regionName || 'No Region'}</Badge>
+                  {#if item.kind === 'ENTRY_READY' && !item.paid}
+                    <Badge color="red">Unpaid</Badge>
+                  {/if}
                 </div>
               </div>
             </div>
 
-            <!-- External Profile Links -->
-            <div class="flex items-center gap-1 flex-shrink-0">
-              <a
-                href={getSteamUrl(request.player.steamId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
-              >
-                <img src="/steam_logo.png" alt="Steam" class="w-5 h-5" />
-                <span class="tooltip">Steam</span>
-              </a>
-              <a
-                href={getRglUrl(request.player.steamId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
-              >
-                <img src="/rgl_logo.png" alt="RGL" class="w-5 h-5" />
-                <span class="tooltip">RGL</span>
-              </a>
-              <a
-                href={getEtf2lUrl(request.player.steamId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
-              >
-                <img src="/etf2l_logo.png" alt="ETF2L" class="w-5 h-5" />
-                <span class="tooltip">ETF2L</span>
-              </a>
-              <a
-                href={getLogsTfUrl(request.player.steamId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
-              >
-                <img src="/logstf_logo.png" alt="logs.tf" class="w-5 h-5" />
-                <span class="tooltip">logs.tf</span>
-              </a>
-              <a
-                href={getUgcUrl(request.player.steamId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
-              >
-                <img src="/ugcgaming_logo.png" alt="UGC" class="w-5 h-5" />
-                <span class="tooltip">UGC-Gaming</span>
-              </a>
-              <a
-                href="https://steamhistory.net/id/{request.player.steamId}"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
-              >
-                <img src="/steamhistory_logo.jpg" alt="SteamHistory" class="w-5 h-5 rounded" />
-                <span class="tooltip">SteamHistory</span>
-              </a>
-              <a
-                href="https://steamladder.com/profile/{request.player.steamId}/"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
-              >
-                <img src="/steamladder_logo.png" alt="SteamLadder" class="w-5 h-5" />
-                <span class="tooltip">SteamLadder</span>
-              </a>
-            </div>
+            {#if item.playerSteamId}
+              <div class="flex items-center gap-1 flex-shrink-0">
+                <a
+                  href={getSteamUrl(item.playerSteamId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
+                >
+                  <img src="/steam_logo.png" alt="Steam" class="w-5 h-5" />
+                  <span class="tooltip">Steam</span>
+                </a>
+                <a
+                  href={getRglUrl(item.playerSteamId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
+                >
+                  <img src="/rgl_logo.png" alt="RGL" class="w-5 h-5" />
+                  <span class="tooltip">RGL</span>
+                </a>
+                <a
+                  href={getEtf2lUrl(item.playerSteamId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
+                >
+                  <img src="/etf2l_logo.png" alt="ETF2L" class="w-5 h-5" />
+                  <span class="tooltip">ETF2L</span>
+                </a>
+                <a
+                  href={getLogsTfUrl(item.playerSteamId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
+                >
+                  <img src="/logstf_logo.png" alt="logs.tf" class="w-5 h-5" />
+                  <span class="tooltip">logs.tf</span>
+                </a>
+                <a
+                  href={getUgcUrl(item.playerSteamId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
+                >
+                  <img src="/ugcgaming_logo.png" alt="UGC" class="w-5 h-5" />
+                  <span class="tooltip">UGC-Gaming</span>
+                </a>
+                <a
+                  href="https://steamhistory.net/id/{item.playerSteamId}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
+                >
+                  <img src="/steamhistory_logo.jpg" alt="SteamHistory" class="w-5 h-5 rounded" />
+                  <span class="tooltip">SteamHistory</span>
+                </a>
+                <a
+                  href="https://steamladder.com/profile/{item.playerSteamId}/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-link p-1.5 bg-surface-input hover:bg-surface-hover rounded transition relative group"
+                >
+                  <img src="/steamladder_logo.png" alt="SteamLadder" class="w-5 h-5" />
+                  <span class="tooltip">SteamLadder</span>
+                </a>
+              </div>
+            {/if}
 
-            <!-- Actions -->
             <div class="flex items-center gap-2 flex-shrink-0">
-              {#if decliningPlayerId === request.player.steamId}
+              {#if decliningKey === item.key}
                 <form
                   method="POST"
                   action="?/decline"
@@ -265,18 +278,19 @@
                     return async ({ update }) => {
                       await update();
                       isSubmitting = false;
-                      decliningPlayerId = null;
-                      declineReasons[request.player.steamId] = '';
+                      decliningKey = null;
+                      declineReasons[item.key] = '';
                     };
                   }}
                   class="flex items-center gap-2"
                 >
-                  <input type="hidden" name="playerSteamId" value={request.player.steamId} />
-                  <input type="hidden" name="teamId" value={request.team.id} />
+                  <input type="hidden" name="kind" value={item.kind} />
+                  <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
+                  <input type="hidden" name="teamId" value={item.teamId} />
                   <input
                     type="text"
                     name="reason"
-                    bind:value={declineReasons[request.player.steamId]}
+                    bind:value={declineReasons[item.key]}
                     placeholder="Reason..."
                     required
                     class="px-3 py-2 bg-surface-input border border-border-input rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
@@ -288,7 +302,7 @@
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onclick={() => (decliningPlayerId = null)}
+                    onclick={() => (decliningKey = null)}
                   >
                     Cancel
                   </Button>
@@ -305,18 +319,15 @@
                     };
                   }}
                 >
-                  <input type="hidden" name="playerSteamId" value={request.player.steamId} />
-                  <input type="hidden" name="teamId" value={request.team.id} />
+                  <input type="hidden" name="kind" value={item.kind} />
+                  <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
+                  <input type="hidden" name="teamId" value={item.teamId} />
                   <Button type="submit" variant="success" size="sm" disabled={isSubmitting}>
                     ✓ Approve
                   </Button>
                 </form>
 
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onclick={() => (decliningPlayerId = request.player.steamId)}
-                >
+                <Button variant="danger" size="sm" onclick={() => (decliningKey = item.key)}>
                   ✗ Decline
                 </Button>
               {/if}

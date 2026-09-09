@@ -1,6 +1,7 @@
 <script lang="ts">
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
+  import { filterDivisionsByRegion, filterRegionsByFormat } from '$lib/utils/leagueScope';
   import { groupStaffByFormatAndRegion } from '$lib/utils/staffDisplay';
 
   type FormatOption = { id: number; name: string; themeKey: string };
@@ -26,18 +27,13 @@
   let addDivisionId = $state('');
 
   const addFilteredRegions = $derived(
-    addFormatId
-      ? regions.filter((region) =>
-          (regionIdsByFormat[Number(addFormatId)] ?? []).includes(region.id),
-        )
-      : [],
+    addFormatId ? filterRegionsByFormat(regions, addFormatId, regionIdsByFormat) : [],
   );
 
   const addFilteredDivisions = $derived(
     addFormatId && addRegionId
-      ? divisions.filter(
+      ? filterDivisionsByRegion(divisions, addRegionId).filter(
           (division) =>
-            division.regionId === Number(addRegionId) &&
             !assignments.some(
               (assignment) =>
                 assignment.formatId === Number(addFormatId) &&

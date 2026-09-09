@@ -5,6 +5,7 @@
   import DoughnutChart from '$lib/components/charts/DoughnutChart.svelte';
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import { toast } from '$lib/state/toast.svelte';
@@ -29,13 +30,13 @@
   ];
 
   const analytics = $derived(data.analytics);
-  const pendingPlayers = $derived(data.pendingPlayers);
+  const pendingApprovals = $derived(data.pendingApprovals);
   const recentMatches = $derived(data.recentMatches);
   const matchDeadline = $derived(data.matchDeadline ? new Date(data.matchDeadline) : null);
   const currentMatchWeek = $derived(data.currentMatchWeek);
 
   let isSubmitting = $state(false);
-  let decliningPlayerId = $state<string | null>(null);
+  let decliningKey = $state<string | null>(null);
   let declineReasons = $state<Record<string, string>>({});
   let lastFormResult: ActionData = null;
 
@@ -233,11 +234,11 @@
         <div>
           <h2 class="text-xl font-bold text-white">Pending Players</h2>
           <p class="text-sm text-text-body">
-            {pendingPlayers.length} player{pendingPlayers.length !== 1 ? 's' : ''} waiting for approval
+            {pendingApprovals.length} item{pendingApprovals.length !== 1 ? 's' : ''} waiting for approval
           </p>
         </div>
       </div>
-      {#if pendingPlayers.length > 5}
+      {#if pendingApprovals.length > 5}
         <a
           href="/admin/pending-players"
           class="text-sm text-info-400 hover:text-primary-300 font-medium transition"
@@ -248,50 +249,72 @@
     </div>
 
     <div class="divide-y divide-border-default">
-      {#if pendingPlayers.length === 0}
+      {#if pendingApprovals.length === 0}
         <div class="py-12 text-center">
           <span class="text-5xl mb-4 block">✅</span>
           <p class="text-text-body font-medium">All caught up!</p>
-          <p class="text-text-muted text-sm mt-1">No pending player requests</p>
+          <p class="text-text-muted text-sm mt-1">No pending approvals</p>
         </div>
       {:else}
-        {#each pendingPlayers.slice(0, 5) as request}
+        {#each pendingApprovals.slice(0, 5) as item (item.key)}
           <div class="p-4 hover:bg-surface-input/50 transition-colors">
             <div class="flex items-center justify-between gap-4">
               <div class="flex items-center gap-3 min-w-0 flex-1">
-                <a href="/users/{request.player.steamId}" class="flex-shrink-0">
-                  <img
-                    src={request.player.steamAvatar || '/default-avatar.png'}
-                    alt={request.player.steamUsername}
-                    class="w-10 h-10 rounded-lg hover:opacity-80 transition-opacity"
-                  />
-                </a>
+                {#if item.playerSteamId}
+                  <a href="/users/{item.playerSteamId}" class="flex-shrink-0">
+                    <img
+                      src={item.playerAvatar || '/default-avatar.png'}
+                      alt={item.playerUsername}
+                      class="w-10 h-10 rounded-lg hover:opacity-80 transition-opacity"
+                    />
+                  </a>
+                {/if}
 
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
-                    <a
-                      href="/users/{request.player.steamId}"
-                      class="text-white font-semibold hover:text-primary-400 transition-colors truncate"
-                    >
-                      {request.player.steamUsername}
-                    </a>
-                    <span class="text-text-muted">→</span>
-                    <a
-                      href="/teams/{request.team.id}"
-                      class="text-primary-400 hover:text-primary-300 font-medium transition-colors truncate"
-                    >
-                      {request.team.name}
-                    </a>
+                    {#if item.playerSteamId}
+                      <a
+                        href="/users/{item.playerSteamId}"
+                        class="text-white font-semibold hover:text-primary-400 transition-colors truncate"
+                      >
+                        {item.playerUsername}
+                      </a>
+                    {:else}
+                      <span class="text-white font-semibold truncate">{item.playerUsername}</span>
+                    {/if}
+                    {#if item.kind === 'JOIN_REQUEST'}
+                      <span class="text-text-muted">→</span>
+                      <a
+                        href="/teams/{item.teamId}"
+                        class="text-primary-400 hover:text-primary-300 font-medium transition-colors truncate"
+                      >
+                        {item.teamName}
+                      </a>
+                    {:else if !item.isIndividual}
+                      <span class="text-text-muted">·</span>
+                      <a
+                        href="/teams/{item.teamId}"
+                        class="text-primary-400 hover:text-primary-300 font-medium transition-colors truncate"
+                      >
+                        {item.teamName}
+                      </a>
+                    {/if}
+                    <Badge color={item.isIndividual ? 'purple' : 'blue'}>{item.formatName}</Badge>
+                    <Badge color="yellow">
+                      {item.kind === 'ENTRY_READY' ? 'Ready-up' : 'Join'}
+                    </Badge>
                   </div>
                   <div class="text-xs text-text-muted mt-0.5">
-                    {request.team.division?.name || 'No Division'}
+                    {item.divisionName || 'No Division'}
+                    {#if item.regionName}
+                      · {item.regionName}
+                    {/if}
                   </div>
                 </div>
               </div>
 
-              <!-- Actions -->
               <div class="flex items-center gap-2 flex-shrink-0">
-                {#if decliningPlayerId === request.player.steamId}
+                {#if decliningKey === item.key}
                   <form
                     method="POST"
                     action="?/decline"
@@ -300,18 +323,19 @@
                       return async ({ update }) => {
                         await update();
                         isSubmitting = false;
-                        decliningPlayerId = null;
-                        declineReasons[request.player.steamId] = '';
+                        decliningKey = null;
+                        declineReasons[item.key] = '';
                       };
                     }}
                     class="flex items-center gap-2"
                   >
-                    <input type="hidden" name="playerSteamId" value={request.player.steamId} />
-                    <input type="hidden" name="teamId" value={request.team.id} />
+                    <input type="hidden" name="kind" value={item.kind} />
+                    <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
+                    <input type="hidden" name="teamId" value={item.teamId} />
                     <input
                       type="text"
                       name="reason"
-                      bind:value={declineReasons[request.player.steamId]}
+                      bind:value={declineReasons[item.key]}
                       placeholder="Reason..."
                       required
                       class="px-3 py-1.5 bg-surface-input border border-border-input rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
@@ -323,7 +347,7 @@
                       type="button"
                       variant="secondary"
                       size="sm"
-                      onclick={() => (decliningPlayerId = null)}
+                      onclick={() => (decliningKey = null)}
                     >
                       Cancel
                     </Button>
@@ -340,18 +364,15 @@
                       };
                     }}
                   >
-                    <input type="hidden" name="playerSteamId" value={request.player.steamId} />
-                    <input type="hidden" name="teamId" value={request.team.id} />
+                    <input type="hidden" name="kind" value={item.kind} />
+                    <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
+                    <input type="hidden" name="teamId" value={item.teamId} />
                     <Button type="submit" variant="success" size="sm" disabled={isSubmitting}>
                       ✓ Approve
                     </Button>
                   </form>
 
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onclick={() => (decliningPlayerId = request.player.steamId)}
-                  >
+                  <Button variant="danger" size="sm" onclick={() => (decliningKey = item.key)}>
                     ✗ Decline
                   </Button>
                 {/if}

@@ -29,3 +29,11 @@ export interface SessionUser {
   banStatus: BanStatus;
   sessionVersion?: number;
 }
+
+/** Team-format memberships shown in the navbar user menu. */
+export interface NavUserTeam {
+  id: number;
+  name: string;
+  avatar: string | null;
+  formatName: string;
+}

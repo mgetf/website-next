@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SessionUser } from '$lib/types/user';
+  import type { SessionUser, NavUserTeam } from '$lib/types/user';
   import type { Notification } from '$lib/state/notifications.svelte';
   import { EMPTY_LEAGUE_NAV, type LeagueNav } from '$lib/types/league';
   import NotificationDropdown from './NotificationDropdown.svelte';
@@ -20,7 +20,7 @@
     notificationCount: number;
     signupClosed?: boolean;
     isInTeam?: boolean;
-    userTeam?: { id: number; name: string } | null;
+    userTeams?: NavUserTeam[];
     realtimeEnabled?: boolean;
     leagueNav?: LeagueNav;
   };
@@ -36,7 +36,7 @@
     notifications,
     signupClosed = true,
     isInTeam = false,
-    userTeam = null,
+    userTeams = [],
     realtimeEnabled = true,
     leagueNav = EMPTY_LEAGUE_NAV,
   }: Props = $props();
@@ -227,7 +227,7 @@
             </a>
           {:else}
             <div class="flex items-center gap-3">
-              <UserDropdown {user} {userTeam} />
+              <UserDropdown {user} {userTeams} />
               <NotificationDropdown {notifications} userSteamId={user.steamId} {realtimeEnabled} />
             </div>
           {/if}

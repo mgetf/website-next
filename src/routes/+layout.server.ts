@@ -5,7 +5,7 @@
 
 import type { LayoutServerLoad } from './$types';
 import { hasAnySignupsOpen } from '$lib/server/services/settings';
-import { getUserActiveTeam, isSignedUpForAllOpenFormats } from '$lib/server/services/users';
+import { getUserActiveTeams, isSignedUpForAllOpenFormats } from '$lib/server/services/users';
 import { getNotificationsForDropdown } from '$lib/server/services/notifications';
 import { getVisibleAnnouncements } from '$lib/server/services/announcements';
 import { getSiteSettings } from '$lib/server/services/siteSettings';
@@ -28,7 +28,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
       notifications: [],
       signupClosed: true,
       isInTeam: false,
-      userTeam: null,
+      userTeams: [],
       leagueNav: EMPTY_LEAGUE_NAV,
       siteSettings: {
         siteTitle: 'MGE.tf Dev',
@@ -53,19 +53,19 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
   // Hide Sign Up only when the user already has an entry in every open format
   let isInTeam = false;
-  let userTeam: { id: number; name: string } | null = null;
+  let userTeams: Awaited<ReturnType<typeof getUserActiveTeams>> = [];
   let notifications: Awaited<ReturnType<typeof getNotificationsForDropdown>> = [];
   let notificationCount = 0;
 
   if (locals.user) {
-    const [activeTeam, signedUpForAllOpen] = await Promise.all([
-      getUserActiveTeam(locals.user.steamId),
+    const [activeTeams, signedUpForAllOpen] = await Promise.all([
+      getUserActiveTeams(locals.user.steamId),
       isSignedUpForAllOpenFormats(
         locals.user.steamId,
         openSignupFormats.map((f) => f.id),
       ),
     ]);
-    userTeam = activeTeam;
+    userTeams = activeTeams;
     isInTeam = signedUpForAllOpen;
 
     notifications = await getNotificationsForDropdown(locals.user.steamId);
@@ -85,7 +85,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     notifications,
     signupClosed,
     isInTeam,
-    userTeam,
+    userTeams,
     leagueNav,
     siteSettings: {
       siteTitle: siteSettings.siteTitle,

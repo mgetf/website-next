@@ -127,7 +127,7 @@
           notificationCount={data.notificationCount}
           signupClosed={data.signupClosed}
           isInTeam={data.isInTeam}
-          userTeam={data.userTeam}
+          userTeams={data.userTeams}
           realtimeEnabled={data.realtimeEnabled}
           leagueNav={data.leagueNav}
         />

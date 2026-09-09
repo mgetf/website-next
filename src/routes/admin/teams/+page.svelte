@@ -10,6 +10,7 @@
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
@@ -338,10 +339,7 @@
           </div>
         </div>
       {:else if col.key === 'format'}
-        {@const format = data.formats?.find((f) => f.id === team.formatId)}
-        <Badge color={team.formatId === FORMAT_1V1 ? 'purple' : 'blue'}>
-          {format?.name ?? team.formatId}
-        </Badge>
+        <FormatBadge name={team.formatName} themeKey={team.formatThemeKey} />
       {:else if col.key === 'season'}
         {#if team.season}
           <span class="text-text-label">S{team.season.seasonNum}</span>

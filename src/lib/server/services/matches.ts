@@ -31,6 +31,7 @@ export async function getMatchDetails(matchId: number) {
         include: {
           division: true,
           region: true,
+          format: { select: { name: true, themeKey: true, isIndividual: true } },
           players: {
             where: { active: 1 },
             include: {

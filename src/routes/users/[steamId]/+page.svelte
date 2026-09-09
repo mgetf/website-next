@@ -10,6 +10,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import type { ProfileMatch } from '$lib/types/match';
@@ -22,6 +23,7 @@
     teamId: number;
     teamName: string;
     formatName: string;
+    formatThemeKey: string;
     division: string;
     regionName: string;
     seasonNum: number;
@@ -987,9 +989,12 @@
                           >
                             {team.teamName}
                           </a>
-                          <span class="text-text-muted font-normal ml-1"
-                            >· {team.formatName} · {team.division} · {team.regionName}</span
+                          <span
+                            class="text-text-muted font-normal ml-1 inline-flex items-center gap-1.5 flex-wrap"
                           >
+                            <FormatBadge name={team.formatName} themeKey={team.formatThemeKey} />
+                            <span>· {team.division} · {team.regionName}</span>
+                          </span>
                         </span>
                         <div class="flex items-center gap-3 mt-0.5">
                           <span

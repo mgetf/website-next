@@ -6,9 +6,12 @@
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import { toast } from '$lib/state/toast.svelte';
+  import CircleCheck from '~icons/lucide/circle-check';
+  import ClipboardList from '~icons/lucide/clipboard-list';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -251,7 +254,9 @@
     <div class="divide-y divide-border-default">
       {#if pendingApprovals.length === 0}
         <div class="py-12 text-center">
-          <span class="text-5xl mb-4 block">✅</span>
+          <div class="mb-4 flex justify-center text-success-400">
+            <CircleCheck class="size-12" />
+          </div>
           <p class="text-text-body font-medium">All caught up!</p>
           <p class="text-text-muted text-sm mt-1">No pending approvals</p>
         </div>
@@ -299,7 +304,7 @@
                         {item.teamName}
                       </a>
                     {/if}
-                    <Badge color={item.isIndividual ? 'purple' : 'blue'}>{item.formatName}</Badge>
+                    <FormatBadge name={item.formatName} themeKey={item.formatThemeKey} />
                     <Badge color="yellow">
                       {item.kind === 'ENTRY_READY' ? 'Ready-up' : 'Join'}
                     </Badge>
@@ -415,7 +420,9 @@
 
     {#if recentMatches.length === 0}
       <div class="py-12 text-center">
-        <span class="text-5xl mb-4 block">📋</span>
+        <div class="mb-4 flex justify-center text-text-muted">
+          <ClipboardList class="size-12" />
+        </div>
         <p class="text-text-body font-medium">No unplayed matches</p>
         <p class="text-text-muted text-sm mt-1">
           <a href="/admin/matches/create" class="text-info-400 hover:text-primary-300"

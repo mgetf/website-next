@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
         ? 'World Championship'
         : event.type === 'CUP'
           ? event.isTeamEvent
-            ? '2v2 Cup'
+            ? 'Team Cup'
             : '1v1 Cup'
           : 'Tournament';
 

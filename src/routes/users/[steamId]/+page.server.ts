@@ -55,7 +55,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const active1v1 = profile.current1v1Entry;
     const contextBits = [
       activeTeam
-        ? `${activeTeam.teamName} · ${activeTeam.division} (${activeTeam.regionName}) · S${activeTeam.seasonNum}`
+        ? `${activeTeam.teamName} · ${activeTeam.formatName} · ${activeTeam.division} (${activeTeam.regionName}) · S${activeTeam.seasonNum}`
         : null,
       !activeTeam && active1v1
         ? `1v1 · ${active1v1.division} (${active1v1.region}) · S${active1v1.seasonNum}`

@@ -76,6 +76,13 @@ export async function getTeams(options: {
           seasonNum: true,
         },
       },
+      format: {
+        select: {
+          id: true,
+          name: true,
+          themeKey: true,
+        },
+      },
       _count: {
         select: {
           homeMatches: true,
@@ -143,6 +150,7 @@ export async function getTeamsPublic(
             id: true,
             name: true,
             code: true,
+            themeKey: true,
           },
         },
         division: {
@@ -436,7 +444,15 @@ export async function getTeamById(id: number) {
       division: true,
       region: true,
       season: true,
-      format: { select: { requiredPaidPlayers: true } },
+      format: {
+        select: {
+          name: true,
+          code: true,
+          themeKey: true,
+          requiredPaidPlayers: true,
+          maxRosterSize: true,
+        },
+      },
       players: {
         include: {
           player: {

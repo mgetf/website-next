@@ -25,7 +25,7 @@
     columns,
     cell,
     emptyMessage = 'No data found',
-    emptyIcon = '',
+    emptyVisual,
     pagination,
     onRowClick,
     rowClass,
@@ -41,7 +41,7 @@
     columns: Column[];
     cell: Snippet<[T, Column]>;
     emptyMessage?: string;
-    emptyIcon?: string;
+    emptyVisual?: Snippet;
     pagination?: PaginationConfig;
     onRowClick?: (row: T) => void;
     rowClass?: (row: T) => string;
@@ -79,8 +79,10 @@
   <div
     class="bg-surface-card/80 backdrop-blur border border-border-default rounded-lg py-12 text-center"
   >
-    {#if emptyIcon}
-      <div class="text-5xl mb-4">{emptyIcon}</div>
+    {#if emptyVisual}
+      <div class="mb-4 flex justify-center text-text-muted">
+        {@render emptyVisual()}
+      </div>
     {/if}
     <p class="text-text-body">{emptyMessage}</p>
   </div>

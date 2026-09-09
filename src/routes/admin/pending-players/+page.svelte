@@ -3,6 +3,7 @@
   import type { ActionData, PageData } from './$types';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import FilterBar from '$lib/components/ui/FilterBar.svelte';
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
   import LeagueScopeFilters from '$lib/components/ui/LeagueScopeFilters.svelte';
@@ -11,6 +12,7 @@
   import { toast } from '$lib/state/toast.svelte';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
   import type { PendingApprovalKind } from '$lib/types/pendingApproval';
+  import CircleCheck from '~icons/lucide/circle-check';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -91,7 +93,7 @@
   <div>
     <h2 class="text-3xl font-bold text-white mb-2">Pending Players</h2>
     <p class="text-text-body">
-      Approve or deny roster join requests and 1v1/2v2 ready-ups awaiting admin review.
+      Approve or deny roster join requests and ready-ups awaiting admin review.
     </p>
   </div>
 
@@ -128,7 +130,9 @@
   <Card padding="none" class="divide-y divide-border-default">
     {#if filteredItems.length === 0}
       <div class="py-12 text-center">
-        <span class="text-6xl mb-4 block">✅</span>
+        <div class="mb-4 flex justify-center text-success-400">
+          <CircleCheck class="size-16" />
+        </div>
         <p class="text-text-body">
           {#if data.pendingApprovals.length === 0}
             No pending approvals
@@ -189,7 +193,7 @@
                   {/if}
                 </div>
                 <div class="flex items-center gap-2 flex-wrap text-sm text-text-body">
-                  <Badge color={item.isIndividual ? 'purple' : 'blue'}>{item.formatName}</Badge>
+                  <FormatBadge name={item.formatName} themeKey={item.formatThemeKey} />
                   <Badge color="yellow">{kindLabel(item.kind)}</Badge>
                   <Badge color="zinc">{item.divisionName || 'No Division'}</Badge>
                   <Badge color="zinc">{item.regionName || 'No Region'}</Badge>

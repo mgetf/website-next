@@ -146,6 +146,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       status: team.status,
       paymentStatus: team.paymentStatus,
       formatId: team.formatId,
+      formatName: team.format.name,
+      formatThemeKey: team.format.themeKey,
       division: team.division,
       region: team.region,
       season: team.season,

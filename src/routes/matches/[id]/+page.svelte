@@ -10,10 +10,16 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { formatPlayoffRound } from '$lib/utils/playoffs';
+  import Trophy from '~icons/lucide/trophy';
+  import Calendar from '~icons/lucide/calendar';
+  import CircleCheck from '~icons/lucide/circle-check';
+  import TriangleAlert from '~icons/lucide/triangle-alert';
+  import Map from '~icons/lucide/map';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -516,15 +522,24 @@
 <div class="container mx-auto px-4 py-8 max-w-7xl">
   <!-- Match Header -->
   <Card class="shadow-md mb-6">
-    <div class="flex items-center justify-between mb-4">
-      <h1 class="text-3xl font-bold text-white">
-        Match #{match.id}
-        {#if data.weekLabel}
-          <span class="text-text-body">- Week {data.weekLabel}</span>
-        {:else if match.playoffRound}
-          <span class="text-text-body">- {formatPlayoffRound(match.playoffRound)}</span>
+    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <div class="flex items-center gap-3 flex-wrap">
+        <h1 class="text-3xl font-bold text-white">
+          Match #{match.id}
+          {#if data.weekLabel}
+            <span class="text-text-body">- Week {data.weekLabel}</span>
+          {:else if match.playoffRound}
+            <span class="text-text-body">- {formatPlayoffRound(match.playoffRound)}</span>
+          {/if}
+        </h1>
+        {#if match.homeTeam.format}
+          <FormatBadge
+            name={match.homeTeam.format.name}
+            themeKey={match.homeTeam.format.themeKey}
+            size="md"
+          />
         {/if}
-      </h1>
+      </div>
       <Badge color={getStatusColor(match.status)} size="md" class="px-4 py-2">
         {getStatusLabel(match.status)}
       </Badge>
@@ -551,7 +566,7 @@
           </div>
         </a>
       {:else}
-        <!-- 2v2: Home Team -->
+        <!-- Home Team -->
         <a
           href="/teams/{match.homeTeamId}"
           class="flex items-center space-x-4 hover:bg-surface-input p-4 rounded-lg transition"
@@ -608,7 +623,7 @@
           />
         </a>
       {:else}
-        <!-- 2v2: Away Team -->
+        <!-- Away Team -->
         <a
           href="/teams/{match.awayTeamId}"
           class="flex items-center space-x-4 hover:bg-surface-input p-4 rounded-lg transition justify-end"
@@ -634,9 +649,9 @@
       <div class="bg-surface-input/50 rounded-lg p-4 border border-border-input/50">
         <div class="flex items-center gap-3">
           <div
-            class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0"
+            class="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center flex-shrink-0"
           >
-            <span class="text-purple-400 text-xl">🏆</span>
+            <Trophy class="size-5 text-primary-400" />
           </div>
           <div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
             <p class="text-xs text-text-body uppercase tracking-wide leading-none mb-1">Season</p>
@@ -653,7 +668,7 @@
           <div
             class="w-10 h-10 rounded-full bg-info-500/20 flex items-center justify-center flex-shrink-0"
           >
-            <span class="text-info-400 text-xl">📅</span>
+            <Calendar class="size-5 text-info-400" />
           </div>
           <div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
             <p class="text-xs text-text-body uppercase tracking-wide leading-none mb-1">
@@ -689,7 +704,7 @@
             <div
               class="w-10 h-10 rounded-full bg-success-500/20 flex items-center justify-center flex-shrink-0"
             >
-              <span class="text-success-400 text-xl">✓</span>
+              <CircleCheck class="size-5 text-success-400" />
             </div>
             <div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
               <p class="text-xs text-text-body uppercase tracking-wide leading-none mb-1">
@@ -723,7 +738,7 @@
             <div
               class="w-10 h-10 rounded-full bg-warning-500/20 flex items-center justify-center flex-shrink-0"
             >
-              <span class="text-warning-400 text-xl">⚠️</span>
+              <TriangleAlert class="size-5 text-warning-400" />
             </div>
             <div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
               <p class="text-xs text-text-body uppercase tracking-wide leading-none mb-1">
@@ -749,7 +764,7 @@
                 <img src={arena.avatar} alt={arena.name} class="w-10 h-10 rounded object-cover" />
               {:else}
                 <div class="w-10 h-10 rounded bg-surface-hover flex items-center justify-center">
-                  <span class="text-text-muted text-lg">🗺️</span>
+                  <Map class="size-5 text-text-muted" />
                 </div>
               {/if}
               <span class="text-white font-medium">{arena.name}</span>
@@ -869,7 +884,7 @@
                     <div
                       class="w-9 h-9 rounded bg-surface-hover flex items-center justify-center flex-shrink-0"
                     >
-                      <span class="text-text-muted">🗺️</span>
+                      <Map class="size-4 text-text-muted" />
                     </div>
                   {/if}
                   <div class="flex-1 min-w-0">
@@ -1214,7 +1229,7 @@
                   />
                 {:else}
                   <div class="w-full h-24 bg-surface-hover flex items-center justify-center">
-                    <span class="text-2xl text-text-muted">🗺️</span>
+                    <Map class="size-8 text-text-muted" />
                   </div>
                 {/if}
                 <div class="p-3">
@@ -1726,7 +1741,7 @@
         <div
           class="w-16 h-16 rounded bg-surface-hover flex items-center justify-center flex-shrink-0"
         >
-          <span class="text-2xl text-text-muted">🗺️</span>
+          <Map class="size-8 text-text-muted" />
         </div>
       {/if}
       <div>

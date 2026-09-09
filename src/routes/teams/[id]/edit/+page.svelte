@@ -5,6 +5,9 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import Lock from '~icons/lucide/lock';
+  import Shield from '~icons/lucide/shield';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -80,26 +83,35 @@
         {/if}
         <div>
           <h1 class="text-4xl font-bold text-white">Edit {data.team.name}</h1>
-          <p class="text-text-body">Manage your team settings and roster</p>
+          <div class="mt-1 flex flex-wrap items-center gap-2">
+            <FormatBadge name={data.team.format.name} themeKey={data.team.format.themeKey} />
+            <p class="text-text-body">Manage your team settings and roster</p>
+          </div>
         </div>
       </div>
       {#if data.rosterLocked}
         <div class="mt-4 p-3 bg-warning-500/20 border border-warning-500/50 rounded-lg">
-          <p class="text-warning-400 text-sm">
-            🔒 <strong>Rosters are locked.</strong>
-            {#if data.isGlobalAdmin}
-              You can bypass this restriction as an admin.
-            {:else}
-              Some team changes are currently disabled.
-            {/if}
+          <p class="text-warning-400 text-sm flex items-start gap-2">
+            <Lock class="size-4 shrink-0 mt-0.5" />
+            <span>
+              <strong>Rosters are locked.</strong>
+              {#if data.isGlobalAdmin}
+                You can bypass this restriction as an admin.
+              {:else}
+                Some team changes are currently disabled.
+              {/if}
+            </span>
           </p>
         </div>
       {/if}
 
       {#if data.isGlobalAdmin && !data.isOwner}
         <div class="mt-4 p-3 bg-info-500/20 border border-info-500/50 rounded-lg">
-          <p class="text-info-400 text-sm">
-            👑 <strong>Admin Mode:</strong> You have full access to manage this team as a global administrator.
+          <p class="text-info-400 text-sm flex items-start gap-2">
+            <Shield class="size-4 shrink-0 mt-0.5" />
+            <span>
+              <strong>Admin Mode:</strong> You have full access to manage this team as a global administrator.
+            </span>
           </p>
         </div>
       {/if}
@@ -121,7 +133,7 @@
             ? 'bg-primary-600 text-white font-medium'
             : 'text-text-body hover:text-white hover:bg-surface-hover'}"
         >
-          Roster ({activePlayers.length}/3)
+          Roster ({activePlayers.length}/{data.team.format.maxRosterSize})
         </button>
         <button
           onclick={() => (activeTab = 'pending')}

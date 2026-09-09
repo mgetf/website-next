@@ -31,6 +31,13 @@ type TeamEditTeam = Prisma.TeamGetPayload<{
         matchDeadline: true;
       };
     };
+    format: {
+      select: {
+        name: true;
+        themeKey: true;
+        maxRosterSize: true;
+      };
+    };
     players: {
       include: {
         player: true;
@@ -83,6 +90,13 @@ export async function getTeamForEdit(teamId: number, steamId: string): Promise<T
           paymentRequired: true,
           matchWeek: true,
           matchDeadline: true,
+        },
+      },
+      format: {
+        select: {
+          name: true,
+          themeKey: true,
+          maxRosterSize: true,
         },
       },
       players: {

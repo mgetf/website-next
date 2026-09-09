@@ -5,23 +5,28 @@
   import { notificationState } from '$lib/state/notifications.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import MessageSquare from '~icons/lucide/message-square';
+  import User from '~icons/lucide/user';
+  import Swords from '~icons/lucide/swords';
+  import Mail from '~icons/lucide/mail';
+  import Bell from '~icons/lucide/bell';
 
   let { data }: { data: PageData } = $props();
 
   let isMarkingAllRead = $state(false);
 
-  function getNotificationIcon(type: string): string {
+  function getNotificationIcon(type: string) {
     switch (type) {
       case 'MATCH_COMM':
-        return '💬';
+        return MessageSquare;
       case 'PENDING_PLAYER':
-        return '👤';
+        return User;
       case 'MATCH_CREATED':
-        return '⚔️';
+        return Swords;
       case 'PLAYER_INVITE':
-        return '📩';
+        return Mail;
       default:
-        return '🔔';
+        return Bell;
     }
   }
 
@@ -140,10 +145,11 @@
                   class="w-10 h-10 rounded-full"
                 />
               {:else}
+                {@const Icon = getNotificationIcon(notification.type)}
                 <div
-                  class="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center text-xl"
+                  class="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center text-text-muted"
                 >
-                  {getNotificationIcon(notification.type)}
+                  <Icon class="size-5" />
                 </div>
               {/if}
             </div>

@@ -189,7 +189,7 @@ export async function validateTeamCreation(data: TeamCreationData): Promise<void
   });
 
   if (existingTeam) {
-    badRequest('You are already in an active 2v2 team for this season');
+    badRequest(`You are already in an active ${format.name} team for this season`);
   }
 
   // Validate team name

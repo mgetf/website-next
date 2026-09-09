@@ -2,6 +2,12 @@
   import { notificationState, type Notification } from '$lib/state/notifications.svelte';
   import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
+  import MessageSquare from '~icons/lucide/message-square';
+  import User from '~icons/lucide/user';
+  import Swords from '~icons/lucide/swords';
+  import Mail from '~icons/lucide/mail';
+  import Shield from '~icons/lucide/shield';
+  import Bell from '~icons/lucide/bell';
 
   type Props = {
     notifications: Notification[];
@@ -70,20 +76,20 @@
     await notificationState.markAllRead();
   }
 
-  function getNotificationIcon(type: string): string {
+  function getNotificationIcon(type: string) {
     switch (type) {
       case 'MATCH_COMM':
-        return '💬';
+        return MessageSquare;
       case 'PENDING_PLAYER':
-        return '👤';
+        return User;
       case 'MATCH_CREATED':
-        return '⚔️';
+        return Swords;
       case 'PLAYER_INVITE':
-        return '📩';
+        return Mail;
       case 'ADMIN_ACTION':
-        return '🛡️';
+        return Shield;
       default:
-        return '🔔';
+        return Bell;
     }
   }
 
@@ -202,10 +208,11 @@
                       class="w-8 h-8 rounded-full"
                     />
                   {:else}
+                    {@const Icon = getNotificationIcon(notification.type)}
                     <div
-                      class="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-lg"
+                      class="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-text-muted"
                     >
-                      {getNotificationIcon(notification.type)}
+                      <Icon class="size-4" />
                     </div>
                   {/if}
                 </div>

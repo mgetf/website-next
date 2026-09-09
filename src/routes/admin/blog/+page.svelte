@@ -46,7 +46,7 @@
     <Button href="/admin/blog/new" variant="primary">New Post</Button>
   </div>
 
-  <DataTable data={data.posts} {columns} emptyMessage="No blog posts yet" emptyIcon="">
+  <DataTable data={data.posts} {columns} emptyMessage="No blog posts yet">
     {#snippet cell(row, col)}
       {#if col.key === 'title'}
         <a href="/admin/blog/{row.id}/edit" class="font-semibold text-white hover:text-primary-400">

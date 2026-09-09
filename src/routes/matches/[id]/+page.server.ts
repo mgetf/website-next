@@ -240,7 +240,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         ? 'Final'
         : 'Upcoming';
   const seasonBit = match.season?.seasonNum != null ? `Season ${match.season.seasonNum}` : null;
-  const matchSeoDescription = [roundBit, seasonBit, scoreBit].filter(Boolean).join(' · ');
+  const formatBit = match.homeTeam.format?.name ?? null;
+  const matchSeoDescription = [formatBit, roundBit, seasonBit, scoreBit]
+    .filter(Boolean)
+    .join(' · ');
 
   return {
     seo: buildPageSeo(url.origin, {

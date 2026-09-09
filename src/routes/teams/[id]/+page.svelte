@@ -5,6 +5,8 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import Trophy from '~icons/lucide/trophy';
   import { onMount } from 'svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { hasMetPaidPlayerRequirement, paidPlayersNeeded } from '$lib/utils/rosterPayments';
@@ -184,6 +186,7 @@
         {/if}
 
         <div class="flex flex-wrap gap-3 justify-center md:justify-start mb-4">
+          <FormatBadge name={team.formatName} themeKey={team.formatThemeKey} size="md" />
           {#if team.region}
             <Badge color="blue" size="md">{team.division ?? 'Unassigned'} ({team.region})</Badge>
           {:else if team.division}
@@ -556,7 +559,9 @@
 
             <div class="p-6">
               <div class="text-center py-8">
-                <div class="text-6xl mb-4 opacity-50">🏆</div>
+                <div class="mb-4 flex justify-center text-text-muted">
+                  <Trophy class="size-14 opacity-50" />
+                </div>
                 <p class="text-text-muted text-lg">No match history yet</p>
                 <p class="text-text-muted text-sm mt-2">
                   This team hasn't participated in any seasons

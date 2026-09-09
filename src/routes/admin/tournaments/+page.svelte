@@ -11,6 +11,7 @@
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import { toast } from '$lib/state/toast.svelte';
+  import Trophy from '~icons/lucide/trophy';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let lastFormResult: ActionData = null;
@@ -145,8 +146,10 @@
       data={data.tournaments}
       {columns}
       emptyMessage="No tournament drafts or published tournaments found"
-      emptyIcon="🏆"
     >
+      {#snippet emptyVisual()}
+        <Trophy class="size-12" />
+      {/snippet}
       {#snippet cell(tournament, column)}
         {#if column.key === 'name'}
           <div>

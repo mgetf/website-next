@@ -12,6 +12,7 @@
   import { onMount } from 'svelte';
   import { afterNavigate } from '$app/navigation';
   import { page } from '$app/state';
+  import TriangleAlert from '~icons/lucide/triangle-alert';
 
   let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -113,8 +114,11 @@
     <!-- Environment indicator banner for staging (shown to admins) -->
     {#if data.appEnvironment === 'staging'}
       <div class="bg-warning-600 px-4 py-1.5 text-center relative z-20">
-        <span class="text-white text-sm font-semibold">
-          ⚠️ Development Environment — Changes here are not live
+        <span
+          class="text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+        >
+          <TriangleAlert class="size-4" />
+          Development Environment — Changes here are not live
         </span>
       </div>
     {/if}

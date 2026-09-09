@@ -491,6 +491,7 @@ export async function getAllUnpaidParticipations(
       teamName: team.name,
       teamAvatar: team.avatar,
       formatName: team.format.name,
+      formatThemeKey: team.format.themeKey,
       formatId: team.formatId,
       isIndividual: team.format.isIndividual,
       divisionName: division.name,

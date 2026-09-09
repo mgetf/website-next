@@ -145,7 +145,7 @@
   <!-- Hero Header -->
   <PageHero maxWidth="max-w-7xl" class="pt-12 pb-6 text-center">
     <h1 class="text-6xl font-black mb-8 text-white drop-shadow-2xl">
-      {data.format.name} MGE League
+      {data.format.name} League
     </h1>
 
     {#if data.seasons.length === 0}

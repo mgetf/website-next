@@ -251,6 +251,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const recordLabel = `${team.wins}-${team.losses}`;
   const seoDescription = [
     team.acronym ? `${team.name} (${team.acronym})` : team.name,
+    team.format.name,
     divisionLabel || null,
     seasonLabel,
     `Record ${recordLabel}`,
@@ -285,6 +286,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       status: team.status,
       createdAt: team.createdAt,
       seasonNum: team.season?.seasonNum,
+      formatName: team.format.name,
+      formatThemeKey: team.format.themeKey,
     },
     currentRoster,
     pastRoster,

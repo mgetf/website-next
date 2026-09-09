@@ -8,6 +8,9 @@ import {
   getOpenSignupFormats,
 } from '$lib/server/services/signupSeasons';
 import { getSignupFeeSummary } from '$lib/server/services/signupFees';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { checkPaymentRequired } from '$lib/server/services/payments';
+import { formAcknowledgedFreeDivision } from '$lib/server/services/signupDivision';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
@@ -27,6 +30,7 @@ const createTeamFormSchema = z.object({
   name: z.string().min(1, 'Team name is required'),
   acronym: z.string().optional().default(''),
   regionId: z.coerce.number().int().positive('Region is required'),
+  divisionId: z.coerce.number().int().positive('Division is required'),
   joinPassword: z.string().min(1, 'Join password is required'),
 });
 
@@ -39,10 +43,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const context = await getSignupContext(locals.user?.steamId ?? null, format.id);
 
-  const [regions, openFormats, fee] = await Promise.all([
+  const [regions, openFormats, fee, divisions] = await Promise.all([
     getRegionsOpenForSignup(format.id),
     getOpenSignupFormats(),
     getSignupFeeSummary(format.id),
+    getVisibleDivisions(format.id),
   ]);
 
   // Determine if user can create a team and why not
@@ -79,6 +84,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       isIndividual: entry.isIndividual,
     })),
     regions,
+    divisions,
     fee,
     canCreate,
     disabledReason,
@@ -112,7 +118,8 @@ export const actions: Actions = {
     const validation = validateForm(formData, createTeamFormSchema);
     if (!validation.success) return validationError(validation.errors);
 
-    const { name, acronym, regionId, joinPassword } = validation.data;
+    const { name, acronym, regionId, divisionId, joinPassword } = validation.data;
+    const freeDivisionAcknowledged = formAcknowledgedFreeDivision(formData);
     const avatar = formData.get('avatar');
 
     // Handle avatar upload if provided
@@ -153,15 +160,23 @@ export const actions: Actions = {
       // Get the correct season ID for the selected region
       const seasonId = await getSignupSeasonForRegion(regionId, format.id);
 
+      const paymentInfo = await checkPaymentRequired({
+        divisionId,
+        steamId: locals.user.steamId,
+        seasonId: seasonId ?? undefined,
+      });
+
       // Create team
       const teamId = await createTeam({
         name,
         acronym: format.supportsAcronym && acronym ? acronym : undefined,
         avatar: avatarUrl,
+        divisionId,
         regionId,
         joinPassword,
         ownerSteamId: locals.user.steamId,
         formatId: format.id,
+        freeDivisionAcknowledged,
       });
 
       await logAudit({
@@ -174,11 +189,11 @@ export const actions: Actions = {
         metadata: {
           name,
           acronym: format.supportsAcronym && acronym ? acronym : null,
-          divisionId: null,
+          divisionId,
           regionId,
           seasonId: seasonId ?? null,
-          paymentRequired: false,
-          alreadyPaid: false,
+          paymentRequired: paymentInfo.required,
+          alreadyPaid: paymentInfo.alreadyPaid,
           avatarUploaded: Boolean(avatarUrl),
           status: (await getTeamAuditSnapshot(teamId))?.status ?? null,
           formatId: format.id,
@@ -186,6 +201,10 @@ export const actions: Actions = {
         },
         ipAddress: getClientAddress(),
       });
+
+      if (paymentInfo.required && !paymentInfo.alreadyPaid) {
+        throw redirect(303, `/checkout/${locals.user.steamId}`);
+      }
 
       throw redirect(303, `/teams/${teamId}?signup=created`);
     } catch (err) {

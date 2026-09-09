@@ -206,8 +206,10 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   await homeCaptain.page.locator('#name').fill(HOME_TEAM_NAME);
   await homeCaptain.page.locator('#acronym').fill('ALP');
   await selectControlled(homeCaptain.page, '#regionId', { label: 'E2E Region' });
+  await selectControlled(homeCaptain.page, '#divisionId', { label: 'Invite - FREE' });
   await expect(homeCaptain.page.getByTestId('signup-fee-region').first()).toContainText('Free');
   await homeCaptain.page.locator('#joinPassword').fill(JOIN_PASSWORD);
+  await homeCaptain.page.locator('input[name="freeDivisionAck"]').check();
   await homeCaptain.page.locator('input[name="rules"]').check();
 
   await Promise.all([
@@ -218,7 +220,7 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   const created = await getTeamByName(HOME_TEAM_NAME);
   homeTeamId = created.id;
   expect(created.status).toBe('UNREADY');
-  expect(created.divisionId).toBeNull();
+  expect(created.divisionId).toBe(league.divisionId);
 });
 
 test('join approve ready; decline pending; invite/promote/remove; link join; decline/cancel invite', async () => {
@@ -236,7 +238,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
     homeTeammate.page.getByRole('button', { name: 'Request to Join' }).click(),
   ]);
 
-  // Admin approves teammate while the team is still unplaced (no division).
+  // Admin approves teammate on a team that already picked its division at signup.
   await admin.page.goto('/admin/pending-players');
   await expect(admin.page.getByText(E2E_USERS.homeTeammate.username)).toBeVisible();
   await Promise.all([
@@ -250,11 +252,6 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
   await admin.page.goto(`/teams/${homeTeamId}`);
   await expect(admin.page.getByRole('heading', { name: HOME_TEAM_NAME })).toBeVisible();
   await expect(admin.page.getByText(E2E_USERS.homeTeammate.username)).toBeVisible();
-  await selectControlled(admin.page, '#divisionId', { value: String(league.divisionId) });
-  await Promise.all([
-    admin.page.waitForLoadState('networkidle'),
-    admin.page.getByRole('button', { name: 'Update Division' }).click(),
-  ]);
 
   // Decline path: password join → admin declines with reason
   await homeDeclined.page.goto(`/teams/${homeTeamId}/join`);
@@ -525,7 +522,9 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   await solo1v1.page.goto('/signup/1v1');
   await expect(solo1v1.page.getByRole('heading', { name: '1v1 League Signup' })).toBeVisible();
   await selectControlled(solo1v1.page, '#regionId', { value: String(league.regionId) });
+  await selectControlled(solo1v1.page, '#divisionId', { label: 'Invite - FREE' });
   await expect(solo1v1.page.getByTestId('signup-fee-region').first()).toContainText('Free');
+  await solo1v1.page.locator('input[name="freeDivisionAck"]').check();
   await solo1v1.page.locator('input[name="rules"]').check();
   await Promise.all([
     solo1v1.page.waitForURL(new RegExp(`/users/${E2E_USERS.solo1v1.steamId}`)),

@@ -28,6 +28,20 @@ function takeUser(): MatrixUser {
   return user;
 }
 
+async function expectRegionLabels(
+  page: import('@playwright/test').Page,
+  count: number,
+  hasEU: boolean,
+) {
+  await page.locator('#regionId').click();
+  const listbox = page.getByRole('listbox');
+  await expect(listbox).toBeVisible();
+  await expect(listbox.getByRole('option')).toHaveCount(count);
+  await expect(listbox.getByRole('option', { name: 'EU', exact: true })).toHaveCount(hasEU ? 1 : 0);
+  await page.keyboard.press('Escape');
+  await expect(listbox).toBeHidden();
+}
+
 test.beforeAll(async () => {
   test.setTimeout(180_000);
   process.env.DATABASE_URL ??= 'postgresql://mgetf:mgetf@localhost:5432/mgetf_test';
@@ -65,18 +79,10 @@ test('region dropdowns only list regions with an open season for that format', a
 
   try {
     await session.page.goto('/signup/1v1');
-    const oneVOneRegions = session.page
-      .locator('#regionId option')
-      .filter({ hasNotText: /Select/ });
-    await expect(oneVOneRegions).toHaveCount(matrix.allFormatRegions.length);
-    await expect(session.page.locator('#regionId option').filter({ hasText: 'EU' })).toHaveCount(0);
+    await expectRegionLabels(session.page, matrix.allFormatRegions.length, false);
 
     await session.page.goto('/signup/2v2/create');
-    const twoVTwoRegions = session.page
-      .locator('#regionId option')
-      .filter({ hasNotText: /Select/ });
-    await expect(twoVTwoRegions).toHaveCount(matrix.allFormatRegions.length + 1);
-    await expect(session.page.locator('#regionId option').filter({ hasText: 'EU' })).toHaveCount(1);
+    await expectRegionLabels(session.page, matrix.allFormatRegions.length + 1, true);
   } finally {
     await session.context.close();
   }
@@ -114,7 +120,11 @@ async function completeSignup(
         session.page.getByRole('heading', { name: `${format.name} League Signup` }),
       ).toBeVisible();
       await selectControlled(session.page, '#regionId', { label: region.name });
+      await selectControlled(session.page, '#divisionId', {
+        value: String(region.divisions[format.id]),
+      });
       await expect(session.page.getByTestId('signup-fee-region').first()).toContainText('Free');
+      await session.page.locator('input[name="freeDivisionAck"]').check();
       await session.page.locator('input[name="rules"]').check();
       await Promise.all([
         session.page.waitForURL(new RegExp(`/users/${user.steamId}`), { timeout: 30_000 }),
@@ -127,8 +137,12 @@ async function completeSignup(
       await session.page.locator('#name').fill(teamName);
       await session.page.locator('#acronym').fill(format.code.slice(0, 4).toUpperCase());
       await selectControlled(session.page, '#regionId', { label: region.name });
+      await selectControlled(session.page, '#divisionId', {
+        value: String(region.divisions[format.id]),
+      });
       await expect(session.page.getByTestId('signup-fee-region').first()).toContainText('Free');
       await session.page.locator('#joinPassword').fill(JOIN_PASSWORD);
+      await session.page.locator('input[name="freeDivisionAck"]').check();
       await session.page.locator('input[name="rules"]').check();
       await Promise.all([
         session.page.waitForURL(/\/teams\/\d+/, { timeout: 30_000 }),
@@ -144,7 +158,7 @@ async function completeSignup(
     expect(created, `${format.code} / ${region.name} did not create a team`).not.toBeNull();
     expect(created!.formatId).toBe(format.id);
     expect(created!.regionId).toBe(region.id);
-    expect(created!.divisionId).toBeNull();
+    expect(created!.divisionId).toBe(region.divisions[format.id]);
     expect(created!.status).toBe('UNREADY');
   } finally {
     await session.context.close();

@@ -2,8 +2,15 @@ import type { PageServerLoad, Actions } from './$types';
 import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSignupContext, reregisterTeam } from '$lib/server/services/teamSignup';
-import { getRegionsOpenForSignup, getOpenSignupFormats } from '$lib/server/services/signupSeasons';
+import {
+  getRegionsOpenForSignup,
+  getOpenSignupFormats,
+  getSignupSeasonForRegion,
+} from '$lib/server/services/signupSeasons';
 import { getSignupFeeSummary } from '$lib/server/services/signupFees';
+import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { checkPaymentRequired } from '$lib/server/services/payments';
+import { formAcknowledgedFreeDivision } from '$lib/server/services/signupDivision';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
@@ -15,6 +22,7 @@ import { loginToParticipateHref } from '$lib/utils/signupLogin';
 const reregisterTeamSchema = z.object({
   teamId: z.coerce.number().int().positive('Team is required'),
   regionId: z.coerce.number().int().positive('Region is required'),
+  divisionId: z.coerce.number().int().positive('Division is required'),
 });
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -26,10 +34,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const context = await getSignupContext(locals.user?.steamId ?? null, format.id);
 
-  const [regions, openFormats, fee] = await Promise.all([
+  const [regions, openFormats, fee, divisions] = await Promise.all([
     getRegionsOpenForSignup(format.id),
     getOpenSignupFormats(),
     getSignupFeeSummary(format.id),
+    getVisibleDivisions(format.id),
   ]);
 
   // Determine if user can re-register and why not
@@ -76,6 +85,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       isIndividual: entry.isIndividual,
     })),
     regions,
+    divisions,
     fee,
     canReregister,
     disabledReason,
@@ -109,16 +119,26 @@ export const actions: Actions = {
     const validation = validateForm(formData, reregisterTeamSchema);
     if (!validation.success) return validationError(validation.errors);
 
-    const { teamId, regionId } = validation.data;
+    const { teamId, regionId, divisionId } = validation.data;
+    const freeDivisionAcknowledged = formAcknowledgedFreeDivision(formData);
 
     try {
       const before = await getTeamAuditSnapshot(teamId);
+      const seasonId = await getSignupSeasonForRegion(regionId, format.id);
+
+      const paymentInfo = await checkPaymentRequired({
+        divisionId,
+        steamId: locals.user.steamId,
+        seasonId: seasonId ?? undefined,
+      });
 
       await reregisterTeam({
         teamId,
+        divisionId,
         regionId,
         ownerSteamId: locals.user.steamId,
         formatId: format.id,
+        freeDivisionAcknowledged,
       });
       const after = await getTeamAuditSnapshot(teamId);
 
@@ -131,7 +151,6 @@ export const actions: Actions = {
         targetId: String(teamId),
         metadata: {
           changedFields: 'seasonId,divisionId,regionId,status',
-          deferredDivision: true,
           reregistration: true,
           seasonIdBefore: before?.seasonId ?? null,
           seasonIdAfter: after?.seasonId ?? null,
@@ -149,9 +168,15 @@ export const actions: Actions = {
           statusAfter: after?.status ?? null,
           formatId: format.id,
           formatCode: format.code,
+          paymentRequired: paymentInfo.required,
+          alreadyPaid: paymentInfo.alreadyPaid,
         },
         ipAddress: getClientAddress(),
       });
+
+      if (paymentInfo.required && !paymentInfo.alreadyPaid) {
+        throw redirect(303, `/checkout/${locals.user.steamId}`);
+      }
 
       throw redirect(303, `/teams/${teamId}?signup=reregistered`);
     } catch (err) {

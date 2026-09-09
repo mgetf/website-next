@@ -30,8 +30,7 @@
         Re-register Existing {data.format.name} Team
       </h1>
       <p class="text-text-body">
-        Re-register an existing team. Pick a format and region — skill divisions are assigned after
-        registration closes.
+        Re-register an existing team. Pick a format, region, and division for the new season.
       </p>
     </div>
 
@@ -150,6 +149,7 @@
           <SignupPicks
             formats={data.formats}
             regions={data.regions}
+            divisions={data.divisions}
             currentFormatId={data.format.id}
             fee={data.fee}
             teamMode="existing"
@@ -170,7 +170,6 @@
                 <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-400">
                   Terms and Conditions
                 </a>
-                and understand I may owe a signup fee after placement
               </span>
             </label>
           </div>
@@ -181,7 +180,7 @@
           >
             <p class="{themeClasses.text400} text-sm">
               <strong>Note:</strong> Re-registering will reset your team's stats (wins, losses, points)
-              and update the season and region. Your division is assigned after signups close.
+              and update the season, region, and division.
             </p>
           </div>
 

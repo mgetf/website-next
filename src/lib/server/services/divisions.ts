@@ -126,13 +126,14 @@ export async function getDivisions() {
 }
 
 /**
- * Get visible divisions only (for public use)
+ * Get visible divisions only (for public use).
+ * Pass formatId to limit results to one format's catalog.
  * Ordered by ID descending to show highest divisions first
  * (INVITE -> PREMIER -> INTERMEDIATE -> OPEN -> NEWCOMER)
  */
-export async function getVisibleDivisions() {
+export async function getVisibleDivisions(formatId?: number) {
   return await prisma.division.findMany({
-    where: { hidden: 0 },
+    where: { hidden: 0, ...(formatId != null ? { formatId } : {}) },
     select: {
       id: true,
       name: true,

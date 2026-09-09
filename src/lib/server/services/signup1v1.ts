@@ -20,6 +20,11 @@ import { badRequest, forbidden, notFound } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { disbandTeam } from './teamManagement';
+import {
+  initialPlayerPaymentStatus,
+  initialTeamPaymentStatus,
+  requireSignupDivision,
+} from './signupDivision';
 
 const ACTIVE_1V1_STATUSES: TeamStatus[] = [
   TeamStatus.UNREADY,
@@ -41,7 +46,9 @@ interface Signup1v1Context {
 interface Signup1v1Data {
   ownerSteamId: string;
   regionId: number;
+  divisionId: number;
   formatId?: number;
+  freeDivisionAcknowledged: boolean;
 }
 
 /**
@@ -196,6 +203,13 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
     badRequest('No active signup season for this region and format');
   }
 
+  const division = await requireSignupDivision({
+    divisionId: data.divisionId,
+    regionId: data.regionId,
+    formatId: targetFormatId,
+    freeDivisionAcknowledged: data.freeDivisionAcknowledged,
+  });
+
   // Check if user has a previously withdrawn (DEAD) entry for this season+region
   // If so, reactivate it instead of creating a duplicate
   const existingDeadEntry = await prisma.team.findFirst({
@@ -220,7 +234,11 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
   if (existingDeadEntry) {
     const initialStatus = TeamStatus.UNREADY;
 
-    const reactivationPaymentStatus = 0;
+    const reactivationPaymentStatus = await initialPlayerPaymentStatus({
+      signupCost: division.signupCost,
+      steamId: data.ownerSteamId,
+      seasonId,
+    });
 
     await prisma.team.update({
       where: { id: existingDeadEntry.id },
@@ -229,7 +247,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
         // Update name/avatar to current values
         name: user.steamUsername,
         avatar: user.steamAvatar,
-        divisionId: null,
+        divisionId: division.id,
         paymentStatus: reactivationPaymentStatus,
       },
     });
@@ -258,6 +276,12 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
 
   const initialStatus = TeamStatus.UNREADY;
 
+  const playerPaymentStatus = await initialPlayerPaymentStatus({
+    signupCost: division.signupCost,
+    steamId: data.ownerSteamId,
+    seasonId,
+  });
+
   // Create 1-person "team" with player's frozen name/avatar
   // No acronym, no join password (nobody can join an individual entry)
   const team = await prisma.team.create({
@@ -266,12 +290,12 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
       avatar: user.steamAvatar, // Frozen at signup time
       acronym: null,
       joinPassword: null, // No password - individual entries can't be joined
-      divisionId: null,
+      divisionId: division.id,
       regionId: data.regionId,
       seasonId: seasonId,
       formatId: targetFormatId,
       status: initialStatus,
-      paymentStatus: 0,
+      paymentStatus: initialTeamPaymentStatus(division.signupCost),
     },
   });
 
@@ -281,7 +305,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
       playerSteamId: data.ownerSteamId,
       teamId: team.id,
       permissionLevel: 2, // Owner
-      paymentStatus: 0,
+      paymentStatus: playerPaymentStatus,
       active: 1,
     },
   });

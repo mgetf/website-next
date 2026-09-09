@@ -27,8 +27,7 @@
       </a>
       <h1 class="text-4xl font-bold text-white mb-2">{data.format.name} League Signup</h1>
       <p class="text-text-body">
-        Sign up as an individual player. Pick a format and region — skill divisions are assigned
-        after registration closes.
+        Sign up as an individual player for the {data.format.name} league
       </p>
     </div>
 
@@ -91,6 +90,7 @@
           <SignupPicks
             formats={data.formats}
             regions={data.regions}
+            divisions={data.divisions}
             currentFormatId={data.format.id}
             fee={data.fee}
           />
@@ -105,7 +105,6 @@
             <ul class="text-sm text-text-body space-y-1">
               <li>• You sign up as an individual player, not a team</li>
               <li>• Your Steam name and avatar are frozen at signup time</li>
-              <li>• Skill divisions are assigned after signups close — you do not pick one here</li>
               <li>• Matches are played 1v1 against other players</li>
             </ul>
           </div>
@@ -124,7 +123,6 @@
                 <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-400">
                   League Rules
                 </a>
-                and understand I may owe a signup fee after placement
               </span>
             </label>
           </div>

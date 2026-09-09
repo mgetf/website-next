@@ -205,7 +205,7 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   await homeCaptain.page.locator('#name').fill(HOME_TEAM_NAME);
   await homeCaptain.page.locator('#acronym').fill('ALP');
   await homeCaptain.page.locator('#regionId').selectOption({ label: 'E2E Region' });
-  await expect(homeCaptain.page.getByText(/Newcomer is free/i)).toBeVisible();
+  await expect(homeCaptain.page.getByTestId('signup-fee-region').first()).toContainText('Free');
   await homeCaptain.page.locator('#joinPassword').fill(JOIN_PASSWORD);
   await homeCaptain.page.locator('input[name="rules"]').check();
 
@@ -524,7 +524,7 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   await solo1v1.page.goto('/signup/1v1');
   await expect(solo1v1.page.getByRole('heading', { name: '1v1 League Signup' })).toBeVisible();
   await solo1v1.page.locator('#regionId').selectOption(String(league.regionId));
-  await expect(solo1v1.page.getByText(/Newcomer is free/i)).toBeVisible();
+  await expect(solo1v1.page.getByTestId('signup-fee-region').first()).toContainText('Free');
   await solo1v1.page.locator('input[name="rules"]').check();
   await Promise.all([
     solo1v1.page.waitForURL(new RegExp(`/users/${E2E_USERS.solo1v1.steamId}`)),

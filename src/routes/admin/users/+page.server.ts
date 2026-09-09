@@ -15,6 +15,7 @@ import {
   banUser,
   getUserBySteamId,
   unlinkDiscord,
+  linkDiscordAccountById,
   clearPunishment,
   lockUserName,
   unlockUserName,
@@ -51,6 +52,11 @@ const lockUserNameSchema = z.object({
 const lockUserAvatarSchema = z.object({
   steamId: z.string().min(1, 'Steam ID is required'),
   avatarUrl: z.string().min(1, 'Avatar URL is required'),
+});
+
+const linkDiscordSchema = z.object({
+  steamId: z.string().min(1, 'Invalid user ID'),
+  discordId: z.string().min(1, 'Discord ID is required'),
 });
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -381,6 +387,36 @@ export const actions: Actions = {
       return fail(400, {
         error: error instanceof Error ? error.message : 'Failed to unlink Discord',
       });
+    }
+  },
+
+  linkDiscord: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, linkDiscordSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { steamId, discordId } = validation.data;
+
+    try {
+      const linked = await linkDiscordAccountById(steamId, discordId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.USER,
+        action: AuditAction.USER_DISCORD_LINKED,
+        targetType: 'User',
+        targetId: steamId,
+        metadata: { discordId: linked.discordId, discordUsername: linked.discordUsername },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Discord account linked' };
+    } catch (error) {
+      console.error('Error linking Discord:', error);
+      return formError(getErrorMessage(error, 'Failed to link Discord'), 400);
     }
   },
 };

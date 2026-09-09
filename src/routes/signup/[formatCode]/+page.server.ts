@@ -8,6 +8,7 @@ import {
   getRegionsOpenForSignup,
   getOpenSignupFormats,
 } from '$lib/server/services/signupSeasons';
+import { getSignupFeeSummary } from '$lib/server/services/signupFees';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
 import { getErrorMessage } from '$lib/server/utils/errors';
@@ -26,9 +27,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     // Individual format - handle signup directly here
     const context = await get1v1SignupContext(locals.user?.steamId ?? null, format.id);
 
-    const [availableRegions, openFormats] = await Promise.all([
+    const [availableRegions, openFormats, fee] = await Promise.all([
       getRegionsOpenForSignup(format.id),
       getOpenSignupFormats(),
+      getSignupFeeSummary(format.id),
     ]);
 
     // Determine if user can sign up and why not
@@ -66,6 +68,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         isIndividual: entry.isIndividual,
       })),
       regions: availableRegions,
+      fee,
       canSignup,
       disabledReason,
       needsLogin: !locals.user && canSignup,

@@ -151,6 +151,7 @@
             formats={data.formats}
             regions={data.regions}
             currentFormatId={data.format.id}
+            fee={data.fee}
             teamMode="existing"
             regionLabel="New Region"
           />

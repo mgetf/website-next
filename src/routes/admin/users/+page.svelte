@@ -24,6 +24,7 @@
   let banningUser: (typeof data.users)[0] | null = $state(null);
   let unlinkingDiscordUser: (typeof data.users)[0] | null = $state(null);
   let isSubmitting = $state(false);
+  let discordIdInput = $state('');
   let lastFormResult: ActionData = null;
 
   function formatTheme(formatId: number) {
@@ -136,6 +137,7 @@
 
   function openEditModal(user: (typeof data.users)[0]) {
     editingUser = { ...user };
+    discordIdInput = '';
   }
 
   function closeEditModal() {
@@ -362,10 +364,10 @@
       </div>
     </form>
 
-    {#if editingUser.discordLinked}
-      <div class="pt-4 mt-4 border-t border-border-default">
+    <div class="pt-4 mt-4 border-t border-border-default">
+      {#if editingUser.discordLinked}
         <p class="block text-sm font-medium text-text-label mb-2">Discord Account</p>
-        <div class="flex items-center justify-between p-3 bg-surface-input rounded-lg">
+        <div class="flex items-center justify-between p-3 bg-surface-input rounded-lg mb-4">
           <div class="flex items-center gap-2">
             <DiscordIcon size={16} />
             <span class="text-success-400 text-sm">{editingUser.discordUsername || 'Linked'}</span>
@@ -379,8 +381,46 @@
             Unlink
           </button>
         </div>
-      </div>
-    {/if}
+      {/if}
+      <form
+        method="POST"
+        action="?/linkDiscord"
+        use:enhance={() => {
+          isSubmitting = true;
+          return async ({ update, result }) => {
+            await update();
+            isSubmitting = false;
+            if (result.type === 'success') {
+              discordIdInput = '';
+              closeEditModal();
+            }
+          };
+        }}
+      >
+        <input type="hidden" name="steamId" value={editingUser.steamId} />
+        <FormInput
+          label={editingUser.discordLinked ? 'Replace Discord ID' : 'Discord Account'}
+          name="discordId"
+          bind:value={discordIdInput}
+          placeholder="123456789012345678"
+          hint="Paste a Discord user ID, mention, or profile URL."
+          error={form && 'errors' in form ? form.errors?.discordId : undefined}
+        />
+        <Button
+          type="submit"
+          variant={editingUser.discordLinked ? 'secondary' : 'primary'}
+          disabled={isSubmitting}
+        >
+          {#if isSubmitting}
+            Linking...
+          {:else if editingUser.discordLinked}
+            Replace Discord
+          {:else}
+            Link Discord
+          {/if}
+        </Button>
+      </form>
+    </div>
   </Dialog>
 {/if}
 

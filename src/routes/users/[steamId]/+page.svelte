@@ -8,6 +8,8 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import FormInput from '$lib/components/ui/form/FormInput.svelte';
+  import FormError from '$lib/components/ui/form/FormError.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import type { ProfileMatch } from '$lib/types/match';
@@ -161,6 +163,10 @@
   // State for Discord unlink (admin only)
   let isUnlinkingDiscord = $state(false);
   let showUnlinkDiscordConfirm = $state(false);
+  let isLinkingDiscord = $state(false);
+  let showLinkDiscordDialog = $state(false);
+  let linkDiscordId = $state('');
+  let linkDiscordError = $state('');
 
   // State for admin actions
   let showEditName = $state(false);
@@ -468,17 +474,35 @@
             </button>
           {/if}
         </div>
-      {:else if isOwnProfile}
-        <Button href="/auth/discord/login" class="inline-flex items-center gap-2">
-          <DiscordIcon size={16} />
-          <span>Link Discord Account</span>
-        </Button>
       {:else}
-        <div
-          class="inline-flex items-center gap-2 px-4 py-2 bg-surface-input/50 rounded-lg text-text-body text-sm"
-        >
-          <DiscordIcon size={16} />
-          <span>Discord not linked</span>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          {#if isOwnProfile}
+            <Button href="/auth/discord/login" class="inline-flex items-center gap-2">
+              <DiscordIcon size={16} />
+              <span>Link Discord Account</span>
+            </Button>
+          {:else}
+            <div
+              class="inline-flex items-center gap-2 px-4 py-2 bg-surface-input/50 rounded-lg text-text-body text-sm"
+            >
+              <DiscordIcon size={16} />
+              <span>Discord not linked</span>
+            </div>
+          {/if}
+          {#if isAdmin}
+            <Button
+              type="button"
+              variant={isOwnProfile ? 'secondary' : 'primary'}
+              size="sm"
+              onclick={() => {
+                linkDiscordId = '';
+                linkDiscordError = '';
+                showLinkDiscordDialog = true;
+              }}
+            >
+              {isOwnProfile ? 'Link by ID' : 'Link Discord'}
+            </Button>
+          {/if}
         </div>
       {/if}
     </div>
@@ -1459,6 +1483,62 @@
       </Button>
     </form>
   {/snippet}
+</Dialog>
+
+<Dialog
+  open={showLinkDiscordDialog}
+  title="Link Discord Account"
+  onClose={() => (showLinkDiscordDialog = false)}
+>
+  <p class="text-text-body mb-4">
+    Link <span class="text-white font-medium">{player.name}</span> to a Discord account. Paste a user
+    ID, mention, or profile URL.
+  </p>
+
+  <form
+    method="POST"
+    action="?/linkDiscord"
+    use:enhance={() => {
+      isLinkingDiscord = true;
+      linkDiscordError = '';
+      return async ({ update, result }) => {
+        await update();
+        isLinkingDiscord = false;
+        if (result.type === 'success') {
+          showLinkDiscordDialog = false;
+          linkDiscordId = '';
+          toast.success('Discord account linked');
+        } else if (result.type === 'failure') {
+          const message = (result.data?.error as string) || 'Failed to link Discord';
+          linkDiscordError = message;
+          toast.error(message);
+        }
+      };
+    }}
+  >
+    <FormError error={linkDiscordError} />
+    <FormInput
+      label="Discord User ID"
+      name="discordId"
+      bind:value={linkDiscordId}
+      placeholder="123456789012345678"
+      required
+      hint="Developer Mode → right-click the user → Copy User ID."
+    />
+    <div class="flex gap-3">
+      <Button
+        type="button"
+        variant="secondary"
+        class="flex-1"
+        onclick={() => (showLinkDiscordDialog = false)}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" variant="primary" disabled={isLinkingDiscord} class="flex-1">
+        {isLinkingDiscord ? 'Linking...' : 'Link Discord'}
+      </Button>
+    </div>
+  </form>
 </Dialog>
 
 <!-- 1v1 Withdrawal Confirmation Modal -->

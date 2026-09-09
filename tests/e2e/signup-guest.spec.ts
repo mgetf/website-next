@@ -28,6 +28,7 @@ test('guest can open signup and CTAs ask them to log in', async ({ page }) => {
 
   await page.goto('/signup');
   await expect(page.getByRole('heading', { name: 'League Signups' })).toBeVisible();
+  await expect(page.getByTestId('signup-fee-region').first()).toContainText('Free');
 
   const createCard = page.getByRole('link', { name: /brand new 2v2 team/i });
   await expect(createCard).toContainText('Login to participate!');

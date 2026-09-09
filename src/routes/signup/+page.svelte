@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import SignupFeeNotice from '$lib/components/signup/SignupFeeNotice.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
   import { loginToParticipateHref } from '$lib/utils/signupLogin';
 
@@ -21,9 +22,8 @@
     <div class="text-center mb-12">
       <h1 class="text-4xl font-bold text-white mb-4">League Signups</h1>
       <p class="text-text-body text-lg">Sign up for the upcoming season</p>
-      <p class="text-warning-400 text-sm mt-3">
-        Newcomer is free if admin-seeded there. Other divisions are $10 USD ($4 Asia) in keys or
-        PayPal. Fill out signup once per format to play more than one.
+      <p class="text-text-body text-sm mt-3">
+        Fill out signup once per format to play more than one.
       </p>
     </div>
 
@@ -39,6 +39,8 @@
         </div>
       </Card>
     {:else}
+      <SignupFeeNotice />
+
       {#each data.formatSignups as formatSignup (formatSignup.format.id)}
         {@const themeClasses = getFormatThemeClasses(formatSignup.format.themeKey)}
 

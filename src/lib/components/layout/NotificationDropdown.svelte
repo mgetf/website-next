@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Popover } from 'bits-ui';
   import { notificationState, type Notification } from '$lib/state/notifications.svelte';
   import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
@@ -46,18 +47,6 @@
   onDestroy(() => {
     notificationState.disconnect();
   });
-
-  function toggleDropdown() {
-    open = !open;
-  }
-
-  // Close dropdown when clicking outside
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.notification-dropdown-container')) {
-      open = false;
-    }
-  }
 
   async function handleNotificationClick(notification: Notification) {
     if (!notification.isRead) {
@@ -136,11 +125,8 @@
   }
 </script>
 
-<svelte:window onclick={handleClickOutside} />
-
-<div class="notification-dropdown-container relative">
-  <button
-    onclick={toggleDropdown}
+<Popover.Root bind:open>
+  <Popover.Trigger
     class="relative p-2 text-text-body hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
     aria-label="Notifications"
   >
@@ -166,11 +152,13 @@
         {notificationState.unreadCount > 9 ? '9+' : notificationState.unreadCount}
       </div>
     {/if}
-  </button>
+  </Popover.Trigger>
 
-  {#if open}
-    <div
-      class="absolute right-0 mt-2 w-80 bg-surface-card border border-border-default rounded-lg shadow-xl overflow-hidden z-50"
+  <Popover.Portal>
+    <Popover.Content
+      class="z-50 w-80 overflow-hidden rounded-lg border border-border-default bg-surface-card p-0 shadow-xl outline-none"
+      align="end"
+      sideOffset={8}
     >
       <!-- Header -->
       <div class="px-4 py-2 border-b border-border-default flex justify-between items-center">
@@ -305,6 +293,6 @@
           <p class="text-text-muted text-xs mt-1">You're all caught up!</p>
         </div>
       {/if}
-    </div>
-  {/if}
-</div>
+    </Popover.Content>
+  </Popover.Portal>
+</Popover.Root>

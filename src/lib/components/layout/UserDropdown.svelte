@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { DropdownMenu } from 'bits-ui';
   import type { NavUserTeam, SessionUser } from '$lib/types/user';
   import { UserRole } from '$lib/types/user';
   import ChevronDown from '~icons/lucide/chevron-down';
@@ -16,13 +17,12 @@
 
   let { user, userTeams = [] }: Props = $props();
 
-  let dropdownOpen = $state(false);
-  let teamsMenuOpen = $state(false);
-  let teamsMenuAlign = $state<'left' | 'right'>('right');
-  let teamsHoverCloseTimer: ReturnType<typeof setTimeout> | null = null;
-  let teamsItemEl: HTMLDivElement | undefined = $state();
+  let open = $state(false);
 
-  const TEAMS_SUBMENU_WIDTH = 232;
+  const itemClass =
+    'flex cursor-pointer select-none items-center gap-3 rounded-md px-4 py-2.5 text-sm text-text-label outline-none data-highlighted:bg-surface-input/50 data-highlighted:text-white';
+  const contentClass =
+    'z-50 w-64 rounded-lg border border-border-default bg-surface-card p-0 shadow-xl outline-none';
 
   let displayName = $derived.by(() => {
     const maxLength = 15;
@@ -30,82 +30,6 @@
       ? user.steamUsername.slice(0, maxLength) + '...'
       : user.steamUsername;
   });
-
-  function closeDropdown() {
-    dropdownOpen = false;
-    teamsMenuOpen = false;
-    clearTeamsHoverClose();
-  }
-
-  function toggleDropdown() {
-    if (dropdownOpen) {
-      closeDropdown();
-    } else {
-      dropdownOpen = true;
-    }
-  }
-
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.user-dropdown-container')) {
-      closeDropdown();
-    }
-  }
-
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key !== 'Escape' || !dropdownOpen) return;
-    if (teamsMenuOpen) {
-      teamsMenuOpen = false;
-      return;
-    }
-    closeDropdown();
-  }
-
-  function clearTeamsHoverClose() {
-    if (teamsHoverCloseTimer) {
-      clearTimeout(teamsHoverCloseTimer);
-      teamsHoverCloseTimer = null;
-    }
-  }
-
-  function updateTeamsMenuAlign() {
-    if (!teamsItemEl) return;
-    const rect = teamsItemEl.getBoundingClientRect();
-    const spaceRight = window.innerWidth - rect.right;
-    teamsMenuAlign = spaceRight >= TEAMS_SUBMENU_WIDTH ? 'right' : 'left';
-  }
-
-  function openTeamsMenu() {
-    updateTeamsMenuAlign();
-    teamsMenuOpen = true;
-  }
-
-  function toggleTeamsMenu() {
-    if (teamsMenuOpen) {
-      teamsMenuOpen = false;
-      return;
-    }
-    openTeamsMenu();
-  }
-
-  function canHover() {
-    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  }
-
-  function openTeamsOnHover() {
-    if (!canHover()) return;
-    clearTeamsHoverClose();
-    openTeamsMenu();
-  }
-
-  function closeTeamsOnHover() {
-    if (!canHover()) return;
-    clearTeamsHoverClose();
-    teamsHoverCloseTimer = setTimeout(() => {
-      teamsMenuOpen = false;
-      teamsHoverCloseTimer = null;
-    }, 150);
-  }
 
   const isAdminUser = $derived(
     user.permissionLevel === UserRole.ADMIN || user.permissionLevel === UserRole.MODERATOR,
@@ -123,21 +47,10 @@
   });
 </script>
 
-<svelte:window
-  onclick={handleClickOutside}
-  onkeydown={handleKeydown}
-  onresize={() => {
-    if (teamsMenuOpen) updateTeamsMenuAlign();
-  }}
-/>
-
-<div class="user-dropdown-container relative">
-  <button
-    onclick={toggleDropdown}
+<DropdownMenu.Root bind:open>
+  <DropdownMenu.Trigger
     class="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-input/50 rounded-lg transition-all"
     aria-label="User menu"
-    aria-expanded={dropdownOpen}
-    aria-haspopup="menu"
   >
     <img
       class="h-8 w-8 rounded-full ring-2 ring-zinc-700"
@@ -150,15 +63,10 @@
         <span class="text-[10px] font-medium {roleBadge.classes}">{roleBadge.label}</span>
       {/if}
     </div>
-    <ChevronDown
-      class="size-4 text-text-body transition-transform {dropdownOpen ? 'rotate-180' : ''}"
-    />
-  </button>
-
-  {#if dropdownOpen}
-    <div
-      class="absolute right-0 mt-2 w-64 bg-surface-card border border-border-default rounded-lg shadow-xl z-50"
-    >
+    <ChevronDown class="size-4 text-text-body transition-transform {open ? 'rotate-180' : ''}" />
+  </DropdownMenu.Trigger>
+  <DropdownMenu.Portal>
+    <DropdownMenu.Content class={contentClass} align="end" sideOffset={8}>
       <div class="px-4 py-3 border-b border-border-default bg-surface-input/50 rounded-t-lg">
         <div class="flex items-center gap-3">
           <img
@@ -184,113 +92,88 @@
       </div>
 
       <div class="py-2">
-        <a
-          href="/users/{user.steamId}"
-          class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
-          onclick={closeDropdown}
-        >
-          <User class="size-5 shrink-0" />
-          <span>My Profile</span>
-        </a>
+        <DropdownMenu.Item class={itemClass}>
+          {#snippet child({ props })}
+            <a href="/users/{user.steamId}" {...props}>
+              <User class="size-5 shrink-0" />
+              <span>My Profile</span>
+            </a>
+          {/snippet}
+        </DropdownMenu.Item>
 
         {#if userTeams.length > 0}
-          <div
-            bind:this={teamsItemEl}
-            class="relative"
-            role="group"
-            aria-label="My teams"
-            onmouseenter={openTeamsOnHover}
-            onmouseleave={closeTeamsOnHover}
-          >
-            <button
-              type="button"
-              class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all text-left"
-              aria-expanded={teamsMenuOpen}
-              aria-haspopup="menu"
-              onclick={toggleTeamsMenu}
-            >
-              <Users class="size-5 shrink-0" />
-              <span class="flex-1">My Teams</span>
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger class="{itemClass} justify-between">
+              <span class="flex items-center gap-3">
+                <Users class="size-5 shrink-0" />
+                <span>My Teams</span>
+              </span>
               <ChevronRight class="size-4 shrink-0 text-text-muted" />
-            </button>
-
-            {#if teamsMenuOpen}
-              <div
-                class="absolute top-0 w-56 bg-surface-card border border-border-default rounded-lg shadow-xl py-1 z-50 {teamsMenuAlign ===
-                'right'
-                  ? 'left-full ml-1'
-                  : 'right-full mr-1'}"
-                role="menu"
-              >
-                {#each userTeams as team (team.id)}
-                  <a
-                    href="/teams/{team.id}"
-                    class="flex items-center gap-3 px-3 py-2 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
-                    role="menuitem"
-                    onclick={closeDropdown}
-                  >
-                    {#if team.avatar}
-                      <img
-                        src={team.avatar}
-                        alt=""
-                        class="w-8 h-8 rounded-md object-cover shrink-0"
-                      />
-                    {:else}
-                      <span
-                        class="w-8 h-8 rounded-md bg-surface-hover text-text-body flex items-center justify-center text-sm font-bold shrink-0"
-                      >
-                        {team.name.charAt(0).toUpperCase()}
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.SubContent class="{contentClass} w-56 py-1" sideOffset={6}>
+              {#each userTeams as team (team.id)}
+                <DropdownMenu.Item class={itemClass}>
+                  {#snippet child({ props })}
+                    <a href="/teams/{team.id}" {...props}>
+                      {#if team.avatar}
+                        <img
+                          src={team.avatar}
+                          alt=""
+                          class="w-8 h-8 rounded-md object-cover shrink-0"
+                        />
+                      {:else}
+                        <span
+                          class="w-8 h-8 rounded-md bg-surface-hover text-text-body flex items-center justify-center text-sm font-bold shrink-0"
+                        >
+                          {team.name.charAt(0).toUpperCase()}
+                        </span>
+                      {/if}
+                      <span class="min-w-0">
+                        <span class="block truncate text-white">{team.name}</span>
+                        <span class="block truncate text-xs text-text-muted">{team.formatName}</span
+                        >
                       </span>
-                    {/if}
-                    <span class="min-w-0">
-                      <span class="block truncate text-white">{team.name}</span>
-                      <span class="block truncate text-xs text-text-muted">{team.formatName}</span>
-                    </span>
-                  </a>
-                {/each}
-              </div>
-            {/if}
-          </div>
+                    </a>
+                  {/snippet}
+                </DropdownMenu.Item>
+              {/each}
+            </DropdownMenu.SubContent>
+          </DropdownMenu.Sub>
         {/if}
 
-        <a
-          href="/users/{user.steamId}/payments"
-          class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-label hover:bg-surface-input/50 hover:text-white transition-all"
-          onclick={closeDropdown}
-        >
-          <Receipt class="size-5 shrink-0" />
-          <span>Payment History</span>
-        </a>
+        <DropdownMenu.Item class={itemClass}>
+          {#snippet child({ props })}
+            <a href="/users/{user.steamId}/payments" {...props}>
+              <Receipt class="size-5 shrink-0" />
+              <span>Payment History</span>
+            </a>
+          {/snippet}
+        </DropdownMenu.Item>
 
         {#if isAdminUser}
-          <a
-            href="/admin"
-            class="flex items-center gap-3 px-4 py-2.5 text-sm text-purple-400 hover:bg-surface-input/50 hover:text-purple-300 transition-all"
-            onclick={closeDropdown}
-          >
-            <Settings class="size-5 shrink-0" />
-            <span>Admin Panel</span>
-          </a>
+          <DropdownMenu.Item class="{itemClass} text-purple-400 data-highlighted:text-purple-300">
+            {#snippet child({ props })}
+              <a href="/admin" {...props}>
+                <Settings class="size-5 shrink-0" />
+                <span>Admin Panel</span>
+              </a>
+            {/snippet}
+          </DropdownMenu.Item>
         {/if}
 
-        <div class="my-2 border-t border-border-default"></div>
+        <DropdownMenu.Separator class="my-2 h-px bg-border-default" />
 
         <form method="POST" action="/auth/logout">
-          <button
-            type="submit"
-            class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-danger-400 hover:bg-surface-input/50 hover:text-danger-300 transition-all text-left"
-          >
-            <LogOut class="size-5 shrink-0" />
-            <span>Sign Out</span>
-          </button>
+          <DropdownMenu.Item class="{itemClass} text-danger-400 data-highlighted:text-danger-300">
+            {#snippet child({ props })}
+              <button type="submit" {...props}>
+                <LogOut class="size-5 shrink-0" />
+                <span>Sign Out</span>
+              </button>
+            {/snippet}
+          </DropdownMenu.Item>
         </form>
       </div>
-    </div>
-  {/if}
-</div>
-
-<style>
-  .user-dropdown-container {
-    z-index: 50;
-  }
-</style>
+    </DropdownMenu.Content>
+  </DropdownMenu.Portal>
+</DropdownMenu.Root>

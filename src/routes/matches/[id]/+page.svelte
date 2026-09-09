@@ -7,6 +7,7 @@
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
+  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
@@ -187,6 +188,7 @@
 
   // Score submission state - track scores as user types (indexed by gameNum - 1)
   let gameScores = $state<{ home: number | null; away: number | null }[]>([]);
+  let gameArenaIds = $state<string[]>([]);
 
   // Playoff series structure.
   // boSeries = number of arenas (maps) in the series.
@@ -293,6 +295,20 @@
     return match.games
       .filter((g) => g.arena && !seen.has(g.arena.id) && seen.add(g.arena.id))
       .map((g) => g.arena!);
+  });
+
+  const arenaSelectItems = $derived(
+    matchArenas().map((arena) => ({ value: String(arena.id), label: arena.name })),
+  );
+
+  $effect(() => {
+    const count = match.boSeries || 3;
+    const arenas = matchArenas();
+    gameArenaIds = Array.from({ length: count }, (_, i) => {
+      const gameArena = match.games[i]?.arena;
+      const defaultId = gameArena?.id ?? (arenas.length === 1 ? arenas[0]?.id : null);
+      return defaultId != null ? String(defaultId) : '';
+    });
   });
 
   // --- Playoff (multi-arena) score helpers ---
@@ -1056,18 +1072,21 @@
                     <label for="arenaId-{i}" class="block text-sm font-medium text-text-label mb-1"
                       >Arena/Map</label
                     >
-                    <select
+                    <SelectMenu
                       id="arenaId-{i}"
                       name="arenaId_{i}"
+                      value={gameArenaIds[i] ??
+                        (defaultArenaId != null ? String(defaultArenaId) : '')}
+                      items={arenaSelectItems}
                       {disabled}
-                      class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
-                    >
-                      {#each matchArenas() as arena}
-                        <option value={arena.id} selected={defaultArenaId === arena.id}
-                          >{arena.name}</option
-                        >
-                      {/each}
-                    </select>
+                      required={!disabled}
+                      size="sm"
+                      onChange={(val) => {
+                        const next = [...gameArenaIds];
+                        next[i] = val;
+                        gameArenaIds = next;
+                      }}
+                    />
                   </div>
                 {/if}
               </div>

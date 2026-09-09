@@ -6,6 +6,7 @@
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
   import { getRegionAbbr as abbreviateRegion } from '$lib/utils/region';
 
@@ -101,6 +102,15 @@
     ),
   );
 
+  const seasonSelectItems = $derived(
+    data.seasons
+      .filter((s: (typeof data.seasons)[number]) => s.regionId === selectedRegion)
+      .map((season: (typeof data.seasons)[number]) => ({
+        value: String(season.id),
+        label: season.name,
+      })),
+  );
+
   function teamRowClass(team: PageData['teamsByDivision'][0]['teams'][0]): string {
     if (team.isWithdrawn) return 'shadow-[inset_4px_0_0_0_var(--color-text-muted)]';
     if (team.status === 'READY') return 'shadow-[inset_4px_0_0_0_var(--color-success-500)]';
@@ -173,14 +183,15 @@
 
         <div class="flex flex-col items-center gap-2">
           <span class="text-sm font-medium text-text-body">Season</span>
-          <select
-            bind:value={selectedSeason}
-            class="px-6 py-2 bg-surface-card text-white rounded border border-border-default hover:bg-surface-input transition-all cursor-pointer"
-          >
-            {#each data.seasons.filter((s: (typeof data.seasons)[number]) => s.regionId === selectedRegion) as season}
-              <option value={season.id}>{season.name}</option>
-            {/each}
-          </select>
+          <SelectMenu
+            items={seasonSelectItems}
+            value={selectedSeason ? String(selectedSeason) : ''}
+            size="sm"
+            class="min-w-40"
+            onChange={(val) => {
+              selectedSeason = Number(val);
+            }}
+          />
         </div>
       </div>
 

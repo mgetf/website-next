@@ -6,6 +6,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import Trophy from '~icons/lucide/trophy';
   import { onMount } from 'svelte';
   import { toast } from '$lib/state/toast.svelte';
@@ -31,6 +32,13 @@
   let removeFormEl: HTMLFormElement | undefined = $state();
   let markPaidFormEl: HTMLFormElement | undefined = $state();
   let readyFormEl: HTMLFormElement | undefined = $state();
+
+  let adminStatus = $state('');
+  let adminDivisionId = $state('');
+  $effect(() => {
+    adminStatus = team.status;
+    adminDivisionId = team.divisionId != null ? String(team.divisionId) : '';
+  });
 
   const canToggleReady = $derived(
     data.canManageTeam &&
@@ -740,18 +748,19 @@
                 <label for="status" class="block text-sm font-medium text-text-label mb-2">
                   Team Status
                 </label>
-                <select
+                <SelectMenu
                   id="status"
                   name="status"
-                  value={team.status}
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                >
-                  <option value="UNREADY">Unready</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="READY">Ready</option>
-                  <option value="DEAD">Dead</option>
-                  <option value="PLACEMENT">Placement</option>
-                </select>
+                  bind:value={adminStatus}
+                  items={[
+                    { value: 'UNREADY', label: 'Unready' },
+                    { value: 'PENDING', label: 'Pending' },
+                    { value: 'READY', label: 'Ready' },
+                    { value: 'DEAD', label: 'Dead' },
+                    { value: 'PLACEMENT', label: 'Placement' },
+                  ]}
+                  size="sm"
+                />
               </div>
               <Button type="submit">Update Status</Button>
             </form>
@@ -770,19 +779,16 @@
                   <label for="divisionId" class="block text-sm font-medium text-text-label mb-2">
                     Division
                   </label>
-                  <select
+                  <SelectMenu
                     id="divisionId"
                     name="divisionId"
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                  >
-                    {#each data.divisions as division}
-                      <option value={division.id} selected={division.id === team.divisionId}>
-                        {division.name}{division.signupCost > 0
-                          ? ` ($${division.signupCost})`
-                          : ' (free)'}
-                      </option>
-                    {/each}
-                  </select>
+                    bind:value={adminDivisionId}
+                    items={data.divisions.map((division) => ({
+                      value: String(division.id),
+                      label: `${division.name}${division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}`,
+                    }))}
+                    size="sm"
+                  />
                 </div>
                 <Button type="submit" size="lg">Update Division</Button>
               </form>

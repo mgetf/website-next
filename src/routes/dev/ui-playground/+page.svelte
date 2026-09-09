@@ -53,8 +53,8 @@
     </p>
     <h1 class="text-2xl font-bold text-text-heading">UI playground</h1>
     <p class="mt-2 max-w-3xl text-sm text-text-body">
-      Select, Dialog, and Tooltip now use Bits UI behind the shared components. Checkbox, switch,
-      and nav-style menus are still the “not yet” column.
+      Select, Dialog, Tooltip, and nav menus use Bits UI behind the shared components. Checkbox and
+      switch are still the “not yet” column.
     </p>
   </div>
 
@@ -297,17 +297,20 @@
 
   <section class="space-y-4">
     <div>
-      <h2 class="text-lg font-semibold text-white">Dropdown menu — not yet</h2>
+      <h2 class="text-lg font-semibold text-white">Dropdown menu — shipping</h2>
       <p class="text-sm text-text-body">
-        Account / notifications / leagues stay click-outside. Bits would add arrows, nested menus,
-        and portal.
+        Account uses Bits
+        <code class="text-text-label">DropdownMenu</code>
+        (nested My Teams). Notifications and Leagues use
+        <code class="text-text-label">Popover</code>
+        so the panel can hold custom content. Same tokens as the rest of the chrome.
       </p>
     </div>
     <div class="grid gap-6 lg:grid-cols-2">
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Current</h3>
+            <h3 class="font-semibold text-white">Before</h3>
             <Badge color="zinc">click-outside</Badge>
           </div>
         {/snippet}
@@ -319,8 +322,8 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Bits UI</h3>
-            <Badge color="zinc">later</Badge>
+            <h3 class="font-semibold text-white">Nav now</h3>
+            <Badge color="orange">bits behind</Badge>
           </div>
         {/snippet}
         <BitsDropdownMenu bind:lastAction={bitsMenuAction} />

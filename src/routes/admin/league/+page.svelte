@@ -12,6 +12,7 @@
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
+  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { FORMAT_THEME_KEYS } from '$lib/constants/formats';
@@ -22,6 +23,21 @@
     value: key,
     label: key,
   }));
+
+  const steamItemOptions = $derived([
+    { value: '', label: 'None' },
+    ...(data.steamItems ?? []).map((item) => ({
+      value: String(item.id),
+      label: `${item.name} (App ${item.appId})`,
+    })),
+  ]);
+
+  const regionSelectOptions = $derived(
+    data.regions.map((region) => ({ value: String(region.id), label: region.name })),
+  );
+  const formatSelectOptions = $derived(
+    data.formats.map((format) => ({ value: String(format.id), label: format.name })),
+  );
 
   const seasonColumns = $derived([
     { key: 'season', label: 'Season' },
@@ -78,6 +94,20 @@
 
   let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' | 'formats' = $state(initialTab);
   let isSubmitting = $state(false);
+  let createSeasonRegionId = $state('');
+  let createSeasonFormatId = $state('');
+  let createSteamItemId = $state('');
+  let createPlayoffMap = $state('false');
+  let editSteamItemId = $state('');
+
+  $effect(() => {
+    if (!createSeasonRegionId && data.regions[0]) {
+      createSeasonRegionId = String(data.regions[0].id);
+    }
+    if (!createSeasonFormatId && data.formats[0]) {
+      createSeasonFormatId = String(data.formats[0].id);
+    }
+  });
 
   // Seasons state
   let showSeasonForm = $state(false);
@@ -97,6 +127,12 @@
   let selectedCreateFormatIds = $state<number[]>([]);
   let selectedEditRegionId: number | null = $state(null);
   let selectedEditFormatId: number | null = $state(null);
+
+  $effect(() => {
+    editSteamItemId = editingDivision?.itemPayment?.steamItemId
+      ? String(editingDivision.itemPayment.steamItemId)
+      : '';
+  });
   let selectedDivisionFormatId = $state<number | null>(null);
   let selectedDivisionIds = $state<number[]>([]);
   let showCopyDialog = $state(false);
@@ -484,31 +520,27 @@
                 <label for="regionId" class="block text-sm font-medium text-text-label mb-2"
                   >Region</label
                 >
-                <select
+                <SelectMenu
                   id="regionId"
                   name="regionId"
+                  bind:value={createSeasonRegionId}
+                  items={regionSelectOptions}
                   required
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                >
-                  {#each data.regions as region}
-                    <option value={region.id}>{region.name}</option>
-                  {/each}
-                </select>
+                  size="sm"
+                />
               </div>
               <div>
                 <label for="formatId" class="block text-sm font-medium text-text-label mb-2"
                   >Format</label
                 >
-                <select
+                <SelectMenu
                   id="formatId"
                   name="formatId"
+                  bind:value={createSeasonFormatId}
+                  items={formatSelectOptions}
                   required
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                >
-                  {#each data.formats as format}
-                    <option value={format.id}>{format.name}</option>
-                  {/each}
-                </select>
+                  size="sm"
+                />
               </div>
               <div>
                 <label for="numWeeks" class="block text-sm font-medium text-text-label mb-2"
@@ -880,16 +912,13 @@
                   >
                     Item Payment (optional)
                   </label>
-                  <select
+                  <SelectMenu
                     id="create-steamItemId"
                     name="steamItemId"
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                  >
-                    <option value="">None</option>
-                    {#each data.steamItems as item}
-                      <option value={item.id}>{item.name} (App {item.appId})</option>
-                    {/each}
-                  </select>
+                    bind:value={createSteamItemId}
+                    items={steamItemOptions}
+                    size="sm"
+                  />
                 </div>
                 <div>
                   <label
@@ -1211,14 +1240,16 @@
                   <label for="playoff-map" class="block text-sm font-medium text-text-label mb-2"
                     >Playoff Map</label
                   >
-                  <select
+                  <SelectMenu
                     id="playoff-map"
                     name="playoffMap"
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                  >
-                    <option value="false">No</option>
-                    <option value="true">Yes</option>
-                  </select>
+                    bind:value={createPlayoffMap}
+                    items={[
+                      { value: 'false', label: 'No' },
+                      { value: 'true', label: 'Yes' },
+                    ]}
+                    size="sm"
+                  />
                 </div>
               </div>
               <div class="mt-4">
@@ -1953,19 +1984,12 @@
             <label for="edit-steamItemId" class="block text-sm font-medium text-text-label mb-2">
               Item Payment
             </label>
-            <select
+            <SelectMenu
               id="edit-steamItemId"
               name="steamItemId"
-              value={editingDivision.itemPayment?.steamItemId
-                ? String(editingDivision.itemPayment.steamItemId)
-                : ''}
-              class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="">None</option>
-              {#each data.steamItems as item}
-                <option value={item.id}>{item.name} (App {item.appId})</option>
-              {/each}
-            </select>
+              bind:value={editSteamItemId}
+              items={steamItemOptions}
+            />
           </div>
           <div>
             <label for="edit-itemQuantity" class="block text-sm font-medium text-text-label mb-2">

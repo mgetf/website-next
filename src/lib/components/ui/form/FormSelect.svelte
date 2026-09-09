@@ -10,6 +10,7 @@
   let {
     label,
     name,
+    id,
     value = $bindable(''),
     options,
     placeholder = 'Select an option',
@@ -23,6 +24,7 @@
   }: {
     label: string;
     name: string;
+    id?: string;
     value?: string;
     options: Option[];
     placeholder?: string;
@@ -34,10 +36,12 @@
     onChange?: (value: string) => void;
     class?: string;
   } = $props();
+
+  const triggerId = $derived(id ?? name);
 </script>
 
 <div class="mb-6">
-  <label for={name} class="block text-sm font-medium text-text-label mb-2">
+  <label for={triggerId} class="block text-sm font-medium text-text-label mb-2">
     {label}
     {#if required}
       <span class="text-danger-500">*</span>
@@ -45,7 +49,7 @@
   </label>
   <SelectMenu
     {name}
-    id={name}
+    id={triggerId}
     bind:value
     items={options}
     {placeholder}

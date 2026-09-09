@@ -9,7 +9,9 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
+  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
+  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
@@ -178,6 +180,14 @@
   let editAvatarValue = $state('');
   let punishSeverity = $state('');
   let isAdminSubmitting = $state(false);
+  let admin1v1Status = $state('');
+  let admin1v1DivisionId = $state('');
+
+  $effect(() => {
+    if (!activeEntry) return;
+    admin1v1Status = activeEntry.status;
+    admin1v1DivisionId = activeEntry.divisionId != null ? String(activeEntry.divisionId) : '';
+  });
 
   let showReadyConfirm = $state(false);
   let isReadying = $state(false);
@@ -1272,17 +1282,18 @@
                     >
                       Status
                     </label>
-                    <select
+                    <SelectMenu
                       id="admin-1v1-status"
                       name="status"
-                      class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                    >
-                      {#each [{ value: 'UNREADY', label: 'Unready' }, { value: 'PENDING', label: 'Pending' }, { value: 'READY', label: 'Ready' }, { value: 'DEAD', label: 'Withdrawn' }] as opt}
-                        <option value={opt.value} selected={opt.value === activeEntry.status}>
-                          {opt.label}
-                        </option>
-                      {/each}
-                    </select>
+                      bind:value={admin1v1Status}
+                      items={[
+                        { value: 'UNREADY', label: 'Unready' },
+                        { value: 'PENDING', label: 'Pending' },
+                        { value: 'READY', label: 'Ready' },
+                        { value: 'DEAD', label: 'Withdrawn' },
+                      ]}
+                      size="sm"
+                    />
                   </div>
                   <Button type="submit">Update Status</Button>
                 </form>
@@ -1314,22 +1325,16 @@
                       >
                         Division
                       </label>
-                      <select
+                      <SelectMenu
                         id="admin-1v1-divisionId"
                         name="divisionId"
-                        class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
-                      >
-                        {#each data.divisions1v1 as division}
-                          <option
-                            value={division.id}
-                            selected={division.id === activeEntry.divisionId}
-                          >
-                            {division.name}{division.signupCost > 0
-                              ? ` ($${division.signupCost})`
-                              : ' (free)'}
-                          </option>
-                        {/each}
-                      </select>
+                        bind:value={admin1v1DivisionId}
+                        items={data.divisions1v1.map((division) => ({
+                          value: String(division.id),
+                          label: `${division.name}${division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}`,
+                        }))}
+                        size="sm"
+                      />
                     </div>
                     <Button type="submit">Update Division</Button>
                   </form>
@@ -1976,24 +1981,20 @@
       };
     }}
   >
-    <div class="mb-4">
-      <label for="punish-severity" class="block text-sm font-medium text-text-label mb-2">
-        Status
-      </label>
-      <select
-        id="punish-severity"
-        name="severity"
-        required
-        bind:value={punishSeverity}
-        class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-      >
-        <option value="" disabled>Select status...</option>
-        <option value="NONE">None (Clear punishment)</option>
-        <option value="WARNING" disabled={isStaffPlayer}>Warning</option>
-        <option value="SUSPENDED" disabled={isStaffPlayer}>Suspended</option>
-        <option value="BANNED" disabled={isStaffPlayer}>Banned</option>
-      </select>
-    </div>
+    <FormSelect
+      label="Status"
+      name="severity"
+      id="punish-severity"
+      required
+      bind:value={punishSeverity}
+      placeholder="Select status..."
+      options={[
+        { value: 'NONE', label: 'None (Clear punishment)' },
+        { value: 'WARNING', label: 'Warning', disabled: isStaffPlayer },
+        { value: 'SUSPENDED', label: 'Suspended', disabled: isStaffPlayer },
+        { value: 'BANNED', label: 'Banned', disabled: isStaffPlayer },
+      ]}
+    />
 
     {#if punishSeverity && punishSeverity !== 'NONE'}
       <div class="mb-4">

@@ -455,8 +455,8 @@ export async function adminCreateLeagueSeason(
   await page.goto('/admin/league?tab=seasons');
   await page.getByRole('button', { name: '+ Create Season' }).click();
   await page.locator('#seasonNum').fill(String(opts.seasonNum));
-  await page.locator('#regionId').selectOption({ label: opts.regionLabel });
-  await page.locator('#formatId').selectOption({ label: opts.formatLabel });
+  await selectControlled(page, '#regionId', { label: opts.regionLabel });
+  await selectControlled(page, '#formatId', { label: opts.formatLabel });
   await page.locator('#numWeeks').fill(String(opts.numWeeks));
   await Promise.all([
     page.waitForLoadState('networkidle'),

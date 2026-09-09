@@ -92,6 +92,7 @@
             formats={data.formats}
             regions={data.regions}
             currentFormatId={data.format.id}
+            fee={data.fee}
           />
 
           <!-- Info Box -->

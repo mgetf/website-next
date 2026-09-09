@@ -3,6 +3,7 @@ import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
 import { requireFormatByCode } from '$lib/server/services/formats';
 import { getSignupContext, reregisterTeam } from '$lib/server/services/teamSignup';
 import { getRegionsOpenForSignup, getOpenSignupFormats } from '$lib/server/services/signupSeasons';
+import { getSignupFeeSummary } from '$lib/server/services/signupFees';
 import { getTeamAuditSnapshot } from '$lib/server/services/teams';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
@@ -25,9 +26,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const context = await getSignupContext(locals.user?.steamId ?? null, format.id);
 
-  const [regions, openFormats] = await Promise.all([
+  const [regions, openFormats, fee] = await Promise.all([
     getRegionsOpenForSignup(format.id),
     getOpenSignupFormats(),
+    getSignupFeeSummary(format.id),
   ]);
 
   // Determine if user can re-register and why not
@@ -74,6 +76,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       isIndividual: entry.isIndividual,
     })),
     regions,
+    fee,
     canReregister,
     disabledReason,
     needsLogin: !locals.user && canReregister,

@@ -1,9 +1,13 @@
 import type { PageServerLoad } from './$types';
 import { getSignupContext } from '$lib/server/services/teamSignup';
 import { get1v1SignupContext } from '$lib/server/services/signup1v1';
-import { getOpenSignupFormats } from '$lib/server/services/signupSeasons';
+import {
+  getOpenSignupFormats,
+  getCurrentSignupSeasonIds,
+} from '$lib/server/services/signupSeasons';
+import { getSignupFeeSummaries } from '$lib/server/services/signupFees';
 import { getPlayerCurrentTeamName } from '$lib/server/services/teams';
-import { getCurrentSignupSeasonIds } from '$lib/server/services/signupSeasons';
+import type { SignupFeeSummary } from '$lib/types/signupFee';
 
 interface FormatSignupInfo {
   format: {
@@ -14,6 +18,7 @@ interface FormatSignupInfo {
     supportsReregistration: boolean;
     themeKey: string;
   };
+  fee: SignupFeeSummary;
   canSignup: boolean;
   disabledReason?: string;
   canReregister?: boolean;
@@ -26,16 +31,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const openFormats = await getOpenSignupFormats();
   const allSignupsClosed = openFormats.length === 0;
+  const feeByFormat = await getSignupFeeSummaries(openFormats.map((format) => format.id));
 
   const formatSignups: FormatSignupInfo[] = [];
 
   for (const format of openFormats) {
+    const fee = feeByFormat.get(format.id) ?? { regions: [] };
     if (format.isIndividual) {
       // Handle individual format (1v1)
       const context = await get1v1SignupContext(steamId, format.id);
 
       formatSignups.push({
         format,
+        fee,
         canSignup: !context.signupClosed && !context.hasActive1v1Entry,
         disabledReason: context.signupClosed
           ? `${format.name} signups are currently closed`
@@ -99,6 +107,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
       formatSignups.push({
         format,
+        fee,
         canSignup: canCreateNew,
         disabledReason: createDisabledReason,
         canReregister: format.supportsReregistration ? canReregister : undefined,

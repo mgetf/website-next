@@ -1,8 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import SignupFeeNotice from '$lib/components/signup/SignupFeeNotice.svelte';
+  import SignupFeeLabel from '$lib/components/signup/SignupFeeLabel.svelte';
   import { signupPathForFormat } from '$lib/utils/signupPaths';
+  import type { SignupFeeSummary } from '$lib/types/signupFee';
 
   type FormatOption = {
     id: number;
@@ -20,12 +21,14 @@
     formats,
     regions,
     currentFormatId,
+    fee,
     teamMode = 'create',
     regionLabel = 'Region',
   }: {
     formats: FormatOption[];
     regions: RegionOption[];
     currentFormatId: number;
+    fee: SignupFeeSummary;
     teamMode?: 'create' | 'existing';
     regionLabel?: string;
   } = $props();
@@ -72,9 +75,9 @@
   />
 </div>
 
-<p class="text-sm text-text-body -mt-2 mb-6">
+<p class="text-sm text-text-body -mt-2 mb-4">
   Pick any format and region combination. You can fill out this form again to sign up for another
   format.
 </p>
 
-<SignupFeeNotice />
+<SignupFeeLabel {fee} {selectedRegionId} align="start" class="mb-6" />

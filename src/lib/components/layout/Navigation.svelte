@@ -139,6 +139,18 @@
               </a>
             {/each}
 
+            <a
+              href="/rulebook"
+              class={[
+                'px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap',
+                isActive('/rulebook')
+                  ? 'text-white bg-surface-input/50'
+                  : 'text-text-label hover:text-white hover:bg-surface-input/50',
+              ]}
+            >
+              Rules
+            </a>
+
             <div class="relative group">
               <button
                 type="button"
@@ -170,18 +182,6 @@
                 {/each}
               </div>
             </div>
-
-            <a
-              href="/rulebook"
-              class={[
-                'px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap',
-                isActive('/rulebook')
-                  ? 'text-white bg-surface-input/50'
-                  : 'text-text-label hover:text-white hover:bg-surface-input/50',
-              ]}
-            >
-              Rules
-            </a>
           </div>
         </div>
 
@@ -306,6 +306,18 @@
         <div class="my-2 border-t border-border-default"></div>
 
         <div class="flex flex-col">
+          <a
+            href="/rulebook"
+            class={[
+              'flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-lg',
+              isActive('/rulebook')
+                ? 'text-white bg-surface-input'
+                : 'text-text-label hover:text-white hover:bg-surface-input',
+            ]}
+            onclick={closeMobileMenu}
+          >
+            Rules
+          </a>
           {#each moreItems as item (item.href)}
             <a
               href={item.href}
@@ -320,18 +332,6 @@
               {item.label}
             </a>
           {/each}
-          <a
-            href="/rulebook"
-            class={[
-              'flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-lg',
-              isActive('/rulebook')
-                ? 'text-white bg-surface-input'
-                : 'text-text-label hover:text-white hover:bg-surface-input',
-            ]}
-            onclick={closeMobileMenu}
-          >
-            Rules
-          </a>
         </div>
       </div>
 

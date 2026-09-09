@@ -22,13 +22,16 @@ import { getSeasons } from '$lib/server/services/seasons';
 import { getFormatsForFilter } from '$lib/server/services/formats';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
+import { validateForm, validationError, formError } from '$lib/server/utils/forms';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import {
   getSteamItems,
   createSteamItem as createSteamItemService,
-  updateSteamItem as updateSteamItemService,
+  uploadSteamItemIcon,
+  clearSteamItemIcon,
   deleteSteamItem as deleteSteamItemService,
+  steamItemIconFileFromFormData,
 } from '$lib/server/services/steam-items';
 
 const createAnnouncementSchema = z.object({
@@ -78,13 +81,6 @@ const createSteamItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
   appId: z.coerce.number().int().positive('Valid App ID is required'),
   marketHashName: z.string().min(1, 'Market hash name is required'),
-  iconUrl: z.string().optional().default(''),
-});
-
-const updateSteamItemSchema = z.object({
-  id: z.coerce.number().int().positive('Invalid item ID'),
-  name: z.string().optional().default(''),
-  iconUrl: z.string().optional().default(''),
 });
 
 const itemIdSchema = z.object({
@@ -533,55 +529,101 @@ export const actions: Actions = {
     }
   },
 
-  createSteamItem: async ({ request, locals }) => {
+  createSteamItem: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
+    const iconFile = steamItemIconFileFromFormData(formData);
+    formData.delete('icon');
     const validation = validateForm(formData, createSteamItemSchema);
     if (!validation.success) return validationError(validation.errors);
 
-    const { name, appId, marketHashName, iconUrl } = validation.data;
+    const { name, appId, marketHashName } = validation.data;
 
     try {
-      await createSteamItemService({
+      const item = await createSteamItemService({
         name: name.trim(),
         appId,
         marketHashName: marketHashName.trim(),
-        iconUrl: iconUrl.trim() || null,
+      });
+      if (iconFile) {
+        await uploadSteamItemIcon(item.id, iconFile);
+      }
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.GLOBAL_SETTINGS_UPDATED,
+        targetType: 'SteamItem',
+        targetId: String(item.id),
+        metadata: { action: 'created', name: item.name, hasIcon: !!iconFile },
+        ipAddress: getClientAddress(),
       });
       return { success: true, message: 'Steam item added' };
     } catch (err) {
       console.error('Error creating steam item:', err);
-      return fail(400, {
-        error: err instanceof Error ? err.message : 'Failed to create steam item',
-      });
+      return formError(getErrorMessage(err, 'Failed to create steam item'));
     }
   },
 
-  updateSteamItem: async ({ request, locals }) => {
+  uploadSteamItemIcon: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
-    const validation = validateForm(formData, updateSteamItemSchema);
+    const iconFile = steamItemIconFileFromFormData(formData);
+    formData.delete('icon');
+    const validation = validateForm(formData, itemIdSchema);
     if (!validation.success) return validationError(validation.errors);
-
-    const { id, name, iconUrl } = validation.data;
+    if (!iconFile) {
+      return formError('Choose an image to upload');
+    }
 
     try {
-      await updateSteamItemService(id, {
-        name: name.trim() || undefined,
-        iconUrl: iconUrl.trim() || null,
+      const item = await uploadSteamItemIcon(validation.data.id, iconFile);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.GLOBAL_SETTINGS_UPDATED,
+        targetType: 'SteamItem',
+        targetId: String(item.id),
+        metadata: { action: 'icon_uploaded', name: item.name },
+        ipAddress: getClientAddress(),
       });
-      return { success: true, message: 'Steam item updated' };
+      return { success: true, message: 'Item icon updated' };
     } catch (err) {
-      console.error('Error updating steam item:', err);
-      return fail(400, {
-        error: err instanceof Error ? err.message : 'Failed to update steam item',
-      });
+      console.error('Error uploading steam item icon:', err);
+      return formError(getErrorMessage(err, 'Failed to upload item icon'));
     }
   },
 
-  deleteSteamItem: async ({ request, locals }) => {
+  clearSteamItemIcon: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, itemIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const item = await clearSteamItemIcon(validation.data.id);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.GLOBAL_SETTINGS_UPDATED,
+        targetType: 'SteamItem',
+        targetId: String(item.id),
+        metadata: { action: 'icon_cleared', name: item.name },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Item icon removed' };
+    } catch (err) {
+      console.error('Error clearing steam item icon:', err);
+      return formError(getErrorMessage(err, 'Failed to remove item icon'));
+    }
+  },
+
+  deleteSteamItem: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
@@ -591,13 +633,21 @@ export const actions: Actions = {
     const { id } = validation.data;
 
     try {
-      await deleteSteamItemService(id);
+      const item = await deleteSteamItemService(id);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.SITE,
+        action: AuditAction.GLOBAL_SETTINGS_UPDATED,
+        targetType: 'SteamItem',
+        targetId: String(id),
+        metadata: { action: 'deleted', name: item.name },
+        ipAddress: getClientAddress(),
+      });
       return { success: true, message: 'Steam item deleted' };
     } catch (err) {
       console.error('Error deleting steam item:', err);
-      return fail(400, {
-        error: err instanceof Error ? err.message : 'Failed to delete steam item',
-      });
+      return formError(getErrorMessage(err, 'Failed to delete steam item'));
     }
   },
 };

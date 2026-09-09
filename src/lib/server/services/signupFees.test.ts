@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { buildSignupFeeSummary, summarizeRegionFee, type DivisionFeeInput } from './signupFees';
 
+const keyItem = {
+  name: 'Mann Co. Supply Crate Key',
+  quantityLabel: '6',
+  iconUrl: null,
+};
+
 const naInvite: DivisionFeeInput = {
   regionId: 1,
   signupCost: 10,
   currencySymbol: '$',
   itemQuantity: 6,
   itemName: 'Mann Co. Supply Crate Key',
+  itemIconUrl: null,
 };
 
 const naNewcomer: DivisionFeeInput = {
@@ -15,6 +22,7 @@ const naNewcomer: DivisionFeeInput = {
   currencySymbol: '$',
   itemQuantity: null,
   itemName: null,
+  itemIconUrl: null,
 };
 
 const asiaInvite: DivisionFeeInput = {
@@ -23,6 +31,7 @@ const asiaInvite: DivisionFeeInput = {
   currencySymbol: '$',
   itemQuantity: 2,
   itemName: 'Mann Co. Supply Crate Key',
+  itemIconUrl: null,
 };
 
 const euInvite: DivisionFeeInput = {
@@ -31,6 +40,7 @@ const euInvite: DivisionFeeInput = {
   currencySymbol: '€',
   itemQuantity: null,
   itemName: null,
+  itemIconUrl: null,
 };
 
 describe('summarizeRegionFee', () => {
@@ -39,6 +49,7 @@ describe('summarizeRegionFee', () => {
       kind: 'free',
       moneyLabel: null,
       itemLabel: null,
+      items: [],
     });
   });
 
@@ -47,6 +58,7 @@ describe('summarizeRegionFee', () => {
       kind: 'free',
       moneyLabel: null,
       itemLabel: null,
+      items: [],
     });
   });
 
@@ -55,6 +67,7 @@ describe('summarizeRegionFee', () => {
       kind: 'paid',
       moneyLabel: '$10',
       itemLabel: '6× Mann Co. Supply Crate Key',
+      items: [keyItem],
     });
   });
 
@@ -63,6 +76,18 @@ describe('summarizeRegionFee', () => {
       kind: 'paid',
       moneyLabel: '$4–$10',
       itemLabel: '2–6× Mann Co. Supply Crate Key',
+      items: [{ ...keyItem, quantityLabel: '2–6' }],
+    });
+  });
+
+  it('attaches the catalog icon when present', () => {
+    expect(
+      summarizeRegionFee(true, [{ ...naInvite, itemIconUrl: 'https://cdn.example/key.png' }]),
+    ).toEqual({
+      kind: 'paid',
+      moneyLabel: '$10',
+      itemLabel: '6× Mann Co. Supply Crate Key',
+      items: [{ ...keyItem, iconUrl: 'https://cdn.example/key.png' }],
     });
   });
 });
@@ -100,6 +125,7 @@ describe('buildSignupFeeSummary', () => {
           kind: 'paid',
           moneyLabel: '$10',
           itemLabel: '6× Mann Co. Supply Crate Key',
+          items: [keyItem],
         },
         {
           regionId: 2,
@@ -109,6 +135,7 @@ describe('buildSignupFeeSummary', () => {
           kind: 'free',
           moneyLabel: null,
           itemLabel: null,
+          items: [],
         },
         {
           regionId: 5,
@@ -118,6 +145,7 @@ describe('buildSignupFeeSummary', () => {
           kind: 'paid',
           moneyLabel: '$4',
           itemLabel: '2× Mann Co. Supply Crate Key',
+          items: [{ ...keyItem, quantityLabel: '2' }],
         },
       ],
     });

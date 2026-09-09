@@ -1,5 +1,5 @@
 import { prisma } from '$lib/server/db';
-import type { SignupFeeRegion, SignupFeeSummary } from '$lib/types/signupFee';
+import type { SignupFeeItem, SignupFeeRegion, SignupFeeSummary } from '$lib/types/signupFee';
 import { getRegionAbbr, sortRegionsByAbbr } from '$lib/utils/region';
 import { flagForRegion } from '$lib/utils/regions';
 
@@ -9,6 +9,7 @@ export type DivisionFeeInput = {
   currencySymbol: string;
   itemQuantity: number | null;
   itemName: string | null;
+  itemIconUrl: string | null;
 };
 
 export type RegionFeeInput = {
@@ -16,6 +17,13 @@ export type RegionFeeInput = {
   name: string;
   paymentRequired: boolean;
   divisions: DivisionFeeInput[];
+};
+
+const emptyFee = {
+  kind: 'free' as const,
+  moneyLabel: null,
+  itemLabel: null,
+  items: [] as SignupFeeItem[],
 };
 
 function formatAmount(amount: number): string {
@@ -45,42 +53,61 @@ function formatMoneyLabel(amounts: { symbol: string; amount: number }[]): string
     .join(' / ');
 }
 
-function formatItemLabel(items: { itemQuantity: number; itemName: string }[]): string | null {
-  if (items.length === 0) return null;
+function formatItems(
+  items: { itemQuantity: number; itemName: string; itemIconUrl: string | null }[],
+): SignupFeeItem[] {
+  if (items.length === 0) return [];
 
-  const byName = new Map<string, { min: number; max: number }>();
-  for (const { itemQuantity, itemName } of items) {
+  const byName = new Map<string, { min: number; max: number; iconUrl: string | null }>();
+  for (const { itemQuantity, itemName, itemIconUrl } of items) {
     const existing = byName.get(itemName);
     if (!existing) {
-      byName.set(itemName, { min: itemQuantity, max: itemQuantity });
+      byName.set(itemName, { min: itemQuantity, max: itemQuantity, iconUrl: itemIconUrl });
     } else {
       existing.min = Math.min(existing.min, itemQuantity);
       existing.max = Math.max(existing.max, itemQuantity);
+      if (!existing.iconUrl && itemIconUrl) existing.iconUrl = itemIconUrl;
     }
   }
 
-  return [...byName.entries()]
-    .map(([name, { min, max }]) => (min === max ? `${min}× ${name}` : `${min}–${max}× ${name}`))
-    .join(' / ');
+  return [...byName.entries()].map(([name, { min, max, iconUrl }]) => ({
+    name,
+    quantityLabel: min === max ? String(min) : `${min}–${max}`,
+    iconUrl,
+  }));
+}
+
+function formatItemLabel(items: SignupFeeItem[]): string | null {
+  if (items.length === 0) return null;
+  return items.map((item) => `${item.quantityLabel}× ${item.name}`).join(' / ');
 }
 
 function paidLabels(divisions: DivisionFeeInput[]): {
   moneyLabel: string | null;
   itemLabel: string | null;
+  items: SignupFeeItem[];
 } {
   const moneyAmounts = divisions
     .filter((division) => division.signupCost > 0)
     .map((division) => ({ symbol: division.currencySymbol, amount: division.signupCost }));
-  const items = divisions.flatMap((division) => {
+  const rawItems = divisions.flatMap((division) => {
     if (division.itemQuantity == null || division.itemQuantity <= 0 || !division.itemName) {
       return [];
     }
-    return [{ itemQuantity: division.itemQuantity, itemName: division.itemName }];
+    return [
+      {
+        itemQuantity: division.itemQuantity,
+        itemName: division.itemName,
+        itemIconUrl: division.itemIconUrl,
+      },
+    ];
   });
+  const items = formatItems(rawItems);
 
   return {
     moneyLabel: formatMoneyLabel(moneyAmounts),
     itemLabel: formatItemLabel(items),
+    items,
   };
 }
 
@@ -92,17 +119,17 @@ function paidLabels(divisions: DivisionFeeInput[]): {
 export function summarizeRegionFee(
   paymentRequired: boolean,
   divisions: DivisionFeeInput[],
-): Pick<SignupFeeRegion, 'kind' | 'moneyLabel' | 'itemLabel'> {
+): Pick<SignupFeeRegion, 'kind' | 'moneyLabel' | 'itemLabel' | 'items'> {
   if (!paymentRequired) {
-    return { kind: 'free', moneyLabel: null, itemLabel: null };
+    return emptyFee;
   }
 
-  const { moneyLabel, itemLabel } = paidLabels(divisions);
+  const { moneyLabel, itemLabel, items } = paidLabels(divisions);
   if (!moneyLabel && !itemLabel) {
-    return { kind: 'free', moneyLabel: null, itemLabel: null };
+    return emptyFee;
   }
 
-  return { kind: 'paid', moneyLabel, itemLabel };
+  return { kind: 'paid', moneyLabel, itemLabel, items };
 }
 
 export function buildSignupFeeSummary(regions: RegionFeeInput[]): SignupFeeSummary {
@@ -156,7 +183,7 @@ export async function getSignupFeeSummaries(
             itemPayment: {
               select: {
                 itemQuantity: true,
-                steamItem: { select: { name: true } },
+                steamItem: { select: { name: true, iconUrl: true } },
               },
             },
           },
@@ -171,6 +198,7 @@ export async function getSignupFeeSummaries(
       currencySymbol: division.region.currencySymbol,
       itemQuantity: division.itemPayment?.itemQuantity ?? null,
       itemName: division.itemPayment?.steamItem.name ?? null,
+      itemIconUrl: division.itemPayment?.steamItem.iconUrl ?? null,
     });
     divisionsByRegion.set(division.regionId, list);
   }

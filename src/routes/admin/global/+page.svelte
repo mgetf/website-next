@@ -593,6 +593,7 @@
         <form
           method="POST"
           action="?/createSteamItem"
+          enctype="multipart/form-data"
           use:enhance={() => {
             isSubmitting = true;
             return async ({ update }) => {
@@ -600,31 +601,57 @@
               isSubmitting = false;
             };
           }}
-          class="grid grid-cols-1 md:grid-cols-4 gap-3"
+          class="space-y-3"
         >
-          <input
-            name="name"
-            type="text"
-            required
-            placeholder="Item Name"
-            class="px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-          <input
-            name="appId"
-            type="number"
-            required
-            min="1"
-            placeholder="App ID (e.g. 440)"
-            class="px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-          <input
-            name="marketHashName"
-            type="text"
-            required
-            placeholder="Market Hash Name"
-            class="px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-          <Button type="submit" variant="primary" disabled={isSubmitting}>Add</Button>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label for="steam-item-name" class="sr-only">Item name</label>
+              <input
+                id="steam-item-name"
+                name="name"
+                type="text"
+                required
+                placeholder="Item Name"
+                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label for="steam-item-app-id" class="sr-only">App ID</label>
+              <input
+                id="steam-item-app-id"
+                name="appId"
+                type="number"
+                required
+                min="1"
+                placeholder="App ID (e.g. 440)"
+                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label for="steam-item-hash" class="sr-only">Market hash name</label>
+              <input
+                id="steam-item-hash"
+                name="marketHashName"
+                type="text"
+                required
+                placeholder="Market Hash Name"
+                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <Button type="submit" variant="primary" disabled={isSubmitting}>Add</Button>
+          </div>
+          <div>
+            <label for="steam-item-icon" class="block text-xs font-medium text-text-label mb-1">
+              Icon (optional)
+            </label>
+            <input
+              id="steam-item-icon"
+              name="icon"
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              class="block w-full text-sm text-text-body file:mr-3 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+            />
+          </div>
         </form>
       </div>
 
@@ -636,13 +663,13 @@
         </div>
       {:else}
         <div class="space-y-2 border-t border-border-default pt-6">
-          {#each data.steamItems as item}
+          {#each data.steamItems as item (item.id)}
             <div
-              class="flex items-center justify-between bg-surface-input/50 border border-border-input rounded-lg p-3"
+              class="flex flex-wrap items-center justify-between gap-3 bg-surface-input/50 border border-border-input rounded-lg p-3"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 min-w-0">
                 {#if item.iconUrl}
-                  <img src={item.iconUrl} alt={item.name} class="w-8 h-8 rounded" />
+                  <img src={item.iconUrl} alt="" class="w-8 h-8 rounded object-contain" />
                 {:else}
                   <div
                     class="w-8 h-8 rounded bg-surface-hover flex items-center justify-center text-xs text-text-body"
@@ -650,27 +677,82 @@
                     {item.appId}
                   </div>
                 {/if}
-                <div>
+                <div class="min-w-0">
                   <p class="text-white text-sm font-medium">{item.name}</p>
-                  <p class="text-text-muted text-xs">{item.marketHashName} (App {item.appId})</p>
+                  <p class="text-text-muted text-xs truncate">
+                    {item.marketHashName} (App {item.appId})
+                  </p>
                 </div>
               </div>
-              <form
-                method="POST"
-                action="?/deleteSteamItem"
-                use:enhance={() => {
-                  isSubmitting = true;
-                  return async ({ update }) => {
-                    await update();
-                    isSubmitting = false;
-                  };
-                }}
-              >
-                <input type="hidden" name="id" value={item.id} />
-                <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
-                  Delete
-                </Button>
-              </form>
+              <div class="flex flex-wrap items-center gap-2">
+                <form
+                  method="POST"
+                  action="?/uploadSteamItemIcon"
+                  enctype="multipart/form-data"
+                  use:enhance={() => {
+                    isSubmitting = true;
+                    return async ({ update }) => {
+                      await update();
+                      isSubmitting = false;
+                    };
+                  }}
+                >
+                  <input type="hidden" name="id" value={item.id} />
+                  <label
+                    for="steam-item-icon-{item.id}"
+                    class="block text-xs font-medium text-text-label mb-1"
+                  >
+                    {item.iconUrl ? 'Replace icon' : 'Upload icon'}
+                  </label>
+                  <input
+                    id="steam-item-icon-{item.id}"
+                    name="icon"
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    class="block max-w-52 text-xs text-text-body file:mr-2 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
+                    onchange={(event) => {
+                      const input = event.currentTarget;
+                      if (input.files && input.files.length > 0) {
+                        input.form?.requestSubmit();
+                      }
+                    }}
+                  />
+                </form>
+                {#if item.iconUrl}
+                  <form
+                    method="POST"
+                    action="?/clearSteamItemIcon"
+                    use:enhance={() => {
+                      isSubmitting = true;
+                      return async ({ update }) => {
+                        await update();
+                        isSubmitting = false;
+                      };
+                    }}
+                  >
+                    <input type="hidden" name="id" value={item.id} />
+                    <Button type="submit" variant="secondary" size="sm" disabled={isSubmitting}>
+                      Remove icon
+                    </Button>
+                  </form>
+                {/if}
+                <form
+                  method="POST"
+                  action="?/deleteSteamItem"
+                  use:enhance={() => {
+                    isSubmitting = true;
+                    return async ({ update }) => {
+                      await update();
+                      isSubmitting = false;
+                    };
+                  }}
+                >
+                  <input type="hidden" name="id" value={item.id} />
+                  <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
+                    Delete
+                  </Button>
+                </form>
+              </div>
             </div>
           {/each}
         </div>

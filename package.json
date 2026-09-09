@@ -76,6 +76,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/jsonwebtoken": "^9.0.10",
     "archiver": "^8.0.0",
+    "bits-ui": "^2.19.2",
     "chart.js": "^4.5.1",
     "diff": "^9.0.0",
     "flag-icons": "^7.5.0",

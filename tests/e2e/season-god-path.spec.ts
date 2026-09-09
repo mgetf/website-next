@@ -1,6 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
   loginAs,
+  selectControlled,
   submitBo1Scores,
   submitSeriesScores,
   postMatchMessage,
@@ -204,7 +205,7 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   ).toBeVisible();
   await homeCaptain.page.locator('#name').fill(HOME_TEAM_NAME);
   await homeCaptain.page.locator('#acronym').fill('ALP');
-  await homeCaptain.page.locator('#regionId').selectOption({ label: 'E2E Region' });
+  await selectControlled(homeCaptain.page, '#regionId', { label: 'E2E Region' });
   await expect(homeCaptain.page.getByTestId('signup-fee-region').first()).toContainText('Free');
   await homeCaptain.page.locator('#joinPassword').fill(JOIN_PASSWORD);
   await homeCaptain.page.locator('input[name="rules"]').check();
@@ -523,7 +524,7 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   // --- 1v1 lifecycle ---
   await solo1v1.page.goto('/signup/1v1');
   await expect(solo1v1.page.getByRole('heading', { name: '1v1 League Signup' })).toBeVisible();
-  await solo1v1.page.locator('#regionId').selectOption(String(league.regionId));
+  await selectControlled(solo1v1.page, '#regionId', { value: String(league.regionId) });
   await expect(solo1v1.page.getByTestId('signup-fee-region').first()).toContainText('Free');
   await solo1v1.page.locator('input[name="rules"]').check();
   await Promise.all([

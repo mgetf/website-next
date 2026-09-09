@@ -1,4 +1,6 @@
 <script lang="ts">
+  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
+
   type Option = {
     value: string;
     label: string;
@@ -32,18 +34,6 @@
     onChange?: (value: string) => void;
     class?: string;
   } = $props();
-
-  const selectClasses = $derived(
-    `w-full px-4 py-3 bg-surface-input border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-      error ? 'border-danger-500' : 'border-border-input'
-    } ${className}`,
-  );
-
-  function handleChange(e: Event) {
-    const target = e.target as HTMLSelectElement;
-    value = target.value;
-    onChange?.(value);
-  }
 </script>
 
 <div class="mb-6">
@@ -53,20 +43,18 @@
       <span class="text-danger-500">*</span>
     {/if}
   </label>
-  <select
-    id={name}
+  <SelectMenu
     {name}
-    {value}
+    id={name}
+    bind:value
+    items={options}
+    {placeholder}
     {required}
     {disabled}
-    onchange={handleChange}
-    class={selectClasses}
-  >
-    <option value="" disabled={required}>{placeholder}</option>
-    {#each options as opt}
-      <option value={opt.value} disabled={opt.disabled}>{opt.label}</option>
-    {/each}
-  </select>
+    error={!!error}
+    {onChange}
+    class={className}
+  />
   {#if hint && !error}
     <p
       class={hintVariant === 'warning'

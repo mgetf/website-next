@@ -9,6 +9,7 @@
   import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
   import { getRegionAbbr as abbreviateRegion } from '$lib/utils/region';
+  import { isViewerStandingsTeam } from '$lib/utils/standingsHighlight';
 
   const standingsColumns = [
     { key: 'team', label: 'Team' },
@@ -87,6 +88,8 @@
       data.user?.banStatus !== 'BANNED',
   );
 
+  const viewerSteamId = $derived(data.user?.steamId as string | undefined);
+
   let selectedSeason = $state(0);
   let selectedRegion = $state(0);
   let isInitialized = $state(false);
@@ -112,12 +115,22 @@
   );
 
   function teamRowClass(team: PageData['teamsByDivision'][0]['teams'][0]): string {
-    if (team.isWithdrawn) return 'shadow-[inset_4px_0_0_0_var(--color-text-muted)]';
-    if (team.status === 'READY') return 'shadow-[inset_4px_0_0_0_var(--color-success-500)]';
-    if (team.status === 'PENDING') return 'shadow-[inset_4px_0_0_0_var(--color-warning-500)]';
-    if (team.status === 'UNREADY') return 'shadow-[inset_4px_0_0_0_var(--color-danger-500)]';
-    if (team.status === 'PLACEMENT') return 'shadow-[inset_4px_0_0_0_var(--color-info-500)]';
-    return '';
+    const classes: string[] = [];
+    if (team.isWithdrawn) classes.push('shadow-[inset_4px_0_0_0_var(--color-text-muted)]');
+    else if (team.status === 'READY')
+      classes.push('shadow-[inset_4px_0_0_0_var(--color-success-500)]');
+    else if (team.status === 'PENDING')
+      classes.push('shadow-[inset_4px_0_0_0_var(--color-warning-500)]');
+    else if (team.status === 'UNREADY')
+      classes.push('shadow-[inset_4px_0_0_0_var(--color-danger-500)]');
+    else if (team.status === 'PLACEMENT')
+      classes.push('shadow-[inset_4px_0_0_0_var(--color-info-500)]');
+
+    if (isViewerStandingsTeam(team, viewerSteamId, data.format.isIndividual)) {
+      classes.push('bg-primary-500/10');
+    }
+
+    return classes.join(' ');
   }
 
   $effect(() => {

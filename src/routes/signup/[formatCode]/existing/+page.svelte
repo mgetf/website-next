@@ -6,12 +6,17 @@
   import Card from '$lib/components/ui/Card.svelte';
   import SignupLoginGate from '$lib/components/signup/SignupLoginGate.svelte';
   import SignupPicks from '$lib/components/signup/SignupPicks.svelte';
+  import SignupScopeAck from '$lib/components/signup/SignupScopeAck.svelte';
+  import FreeDivisionAck from '$lib/components/signup/FreeDivisionAck.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
+  import { SIGNUP_CHECKBOX_CLASS } from '$lib/utils/signupAck';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let isSubmitting = $state(false);
+  let needsFreeDivisionAck = $state(false);
   let selectedTeamId = $state<number | null>(null);
+  let selectedRegionId = $state<number | null>(null);
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 </script>
@@ -30,7 +35,7 @@
         Re-register Existing {data.format.name} Team
       </h1>
       <p class="text-text-body">
-        Re-register an existing team. Pick a format, region, and division for the new season.
+        Re-register an existing team. Pick a region and division for the new season.
       </p>
     </div>
 
@@ -51,7 +56,7 @@
               >{data.previousSeasonNonOwnedTeams[0].name}</a
             >,
           {:else}
-            {#each data.previousSeasonNonOwnedTeams as team, i}
+            {#each data.previousSeasonNonOwnedTeams as team, i (team.id)}
               <a href="/teams/{team.id}" class="font-semibold underline hover:text-warning-200"
                 >{team.name}</a
               >{i < data.previousSeasonNonOwnedTeams.length - 1 ? ', ' : ''}
@@ -96,7 +101,7 @@
               Select Team <span class="text-danger-500">*</span>
             </div>
             <div class="space-y-3">
-              {#each data.ownedTeams as team}
+              {#each data.ownedTeams as team (team.id)}
                 <label
                   class="flex items-center gap-4 p-4 bg-surface-input border border-border-input rounded-lg cursor-pointer {themeClasses.hoverBorder500} transition-colors {selectedTeamId ===
                   team.id
@@ -147,23 +152,23 @@
           </div>
 
           <SignupPicks
-            formats={data.formats}
             regions={data.regions}
             divisions={data.divisions}
-            currentFormatId={data.format.id}
             fee={data.fee}
-            teamMode="existing"
             regionLabel="New Region"
+            bind:selectedRegionId
+            bind:needsFreeDivisionAck
           />
 
           <!-- Terms & Conditions -->
           <div class="mb-6">
-            <label class="flex items-start gap-3 cursor-pointer">
+            <label for="signup-terms-ack" class="flex items-start gap-3 cursor-pointer">
               <input
+                id="signup-terms-ack"
                 type="checkbox"
                 name="terms"
                 required
-                class="mt-1 w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
+                class={SIGNUP_CHECKBOX_CLASS}
               />
               <span class="text-sm text-text-label">
                 I have read and agree to the
@@ -173,6 +178,10 @@
               </span>
             </label>
           </div>
+
+          <SignupScopeAck formatName={data.format.name} regions={data.regions} {selectedRegionId} />
+
+          <FreeDivisionAck visible={needsFreeDivisionAck} />
 
           <!-- Info Box -->
           <div

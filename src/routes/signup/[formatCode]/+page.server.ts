@@ -6,8 +6,8 @@ import { get1v1SignupContext, signup1v1 } from '$lib/server/services/signup1v1';
 import {
   getSignupSeasonForRegion,
   getRegionsOpenForSignup,
-  getOpenSignupFormats,
 } from '$lib/server/services/signupSeasons';
+import { formAcknowledgedSignupScope } from '$lib/utils/signupAck';
 import { getSignupFeeSummary } from '$lib/server/services/signupFees';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
@@ -31,9 +31,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     // Individual format - handle signup directly here
     const context = await get1v1SignupContext(locals.user?.steamId ?? null, format.id);
 
-    const [availableRegions, openFormats, fee, divisions] = await Promise.all([
+    const [availableRegions, fee, divisions] = await Promise.all([
       getRegionsOpenForSignup(format.id),
-      getOpenSignupFormats(),
       getSignupFeeSummary(format.id),
       getVisibleDivisions(format.id),
     ]);
@@ -66,12 +65,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         isIndividual: format.isIndividual,
         themeKey: format.themeKey,
       },
-      formats: openFormats.map((entry) => ({
-        id: entry.id,
-        name: entry.name,
-        code: entry.code,
-        isIndividual: entry.isIndividual,
-      })),
       regions: availableRegions,
       divisions,
       fee,
@@ -122,6 +115,11 @@ export const actions: Actions = {
     }
 
     const { regionId, divisionId } = validation.data;
+    if (!formAcknowledgedSignupScope(formData)) {
+      return fail(400, {
+        error: 'You must confirm the region, format, and season you are signing up for',
+      });
+    }
     const freeDivisionAcknowledged = formAcknowledgedFreeDivision(formData);
 
     try {

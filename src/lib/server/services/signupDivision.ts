@@ -5,7 +5,11 @@
 
 import { prisma } from '$lib/server/db';
 import { badRequest } from '$lib/server/utils/errors';
-import { FREE_DIVISION_ACK_FIELD, isFreeDivision } from '$lib/utils/signupDivision';
+import {
+  FREE_DIVISION_ACK_FIELD,
+  isFreeDivision,
+  needsFreeDivisionAcknowledgment,
+} from '$lib/utils/signupDivision';
 
 export type SignupDivision = {
   id: number;
@@ -20,6 +24,7 @@ export function signupDivisionSelectionError(params: {
   regionId: number;
   formatId: number;
   freeDivisionAcknowledged: boolean;
+  siblingSignupCosts: number[];
 }): string | null {
   if (!params.division) return 'Invalid division selected';
   if (params.division.regionId !== params.regionId) {
@@ -28,7 +33,10 @@ export function signupDivisionSelectionError(params: {
   if (params.division.formatId !== params.formatId) {
     return 'Division does not match this format';
   }
-  if (isFreeDivision(params.division.signupCost) && !params.freeDivisionAcknowledged) {
+  if (
+    needsFreeDivisionAcknowledgment(params.division.signupCost, params.siblingSignupCosts) &&
+    !params.freeDivisionAcknowledged
+  ) {
     return 'You must acknowledge that if administrators later place you in a paid division, you will have to pay to participate';
   }
   return null;
@@ -46,11 +54,23 @@ export async function requireSignupDivision(params: {
   });
   if (!division) badRequest('Invalid division selected');
 
+  const siblingCosts = isFreeDivision(division.signupCost)
+    ? await prisma.division.findMany({
+        where: {
+          regionId: params.regionId,
+          formatId: params.formatId,
+          hidden: 0,
+        },
+        select: { signupCost: true },
+      })
+    : [];
+
   const message = signupDivisionSelectionError({
     division,
     regionId: params.regionId,
     formatId: params.formatId,
     freeDivisionAcknowledged: params.freeDivisionAcknowledged,
+    siblingSignupCosts: siblingCosts.map((entry) => entry.signupCost),
   });
   if (message) badRequest(message);
 

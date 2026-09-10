@@ -6,11 +6,16 @@
   import Card from '$lib/components/ui/Card.svelte';
   import SignupLoginGate from '$lib/components/signup/SignupLoginGate.svelte';
   import SignupPicks from '$lib/components/signup/SignupPicks.svelte';
+  import SignupScopeAck from '$lib/components/signup/SignupScopeAck.svelte';
+  import FreeDivisionAck from '$lib/components/signup/FreeDivisionAck.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
+  import { SIGNUP_CHECKBOX_CLASS } from '$lib/utils/signupAck';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let isSubmitting = $state(false);
+  let needsFreeDivisionAck = $state(false);
+  let selectedRegionId = $state<number | null>(null);
 
   const themeClasses = $derived(getFormatThemeClasses(data.format.themeKey));
 </script>
@@ -88,11 +93,11 @@
           }}
         >
           <SignupPicks
-            formats={data.formats}
             regions={data.regions}
             divisions={data.divisions}
-            currentFormatId={data.format.id}
             fee={data.fee}
+            bind:selectedRegionId
+            bind:needsFreeDivisionAck
           />
 
           <!-- Info Box -->
@@ -111,12 +116,13 @@
 
           <!-- Terms & Conditions -->
           <div class="mb-6">
-            <label class="flex items-start gap-3 cursor-pointer">
+            <label for="signup-rules-ack" class="flex items-start gap-3 cursor-pointer">
               <input
+                id="signup-rules-ack"
                 type="checkbox"
                 name="rules"
                 required
-                class="mt-1 w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
+                class={SIGNUP_CHECKBOX_CLASS}
               />
               <span class="text-sm text-text-label">
                 I agree to follow the
@@ -126,6 +132,10 @@
               </span>
             </label>
           </div>
+
+          <SignupScopeAck formatName={data.format.name} regions={data.regions} {selectedRegionId} />
+
+          <FreeDivisionAck visible={needsFreeDivisionAck} />
 
           <!-- Submit Button -->
           <div class="flex items-center gap-4">

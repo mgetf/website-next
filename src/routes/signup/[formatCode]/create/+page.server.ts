@@ -5,8 +5,8 @@ import { getSignupContext, createTeam } from '$lib/server/services/teamSignup';
 import {
   getSignupSeasonForRegion,
   getRegionsOpenForSignup,
-  getOpenSignupFormats,
 } from '$lib/server/services/signupSeasons';
+import { formAcknowledgedSignupScope } from '$lib/utils/signupAck';
 import { getSignupFeeSummary } from '$lib/server/services/signupFees';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { checkPaymentRequired } from '$lib/server/services/payments';
@@ -43,9 +43,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const context = await getSignupContext(locals.user?.steamId ?? null, format.id);
 
-  const [regions, openFormats, fee, divisions] = await Promise.all([
+  const [regions, fee, divisions] = await Promise.all([
     getRegionsOpenForSignup(format.id),
-    getOpenSignupFormats(),
     getSignupFeeSummary(format.id),
     getVisibleDivisions(format.id),
   ]);
@@ -77,12 +76,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       supportsAcronym: format.supportsAcronym,
       themeKey: format.themeKey,
     },
-    formats: openFormats.map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      code: entry.code,
-      isIndividual: entry.isIndividual,
-    })),
     regions,
     divisions,
     fee,
@@ -119,6 +112,11 @@ export const actions: Actions = {
     if (!validation.success) return validationError(validation.errors);
 
     const { name, acronym, regionId, divisionId, joinPassword } = validation.data;
+    if (!formAcknowledgedSignupScope(formData)) {
+      return fail(400, {
+        error: 'You must confirm the region, format, and season you are signing up for',
+      });
+    }
     const freeDivisionAcknowledged = formAcknowledgedFreeDivision(formData);
     const avatar = formData.get('avatar');
 

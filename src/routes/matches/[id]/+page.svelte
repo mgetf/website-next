@@ -409,11 +409,13 @@
 
   const canSubmitScores = $derived(
     isUnplayed &&
-      (data.permissions.isHomeOwner || data.permissions.isAwayOwner || data.permissions.isAdmin),
+      (data.permissions.isHomeManager ||
+        data.permissions.isAwayManager ||
+        data.permissions.isAdmin),
   );
 
   const canDispute = $derived(
-    data.canDispute && (data.permissions.isHomeOwner || data.permissions.isAwayOwner),
+    data.canDispute && (data.permissions.isHomeManager || data.permissions.isAwayManager),
   );
 
   type BadgeColor = 'yellow' | 'green' | 'red' | 'zinc';
@@ -445,13 +447,13 @@
 
   // Map ban/pick state
   const mapBanActive = $derived(data.mapBanStatus && !data.mapBanStatus.isComplete && isUnplayed);
-  const isUserTurn = $derived(() => {
+  const isUserTurn = $derived.by(() => {
     if (!mapBanActive || !data.mapBanStatus) return false;
     const currentTurn = data.mapBanStatus.matchMapBan.currentTurn;
     const expectedTeamId = currentTurn === 0 ? match.homeTeamId : match.awayTeamId;
 
-    if (data.permissions.isHomeOwner && expectedTeamId === match.homeTeamId) return true;
-    if (data.permissions.isAwayOwner && expectedTeamId === match.awayTeamId) return true;
+    if (data.permissions.isHomeManager && expectedTeamId === match.homeTeamId) return true;
+    if (data.permissions.isAwayManager && expectedTeamId === match.awayTeamId) return true;
     return false;
   });
 
@@ -854,7 +856,7 @@
             />
             <div>
               <p class="font-semibold text-white">{getHomeName()}</p>
-              {#if data.permissions.isHomeOwner}
+              {#if data.permissions.isHomeManager}
                 <p class="text-xs text-info-400 font-medium">You</p>
               {:else}
                 <p class="text-xs text-text-muted">Home</p>
@@ -865,7 +867,7 @@
           <div class="flex items-center gap-3 justify-end">
             <div class="text-right">
               <p class="font-semibold text-white">{getAwayName()}</p>
-              {#if data.permissions.isAwayOwner}
+              {#if data.permissions.isAwayManager}
                 <p class="text-xs text-info-400 font-medium">You</p>
               {:else}
                 <p class="text-xs text-text-muted">Away</p>
@@ -1226,7 +1228,7 @@
       </div>
 
       <!-- Available Maps -->
-      {#if isUserTurn()}
+      {#if isUserTurn}
         <div class="mb-6">
           <h3 class="font-semibold text-white mb-3">Available Maps</h3>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

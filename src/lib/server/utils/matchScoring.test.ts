@@ -118,7 +118,9 @@ describe('canUserManageMatch', () => {
       formatId: FORMAT_2V2,
       players: [
         { playerSteamId: '76561198000000001', permissionLevel: 2, active: 1 },
+        { playerSteamId: '76561198000000004', permissionLevel: 1, active: 1 },
         { playerSteamId: '76561198000000002', permissionLevel: 0, active: 1 },
+        { playerSteamId: '76561198000000005', permissionLevel: 1, active: 0 },
       ],
     },
     awayTeam: {
@@ -131,11 +133,11 @@ describe('canUserManageMatch', () => {
     expect(canUserManageMatch(null, baseMatch).canManage).toBe(false);
   });
 
-  it('allows team owners and admins', () => {
+  it('allows team owners and site admins', () => {
     expect(canUserManageMatch(user(), baseMatch)).toMatchObject({
       canManage: true,
-      isHomeOwner: true,
-      isAwayOwner: false,
+      isHomeManager: true,
+      isAwayManager: false,
       isAdmin: false,
     });
 
@@ -145,15 +147,34 @@ describe('canUserManageMatch', () => {
         baseMatch,
       ),
     ).toMatchObject({ canManage: true, isAdmin: true });
+
+    expect(
+      canUserManageMatch(
+        user({ steamId: '76561198000000098', permissionLevel: UserRole.MODERATOR }),
+        baseMatch,
+      ),
+    ).toMatchObject({ canManage: true, isAdmin: true });
   });
 
-  it('denies inactive or non-owner 2v2 members', () => {
+  it('allows 2v2 team admins', () => {
+    expect(canUserManageMatch(user({ steamId: '76561198000000004' }), baseMatch)).toMatchObject({
+      canManage: true,
+      isHomeManager: true,
+      isAwayManager: false,
+      isAdmin: false,
+    });
+  });
+
+  it('denies inactive or non-manager 2v2 members', () => {
     expect(canUserManageMatch(user({ steamId: '76561198000000002' }), baseMatch).canManage).toBe(
+      false,
+    );
+    expect(canUserManageMatch(user({ steamId: '76561198000000005' }), baseMatch).canManage).toBe(
       false,
     );
   });
 
-  it('treats the sole active 1v1 member as owner regardless of permission level', () => {
+  it('treats the sole active 1v1 member as manager regardless of permission level', () => {
     const solo = {
       homeTeam: {
         formatId: FORMAT_1V1,
@@ -167,7 +188,7 @@ describe('canUserManageMatch', () => {
 
     expect(canUserManageMatch(user(), solo)).toMatchObject({
       canManage: true,
-      isHomeOwner: true,
+      isHomeManager: true,
     });
   });
 });

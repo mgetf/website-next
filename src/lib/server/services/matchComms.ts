@@ -8,6 +8,7 @@ import type { User, Match, MatchComm, Prisma } from '$prisma/client.js';
 import { MatchStatus, UserRole } from '$prisma/client.js';
 import { notFound, badRequest } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { isTeamManager } from '$lib/server/utils/matchScoring';
 
 const RESCHEDULE_RESPONSE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const RESCHEDULE_STATUS_PENDING = 0;
@@ -116,15 +117,16 @@ export async function getPendingReschedule(matchId: number) {
 }
 
 /**
- * Check if user can respond to a reschedule request
- * Only the opposing team owner or admins can respond
- * Requester can cancel their own request
+ * Check if user can respond to a reschedule request.
+ * Team managers (permission >= 1) or site admins can accept/deny.
+ * Requester can cancel their own request.
  */
 export function canRespondToReschedule(
   user: { steamId: string; permissionLevel: UserRole } | null,
   comm: MatchComm,
   match: Match & {
     homeTeam: {
+      formatId: number;
       players: Array<{
         playerSteamId: string;
         permissionLevel: number;
@@ -132,6 +134,7 @@ export function canRespondToReschedule(
       }>;
     };
     awayTeam: {
+      formatId: number;
       players: Array<{
         playerSteamId: string;
         permissionLevel: number;
@@ -148,16 +151,8 @@ export function canRespondToReschedule(
 
   if (isAdmin) return true;
 
-  const homeOwners = match.homeTeam.players
-    .filter((p) => p.permissionLevel === 2 && p.active === 1)
-    .map((p) => p.playerSteamId);
-
-  const awayOwners = match.awayTeam.players
-    .filter((p) => p.permissionLevel === 2 && p.active === 1)
-    .map((p) => p.playerSteamId);
-
-  const isHomeOwner = homeOwners.includes(user.steamId);
-  const isAwayOwner = awayOwners.includes(user.steamId);
+  const isHomeManager = isTeamManager(match.homeTeam, user.steamId);
+  const isAwayManager = isTeamManager(match.awayTeam, user.steamId);
   const isRequester = comm.owner === user.steamId;
 
   // Cancel: only requester or admin
@@ -165,9 +160,9 @@ export function canRespondToReschedule(
     return isRequester || isAdmin;
   }
 
-  // Accept/Deny: only opposing team owner or admin (not requester)
+  // Accept/Deny: opposing team manager or admin (not requester)
   if (action === 'accept' || action === 'deny') {
-    return !isRequester && (isHomeOwner || isAwayOwner || isAdmin);
+    return !isRequester && (isHomeManager || isAwayManager);
   }
 
   return false;

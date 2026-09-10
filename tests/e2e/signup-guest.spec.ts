@@ -61,6 +61,7 @@ test('after login the create form is available', async ({ browser }) => {
   try {
     await expect(session.page.getByRole('heading', { name: 'Create New 2v2 Team' })).toBeVisible();
     await expect(session.page.locator('#regionId')).toBeVisible();
+    await expect(session.page.locator('#formatId')).toHaveCount(0);
   } finally {
     await session.context.close();
   }

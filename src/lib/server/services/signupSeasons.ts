@@ -96,11 +96,19 @@ export async function getRegionsOpenForSignup(formatId: number) {
           currencyCode: true,
         },
       },
+      season: {
+        select: {
+          seasonNum: true,
+        },
+      },
     },
     orderBy: { regionId: 'asc' },
   });
 
-  return rows.map((row) => row.region);
+  return rows.map((row) => ({
+    ...row.region,
+    seasonNum: row.season.seasonNum,
+  }));
 }
 
 /**

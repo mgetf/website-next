@@ -26,6 +26,7 @@ describe('signupDivisionSelectionError', () => {
         regionId: 4,
         formatId: FORMAT_2V2,
         freeDivisionAcknowledged: false,
+        siblingSignupCosts: [],
       }),
     ).toBe('Invalid division selected');
   });
@@ -37,6 +38,7 @@ describe('signupDivisionSelectionError', () => {
         regionId: 1,
         formatId: FORMAT_2V2,
         freeDivisionAcknowledged: false,
+        siblingSignupCosts: [invite.signupCost],
       }),
     ).toBe('Division does not match the selected region');
 
@@ -46,17 +48,19 @@ describe('signupDivisionSelectionError', () => {
         regionId: 4,
         formatId: FORMAT_1V1,
         freeDivisionAcknowledged: false,
+        siblingSignupCosts: [invite.signupCost],
       }),
     ).toBe('Division does not match this format');
   });
 
-  it('requires acknowledgment only for free divisions', () => {
+  it('requires acknowledgment only for a free division when a paid option exists', () => {
     expect(
       signupDivisionSelectionError({
         division: freeOpen,
         regionId: 4,
         formatId: FORMAT_2V2,
         freeDivisionAcknowledged: false,
+        siblingSignupCosts: [0, 10],
       }),
     ).toMatch(/pay to participate/i);
 
@@ -66,6 +70,17 @@ describe('signupDivisionSelectionError', () => {
         regionId: 4,
         formatId: FORMAT_2V2,
         freeDivisionAcknowledged: true,
+        siblingSignupCosts: [0, 10],
+      }),
+    ).toBeNull();
+
+    expect(
+      signupDivisionSelectionError({
+        division: freeOpen,
+        regionId: 4,
+        formatId: FORMAT_2V2,
+        freeDivisionAcknowledged: false,
+        siblingSignupCosts: [0, 0],
       }),
     ).toBeNull();
 
@@ -75,6 +90,7 @@ describe('signupDivisionSelectionError', () => {
         regionId: 4,
         formatId: FORMAT_2V2,
         freeDivisionAcknowledged: false,
+        siblingSignupCosts: [0, 10],
       }),
     ).toBeNull();
   });

@@ -209,8 +209,9 @@ test('seed league, create home team, seed away + paid teams, open sessions', asy
   await selectControlled(homeCaptain.page, '#divisionId', { label: 'Invite - FREE' });
   await expect(homeCaptain.page.getByTestId('signup-fee-region').first()).toContainText('Free');
   await homeCaptain.page.locator('#joinPassword').fill(JOIN_PASSWORD);
-  await homeCaptain.page.locator('input[name="freeDivisionAck"]').check();
   await homeCaptain.page.locator('input[name="rules"]').check();
+  await homeCaptain.page.locator('#signup-scope-ack').check();
+  await homeCaptain.page.locator('input[name="freeDivisionAck"]').check();
 
   await Promise.all([
     homeCaptain.page.waitForURL(/\/teams\/\d+/),
@@ -524,8 +525,9 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   await selectControlled(solo1v1.page, '#regionId', { value: String(league.regionId) });
   await selectControlled(solo1v1.page, '#divisionId', { label: 'Invite - FREE' });
   await expect(solo1v1.page.getByTestId('signup-fee-region').first()).toContainText('Free');
-  await solo1v1.page.locator('input[name="freeDivisionAck"]').check();
   await solo1v1.page.locator('input[name="rules"]').check();
+  await solo1v1.page.locator('#signup-scope-ack').check();
+  await solo1v1.page.locator('input[name="freeDivisionAck"]').check();
   await Promise.all([
     solo1v1.page.waitForURL(new RegExp(`/users/${E2E_USERS.solo1v1.steamId}`)),
     solo1v1.page.getByRole('button', { name: 'Sign Up for 1v1 League' }).click(),

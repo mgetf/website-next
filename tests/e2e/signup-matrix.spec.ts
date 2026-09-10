@@ -124,8 +124,13 @@ async function completeSignup(
         value: String(region.divisions[format.id]),
       });
       await expect(session.page.getByTestId('signup-fee-region').first()).toContainText('Free');
-      await session.page.locator('input[name="freeDivisionAck"]').check();
+      await expect(session.page.locator('input[name="freeDivisionAck"]')).toHaveCount(0);
+      await expect(session.page.locator('#formatId')).toHaveCount(0);
+      await expect(session.page.locator('label[for="signup-scope-ack"]')).toContainText(
+        `${region.name} ${format.name} Season 1`,
+      );
       await session.page.locator('input[name="rules"]').check();
+      await session.page.locator('#signup-scope-ack').check();
       await Promise.all([
         session.page.waitForURL(new RegExp(`/users/${user.steamId}`), { timeout: 30_000 }),
         session.page.getByRole('button', { name: /Sign Up for/ }).click(),
@@ -142,8 +147,13 @@ async function completeSignup(
       });
       await expect(session.page.getByTestId('signup-fee-region').first()).toContainText('Free');
       await session.page.locator('#joinPassword').fill(JOIN_PASSWORD);
-      await session.page.locator('input[name="freeDivisionAck"]').check();
+      await expect(session.page.locator('input[name="freeDivisionAck"]')).toHaveCount(0);
+      await expect(session.page.locator('#formatId')).toHaveCount(0);
+      await expect(session.page.locator('label[for="signup-scope-ack"]')).toContainText(
+        `${region.name} ${format.name} Season 1`,
+      );
       await session.page.locator('input[name="rules"]').check();
+      await session.page.locator('#signup-scope-ack').check();
       await Promise.all([
         session.page.waitForURL(/\/teams\/\d+/, { timeout: 30_000 }),
         session.page.getByRole('button', { name: /^Create/ }).click(),

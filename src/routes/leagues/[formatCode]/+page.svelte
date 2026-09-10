@@ -7,14 +7,21 @@
   import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
+  import DivisionMatchList from '$lib/components/leagues/DivisionMatchList.svelte';
+  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
+  import type { LeagueDivisionMatch } from '$lib/types/league';
   import { getRegionAbbr as abbreviateRegion } from '$lib/utils/region';
+  import { flagForRegion } from '$lib/utils/regions';
+  import { defaultExpandedDivisionIds, isViewerStandingsTeam } from '$lib/utils/standingsHighlight';
+  import ChevronDown from '~icons/lucide/chevron-down';
 
   const standingsColumns = [
     { key: 'team', label: 'Team' },
     { key: 'record', label: 'Record' },
     { key: 'points', label: 'Avg Points' },
   ];
+  const emptyDivisionMatches: LeagueDivisionMatch[] = [];
 
   let activeTab = $state<'standings' | 'info'>('standings');
   let isEditing = $state(false);
@@ -56,6 +63,7 @@
         players?: Array<{ steamId: string; name: string; avatar: string | null }>;
       }>;
     }>;
+    matchesByDivision: Record<number, LeagueDivisionMatch[]>;
     staffByDivision: Array<{
       division: { id: number; name: string };
       staff: Array<{
@@ -87,6 +95,8 @@
       data.user?.banStatus !== 'BANNED',
   );
 
+  const viewerSteamId = $derived(data.user?.steamId as string | undefined);
+
   let selectedSeason = $state(0);
   let selectedRegion = $state(0);
   let isInitialized = $state(false);
@@ -112,12 +122,22 @@
   );
 
   function teamRowClass(team: PageData['teamsByDivision'][0]['teams'][0]): string {
-    if (team.isWithdrawn) return 'shadow-[inset_4px_0_0_0_var(--color-text-muted)]';
-    if (team.status === 'READY') return 'shadow-[inset_4px_0_0_0_var(--color-success-500)]';
-    if (team.status === 'PENDING') return 'shadow-[inset_4px_0_0_0_var(--color-warning-500)]';
-    if (team.status === 'UNREADY') return 'shadow-[inset_4px_0_0_0_var(--color-danger-500)]';
-    if (team.status === 'PLACEMENT') return 'shadow-[inset_4px_0_0_0_var(--color-info-500)]';
-    return '';
+    const classes: string[] = [];
+    if (team.isWithdrawn) classes.push('shadow-[inset_4px_0_0_0_var(--color-text-muted)]');
+    else if (team.status === 'READY')
+      classes.push('shadow-[inset_4px_0_0_0_var(--color-success-500)]');
+    else if (team.status === 'PENDING')
+      classes.push('shadow-[inset_4px_0_0_0_var(--color-warning-500)]');
+    else if (team.status === 'UNREADY')
+      classes.push('shadow-[inset_4px_0_0_0_var(--color-danger-500)]');
+    else if (team.status === 'PLACEMENT')
+      classes.push('shadow-[inset_4px_0_0_0_var(--color-info-500)]');
+
+    if (isViewerStandingsTeam(team, viewerSteamId, data.format.isIndividual)) {
+      classes.push('bg-primary-500/10');
+    }
+
+    return classes.join(' ');
   }
 
   $effect(() => {
@@ -149,6 +169,52 @@
     const region = data.regions.find((r: (typeof data.regions)[number]) => r.id === regionId);
     return region ? abbreviateRegion(region.name) : 'NA';
   }
+
+  function regionFlagCode(regionId: number): string {
+    return flagForRegion(getRegionAbbr(regionId));
+  }
+
+  const selectedRegionFlagCode = $derived(regionFlagCode(selectedRegion));
+
+  function viewerTeamIdIn(teams: PageData['teamsByDivision'][0]['teams']): number | undefined {
+    return teams.find((team) =>
+      isViewerStandingsTeam(team, viewerSteamId, data.format.isIndividual),
+    )?.id;
+  }
+
+  const canCollapseDivisions = $derived(data.teamsByDivision.length > 1);
+
+  const defaultExpandedIds = $derived(
+    defaultExpandedDivisionIds(
+      data.teamsByDivision.map((divisionData: PageData['teamsByDivision'][number]) => ({
+        id: divisionData.division.id,
+        hasViewer: viewerTeamIdIn(divisionData.teams) != null,
+      })),
+    ),
+  );
+
+  let expandedOverride = $state<number[] | null>(null);
+
+  $effect(() => {
+    data.selectedSeasonId;
+    data.selectedRegionId;
+    expandedOverride = null;
+  });
+
+  const expandedIds = $derived(new Set(expandedOverride ?? defaultExpandedIds));
+
+  function isDivisionExpanded(divisionId: number): boolean {
+    if (!canCollapseDivisions) return true;
+    return expandedIds.has(divisionId);
+  }
+
+  function toggleDivision(divisionId: number) {
+    if (!canCollapseDivisions) return;
+    const next = new Set(expandedIds);
+    if (next.has(divisionId)) next.delete(divisionId);
+    else next.add(divisionId);
+    expandedOverride = [...next];
+  }
 </script>
 
 <div class="min-h-screen pb-16">
@@ -167,14 +233,19 @@
           <span class="text-sm font-medium text-text-body">Region</span>
           <div class="flex gap-2">
             {#each regionsWithSeasons as region}
+              {@const flagCode = regionFlagCode(region.id)}
               <button
                 onclick={() => {
                   selectedRegion = region.id;
                 }}
-                class="px-6 py-2 rounded font-medium transition-all {selectedRegion === region.id
+                class="inline-flex items-center gap-2 px-6 py-2 rounded font-medium transition-all {selectedRegion ===
+                region.id
                   ? 'bg-surface-hover text-white border border-zinc-600'
                   : 'bg-surface-card text-text-label hover:bg-surface-input border border-border-default'}"
               >
+                {#if flagCode}
+                  <FlagIcon code={flagCode} class="h-3.5 w-5 overflow-hidden rounded-sm" />
+                {/if}
                 {getRegionAbbr(region.id)}
               </button>
             {/each}
@@ -386,98 +457,138 @@
               </p>
             </div>
           {:else}
-            {#each data.teamsByDivision as divisionData}
-              <div
-                class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default overflow-hidden"
-              >
-                <!-- Division Header -->
-                <div class="bg-surface-page/80 px-6 py-4 border-b border-border-default">
-                  <h2 class="text-2xl font-bold text-white uppercase tracking-wide">
-                    {divisionData.division.name}
-                    <span class="text-text-muted">({getRegionAbbr(selectedRegion)})</span>
-                  </h2>
-                  {#if divisionData.division.id === 0}
-                    <p class="text-sm text-text-body mt-1">
-                      Signed up and waiting for a division. See who else is playing this season.
-                    </p>
-                  {/if}
-                </div>
-
-                <!-- Standings Table -->
-                <DataTable
-                  data={divisionData.teams}
-                  columns={standingsColumns}
-                  emptyMessage={`No ${data.format.isIndividual ? 'players' : 'teams'} in this division`}
-                  rowClass={teamRowClass}
-                >
-                  {#snippet cell(team: PageData['teamsByDivision'][0]['teams'][0], col)}
-                    {#if col.key === 'team'}
-                      {#if data.format.isIndividual}
-                        <a
-                          href="/users/{team.playerId}"
-                          class="flex items-center gap-2 text-sm font-medium hover:{themeClasses.hoverText400} transition-colors {team.isWithdrawn
-                            ? 'text-text-body'
-                            : 'text-white'}"
-                        >
-                          <img
-                            src={team.playerAvatar ||
-                              `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
-                            alt="{team.playerName} avatar"
-                            class="w-8 h-8 rounded object-cover {team.isWithdrawn
-                              ? 'grayscale'
-                              : ''}"
-                          />
-                          <span>{team.playerName}</span>
-                          {#if team.isWithdrawn}
-                            <span
-                              class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"
-                              >WITHDRAWN</span
-                            >
-                          {/if}
-                        </a>
-                      {:else}
-                        <a
-                          href="/teams/{team.id}"
-                          class="flex items-center gap-2 text-sm font-medium hover:{themeClasses.hoverText400} transition-colors {team.isWithdrawn
-                            ? 'text-text-body'
-                            : 'text-white'}"
-                        >
-                          <img
-                            src={team.avatar ||
-                              `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
-                            alt="{team.name} logo"
-                            class="w-8 h-8 rounded object-cover {team.isWithdrawn
-                              ? 'grayscale'
-                              : ''}"
-                          />
-                          <span class="min-w-0">
-                            <span class="block">{team.name}</span>
-                            {#if team.players && team.players.length > 0}
-                              <span class="block text-xs text-text-muted truncate">
-                                {team.players.map((player) => player.name).join(', ')}
-                              </span>
-                            {/if}
-                          </span>
-                          {#if team.isWithdrawn}
-                            <span
-                              class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"
-                              >WITHDRAWN</span
-                            >
-                          {/if}
-                        </a>
-                      {/if}
-                    {:else if col.key === 'record'}
-                      <span class="text-text-label text-sm">{team.wins}-{team.losses}</span>
-                    {:else if col.key === 'points'}
+            {#each data.teamsByDivision as divisionData (divisionData.division.id)}
+              {@const expanded = isDivisionExpanded(divisionData.division.id)}
+              <section>
+                <h2 class="m-0">
+                  {#if canCollapseDivisions}
+                    <button
+                      type="button"
+                      onclick={() => toggleDivision(divisionData.division.id)}
+                      aria-expanded={expanded}
+                      class="group flex w-full items-center justify-between gap-4 text-left"
+                    >
                       <span
-                        class="{team.isWithdrawn
-                          ? 'text-text-body'
-                          : 'text-white'} text-sm font-medium">{team.points.toFixed(1)}</span
+                        class="flex min-w-0 items-center gap-3 text-3xl font-black text-white uppercase tracking-wide"
                       >
+                        {#if selectedRegionFlagCode}
+                          <FlagIcon
+                            code={selectedRegionFlagCode}
+                            class="h-8 w-12 overflow-hidden rounded-md"
+                          />
+                        {/if}
+                        <span class="truncate">{divisionData.division.name}</span>
+                      </span>
+                      <ChevronDown
+                        class="size-5 shrink-0 text-text-muted transition-transform group-hover:text-white {expanded
+                          ? 'rotate-180'
+                          : ''}"
+                      />
+                    </button>
+                  {:else}
+                    <span
+                      class="flex items-center gap-3 text-4xl font-black text-white uppercase tracking-wide"
+                    >
+                      {#if selectedRegionFlagCode}
+                        <FlagIcon
+                          code={selectedRegionFlagCode}
+                          class="h-8 w-12 overflow-hidden rounded-md"
+                        />
+                      {/if}
+                      {divisionData.division.name}
+                    </span>
+                  {/if}
+                </h2>
+                {#if expanded}
+                  <div class="space-y-3 pt-5">
+                    {#if divisionData.division.id === 0}
+                      <p class="text-xs text-text-body">
+                        Signed up and waiting for a division. See who else is playing this season.
+                      </p>
                     {/if}
-                  {/snippet}
-                </DataTable>
-              </div>
+                    <DataTable
+                      data={divisionData.teams}
+                      columns={standingsColumns}
+                      compact
+                      emptyMessage={`No ${data.format.isIndividual ? 'players' : 'teams'} in this division`}
+                      rowClass={teamRowClass}
+                    >
+                      {#snippet cell(team: PageData['teamsByDivision'][0]['teams'][0], col)}
+                        {#if col.key === 'team'}
+                          {#if data.format.isIndividual}
+                            <a
+                              href="/users/{team.playerId}"
+                              class="flex items-center gap-2 min-w-0 text-sm font-medium hover:{themeClasses.hoverText400} transition-colors {team.isWithdrawn
+                                ? 'text-text-body'
+                                : 'text-white'}"
+                            >
+                              <img
+                                src={team.playerAvatar ||
+                                  `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
+                                alt="{team.playerName} avatar"
+                                class="w-6 h-6 rounded object-cover shrink-0 {team.isWithdrawn
+                                  ? 'grayscale'
+                                  : ''}"
+                              />
+                              <span class="truncate">{team.playerName}</span>
+                              {#if team.isWithdrawn}
+                                <span
+                                  class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"
+                                  >WITHDRAWN</span
+                                >
+                              {/if}
+                            </a>
+                          {:else}
+                            <a
+                              href="/teams/{team.id}"
+                              class="flex items-center gap-2 min-w-0 text-sm font-medium hover:{themeClasses.hoverText400} transition-colors {team.isWithdrawn
+                                ? 'text-text-body'
+                                : 'text-white'}"
+                            >
+                              <img
+                                src={team.avatar ||
+                                  `https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg`}
+                                alt="{team.name} logo"
+                                class="w-6 h-6 rounded object-cover shrink-0 {team.isWithdrawn
+                                  ? 'grayscale'
+                                  : ''}"
+                              />
+                              <span class="min-w-0 truncate">
+                                {team.name}{#if team.players && team.players.length > 0}<span
+                                    class="text-xs font-normal text-text-muted"
+                                  >
+                                    · {team.players.map((player) => player.name).join(', ')}</span
+                                  >{/if}
+                              </span>
+                              {#if team.isWithdrawn}
+                                <span
+                                  class="px-1.5 py-0.5 text-xs font-medium bg-surface-hover text-text-body rounded"
+                                  >WITHDRAWN</span
+                                >
+                              {/if}
+                            </a>
+                          {/if}
+                        {:else if col.key === 'record'}
+                          <span class="text-text-label text-sm">{team.wins}-{team.losses}</span>
+                        {:else if col.key === 'points'}
+                          <span
+                            class="{team.isWithdrawn
+                              ? 'text-text-body'
+                              : 'text-white'} text-sm font-medium">{team.points.toFixed(1)}</span
+                          >
+                        {/if}
+                      {/snippet}
+                    </DataTable>
+                    {#if divisionData.division.id !== 0}
+                      <DivisionMatchList
+                        matches={data.matchesByDivision[divisionData.division.id] ??
+                          emptyDivisionMatches}
+                        viewerTeamId={viewerTeamIdIn(divisionData.teams)}
+                      />
+                    {/if}
+                  </div>
+                {/if}
+              </section>
             {/each}
           {/if}
         </main>
@@ -503,8 +614,16 @@
                   <div class="border-b border-border-default/50 last:border-0">
                     <!-- Division Header -->
                     <div class="px-4 py-2 bg-surface-page/50">
-                      <h4 class="text-xs font-bold text-text-body uppercase tracking-wider">
-                        {divisionStaff.division.name} ({getRegionAbbr(selectedRegion)})
+                      <h4
+                        class="flex items-center gap-1.5 text-xs font-bold text-text-body uppercase tracking-wider"
+                      >
+                        {#if selectedRegionFlagCode}
+                          <FlagIcon
+                            code={selectedRegionFlagCode}
+                            class="h-3.5 w-5 overflow-hidden rounded-sm"
+                          />
+                        {/if}
+                        {divisionStaff.division.name}
                       </h4>
                     </div>
 

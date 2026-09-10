@@ -154,7 +154,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // Check if this user has a pending reschedule from opponent
     hasPendingReschedule =
       pendingReschedule.owner !== user.steamId &&
-      (permissions.isHomeOwner || permissions.isAwayOwner);
+      (permissions.isHomeManager || permissions.isAwayManager);
   }
 
   // Get map ban status
@@ -198,8 +198,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   // Check if user can upload demos (team member or admin)
   const canUploadDemo = user
-    ? permissions.isHomeOwner ||
-      permissions.isAwayOwner ||
+    ? permissions.isHomeManager ||
+      permissions.isAwayManager ||
       permissions.isAdmin ||
       homeRoster.some((p) => p.steamId === user.steamId) ||
       awayRoster.some((p) => p.steamId === user.steamId)

@@ -10,6 +10,7 @@ import {
 } from '$lib/server/services/teams';
 import { isUserSignedUpForFormat } from '$lib/server/services/users';
 import { getStaffForLeague } from '$lib/server/services/staffAssignments';
+import { getLeagueMatchesByDivision } from '$lib/server/services/leagueMatches';
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
@@ -144,8 +145,12 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
         ]
       : [];
 
-  const staffByDivision =
-    selectedRegionId != null ? await getStaffForLeague(format.id, selectedRegionId) : [];
+  const [staffByDivision, matchesByDivision] = await Promise.all([
+    selectedRegionId != null ? getStaffForLeague(format.id, selectedRegionId) : [],
+    selectedSeasonId != null && selectedRegionId != null
+      ? getLeagueMatchesByDivision(selectedSeasonId, selectedRegionId)
+      : Promise.resolve({}),
+  ]);
 
   const selectedRegion = allRegions.find((r) => r.id === selectedRegionId);
   const selectedSeason = allSeasons.find((s) => s.id === selectedSeasonId);
@@ -180,6 +185,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     selectedRegionName: selectedRegion?.name || 'Unknown',
     selectedSeasonNum: selectedSeason?.seasonNum || 0,
     teamsByDivision: teamsByDivision.filter((d) => d.teams.length > 0),
+    matchesByDivision,
     staffByDivision,
     deadlines: {
       signupClosed: !selectedSeason?.signupsOpen,

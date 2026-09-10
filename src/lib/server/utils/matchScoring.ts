@@ -23,8 +23,8 @@ type MatchTeamSide = {
 };
 
 /**
- * Check if user can manage match (submit scores, dispute, etc.)
- * Team owners (permission=2) or admins/mods can manage
+ * Check if user can manage match (submit scores, map bans, dispute, etc.).
+ * Team managers (permission >= 1) or site admins/mods can manage.
  */
 export function canUserManageMatch(
   user: SessionUser | null,
@@ -34,15 +34,15 @@ export function canUserManageMatch(
   },
 ): {
   canManage: boolean;
-  isHomeOwner: boolean;
-  isAwayOwner: boolean;
+  isHomeManager: boolean;
+  isAwayManager: boolean;
   isAdmin: boolean;
 } {
   if (!user) {
     return {
       canManage: false,
-      isHomeOwner: false,
-      isAwayOwner: false,
+      isHomeManager: false,
+      isAwayManager: false,
       isAdmin: false,
     };
   }
@@ -50,25 +50,23 @@ export function canUserManageMatch(
   const isAdmin =
     user.permissionLevel === UserRole.ADMIN || user.permissionLevel === UserRole.MODERATOR;
 
-  const isHomeOwner = isTeamOwner(match.homeTeam, user.steamId);
-  const isAwayOwner = isTeamOwner(match.awayTeam, user.steamId);
+  const isHomeManager = isTeamManager(match.homeTeam, user.steamId);
+  const isAwayManager = isTeamManager(match.awayTeam, user.steamId);
 
-  const canManage = isAdmin || isHomeOwner || isAwayOwner;
+  const canManage = isAdmin || isHomeManager || isAwayManager;
 
-  return { canManage, isHomeOwner, isAwayOwner, isAdmin };
+  return { canManage, isHomeManager, isAwayManager, isAdmin };
 }
 
 /**
- * Determine whether a user owns a match team.
- * For 1v1 (single-person) entries the sole active member is the owner, so a
- * stale permission level (e.g. left over from a prior disband/leave) does not
- * lock the player out of their own match.
+ * Active team admin/owner (permissionLevel >= 1), or the sole 1v1 member.
+ * For 1v1 the sole active member is treated as manager even with a stale
+ * permission level (e.g. left over from a prior disband/leave).
  */
-function isTeamOwner(team: MatchTeamSide, steamId: string): boolean {
+export function isTeamManager(team: MatchTeamSide, steamId: string): boolean {
   const isSoloEntry = team.formatId === FORMAT_1V1;
   return team.players.some(
-    (p) =>
-      p.playerSteamId === steamId && p.active === 1 && (isSoloEntry || p.permissionLevel === 2),
+    (p) => p.playerSteamId === steamId && p.active === 1 && (isSoloEntry || p.permissionLevel >= 1),
   );
 }
 

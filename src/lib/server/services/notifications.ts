@@ -269,8 +269,56 @@ export async function createNotificationForTeam(
 }
 
 /**
+ * Unique Steam IDs from a roster query, excluding the actor when provided.
+ * Callers decide who is in `players` (active-only, owners-only, etc.).
+ */
+export function uniqueRosterSteamIds(
+  players: Array<{ playerSteamId: string }>,
+  actorSteamId?: string,
+): string[] {
+  return [...new Set(players.map((p) => p.playerSteamId))].filter(
+    (steamId) => steamId !== actorSteamId,
+  );
+}
+
+/**
+ * Create notifications for every active roster member on the given teams.
+ * Used for match creation and bye weeks so regular members are not left out.
+ */
+export async function createNotificationForRoster(
+  teamIds: number[],
+  type: NotificationType,
+  url: string,
+  message: string,
+  actorSteamId?: string,
+) {
+  if (teamIds.length === 0) return;
+
+  const teamPlayers = await prisma.playerInTeam.findMany({
+    where: {
+      teamId: { in: teamIds },
+      active: 1,
+    },
+    select: {
+      playerSteamId: true,
+    },
+  });
+
+  const notificationsToInsert = uniqueRosterSteamIds(teamPlayers, actorSteamId).map((steamId) => ({
+    userSteamId: steamId,
+    type,
+    url,
+    message,
+    actorSteamId: actorSteamId || null,
+    isRead: false,
+  }));
+
+  await createManyAndEmit(notificationsToInsert);
+}
+
+/**
  * Create notifications for team owners/admins only (permissionLevel >= 1)
- * Used for match creation, score submissions, etc.
+ * Used for score submissions, disputes, etc.
  */
 export async function createNotificationForTeamOwners(
   teamIds: number[],
@@ -290,18 +338,14 @@ export async function createNotificationForTeamOwners(
     },
   });
 
-  const uniqueSteamIds = [...new Set(teamOwners.map((p) => p.playerSteamId))];
-
-  const notificationsToInsert = uniqueSteamIds
-    .filter((steamId) => steamId !== actorSteamId)
-    .map((steamId) => ({
-      userSteamId: steamId,
-      type,
-      url,
-      message,
-      actorSteamId: actorSteamId || null,
-      isRead: false,
-    }));
+  const notificationsToInsert = uniqueRosterSteamIds(teamOwners, actorSteamId).map((steamId) => ({
+    userSteamId: steamId,
+    type,
+    url,
+    message,
+    actorSteamId: actorSteamId || null,
+    isRead: false,
+  }));
 
   await createManyAndEmit(notificationsToInsert);
 }

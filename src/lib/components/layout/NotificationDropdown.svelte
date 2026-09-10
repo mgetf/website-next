@@ -6,6 +6,7 @@
   import MessageSquare from '~icons/lucide/message-square';
   import User from '~icons/lucide/user';
   import Swords from '~icons/lucide/swords';
+  import CalendarOff from '~icons/lucide/calendar-off';
   import Mail from '~icons/lucide/mail';
   import Shield from '~icons/lucide/shield';
   import Bell from '~icons/lucide/bell';
@@ -73,6 +74,8 @@
         return User;
       case 'MATCH_CREATED':
         return Swords;
+      case 'BYE_WEEK':
+        return CalendarOff;
       case 'PLAYER_INVITE':
         return Mail;
       case 'ADMIN_ACTION':
@@ -90,6 +93,8 @@
         return 'New player join request';
       case 'MATCH_CREATED':
         return 'New match scheduled';
+      case 'BYE_WEEK':
+        return 'Bye week scheduled';
       case 'PLAYER_INVITE':
         return 'Team invitation';
       case 'ADMIN_ACTION':

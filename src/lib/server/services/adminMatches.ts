@@ -12,7 +12,7 @@ import {
   calculatePointsPerGame,
   localDatetimeToUtc,
 } from '$lib/server/utils/matchHelpers';
-import { createNotificationForTeamOwners } from './notifications';
+import { createNotificationForRoster } from './notifications';
 import { formatPlayoffRound } from '$lib/utils/playoffs';
 
 /**
@@ -281,8 +281,7 @@ export async function createMatchSet(
       });
     }
 
-    // Send notifications to team owners
-    await createNotificationForTeamOwners(
+    await createNotificationForRoster(
       [homeTeam.id, awayTeam.id],
       'MATCH_CREATED',
       `/matches/${match.id}`,
@@ -299,7 +298,7 @@ export async function createMatchSet(
         data: { teamId: byeTeam.id, seasonId, seasonNo, weekNo },
       });
 
-      await createNotificationForTeamOwners(
+      await createNotificationForRoster(
         [byeTeam.id],
         'BYE_WEEK',
         `/teams/${byeTeam.id}`,
@@ -422,9 +421,8 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
     });
   }
 
-  // Send notifications to team owners
   const roundLabel = formatPlayoffRound(playoffRound);
-  await createNotificationForTeamOwners(
+  await createNotificationForRoster(
     [homeTeamId, awayTeamId],
     'MATCH_CREATED',
     `/matches/${match.id}`,

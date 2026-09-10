@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isViewerStandingsTeam } from './standingsHighlight';
+import { defaultExpandedDivisionIds, isViewerStandingsTeam } from './standingsHighlight';
 
 const solo = { playerId: '76561198000000001', players: [{ steamId: '76561198000000001' }] };
 const duo = {
@@ -30,5 +30,31 @@ describe('isViewerStandingsTeam', () => {
         false,
       ),
     ).toBe(false);
+  });
+});
+
+describe('defaultExpandedDivisionIds', () => {
+  const divisions = [
+    { id: 0, hasViewer: false },
+    { id: 8, hasViewer: false },
+    { id: 9, hasViewer: false },
+  ];
+
+  it('opens the viewer division when one matches', () => {
+    expect(
+      defaultExpandedDivisionIds([
+        { id: 0, hasViewer: false },
+        { id: 8, hasViewer: false },
+        { id: 9, hasViewer: true },
+      ]),
+    ).toEqual([9]);
+  });
+
+  it('opens the first assigned division when logged out', () => {
+    expect(defaultExpandedDivisionIds(divisions)).toEqual([8]);
+  });
+
+  it('falls back to Unplaced when that is the only block', () => {
+    expect(defaultExpandedDivisionIds([{ id: 0, hasViewer: false }])).toEqual([0]);
   });
 });

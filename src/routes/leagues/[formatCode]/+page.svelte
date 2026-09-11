@@ -188,7 +188,6 @@
     defaultExpandedDivisionIds(
       data.teamsByDivision.map((divisionData: PageData['teamsByDivision'][number]) => ({
         id: divisionData.division.id,
-        hasViewer: viewerTeamIdIn(divisionData.teams) != null,
       })),
     ),
   );

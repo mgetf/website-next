@@ -34,27 +34,11 @@ describe('isViewerStandingsTeam', () => {
 });
 
 describe('defaultExpandedDivisionIds', () => {
-  const divisions = [
-    { id: 0, hasViewer: false },
-    { id: 8, hasViewer: false },
-    { id: 9, hasViewer: false },
-  ];
-
-  it('opens the viewer division when one matches', () => {
-    expect(
-      defaultExpandedDivisionIds([
-        { id: 0, hasViewer: false },
-        { id: 8, hasViewer: false },
-        { id: 9, hasViewer: true },
-      ]),
-    ).toEqual([9]);
+  it('opens every division, including Unplaced', () => {
+    expect(defaultExpandedDivisionIds([{ id: 0 }, { id: 8 }, { id: 9 }])).toEqual([0, 8, 9]);
   });
 
-  it('opens the first assigned division when logged out', () => {
-    expect(defaultExpandedDivisionIds(divisions)).toEqual([8]);
-  });
-
-  it('falls back to Unplaced when that is the only block', () => {
-    expect(defaultExpandedDivisionIds([{ id: 0, hasViewer: false }])).toEqual([0]);
+  it('returns an empty list when there are no divisions', () => {
+    expect(defaultExpandedDivisionIds([])).toEqual([]);
   });
 });

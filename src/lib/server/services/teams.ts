@@ -10,6 +10,7 @@ import type { Prisma } from '$prisma/client.js';
 import { notFound, badRequest, forbidden } from '$lib/server/utils/errors';
 import { createNotificationForUser } from '$lib/server/services/notifications';
 import { paidPlayersNeeded } from '$lib/utils/rosterPayments';
+import { compareStandingsTeams } from '$lib/utils/standingsHighlight';
 
 /**
  * Get teams with filtering, search, and pagination
@@ -336,7 +337,7 @@ export async function getTeamsByDivision(
     },
   });
 
-  // Calculate derived stats and sort by average points
+  // READY first, then wins / losses / average points.
   return teams
     .map((team) => {
       const totalGames = team.gamesWon + team.gamesLost;
@@ -353,15 +354,9 @@ export async function getTeamsByDivision(
         points: parseFloat(avgPoints.toFixed(1)),
         paymentStatus: team.paymentStatus,
         players: team.players,
-        _sortKey: avgPoints, // temporary field for sorting
       };
     })
-    .sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      if (a.losses !== b.losses) return a.losses - b.losses;
-      return b._sortKey - a._sortKey;
-    })
-    .map(({ _sortKey, ...team }) => team); // Remove temporary sort key
+    .sort(compareStandingsTeams);
 }
 
 /**
@@ -422,16 +417,13 @@ export async function getUnassignedTeams(seasonId: number, regionId: number, sta
         points: parseFloat(avgPoints.toFixed(1)),
         paymentStatus: team.paymentStatus,
         players: team.players,
-        _sortKey: avgPoints,
       };
     })
     .sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      if (a.losses !== b.losses) return a.losses - b.losses;
-      if (b._sortKey !== a._sortKey) return b._sortKey - a._sortKey;
+      const rankedDiff = compareStandingsTeams(a, b);
+      if (rankedDiff !== 0) return rankedDiff;
       return a.name.localeCompare(b.name);
-    })
-    .map(({ _sortKey, ...team }) => team);
+    });
 }
 
 /**

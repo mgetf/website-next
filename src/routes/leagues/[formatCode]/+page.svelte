@@ -15,10 +15,15 @@
   import type { LeagueDivisionMatch } from '$lib/types/league';
   import { getRegionAbbr as abbreviateRegion } from '$lib/utils/region';
   import { flagForRegion } from '$lib/utils/regions';
-  import { defaultExpandedDivisionIds, isViewerStandingsTeam } from '$lib/utils/standingsHighlight';
+  import {
+    defaultExpandedDivisionIds,
+    isViewerStandingsTeam,
+    STANDINGS_MAX_VISIBLE_ROWS,
+  } from '$lib/utils/standingsHighlight';
   import ChevronDown from '~icons/lucide/chevron-down';
 
   const standingsColumns = [
+    { key: 'rank', label: '#', align: 'center' as const, width: '3.25rem' },
     { key: 'team', label: 'Team' },
     { key: 'record', label: 'Record' },
     { key: 'points', label: 'Avg Points' },
@@ -58,6 +63,7 @@
         losses: number;
         points: number;
         status: string;
+        rank?: number | null;
         isWithdrawn?: boolean;
         playerName?: string;
         playerId?: string;
@@ -490,11 +496,16 @@
                       data={divisionData.teams}
                       columns={standingsColumns}
                       compact
+                      maxVisibleRows={STANDINGS_MAX_VISIBLE_ROWS}
                       emptyMessage={`No ${data.format.isIndividual ? 'players' : 'teams'} in this division`}
                       rowClass={teamRowClass}
                     >
                       {#snippet cell(team: PageData['teamsByDivision'][0]['teams'][0], col)}
-                        {#if col.key === 'team'}
+                        {#if col.key === 'rank'}
+                          <span class="text-text-muted text-sm tabular-nums"
+                            >{team.rank != null ? `#${team.rank}` : ''}</span
+                          >
+                        {:else if col.key === 'team'}
                           {#if data.format.isIndividual}
                             <a
                               href="/users/{team.playerId}"

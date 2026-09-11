@@ -15,6 +15,7 @@ import { getLeaguePlayoffsByDivision } from '$lib/server/services/leagueBrackets
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
+import { shouldShowInDivisionStandings, withStandingsRanks } from '$lib/utils/standingsHighlight';
 import { z } from 'zod';
 
 const updateSeasonInfoSchema = z.object({
@@ -88,32 +89,39 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     (division) => division.formatId === format.id,
   );
 
-  const mapLeagueTeams = (teams: Awaited<ReturnType<typeof getTeamsByDivision>>) =>
-    teams
-      .filter((team) => team.status !== 'DEAD' || team.wins + team.losses > 0)
-      .map((team) => {
-        const players = (team.players ?? []).map((membership) => ({
-          steamId: membership.playerSteamId,
-          name: membership.player?.steamUsername || 'Unknown',
-          avatar: membership.player?.steamAvatar || null,
-        }));
-        const player = players[0];
+  const mapLeagueTeams = (
+    teams: Awaited<ReturnType<typeof getTeamsByDivision>>,
+    options: { assignRanks: boolean },
+  ) => {
+    const visible = options.assignRanks
+      ? teams.filter(shouldShowInDivisionStandings)
+      : teams.filter((team) => team.status !== 'DEAD' || team.wins + team.losses > 0);
 
-        return {
-          id: team.id,
-          name: team.name,
-          avatar: team.avatar,
-          wins: team.wins,
-          losses: team.losses,
-          points: team.points,
-          status: team.status,
-          isWithdrawn: team.status === 'DEAD',
-          playerName: player?.name || team.name,
-          playerId: player?.steamId,
-          playerAvatar: player?.avatar || team.avatar,
-          players,
-        };
-      });
+    return withStandingsRanks(visible, options.assignRanks).map((team) => {
+      const players = (team.players ?? []).map((membership) => ({
+        steamId: membership.playerSteamId,
+        name: membership.player?.steamUsername || 'Unknown',
+        avatar: membership.player?.steamAvatar || null,
+      }));
+      const player = players[0];
+
+      return {
+        id: team.id,
+        name: team.name,
+        avatar: team.avatar,
+        wins: team.wins,
+        losses: team.losses,
+        points: team.points,
+        status: team.status,
+        rank: team.rank,
+        isWithdrawn: team.status === 'DEAD',
+        playerName: player?.name || team.name,
+        playerId: player?.steamId,
+        playerAvatar: player?.avatar || team.avatar,
+        players,
+      };
+    });
+  };
 
   const teamsByDivision =
     selectedSeasonId != null && selectedRegionId != null
@@ -125,6 +133,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
             },
             teams: mapLeagueTeams(
               await getUnassignedTeams(selectedSeasonId, selectedRegionId, unassignedStatuses),
+              { assignRanks: false },
             ),
           },
           ...(await Promise.all(
@@ -140,6 +149,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
                   selectedRegionId,
                   visibleStatuses,
                 ),
+                { assignRanks: true },
               ),
             })),
           )),

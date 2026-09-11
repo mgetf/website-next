@@ -6,8 +6,8 @@
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import DivisionMatchList from '$lib/components/leagues/DivisionMatchList.svelte';
+  import LeagueRegionSeasonMenu from '$lib/components/leagues/LeagueRegionSeasonMenu.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
   import type { LeagueDivisionMatch } from '$lib/types/league';
@@ -112,14 +112,14 @@
     ),
   );
 
-  const seasonSelectItems = $derived(
-    data.seasons
-      .filter((s: (typeof data.seasons)[number]) => s.regionId === selectedRegion)
-      .map((season: (typeof data.seasons)[number]) => ({
-        value: String(season.id),
-        label: season.name,
-      })),
-  );
+  function seasonsForRegion(regionId: number) {
+    return data.seasons.filter((s: (typeof data.seasons)[number]) => s.regionId === regionId);
+  }
+
+  function selectRegionSeason(regionId: number, seasonId: number) {
+    selectedRegion = regionId;
+    selectedSeason = seasonId;
+  }
 
   function teamRowClass(team: PageData['teamsByDivision'][0]['teams'][0]): string {
     const classes: string[] = [];
@@ -227,41 +227,19 @@
       <p class="text-text-body text-lg">No {data.format.name} seasons have been created yet.</p>
     {:else}
       <!-- Region & Season Controls -->
-      <div class="flex items-start justify-center gap-8">
-        <div class="flex flex-col items-center gap-2">
-          <span class="text-sm font-medium text-text-body">Region</span>
-          <div class="flex gap-2">
-            {#each regionsWithSeasons as region}
-              {@const flagCode = regionFlagCode(region.id)}
-              <button
-                onclick={() => {
-                  selectedRegion = region.id;
-                }}
-                class="inline-flex items-center gap-2 px-6 py-2 rounded font-medium transition-all {selectedRegion ===
-                region.id
-                  ? 'bg-surface-hover text-white border border-zinc-600'
-                  : 'bg-surface-card text-text-label hover:bg-surface-input border border-border-default'}"
-              >
-                {#if flagCode}
-                  <FlagIcon code={flagCode} class="h-3.5 w-5 overflow-hidden rounded-sm" />
-                {/if}
-                {getRegionAbbr(region.id)}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <div class="flex flex-col items-center gap-2">
-          <span class="text-sm font-medium text-text-body">Season</span>
-          <SelectMenu
-            items={seasonSelectItems}
-            value={selectedSeason ? String(selectedSeason) : ''}
-            size="sm"
-            class="min-w-40"
-            onChange={(val) => {
-              selectedSeason = Number(val);
-            }}
-          />
+      <div class="flex flex-col items-center gap-2">
+        <span class="text-sm font-medium text-text-body">Region</span>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          {#each regionsWithSeasons as region}
+            <LeagueRegionSeasonMenu
+              abbr={getRegionAbbr(region.id)}
+              flagCode={regionFlagCode(region.id)}
+              selected={selectedRegion === region.id}
+              seasons={seasonsForRegion(region.id)}
+              selectedSeasonId={selectedSeason}
+              onSelect={(seasonId) => selectRegionSeason(region.id, seasonId)}
+            />
+          {/each}
         </div>
       </div>
 

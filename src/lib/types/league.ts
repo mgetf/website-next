@@ -2,6 +2,8 @@
  * Shared league navigation types (client + server safe).
  */
 
+import type { BracketData } from './bracket';
+
 export interface LeagueNavRegion {
   id: number;
   name: string;
@@ -58,4 +60,11 @@ export interface LeagueMatchWeekGroup {
   weekNo: number;
   weekLabel: string;
   matches: LeagueDivisionMatch[];
+}
+
+/** One division's playoff tree on `/leagues/[format]`. */
+export interface LeaguePlayoffDivision {
+  divisionId: number;
+  divisionName: string;
+  bracket: BracketData;
 }

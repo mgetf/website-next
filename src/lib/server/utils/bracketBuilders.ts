@@ -24,6 +24,8 @@ import type {
 export interface BracketPlayerInput {
   displayName: string;
   steamId?: string | null;
+  avatarUrl?: string | null;
+  href?: string | null;
   side: number;
 }
 
@@ -48,6 +50,7 @@ export interface BracketMatchInput {
   winnerNextMatchId?: number | string | null;
   winnerNextSide?: number | null;
   loserNextMatchId?: number | string | null;
+  href?: string | null;
   players: BracketPlayerInput[];
   games?: BracketGameInput[];
 }
@@ -55,6 +58,11 @@ export interface BracketMatchInput {
 export interface BracketStageInput {
   name: string;
   matches: BracketMatchInput[];
+}
+
+export interface BracketBuildOptions {
+  /** When false, leave round sizes as-is. League playoffs are not a geometric tree. */
+  padByes?: boolean;
 }
 
 function mapMatchStatus(status: string): MatchStatus {
@@ -71,6 +79,7 @@ function matchSectionOf(m: BracketMatchInput): 'MAIN' | 'WINNERS' | 'LOSERS' | '
 export function buildSingleElimBracket(
   stage: BracketStageInput,
   status: BracketStatus,
+  options?: BracketBuildOptions,
 ): BracketData {
   const roundGroups = groupMatchesByRound(
     stage.matches.filter((m) => m.round !== null && m.round > 0),
@@ -84,7 +93,7 @@ export function buildSingleElimBracket(
     matches: group.matches.map((m, pos) => buildBracketMatch(m, pos + 1)),
   }));
 
-  padRoundsWithByes(rounds);
+  if (options?.padByes !== false) padRoundsWithByes(rounds);
 
   return { format: 'single_elim', status, rounds, title: stage.name };
 }
@@ -92,6 +101,7 @@ export function buildSingleElimBracket(
 export function buildDoubleElimBracket(
   stage: BracketStageInput,
   status: BracketStatus,
+  options?: BracketBuildOptions,
 ): BracketData {
   const winnersMatches = stage.matches.filter((m) => matchSectionOf(m) === 'WINNERS');
   const losersMatches = stage.matches.filter((m) => matchSectionOf(m) === 'LOSERS');
@@ -117,7 +127,7 @@ export function buildDoubleElimBracket(
     matches: group.matches.map((m, pos) => buildBracketMatch(m, pos + 1)),
   }));
 
-  padRoundsWithByes(rounds);
+  if (options?.padByes !== false) padRoundsWithByes(rounds);
 
   let grandFinal: BracketRound | undefined;
   if (grandFinalMatches.length > 0) {
@@ -314,13 +324,14 @@ function buildBracketMatch(match: BracketMatchInput, position: number): BracketM
     isBye,
     label: match.label ?? undefined,
     games,
+    href: match.href ?? undefined,
     winnerNextMatchId: match.winnerNextMatchId ?? undefined,
     loserNextMatchId: match.loserNextMatchId ?? undefined,
   };
 }
 
 function buildSide(
-  players: { displayName: string; steamId?: string | null; side: number }[],
+  players: BracketPlayerInput[],
   score: number | null,
   isWinner: boolean,
 ): BracketSide {
@@ -338,22 +349,39 @@ function buildSide(
 
   const bracketPlayers: BracketPlayer[] = players
     .filter((p) => p.displayName !== 'BYE')
-    .map((p) => ({
-      name: p.displayName,
-      ...(p.steamId ? { steamId: p.steamId, href: `/users/${p.steamId}` } : {}),
-    }));
+    .map((p) => {
+      const href = p.href ?? (p.steamId ? `/users/${p.steamId}` : undefined);
+      return {
+        name: p.displayName,
+        ...(p.steamId ? { steamId: p.steamId } : {}),
+        ...(p.avatarUrl ? { avatarUrl: p.avatarUrl } : {}),
+        ...(href ? { href } : {}),
+      };
+    });
 
   return {
     label,
     players: bracketPlayers.length > 0 ? bracketPlayers : undefined,
     score: score ?? undefined,
     isWinner,
+    href: bracketPlayers[0]?.href,
   };
 }
 
 // ---------------------------------------------------------------------------
 // BYE padding for non-power-of-2 brackets
 // ---------------------------------------------------------------------------
+
+function isPaddingIdentity(label: string): boolean {
+  const trimmed = label.trim();
+  return trimmed !== '' && trimmed !== 'TBD' && trimmed !== 'BYE';
+}
+
+function winnerOf(match: BracketMatch): BracketSide | null {
+  if (match.side1.isWinner) return match.side1;
+  if (match.side2.isWinner) return match.side2;
+  return null;
+}
 
 function padRoundsWithByes(rounds: BracketRound[]): void {
   for (let i = 0; i < rounds.length - 1; i++) {
@@ -364,41 +392,61 @@ function padRoundsWithByes(rounds: BracketRound[]): void {
     if (current.matches.length >= expectedCount) continue;
 
     const winnerLabels = new Set<string>();
-    for (const match of current.matches) {
-      const winner = match.side1.isWinner ? match.side1 : match.side2.isWinner ? match.side2 : null;
-      if (winner) winnerLabels.add(winner.label);
-    }
-
     const winnerToMatch = new Map<string, BracketMatch>();
     for (const match of current.matches) {
-      const winner = match.side1.isWinner ? match.side1 : match.side2.isWinner ? match.side2 : null;
-      if (winner) winnerToMatch.set(winner.label, match);
+      const winner = winnerOf(match);
+      if (!winner || !isPaddingIdentity(winner.label)) continue;
+      winnerLabels.add(winner.label);
+      winnerToMatch.set(winner.label, match);
     }
 
     const padded: BracketMatch[] = [];
+    const usedIds = new Set<string>();
     let position = 1;
 
+    const pushBye = (label: string) => {
+      padded.push(
+        syntheticByeMatch(isPaddingIdentity(label) ? label : 'TBD', current.number, position++),
+      );
+    };
+
+    const pushCurrent = (match: BracketMatch | undefined) => {
+      if (!match) {
+        pushBye('TBD');
+        return;
+      }
+      const id = String(match.id);
+      if (usedIds.has(id)) {
+        pushBye(winnerOf(match)?.label ?? 'TBD');
+        return;
+      }
+      usedIds.add(id);
+      padded.push({ ...match, position: position++ });
+    };
+
     for (const nextMatch of next.matches) {
-      const s1FromCurrent = winnerLabels.has(nextMatch.side1.label);
-      const s2FromCurrent = winnerLabels.has(nextMatch.side2.label);
+      const s1FromCurrent =
+        isPaddingIdentity(nextMatch.side1.label) && winnerLabels.has(nextMatch.side1.label);
+      const s2FromCurrent =
+        isPaddingIdentity(nextMatch.side2.label) && winnerLabels.has(nextMatch.side2.label);
 
       if (s1FromCurrent && s2FromCurrent) {
-        const m1 = winnerToMatch.get(nextMatch.side1.label);
-        const m2 = winnerToMatch.get(nextMatch.side2.label);
-        if (m1) padded.push({ ...m1, position: position++ });
-        if (m2) padded.push({ ...m2, position: position++ });
+        pushCurrent(winnerToMatch.get(nextMatch.side1.label));
+        pushCurrent(winnerToMatch.get(nextMatch.side2.label));
       } else if (s1FromCurrent) {
-        padded.push(syntheticByeMatch(nextMatch.side2.label, current.number, position++));
-        const m = winnerToMatch.get(nextMatch.side1.label);
-        if (m) padded.push({ ...m, position: position++ });
+        pushBye(nextMatch.side2.label);
+        pushCurrent(winnerToMatch.get(nextMatch.side1.label));
       } else if (s2FromCurrent) {
-        const m = winnerToMatch.get(nextMatch.side2.label);
-        if (m) padded.push({ ...m, position: position++ });
-        padded.push(syntheticByeMatch(nextMatch.side1.label, current.number, position++));
+        pushCurrent(winnerToMatch.get(nextMatch.side2.label));
+        pushBye(nextMatch.side1.label);
       } else {
-        padded.push(syntheticByeMatch(nextMatch.side1.label, current.number, position++));
-        padded.push(syntheticByeMatch(nextMatch.side2.label, current.number, position++));
+        pushBye(nextMatch.side1.label);
+        pushBye(nextMatch.side2.label);
       }
+    }
+
+    for (const match of current.matches) {
+      if (!usedIds.has(String(match.id))) pushCurrent(match);
     }
 
     current.matches = padded;

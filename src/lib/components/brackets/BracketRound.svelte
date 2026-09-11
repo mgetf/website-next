@@ -34,7 +34,7 @@
   </div>
 
   <div class="match-column">
-    {#each round.matches as match, idx (match.id)}
+    {#each round.matches as match, idx (`${match.id}:${match.position}`)}
       {@const isUnpairedLast = isOddCount && idx === round.matches.length - 1}
       <div
         class="match-slot"

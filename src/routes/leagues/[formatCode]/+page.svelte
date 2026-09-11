@@ -7,9 +7,11 @@
   import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import DivisionMatchList from '$lib/components/leagues/DivisionMatchList.svelte';
+  import DivisionPlayoffBracket from '$lib/components/leagues/DivisionPlayoffBracket.svelte';
   import LeagueRegionSeasonMenu from '$lib/components/leagues/LeagueRegionSeasonMenu.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
+  import type { BracketData } from '$lib/types/bracket';
   import type { LeagueDivisionMatch } from '$lib/types/league';
   import { getRegionAbbr as abbreviateRegion } from '$lib/utils/region';
   import { flagForRegion } from '$lib/utils/regions';
@@ -64,6 +66,7 @@
       }>;
     }>;
     matchesByDivision: Record<number, LeagueDivisionMatch[]>;
+    playoffsByDivision: Record<number, { bracket: BracketData }>;
     staffByDivision: Array<{
       division: { id: number; name: string };
       staff: Array<{
@@ -209,10 +212,9 @@
 
   function toggleDivision(divisionId: number) {
     if (!canCollapseDivisions) return;
-    const next = new Set(expandedIds);
-    if (next.has(divisionId)) next.delete(divisionId);
-    else next.add(divisionId);
-    expandedOverride = [...next];
+    expandedOverride = expandedIds.has(divisionId)
+      ? [...expandedIds].filter((id) => id !== divisionId)
+      : [...expandedIds, divisionId];
   }
 </script>
 
@@ -421,7 +423,7 @@
         </aside>
 
         <!-- Center - Division Tables -->
-        <main class="lg:col-span-6 space-y-8">
+        <main class="lg:col-span-6 min-w-0 space-y-8">
           {#if data.teamsByDivision.length === 0}
             <div
               class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default p-12 text-center"
@@ -436,6 +438,7 @@
           {:else}
             {#each data.teamsByDivision as divisionData (divisionData.division.id)}
               {@const expanded = isDivisionExpanded(divisionData.division.id)}
+              {@const playoff = data.playoffsByDivision[divisionData.division.id]}
               <section>
                 <h2 class="m-0">
                   {#if canCollapseDivisions}
@@ -562,6 +565,12 @@
                           emptyDivisionMatches}
                         viewerTeamId={viewerTeamIdIn(divisionData.teams)}
                       />
+                      {#if playoff}
+                        <DivisionPlayoffBracket
+                          bracket={playoff.bracket}
+                          isIndividual={data.format.isIndividual}
+                        />
+                      {/if}
                     {/if}
                   </div>
                 {/if}

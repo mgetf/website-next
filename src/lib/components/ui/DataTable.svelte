@@ -36,6 +36,7 @@
     sortBy,
     sortDir,
     onSort,
+    maxVisibleRows,
   }: {
     data: T[];
     columns: Column[];
@@ -52,6 +53,7 @@
     sortBy?: string;
     sortDir?: 'asc' | 'desc';
     onSort?: (key: string) => void;
+    maxVisibleRows?: number;
   } = $props();
 
   function getAlignClass(align?: 'left' | 'center' | 'right'): string {
@@ -73,6 +75,13 @@
 
   const cellPadding = $derived(compact ? 'px-4 py-1.5' : 'px-4 py-3');
   const headPadding = $derived(compact ? 'px-4 py-2' : 'px-4 py-3');
+  const viewportMaxHeight = $derived.by(() => {
+    if (maxVisibleRows == null || maxVisibleRows <= 0) return undefined;
+    const headRem = compact ? 2.5 : 3.25;
+    const rowRem = compact ? 2.375 : 3.5;
+    return `calc(${headRem}rem + ${maxVisibleRows} * ${rowRem}rem)`;
+  });
+  const stickyHead = $derived(Boolean(viewportMaxHeight));
 </script>
 
 {#if data.length === 0}
@@ -90,9 +99,13 @@
   <div
     class="bg-surface-card/80 backdrop-blur border border-border-default rounded-lg overflow-hidden"
   >
-    <div class="overflow-x-auto">
+    <div class="overflow-auto" style:max-height={viewportMaxHeight}>
       <table class="w-full">
-        <thead class="{headerClass || 'bg-surface-card/80'} border-b border-border-default">
+        <thead
+          class="{headerClass || 'bg-surface-card/80'} border-b border-border-default {stickyHead
+            ? 'sticky top-0 z-10 bg-surface-card'
+            : ''}"
+        >
           <tr>
             {#each columns as col}
               <th

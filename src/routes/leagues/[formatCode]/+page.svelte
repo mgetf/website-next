@@ -6,17 +6,24 @@
   import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
   import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import DivisionMatchList from '$lib/components/leagues/DivisionMatchList.svelte';
+  import DivisionPlayoffBracket from '$lib/components/leagues/DivisionPlayoffBracket.svelte';
+  import LeagueRegionSeasonMenu from '$lib/components/leagues/LeagueRegionSeasonMenu.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
+  import type { BracketData } from '$lib/types/bracket';
   import type { LeagueDivisionMatch } from '$lib/types/league';
   import { getRegionAbbr as abbreviateRegion } from '$lib/utils/region';
   import { flagForRegion } from '$lib/utils/regions';
-  import { defaultExpandedDivisionIds, isViewerStandingsTeam } from '$lib/utils/standingsHighlight';
+  import {
+    defaultExpandedDivisionIds,
+    isViewerStandingsTeam,
+    STANDINGS_MAX_VISIBLE_ROWS,
+  } from '$lib/utils/standingsHighlight';
   import ChevronDown from '~icons/lucide/chevron-down';
 
   const standingsColumns = [
+    { key: 'rank', label: '#', align: 'center' as const, width: '3.25rem' },
     { key: 'team', label: 'Team' },
     { key: 'record', label: 'Record' },
     { key: 'points', label: 'Avg Points' },
@@ -56,6 +63,7 @@
         losses: number;
         points: number;
         status: string;
+        rank?: number | null;
         isWithdrawn?: boolean;
         playerName?: string;
         playerId?: string;
@@ -64,6 +72,7 @@
       }>;
     }>;
     matchesByDivision: Record<number, LeagueDivisionMatch[]>;
+    playoffsByDivision: Record<number, { bracket: BracketData }>;
     staffByDivision: Array<{
       division: { id: number; name: string };
       staff: Array<{
@@ -112,14 +121,14 @@
     ),
   );
 
-  const seasonSelectItems = $derived(
-    data.seasons
-      .filter((s: (typeof data.seasons)[number]) => s.regionId === selectedRegion)
-      .map((season: (typeof data.seasons)[number]) => ({
-        value: String(season.id),
-        label: season.name,
-      })),
-  );
+  function seasonsForRegion(regionId: number) {
+    return data.seasons.filter((s: (typeof data.seasons)[number]) => s.regionId === regionId);
+  }
+
+  function selectRegionSeason(regionId: number, seasonId: number) {
+    selectedRegion = regionId;
+    selectedSeason = seasonId;
+  }
 
   function teamRowClass(team: PageData['teamsByDivision'][0]['teams'][0]): string {
     const classes: string[] = [];
@@ -188,7 +197,6 @@
     defaultExpandedDivisionIds(
       data.teamsByDivision.map((divisionData: PageData['teamsByDivision'][number]) => ({
         id: divisionData.division.id,
-        hasViewer: viewerTeamIdIn(divisionData.teams) != null,
       })),
     ),
   );
@@ -210,10 +218,9 @@
 
   function toggleDivision(divisionId: number) {
     if (!canCollapseDivisions) return;
-    const next = new Set(expandedIds);
-    if (next.has(divisionId)) next.delete(divisionId);
-    else next.add(divisionId);
-    expandedOverride = [...next];
+    expandedOverride = expandedIds.has(divisionId)
+      ? [...expandedIds].filter((id) => id !== divisionId)
+      : [...expandedIds, divisionId];
   }
 </script>
 
@@ -228,41 +235,19 @@
       <p class="text-text-body text-lg">No {data.format.name} seasons have been created yet.</p>
     {:else}
       <!-- Region & Season Controls -->
-      <div class="flex items-start justify-center gap-8">
-        <div class="flex flex-col items-center gap-2">
-          <span class="text-sm font-medium text-text-body">Region</span>
-          <div class="flex gap-2">
-            {#each regionsWithSeasons as region}
-              {@const flagCode = regionFlagCode(region.id)}
-              <button
-                onclick={() => {
-                  selectedRegion = region.id;
-                }}
-                class="inline-flex items-center gap-2 px-6 py-2 rounded font-medium transition-all {selectedRegion ===
-                region.id
-                  ? 'bg-surface-hover text-white border border-zinc-600'
-                  : 'bg-surface-card text-text-label hover:bg-surface-input border border-border-default'}"
-              >
-                {#if flagCode}
-                  <FlagIcon code={flagCode} class="h-3.5 w-5 overflow-hidden rounded-sm" />
-                {/if}
-                {getRegionAbbr(region.id)}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <div class="flex flex-col items-center gap-2">
-          <span class="text-sm font-medium text-text-body">Season</span>
-          <SelectMenu
-            items={seasonSelectItems}
-            value={selectedSeason ? String(selectedSeason) : ''}
-            size="sm"
-            class="min-w-40"
-            onChange={(val) => {
-              selectedSeason = Number(val);
-            }}
-          />
+      <div class="flex flex-col items-center gap-2">
+        <span class="text-sm font-medium text-text-body">Region</span>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          {#each regionsWithSeasons as region}
+            <LeagueRegionSeasonMenu
+              abbr={getRegionAbbr(region.id)}
+              flagCode={regionFlagCode(region.id)}
+              selected={selectedRegion === region.id}
+              seasons={seasonsForRegion(region.id)}
+              selectedSeasonId={selectedSeason}
+              onSelect={(seasonId) => selectRegionSeason(region.id, seasonId)}
+            />
+          {/each}
         </div>
       </div>
 
@@ -444,7 +429,7 @@
         </aside>
 
         <!-- Center - Division Tables -->
-        <main class="lg:col-span-6 space-y-8">
+        <main class="lg:col-span-6 min-w-0 space-y-8">
           {#if data.teamsByDivision.length === 0}
             <div
               class="bg-surface-card/50 backdrop-blur rounded-lg border border-border-default p-12 text-center"
@@ -459,6 +444,7 @@
           {:else}
             {#each data.teamsByDivision as divisionData (divisionData.division.id)}
               {@const expanded = isDivisionExpanded(divisionData.division.id)}
+              {@const playoff = data.playoffsByDivision[divisionData.division.id]}
               <section>
                 <h2 class="m-0">
                   {#if canCollapseDivisions}
@@ -510,11 +496,16 @@
                       data={divisionData.teams}
                       columns={standingsColumns}
                       compact
+                      maxVisibleRows={STANDINGS_MAX_VISIBLE_ROWS}
                       emptyMessage={`No ${data.format.isIndividual ? 'players' : 'teams'} in this division`}
                       rowClass={teamRowClass}
                     >
                       {#snippet cell(team: PageData['teamsByDivision'][0]['teams'][0], col)}
-                        {#if col.key === 'team'}
+                        {#if col.key === 'rank'}
+                          <span class="text-text-muted text-sm tabular-nums"
+                            >{team.rank != null ? `#${team.rank}` : ''}</span
+                          >
+                        {:else if col.key === 'team'}
                           {#if data.format.isIndividual}
                             <a
                               href="/users/{team.playerId}"
@@ -585,6 +576,12 @@
                           emptyDivisionMatches}
                         viewerTeamId={viewerTeamIdIn(divisionData.teams)}
                       />
+                      {#if playoff}
+                        <DivisionPlayoffBracket
+                          bracket={playoff.bracket}
+                          isIndividual={data.format.isIndividual}
+                        />
+                      {/if}
                     {/if}
                   </div>
                 {/if}

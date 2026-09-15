@@ -399,6 +399,16 @@
       </Card>
     </div>
 
+    {#snippet classCell(className: string)}
+      {@const icon = classIcon(className)}
+      <span class="inline-flex items-center gap-1.5">
+        {#if icon}
+          <img src={icon} alt="" class="size-4 shrink-0" />
+        {/if}
+        <span class="text-sm capitalize text-text-body">{className || '—'}</span>
+      </span>
+    {/snippet}
+
     <div>
       <h3 class="mb-3 text-sm font-semibold text-white">Recent duels</h3>
       <DataTable
@@ -427,12 +437,7 @@
           {:else if col.key === 'score'}
             <span class="text-sm tabular-nums text-text-label">{row.score}</span>
           {:else if col.key === 'className'}
-            {@const icon = classIcon(row.className)}
-            {#if icon}
-              <img src={icon} alt={row.className} class="size-4" />
-            {:else}
-              <span class="text-sm text-text-muted">{row.className || '—'}</span>
-            {/if}
+            {@render classCell(row.className)}
           {:else if col.key === 'arena'}
             <span class="text-sm text-text-body">{row.arena}</span>
           {:else if col.key === 'duration'}
@@ -466,12 +471,7 @@
           {:else if col.key === 'score'}
             <span class="text-sm tabular-nums text-text-label">{row.score}</span>
           {:else if col.key === 'className'}
-            {@const icon = classIcon(row.className)}
-            {#if icon}
-              <img src={icon} alt={row.className} class="size-4" />
-            {:else}
-              <span class="text-sm text-text-muted">{row.className || '—'}</span>
-            {/if}
+            {@render classCell(row.className)}
           {:else if col.key === 'arena'}
             <span class="text-sm text-text-body">{row.arena}</span>
           {:else if col.key === 'duration'}

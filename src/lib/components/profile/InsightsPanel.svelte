@@ -3,6 +3,7 @@
   import Card from '$lib/components/ui/Card.svelte';
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
+  import { visibleServerRatings } from '$lib/utils/rating';
   import { classIcon } from '$lib/utils/classIcons';
   import { flagForRegion } from '$lib/utils/regions';
   import type { MgeRating, PlatformRegion } from '$lib/types/mge';
@@ -15,6 +16,7 @@
     resultClass,
   } from '$lib/utils/profile';
   import ActivityHeatmap from './ActivityHeatmap.svelte';
+  import InsightsSkeleton from './InsightsSkeleton.svelte';
   import RatingTrend from './RatingTrend.svelte';
 
   let {
@@ -34,9 +36,15 @@
   let stats = $state<PlayerServerStats | null>(null);
   let loading = $state(false);
   let loadError = $state<string | null>(null);
+  const localStats = new Map<string, PlayerServerStats>();
 
+  const shownRatings = $derived(visibleServerRatings(ratings));
   const regionOptions = $derived(
-    ratings.length > 0 ? ratings : regions.map((row) => ({ region: row.code })),
+    shownRatings.length > 0
+      ? shownRatings
+      : ratings.length === 0
+        ? regions.map((row) => ({ region: row.code }))
+        : [],
   );
 
   const region = $derived.by(() => {
@@ -59,6 +67,14 @@
       return;
     }
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const localKey = `${steamId}:${region}:${statsWindow}:${tz}`;
+    const cached = localStats.get(localKey);
+    if (cached) {
+      stats = cached;
+      loading = false;
+      loadError = null;
+      return;
+    }
     const params = new URLSearchParams({
       region,
       days: String(statsWindow),
@@ -75,6 +91,7 @@
         return (await res.json()) as PlayerServerStats;
       })
       .then((payload) => {
+        localStats.set(localKey, payload);
         if (cancelled) return;
         if (requestRegion !== region || requestWindow !== statsWindow) return;
         stats = payload;
@@ -113,6 +130,8 @@
     return (tz.split('/').pop() ?? tz).replaceAll('_', ' ');
   });
 
+  const awaitingStats = $derived(Boolean(region) && !preview && !loadError && (loading || !stats));
+
   const duelColumns: Column[] = [
     { key: 'when', label: 'When' },
     { key: 'opponent', label: 'Opponent' },
@@ -135,7 +154,7 @@
   ];
 </script>
 
-<div class="flex flex-col gap-3">
+<div class="flex flex-col gap-3" aria-busy={awaitingStats}>
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 class="text-sm font-semibold text-white">Server stats</h2>
     <div
@@ -158,12 +177,35 @@
     </div>
   </div>
 
+  {#snippet regionPicker()}
+    {#if regionOptions.length > 1}
+      <div class="flex flex-wrap gap-1" role="group" aria-label="Rating region">
+        {#each regionOptions as option (option.region)}
+          {@const flagCode = flagForRegion(option.region, regions)}
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {region ===
+            option.region
+              ? 'border-primary-500 bg-primary-500/15 text-white'
+              : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
+            aria-pressed={region === option.region}
+            onclick={() => (pickedRegion = option.region)}
+          >
+            <FlagIcon code={flagCode} class="h-3 w-4 rounded-sm" />
+            {option.region.toUpperCase()}
+          </button>
+        {/each}
+      </div>
+    {/if}
+  {/snippet}
+
   {#if !region}
     <p class="text-sm text-text-muted">No server region to load stats from.</p>
   {:else if loadError}
     <p class="text-sm text-danger-400">{loadError}</p>
-  {:else if loading && !stats}
-    <p class="text-sm text-text-muted">Loading server stats…</p>
+  {:else if awaitingStats}
+    <p class="sr-only">Loading server stats</p>
+    <InsightsSkeleton {regionPicker} />
   {:else}
     <Card padding="none">
       {#snippet header()}
@@ -177,25 +219,7 @@
               </p>
             {/if}
           </div>
-          {#if regionOptions.length > 1}
-            <div class="flex flex-wrap gap-1" role="group" aria-label="Rating region">
-              {#each regionOptions as option (option.region)}
-                {@const flagCode = flagForRegion(option.region, regions)}
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {region ===
-                  option.region
-                    ? 'border-primary-500 bg-primary-500/15 text-white'
-                    : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
-                  aria-pressed={region === option.region}
-                  onclick={() => (pickedRegion = option.region)}
-                >
-                  <FlagIcon code={flagCode} class="h-3 w-4 rounded-sm" />
-                  {option.region.toUpperCase()}
-                </button>
-              {/each}
-            </div>
-          {/if}
+          {@render regionPicker()}
         </div>
       {/snippet}
       <div class="px-1 pb-2">

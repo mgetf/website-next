@@ -172,6 +172,16 @@ export const mapDownloadRateLimiter = new RateLimiter({
 });
 
 /**
+ * Rate limiter for profile server-stats cache misses (platform fetch).
+ * Fresh/in-flight cache hits are not counted. 60/min covers clicking every
+ * region × window once; a scraper of unique players still gets capped.
+ */
+export const serverStatsRateLimiter = new RateLimiter({
+  maxRequests: 60,
+  windowMs: 60 * 1000, // 1 minute
+});
+
+/**
  * Rate limiter for blog comments
  * 8 comments per 5 minutes per user
  */

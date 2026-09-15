@@ -6,7 +6,7 @@
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import ChevronDown from '~icons/lucide/chevron-down';
-  import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
+  import { PROVISIONAL_RATING_TITLE, ratingValue, visibleServerRatings } from '$lib/utils/rating';
   import { flagForRegion } from '$lib/utils/regions';
   import type { MgeRating, PlatformRegion } from '$lib/types/mge';
   import type { PlayerServerStats, Profile1v1Entry, ProfileTeam } from '$lib/types/profile';
@@ -58,6 +58,7 @@
     previewCompactSeries?: { label: string; value: number }[];
   } = $props();
 
+  const shownRatings = $derived(visibleServerRatings(ratings));
   const active1v1 = $derived(entries1v1.find((e) => e.active) ?? null);
   const currentTeams = $derived(teams.filter((t) => t.active));
   const currentTeam = $derived(currentTeams[0] ?? null);
@@ -81,7 +82,7 @@
   );
 
   $effect(() => {
-    const rating = ratings.length === 1 ? ratings[0] : null;
+    const rating = shownRatings.length === 1 ? shownRatings[0] : null;
     if (!rating) {
       compactSeries = [];
       return;
@@ -138,12 +139,12 @@
       <h2 class="text-sm font-semibold text-white">Server rating</h2>
       <Button variant="primary" size="sm" href="/logs?player={steamId}">Logs</Button>
     </div>
-    {#if ratings.length === 0}
+    {#if shownRatings.length === 0}
       <p class="text-sm text-text-muted">
         No server rating yet. This player has not played on an MGE server.
       </p>
-    {:else if ratings.length === 1 && ratings[0]}
-      {@const rating = ratings[0]}
+    {:else if shownRatings.length === 1 && shownRatings[0]}
+      {@const rating = shownRatings[0]}
       {@const flagCode = flagForRegion(rating.region, regions)}
       {@const series = compactSeries}
       {@const games = (rating.wins ?? 0) + (rating.losses ?? 0)}
@@ -194,10 +195,10 @@
         </div>
       </Card>
     {:else}
-      <div class={['grid gap-3', ratingGridClass(ratings.length)]}>
-        {#each ratings as rating (rating.region)}
+      <div class={['grid gap-3', ratingGridClass(shownRatings.length)]}>
+        {#each shownRatings as rating (rating.region)}
           {@const flagCode = flagForRegion(rating.region, regions)}
-          {@const wide = ratings.length <= 3}
+          {@const wide = shownRatings.length <= 3}
           <Card padding="sm" class="h-full">
             {#if wide}
               <div class="flex items-start justify-between gap-3">

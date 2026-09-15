@@ -4,6 +4,42 @@ import type { PlayerFoe, PlayerServerStats, StatsWindow } from '$lib/types/profi
 
 const DEFAULT_AVATAR = '/default-avatar.png';
 
+/** Fresh copy is reused until this TTL; the next request after expiry refetches. */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+/** If platform is down, serve the last good copy for this long. */
+const STALE_FALLBACK_MS = 15 * 60 * 1000;
+
+interface CacheEntry {
+  value: PlayerServerStats;
+  cachedAt: number;
+}
+
+const cache = new Map<string, CacheEntry>();
+const inflight = new Map<string, Promise<PlayerServerStats | null>>();
+
+function normalizeDays(days?: StatsWindow | string): string {
+  if (days === 7 || days === 30 || days === 90 || days === '7' || days === '30' || days === '90') {
+    return String(days);
+  }
+  return 'all';
+}
+
+function cacheKey(
+  steamId: string,
+  opts: { region: string; days?: StatsWindow | string; tz?: string },
+): string {
+  const region = opts.region.trim().toLowerCase();
+  const days = normalizeDays(opts.days);
+  const tz = opts.tz?.trim() ?? '';
+  return `${steamId}:${region}:${days}:${tz}`;
+}
+
+function prune(now: number): void {
+  for (const [key, entry] of cache) {
+    if (now - entry.cachedAt >= STALE_FALLBACK_MS) cache.delete(key);
+  }
+}
+
 function avatarFor(
   steam64: string | null,
   displays: Record<string, { avatar: string | null }>,
@@ -20,7 +56,7 @@ function withFoeAvatar(
   return { ...foe, avatar: avatarFor(foe.steam64, displays) };
 }
 
-export async function getEnrichedPlayerServerStats(
+async function loadEnriched(
   steamId: string,
   opts: { region: string; days?: StatsWindow | string; tz?: string },
 ): Promise<PlayerServerStats | null> {
@@ -64,4 +100,76 @@ export async function getEnrichedPlayerServerStats(
       })),
     })),
   };
+}
+
+async function refresh(
+  key: string,
+  steamId: string,
+  opts: { region: string; days?: StatsWindow | string; tz?: string },
+  stale: CacheEntry | undefined,
+): Promise<PlayerServerStats | null> {
+  try {
+    const stats = await loadEnriched(steamId, opts);
+    if (stats) {
+      cache.set(key, { value: stats, cachedAt: Date.now() });
+      return stats;
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[playerStats] Failed to fetch server stats: ${message}`);
+  }
+
+  if (stale && Date.now() - stale.cachedAt < STALE_FALLBACK_MS) {
+    return stale.value;
+  }
+  return null;
+}
+
+/**
+ * Clears the in-process stats cache. Used by unit tests.
+ */
+export function resetPlayerServerStatsCache(): void {
+  cache.clear();
+  inflight.clear();
+}
+
+/**
+ * True when this key can be served from memory (fresh TTL or an in-flight
+ * refresh). The HTTP route uses this to skip rate limiting cache hits.
+ */
+export function isPlayerServerStatsWarm(
+  steamId: string,
+  opts: { region: string; days?: StatsWindow | string; tz?: string },
+): boolean {
+  const key = cacheKey(steamId, opts);
+  const now = Date.now();
+  prune(now);
+  const hit = cache.get(key);
+  if (hit && now - hit.cachedAt < CACHE_TTL_MS) return true;
+  return inflight.has(key);
+}
+
+export async function getEnrichedPlayerServerStats(
+  steamId: string,
+  opts: { region: string; days?: StatsWindow | string; tz?: string },
+): Promise<PlayerServerStats | null> {
+  const key = cacheKey(steamId, opts);
+  const now = Date.now();
+  prune(now);
+
+  const hit = cache.get(key);
+  if (hit && now - hit.cachedAt < CACHE_TTL_MS) {
+    return hit.value;
+  }
+
+  const pending = inflight.get(key);
+  if (pending) return pending;
+
+  const promise = refresh(key, steamId, opts, hit);
+  inflight.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    if (inflight.get(key) === promise) inflight.delete(key);
+  }
 }

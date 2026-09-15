@@ -497,10 +497,37 @@
 
       <div class="border-t border-border-default pt-4">
         <p class="mb-2 text-sm font-medium text-text-label">Discord</p>
-        <p class="mb-3 text-sm text-info-400">{MOCK_PLAYER.discordUsername}</p>
-        <Button variant="danger" size="sm" onclick={() => mockOnly('Mock: Discord unlinked')}>
-          Unlink Discord
-        </Button>
+        {#if MOCK_PLAYER.discordLinked}
+          <p class="mb-3 inline-flex items-center gap-1.5 text-sm text-info-400">
+            <DiscordIcon size={14} />
+            {MOCK_PLAYER.discordUsername}
+          </p>
+          <div class="mb-4">
+            <Button variant="danger" size="sm" onclick={() => mockOnly('Mock: Discord unlinked')}>
+              Unlink Discord
+            </Button>
+          </div>
+        {:else}
+          <p class="mb-3 inline-flex items-center gap-1.5 text-sm text-text-body">
+            <DiscordIcon size={14} />
+            Discord not linked
+          </p>
+        {/if}
+        <FormInput
+          label={MOCK_PLAYER.discordLinked ? 'Replace Discord ID' : 'Link by Discord ID'}
+          name="mockDiscordId"
+          placeholder="123456789012345678"
+          hint="Developer Mode → right-click the user → Copy User ID."
+        />
+        <div class="-mt-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onclick={() => mockOnly('Mock: Discord linked by ID')}
+          >
+            {MOCK_PLAYER.discordLinked ? 'Replace' : 'Link Discord'}
+          </Button>
+        </div>
       </div>
     </div>
   </aside>

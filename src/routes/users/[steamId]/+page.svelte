@@ -7,12 +7,10 @@
   import InsightsPanel from '$lib/components/profile/InsightsPanel.svelte';
   import LeaguePanel from '$lib/components/profile/LeaguePanel.svelte';
   import OverviewPanel from '$lib/components/profile/OverviewPanel.svelte';
+  import StaffToolsPanel from '$lib/components/profile/StaffToolsPanel.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import StaffRoleBadge from '$lib/components/ui/StaffRoleBadge.svelte';
   import Tooltip from '$lib/components/ui/Tooltip.svelte';
   import { toast } from '$lib/state/toast.svelte';
@@ -99,9 +97,6 @@
   let { data }: { data: PlayerData } = $props();
 
   const player = $derived(data.player);
-  const isStaffPlayer = $derived(
-    player.permissionLevel === 'MODERATOR' || player.permissionLevel === 'ADMIN',
-  );
   const staffMedalRole = $derived.by(() => {
     if (player.permissionLevel === 'ADMIN') return 'ADMIN' as const;
     if (player.permissionLevel === 'MODERATOR') return 'MODERATOR' as const;
@@ -126,19 +121,7 @@
 
   let withdrawingEntry: Profile1v1Entry | null = $state(null);
   let isWithdrawing = $state(false);
-  let isUnlinkingDiscord = $state(false);
-  let showUnlinkDiscordConfirm = $state(false);
-  let isLinkingDiscord = $state(false);
-  let showLinkDiscordDialog = $state(false);
-  let linkDiscordId = $state('');
-  let linkDiscordError = $state('');
-  let showEditName = $state(false);
-  let showEditAvatar = $state(false);
-  let showPunish = $state(false);
-  let editNameValue = $state('');
-  let editAvatarValue = $state('');
-  let punishSeverity = $state('');
-  let isAdminSubmitting = $state(false);
+  let staffOpen = $state(false);
   let admin1v1Status = $state('');
   let admin1v1DivisionId = $state('');
   let showReadyConfirm = $state(false);
@@ -192,16 +175,6 @@
     if (status === 'BANNED')
       return { label: 'Banned', classes: 'bg-danger-500/20 text-danger-400 border-danger-500/30' };
     return null;
-  }
-
-  function openEditName() {
-    editNameValue = player.nameOverride === 1 ? player.name : '';
-    showEditName = true;
-  }
-
-  function openEditAvatar() {
-    editAvatarValue = player.avatarOverride === 1 ? player.avatar || '' : '';
-    showEditAvatar = true;
   }
 
   function tabHref(next: ProfileTab): string {
@@ -262,16 +235,6 @@
             <DiscordIcon size={14} />
             {player.discordUsername}
           </span>
-          {#if isAdmin}
-            <Button
-              variant="ghost"
-              size="sm"
-              onclick={() => (showUnlinkDiscordConfirm = true)}
-              disabled={isUnlinkingDiscord}
-            >
-              Unlink
-            </Button>
-          {/if}
         {:else if isOwnProfile}
           <Button
             href={resolve('/auth/discord/login')}
@@ -289,20 +252,6 @@
             Discord not linked
           </span>
         {/if}
-        {#if isAdmin}
-          <Button
-            type="button"
-            variant={isOwnProfile ? 'secondary' : 'primary'}
-            size="sm"
-            onclick={() => {
-              linkDiscordId = '';
-              linkDiscordError = '';
-              showLinkDiscordDialog = true;
-            }}
-          >
-            {isOwnProfile ? 'Link by ID' : 'Link Discord'}
-          </Button>
-        {/if}
       </div>
     </div>
 
@@ -312,7 +261,7 @@
           <button
             type="button"
             class="rounded bg-surface-input/60 px-2.5 py-1 text-[11px] transition-colors hover:bg-surface-hover/60"
-            onclick={openEditName}
+            onclick={() => (staffOpen = true)}
           >
             <span class="text-text-muted">Name:</span>
             <span class={player.nameOverride === 1 ? 'text-primary-400' : 'text-text-body'}>
@@ -322,7 +271,7 @@
           <button
             type="button"
             class="rounded bg-surface-input/60 px-2.5 py-1 text-[11px] transition-colors hover:bg-surface-hover/60"
-            onclick={openEditAvatar}
+            onclick={() => (staffOpen = true)}
           >
             <span class="text-text-muted">Avatar:</span>
             <span class={player.avatarOverride === 1 ? 'text-primary-400' : 'text-text-body'}>
@@ -332,7 +281,7 @@
           <button
             type="button"
             class="rounded bg-surface-input/60 px-2.5 py-1 text-[11px] transition-colors hover:bg-surface-hover/60"
-            onclick={() => (showPunish = true)}
+            onclick={() => (staffOpen = true)}
           >
             <span class="text-text-muted">Status:</span>
             {#if getBanBadge(player.banStatus)}
@@ -353,7 +302,9 @@
           variant="secondary"
           size="sm"
           class="inline-flex items-center gap-1.5"
-          onclick={() => (showPunish = true)}
+          aria-expanded={staffOpen}
+          aria-controls="staff-tools-panel"
+          onclick={() => (staffOpen = true)}
         >
           <Settings class="size-3.5" />
           Staff tools
@@ -543,115 +494,9 @@
   onCancel={() => (showMarkPaidConfirm = false)}
 />
 
-<!-- Discord Unlink Confirmation Modal -->
-<Dialog
-  open={showUnlinkDiscordConfirm}
-  title="Unlink Discord Account"
-  onClose={() => (showUnlinkDiscordConfirm = false)}
->
-  <p class="text-text-body mb-4">
-    Are you sure you want to unlink <span class="text-white font-medium">{player.name}</span>'s
-    Discord account?
-  </p>
-
-  {#if player.discordUsername}
-    <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
-      <div class="flex items-center gap-2">
-        <DiscordIcon size={16} />
-        <span class="text-success-400 text-sm">{player.discordUsername}</span>
-      </div>
-    </div>
-  {/if}
-
-  {#snippet footer()}
-    <Button
-      type="button"
-      variant="secondary"
-      class="flex-1"
-      onclick={() => (showUnlinkDiscordConfirm = false)}
-    >
-      Cancel
-    </Button>
-    <form
-      method="POST"
-      action="?/unlinkDiscord"
-      use:enhance={() => {
-        isUnlinkingDiscord = true;
-        return async ({ update, result }) => {
-          await update();
-          isUnlinkingDiscord = false;
-          showUnlinkDiscordConfirm = false;
-          if (result.type === 'success') {
-            toast.success('Discord account unlinked');
-          } else if (result.type === 'failure') {
-            toast.error((result.data?.error as string) || 'Failed to unlink Discord');
-          }
-        };
-      }}
-      class="flex-1"
-    >
-      <Button type="submit" variant="danger" disabled={isUnlinkingDiscord} class="w-full">
-        {isUnlinkingDiscord ? 'Unlinking...' : 'Unlink Discord'}
-      </Button>
-    </form>
-  {/snippet}
-</Dialog>
-
-<Dialog
-  open={showLinkDiscordDialog}
-  title="Link Discord Account"
-  onClose={() => (showLinkDiscordDialog = false)}
->
-  <p class="text-text-body mb-4">
-    Link <span class="text-white font-medium">{player.name}</span> to a Discord account. Paste a user
-    ID, mention, or profile URL.
-  </p>
-
-  <form
-    method="POST"
-    action="?/linkDiscord"
-    use:enhance={() => {
-      isLinkingDiscord = true;
-      linkDiscordError = '';
-      return async ({ update, result }) => {
-        await update();
-        isLinkingDiscord = false;
-        if (result.type === 'success') {
-          showLinkDiscordDialog = false;
-          linkDiscordId = '';
-          toast.success('Discord account linked');
-        } else if (result.type === 'failure') {
-          const message = (result.data?.error as string) || 'Failed to link Discord';
-          linkDiscordError = message;
-          toast.error(message);
-        }
-      };
-    }}
-  >
-    <FormError error={linkDiscordError} />
-    <FormInput
-      label="Discord User ID"
-      name="discordId"
-      bind:value={linkDiscordId}
-      placeholder="123456789012345678"
-      required
-      hint="Developer Mode → right-click the user → Copy User ID."
-    />
-    <div class="flex gap-3">
-      <Button
-        type="button"
-        variant="secondary"
-        class="flex-1"
-        onclick={() => (showLinkDiscordDialog = false)}
-      >
-        Cancel
-      </Button>
-      <Button type="submit" variant="primary" disabled={isLinkingDiscord} class="flex-1">
-        {isLinkingDiscord ? 'Linking...' : 'Link Discord'}
-      </Button>
-    </div>
-  </form>
-</Dialog>
+{#if isAdmin}
+  <StaffToolsPanel bind:open={staffOpen} {player} />
+{/if}
 
 <!-- 1v1 Withdrawal Confirmation Modal -->
 <Dialog
@@ -713,463 +558,5 @@
         </Button>
       </form>
     {/if}
-  {/snippet}
-</Dialog>
-
-<!-- Admin: Edit Name Modal -->
-<Dialog
-  open={showEditName}
-  title={player.nameOverride === 1 ? 'Manage Locked Name' : 'Set Custom Name'}
-  onClose={() => (showEditName = false)}
->
-  <div class="flex items-center gap-3 p-3 bg-surface-input rounded-lg mb-4">
-    {#if player.avatar}
-      <img src={player.avatar} alt={player.name} class="w-10 h-10 rounded" />
-    {/if}
-    <div>
-      <p class="text-white font-medium">{player.name}</p>
-      <p class="text-xs text-text-muted font-mono">{player.steamId}</p>
-    </div>
-    {#if player.nameOverride === 1}
-      <span
-        class="ml-auto px-2 py-0.5 text-[10px] font-bold rounded bg-orange-500/20 text-primary-400 border border-orange-500/30"
-      >
-        LOCKED
-      </span>
-    {/if}
-  </div>
-
-  {#if player.nameOverride === 1}
-    <form
-      id="form-lock-name"
-      method="POST"
-      action="?/lockName"
-      use:enhance={() => {
-        isAdminSubmitting = true;
-        return async ({ update, result }) => {
-          await update();
-          isAdminSubmitting = false;
-          if (result.type === 'success') {
-            showEditName = false;
-            toast.success('Name updated');
-          } else if (result.type === 'failure') {
-            toast.error((result.data as any)?.error || 'Failed to update name');
-          }
-        };
-      }}
-    >
-      <div class="mb-4">
-        <label for="edit-name" class="block text-sm font-medium text-text-label mb-2">
-          Change locked name
-        </label>
-        <input
-          id="edit-name"
-          name="name"
-          type="text"
-          bind:value={editNameValue}
-          maxlength="64"
-          required
-          placeholder="New display name..."
-          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-        />
-      </div>
-    </form>
-
-    <div class="border-t border-border-default pt-4 mt-4">
-      <p class="text-xs text-text-muted">
-        Or unlock the name to let it sync from Steam on next login.
-      </p>
-      <form
-        id="form-unlock-name"
-        method="POST"
-        action="?/unlockName"
-        use:enhance={() => {
-          isAdminSubmitting = true;
-          return async ({ update, result }) => {
-            await update();
-            isAdminSubmitting = false;
-            if (result.type === 'success') {
-              showEditName = false;
-              toast.success((result.data as any)?.message || 'Name unlocked');
-            } else if (result.type === 'failure') {
-              toast.error((result.data as any)?.error || 'Failed to unlock name');
-            }
-          };
-        }}
-      ></form>
-    </div>
-  {:else}
-    <p class="text-sm text-text-body mb-4">
-      This will set a custom name and lock it. The name will no longer auto-update from Steam.
-    </p>
-
-    <form
-      id="form-lock-name"
-      method="POST"
-      action="?/lockName"
-      use:enhance={() => {
-        isAdminSubmitting = true;
-        return async ({ update, result }) => {
-          await update();
-          isAdminSubmitting = false;
-          if (result.type === 'success') {
-            showEditName = false;
-            toast.success('Name set and locked');
-          } else if (result.type === 'failure') {
-            toast.error((result.data as any)?.error || 'Failed to update name');
-          }
-        };
-      }}
-    >
-      <div>
-        <label for="edit-name-new" class="block text-sm font-medium text-text-label mb-2">
-          Display Name
-        </label>
-        <input
-          id="edit-name-new"
-          name="name"
-          type="text"
-          bind:value={editNameValue}
-          maxlength="64"
-          required
-          placeholder={player.name}
-          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-        />
-      </div>
-    </form>
-  {/if}
-
-  {#snippet footer()}
-    {#if player.nameOverride === 1}
-      <Button
-        type="submit"
-        form="form-unlock-name"
-        variant="secondary"
-        disabled={isAdminSubmitting}
-      >
-        {isAdminSubmitting ? 'Unlocking...' : 'Unlock Name'}
-      </Button>
-      <div class="flex-1"></div>
-      <Button type="button" variant="secondary" onclick={() => (showEditName = false)}>
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        form="form-lock-name"
-        variant="primary"
-        disabled={isAdminSubmitting ||
-          !editNameValue.trim() ||
-          editNameValue.trim() === player.name}
-      >
-        {isAdminSubmitting ? 'Saving...' : 'Save'}
-      </Button>
-    {:else}
-      <Button
-        type="button"
-        variant="secondary"
-        class="flex-1"
-        onclick={() => (showEditName = false)}
-      >
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        form="form-lock-name"
-        variant="primary"
-        class="flex-1"
-        disabled={isAdminSubmitting || !editNameValue.trim()}
-      >
-        {isAdminSubmitting ? 'Saving...' : 'Set & Lock Name'}
-      </Button>
-    {/if}
-  {/snippet}
-</Dialog>
-
-<!-- Admin: Edit Avatar Modal -->
-<Dialog
-  open={showEditAvatar}
-  title={player.avatarOverride === 1 ? 'Avatar (Locked)' : 'Set Avatar'}
-  onClose={() => (showEditAvatar = false)}
->
-  <div class="flex items-center gap-4 mb-4">
-    <div class="flex-shrink-0">
-      <p class="text-xs text-text-muted mb-1">Current</p>
-      {#if player.avatar}
-        <img
-          src={player.avatar}
-          alt={player.name}
-          class="w-16 h-16 rounded-lg border border-border-input"
-        />
-      {:else}
-        <div
-          class="w-16 h-16 rounded-lg border border-border-input bg-surface-input flex items-center justify-center text-text-muted text-xs"
-        >
-          None
-        </div>
-      {/if}
-    </div>
-    {#if editAvatarValue.trim()}
-      <div class="flex-shrink-0">
-        <p class="text-xs text-text-muted mb-1">Preview</p>
-        <img
-          src={editAvatarValue}
-          alt="Preview"
-          class="w-16 h-16 rounded-lg border border-border-input object-cover"
-          onerror={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = 'none';
-          }}
-        />
-      </div>
-    {/if}
-  </div>
-
-  <form
-    id="form-edit-avatar"
-    method="POST"
-    action="?/lockAvatar"
-    use:enhance={() => {
-      isAdminSubmitting = true;
-      return async ({ update, result }) => {
-        await update();
-        isAdminSubmitting = false;
-        if (result.type === 'success') {
-          showEditAvatar = false;
-          toast.success('Avatar set and locked');
-        } else if (result.type === 'failure') {
-          toast.error((result.data as any)?.error || 'Failed to update avatar');
-        }
-      };
-    }}
-  >
-    <div>
-      <label for="edit-avatar" class="block text-sm font-medium text-text-label mb-2">
-        Avatar URL
-      </label>
-      <input
-        id="edit-avatar"
-        name="avatarUrl"
-        type="url"
-        bind:value={editAvatarValue}
-        placeholder="https://example.com/avatar.png"
-        class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-      />
-      {#if player.avatarOverride === 0}
-        <p class="mt-1.5 text-xs text-text-muted">
-          Setting an avatar URL will lock it, preventing Steam from overwriting it on login.
-        </p>
-      {/if}
-    </div>
-  </form>
-
-  {#if player.avatarOverride === 1}
-    <div class="border-t border-border-default pt-4 mt-4">
-      <p class="text-xs text-text-muted">
-        Or unlock the avatar to let it sync from Steam on next login.
-      </p>
-      <form
-        id="form-unlock-avatar"
-        method="POST"
-        action="?/unlockAvatar"
-        use:enhance={() => {
-          isAdminSubmitting = true;
-          return async ({ update, result }) => {
-            await update();
-            isAdminSubmitting = false;
-            if (result.type === 'success') {
-              showEditAvatar = false;
-              toast.success((result.data as any)?.message || 'Avatar unlocked');
-            } else if (result.type === 'failure') {
-              toast.error((result.data as any)?.error || 'Failed to unlock avatar');
-            }
-          };
-        }}
-      ></form>
-    </div>
-  {/if}
-
-  {#snippet footer()}
-    {#if player.avatarOverride === 1}
-      <Button
-        type="submit"
-        form="form-unlock-avatar"
-        variant="secondary"
-        disabled={isAdminSubmitting}
-      >
-        {isAdminSubmitting ? 'Unlocking...' : 'Unlock Avatar'}
-      </Button>
-      <div class="flex-1"></div>
-      <Button type="button" variant="secondary" onclick={() => (showEditAvatar = false)}>
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        form="form-edit-avatar"
-        variant="primary"
-        disabled={isAdminSubmitting || !editAvatarValue.trim()}
-      >
-        {isAdminSubmitting ? 'Saving...' : 'Save'}
-      </Button>
-    {:else}
-      <Button
-        type="button"
-        variant="secondary"
-        class="flex-1"
-        onclick={() => (showEditAvatar = false)}
-      >
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        form="form-edit-avatar"
-        variant="primary"
-        class="flex-1"
-        disabled={isAdminSubmitting || !editAvatarValue.trim()}
-      >
-        {isAdminSubmitting ? 'Saving...' : 'Set & Lock Avatar'}
-      </Button>
-    {/if}
-  {/snippet}
-</Dialog>
-
-<!-- Admin: Manage Punishment Modal -->
-<Dialog
-  open={showPunish}
-  title="Manage Status"
-  onClose={() => {
-    showPunish = false;
-    punishSeverity = '';
-  }}
->
-  <div class="flex items-center gap-3 p-3 bg-surface-input rounded-lg mb-4">
-    {#if player.avatar}
-      <img src={player.avatar} alt={player.name} class="w-10 h-10 rounded" />
-    {/if}
-    <div>
-      <p class="text-white font-medium">{player.name}</p>
-      <p class="text-xs text-text-muted font-mono">{player.steamId}</p>
-    </div>
-    {#if getBanBadge(player.banStatus)}
-      {@const badge = getBanBadge(player.banStatus)!}
-      <span class="ml-auto px-2 py-0.5 text-xs font-bold rounded border {badge.classes}">
-        {badge.label}
-      </span>
-    {/if}
-  </div>
-
-  {#if isStaffPlayer}
-    <div class="p-3 bg-warning-500/10 border border-warning-500/30 rounded-lg mb-4">
-      <p class="text-warning-400 text-xs">
-        Demote this user from /admin/staff before punishing them.
-      </p>
-    </div>
-  {/if}
-
-  <form
-    id="form-punish"
-    method="POST"
-    action="?/punishUser"
-    use:enhance={() => {
-      isAdminSubmitting = true;
-      return async ({ update, result }) => {
-        await update();
-        isAdminSubmitting = false;
-        if (result.type === 'success') {
-          showPunish = false;
-          punishSeverity = '';
-          toast.success((result.data as any)?.message || 'Status updated');
-        } else if (result.type === 'failure') {
-          toast.error((result.data as any)?.error || 'Failed to update status');
-        }
-      };
-    }}
-  >
-    <FormSelect
-      label="Status"
-      name="severity"
-      id="punish-severity"
-      required
-      bind:value={punishSeverity}
-      placeholder="Select status..."
-      options={[
-        { value: 'NONE', label: 'None (Clear punishment)' },
-        { value: 'WARNING', label: 'Warning', disabled: isStaffPlayer },
-        { value: 'SUSPENDED', label: 'Suspended', disabled: isStaffPlayer },
-        { value: 'BANNED', label: 'Banned', disabled: isStaffPlayer },
-      ]}
-    />
-
-    {#if punishSeverity && punishSeverity !== 'NONE'}
-      <div class="mb-4">
-        <label for="punish-duration" class="block text-sm font-medium text-text-label mb-2">
-          Duration (days)
-        </label>
-        <input
-          id="punish-duration"
-          name="duration"
-          type="number"
-          min="1"
-          placeholder="Leave empty for permanent"
-          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-        />
-        <p class="mt-1.5 text-xs text-text-muted">Leave empty for permanent punishment.</p>
-      </div>
-
-      <div class="mb-4">
-        <label for="punish-reason" class="block text-sm font-medium text-text-label mb-2">
-          Reason <span class="text-danger-500">*</span>
-        </label>
-        <textarea
-          id="punish-reason"
-          name="reason"
-          rows="3"
-          required
-          placeholder="Explain why this user is being punished..."
-          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
-        ></textarea>
-      </div>
-    {/if}
-
-    {#if punishSeverity === 'NONE'}
-      <div class="p-3 bg-success-500/10 border border-success-500/30 rounded-lg">
-        <p class="text-success-400 text-xs">
-          This will clear the user's punishment status and deactivate all active records.
-        </p>
-      </div>
-    {:else if punishSeverity}
-      <div class="p-3 bg-danger-500/10 border border-danger-500/30 rounded-lg">
-        <p class="text-danger-400 text-xs">
-          This will create a punishment record and update the user's ban status.
-        </p>
-      </div>
-    {/if}
-  </form>
-
-  {#snippet footer()}
-    <Button
-      type="button"
-      variant="secondary"
-      class="flex-1"
-      onclick={() => {
-        showPunish = false;
-        punishSeverity = '';
-      }}
-    >
-      Cancel
-    </Button>
-    <Button
-      type="submit"
-      form="form-punish"
-      variant={punishSeverity === 'NONE' ? 'success' : 'danger'}
-      class="flex-1"
-      disabled={isAdminSubmitting ||
-        !punishSeverity ||
-        (isStaffPlayer && punishSeverity !== 'NONE')}
-    >
-      {isAdminSubmitting
-        ? 'Applying...'
-        : punishSeverity === 'NONE'
-          ? 'Clear Punishment'
-          : 'Apply Punishment'}
-    </Button>
   {/snippet}
 </Dialog>

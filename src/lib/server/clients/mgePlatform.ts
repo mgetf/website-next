@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import type { MgeRating, PlatformRegion } from '$lib/types/mge';
+import type { PlayerServerStats, StatsWindow } from '$lib/types/profile';
 import { steamId32FromSteamId64 } from '$lib/utils/steamid';
 
 function getPlatformUrl(): string {
@@ -137,5 +138,32 @@ export async function getLeaderboard(
     };
   } catch {
     return empty;
+  }
+}
+
+export async function getPlayerServerStats(
+  steamId: string,
+  opts: { region: string; days?: StatsWindow | string; tz?: string },
+): Promise<PlayerServerStats | null> {
+  const base = getPlatformUrl();
+  if (!base || !opts.region) return null;
+  let steam2Id: string;
+  try {
+    steam2Id = steamId32FromSteamId64(steamId);
+  } catch {
+    return null;
+  }
+  const params = new URLSearchParams({ region: opts.region });
+  if (opts.days != null) params.set('days', String(opts.days));
+  if (opts.tz) params.set('tz', opts.tz);
+  try {
+    const res = await fetch(
+      `${base}/api/v1/players/${encodeURIComponent(steam2Id)}/server-stats?${params}`,
+      { signal: AbortSignal.timeout(20000) },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as PlayerServerStats;
+  } catch {
+    return null;
   }
 }

@@ -75,6 +75,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       isIndividual: format.isIndividual,
       supportsAcronym: format.supportsAcronym,
       themeKey: format.themeKey,
+      iconUrl: format.iconUrl,
     },
     regions,
     divisions,

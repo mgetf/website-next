@@ -152,7 +152,7 @@ export async function getPlayerTeams(steamId: string) {
           region: true,
           season: true,
           format: {
-            select: { name: true, themeKey: true },
+            select: { name: true, code: true, themeKey: true, iconUrl: true },
           },
         },
       },
@@ -329,8 +329,11 @@ export function transformCurrentTeams(playerTeams: any[]) {
     .map((pt) => ({
       teamId: pt.team.id,
       teamName: pt.team.name,
+      avatar: pt.team.avatar ?? null,
+      formatCode: pt.team.format?.code || 'team',
       formatName: pt.team.format?.name || 'Team',
       formatThemeKey: pt.team.format?.themeKey || 'primary',
+      formatIconUrl: pt.team.format?.iconUrl ?? null,
       division: pt.team.division?.name || 'Unassigned',
       regionName: pt.team.region?.name || 'N/A',
       seasonNum: pt.team.season?.seasonNum || 0,
@@ -352,8 +355,11 @@ export function transformTeamHistory(playerTeams: any[]) {
     .map((pt) => ({
       teamId: pt.team.id,
       teamName: pt.team.name,
+      avatar: pt.team.avatar ?? null,
+      formatCode: pt.team.format?.code || 'team',
       formatName: pt.team.format?.name || 'Team',
       formatThemeKey: pt.team.format?.themeKey || 'primary',
+      formatIconUrl: pt.team.format?.iconUrl ?? null,
       division: pt.team.division?.name || 'Unassigned',
       regionName: pt.team.region?.name || 'N/A',
       seasonNum: pt.team.season?.seasonNum || 0,
@@ -435,8 +441,8 @@ async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, Profi
       OR: [{ homeTeamId: { in: teamIds } }, { awayTeamId: { in: teamIds } }],
     },
     include: {
-      homeTeam: { select: { id: true, name: true } },
-      awayTeam: { select: { id: true, name: true } },
+      homeTeam: { select: { id: true, name: true, avatar: true } },
+      awayTeam: { select: { id: true, name: true, avatar: true } },
     },
     orderBy: [{ weekNo: 'asc' }, { id: 'asc' }],
   });
@@ -482,6 +488,7 @@ async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, Profi
         week,
         opponentName: opponent.name,
         opponentId: opponent.id,
+        opponentAvatar: opponent.avatar ?? null,
         result: matchResult,
         score,
       });

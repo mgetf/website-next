@@ -3,6 +3,7 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
+  import type { SubmitFunction } from '@sveltejs/kit';
   import DataTable from '$lib/components/ui/DataTable.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -14,6 +15,7 @@
   import FormError from '$lib/components/ui/form/FormError.svelte';
   import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { FORMAT_THEME_KEYS } from '$lib/constants/formats';
 
@@ -75,6 +77,7 @@
 
   const formatColumns = $derived([
     { key: 'id', label: 'ID' },
+    { key: 'icon', label: 'Icon' },
     { key: 'name', label: 'Name' },
     { key: 'code', label: 'Code' },
     { key: 'type', label: 'Type' },
@@ -294,6 +297,21 @@
   let showFormatForm = $state(false);
   let editingFormat: (typeof data.formats)[0] | null = $state(null);
   let deletingFormat: (typeof data.formats)[0] | null = $state(null);
+
+  function refreshEditingFormat() {
+    if (!editingFormat) return;
+    const updated = data.formats.find((format) => format.id === editingFormat?.id);
+    if (updated) editingFormat = updated;
+  }
+
+  const formatIconEnhance: SubmitFunction = () => {
+    isSubmitting = true;
+    return async ({ update }) => {
+      await update();
+      isSubmitting = false;
+      refreshEditingFormat();
+    };
+  };
 
   // Delete confirmation text (shared across all delete dialogs)
   let deleteConfirmText = $state('');
@@ -589,7 +607,14 @@
                 ? 'text-primary-400'
                 : 'text-text-body hover:text-white'}"
             >
-              {formatName}
+              <span class="inline-flex items-center gap-1.5">
+                <FormatIcon
+                  name={formatName}
+                  src={data.formats.find((format) => format.name === formatName)?.iconUrl}
+                  size="sm"
+                />
+                {formatName}
+              </span>
               <span
                 class="ml-1.5 text-xs {selectedFormat === formatName
                   ? 'text-primary-400/70'
@@ -970,7 +995,10 @@
                 ? 'text-primary-400'
                 : 'text-text-body hover:text-white'}"
             >
-              {format.name}
+              <span class="inline-flex items-center gap-1.5">
+                <FormatIcon name={format.name} src={format.iconUrl} size="sm" />
+                {format.name}
+              </span>
               <span
                 class="ml-1.5 text-xs {selectedDivisionFormatId === format.id
                   ? 'text-primary-400/70'
@@ -1519,6 +1547,7 @@
           <form
             method="POST"
             action="?/createFormat"
+            enctype="multipart/form-data"
             use:enhance={() => {
               isSubmitting = true;
               return async ({ update, result }) => {
@@ -1604,6 +1633,24 @@
                 Supports re-registration
               </label>
             </div>
+            <div>
+              <label
+                for="create-format-icon"
+                class="block text-sm font-medium text-text-label mb-1"
+              >
+                Icon (optional)
+              </label>
+              <input
+                id="create-format-icon"
+                name="icon"
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                class="block w-full text-sm text-text-body file:mr-3 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+              />
+              <p class="mt-1 text-xs text-text-muted">
+                Square PNG or WebP works best. Same storage as Steam item icons.
+              </p>
+            </div>
             <div class="flex justify-end">
               <Button type="submit" variant="success" disabled={isSubmitting}>
                 {isSubmitting ? 'Creating...' : 'Create Format'}
@@ -1624,6 +1671,16 @@
           {#snippet cell(format, col)}
             {#if col.key === 'id'}
               <span class="text-text-body text-sm">{format.id}</span>
+            {:else if col.key === 'icon'}
+              {#if format.iconUrl}
+                <img src={format.iconUrl} alt="" class="h-8 w-8 rounded object-contain" />
+              {:else}
+                <div
+                  class="h-8 w-8 rounded bg-surface-hover flex items-center justify-center text-xs text-text-muted"
+                >
+                  —
+                </div>
+              {/if}
             {:else if col.key === 'name'}
               <span class="text-white font-medium">{format.name}</span>
             {:else if col.key === 'code'}
@@ -1673,6 +1730,55 @@
 {#if editingFormat}
   <Dialog open={true} title="Edit Format" onClose={() => (editingFormat = null)}>
     <FormError error={form?.error} />
+
+    <div class="flex flex-wrap items-center gap-4 mb-4">
+      {#if editingFormat.iconUrl}
+        <img
+          src={editingFormat.iconUrl}
+          alt=""
+          class="h-12 w-12 rounded object-contain bg-surface-input border border-border-input"
+        />
+      {:else}
+        <div
+          class="h-12 w-12 rounded bg-surface-input border border-border-input flex items-center justify-center text-xs text-text-muted"
+        >
+          No icon
+        </div>
+      {/if}
+      <form
+        method="POST"
+        action="?/uploadFormatIcon"
+        enctype="multipart/form-data"
+        use:enhance={formatIconEnhance}
+        class="min-w-0 flex-1"
+      >
+        <input type="hidden" name="formatId" value={editingFormat.id} />
+        <label for="edit-format-icon" class="block text-xs font-medium text-text-label mb-1">
+          {editingFormat.iconUrl ? 'Replace icon' : 'Upload icon'}
+        </label>
+        <input
+          id="edit-format-icon"
+          name="icon"
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          class="block w-full text-xs text-text-body file:mr-2 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
+          onchange={(event) => {
+            const input = event.currentTarget;
+            if (input.files && input.files.length > 0) {
+              input.form?.requestSubmit();
+            }
+          }}
+        />
+      </form>
+      {#if editingFormat.iconUrl}
+        <form method="POST" action="?/clearFormatIcon" use:enhance={formatIconEnhance}>
+          <input type="hidden" name="formatId" value={editingFormat.id} />
+          <Button type="submit" variant="secondary" size="sm" disabled={isSubmitting}>
+            Remove icon
+          </Button>
+        </form>
+      {/if}
+    </div>
 
     <form
       method="POST"
@@ -2096,7 +2202,7 @@
                 disabled={formatKeys.length === 0}
                 onchange={(e) => setCopyKeys(formatKeys, e.currentTarget.checked)}
               />
-              <FormatBadge name={format.name} themeKey={format.themeKey} />
+              <FormatBadge name={format.name} themeKey={format.themeKey} iconUrl={format.iconUrl} />
             </label>
           {/each}
         </div>
@@ -2138,7 +2244,11 @@
                       onchange={(e) =>
                         toggleCopyTarget(region.id, format.id, e.currentTarget.checked)}
                     />
-                    <FormatBadge name={format.name} themeKey={format.themeKey} />
+                    <FormatBadge
+                      name={format.name}
+                      themeKey={format.themeKey}
+                      iconUrl={format.iconUrl}
+                    />
                     {#if isSource}
                       <span class="text-xs text-text-muted">(source)</span>
                     {/if}

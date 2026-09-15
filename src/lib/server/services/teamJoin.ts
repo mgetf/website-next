@@ -311,7 +311,7 @@ export async function getUserPendingInvites(steamId: string) {
           division: true,
           region: true,
           season: true,
-          format: { select: { name: true, themeKey: true, maxRosterSize: true } },
+          format: { select: { name: true, themeKey: true, iconUrl: true, maxRosterSize: true } },
           players: { where: { active: 1 } },
         },
       },

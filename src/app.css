@@ -63,6 +63,10 @@
   --color-info-400: var(--color-blue-400);
   --color-info-500: var(--color-blue-500);
   --color-info-600: var(--color-blue-600);
+
+  /* ── Staff (Discord role colors) ── */
+  --color-staff-admin: #a9c9ff;
+  --color-staff-moderator: #9b59b6;
 }
 
 /* Custom scrollbar styling */

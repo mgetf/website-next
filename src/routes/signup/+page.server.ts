@@ -17,6 +17,7 @@ interface FormatSignupInfo {
     isIndividual: boolean;
     supportsReregistration: boolean;
     themeKey: string;
+    iconUrl: string | null;
   };
   fee: SignupFeeSummary;
   canSignup: boolean;

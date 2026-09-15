@@ -10,6 +10,7 @@
   import DivisionPlayoffBracket from '$lib/components/leagues/DivisionPlayoffBracket.svelte';
   import LeagueRegionSeasonMenu from '$lib/components/leagues/LeagueRegionSeasonMenu.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
+  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
   import type { BracketData } from '$lib/types/bracket';
   import type { LeagueDivisionMatch } from '$lib/types/league';
@@ -41,6 +42,7 @@
       code: string;
       isIndividual: boolean;
       themeKey: string;
+      iconUrl: string | null;
     };
     seasons: Array<{
       id: number;
@@ -227,7 +229,10 @@
 <div class="min-h-screen pb-16">
   <!-- Hero Header -->
   <PageHero maxWidth="max-w-7xl" class="pt-12 pb-6 text-center">
-    <h1 class="text-6xl font-black mb-8 text-white drop-shadow-2xl">
+    <h1
+      class="mb-8 flex items-center justify-center gap-4 text-6xl font-black text-white drop-shadow-2xl"
+    >
+      <FormatIcon name={data.format.name} src={data.format.iconUrl} size="xl" />
       {data.format.name} League
     </h1>
 

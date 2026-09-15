@@ -37,6 +37,7 @@ describe('buildLeagueNav', () => {
     expect(nav.formats.map((f) => f.code)).toEqual(['2v2', '1v1', 'ultiduo']);
 
     const twoVTwo = nav.formats[0];
+    expect(twoVTwo.iconUrl).toBeNull();
     expect(twoVTwo.cells.map((c) => [c.regionId, c.seasonId, c.seasonNum, c.href])).toEqual([
       [11, 101, 12, '/leagues/2v2?season=101&region=11'],
       [10, 201, 8, '/leagues/2v2?season=201&region=10'],
@@ -62,5 +63,23 @@ describe('buildLeagueNav', () => {
     expect(nav.regions.map((r) => r.abbr)).toEqual(['SA']);
     expect(nav.regions.map((r) => r.flagCode)).toEqual(['ar']);
     expect(nav.formats[0]?.cells[0]?.href).toBe('/leagues/bball?season=1&region=13');
+  });
+
+  it('forwards format icons into the nav', () => {
+    const nav = buildLeagueNav(
+      [
+        {
+          id: 2,
+          code: '2v2',
+          name: '2v2',
+          themeKey: 'blue',
+          iconUrl: 'https://cdn.example/2v2.png',
+        },
+      ],
+      regions,
+      [{ id: 201, seasonNum: 8, regionId: 10, formatId: 2 }],
+    );
+
+    expect(nav.formats[0]?.iconUrl).toBe('https://cdn.example/2v2.png');
   });
 });

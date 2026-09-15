@@ -290,7 +290,12 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-white font-medium text-sm truncate">{p.teamName}</p>
                   <p class="text-text-muted text-xs mt-0.5">
-                    <FormatBadge name={p.formatName} themeKey={p.formatThemeKey} size="sm" />
+                    <FormatBadge
+                      name={p.formatName}
+                      themeKey={p.formatThemeKey}
+                      iconUrl={p.formatIconUrl}
+                      size="sm"
+                    />
                     {#if p.regionName}
                       <span class="mx-1">&middot;</span>{p.regionName}
                     {/if}
@@ -344,7 +349,12 @@
                   <div class="min-w-0">
                     <p class="text-white font-bold">{p.teamName}</p>
                     <p class="text-sm text-text-body mt-0.5">
-                      <FormatBadge name={p.formatName} themeKey={p.formatThemeKey} size="sm" />
+                      <FormatBadge
+                        name={p.formatName}
+                        themeKey={p.formatThemeKey}
+                        iconUrl={p.formatIconUrl}
+                        size="sm"
+                      />
                       {#if p.regionName}
                         <span class="mx-1 text-text-muted">&middot;</span>{p.regionName}
                       {/if}

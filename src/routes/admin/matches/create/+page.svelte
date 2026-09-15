@@ -310,6 +310,7 @@
               <FormatBadge
                 name={selectedSeason.format.name}
                 themeKey={selectedSeason.format.themeKey}
+                iconUrl={selectedSeason.format.iconUrl}
                 size="md"
               />
             </div>

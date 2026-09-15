@@ -345,7 +345,11 @@
           </div>
         </div>
       {:else if col.key === 'format'}
-        <FormatBadge name={team.formatName} themeKey={team.formatThemeKey} />
+        <FormatBadge
+          name={team.formatName}
+          themeKey={team.formatThemeKey}
+          iconUrl={team.formatIconUrl}
+        />
       {:else if col.key === 'season'}
         {#if team.season}
           <span class="text-text-label">S{team.season.seasonNum}</span>

@@ -282,7 +282,11 @@
             </div>
           </a>
         {:else if col.key === 'format'}
-          <FormatBadge name={team.format.name} themeKey={team.format.themeKey} />
+          <FormatBadge
+            name={team.format.name}
+            themeKey={team.format.themeKey}
+            iconUrl={team.format.iconUrl}
+          />
         {:else if col.key === 'division'}
           {#if team.division}
             <span class="text-sm text-text-label whitespace-nowrap">{team.division.name}</span>

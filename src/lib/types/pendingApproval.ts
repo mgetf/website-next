@@ -11,6 +11,7 @@ export interface PendingApproval {
   formatId: number;
   formatName: string;
   formatThemeKey: string;
+  formatIconUrl: string | null;
   isIndividual: boolean;
   divisionId: number | null;
   divisionName: string | null;

@@ -75,6 +75,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       code: format.code,
       isIndividual: format.isIndividual,
       themeKey: format.themeKey,
+      iconUrl: format.iconUrl,
     },
     ownedTeams: context.ownedTeams,
     regions,

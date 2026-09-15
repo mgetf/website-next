@@ -304,7 +304,11 @@
                         {item.teamName}
                       </a>
                     {/if}
-                    <FormatBadge name={item.formatName} themeKey={item.formatThemeKey} />
+                    <FormatBadge
+                      name={item.formatName}
+                      themeKey={item.formatThemeKey}
+                      iconUrl={item.formatIconUrl}
+                    />
                     <Badge color="yellow">
                       {item.kind === 'ENTRY_READY' ? 'Ready-up' : 'Join'}
                     </Badge>

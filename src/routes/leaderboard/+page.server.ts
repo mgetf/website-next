@@ -13,26 +13,25 @@ const VALID_SORT_FIELDS: LeaderboardSortField[] = [
   'games',
   'winrate',
   'lastPlayed',
+  'rd',
 ];
 
 export const load: PageServerLoad = async ({ url }) => {
   const availableRegions = await getRegions();
   const availableCodes = availableRegions.map((r) => r.code);
-  const defaultRegion = availableCodes[0] ?? '';
 
   const regionParam = url.searchParams.get('region');
-  const rawRegion = (typeof regionParam === 'string' && regionParam) || defaultRegion;
-  const regions = rawRegion
+  const selectedRegions = (regionParam ?? '')
     .split(',')
     .map((r) => r.trim())
     .filter((r) => r.length > 0 && availableCodes.includes(r));
-  const safeRegions = regions.length > 0 ? regions : defaultRegion ? [defaultRegion] : [];
+  const queryRegions = selectedRegions.length > 0 ? selectedRegions : availableCodes;
 
   const search = url.searchParams.get('search')?.trim() ?? '';
 
   if (search) {
     const { entries, total, totalPages } = await searchEloLeaderboard({
-      regions: safeRegions,
+      regions: queryRegions,
       search,
     });
     return {
@@ -41,7 +40,7 @@ export const load: PageServerLoad = async ({ url }) => {
       totalPages,
       regions: availableRegions,
       filters: {
-        regions: safeRegions,
+        regions: selectedRegions,
         page: 1,
         pageSize: DEFAULT_PAGE_SIZE,
         minElo: null,
@@ -73,7 +72,7 @@ export const load: PageServerLoad = async ({ url }) => {
   const sortDir: LeaderboardSortDir = rawSortDir === 'asc' ? 'asc' : 'desc';
 
   const { entries, total, totalPages } = await getEloLeaderboardPage({
-    regions: safeRegions,
+    regions: queryRegions,
     page,
     pageSize,
     minElo,
@@ -88,7 +87,7 @@ export const load: PageServerLoad = async ({ url }) => {
     totalPages,
     regions: availableRegions,
     filters: {
-      regions: safeRegions,
+      regions: selectedRegions,
       page,
       pageSize,
       minElo: minElo ?? null,

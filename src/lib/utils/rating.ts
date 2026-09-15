@@ -1,9 +1,15 @@
 import type { MgeRating } from '$lib/types/mge';
 
 export const PROVISIONAL_RATING_TITLE = 'Rating still adjusting (new or returning player)';
+export const RD_TOOLTIP = 'Rating deviation. Lower is more certain.';
 
 export function ratingValue(elo: number): number {
   return Math.round(elo);
+}
+
+export function formatRd(rd: number | null): string {
+  if (rd == null) return '—';
+  return String(Math.round(rd));
 }
 
 function ratingGames(rating: Pick<MgeRating, 'wins' | 'losses'>): number {

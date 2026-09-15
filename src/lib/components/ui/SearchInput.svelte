@@ -2,12 +2,14 @@
   let {
     value = $bindable(''),
     placeholder = 'Search...',
+    id,
     onSearch,
     debounceMs = 0,
     class: className = '',
   }: {
     value?: string;
     placeholder?: string;
+    id?: string;
     onSearch?: (value: string) => void;
     debounceMs?: number;
     class?: string;
@@ -34,6 +36,7 @@
 
 <input
   type="text"
+  {id}
   {value}
   {placeholder}
   oninput={handleInput}

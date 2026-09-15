@@ -6,12 +6,14 @@
     width?: string;
     srOnly?: boolean;
     sortable?: boolean;
+    headerTooltip?: string;
   };
 </script>
 
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
   import Paginator from './Paginator.svelte';
+  import Tooltip from './Tooltip.svelte';
 
   type PaginationConfig = {
     currentPage: number;
@@ -107,7 +109,7 @@
             : ''}"
         >
           <tr>
-            {#each columns as col}
+            {#each columns as col (col.key)}
               <th
                 scope="col"
                 class="{headPadding} text-sm font-semibold text-text-label {getAlignClass(
@@ -120,6 +122,7 @@
                 {:else if col.sortable && onSort}
                   <button
                     type="button"
+                    title={col.headerTooltip}
                     onclick={() => onSort(col.key)}
                     class="flex items-center gap-1 hover:text-white transition-colors {col.align ===
                     'right'
@@ -128,7 +131,13 @@
                         ? 'mx-auto'
                         : ''}"
                   >
-                    {col.label}
+                    {#if col.headerTooltip}
+                      <span class="cursor-help border-b border-dotted border-text-muted"
+                        >{col.label}</span
+                      >
+                    {:else}
+                      {col.label}
+                    {/if}
                     {#if sortBy === col.key}
                       {#if sortDir === 'asc'}
                         <svg
@@ -160,6 +169,12 @@
                       >
                     {/if}
                   </button>
+                {:else if col.headerTooltip}
+                  <Tooltip text={col.headerTooltip}>
+                    <span class="cursor-help border-b border-dotted border-text-muted"
+                      >{col.label}</span
+                    >
+                  </Tooltip>
                 {:else}
                   {col.label}
                 {/if}
@@ -175,7 +190,7 @@
                 : ''} {rowClass ? rowClass(row) : ''}"
               onclick={() => handleRowClick(row)}
             >
-              {#each columns as col}
+              {#each columns as col (col.key)}
                 <td class="{cellPadding} {getAlignClass(col.align)}">
                   {@render cell(row, col)}
                 </td>
@@ -203,5 +218,7 @@
         infoText={pagination.infoText}
       />
     </div>
+  {:else if pagination?.infoText}
+    <div class="mt-6 text-sm text-text-body">{pagination.infoText}</div>
   {/if}
 {/if}

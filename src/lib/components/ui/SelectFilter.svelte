@@ -12,6 +12,7 @@
     allLabel = 'All',
     showAllOption = true,
     disabled = false,
+    id,
     onChange,
     class: className = '',
   }: {
@@ -20,6 +21,7 @@
     allLabel?: string;
     showAllOption?: boolean;
     disabled?: boolean;
+    id?: string;
     onChange?: (value: string) => void;
     class?: string;
   } = $props();
@@ -32,6 +34,7 @@
   {items}
   placeholder={allLabel}
   {disabled}
+  {id}
   size="sm"
   {onChange}
   class={className}

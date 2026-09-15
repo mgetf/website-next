@@ -1,12 +1,15 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
+  import FilterBar from '$lib/components/ui/FilterBar.svelte';
+  import MultiSelectMenu from '$lib/components/ui/MultiSelectMenu.svelte';
+  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+  import SearchInput from '$lib/components/ui/SearchInput.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
-  import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
+  import { formatRd, PROVISIONAL_RATING_TITLE, ratingValue, RD_TOOLTIP } from '$lib/utils/rating';
   import { flagForRegion } from '$lib/utils/regions';
 
   let { data } = $props();
@@ -14,15 +17,30 @@
   let selectedRegions = $state<string[]>([]);
   let registeredOnly = $state(false);
   let search = $state('');
+  let pageSize = $state('50');
 
   $effect(() => {
     selectedRegions = data.filters.regions;
     registeredOnly = data.filters.registeredOnly;
     search = data.filters.search;
+    pageSize = String(data.filters.pageSize);
   });
 
   const sortBy = $derived<string>(data.filters.sortBy);
   const sortDir = $derived<'asc' | 'desc'>(data.filters.sortDir);
+
+  const regionItems = $derived(
+    data.regions.map((region) => ({
+      value: region.code,
+      label: region.code.toUpperCase(),
+    })),
+  );
+
+  const pageSizeOptions = [
+    { value: '25', label: '25' },
+    { value: '50', label: '50' },
+    { value: '100', label: '100' },
+  ];
 
   function formatRelativeTime(isoString: string | null): string {
     if (!isoString) return '—';
@@ -47,25 +65,38 @@
     return `${((wins / total) * 100).toFixed(1)}%`;
   }
 
+  function regionParam(selected: string[]): string | null {
+    if (selected.length === 0) return null;
+    const codes = data.regions.map((region) => region.code);
+    if (selected.length === codes.length && codes.every((code) => selected.includes(code))) {
+      return null;
+    }
+    return selected.join(',');
+  }
+
   function applyFilters(overrides: Record<string, string | number | boolean | null> = {}) {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(page.url.searchParams);
     const merged: Record<string, string | number | boolean | null> = {
-      region: selectedRegions.join(','),
+      region: regionParam(selectedRegions),
       registeredOnly: registeredOnly ? '1' : null,
       search: data.filters.search || null,
       page: 1,
+      pageSize: data.filters.pageSize === 50 ? null : data.filters.pageSize,
+      sortBy: data.filters.sortBy === 'elo' ? null : data.filters.sortBy,
+      sortDir: data.filters.sortDir === 'desc' ? null : data.filters.sortDir,
       ...overrides,
     };
     for (const [k, v] of Object.entries(merged)) {
-      if (v != null && v !== '' && v !== false) params.set(k, String(v));
+      if (v == null || v === '' || v === false) params.delete(k);
+      else params.set(k, String(v));
     }
-    goto(`?${params}`);
+    goto(resolve('/leaderboard') + `?${params}`);
   }
 
   function changePage(p: number) {
     const params = new URLSearchParams(page.url.searchParams);
     params.set('page', String(p));
-    goto(`?${params}`);
+    goto(resolve('/leaderboard') + `?${params}`);
   }
 
   function handleSort(key: string) {
@@ -75,10 +106,14 @@
     params.set('sortBy', sortKey);
     params.set('sortDir', newDir);
     params.set('page', '1');
-    goto(`?${params}`);
+    if (sortKey === 'elo') params.delete('sortBy');
+    if (newDir === 'desc') params.delete('sortDir');
+    goto(resolve('/leaderboard') + `?${params}`);
   }
 
-  const hasActiveFilters = $derived(registeredOnly || !!data.filters.search);
+  const hasActiveFilters = $derived(
+    data.filters.registeredOnly || !!data.filters.search || data.filters.regions.length > 0,
+  );
   const tableSortBy = $derived(
     data.filters.sortBy === 'lastPlayed' ? 'lastActive' : data.filters.sortBy,
   );
@@ -88,36 +123,42 @@
   );
 
   function commitSearch() {
-    const params = new URLSearchParams();
-    params.set('region', selectedRegions.join(','));
-    if (search.trim()) params.set('search', search.trim());
-    goto(`?${params}`);
+    applyFilters({ search: search.trim() || null, page: 1 });
   }
 
-  function toggleRegion(r: string) {
-    if (selectedRegions.includes(r)) {
-      if (selectedRegions.length === 1) return;
-      applyFilters({ region: selectedRegions.filter((x) => x !== r).join(','), page: 1 });
-    } else {
-      applyFilters({ region: [...selectedRegions, r].join(','), page: 1 });
-    }
+  function clearFilters() {
+    selectedRegions = [];
+    registeredOnly = false;
+    search = '';
+    applyFilters({
+      region: null,
+      registeredOnly: null,
+      search: null,
+      page: 1,
+    });
   }
-
-  const showRegionCol = $derived(data.filters.regions.length > 1);
 
   const columns = $derived<Column[]>([
     { key: 'rank', label: '#', width: '60px' },
-    ...(showRegionCol ? [{ key: 'region', label: 'Region', width: '90px' } as Column] : []),
+    { key: 'region', label: 'Region', width: '90px' },
     { key: 'player', label: 'Player' },
-    { key: 'elo', label: 'Rating', align: 'right' as const, width: '80px', sortable: true },
-    { key: 'games', label: 'Games', align: 'center' as const, width: '70px', sortable: true },
-    { key: 'wins', label: 'W', align: 'center' as const, width: '50px', sortable: true },
-    { key: 'losses', label: 'L', align: 'center' as const, width: '50px', sortable: true },
-    { key: 'winrate', label: 'W/L %', align: 'center' as const, width: '70px', sortable: true },
+    { key: 'elo', label: 'Rating', align: 'right', width: '80px', sortable: true },
+    {
+      key: 'rd',
+      label: 'RD',
+      align: 'right',
+      width: '70px',
+      sortable: true,
+      headerTooltip: RD_TOOLTIP,
+    },
+    { key: 'games', label: 'Games', align: 'center', width: '70px', sortable: true },
+    { key: 'wins', label: 'W', align: 'center', width: '50px', sortable: true },
+    { key: 'losses', label: 'L', align: 'center', width: '50px', sortable: true },
+    { key: 'winrate', label: 'W/L %', align: 'center', width: '70px', sortable: true },
     {
       key: 'lastActive',
       label: 'Last Active',
-      align: 'right' as const,
+      align: 'right',
       width: '110px',
       sortable: true,
     },
@@ -131,89 +172,84 @@
   border={true}
 />
 
-<!-- Filters -->
-<div class="max-w-7xl mx-auto px-6 pt-6 pb-4">
-  <Card>
-    <div class="flex flex-col gap-4">
-      <!-- Region selector -->
-      <div class="flex gap-1 flex-wrap">
-        {#each data.regions as region (region.code)}
-          {@const fc = flagForRegion(region.code, data.regions)}
-          {@const isActive = selectedRegions.includes(region.code)}
-          <button
-            type="button"
-            onclick={() => toggleRegion(region.code)}
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {isActive
-              ? 'bg-primary-600 text-white'
-              : 'bg-surface-input text-text-label hover:bg-surface-hover hover:text-white'}"
-          >
-            <FlagIcon code={fc} class="w-5 h-3.5 rounded-sm" />
-            {region.code.toUpperCase()}
-          </button>
-        {/each}
+<div class="max-w-7xl mx-auto px-6 pt-6">
+  <FilterBar onSubmit={commitSearch} onClear={clearFilters} {hasActiveFilters}>
+    {#snippet filters()}
+      <div class="md:w-56">
+        <label for="leaderboard-regions" class="block text-sm font-medium text-text-body mb-2"
+          >Region</label
+        >
+        <MultiSelectMenu
+          id="leaderboard-regions"
+          bind:value={selectedRegions}
+          items={regionItems}
+          placeholder="All regions"
+          overflowNoun="regions"
+          size="sm"
+          onOpenChange={(open) => {
+            if (open) return;
+            const next = regionParam(selectedRegions);
+            const current = page.url.searchParams.get('region');
+            if ((next ?? '') === (current ?? '')) return;
+            applyFilters({ region: next, page: 1 });
+          }}
+        >
+          {#snippet itemPrefix(item)}
+            <FlagIcon code={flagForRegion(item.value, data.regions)} class="w-5 h-3.5 rounded-sm" />
+          {/snippet}
+        </MultiSelectMenu>
       </div>
 
-      <!-- Search row -->
-      <div class="flex gap-2">
-        <div class="relative flex-1">
-          <svg
-            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
-          >
-            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-          </svg>
-          <input
-            type="search"
-            placeholder="Search by name or Steam ID…"
-            bind:value={search}
-            onkeydown={(e) => e.key === 'Enter' && commitSearch()}
-            class="w-full rounded-lg border border-border-input bg-surface-input pl-9 pr-4 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-        </div>
-        <Button variant="primary" size="sm" onclick={commitSearch}>Search</Button>
+      <div class="flex-1 min-w-48">
+        <label for="leaderboard-search" class="block text-sm font-medium text-text-body mb-2"
+          >Search</label
+        >
+        <SearchInput
+          id="leaderboard-search"
+          bind:value={search}
+          placeholder="Search by name or Steam ID…"
+        />
       </div>
 
-      {#if data.filters.search}
-        <p class="text-xs text-text-muted">
-          Showing results for "<span class="text-white">{data.filters.search}</span>"
-        </p>
-      {/if}
-
-      <!-- Options row -->
-      <div class="flex flex-wrap items-center gap-4">
-        <label class="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            bind:checked={registeredOnly}
-            onchange={() => applyFilters({ registeredOnly: registeredOnly ? '1' : null })}
-            class="w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
-          />
-          <span class="text-sm text-text-label">Registered players only</span>
-        </label>
-
-        {#if hasActiveFilters}
-          <Button
-            variant="secondary"
-            size="sm"
-            onclick={() => {
-              registeredOnly = false;
-              search = '';
-              applyFilters({ registeredOnly: null, search: null, page: 1 });
-            }}
-          >
-            Clear filters
-          </Button>
-        {/if}
+      <div class="md:w-28">
+        <label for="leaderboard-page-size" class="block text-sm font-medium text-text-body mb-2"
+          >Per page</label
+        >
+        <SelectFilter
+          id="leaderboard-page-size"
+          bind:value={pageSize}
+          options={pageSizeOptions}
+          allLabel="50"
+          showAllOption={false}
+          onChange={(v) => applyFilters({ pageSize: v === '50' ? null : v, page: 1 })}
+        />
       </div>
-    </div>
-  </Card>
+
+      <label
+        for="leaderboard-registered"
+        class="flex items-center gap-2 cursor-pointer select-none pb-2"
+      >
+        <input
+          id="leaderboard-registered"
+          type="checkbox"
+          bind:checked={registeredOnly}
+          onchange={() => applyFilters({ registeredOnly: registeredOnly ? '1' : null })}
+          class="w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
+        />
+        <span class="text-sm text-text-label">Registered players only</span>
+      </label>
+    {/snippet}
+  </FilterBar>
 </div>
 
-<!-- Table -->
+{#if data.filters.search}
+  <div class="max-w-7xl mx-auto px-6 -mt-2 pb-2">
+    <p class="text-xs text-text-muted">
+      Showing results for "<span class="text-white">{data.filters.search}</span>"
+    </p>
+  </div>
+{/if}
+
 <div class="max-w-7xl mx-auto px-6 pb-16">
   <DataTable
     data={data.entries}
@@ -222,14 +258,12 @@
     sortBy={tableSortBy}
     sortDir={data.filters.sortDir}
     onSort={handleSort}
-    pagination={data.totalPages > 1
-      ? {
-          currentPage: data.filters.page,
-          totalPages: data.totalPages,
-          onPageChange: changePage,
-          infoText: `${data.total.toLocaleString()} players`,
-        }
-      : undefined}
+    pagination={{
+      currentPage: data.filters.page,
+      totalPages: data.totalPages,
+      onPageChange: changePage,
+      infoText: `${data.total.toLocaleString()} players`,
+    }}
   >
     {#snippet cell(row, col)}
       {#if col.key === 'rank'}
@@ -268,7 +302,7 @@
           {/if}
           {#if row.isRegistered && row.name}
             <a
-              href="/users/{row.steamId64}"
+              href={resolve('/users/[steamId]', { steamId: row.steamId64 })}
               class="font-medium text-white hover:text-primary-400 transition-colors truncate"
             >
               {row.name}
@@ -290,6 +324,8 @@
         >
           {ratingValue(row.elo)}{#if row.provisional}<span class="text-text-muted">?</span>{/if}
         </span>
+      {:else if col.key === 'rd'}
+        <span class="tabular-nums text-text-muted text-sm">{formatRd(row.rd)}</span>
       {:else if col.key === 'games'}
         <span class="tabular-nums text-white text-sm">
           {#if row.wins != null || row.losses != null}

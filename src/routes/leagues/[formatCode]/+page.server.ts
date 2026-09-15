@@ -183,6 +183,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
       code: format.code,
       isIndividual: format.isIndividual,
       themeKey: format.themeKey,
+      iconUrl: format.iconUrl,
     },
     seasons: allSeasons.map((s) => ({
       id: s.id,

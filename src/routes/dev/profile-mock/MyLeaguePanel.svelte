@@ -26,7 +26,11 @@
       {#each rows as row (row.id)}
         <Card padding="sm">
           <div class="mb-3 flex flex-wrap items-center gap-2">
-            <FormatBadge name={row.formatName} themeKey={row.formatThemeKey} />
+            <FormatBadge
+              name={row.formatName}
+              themeKey={row.formatThemeKey}
+              iconUrl={row.formatIconUrl}
+            />
             <span class="min-w-0 truncate text-sm font-medium text-white">{row.context}</span>
             <Badge color={leagueMatchStatusColor(row.matchStatus)} class="ml-auto">
               {leagueMatchStatusLabel(row.matchStatus)}

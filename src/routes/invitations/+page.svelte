@@ -91,6 +91,7 @@
                       <FormatBadge
                         name={invitation.team.format.name}
                         themeKey={invitation.team.format.themeKey}
+                        iconUrl={invitation.team.format.iconUrl}
                       />
                     {/if}
                     {#if invitation.team.division}

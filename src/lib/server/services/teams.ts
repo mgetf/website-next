@@ -82,6 +82,7 @@ export async function getTeams(options: {
           id: true,
           name: true,
           themeKey: true,
+          iconUrl: true,
         },
       },
       _count: {
@@ -152,6 +153,7 @@ export async function getTeamsPublic(
             name: true,
             code: true,
             themeKey: true,
+            iconUrl: true,
           },
         },
         division: {
@@ -441,6 +443,7 @@ export async function getTeamById(id: number) {
           name: true,
           code: true,
           themeKey: true,
+          iconUrl: true,
           requiredPaidPlayers: true,
           maxRosterSize: true,
         },

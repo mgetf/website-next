@@ -77,6 +77,7 @@
               <FormatBadge
                 name={data.team.format.name}
                 themeKey={data.team.format.themeKey}
+                iconUrl={data.team.format.iconUrl}
                 size="md"
               />
             </div>

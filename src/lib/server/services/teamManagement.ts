@@ -35,6 +35,7 @@ type TeamEditTeam = Prisma.TeamGetPayload<{
       select: {
         name: true;
         themeKey: true;
+        iconUrl: true;
         maxRosterSize: true;
       };
     };
@@ -96,6 +97,7 @@ export async function getTeamForEdit(teamId: number, steamId: string): Promise<T
         select: {
           name: true,
           themeKey: true,
+          iconUrl: true,
           maxRosterSize: true,
         },
       },

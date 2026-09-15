@@ -194,7 +194,12 @@
         {/if}
 
         <div class="flex flex-wrap gap-3 justify-center md:justify-start mb-4">
-          <FormatBadge name={team.formatName} themeKey={team.formatThemeKey} size="md" />
+          <FormatBadge
+            name={team.formatName}
+            themeKey={team.formatThemeKey}
+            iconUrl={team.formatIconUrl}
+            size="md"
+          />
           {#if team.region}
             <Badge color="blue" size="md">{team.division ?? 'Unassigned'} ({team.region})</Badge>
           {:else if team.division}

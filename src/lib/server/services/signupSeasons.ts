@@ -69,6 +69,7 @@ export async function getOpenSignupFormats() {
           isIndividual: true,
           supportsReregistration: true,
           themeKey: true,
+          iconUrl: true,
         },
       },
     },

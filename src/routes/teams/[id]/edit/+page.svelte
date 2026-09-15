@@ -84,7 +84,11 @@
         <div>
           <h1 class="text-4xl font-bold text-white">Edit {data.team.name}</h1>
           <div class="mt-1 flex flex-wrap items-center gap-2">
-            <FormatBadge name={data.team.format.name} themeKey={data.team.format.themeKey} />
+            <FormatBadge
+              name={data.team.format.name}
+              themeKey={data.team.format.themeKey}
+              iconUrl={data.team.format.iconUrl}
+            />
             <p class="text-text-body">Manage your team settings and roster</p>
           </div>
         </div>

@@ -24,6 +24,7 @@ export interface LeagueNavFormat {
   name: string;
   href: string;
   themeKey: string;
+  iconUrl: string | null;
   cells: LeagueNavCell[];
 }
 

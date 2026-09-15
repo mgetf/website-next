@@ -52,6 +52,7 @@ export type MockTeam = {
   formatCode: TeamFormatCode;
   formatName: string;
   formatThemeKey: string;
+  formatIconUrl?: string | null;
   division: string;
   regionName: string;
   seasonNum: number;
@@ -539,6 +540,7 @@ export type LeagueHubRow = {
   id: string;
   formatName: string;
   formatThemeKey: string;
+  formatIconUrl?: string | null;
   context: string;
   division: string;
   region: string;

@@ -112,6 +112,7 @@ export type ProfileTeam = {
   formatCode: string;
   formatName: string;
   formatThemeKey: string;
+  formatIconUrl: string | null;
   division: string;
   regionName: string;
   seasonNum: number;

@@ -5,6 +5,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import SignupFeeLabel from '$lib/components/signup/SignupFeeLabel.svelte';
+  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
   import { loginToParticipateHref } from '$lib/utils/signupLogin';
   import Lock from '~icons/lucide/lock';
@@ -26,9 +27,17 @@
   }
 </script>
 
-{#snippet cardIcon(Icon: Icon, colorClass: string)}
+{#snippet cardIcon(Icon: Icon, colorClass: string, iconUrl: string | null = null)}
   <div class="mb-4 flex justify-center">
-    <Icon class={['size-14 transition-transform group-hover:scale-110', colorClass]} />
+    {#if iconUrl}
+      <img
+        src={iconUrl}
+        alt=""
+        class="size-14 object-contain transition-transform group-hover:scale-110"
+      />
+    {:else}
+      <Icon class={['size-14 transition-transform group-hover:scale-110', colorClass]} />
+    {/if}
   </div>
 {/snippet}
 
@@ -69,7 +78,14 @@
         {@const themeClasses = getFormatThemeClasses(formatSignup.format.themeKey)}
 
         <div class="mb-8">
-          <h2 class="text-xl font-semibold text-text-label mb-4">{formatSignup.format.name}</h2>
+          <h2 class="mb-4 flex items-center gap-2 text-xl font-semibold text-text-label">
+            <FormatIcon
+              name={formatSignup.format.name}
+              src={formatSignup.format.iconUrl}
+              size="md"
+            />
+            {formatSignup.format.name}
+          </h2>
 
           {#if formatSignup.format.isIndividual}
             <!-- Individual format -->
@@ -80,7 +96,7 @@
                   class="group bg-surface-card border border-border-default {themeClasses.hoverBorder500} rounded-lg p-8 transition-all hover:shadow-lg {themeClasses.shadow500_25}"
                 >
                   <div class="text-center">
-                    {@render cardIcon(Trophy, themeClasses.text400)}
+                    {@render cardIcon(Trophy, themeClasses.text400, formatSignup.format.iconUrl)}
                     <h2 class="text-2xl font-bold text-white mb-3">
                       {formatSignup.format.name} League
                     </h2>
@@ -94,7 +110,7 @@
               {:else}
                 <Card padding="lg" class="opacity-60 cursor-not-allowed">
                   <div class="text-center">
-                    {@render cardIcon(Trophy, themeClasses.text400)}
+                    {@render cardIcon(Trophy, themeClasses.text400, formatSignup.format.iconUrl)}
                     <h2 class="text-2xl font-bold text-white mb-3">
                       {formatSignup.format.name} League
                     </h2>

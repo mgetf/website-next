@@ -5,9 +5,11 @@
   import Card from '$lib/components/ui/Card.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
   import ChevronDown from '~icons/lucide/chevron-down';
   import { PROVISIONAL_RATING_TITLE, ratingValue, visibleServerRatings } from '$lib/utils/rating';
   import { flagForRegion } from '$lib/utils/regions';
+  import { getRegionAbbr } from '$lib/utils/region';
   import type { MgeRating, PlatformRegion } from '$lib/types/mge';
   import type { PlayerServerStats, Profile1v1Entry, ProfileTeam } from '$lib/types/profile';
   import {
@@ -37,6 +39,7 @@
     fightNights,
     onOpen1v1,
     previewCompactSeries,
+    formats = [],
   }: {
     ratings: MgeRating[];
     regions: PlatformRegion[];
@@ -56,6 +59,7 @@
     }[];
     onOpen1v1: () => void;
     previewCompactSeries?: { label: string; value: number }[];
+    formats?: { code: string; name: string; iconUrl: string | null }[];
   } = $props();
 
   const shownRatings = $derived(visibleServerRatings(ratings));
@@ -63,6 +67,9 @@
   const currentTeams = $derived(teams.filter((t) => t.active));
   const currentTeam = $derived(currentTeams[0] ?? null);
   const formatTabs = $derived(teamFormatsIn(teams));
+  const iconByCode = $derived(new Map(formats.map((format) => [format.code, format.iconUrl])));
+  const icon1v1 = $derived(iconByCode.get('1v1') ?? null);
+  const icon2v2 = $derived(iconByCode.get('2v2') ?? null);
 
   let open1v1 = $state<Record<number, boolean>>({});
   let openTeams = $state<Record<number, boolean>>({});
@@ -131,9 +138,32 @@
     if (count === 6) return 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6';
     return 'grid-cols-2 sm:grid-cols-4 xl:grid-cols-7';
   }
+
+  function sentenceCase(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) return trimmed;
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  }
+
+  function regionFlag(regionName: string): string {
+    return flagForRegion(getRegionAbbr(regionName));
+  }
 </script>
 
 <div class="space-y-6">
+  {#snippet seasonScope(regionName: string, seasonNum: number, division: string)}
+    {@const flagCode = regionFlag(regionName)}
+    <span class="inline-flex items-center gap-2 font-semibold text-white">
+      {#if flagCode}
+        <FlagIcon code={flagCode} class="h-4 w-6 rounded" />
+      {/if}
+      <span>
+        Season {seasonNum}
+        <span class="font-normal text-text-muted"> - {sentenceCase(division)}</span>
+      </span>
+    </span>
+  {/snippet}
+
   <div class="space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-sm font-semibold text-white">Server rating</h2>
@@ -259,21 +289,21 @@
       {#snippet header()}
         <div class="flex items-center justify-between px-5 py-3">
           <div>
-            <h2 class="text-sm font-semibold text-white">1v1 league</h2>
+            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+              <FormatIcon name="1v1" src={icon1v1} size="sm" />
+              1v1 league
+            </h2>
             <p class="text-xs text-text-muted">Season entry on this profile</p>
           </div>
-          <FormatBadge name="1v1" themeKey="purple" />
+          <FormatBadge name="1v1" themeKey="purple" iconUrl={icon1v1} />
         </div>
       {/snippet}
       {#if active1v1}
         <div class="space-y-3 px-5 py-4">
           <div class="flex items-start justify-between gap-3">
             <div>
-              <p class="font-semibold text-white">
-                {active1v1.division}
-                <span class="font-normal text-text-muted"
-                  >· {active1v1.region} · S{active1v1.seasonNum}</span
-                >
+              <p>
+                {@render seasonScope(active1v1.region, active1v1.seasonNum, active1v1.division)}
               </p>
               <p class="mt-1 font-mono text-sm text-format-1v1-400">
                 {active1v1.wins}–{active1v1.losses}
@@ -312,7 +342,10 @@
       {#snippet header()}
         <div class="flex items-center justify-between px-5 py-3">
           <div>
-            <h2 class="text-sm font-semibold text-white">Team leagues</h2>
+            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+              <FormatIcon name="2v2" src={icon2v2} size="sm" />
+              Team leagues
+            </h2>
             <p class="text-xs text-text-muted">Roster HQ stays on the team page</p>
           </div>
         </div>
@@ -342,14 +375,17 @@
                 >
                   {currentTeam.teamName}
                 </a>
-                <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-text-muted">
+                <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
                   <FormatBadge
                     name={currentTeam.formatName}
                     themeKey={currentTeam.formatThemeKey}
+                    iconUrl={currentTeam.formatIconUrl}
                   />
-                  <span
-                    >· {currentTeam.division} · {currentTeam.regionName} · S{currentTeam.seasonNum}</span
-                  >
+                  {@render seasonScope(
+                    currentTeam.regionName,
+                    currentTeam.seasonNum,
+                    currentTeam.division,
+                  )}
                 </p>
                 <p class="mt-1 font-mono text-sm text-success-400">
                   {currentTeam.wins}–{currentTeam.losses}
@@ -386,9 +422,13 @@
                   </a>
                   <Badge color={statusColor(team.status)}>{statusLabel(team.status)}</Badge>
                 </div>
-                <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-text-muted">
-                  <FormatBadge name={team.formatName} themeKey={team.formatThemeKey} />
-                  <span>· {team.division} · {team.regionName} · S{team.seasonNum}</span>
+                <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
+                  <FormatBadge
+                    name={team.formatName}
+                    themeKey={team.formatThemeKey}
+                    iconUrl={team.formatIconUrl}
+                  />
+                  {@render seasonScope(team.regionName, team.seasonNum, team.division)}
                 </p>
                 <p class="mt-1 font-mono text-sm text-success-400">
                   {team.wins}–{team.losses}
@@ -407,7 +447,10 @@
   <Card padding="none" class="overflow-hidden">
     {#snippet header()}
       <div class="px-5 py-3">
-        <h2 class="text-sm font-semibold text-white">1v1 history</h2>
+        <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+          <FormatIcon name="1v1" src={icon1v1} size="sm" />
+          1v1 history
+        </h2>
       </div>
     {/snippet}
     {#if entries1v1.length > 0}
@@ -418,17 +461,7 @@
             <div class="flex items-center gap-3 px-5 py-3">
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span
-                    class="rounded border px-2 py-0.5 text-xs font-bold {entry.active
-                      ? 'border-format-1v1-500/30 bg-format-1v1-500/20 text-format-1v1-400'
-                      : 'border-border-input bg-surface-input text-text-muted'}"
-                  >
-                    S{entry.seasonNum}
-                  </span>
-                  <span class="text-sm font-semibold text-white">
-                    {entry.division}
-                    <span class="font-normal text-text-muted">· {entry.region}</span>
-                  </span>
+                  {@render seasonScope(entry.region, entry.seasonNum, entry.division)}
                   <Badge color={statusColor(entry.status)}>{statusLabel(entry.status)}</Badge>
                 </div>
                 <p class="mt-1 text-xs text-text-muted">
@@ -515,19 +548,27 @@
   <Card padding="none" class="overflow-hidden">
     {#snippet header()}
       <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-        <h2 class="text-sm font-semibold text-white">Team history</h2>
+        <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+          <FormatIcon name="2v2" src={icon2v2} size="sm" />
+          Team history
+        </h2>
         {#if formatTabs.length > 1}
           <div class="flex flex-wrap gap-1" role="group" aria-label="Team format">
             {#each formatTabs as format (format.code)}
               <button
                 type="button"
-                class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {historyFormat ===
+                class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {historyFormat ===
                 format.code
                   ? 'border-primary-500 bg-primary-500/15 text-white'
                   : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
                 aria-pressed={historyFormat === format.code}
                 onclick={() => (pickedFormat = format.code)}
               >
+                <FormatIcon
+                  name={format.name}
+                  src={iconByCode.get(format.code) ?? format.iconUrl}
+                  size="sm"
+                />
                 {format.name}
               </button>
             {/each}
@@ -544,27 +585,26 @@
               <img
                 src={team.avatar || DEFAULT_AVATAR}
                 alt=""
-                class="size-8 shrink-0 rounded object-cover"
+                class="size-10 shrink-0 rounded-lg object-cover"
               />
               <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <span
-                    class="rounded border px-2 py-0.5 text-xs font-bold {team.active
-                      ? 'border-success-500/30 bg-success-500/20 text-success-400'
-                      : 'border-border-input bg-surface-input text-text-muted'}"
-                  >
-                    S{team.seasonNum}
-                  </span>
+                <div class="flex items-start justify-between gap-2">
                   <a
                     href={resolve('/teams/[id]', { id: String(team.teamId) })}
                     class="text-sm font-semibold text-white transition-colors hover:text-primary-400"
                   >
                     {team.teamName}
                   </a>
-                  <FormatBadge name={team.formatName} themeKey={team.formatThemeKey} />
-                  <span class="text-sm text-text-muted">{team.division} · {team.regionName}</span>
                   <Badge color={statusColor(team.status)}>{statusLabel(team.status)}</Badge>
                 </div>
+                <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
+                  <FormatBadge
+                    name={team.formatName}
+                    themeKey={team.formatThemeKey}
+                    iconUrl={team.formatIconUrl}
+                  />
+                  {@render seasonScope(team.regionName, team.seasonNum, team.division)}
+                </p>
                 <p class="mt-1 text-xs text-text-muted">
                   <span class="font-mono">{team.wins}–{team.losses}</span>
                   <span class="ml-2">{winPct(team.wins, team.losses)}% WR</span>

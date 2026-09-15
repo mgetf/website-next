@@ -193,7 +193,11 @@
                   {/if}
                 </div>
                 <div class="flex items-center gap-2 flex-wrap text-sm text-text-body">
-                  <FormatBadge name={item.formatName} themeKey={item.formatThemeKey} />
+                  <FormatBadge
+                    name={item.formatName}
+                    themeKey={item.formatThemeKey}
+                    iconUrl={item.formatIconUrl}
+                  />
                   <Badge color="yellow">{kindLabel(item.kind)}</Badge>
                   <Badge color="zinc">{item.divisionName || 'No Division'}</Badge>
                   <Badge color="zinc">{item.regionName || 'No Region'}</Badge>

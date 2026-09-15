@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { LeagueNav, LeagueNavFormat } from '$lib/types/league';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
+  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
   import { page } from '$app/state';
 
@@ -34,7 +35,10 @@
     {@const theme = getFormatThemeClasses(format.themeKey)}
     <div>
       <div class="flex items-center justify-between gap-3 mb-2">
-        <p class="text-xs font-semibold uppercase tracking-wider {theme.text400}">
+        <p
+          class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider {theme.text400}"
+        >
+          <FormatIcon name={format.name} src={format.iconUrl} size="sm" />
           {format.name}
         </p>
         <a

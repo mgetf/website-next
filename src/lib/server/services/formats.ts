@@ -6,6 +6,15 @@
 import { prisma } from '$lib/server/db';
 import { FORMAT_THEME_KEYS, isFormatThemeKey, type FormatThemeKey } from '$lib/constants/formats';
 import { badRequest, notFound } from '$lib/server/utils/errors';
+import {
+  deleteFromR2,
+  deleteTempFile,
+  extensionForImageMime,
+  isR2Available,
+  saveTempFile,
+  uploadToR2,
+  validateUploadedFile,
+} from '$lib/server/utils/r2Upload';
 
 export type FormatConfigInput = {
   name: string;
@@ -24,6 +33,30 @@ function normalizeThemeKey(themeKey: string | undefined): FormatThemeKey {
   if (themeKey && isFormatThemeKey(themeKey)) return themeKey;
   if (themeKey) badRequest(`Invalid themeKey. Allowed: ${FORMAT_THEME_KEYS.join(', ')}`);
   return 'primary';
+}
+
+function isManagedFormatIcon(url: string): boolean {
+  try {
+    return new URL(url).pathname.includes('/images/formats/');
+  } catch {
+    return false;
+  }
+}
+
+async function deleteManagedFormatIcon(url: string | null): Promise<void> {
+  if (!url || !isManagedFormatIcon(url)) return;
+  try {
+    const key = new URL(url).pathname.replace(/^\//, '');
+    if (key) await deleteFromR2(key);
+  } catch {
+    // Ignore invalid stored URLs
+  }
+}
+
+export function formatIconFileFromFormData(formData: FormData): File | null {
+  const file = formData.get('icon');
+  if (file instanceof File && file.size > 0) return file;
+  return null;
 }
 
 function validateRosterRules(data: {
@@ -163,17 +196,77 @@ export async function deleteFormat(id: number) {
     badRequest(`Cannot delete format: it has ${blockers.join(', ')}.`);
   }
 
+  await deleteManagedFormatIcon(format.iconUrl);
   return await prisma.format.delete({ where: { id } });
+}
+
+export async function uploadFormatIcon(id: number, file: File) {
+  const format = await prisma.format.findUnique({ where: { id } });
+
+  if (!format) {
+    notFound('Format not found');
+  }
+
+  if (!isR2Available()) {
+    badRequest('File storage is not configured');
+  }
+
+  validateUploadedFile(file, 'image');
+
+  const tempPath = await saveTempFile(file);
+  try {
+    const ext = extensionForImageMime(file.type).replace(/^\./, '');
+    const remotePath = `formats/${id}-${Date.now()}.${ext}`;
+    const publicUrl = await uploadToR2(tempPath, remotePath);
+    if (!publicUrl) {
+      badRequest('Failed to upload format icon');
+    }
+    await deleteManagedFormatIcon(format.iconUrl);
+    return await prisma.format.update({
+      where: { id },
+      data: { iconUrl: publicUrl },
+    });
+  } finally {
+    deleteTempFile(tempPath);
+  }
+}
+
+export async function clearFormatIcon(id: number) {
+  const format = await prisma.format.findUnique({ where: { id } });
+
+  if (!format) {
+    notFound('Format not found');
+  }
+
+  await deleteManagedFormatIcon(format.iconUrl);
+  return await prisma.format.update({
+    where: { id },
+    data: { iconUrl: null },
+  });
 }
 
 /**
  * Get formats for filter/dropdown UI
  */
 export async function getFormatsForFilter(): Promise<
-  { id: number; name: string; code: string; themeKey: string; isIndividual: boolean }[]
+  {
+    id: number;
+    name: string;
+    code: string;
+    themeKey: string;
+    isIndividual: boolean;
+    iconUrl: string | null;
+  }[]
 > {
   return prisma.format.findMany({
-    select: { id: true, name: true, code: true, themeKey: true, isIndividual: true },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      themeKey: true,
+      isIndividual: true,
+      iconUrl: true,
+    },
     orderBy: { id: 'asc' },
   });
 }
@@ -183,11 +276,25 @@ export async function getFormatsForFilter(): Promise<
  * Seeded formats without seasons (e.g. Ultiduo/BBall before admins create seasons) stay hidden.
  */
 export async function getFormatsWithSeasons(): Promise<
-  { id: number; name: string; code: string; themeKey: string; isIndividual: boolean }[]
+  {
+    id: number;
+    name: string;
+    code: string;
+    themeKey: string;
+    isIndividual: boolean;
+    iconUrl: string | null;
+  }[]
 > {
   return prisma.format.findMany({
     where: { seasons: { some: { region: { hidden: 0 } } } },
-    select: { id: true, name: true, code: true, themeKey: true, isIndividual: true },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      themeKey: true,
+      isIndividual: true,
+      iconUrl: true,
+    },
     orderBy: { id: 'asc' },
   });
 }

@@ -288,6 +288,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       seasonNum: team.season?.seasonNum,
       formatName: team.format.name,
       formatThemeKey: team.format.themeKey,
+      formatIconUrl: team.format.iconUrl,
     },
     currentRoster,
     pastRoster,

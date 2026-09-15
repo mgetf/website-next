@@ -554,6 +554,7 @@
           <FormatBadge
             name={match.homeTeam.format.name}
             themeKey={match.homeTeam.format.themeKey}
+            iconUrl={match.homeTeam.format.iconUrl}
             size="md"
           />
         {/if}

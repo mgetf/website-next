@@ -201,6 +201,7 @@ model Format {
   supportsAcronym        Boolean @default(true) @map("supports_acronym")
   supportsReregistration Boolean @default(true) @map("supports_reregistration")
   themeKey               String  @default("primary") @map("theme_key")
+  iconUrl                String? @map("icon_url")
 
   seasons             Season[]
   teams               Team[]

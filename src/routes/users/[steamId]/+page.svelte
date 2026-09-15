@@ -28,6 +28,7 @@
     formatCode: string;
     formatName: string;
     formatThemeKey: string;
+    formatIconUrl: string | null;
     division: string;
     regionName: string;
     seasonNum: number;
@@ -92,6 +93,7 @@
     divisions1v1: Array<{ id: number; name: string; signupCost: number; regionId: number }>;
     ratings: MgeRating[];
     platformRegions: PlatformRegion[];
+    formats: Array<{ code: string; name: string; iconUrl: string | null }>;
   }
 
   let { data }: { data: PlayerData } = $props();
@@ -350,6 +352,7 @@
         achievements={data.achievements}
         tournaments={data.tournaments}
         fightNights={data.fightNights}
+        formats={data.formats}
         onOpen1v1={() => setTab('1v1')}
       />
     </div>

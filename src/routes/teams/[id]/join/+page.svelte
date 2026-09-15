@@ -35,7 +35,11 @@
         <h1 class="text-2xl font-bold text-white mb-2">{data.team.name}</h1>
         <div class="flex flex-wrap items-center justify-center gap-2">
           {#if data.team.format}
-            <FormatBadge name={data.team.format.name} themeKey={data.team.format.themeKey} />
+            <FormatBadge
+              name={data.team.format.name}
+              themeKey={data.team.format.themeKey}
+              iconUrl={data.team.format.iconUrl}
+            />
           {/if}
           <p class="text-sm text-text-body">
             {data.team.division?.name || ''} • {data.team.region?.name || ''}

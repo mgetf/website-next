@@ -51,8 +51,17 @@ import {
   createPlayoff,
   updatePlayoffBySeason,
 } from '$lib/server/services/playoffs';
-import { getFormats, createFormat, updateFormat, deleteFormat } from '$lib/server/services/formats';
+import {
+  getFormats,
+  createFormat,
+  updateFormat,
+  deleteFormat,
+  uploadFormatIcon,
+  clearFormatIcon,
+  formatIconFileFromFormData,
+} from '$lib/server/services/formats';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { getErrorMessage } from '$lib/server/utils/errors';
 import { getSteamItems } from '$lib/server/services/steam-items';
 import {
   upsertDivisionItemPayment,
@@ -288,6 +297,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       supportsAcronym: f.supportsAcronym,
       supportsReregistration: f.supportsReregistration,
       themeKey: f.themeKey,
+      iconUrl: f.iconUrl,
       seasons: f._count.seasons,
       teams: f._count.teams,
       activeSignupSeasons: f._count.activeSignupSeasons,
@@ -1071,18 +1081,23 @@ export const actions: Actions = {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
+    const iconFile = formatIconFileFromFormData(formData);
+    formData.delete('icon');
     const validation = validateForm(formData, createFormatSchema);
     if (!validation.success) return validationError(validation.errors);
     const formatData = validation.data;
 
     try {
-      await createFormat(formatData);
+      const created = await createFormat(formatData);
+      if (iconFile) {
+        await uploadFormatIcon(created.id, iconFile);
+      }
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
         category: AuditCategory.LEAGUE_CONFIG,
         action: AuditAction.FORMAT_CREATED,
-        metadata: formatData,
+        metadata: { ...formatData, hasIcon: !!iconFile },
         ipAddress: getClientAddress(),
       });
       return { success: true, message: 'Format created successfully!' };
@@ -1091,6 +1106,63 @@ export const actions: Actions = {
       return fail(400, {
         error: error instanceof Error ? error.message : 'Failed to create format',
       });
+    }
+  },
+
+  uploadFormatIcon: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const iconFile = formatIconFileFromFormData(formData);
+    formData.delete('icon');
+    const validation = validateForm(formData, formatIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+    if (!iconFile) {
+      return formError('Choose an image to upload');
+    }
+
+    try {
+      const format = await uploadFormatIcon(validation.data.formatId, iconFile);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.FORMAT_UPDATED,
+        targetType: 'Format',
+        targetId: String(format.id),
+        metadata: { action: 'icon_uploaded', name: format.name },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Format icon updated' };
+    } catch (err) {
+      console.error('Error uploading format icon:', err);
+      return formError(getErrorMessage(err, 'Failed to upload format icon'));
+    }
+  },
+
+  clearFormatIcon: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, formatIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const format = await clearFormatIcon(validation.data.formatId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.FORMAT_UPDATED,
+        targetType: 'Format',
+        targetId: String(format.id),
+        metadata: { action: 'icon_cleared', name: format.name },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Format icon removed' };
+    } catch (err) {
+      console.error('Error clearing format icon:', err);
+      return formError(getErrorMessage(err, 'Failed to remove format icon'));
     }
   },
 

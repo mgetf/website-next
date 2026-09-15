@@ -8,6 +8,7 @@
   import SignupPicks from '$lib/components/signup/SignupPicks.svelte';
   import SignupScopeAck from '$lib/components/signup/SignupScopeAck.svelte';
   import FreeDivisionAck from '$lib/components/signup/FreeDivisionAck.svelte';
+  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
   import { getFormatThemeClasses } from '$lib/constants/formats';
   import { SIGNUP_CHECKBOX_CLASS } from '$lib/utils/signupAck';
 
@@ -31,7 +32,8 @@
       >
         ← Back to Signup Options
       </a>
-      <h1 class="text-4xl font-bold text-white mb-2">
+      <h1 class="mb-2 flex items-center gap-3 text-4xl font-bold text-white">
+        <FormatIcon name={data.format.name} src={data.format.iconUrl} size="lg" />
         Re-register Existing {data.format.name} Team
       </h1>
       <p class="text-text-body">

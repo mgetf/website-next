@@ -77,11 +77,17 @@ export function chartPointsFromSeries(
   }));
 }
 
-export function teamFormatsIn(teams: { formatCode: string; formatName: string }[]) {
-  const seen = new Map<string, { code: string; name: string }>();
+export function teamFormatsIn(
+  teams: { formatCode: string; formatName: string; formatIconUrl?: string | null }[],
+) {
+  const seen = new Map<string, { code: string; name: string; iconUrl: string | null }>();
   for (const team of teams) {
     if (!seen.has(team.formatCode)) {
-      seen.set(team.formatCode, { code: team.formatCode, name: team.formatName });
+      seen.set(team.formatCode, {
+        code: team.formatCode,
+        name: team.formatName,
+        iconUrl: team.formatIconUrl ?? null,
+      });
     }
   }
   return [...seen.values()];

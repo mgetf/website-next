@@ -19,6 +19,7 @@ export interface CheckoutParticipation {
   teamAvatar: string | null;
   formatName: string;
   formatThemeKey: string;
+  formatIconUrl: string | null;
   formatId: number;
   isIndividual: boolean;
   divisionName: string;

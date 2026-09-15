@@ -18,6 +18,7 @@ import { markPlayerAsPaidManually } from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { getFormatsForFilter } from '$lib/server/services/formats';
 import { isAdmin, requireCanModerateUser, requireStrictAdmin } from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
@@ -31,10 +32,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
 
   try {
-    const [profile, ratings, platformRegions] = await Promise.all([
+    const [profile, ratings, platformRegions, formats] = await Promise.all([
       getPlayerProfile(steamId),
       getPlayerRatings(steamId),
       getRegions(),
+      getFormatsForFilter(),
     ]);
 
     if (!profile) {
@@ -82,6 +84,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       ...profile,
       ratings,
       platformRegions,
+      formats: formats.map((format) => ({
+        code: format.code,
+        name: format.name,
+        iconUrl: format.iconUrl,
+      })),
       isOwnProfile,
       isAdmin: isUserAdmin,
       signupSuccess,

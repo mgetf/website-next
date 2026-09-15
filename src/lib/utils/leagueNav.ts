@@ -10,6 +10,7 @@ export interface LeagueNavFormatInput {
   code: string;
   name: string;
   themeKey: string;
+  iconUrl?: string | null;
 }
 
 export interface LeagueNavSeasonInput {
@@ -84,6 +85,7 @@ export function buildLeagueNav(
         name: format.name,
         href: leaguePageHref(format.code),
         themeKey: format.themeKey,
+        iconUrl: format.iconUrl ?? null,
         cells,
       };
     })

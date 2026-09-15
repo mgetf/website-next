@@ -57,6 +57,26 @@ function getSortKey(e: PlatformLeaderboardEntry, sortBy: LeaderboardSortField): 
   }
 }
 
+function compareLeaderboardEntries(
+  a: PlatformLeaderboardEntry,
+  b: PlatformLeaderboardEntry,
+  sortBy: LeaderboardSortField,
+  sortDir: LeaderboardSortDir,
+): number {
+  const dirMult = sortDir === 'asc' ? -1 : 1;
+
+  if (sortBy === 'rd') {
+    const aNull = a.rd == null;
+    const bNull = b.rd == null;
+    if (aNull && bNull) return b.elo - a.elo;
+    if (aNull) return 1;
+    if (bNull) return -1;
+    return dirMult * ((b.rd ?? 0) - (a.rd ?? 0)) || b.elo - a.elo;
+  }
+
+  return dirMult * (getSortKey(b, sortBy) - getSortKey(a, sortBy)) || b.elo - a.elo;
+}
+
 function ratingFields(
   e: Pick<PlatformLeaderboardEntry, 'elo' | 'rd' | 'volatility' | 'displayRating' | 'provisional'>,
 ) {
@@ -187,13 +207,7 @@ export async function getEloLeaderboardPage(
     return { entries: [], total: 0, totalPages: 0 };
   }
 
-  // Sort direction multiplier: 1 for desc (larger first), -1 for asc (smaller first)
-  const dirMult = sortDir === 'asc' ? -1 : 1;
-
-  const sortedTagged = [...tagged].sort((a, b) => {
-    const diff = getSortKey(b, sortBy) - getSortKey(a, sortBy);
-    return dirMult * diff || b.elo - a.elo;
-  });
+  const sortedTagged = [...tagged].sort((a, b) => compareLeaderboardEntries(a, b, sortBy, sortDir));
 
   if (registeredOnly) {
     // Must check all entries against DB to know who is registered before filtering

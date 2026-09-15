@@ -99,7 +99,8 @@ export interface PlatformLeaderboardResponse {
   entries: PlatformLeaderboardEntry[];
 }
 
-export type LeaderboardSortField = 'elo' | 'wins' | 'losses' | 'games' | 'winrate' | 'lastPlayed';
+export type LeaderboardSortField =
+  'elo' | 'wins' | 'losses' | 'games' | 'winrate' | 'lastPlayed' | 'rd';
 
 export type LeaderboardSortDir = 'asc' | 'desc';
 

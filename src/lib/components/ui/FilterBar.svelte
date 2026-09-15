@@ -30,7 +30,7 @@
 
 <div class="bg-surface-card border border-border-default rounded-lg p-6 mb-6 {className}">
   <form onsubmit={handleSubmit} class="flex flex-col gap-4">
-    <div class="flex flex-col md:flex-row flex-wrap items-end gap-4">
+    <div class="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4">
       {@render filters()}
     </div>
     {#if showButtons}

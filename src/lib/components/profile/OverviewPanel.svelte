@@ -3,20 +3,21 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import ChevronDown from '~icons/lucide/chevron-down';
+  import Tooltip from '$lib/components/ui/Tooltip.svelte';
   import { PROVISIONAL_RATING_TITLE, ratingValue, visibleServerRatings } from '$lib/utils/rating';
   import { flagForRegion } from '$lib/utils/regions';
   import { getRegionAbbr } from '$lib/utils/region';
   import type { MgeRating, PlatformRegion } from '$lib/types/mge';
+  import type { ProfileMatch } from '$lib/types/match';
   import type { PlayerServerStats, Profile1v1Entry, ProfileTeam } from '$lib/types/profile';
   import {
     chartPointsFromSeries,
     formatDate,
     placementClass,
-    resultChipClass,
     resultClass,
     statusColor,
     statusLabel,
@@ -27,10 +28,20 @@
 
   const DEFAULT_AVATAR = '/default-avatar.png';
 
+  const matchColumns: Column[] = [
+    { key: 'match', label: 'Match' },
+    { key: 'arena', label: 'Arena' },
+    { key: 'team', label: 'Team' },
+    { key: 'score', label: 'Score', align: 'center' },
+    { key: 'opponent', label: 'Opponent' },
+  ];
+
   let {
     ratings,
     regions,
     steamId,
+    playerName,
+    playerAvatar,
     isOwn,
     entries1v1,
     teams,
@@ -44,6 +55,8 @@
     ratings: MgeRating[];
     regions: PlatformRegion[];
     steamId: string;
+    playerName: string;
+    playerAvatar: string | null;
     isOwn: boolean;
     entries1v1: Profile1v1Entry[];
     teams: ProfileTeam[];
@@ -71,8 +84,11 @@
   const icon1v1 = $derived(iconByCode.get('1v1') ?? null);
   const icon2v2 = $derived(iconByCode.get('2v2') ?? null);
 
-  let open1v1 = $state<Record<number, boolean>>({});
-  let openTeams = $state<Record<number, boolean>>({});
+  let selected1v1SeasonId = $state('');
+  const selected1v1Entry = $derived(
+    entries1v1.find((entry) => String(entry.id) === selected1v1SeasonId) ?? entries1v1[0],
+  );
+  let selectedHistoryTeamId = $state('');
   let pickedFormat = $state<string | null>(null);
   let compactSeries = $state<{ label: string; value: number }[]>([]);
 
@@ -87,6 +103,36 @@
   const historyTeams = $derived(
     historyFormat ? teams.filter((team) => team.formatCode === historyFormat) : [],
   );
+  const selectedHistoryTeam = $derived(
+    historyTeams.find((team) => String(team.teamId) === selectedHistoryTeamId) ?? historyTeams[0],
+  );
+
+  // A team ID can be re-registered into a new real-world season, so its match
+  // history can span multiple seasons — pick which one to display, like /teams/[id].
+  let selectedTeamSeasonId = $state('');
+  const teamSeasons = $derived(selectedHistoryTeam?.matchesBySeason ?? []);
+  const selectedTeamSeason = $derived(
+    teamSeasons.find((season) => String(season.seasonId) === selectedTeamSeasonId) ??
+      teamSeasons[0],
+  );
+
+  $effect(() => {
+    if (!entries1v1.some((entry) => String(entry.id) === selected1v1SeasonId)) {
+      selected1v1SeasonId = entries1v1[0] ? String(entries1v1[0].id) : '';
+    }
+  });
+
+  $effect(() => {
+    if (!historyTeams.some((team) => String(team.teamId) === selectedHistoryTeamId)) {
+      selectedHistoryTeamId = historyTeams[0] ? String(historyTeams[0].teamId) : '';
+    }
+  });
+
+  $effect(() => {
+    if (!teamSeasons.some((season) => String(season.seasonId) === selectedTeamSeasonId)) {
+      selectedTeamSeasonId = teamSeasons[0] ? String(teamSeasons[0].seasonId) : '';
+    }
+  });
 
   $effect(() => {
     const rating = shownRatings.length === 1 ? shownRatings[0] : null;
@@ -122,14 +168,6 @@
     };
   });
 
-  function isOpen1v1(entry: Profile1v1Entry): boolean {
-    return entry.id in open1v1 ? open1v1[entry.id]! : entry.active;
-  }
-
-  function isOpenTeam(team: ProfileTeam): boolean {
-    return team.teamId in openTeams ? openTeams[team.teamId]! : team.active;
-  }
-
   function ratingGridClass(count: number): string {
     if (count === 2) return 'grid-cols-1 sm:grid-cols-2';
     if (count === 3) return 'grid-cols-1 md:grid-cols-3';
@@ -162,6 +200,98 @@
         <span class="font-normal text-text-muted"> - {sentenceCase(division)}</span>
       </span>
     </span>
+  {/snippet}
+
+  {#snippet opponentCell(match: ProfileMatch, mode: 'team' | 'match')}
+    {#if mode === 'team'}
+      {#if match.opponentId}
+        <a
+          href={resolve('/teams/[id]', { id: String(match.opponentId) })}
+          class="inline-flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-primary-400"
+        >
+          <img
+            src={match.opponentAvatar || DEFAULT_AVATAR}
+            alt=""
+            class="size-5 rounded object-cover"
+          />
+          {match.opponentName}
+        </a>
+      {:else}
+        <span class="text-sm text-text-muted italic">{match.opponentName}</span>
+      {/if}
+    {:else if match.result === 'TBD' || match.opponentName === 'TBD'}
+      <span class="text-sm text-text-muted italic">{match.opponentName}</span>
+    {:else}
+      <a
+        href={resolve('/matches/[id]', { id: String(match.matchId) })}
+        class="inline-flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-primary-400"
+      >
+        <img
+          src={match.opponentAvatar || DEFAULT_AVATAR}
+          alt=""
+          class="size-5 rounded object-cover"
+        />
+        {match.opponentName}
+      </a>
+    {/if}
+  {/snippet}
+
+  {#snippet matchHistoryTable(
+    matches: ProfileMatch[],
+    selfName: string,
+    selfAvatar: string | null,
+    opponentMode: 'team' | 'match',
+  )}
+    <DataTable
+      data={matches}
+      columns={matchColumns}
+      compact
+      emptyMessage="No matches this season"
+      rowClass={(match) => (match.result === 'TBD' ? 'opacity-50' : '')}
+    >
+      {#snippet cell(match, col)}
+        {#if col.key === 'match'}
+          {#if match.matchId}
+            <a
+              href={resolve('/matches/[id]', { id: String(match.matchId) })}
+              class="text-sm font-medium text-primary-400 transition-colors hover:text-primary-300"
+            >
+              {match.week}
+            </a>
+          {:else}
+            <span class="text-sm text-text-muted">{match.week}</span>
+          {/if}
+        {:else if col.key === 'arena'}
+          {#if match.arenas.length === 0}
+            <span class="text-sm text-text-muted">—</span>
+          {:else}
+            <div class="flex flex-wrap items-center gap-2">
+              {#each match.arenas as arena (arena.id)}
+                <span class="inline-flex items-center gap-1.5 text-sm text-text-label">
+                  {#if arena.avatar}
+                    <img src={arena.avatar} alt="" class="size-6 rounded object-cover" />
+                  {/if}
+                  {arena.name}
+                </span>
+              {/each}
+            </div>
+          {/if}
+        {:else if col.key === 'team'}
+          <span
+            class="inline-flex items-center gap-2 text-sm font-semibold {resultClass(match.result)}"
+          >
+            <img src={selfAvatar || DEFAULT_AVATAR} alt="" class="size-5 rounded object-cover" />
+            {selfName}
+          </span>
+        {:else if col.key === 'score'}
+          <span class="font-mono text-sm tabular-nums {resultClass(match.result)}"
+            >{match.score ?? '—'}</span
+          >
+        {:else if col.key === 'opponent'}
+          {@render opponentCell(match, opponentMode)}
+        {/if}
+      {/snippet}
+    </DataTable>
   {/snippet}
 
   <div class="space-y-3">
@@ -295,7 +425,6 @@
             </h2>
             <p class="text-xs text-text-muted">Season entry on this profile</p>
           </div>
-          <FormatBadge name="1v1" themeKey="purple" iconUrl={icon1v1} />
         </div>
       {/snippet}
       {#if active1v1}
@@ -318,9 +447,6 @@
             <p class="text-sm text-warning-400">Signup fee still unpaid — ready-up is locked.</p>
           {/if}
           <div class="flex flex-wrap gap-2">
-            {#if isOwn}
-              <Button variant="format-1v1" size="sm" onclick={onOpen1v1}>Manage entry</Button>
-            {/if}
             {#if isOwn && !active1v1.isPaid && active1v1.signupCost > 0}
               <Button variant="warning" size="sm" href="/checkout/{steamId}">Go to checkout</Button>
             {/if}
@@ -371,16 +497,20 @@
               <div class="min-w-0">
                 <a
                   href={resolve('/teams/[id]', { id: String(currentTeam.teamId) })}
-                  class="font-semibold text-white transition-colors hover:text-primary-400"
+                  class="inline-flex items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
                 >
+                  {#if currentTeam.formatIconUrl}
+                    <Tooltip text={currentTeam.formatName}>
+                      <FormatIcon
+                        name={currentTeam.formatName}
+                        src={currentTeam.formatIconUrl}
+                        size="sm"
+                      />
+                    </Tooltip>
+                  {/if}
                   {currentTeam.teamName}
                 </a>
                 <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                  <FormatBadge
-                    name={currentTeam.formatName}
-                    themeKey={currentTeam.formatThemeKey}
-                    iconUrl={currentTeam.formatIconUrl}
-                  />
                   {@render seasonScope(
                     currentTeam.regionName,
                     currentTeam.seasonNum,
@@ -397,11 +527,6 @@
             </div>
             <Badge color={statusColor(currentTeam.status)}>{statusLabel(currentTeam.status)}</Badge>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            href={resolve('/teams/[id]', { id: String(currentTeam.teamId) })}>Open team page</Button
-          >
         </div>
       {:else}
         <div class="divide-y divide-border-default/50">
@@ -416,18 +541,18 @@
                 <div class="flex items-start justify-between gap-2">
                   <a
                     href={resolve('/teams/[id]', { id: String(team.teamId) })}
-                    class="font-semibold text-white transition-colors hover:text-primary-400"
+                    class="inline-flex items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
                   >
+                    {#if team.formatIconUrl}
+                      <Tooltip text={team.formatName}>
+                        <FormatIcon name={team.formatName} src={team.formatIconUrl} size="sm" />
+                      </Tooltip>
+                    {/if}
                     {team.teamName}
                   </a>
                   <Badge color={statusColor(team.status)}>{statusLabel(team.status)}</Badge>
                 </div>
                 <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                  <FormatBadge
-                    name={team.formatName}
-                    themeKey={team.formatThemeKey}
-                    iconUrl={team.formatIconUrl}
-                  />
                   {@render seasonScope(team.regionName, team.seasonNum, team.division)}
                 </p>
                 <p class="mt-1 font-mono text-sm text-success-400">
@@ -444,106 +569,68 @@
     </Card>
   </div>
 
-  <Card padding="none" class="overflow-hidden">
-    {#snippet header()}
-      <div class="px-5 py-3">
-        <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-          <FormatIcon name="1v1" src={icon1v1} size="sm" />
-          1v1 history
-        </h2>
-      </div>
-    {/snippet}
-    {#if entries1v1.length > 0}
-      <div class="divide-y divide-border-default/50">
-        {#each entries1v1 as entry (entry.id)}
-          {@const open = isOpen1v1(entry)}
-          <div class={entry.active ? 'bg-format-1v1-500/5' : ''}>
-            <div class="flex items-center gap-3 px-5 py-3">
-              <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  {@render seasonScope(entry.region, entry.seasonNum, entry.division)}
-                  <Badge color={statusColor(entry.status)}>{statusLabel(entry.status)}</Badge>
-                </div>
-                <p class="mt-1 text-xs text-text-muted">
-                  <span class="font-mono">{entry.wins}–{entry.losses}</span>
-                  <span class="ml-2">{winPct(entry.wins, entry.losses)}% WR</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                class="rounded-lg p-2 text-text-muted transition-colors hover:bg-surface-hover hover:text-text-label"
-                aria-expanded={open}
-                aria-label={open ? 'Collapse matches' : 'Expand matches'}
-                onclick={() => (open1v1[entry.id] = !open)}
-              >
-                <ChevronDown class="size-4 transition-transform {open ? 'rotate-180' : ''}" />
-              </button>
+  {#if entries1v1.length > 0}
+    <Card padding="none" class="overflow-hidden">
+      {#snippet header()}
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+          <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+            <FormatIcon name="1v1" src={icon1v1} size="sm" />
+            1v1 history
+          </h2>
+          {#if entries1v1.length > 1}
+            <div class="flex flex-wrap gap-1" role="group" aria-label="Season">
+              {#each entries1v1 as entry (entry.id)}
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selected1v1SeasonId ===
+                  String(entry.id)
+                    ? 'border-primary-500 bg-primary-500/15 text-white'
+                    : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
+                  aria-pressed={selected1v1SeasonId === String(entry.id)}
+                  onclick={() => (selected1v1SeasonId = String(entry.id))}
+                >
+                  Season {entry.seasonNum}
+                </button>
+              {/each}
             </div>
-            {#if open}
-              {#if entry.matches.length > 0}
-                <table class="w-full text-sm">
-                  <thead>
-                    <tr class="bg-surface-page/60 text-xs tracking-wide text-text-muted uppercase">
-                      <th class="px-5 py-2 text-left font-medium">Week</th>
-                      <th class="px-5 py-2 text-left font-medium">Opponent</th>
-                      <th class="px-5 py-2 text-center font-medium">Result</th>
-                      <th class="px-5 py-2 text-center font-medium">Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {#each entry.matches as match (match.matchId)}
-                      <tr
-                        class="border-t border-border-default/30 {match.result === 'TBD'
-                          ? 'opacity-50'
-                          : ''}"
-                      >
-                        <td class="px-5 py-2.5 text-xs whitespace-nowrap text-text-muted"
-                          >{match.week}</td
-                        >
-                        <td class="px-5 py-2.5">
-                          {#if match.result === 'TBD' || match.opponentName === 'TBD'}
-                            <span class="text-sm text-text-muted italic">{match.opponentName}</span>
-                          {:else}
-                            <a
-                              href={resolve('/matches/[id]', { id: String(match.matchId) })}
-                              class="inline-flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-primary-400"
-                            >
-                              <img
-                                src={match.opponentAvatar || DEFAULT_AVATAR}
-                                alt=""
-                                class="size-5 rounded object-cover"
-                              />
-                              {match.opponentName}
-                            </a>
-                          {/if}
-                        </td>
-                        <td class="px-5 py-2.5 text-center">
-                          <span
-                            class="inline-block rounded border px-2 py-0.5 text-xs font-bold {resultChipClass(
-                              match.result,
-                            )}">{match.result}</span
-                          >
-                        </td>
-                        <td
-                          class="px-5 py-2.5 text-center font-mono text-xs {resultClass(
-                            match.result,
-                          )}">{match.score}</td
-                        >
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              {:else}
-                <p class="px-5 py-4 text-sm text-text-muted">No matches scheduled yet.</p>
-              {/if}
-            {/if}
+          {/if}
+        </div>
+      {/snippet}
+      {#if selected1v1Entry}
+        <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
+          <p class="text-sm">
+            {@render seasonScope(
+              selected1v1Entry.region,
+              selected1v1Entry.seasonNum,
+              selected1v1Entry.division,
+            )}
+          </p>
+          <div class="flex items-center gap-3">
+            <p class="text-xs text-text-muted">
+              <span class="font-mono">{selected1v1Entry.wins}–{selected1v1Entry.losses}</span>
+              <span class="ml-2">{winPct(selected1v1Entry.wins, selected1v1Entry.losses)}% WR</span>
+            </p>
+            <Badge color={statusColor(selected1v1Entry.status)}
+              >{statusLabel(selected1v1Entry.status)}</Badge
+            >
           </div>
-        {/each}
-      </div>
-    {:else}
+        </div>
+        {@render matchHistoryTable(selected1v1Entry.matches, playerName, playerAvatar, 'match')}
+      {/if}
+    </Card>
+  {:else}
+    <Card padding="none" class="overflow-hidden">
+      {#snippet header()}
+        <div class="px-5 py-3">
+          <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+            <FormatIcon name="1v1" src={icon1v1} size="sm" />
+            1v1 history
+          </h2>
+        </div>
+      {/snippet}
       <p class="px-5 py-8 text-center text-sm text-text-muted">No 1v1 season history</p>
-    {/if}
-  </Card>
+    </Card>
+  {/if}
 
   <Card padding="none" class="overflow-hidden">
     {#snippet header()}
@@ -577,110 +664,106 @@
       </div>
     {/snippet}
     {#if historyTeams.length > 0}
-      <div class="divide-y divide-border-default/50">
-        {#each historyTeams as team (team.teamId)}
-          {@const open = isOpenTeam(team)}
-          <div class={team.active ? 'bg-success-500/5' : ''}>
-            <div class="flex items-center gap-3 px-5 py-3">
-              <img
-                src={team.avatar || DEFAULT_AVATAR}
-                alt=""
-                class="size-10 shrink-0 rounded-lg object-cover"
-              />
-              <div class="min-w-0 flex-1">
-                <div class="flex items-start justify-between gap-2">
-                  <a
-                    href={resolve('/teams/[id]', { id: String(team.teamId) })}
-                    class="text-sm font-semibold text-white transition-colors hover:text-primary-400"
-                  >
-                    {team.teamName}
-                  </a>
-                  <Badge color={statusColor(team.status)}>{statusLabel(team.status)}</Badge>
-                </div>
-                <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                  <FormatBadge
-                    name={team.formatName}
-                    themeKey={team.formatThemeKey}
-                    iconUrl={team.formatIconUrl}
-                  />
-                  {@render seasonScope(team.regionName, team.seasonNum, team.division)}
-                </p>
-                <p class="mt-1 text-xs text-text-muted">
-                  <span class="font-mono">{team.wins}–{team.losses}</span>
-                  <span class="ml-2">{winPct(team.wins, team.losses)}% WR</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                class="rounded-lg p-2 text-text-muted transition-colors hover:bg-surface-hover hover:text-text-label"
-                aria-expanded={open}
-                aria-label={open ? 'Collapse matches' : 'Expand matches'}
-                onclick={() => (openTeams[team.teamId] = !open)}
+      {#if historyTeams.length > 1}
+        <div
+          class="flex flex-wrap gap-1 border-b border-border-default/50 px-5 py-2"
+          role="group"
+          aria-label="Season"
+        >
+          {#each historyTeams as team (team.teamId)}
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedHistoryTeamId ===
+              String(team.teamId)
+                ? 'border-primary-500 bg-primary-500/15 text-white'
+                : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
+              aria-pressed={selectedHistoryTeamId === String(team.teamId)}
+              onclick={() => (selectedHistoryTeamId = String(team.teamId))}
+            >
+              Season {team.seasonNum}
+            </button>
+          {/each}
+        </div>
+      {/if}
+      {#if selectedHistoryTeam}
+        <div class="flex items-start justify-between gap-3 px-5 py-4">
+          <div class="flex min-w-0 items-start gap-3">
+            <img
+              src={selectedHistoryTeam.avatar || DEFAULT_AVATAR}
+              alt=""
+              class="size-8 shrink-0 rounded-lg object-cover"
+            />
+            <div class="min-w-0">
+              <a
+                href={resolve('/teams/[id]', { id: String(selectedHistoryTeam.teamId) })}
+                class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-white transition-colors hover:text-primary-400"
               >
-                <ChevronDown class="size-4 transition-transform {open ? 'rotate-180' : ''}" />
-              </button>
+                {#if selectedHistoryTeam.formatIconUrl}
+                  <Tooltip text={selectedHistoryTeam.formatName}>
+                    <FormatIcon
+                      name={selectedHistoryTeam.formatName}
+                      src={selectedHistoryTeam.formatIconUrl}
+                      size="sm"
+                    />
+                  </Tooltip>
+                {/if}
+                <span class="truncate">{selectedHistoryTeam.teamName}</span>
+              </a>
+              <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
+                {@render seasonScope(
+                  selectedHistoryTeam.regionName,
+                  selectedHistoryTeam.seasonNum,
+                  selectedHistoryTeam.division,
+                )}
+              </p>
+              <p class="mt-1 text-xs text-text-muted">
+                <span class="font-mono"
+                  >{selectedHistoryTeam.wins}–{selectedHistoryTeam.losses}</span
+                >
+                <span class="ml-2"
+                  >{winPct(selectedHistoryTeam.wins, selectedHistoryTeam.losses)}% WR</span
+                >
+              </p>
             </div>
-            {#if open}
-              {#if team.matches.length > 0}
-                <table class="w-full text-sm">
-                  <thead>
-                    <tr class="bg-surface-page/60 text-xs tracking-wide text-text-muted uppercase">
-                      <th class="px-5 py-2 text-left font-medium">Week</th>
-                      <th class="px-5 py-2 text-left font-medium">Opponent</th>
-                      <th class="px-5 py-2 text-center font-medium">Result</th>
-                      <th class="px-5 py-2 text-center font-medium">Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {#each team.matches as match (match.matchId)}
-                      <tr
-                        class="border-t border-border-default/30 {match.result === 'TBD'
-                          ? 'opacity-50'
-                          : ''}"
-                      >
-                        <td class="px-5 py-2.5 text-xs whitespace-nowrap text-text-muted"
-                          >{match.week}</td
-                        >
-                        <td class="px-5 py-2.5">
-                          {#if match.opponentId}
-                            <a
-                              href={resolve('/teams/[id]', { id: String(match.opponentId) })}
-                              class="inline-flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-primary-400"
-                            >
-                              <img
-                                src={match.opponentAvatar || DEFAULT_AVATAR}
-                                alt=""
-                                class="size-5 rounded object-cover"
-                              />
-                              {match.opponentName}
-                            </a>
-                          {:else}
-                            <span class="text-sm text-text-muted italic">{match.opponentName}</span>
-                          {/if}
-                        </td>
-                        <td class="px-5 py-2.5 text-center">
-                          <span
-                            class="inline-block rounded border px-2 py-0.5 text-xs font-bold {resultChipClass(
-                              match.result,
-                            )}">{match.result}</span
-                          >
-                        </td>
-                        <td
-                          class="px-5 py-2.5 text-center font-mono text-xs {resultClass(
-                            match.result,
-                          )}">{match.score}</td
-                        >
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              {:else}
-                <p class="px-5 py-4 text-sm text-text-muted">No matches scheduled yet.</p>
-              {/if}
-            {/if}
           </div>
-        {/each}
-      </div>
+          <Badge color={statusColor(selectedHistoryTeam.status)}
+            >{statusLabel(selectedHistoryTeam.status)}</Badge
+          >
+        </div>
+        {#if teamSeasons.length > 0}
+          {#if teamSeasons.length > 1}
+            <div
+              class="flex flex-wrap gap-1 border-t border-border-default/50 px-5 py-2"
+              role="group"
+              aria-label="Match history season"
+            >
+              {#each teamSeasons as seasonData (seasonData.seasonId)}
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedTeamSeasonId ===
+                  String(seasonData.seasonId)
+                    ? 'border-primary-500 bg-primary-500/15 text-white'
+                    : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
+                  aria-pressed={selectedTeamSeasonId === String(seasonData.seasonId)}
+                  onclick={() => (selectedTeamSeasonId = String(seasonData.seasonId))}
+                >
+                  Season {seasonData.seasonNum}
+                </button>
+              {/each}
+            </div>
+          {/if}
+          {#if selectedTeamSeason}
+            {@render matchHistoryTable(
+              selectedTeamSeason.matches,
+              selectedHistoryTeam.teamName,
+              selectedHistoryTeam.avatar,
+              'team',
+            )}
+          {/if}
+        {:else}
+          <p class="px-5 py-8 text-center text-sm text-text-muted">No matches recorded</p>
+        {/if}
+      {/if}
     {:else}
       <p class="px-5 py-8 text-center text-sm text-text-muted">No team history</p>
     {/if}

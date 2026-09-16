@@ -10,8 +10,10 @@ import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import type { NavUserTeam } from '$lib/types/user';
 import type { ProfileMatch } from '$lib/types/match';
+import type { ProfileTeamSeasonMatches } from '$lib/types/profile';
 import { getOptionalEnv } from '$lib/server/utils/env';
 import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
+import { calculateWeekLabel, uniqueMatchArenas } from '$lib/server/utils/matchHelpers';
 import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
 import { badRequest, conflict, notFound } from '$lib/server/utils/errors';
 import { parseDiscordUserId } from '$lib/server/utils/discordId';
@@ -30,8 +32,6 @@ import {
   staffAssignmentInclude,
   type StaffAssignmentPair,
 } from './staffAssignments';
-
-export type { ProfileMatch } from '$lib/types/match';
 
 /**
  * Fetch the current session version for a user.
@@ -431,9 +431,15 @@ export function buildAchievements(tournamentResults: any[]) {
 
 /**
  * Fetch all league matches for a set of team IDs in one query.
- * Returns a map of teamId → ordered match list (chronological within each season).
+ * Returns a map of teamId → match list grouped by real-world season (most recent first).
+ *
+ * Team-format entities can be re-registered into a new season under the same team ID,
+ * so a single team ID's history can span multiple seasons — grouping here (and the
+ * week-letter suffix computed per team+season+week below) mirrors /teams/[id] exactly.
  */
-async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, ProfileMatch[]>> {
+async function getMatchesByTeamIds(
+  teamIds: number[],
+): Promise<Map<number, ProfileTeamSeasonMatches[]>> {
   if (teamIds.length === 0) return new Map();
 
   const matches = await prisma.match.findMany({
@@ -443,28 +449,33 @@ async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, Profi
     include: {
       homeTeam: { select: { id: true, name: true, avatar: true } },
       awayTeam: { select: { id: true, name: true, avatar: true } },
+      season: { select: { seasonNum: true } },
+      games: { select: { arena: { select: { id: true, name: true, avatar: true } } } },
     },
-    orderBy: [{ weekNo: 'asc' }, { id: 'asc' }],
   });
 
-  // Regular season first, then playoffs in bracket order (signed playoffRound
-  // cannot be sorted correctly by a simple Prisma orderBy).
-  matches.sort((a, b) =>
-    compareMatchHistoryOrder(
-      { weekNo: a.weekNo, playoffRound: a.playoffRound, id: a.id },
-      { weekNo: b.weekNo, playoffRound: b.playoffRound, id: b.id },
-    ),
-  );
-
-  const result = new Map<number, ProfileMatch[]>();
-  for (const id of teamIds) result.set(id, []);
-
   const teamIdSet = new Set(teamIds);
+  const perTeamMatches = new Map<number, typeof matches>();
+  for (const id of teamIds) perTeamMatches.set(id, []);
 
   for (const match of matches) {
-    const processForTeam = (teamId: number, isHome: boolean) => {
-      if (!teamIdSet.has(teamId)) return;
+    if (teamIdSet.has(match.homeTeamId)) perTeamMatches.get(match.homeTeamId)!.push(match);
+    if (teamIdSet.has(match.awayTeamId)) perTeamMatches.get(match.awayTeamId)!.push(match);
+  }
 
+  // Sort-only fields are carried alongside each ProfileMatch draft so matches can be
+  // ordered correctly within their season, then stripped before returning to callers.
+  type MatchDraft = ProfileMatch & { weekNo: number | null; playoffRound: number | null };
+
+  const result = new Map<number, ProfileTeamSeasonMatches[]>();
+
+  for (const teamId of teamIds) {
+    const teamMatches = perTeamMatches.get(teamId) ?? [];
+    const bySeasonMap = new Map<number, MatchDraft[]>();
+    const seasonNums = new Map<number, number>();
+
+    for (const match of teamMatches) {
+      const isHome = match.homeTeamId === teamId;
       const opponent = isHome ? match.awayTeam : match.homeTeam;
       const won = match.winnerId === teamId;
       const matchResult: 'W' | 'L' | 'TBD' = match.winnerId ? (won ? 'W' : 'L') : 'TBD';
@@ -480,22 +491,54 @@ async function getMatchesByTeamIds(teamIds: number[]): Promise<Map<number, Profi
       if (match.playoffRound !== null) {
         week = formatPlayoffRound(match.playoffRound);
       } else if (match.weekNo !== null) {
-        week = `Week ${match.weekNo}`;
+        // Sibling matches for this team, within the same season and week — used to
+        // compute the 1a/1b/1c suffix, matching /teams/[id]'s calculateWeekLabel usage.
+        const siblingsInWeek = teamMatches
+          .filter((m) => m.weekNo === match.weekNo && m.seasonId === match.seasonId)
+          .sort((a, b) => a.id - b.id);
+        const label = calculateWeekLabel(match, siblingsInWeek);
+        week = label ? `Week ${label}` : `Week ${match.weekNo}`;
       }
 
-      result.get(teamId)!.push({
+      if (!bySeasonMap.has(match.seasonId)) bySeasonMap.set(match.seasonId, []);
+      bySeasonMap.get(match.seasonId)!.push({
         matchId: match.id,
         week,
+        weekNo: match.weekNo,
+        playoffRound: match.playoffRound,
         opponentName: opponent.name,
         opponentId: opponent.id,
         opponentAvatar: opponent.avatar ?? null,
         result: matchResult,
         score,
+        arenas: uniqueMatchArenas(match.games),
       });
-    };
+      seasonNums.set(match.seasonId, match.season.seasonNum);
+    }
 
-    processForTeam(match.homeTeamId, true);
-    processForTeam(match.awayTeamId, false);
+    const seasons = Array.from(bySeasonMap.entries())
+      .map(([seasonId, seasonMatches]) => {
+        // Regular season first, then playoffs in bracket order (signed playoffRound
+        // cannot be sorted correctly by a simple Prisma orderBy).
+        seasonMatches.sort((a, b) =>
+          compareMatchHistoryOrder(
+            { weekNo: a.weekNo, playoffRound: a.playoffRound, id: a.matchId ?? 0 },
+            { weekNo: b.weekNo, playoffRound: b.playoffRound, id: b.matchId ?? 0 },
+          ),
+        );
+        // Strip sort-only fields before returning to callers.
+        const publicMatches = seasonMatches.map(
+          ({ weekNo: _weekNo, playoffRound: _playoffRound, ...rest }) => rest,
+        );
+        return {
+          seasonId,
+          seasonNum: seasonNums.get(seasonId) ?? seasonId,
+          matches: publicMatches,
+        };
+      })
+      .sort((a, b) => b.seasonId - a.seasonId);
+
+    result.set(teamId, seasons);
   }
 
   return result;
@@ -556,18 +599,21 @@ export async function getPlayerProfile(steamId: string) {
   ];
   const matchesMap = await getMatchesByTeamIds(allTeamIds);
 
-  // Attach matches to each team and entry
+  // Attach matches to each team (grouped by season, since a team ID can be
+  // re-registered into a new season) and entry
   const currentTeamsWithMatches = currentTeams.map((t) => ({
     ...t,
-    matches: matchesMap.get(t.teamId) ?? [],
+    matchesBySeason: matchesMap.get(t.teamId) ?? [],
   }));
   const teamHistoryWithMatches = teamHistory.map((t) => ({
     ...t,
-    matches: matchesMap.get(t.teamId) ?? [],
+    matchesBySeason: matchesMap.get(t.teamId) ?? [],
   }));
+  // 1v1 "teams" are single-use — a new team ID is created every season — so a
+  // 1v1 entry never spans more than one season group; flatten it back down.
   const entries1v1 = entries1v1Base.map((e) => ({
     ...e,
-    matches: matchesMap.get(e.id) ?? [],
+    matches: (matchesMap.get(e.id) ?? []).flatMap((season) => season.matches),
   }));
 
   return {

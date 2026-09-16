@@ -25,12 +25,6 @@ export function resultClass(result: string): string {
   return 'text-text-body';
 }
 
-export function resultChipClass(result: string): string {
-  if (result === 'W') return 'bg-success-500/20 text-success-400 border-success-500/30';
-  if (result === 'L') return 'bg-danger-500/20 text-danger-400 border-danger-500/30';
-  return 'bg-surface-input text-text-muted border-border-input';
-}
-
 export function placementClass(placement: string): string {
   if (placement.includes('1st')) return 'text-warning-400';
   if (placement.includes('2nd')) return 'text-text-label';

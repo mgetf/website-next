@@ -15,8 +15,12 @@
   import Tooltip from '$lib/components/ui/Tooltip.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import type { MgeRating, PlatformRegion } from '$lib/types/mge';
-  import type { ProfileMatch } from '$lib/types/match';
-  import type { Profile1v1Entry, ProfileTab, ProfileTeam } from '$lib/types/profile';
+  import type {
+    Profile1v1Entry,
+    ProfileTab,
+    ProfileTeam,
+    ProfileTeamSeasonMatches,
+  } from '$lib/types/profile';
   import { parseProfileTab, profileExternalLinks } from '$lib/utils/profile';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
   import Settings from '~icons/lucide/settings';
@@ -39,7 +43,7 @@
     joined: Date;
     permissionLevel?: string;
     left?: Date | null;
-    matches: ProfileMatch[];
+    matchesBySeason: ProfileTeamSeasonMatches[];
   }
 
   interface PlayerData {
@@ -346,6 +350,8 @@
         ratings={mgeRatings}
         regions={data.platformRegions}
         steamId={player.steamId}
+        playerName={player.name}
+        playerAvatar={player.avatar}
         isOwn={isOwnProfile}
         {entries1v1}
         teams={profileTeams}

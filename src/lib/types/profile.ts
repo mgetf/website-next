@@ -105,6 +105,17 @@ export type Profile1v1Entry = {
   matches: ProfileMatch[];
 };
 
+/**
+ * A team's match history for one real-world season. Team-format entities can persist
+ * across seasons under the same team ID (re-registration), so a single ProfileTeam
+ * membership can span several of these — mirrors `TeamSeasonMatches` on /teams/[id].
+ */
+export type ProfileTeamSeasonMatches = {
+  seasonId: number;
+  seasonNum: number;
+  matches: ProfileMatch[];
+};
+
 export type ProfileTeam = {
   teamId: number;
   teamName: string;
@@ -120,5 +131,5 @@ export type ProfileTeam = {
   wins: number;
   losses: number;
   active: boolean;
-  matches: ProfileMatch[];
+  matchesBySeason: ProfileTeamSeasonMatches[];
 };

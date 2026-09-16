@@ -6,20 +6,16 @@
 import { prisma } from '$lib/server/db';
 import { TeamStatus } from '$prisma/client.js';
 import type { Prisma } from '$prisma/client.js';
-import jwt from 'jsonwebtoken';
 import { badRequest, forbidden } from '$lib/server/utils/errors';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { requireFormatById } from './formats';
-import { getJwtSecret } from '$lib/server/utils/env';
 import { hashPassword } from '$lib/server/utils/password';
+import { createTeamInviteToken, parseTeamInviteToken } from '$lib/server/utils/teamInviteToken';
 import {
   initialPlayerPaymentStatus,
   initialTeamPaymentStatus,
   requireSignupDivision,
 } from './signupDivision';
-
-// Token expiry reduced from 7d to 1h for security (shorter exposure window)
-const TOKEN_EXPIRY = '1h';
 
 type OwnedTeamMembership = Prisma.PlayerInTeamGetPayload<{
   include: {
@@ -399,57 +395,26 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
 }
 
 /**
- * Generate a secure JWT token for team joining
+ * Generate a compact HMAC token for team joining.
  */
-export function generateJoinToken(teamId: number, invitedBy?: string): string {
-  const payload = {
-    teamId,
-    invitedBy: invitedBy || 'team',
-    type: 'team-invite',
-  };
-
-  return jwt.sign(payload, getJwtSecret(), {
-    expiresIn: TOKEN_EXPIRY,
-  });
+export function generateJoinToken(teamId: number): string {
+  if (!Number.isInteger(teamId) || teamId < 1) {
+    badRequest('Invalid team ID');
+  }
+  return createTeamInviteToken(teamId);
 }
 
 /**
- * Validate and decode a join token
+ * Validate and decode a compact HMAC join token.
  */
-export function validateJoinToken(token: string): {
-  teamId: number;
-  invitedBy: string;
-} {
-  let decoded: string | jwt.JwtPayload;
-  try {
-    decoded = jwt.verify(token, getJwtSecret());
-  } catch (err) {
-    if (err instanceof jwt.TokenExpiredError) {
+export function validateJoinToken(token: string): { teamId: number } {
+  const parsed = parseTeamInviteToken(token);
+  if (!parsed.ok) {
+    if (parsed.reason === 'expired') {
       badRequest('Invitation link has expired');
     }
     badRequest('Invalid invitation link');
   }
 
-  if (typeof decoded !== 'object' || decoded === null) {
-    badRequest('Invalid invitation link');
-  }
-
-  const payload = decoded as {
-    type?: unknown;
-    teamId?: unknown;
-    invitedBy?: unknown;
-  };
-
-  if (payload.type !== 'team-invite') {
-    badRequest('Invalid token type');
-  }
-
-  if (typeof payload.teamId !== 'number' || typeof payload.invitedBy !== 'string') {
-    badRequest('Invalid invitation link');
-  }
-
-  return {
-    teamId: payload.teamId,
-    invitedBy: payload.invitedBy,
-  };
+  return { teamId: parsed.teamId };
 }

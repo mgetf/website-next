@@ -469,6 +469,7 @@ export async function getTeamById(id: number) {
               id: true,
               name: true,
               acronym: true,
+              avatar: true,
             },
           },
           season: {
@@ -476,6 +477,19 @@ export async function getTeamById(id: number) {
               id: true,
               seasonNum: true,
             },
+          },
+          games: {
+            select: {
+              gameNum: true,
+              arena: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                },
+              },
+            },
+            orderBy: { gameNum: 'asc' },
           },
         },
         orderBy: {
@@ -489,6 +503,7 @@ export async function getTeamById(id: number) {
               id: true,
               name: true,
               acronym: true,
+              avatar: true,
             },
           },
           season: {
@@ -496,6 +511,19 @@ export async function getTeamById(id: number) {
               id: true,
               seasonNum: true,
             },
+          },
+          games: {
+            select: {
+              gameNum: true,
+              arena: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                },
+              },
+            },
+            orderBy: { gameNum: 'asc' },
           },
         },
         orderBy: {
@@ -511,6 +539,52 @@ export async function getTeamById(id: number) {
       },
     },
   });
+}
+
+const EVENT_PLACEMENT_LABELS: Record<number, string> = {
+  1: '1st Place',
+  2: '2nd Place',
+  3: '3rd Place',
+};
+
+/**
+ * Event placements are stored by display name (no teamId on EventPlacement).
+ * Match this team against team-event podium rows by name or acronym.
+ */
+export async function getTeamEventPlacements(teamName: string, acronym: string | null) {
+  const names = [teamName, acronym].filter(
+    (name): name is string => typeof name === 'string' && name.trim().length > 0,
+  );
+  if (names.length === 0) return [];
+
+  const placements = await prisma.eventPlacement.findMany({
+    where: {
+      event: { isTeamEvent: true },
+      OR: names.map((name) => ({
+        displayName: { equals: name, mode: 'insensitive' as const },
+      })),
+    },
+    include: {
+      event: { select: { id: true, name: true, startedAt: true } },
+    },
+    orderBy: { event: { startedAt: 'desc' } },
+  });
+
+  const unique = new Map<
+    number,
+    { id: number; name: string; date: Date | null; placement: string }
+  >();
+  for (const row of placements) {
+    if (unique.has(row.event.id)) continue;
+    unique.set(row.event.id, {
+      id: row.event.id,
+      name: row.event.name,
+      date: row.event.startedAt,
+      placement: EVENT_PLACEMENT_LABELS[row.placement] ?? `#${row.placement}`,
+    });
+  }
+
+  return [...unique.values()];
 }
 
 /**

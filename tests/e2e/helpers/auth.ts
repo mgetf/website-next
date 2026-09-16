@@ -348,7 +348,7 @@ export async function readInviteLink(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Invite Players' }).click();
   const input = page.locator('input[readonly]').first();
   const value = await input.inputValue();
-  if (!value.includes('/teams/join?token=')) {
+  if (!value.includes('/i/')) {
     throw new Error(`Expected invite URL, got: ${value}`);
   }
   return value;

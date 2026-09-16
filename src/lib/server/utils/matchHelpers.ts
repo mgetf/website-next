@@ -4,6 +4,7 @@
  */
 
 import type { Match } from '$prisma/client.js';
+import type { TeamMatchArena } from '$lib/types/team';
 
 /**
  * Calculate week label with suffix for multi-match weeks (e.g., "1a", "1b")
@@ -106,4 +107,24 @@ export function calculatePointsPerGame(
   const totalGames = gamesWon + gamesLost;
   if (totalGames === 0) return 0;
   return pointsScored / totalGames;
+}
+
+/**
+ * Deduplicate the arenas played across a match's games, preserving first-seen order.
+ * Shared by any service/route that needs to display which arena(s) a match was played on.
+ * @param games - The match's games, each optionally carrying an arena
+ * @returns Unique list of arenas in first-seen order
+ */
+export function uniqueMatchArenas(
+  games: { arena: { id: number; name: string; avatar: string | null } | null }[] | undefined,
+): TeamMatchArena[] {
+  if (!games) return [];
+  const seen = new Set<number>();
+  const arenas: TeamMatchArena[] = [];
+  for (const game of games) {
+    if (!game.arena || seen.has(game.arena.id)) continue;
+    seen.add(game.arena.id);
+    arenas.push({ id: game.arena.id, name: game.arena.name, avatar: game.arena.avatar });
+  }
+  return arenas;
 }

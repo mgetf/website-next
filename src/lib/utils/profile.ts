@@ -25,12 +25,6 @@ export function resultClass(result: string): string {
   return 'text-text-body';
 }
 
-export function resultChipClass(result: string): string {
-  if (result === 'W') return 'bg-success-500/20 text-success-400 border-success-500/30';
-  if (result === 'L') return 'bg-danger-500/20 text-danger-400 border-danger-500/30';
-  return 'bg-surface-input text-text-muted border-border-input';
-}
-
 export function placementClass(placement: string): string {
   if (placement.includes('1st')) return 'text-warning-400';
   if (placement.includes('2nd')) return 'text-text-label';
@@ -96,6 +90,13 @@ export function teamFormatsIn(
 export function parseProfileTab(raw: string | null): 'overview' | '1v1' | 'stats' {
   if (raw === '1v1' || raw === 'stats') return raw;
   return 'overview';
+}
+
+/** Capitalizes the first letter and lowercases the rest, e.g. "NEWCOMER" -> "Newcomer". */
+export function sentenceCase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 }
 
 export function profileExternalLinks(steamId: string, steam2: string) {

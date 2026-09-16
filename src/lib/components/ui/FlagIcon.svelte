@@ -6,7 +6,7 @@
 </script>
 
 {#if known}
-  <span class="fi fi-{iso} rounded-lg shrink-0 {className}"></span>
+  <span class="fi fi-{iso} rounded-sm shrink-0 {className}"></span>
 {:else}
   <span
     class="inline-flex items-center justify-center rounded-sm shrink-0 bg-surface-input border border-border-default text-text-muted {className}"

@@ -1,19 +1,31 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
+import { validateForm, validationError, formError } from '$lib/server/utils/forms';
 import {
   getTeamById,
+  getTeamEventPlacements,
+  getTeamAuditSnapshot,
   adminSetTeamStatus,
   changeTeamDivision,
   toggleTeamReady,
 } from '$lib/server/services/teams';
-import { isAdmin, isTeamAdmin } from '$lib/server/auth/permissions';
+import { isAdmin, isTeamAdmin, requireAuth, requireTeamAdmin } from '$lib/server/auth/permissions';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { removePlayer } from '$lib/server/services/teamManagement';
+import {
+  getTeamForEdit,
+  updateTeamInfo,
+  uploadTeamAvatar,
+  removePlayer,
+  promotePlayer,
+  demotePlayer,
+  invitePlayerBySteamId,
+  disbandTeam,
+} from '$lib/server/services/teamManagement';
 import { markPlayerAsPaidManually } from '$lib/server/services/payments';
+import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
-import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
+import { calculateWeekLabel, uniqueMatchArenas } from '$lib/server/utils/matchHelpers';
 import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import {
@@ -26,6 +38,7 @@ import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/audit
 import { getErrorMessage } from '$lib/server/utils/errors';
 import { getByeWeeksForTeam } from '$lib/server/services/byeWeeks';
 import { buildPageSeo } from '$lib/utils/seo';
+import type { TeamMatchRow } from '$lib/types/team';
 
 const playerSteamIdSchema = z.object({
   playerSteamId: z.string().min(1, 'Player Steam ID is required'),
@@ -38,6 +51,36 @@ const updateStatusSchema = z.object({
 const changeDivisionSchema = z.object({
   divisionId: z.coerce.number().int().positive('A valid division is required'),
 });
+
+const updateInfoSchema = z.object({
+  name: z.string().min(1, 'Team name is required'),
+  acronym: z.string().optional().default(''),
+});
+
+const updatePasswordSchema = z.object({
+  joinPassword: z.string().default(''),
+});
+
+const invitePlayerSchema = z.object({
+  steamId: z.string().min(1, 'Steam ID is required'),
+});
+
+type MatchHistoryDraft = TeamMatchRow & {
+  weekNo?: number | null;
+  playoffRound?: number | null;
+  seasonNum?: number;
+};
+
+function teamPerspectiveScore(
+  isWin: boolean,
+  isDraw: boolean,
+  winnerScore: number | null,
+  loserScore: number | null,
+): string | null {
+  if (winnerScore == null || loserScore == null) return null;
+  if (isDraw || isWin) return `${winnerScore} - ${loserScore}`;
+  return `${loserScore} - ${winnerScore}`;
+}
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const teamId = parseInt(params.id);
@@ -100,8 +143,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       leftAt: p.leftAt,
     }));
 
-  // Fetch bye weeks for this team
-  const byeWeeks = await getByeWeeksForTeam(teamId);
+  const [byeWeeks, achievements] = await Promise.all([
+    getByeWeeksForTeam(teamId),
+    getTeamEventPlacements(team.name, team.acronym),
+  ]);
 
   // Combine and organize matches by season
   const allMatches = [
@@ -118,7 +163,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   ];
 
   // Group matches by season
-  const matchesBySeasonMap = new Map<number, any[]>();
+  const matchesBySeasonMap = new Map<number, MatchHistoryDraft[]>();
 
   for (const match of allMatches) {
     const seasonId = match.season.id;
@@ -154,14 +199,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       playoffRound: match.playoffRound,
       opponent: match.opponent.name,
       opponentId: match.opponent.id,
+      opponentAvatar: match.opponent.avatar,
       result: isDraw ? 'D' : isWin ? 'W' : match.status.toString() === 'PLAYED' ? 'L' : 'TBD',
-      score: match.winnerId
-        ? `${match.winnerScore} - ${match.loserScore}`
-        : match.status.toString() === 'PLAYED'
-          ? 'N/A'
-          : 'Unplayed',
-      date: match.matchDateTime,
+      score: teamPerspectiveScore(isWin, isDraw, match.winnerScore, match.loserScore),
       matchId: match.id,
+      arenas: uniqueMatchArenas(match.games),
     });
   }
 
@@ -178,10 +220,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       playoffRound: null,
       opponent: null,
       opponentId: null,
+      opponentAvatar: null,
       result: 'BYE' as const,
       score: null,
-      date: null,
       matchId: null,
+      arenas: [],
       seasonNum: bye.season.seasonNum,
     });
   }
@@ -196,15 +239,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       const seasonNum = seasonData?.seasonNum ?? byeSeasonNums.get(seasonId) ?? seasonId;
 
       // Regular-season weeks first, then playoffs in bracket order
-      matches.sort(
-        (
-          a: { weekNo?: number | null; playoffRound?: number | null; matchId?: number | null },
-          b: { weekNo?: number | null; playoffRound?: number | null; matchId?: number | null },
-        ) =>
-          compareMatchHistoryOrder(
-            { weekNo: a.weekNo, playoffRound: a.playoffRound, id: a.matchId },
-            { weekNo: b.weekNo, playoffRound: b.playoffRound, id: b.matchId },
-          ),
+      matches.sort((a, b) =>
+        compareMatchHistoryOrder(
+          { weekNo: a.weekNo, playoffRound: a.playoffRound, id: a.matchId },
+          { weekNo: b.weekNo, playoffRound: b.playoffRound, id: b.matchId },
+        ),
       );
 
       // Strip sort-only fields before returning to the client
@@ -243,6 +282,34 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     isGlobalAdmin && team.regionId
       ? allDivisions.filter((d) => d.regionId === team.regionId && d.formatId === team.formatId)
       : allDivisions;
+
+  let management = null;
+  if (canManageTeam && currentUserSteamId) {
+    const editData = await getTeamForEdit(teamId, currentUserSteamId);
+    const inviteToken = generateJoinToken(teamId);
+    management = {
+      inviteUrl: `/i/${inviteToken}`,
+      maxRosterSize: team.format.maxRosterSize,
+      players: editData.players
+        .filter((player) => player.active === 1)
+        .map((player) => ({
+          steamId: player.playerSteamId,
+          name: player.player.steamUsername,
+          avatar: player.player.steamAvatar,
+          permissionLevel: player.permissionLevel,
+        })),
+      sentInvites: editData.sentInvites.map((invite) => ({
+        steamId: invite.playerSteamId,
+        name: invite.player.steamUsername,
+        avatar: invite.player.steamAvatar,
+      })),
+      awaitingAdmin: editData.awaitingAdmin.map((invite) => ({
+        steamId: invite.playerSteamId,
+        name: invite.player.steamUsername,
+        avatar: invite.player.steamAvatar,
+      })),
+    };
+  }
 
   const divisionLabel = [team.division?.name, team.region?.name ? `(${team.region.name})` : null]
     .filter(Boolean)
@@ -289,10 +356,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       formatName: team.format.name,
       formatThemeKey: team.format.themeKey,
       formatIconUrl: team.format.iconUrl,
+      maxRosterSize: team.format.maxRosterSize,
     },
     currentRoster,
     pastRoster,
     matchesBySeason,
+    achievements,
+    management,
     divisions,
     canManageTeam,
     isGlobalAdmin,
@@ -538,5 +608,296 @@ export const actions: Actions = {
         error: getErrorMessage(err, 'Failed to change division'),
       });
     }
+  },
+
+  updateInfo: async ({ request, params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const teamId = parseInt(params.id);
+    await requireTeamAdmin(locals.user, teamId);
+
+    const { rosterLocked } = await getTeamForEdit(teamId, locals.user.steamId);
+    if (rosterLocked) {
+      return formError('Rosters are locked', 400);
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, updateInfoSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { name, acronym } = validation.data;
+
+    try {
+      const before = await getTeamAuditSnapshot(teamId);
+      await updateTeamInfo(teamId, { name, acronym });
+      const after = await getTeamAuditSnapshot(teamId);
+      const changedFields = after
+        ? [
+            before?.name !== after.name ? 'name' : null,
+            before?.acronym !== after.acronym ? 'acronym' : null,
+          ].filter((field): field is string => field !== null)
+        : [];
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_UPDATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: {
+          changedFields: changedFields.join(',') || null,
+          nameBefore: before?.name ?? null,
+          nameAfter: after?.name ?? null,
+          acronymBefore: before?.acronym ?? null,
+          acronymAfter: after?.acronym ?? null,
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Team info updated successfully' };
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to update team info'), 400);
+    }
+  },
+
+  updatePassword: async ({ request, params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const teamId = parseInt(params.id);
+    await requireTeamAdmin(locals.user, teamId);
+
+    const { rosterLocked } = await getTeamForEdit(teamId, locals.user.steamId);
+    if (rosterLocked) {
+      return formError('Rosters are locked', 400);
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, updatePasswordSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const joinPassword = validation.data.joinPassword.trim();
+    if (!joinPassword) {
+      return { success: true, message: 'No changes made' };
+    }
+
+    try {
+      const before = await getTeamAuditSnapshot(teamId);
+      await updateTeamInfo(teamId, { joinPassword });
+      const after = await getTeamAuditSnapshot(teamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_UPDATED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: {
+          changedFields: 'joinPassword',
+          passwordUpdated: true,
+          nameBefore: before?.name ?? null,
+          nameAfter: after?.name ?? null,
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Join password updated successfully' };
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to update password'), 400);
+    }
+  },
+
+  updateAvatar: async ({ request, params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const teamId = parseInt(params.id);
+    await requireTeamAdmin(locals.user, teamId);
+
+    const { rosterLocked } = await getTeamForEdit(teamId, locals.user.steamId);
+    if (rosterLocked) {
+      return formError('Rosters are locked', 400);
+    }
+
+    const formData = await request.formData();
+    const avatar = formData.get('avatar');
+
+    if (!(avatar instanceof File) || avatar.size === 0) {
+      return formError('No file uploaded', 400);
+    }
+
+    try {
+      const before = await getTeamAuditSnapshot(teamId);
+      const avatarUrl = await uploadTeamAvatar(teamId, avatar);
+
+      if (!avatarUrl) {
+        return formError('R2 storage not configured. Avatar upload disabled.', 400);
+      }
+
+      const after = await getTeamAuditSnapshot(teamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.TEAM,
+        action: AuditAction.TEAM_AVATAR_CHANGED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: {
+          changedFields: 'avatar',
+          avatarBefore: before?.avatar ?? null,
+          avatarAfter: after?.avatar ?? avatarUrl,
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Avatar updated successfully', avatarUrl };
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to upload avatar'), 400);
+    }
+  },
+
+  promotePlayer: async ({ request, params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const teamId = parseInt(params.id);
+    await requireTeamAdmin(locals.user, teamId);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await promotePlayer(teamId, validation.data.playerSteamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_PROMOTED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId: validation.data.playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Player promoted successfully' };
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to promote player'), 400);
+    }
+  },
+
+  demotePlayer: async ({ request, params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const teamId = parseInt(params.id);
+    await requireTeamAdmin(locals.user, teamId);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await demotePlayer(teamId, validation.data.playerSteamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_DEMOTED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId: validation.data.playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Player demoted successfully' };
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to demote player'), 400);
+    }
+  },
+
+  invitePlayer: async ({ request, params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const teamId = parseInt(params.id);
+    await requireTeamAdmin(locals.user, teamId);
+
+    const { rosterLocked } = await getTeamForEdit(teamId, locals.user.steamId);
+    if (rosterLocked) {
+      return formError('Rosters are locked', 400);
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, invitePlayerSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await invitePlayerBySteamId(teamId, validation.data.steamId, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_INVITED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { invitedSteamId: validation.data.steamId },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Player invited successfully' };
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to invite player'), 400);
+    }
+  },
+
+  cancelInvite: async ({ request, params, locals }) => {
+    requireAuth(locals.user);
+    const teamId = parseInt(params.id);
+    await requireTeamAdmin(locals.user, teamId);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      await declineInvitation(validation.data.playerSteamId, teamId);
+      return { success: true, message: 'Invitation cancelled' };
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to cancel invitation'), 400);
+    }
+  },
+
+  disbandTeam: async ({ params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const teamId = parseInt(params.id);
+
+    const { isOwner } = await getTeamForEdit(teamId, locals.user.steamId);
+    const isGlobalAdmin = isAdmin(locals.user);
+
+    if (!isOwner && !isGlobalAdmin) {
+      return formError('Only the team owner or an admin can disband the team', 403);
+    }
+
+    const before = await getTeamAuditSnapshot(teamId);
+    await disbandTeam(teamId);
+    const after = await getTeamAuditSnapshot(teamId);
+
+    await logAudit({
+      actorId: locals.user.steamId,
+      actorRole: locals.user.permissionLevel,
+      category: AuditCategory.TEAM,
+      action: AuditAction.TEAM_DISBANDED,
+      targetType: 'Team',
+      targetId: String(teamId),
+      metadata: {
+        nameBefore: before?.name ?? null,
+        statusBefore: before?.status ?? null,
+        statusAfter: after?.status ?? null,
+        seasonIdBefore: before?.seasonId ?? null,
+        divisionIdBefore: before?.divisionId ?? null,
+        divisionNameBefore: before?.divisionName ?? null,
+        regionIdBefore: before?.regionId ?? null,
+        regionNameBefore: before?.regionName ?? null,
+      },
+      ipAddress: getClientAddress(),
+    });
+
+    throw redirect(303, `/teams/${teamId}?disbanded=1`);
   },
 };

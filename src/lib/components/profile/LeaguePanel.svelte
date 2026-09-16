@@ -2,6 +2,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import SeasonScope from '$lib/components/ui/SeasonScope.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
   import type { Profile1v1Entry } from '$lib/types/profile';
   import { statusColor, statusLabel, winPct } from '$lib/utils/profile';
@@ -66,8 +67,12 @@
         <div class="flex items-center justify-between px-5 py-3">
           <div>
             <h2 class="text-sm font-semibold text-white">Current entry</h2>
-            <p class="text-xs text-text-muted">
-              {entry.division} · {entry.region} · S{entry.seasonNum}
+            <p class="mt-1 text-sm">
+              <SeasonScope
+                region={entry.region}
+                seasonNum={entry.seasonNum}
+                division={entry.division}
+              />
             </p>
           </div>
           <Badge color={statusColor(entry.status)}>{statusLabel(entry.status)}</Badge>

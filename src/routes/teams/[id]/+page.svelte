@@ -10,13 +10,11 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
+  import SeasonScope from '$lib/components/ui/SeasonScope.svelte';
   import Tooltip from '$lib/components/ui/Tooltip.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import type { TeamPageTab } from '$lib/types/team';
-  import { flagForRegion } from '$lib/utils/regions';
-  import { getRegionAbbr } from '$lib/utils/region';
   import { statusColor, statusLabel } from '$lib/utils/profile';
   import { parseTeamTab } from '$lib/utils/team';
   import { hasMetPaidPlayerRequirement, paidPlayersNeeded } from '$lib/utils/rosterPayments';
@@ -32,7 +30,6 @@
   const canManage = $derived(data.canManageTeam);
   const tab = $derived(parseTeamTab(page.url.searchParams.get('tab'), canManage));
   const teamPath = $derived(resolve('/teams/[id]', { id: String(team.id) }));
-  const regionFlag = $derived(team.region ? flagForRegion(getRegionAbbr(team.region)) : '');
 
   let lastFormResult: ActionData = null;
   let submittingAction = $state<string | null>(null);
@@ -158,12 +155,6 @@
         return '';
     }
   }
-
-  function sentenceCase(value: string): string {
-    const trimmed = value.trim();
-    if (!trimmed) return trimmed;
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-  }
 </script>
 
 <svelte:head>
@@ -204,28 +195,7 @@
       </div>
 
       <div class="mt-2 flex flex-wrap items-center gap-2">
-        {#if team.seasonNum != null}
-          <span class="inline-flex items-center gap-2 font-semibold text-white">
-            {#if regionFlag}
-              <FlagIcon code={regionFlag} class="h-4 w-6 rounded" />
-            {/if}
-            <span>
-              Season {team.seasonNum}
-              {#if team.division}
-                <span class="font-normal text-text-muted"> - {sentenceCase(team.division)}</span>
-              {/if}
-            </span>
-          </span>
-        {:else if regionFlag || team.division}
-          <span class="inline-flex items-center gap-2 font-semibold text-white">
-            {#if regionFlag}
-              <FlagIcon code={regionFlag} class="h-4 w-6 rounded" />
-            {/if}
-            {#if team.division}
-              <span class="font-normal text-text-muted">{sentenceCase(team.division)}</span>
-            {/if}
-          </span>
-        {/if}
+        <SeasonScope region={team.region} seasonNum={team.seasonNum} division={team.division} />
         <Badge color={statusColor(team.status)} tooltip={getStatusTooltip(team.status)}>
           {statusLabel(team.status)}
         </Badge>

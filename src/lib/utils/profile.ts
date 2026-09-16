@@ -92,6 +92,13 @@ export function parseProfileTab(raw: string | null): 'overview' | '1v1' | 'stats
   return 'overview';
 }
 
+/** Capitalizes the first letter and lowercases the rest, e.g. "NEWCOMER" -> "Newcomer". */
+export function sentenceCase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 export function profileExternalLinks(steamId: string, steam2: string) {
   return [
     {

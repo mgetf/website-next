@@ -7,10 +7,10 @@
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
+  import SeasonScope from '$lib/components/ui/SeasonScope.svelte';
   import Tooltip from '$lib/components/ui/Tooltip.svelte';
   import { PROVISIONAL_RATING_TITLE, ratingValue, visibleServerRatings } from '$lib/utils/rating';
   import { flagForRegion } from '$lib/utils/regions';
-  import { getRegionAbbr } from '$lib/utils/region';
   import type { MgeRating, PlatformRegion } from '$lib/types/mge';
   import type { ProfileMatch } from '$lib/types/match';
   import type { PlayerServerStats, Profile1v1Entry, ProfileTeam } from '$lib/types/profile';
@@ -176,32 +176,9 @@
     if (count === 6) return 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6';
     return 'grid-cols-2 sm:grid-cols-4 xl:grid-cols-7';
   }
-
-  function sentenceCase(value: string): string {
-    const trimmed = value.trim();
-    if (!trimmed) return trimmed;
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-  }
-
-  function regionFlag(regionName: string): string {
-    return flagForRegion(getRegionAbbr(regionName));
-  }
 </script>
 
 <div class="space-y-6">
-  {#snippet seasonScope(regionName: string, seasonNum: number, division: string)}
-    {@const flagCode = regionFlag(regionName)}
-    <span class="inline-flex items-center gap-2 font-semibold text-white">
-      {#if flagCode}
-        <FlagIcon code={flagCode} class="h-4 w-6 rounded" />
-      {/if}
-      <span>
-        Season {seasonNum}
-        <span class="font-normal text-text-muted"> - {sentenceCase(division)}</span>
-      </span>
-    </span>
-  {/snippet}
-
   {#snippet opponentCell(match: ProfileMatch, mode: 'team' | 'match')}
     {#if mode === 'team'}
       {#if match.opponentId}
@@ -432,7 +409,11 @@
           <div class="flex items-start justify-between gap-3">
             <div>
               <p>
-                {@render seasonScope(active1v1.region, active1v1.seasonNum, active1v1.division)}
+                <SeasonScope
+                  region={active1v1.region}
+                  seasonNum={active1v1.seasonNum}
+                  division={active1v1.division}
+                />
               </p>
               <p class="mt-1 font-mono text-sm text-format-1v1-400">
                 {active1v1.wins}–{active1v1.losses}
@@ -511,11 +492,11 @@
                   {currentTeam.teamName}
                 </a>
                 <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                  {@render seasonScope(
-                    currentTeam.regionName,
-                    currentTeam.seasonNum,
-                    currentTeam.division,
-                  )}
+                  <SeasonScope
+                    region={currentTeam.regionName}
+                    seasonNum={currentTeam.seasonNum}
+                    division={currentTeam.division}
+                  />
                 </p>
                 <p class="mt-1 font-mono text-sm text-success-400">
                   {currentTeam.wins}–{currentTeam.losses}
@@ -553,7 +534,11 @@
                   <Badge color={statusColor(team.status)}>{statusLabel(team.status)}</Badge>
                 </div>
                 <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                  {@render seasonScope(team.regionName, team.seasonNum, team.division)}
+                  <SeasonScope
+                    region={team.regionName}
+                    seasonNum={team.seasonNum}
+                    division={team.division}
+                  />
                 </p>
                 <p class="mt-1 font-mono text-sm text-success-400">
                   {team.wins}–{team.losses}
@@ -599,11 +584,11 @@
       {#if selected1v1Entry}
         <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
           <p class="text-sm">
-            {@render seasonScope(
-              selected1v1Entry.region,
-              selected1v1Entry.seasonNum,
-              selected1v1Entry.division,
-            )}
+            <SeasonScope
+              region={selected1v1Entry.region}
+              seasonNum={selected1v1Entry.seasonNum}
+              division={selected1v1Entry.division}
+            />
           </p>
           <div class="flex items-center gap-3">
             <p class="text-xs text-text-muted">
@@ -691,12 +676,12 @@
             <img
               src={selectedHistoryTeam.avatar || DEFAULT_AVATAR}
               alt=""
-              class="size-8 shrink-0 rounded-lg object-cover"
+              class="size-12 shrink-0 rounded-lg object-cover"
             />
             <div class="min-w-0">
               <a
                 href={resolve('/teams/[id]', { id: String(selectedHistoryTeam.teamId) })}
-                class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-white transition-colors hover:text-primary-400"
+                class="inline-flex min-w-0 items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
               >
                 {#if selectedHistoryTeam.formatIconUrl}
                   <Tooltip text={selectedHistoryTeam.formatName}>
@@ -710,17 +695,15 @@
                 <span class="truncate">{selectedHistoryTeam.teamName}</span>
               </a>
               <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                {@render seasonScope(
-                  selectedHistoryTeam.regionName,
-                  selectedHistoryTeam.seasonNum,
-                  selectedHistoryTeam.division,
-                )}
+                <SeasonScope
+                  region={selectedHistoryTeam.regionName}
+                  seasonNum={selectedHistoryTeam.seasonNum}
+                  division={selectedHistoryTeam.division}
+                />
               </p>
-              <p class="mt-1 text-xs text-text-muted">
-                <span class="font-mono"
-                  >{selectedHistoryTeam.wins}–{selectedHistoryTeam.losses}</span
-                >
-                <span class="ml-2"
+              <p class="mt-1 font-mono text-sm text-success-400">
+                {selectedHistoryTeam.wins}–{selectedHistoryTeam.losses}
+                <span class="ml-2 font-sans text-xs text-text-muted"
                   >{winPct(selectedHistoryTeam.wins, selectedHistoryTeam.losses)}% WR</span
                 >
               </p>

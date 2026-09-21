@@ -391,7 +391,7 @@
         {matchesBySeason}
         achievements={data.achievements}
         maxRosterSize={team.maxRosterSize}
-        showPaymentBadges={data.isOnTeam || canManage}
+        showPaymentBadges={(data.isOnTeam || canManage) && !data.isFreeDivision}
         currentUserSteamId={data.currentUserSteamId}
         canLeave={data.isOnTeam && !data.isOwner && !data.rosterLocked}
         onLeaveTeam={() => (showLeaveDialog = true)}

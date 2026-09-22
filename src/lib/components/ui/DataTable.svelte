@@ -26,6 +26,7 @@
     data,
     columns,
     cell,
+    header,
     emptyMessage = 'No data found',
     emptyVisual,
     pagination,
@@ -43,6 +44,7 @@
     data: T[];
     columns: Column[];
     cell: Snippet<[T, Column]>;
+    header?: Snippet<[Column]>;
     emptyMessage?: string;
     emptyVisual?: Snippet;
     pagination?: PaginationConfig;
@@ -117,7 +119,9 @@
                 )}"
                 style={col.width ? `width: ${col.width}` : undefined}
               >
-                {#if col.srOnly}
+                {#if header}
+                  {@render header(col)}
+                {:else if col.srOnly}
                   <span class="sr-only">{col.label}</span>
                 {:else if col.sortable && onSort}
                   <button

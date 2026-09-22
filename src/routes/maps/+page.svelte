@@ -4,18 +4,27 @@
   import Card from '$lib/components/ui/Card.svelte';
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import SearchInput from '$lib/components/ui/SearchInput.svelte';
 
   type MapRow = (typeof data.maps)[number];
 
   const columns: Column[] = [
     { key: 'checkbox', label: 'Select', srOnly: true, width: '2.5rem' },
     { key: 'name', label: 'Map' },
-    { key: 'bspSize', label: '.bsp size', align: 'right' },
-    { key: 'cfgSize', label: '.cfg size', align: 'right' },
     { key: 'files', label: 'Files', align: 'right' },
   ];
 
   let { data }: { data: PageData } = $props();
+
+  let search = $state('');
+  const query = $derived(search.trim().toLowerCase());
+  const filteredMaps = $derived(
+    query
+      ? data.maps.filter(
+          (m) => m.name.includes(query) || (m.description?.toLowerCase().includes(query) ?? false),
+        )
+      : data.maps,
+  );
 
   // ── Per-map file selection ───────────────────────────────────────────────────
   // Default: both files selected. Players can toggle .bsp / .cfg off per map.
@@ -33,8 +42,10 @@
   );
 
   const allSelected = $derived(
-    data.maps.length > 0 && data.maps.every((m) => selectedIds.has(m.id)),
+    filteredMaps.length > 0 && filteredMaps.every((m) => selectedIds.has(m.id)),
   );
+
+  const someSelected = $derived(filteredMaps.some((m) => selectedIds.has(m.id)));
 
   function isSelected(id: number) {
     const s = selections.get(id);
@@ -75,13 +86,13 @@
   }
 
   function toggleAll() {
+    const next = new Map(selections);
     if (allSelected) {
-      selections = new Map();
+      for (const m of filteredMaps) next.delete(m.id);
     } else {
-      const next = new Map<number, FileSelection>();
-      for (const m of data.maps) next.set(m.id, { bsp: true, cfg: true });
-      selections = next;
+      for (const m of filteredMaps) next.set(m.id, { bsp: true, cfg: true });
     }
+    selections = next;
   }
 
   function clearAll() {
@@ -111,11 +122,6 @@
       clearInterval(fakeProgressTimer);
       fakeProgressTimer = null;
     }
-  }
-
-  function formatBytes(bytes: number): string {
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   function triggerBlobDownload(blob: Blob) {
@@ -169,14 +175,12 @@
       if (!response.ok) {
         let detail = '';
         try {
-          detail = await response.text();
+          const payload = (await response.json()) as { error?: unknown };
+          if (typeof payload.error === 'string') detail = payload.error;
         } catch {
           /* ignore */
         }
-        errorMessage =
-          response.status === 502
-            ? 'Some map files could not be retrieved from storage. Try again later.'
-            : detail || `Download failed (HTTP ${response.status}). Please try again.`;
+        errorMessage = detail || `Download failed (HTTP ${response.status}). Please try again.`;
         return;
       }
 
@@ -247,28 +251,46 @@
 <PageHero title="Maps" subtitle="Download MGE arenas and spawn configs for your server." border />
 
 <div class="max-w-6xl mx-auto px-6 py-10">
-  <!-- Controls bar -->
-  <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-    <div class="flex items-center gap-3">
-      <label class="flex items-center gap-2 cursor-pointer select-none text-text-label text-sm">
-        <input
-          type="checkbox"
-          checked={allSelected}
-          onchange={toggleAll}
-          class="w-4 h-4 rounded border-border-input bg-surface-input accent-primary-600 cursor-pointer"
-        />
-        {allSelected ? 'Deselect all' : 'Select all'}
-        <span class="text-text-muted">({data.maps.length} maps)</span>
-      </label>
+  <!-- Download structure hint -->
+  <Card padding="sm" class="mb-6 text-sm text-text-muted">
+    <div class="space-y-2">
+      <p>
+        The zip uses the correct TF2 directory structure:
+        <code class="font-mono text-text-label">maps/</code> for .bsp files and
+        <code class="font-mono text-text-label">addons/sourcemod/configs/mge/</code> for spawn
+        configs. Toggle individual file types per map using the
+        <span class="text-text-label">.bsp</span> /
+        <span class="text-text-label">.cfg</span> buttons in the table.
+      </p>
+      <p>
+        The configs in this download work exclusively with the MGEMod version maintained by mge.tf:
+        <a
+          href="https://github.com/mgetf/MGEMod"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-primary-400 hover:text-primary-300 underline">mgetf/MGEMod</a
+        >. They do not work with any other known version of MGEMod.
+      </p>
+    </div>
+  </Card>
 
-      {#if selectedIds.size > 0}
-        <span class="text-text-muted text-sm">
-          {selectedIds.size} map{selectedIds.size !== 1 ? 's' : ''} · {totalFiles} file{totalFiles !==
+  <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+    <div class="flex-1 min-w-0 max-w-md">
+      <label for="map-search" class="sr-only">Search maps</label>
+      <SearchInput id="map-search" bind:value={search} placeholder="Search maps..." />
+      <p class="mt-2 text-text-muted text-sm">
+        {#if query}
+          {filteredMaps.length} of {data.maps.length} maps
+        {:else}
+          {data.maps.length} maps
+        {/if}
+        {#if selectedIds.size > 0}
+          · {selectedIds.size} map{selectedIds.size !== 1 ? 's' : ''} · {totalFiles} file{totalFiles !==
           1
             ? 's'
             : ''}
-        </span>
-      {/if}
+        {/if}
+      </p>
     </div>
 
     <div class="flex flex-col items-end gap-2">
@@ -301,26 +323,30 @@
     </div>
   </div>
 
-  <!-- Download structure hint -->
-  <Card padding="sm" class="mb-6 text-sm text-text-muted">
-    <p>
-      The zip uses the correct TF2 directory structure:
-      <code class="font-mono text-text-label">maps/</code> for .bsp files and
-      <code class="font-mono text-text-label">addons/sourcemod/configs/mge/</code> for spawn
-      configs. Toggle individual file types per map using the
-      <span class="text-text-label">.bsp</span> /
-      <span class="text-text-label">.cfg</span> buttons in the table.
-    </p>
-  </Card>
-
   <!-- Map table -->
   <DataTable
-    data={data.maps}
+    data={filteredMaps}
     {columns}
-    emptyMessage="No maps have been uploaded yet."
+    emptyMessage={query ? 'No maps match that search.' : 'No maps have been listed yet.'}
     onRowClick={(row) => toggleMap(row.id)}
     rowClass={(row) => (isSelected(row.id) ? 'bg-primary-600/5' : '')}
   >
+    {#snippet header(col: Column)}
+      {#if col.key === 'checkbox'}
+        <input
+          type="checkbox"
+          checked={allSelected}
+          indeterminate={someSelected && !allSelected}
+          onchange={toggleAll}
+          disabled={filteredMaps.length === 0}
+          aria-label={allSelected ? 'Deselect all maps' : 'Select all maps'}
+          title={allSelected ? 'Deselect all' : 'Select all'}
+          class="w-4 h-4 rounded border-border-input bg-surface-input accent-primary-600 cursor-pointer disabled:cursor-not-allowed"
+        />
+      {:else}
+        {col.label}
+      {/if}
+    {/snippet}
     {#snippet cell(row: MapRow, col: Column)}
       {#if col.key === 'checkbox'}
         <input
@@ -335,10 +361,6 @@
         {#if row.description}
           <p class="text-text-muted text-xs mt-0.5 line-clamp-1">{row.description}</p>
         {/if}
-      {:else if col.key === 'bspSize'}
-        <span class="text-text-muted font-mono text-xs">{formatBytes(row.bspSizeBytes)}</span>
-      {:else if col.key === 'cfgSize'}
-        <span class="text-text-muted font-mono text-xs">{formatBytes(row.cfgSizeBytes)}</span>
       {:else if col.key === 'files'}
         {@const sel = isSelected(row.id)}
         {@const fileSel = getSelection(row.id)}

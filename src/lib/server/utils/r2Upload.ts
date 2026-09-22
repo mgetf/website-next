@@ -4,7 +4,6 @@
  */
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
@@ -173,40 +172,11 @@ export async function uploadBufferToR2(
 }
 
 /**
- * Generate a presigned PUT URL so the browser can upload directly to R2,
- * bypassing the SvelteKit server and Cloudflare proxy entirely.
- * @param key - Full R2 object key (e.g. "maps/mge_foo.bsp")
- * @param contentType - MIME type the browser will send in the PUT
- * @param expiresIn - URL lifetime in seconds (default 1 hour)
- * @returns Presigned URL string, or null if R2 is not configured
- */
-export async function getPresignedUploadUrl(
-  key: string,
-  contentType: string,
-  expiresIn = 3600,
-): Promise<string | null> {
-  if (!isR2Configured || !r2Client) {
-    return null;
-  }
-
-  const command = new PutObjectCommand({
-    Bucket: R2_BUCKET_NAME!,
-    Key: key,
-    ContentType: contentType,
-  });
-
-  return await getSignedUrl(r2Client, command, { expiresIn });
-}
-
-/**
  * Validate uploaded file
  * @param file - File object from form data
- * @param type - 'image', 'demo', 'bsp', or 'cfg'
+ * @param type - 'image' or 'demo'
  */
-export function validateUploadedFile(
-  file: File,
-  type: 'image' | 'demo' | 'bsp' | 'cfg' = 'image',
-): void {
+export function validateUploadedFile(file: File, type: 'image' | 'demo' = 'image'): void {
   if (type === 'image') {
     // Check file size (5MB max for images)
     const maxSize = 5 * 1024 * 1024; // 5MB
@@ -230,28 +200,6 @@ export function validateUploadedFile(
     const fileName = file.name.toLowerCase();
     if (!fileName.endsWith('.dem')) {
       throw error(400, 'Only .dem demo files are allowed');
-    }
-  } else if (type === 'bsp') {
-    // Check file size (200MB max for BSP map files)
-    const maxSize = 200 * 1024 * 1024; // 200MB
-    if (file.size > maxSize) {
-      throw error(400, 'BSP file size must be less than 200MB');
-    }
-
-    const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith('.bsp')) {
-      throw error(400, 'Only .bsp map files are allowed');
-    }
-  } else if (type === 'cfg') {
-    // Check file size (1MB max for config files)
-    const maxSize = 1 * 1024 * 1024; // 1MB
-    if (file.size > maxSize) {
-      throw error(400, 'CFG file size must be less than 1MB');
-    }
-
-    const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith('.cfg')) {
-      throw error(400, 'Only .cfg config files are allowed');
     }
   }
 }

@@ -1,16 +1,58 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { ZipArchive } from 'archiver';
-import { Readable } from 'stream';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Readable, Transform } from 'node:stream';
+import { finished } from 'node:stream/promises';
 import { getMapFilesByIds } from '$lib/server/services/mapFiles';
 import { mapDownloadRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
-
-type FileEntry = { type: 'bsp' | 'cfg'; name: string; buffer: Buffer };
+import { fetchPublicHttps, PublicHttpsUrlError } from '$lib/server/utils/publicHttpsUrl';
 
 interface MapRequest {
   id: number;
   bsp: boolean;
   cfg: boolean;
+}
+
+const BSP_MAX_BYTES = 500 * 1024 * 1024;
+const CFG_MAX_BYTES = 1 * 1024 * 1024;
+const ZIP_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+const FETCH_TIMEOUT_MS = 180_000;
+
+function byteLimitTransform(maxBytes: number, label: string): Transform {
+  let seen = 0;
+  return new Transform({
+    transform(chunk, _enc, cb) {
+      seen += (chunk as Buffer).length;
+      if (seen > maxBytes) {
+        cb(new Error(`${label} is larger than the allowed size`));
+        return;
+      }
+      cb(null, chunk);
+    },
+  });
+}
+
+function webBodyToNode(body: ReadableStream<Uint8Array>): Readable {
+  return Readable.fromWeb(body as import('node:stream/web').ReadableStream);
+}
+
+async function appendRemoteFile(
+  archive: InstanceType<typeof ZipArchive>,
+  url: string,
+  zipPath: string,
+  maxBytes: number,
+): Promise<void> {
+  const res = await fetchPublicHttps(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
+  if (!res.body) {
+    throw new PublicHttpsUrlError(`Empty body fetching ${url}`);
+  }
+
+  const limited = webBodyToNode(res.body).pipe(byteLimitTransform(maxBytes, zipPath));
+  archive.append(limited, { name: zipPath });
 }
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
@@ -31,7 +73,6 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
     return json({ error: 'maps must be a non-empty array' }, { status: 400 });
   }
 
-  // Parse and validate per-map requests
   const mapRequests: MapRequest[] = [];
   for (const entry of rawMaps) {
     if (!entry || typeof entry !== 'object') continue;
@@ -51,88 +92,99 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   }
 
   const mapIds = mapRequests.map((m) => m.id);
-  const maps = await getMapFilesByIds(mapIds);
+  const uniqueIds = [...new Set(mapIds)];
+  const maps = await getMapFilesByIds(uniqueIds);
 
-  if (maps.length === 0) {
-    return json({ error: 'No maps found for the provided IDs' }, { status: 404 });
+  if (maps.length !== uniqueIds.length) {
+    return json({ error: 'One or more maps were not found' }, { status: 404 });
   }
 
-  // Build a lookup for per-map file preferences
   const prefByMapId = new Map(mapRequests.map((r) => [r.id, r]));
+  const mapsById = new Map(maps.map((m) => [m.id, m]));
 
-  // Fetch the needed files from R2 via their public URLs concurrently
-  const filePromises: Promise<FileEntry>[] = [];
+  const tempDir = await mkdtemp(join(tmpdir(), 'mge-maps-'));
+  const zipPath = join(tempDir, 'mge-maps.zip');
 
-  for (const m of maps) {
-    const pref = prefByMapId.get(m.id);
-    if (!pref) continue;
+  let archive: InstanceType<typeof ZipArchive> | null = null;
+  let writeStream: ReturnType<typeof createWriteStream> | null = null;
 
-    if (pref.bsp) {
-      filePromises.push(
-        fetch(m.bspUrl).then(async (r): Promise<FileEntry> => {
-          if (!r.ok) throw new Error(`Failed to fetch ${m.name}.bsp`);
-          return { type: 'bsp', name: m.name, buffer: Buffer.from(await r.arrayBuffer()) };
-        }),
-      );
+  try {
+    writeStream = createWriteStream(zipPath);
+    const zipLimiter = byteLimitTransform(ZIP_MAX_BYTES, 'zip');
+    archive = new ZipArchive({ zlib: { level: 6 } });
+
+    const archiveFailed = new Promise<never>((_, reject) => {
+      archive!.on('error', reject);
+      zipLimiter.on('error', reject);
+      writeStream!.on('error', reject);
+    });
+
+    archive.pipe(zipLimiter).pipe(writeStream);
+
+    const build = (async () => {
+      for (const req of mapRequests) {
+        const map = mapsById.get(req.id);
+        const pref = prefByMapId.get(req.id);
+        if (!map || !pref) continue;
+
+        if (pref.bsp) {
+          await appendRemoteFile(archive!, map.bspUrl, `maps/${map.name}.bsp`, BSP_MAX_BYTES);
+        }
+        if (pref.cfg) {
+          await appendRemoteFile(
+            archive!,
+            map.cfgUrl,
+            `addons/sourcemod/configs/mge/${map.name}.cfg`,
+            CFG_MAX_BYTES,
+          );
+        }
+      }
+
+      await archive!.finalize();
+      await finished(writeStream!);
+    })();
+
+    await Promise.race([build, archiveFailed]);
+  } catch (err) {
+    try {
+      archive?.abort();
+    } catch {
+      /* already closed */
     }
-
-    if (pref.cfg) {
-      filePromises.push(
-        fetch(m.cfgUrl).then(async (r): Promise<FileEntry> => {
-          if (!r.ok) throw new Error(`Failed to fetch ${m.name}.cfg`);
-          return { type: 'cfg', name: m.name, buffer: Buffer.from(await r.arrayBuffer()) };
-        }),
-      );
-    }
+    writeStream?.destroy();
+    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    const message =
+      err instanceof PublicHttpsUrlError
+        ? err.message
+        : err instanceof Error
+          ? err.message
+          : 'Failed to build map zip';
+    console.error('Map zip build failed:', err);
+    return json({ error: message }, { status: 502 });
   }
 
-  const fileResults = await Promise.allSettled(filePromises);
+  try {
+    const fileStat = await stat(zipPath);
+    const fileStream = createReadStream(zipPath);
+    const webStream = Readable.toWeb(fileStream) as ReadableStream<Uint8Array>;
 
-  const files: FileEntry[] = fileResults
-    .filter((r): r is PromiseFulfilledResult<FileEntry> => r.status === 'fulfilled')
-    .map((r) => r.value);
+    const cleanup = () => {
+      rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    };
+    fileStream.on('close', cleanup);
+    fileStream.on('error', cleanup);
 
-  if (files.length === 0) {
-    return json({ error: 'Failed to retrieve map files from storage' }, { status: 502 });
+    return new Response(webStream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': 'attachment; filename="mge-maps.zip"',
+        'Content-Length': String(fileStat.size),
+      },
+    });
+  } catch (err) {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    console.error('Map zip read failed:', err);
+    return json({ error: 'Failed to read map zip' }, { status: 500 });
   }
-
-  // Build zip with correct TF2 directory structure
-  const { PassThrough } = await import('stream');
-  const passthrough = new PassThrough();
-
-  const archive = new ZipArchive({ zlib: { level: 6 } });
-
-  archive.on('error', (err) => {
-    console.error('Archiver error:', err);
-    passthrough.destroy(err);
-  });
-
-  archive.pipe(passthrough);
-
-  for (const file of files) {
-    if (file.type === 'bsp') {
-      archive.append(Readable.from(file.buffer), { name: `maps/${file.name}.bsp` });
-    } else {
-      archive.append(Readable.from(file.buffer), {
-        name: `addons/sourcemod/configs/mge/${file.name}.cfg`,
-      });
-    }
-  }
-
-  archive.finalize();
-
-  const chunks: Buffer[] = [];
-  for await (const chunk of passthrough) {
-    chunks.push(Buffer.from(chunk));
-  }
-  const zipBuffer = Buffer.concat(chunks);
-
-  return new Response(zipBuffer, {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/zip',
-      'Content-Disposition': 'attachment; filename="mge-maps.zip"',
-      'Content-Length': String(zipBuffer.length),
-    },
-  });
 };

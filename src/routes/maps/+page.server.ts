@@ -9,8 +9,6 @@ export const load: PageServerLoad = async () => {
       id: m.id,
       name: m.name,
       description: m.description,
-      bspSizeBytes: Number(m.bspSize),
-      cfgSizeBytes: Number(m.cfgSize),
       createdAt: m.createdAt.toISOString(),
     })),
   };

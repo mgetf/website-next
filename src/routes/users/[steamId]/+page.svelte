@@ -14,7 +14,7 @@
   import StaffRoleBadge from '$lib/components/ui/StaffRoleBadge.svelte';
   import Tooltip from '$lib/components/ui/Tooltip.svelte';
   import { toast } from '$lib/state/toast.svelte';
-  import type { MgeRating, PlatformRegion } from '$lib/types/mge';
+  import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
   import type {
     Profile1v1Entry,
     ProfileTab,
@@ -96,6 +96,7 @@
     entries1v1: Profile1v1Entry[];
     divisions1v1: Array<{ id: number; name: string; signupCost: number; regionId: number }>;
     ratings: MgeRating[];
+    classRatings: MgeClasseloRating[];
     platformRegions: PlatformRegion[];
     formats: Array<{ code: string; name: string; iconUrl: string | null }>;
   }
@@ -385,7 +386,12 @@
     </div>
   {:else}
     <div id="panel-stats" role="tabpanel" aria-labelledby="tab-stats">
-      <InsightsPanel steamId={player.steamId} ratings={mgeRatings} regions={data.platformRegions} />
+      <InsightsPanel
+        steamId={player.steamId}
+        ratings={mgeRatings}
+        classRatings={data.classRatings}
+        regions={data.platformRegions}
+      />
     </div>
   {/if}
 </div>

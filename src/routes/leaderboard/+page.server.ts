@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getEloLeaderboardPage, searchEloLeaderboard } from '$lib/server/services/leaderboard';
 import { getRegions } from '$lib/server/clients/mgePlatform';
 import type { LeaderboardSortField, LeaderboardSortDir } from '$lib/server/clients/mgePlatform';
+import { isValidTfClassId } from '$lib/constants/tfClasses';
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const DEFAULT_PAGE_SIZE = 50;
@@ -16,6 +17,12 @@ const VALID_SORT_FIELDS: LeaderboardSortField[] = [
   'rd',
 ];
 
+function parseClassId(raw: string | null): number | undefined {
+  if (!raw) return undefined;
+  const parsed = parseInt(raw, 10);
+  return isValidTfClassId(parsed) ? parsed : undefined;
+}
+
 export const load: PageServerLoad = async ({ url }) => {
   const availableRegions = await getRegions();
   const availableCodes = availableRegions.map((r) => r.code);
@@ -27,12 +34,14 @@ export const load: PageServerLoad = async ({ url }) => {
     .filter((r) => r.length > 0 && availableCodes.includes(r));
   const queryRegions = selectedRegions.length > 0 ? selectedRegions : availableCodes;
 
+  const classId = parseClassId(url.searchParams.get('class'));
   const search = url.searchParams.get('search')?.trim() ?? '';
 
   if (search) {
     const { entries, total, totalPages } = await searchEloLeaderboard({
       regions: queryRegions,
       search,
+      classId,
     });
     return {
       entries,
@@ -48,6 +57,7 @@ export const load: PageServerLoad = async ({ url }) => {
         sortBy: 'elo' as LeaderboardSortField,
         sortDir: 'desc' as LeaderboardSortDir,
         search,
+        classId: classId ?? null,
       },
     };
   }
@@ -79,6 +89,7 @@ export const load: PageServerLoad = async ({ url }) => {
     registeredOnly,
     sortBy,
     sortDir,
+    classId,
   });
 
   return {
@@ -95,6 +106,7 @@ export const load: PageServerLoad = async ({ url }) => {
       sortBy,
       sortDir,
       search: '',
+      classId: classId ?? null,
     },
   };
 };

@@ -1,10 +1,20 @@
 import { env } from '$env/dynamic/private';
-import type { MgeRating, PlatformRegion } from '$lib/types/mge';
+import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
 import type { PlayerServerStats, StatsWindow } from '$lib/types/profile';
 import { steamId32FromSteamId64 } from '$lib/utils/steamid';
 
 function getPlatformUrl(): string {
   return (env.MGE_PLATFORM_URL ?? '').replace(/\/$/, '');
+}
+
+function mapRatingFields<T extends MgeRating>(rating: T): T {
+  return {
+    ...rating,
+    rd: rating.rd ?? null,
+    volatility: rating.volatility ?? null,
+    displayRating: rating.elo,
+    provisional: rating.provisional ?? false,
+  };
 }
 
 export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
@@ -17,12 +27,25 @@ export async function getPlayerRatings(steamId: string): Promise<MgeRating[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return ((data.ratings ?? []) as MgeRating[]).map((r) => ({
-      ...r,
-      rd: r.rd ?? null,
-      volatility: r.volatility ?? null,
-      displayRating: r.elo,
-      provisional: r.provisional ?? false,
+    return ((data.ratings ?? []) as MgeRating[]).map((r) => mapRatingFields(r));
+  } catch {
+    return [];
+  }
+}
+
+export async function getPlayerClasselo(steamId: string): Promise<MgeClasseloRating[]> {
+  const base = getPlatformUrl();
+  if (!base) return [];
+  const steam2Id = steamId32FromSteamId64(steamId);
+  try {
+    const res = await fetch(`${base}/api/v1/players/${encodeURIComponent(steam2Id)}/classelo`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return ((data.ratings ?? []) as MgeClasseloRating[]).map((r) => ({
+      ...mapRatingFields(r),
+      eloRank: r.eloRank ?? null,
     }));
   } catch {
     return [];
@@ -104,13 +127,15 @@ export type LeaderboardSortField =
 
 export type LeaderboardSortDir = 'asc' | 'desc';
 
-export async function getLeaderboard(
+async function requestLeaderboard(
   region: string,
+  pathname: string,
   limit: number,
-  offset = 0,
+  offset: number,
   minElo?: number,
   sortBy: LeaderboardSortField = 'elo',
   sortDir: LeaderboardSortDir = 'desc',
+  extraParams?: Record<string, string>,
 ): Promise<PlatformLeaderboardResponse> {
   const empty: PlatformLeaderboardResponse = { region, total: 0, limit, offset, entries: [] };
   const base = getPlatformUrl();
@@ -120,7 +145,12 @@ export async function getLeaderboard(
     if (minElo !== undefined) params.set('minElo', String(minElo));
     if (sortBy !== 'elo') params.set('sortBy', sortBy);
     if (sortDir !== 'desc') params.set('sortDir', sortDir);
-    const url = `${base}/api/v1/regions/${encodeURIComponent(region)}/leaderboard?${params}`;
+    if (extraParams) {
+      for (const [key, value] of Object.entries(extraParams)) {
+        params.set(key, value);
+      }
+    }
+    const url = `${base}${pathname}?${params}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return empty;
     const data = await res.json();
@@ -142,9 +172,49 @@ export async function getLeaderboard(
   }
 }
 
+export async function getLeaderboard(
+  region: string,
+  limit: number,
+  offset = 0,
+  minElo?: number,
+  sortBy: LeaderboardSortField = 'elo',
+  sortDir: LeaderboardSortDir = 'desc',
+): Promise<PlatformLeaderboardResponse> {
+  return requestLeaderboard(
+    region,
+    `/api/v1/regions/${encodeURIComponent(region)}/leaderboard`,
+    limit,
+    offset,
+    minElo,
+    sortBy,
+    sortDir,
+  );
+}
+
+export async function getClasseloLeaderboard(
+  region: string,
+  classId: number,
+  limit: number,
+  offset = 0,
+  minElo?: number,
+  sortBy: LeaderboardSortField = 'elo',
+  sortDir: LeaderboardSortDir = 'desc',
+): Promise<PlatformLeaderboardResponse> {
+  return requestLeaderboard(
+    region,
+    `/api/v1/regions/${encodeURIComponent(region)}/classelo/leaderboard`,
+    limit,
+    offset,
+    minElo,
+    sortBy,
+    sortDir,
+    { class: String(classId) },
+  );
+}
+
 export async function getPlayerServerStats(
   steamId: string,
-  opts: { region: string; days?: StatsWindow | string; tz?: string },
+  opts: { region: string; days?: StatsWindow | string; tz?: string; className?: string },
 ): Promise<PlayerServerStats | null> {
   const base = getPlatformUrl();
   if (!base || !opts.region) return null;
@@ -157,6 +227,7 @@ export async function getPlayerServerStats(
   const params = new URLSearchParams({ region: opts.region });
   if (opts.days != null) params.set('days', String(opts.days));
   if (opts.tz) params.set('tz', opts.tz);
+  if (opts.className) params.set('class', opts.className);
   try {
     const res = await fetch(
       `${base}/api/v1/players/${encodeURIComponent(steam2Id)}/server-stats?${params}`,

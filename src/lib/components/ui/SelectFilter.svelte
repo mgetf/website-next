@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
 
   type Option = {
@@ -15,6 +16,7 @@
     id,
     onChange,
     class: className = '',
+    itemPrefix,
   }: {
     value?: string;
     options: Option[];
@@ -24,6 +26,7 @@
     id?: string;
     onChange?: (value: string) => void;
     class?: string;
+    itemPrefix?: Snippet<[Option]>;
   } = $props();
 
   const items = $derived(showAllOption ? [{ value: '', label: allLabel }, ...options] : options);
@@ -38,4 +41,5 @@
   size="sm"
   {onChange}
   class={className}
+  {itemPrefix}
 />

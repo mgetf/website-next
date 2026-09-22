@@ -1185,14 +1185,12 @@ model SiteSettings {
   @@map("site_settings")
 }
 
-// Map File Downloads
+// Map catalog entries (external .bsp / .cfg URLs, zipped on download)
 model MapFile {
   id          Int      @id @default(autoincrement())
   name        String   @unique // e.g. "mge_chillypunch_final4"
   bspUrl      String   @map("bsp_url")
-  bspSize     BigInt   @map("bsp_size")
   cfgUrl      String   @map("cfg_url")
-  cfgSize     BigInt   @map("cfg_size")
   description String?
   uploadedBy  String   @map("uploaded_by")
   createdAt   DateTime @default(now()) @map("created_at")

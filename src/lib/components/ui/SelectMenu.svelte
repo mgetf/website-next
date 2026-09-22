@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { Select } from 'bits-ui';
   import Check from '~icons/lucide/check';
   import ChevronDown from '~icons/lucide/chevron-down';
@@ -18,6 +19,7 @@
     size = 'md',
     onChange,
     class: className = '',
+    itemPrefix,
   }: {
     value?: string;
     items: SelectMenuItem[];
@@ -30,10 +32,12 @@
     size?: 'md' | 'sm';
     onChange?: (value: string) => void;
     class?: string;
+    itemPrefix?: Snippet<[SelectMenuItem]>;
   } = $props();
 
   let open = $state(false);
   const triggerId = $derived(id ?? name);
+  const selectedItem = $derived(items.find((item) => item.value === value) ?? null);
 
   const sizeClasses: Record<'md' | 'sm', string> = {
     md: 'px-4 py-3',
@@ -72,7 +76,16 @@
     class={triggerClass}
     aria-label={triggerId ? undefined : placeholder}
   >
-    <Select.Value class="truncate" {placeholder} />
+    <span class="flex min-w-0 items-center gap-1.5 truncate">
+      {#if selectedItem}
+        {#if itemPrefix}
+          {@render itemPrefix(selectedItem)}
+        {/if}
+        <span class="truncate">{selectedItem.label}</span>
+      {:else}
+        <span class="truncate text-text-muted">{placeholder}</span>
+      {/if}
+    </span>
     <ChevronDown
       class="ml-2 size-4 shrink-0 text-text-muted transition-transform {open ? 'rotate-180' : ''}"
     />
@@ -92,9 +105,14 @@
             data-value={item.value}
           >
             {#snippet children({ selected })}
-              <span>{item.label}</span>
+              <span class="flex min-w-0 items-center gap-1.5">
+                {#if itemPrefix}
+                  {@render itemPrefix(item)}
+                {/if}
+                <span class="truncate">{item.label}</span>
+              </span>
               {#if selected}
-                <Check class="size-4 text-primary-400" />
+                <Check class="size-4 shrink-0 text-primary-400" />
               {/if}
             {/snippet}
           </Select.Item>

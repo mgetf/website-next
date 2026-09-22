@@ -3,10 +3,11 @@
   import Card from '$lib/components/ui/Card.svelte';
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import { visibleServerRatings } from '$lib/utils/rating';
+  import { TF_CLASSES_DISPLAY_ORDER } from '$lib/constants/tfClasses';
+  import { ratingValue, visibleServerRatings } from '$lib/utils/rating';
   import { classIcon } from '$lib/utils/classIcons';
   import { flagForRegion } from '$lib/utils/regions';
-  import type { MgeRating, PlatformRegion } from '$lib/types/mge';
+  import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
   import type { PlayerServerStats, StatsWindow } from '$lib/types/profile';
   import { STATS_WINDOWS } from '$lib/types/profile';
   import {
@@ -17,22 +18,28 @@
   } from '$lib/utils/profile';
   import ActivityHeatmap from './ActivityHeatmap.svelte';
   import InsightsSkeleton from './InsightsSkeleton.svelte';
+  import RatingChipSelect from './RatingChipSelect.svelte';
   import RatingTrend from './RatingTrend.svelte';
 
   let {
     steamId,
     ratings,
+    classRatings = [],
     regions,
     preview,
   }: {
     steamId: string;
     ratings: MgeRating[];
+    classRatings?: MgeClasseloRating[];
     regions: PlatformRegion[];
     preview?: (args: { region: string; days: StatsWindow }) => PlayerServerStats | null;
   } = $props();
 
   let statsWindow = $state<StatsWindow>('all');
   let pickedRegion = $state<string | null>(null);
+  let chartClass = $state('');
+  let classRating = $state<PlayerServerStats['rating'] | null>(null);
+  let classRatingLoading = $state(false);
   let stats = $state<PlayerServerStats | null>(null);
   let loading = $state(false);
   let loadError = $state<string | null>(null);
@@ -108,7 +115,70 @@
     };
   });
 
-  const series = $derived(stats ? chartPointsFromSeries(stats.rating.series) : []);
+  $effect(() => {
+    if (!stats || !chartClass) return;
+    if (!stats.classes.some((row) => row.classId === chartClass)) chartClass = '';
+  });
+
+  $effect(() => {
+    const selected = chartClass;
+    const requestRegion = region;
+    const requestWindow = statsWindow;
+    if (!selected || !requestRegion || preview) {
+      classRating = null;
+      classRatingLoading = false;
+      return;
+    }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const params = new URLSearchParams({
+      region: requestRegion,
+      days: String(requestWindow),
+      tz,
+      class: selected,
+    });
+    let cancelled = false;
+    classRating = null;
+    classRatingLoading = true;
+    void fetch(`/api/users/${encodeURIComponent(steamId)}/server-stats?${params}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to load class rating');
+        return (await res.json()) as PlayerServerStats;
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        if (selected !== chartClass || requestRegion !== region || requestWindow !== statsWindow)
+          return;
+        classRating =
+          payload.classes.length > 0
+            ? { series: [], peak: null, low: null, samples: 0 }
+            : payload.rating;
+        classRatingLoading = false;
+      })
+      .catch(() => {
+        if (cancelled) return;
+        classRating = { series: [], peak: null, low: null, samples: 0 };
+        classRatingLoading = false;
+      });
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  function classStanding(className: string): { rating: number; rank: number } | null {
+    const match = classRatings.find(
+      (row) =>
+        row.region.toLowerCase() === region.toLowerCase() &&
+        row.className.toLowerCase() === className.toLowerCase() &&
+        row.eloRank != null,
+    );
+    if (!match || match.eloRank == null) return null;
+    return { rating: ratingValue(match.elo), rank: match.eloRank };
+  }
+
+  const series = $derived.by(() => {
+    if (chartClass) return chartPointsFromSeries(classRating?.series ?? []);
+    return stats ? chartPointsFromSeries(stats.rating.series) : [];
+  });
   const peak = $derived.by(() => {
     const first = series[0];
     if (!first) return null;
@@ -119,6 +189,24 @@
   );
   const arenas = $derived(stats?.arenas ?? []);
   const classes = $derived(stats?.classes ?? []);
+  const playedClassOptions = $derived(
+    TF_CLASSES_DISPLAY_ORDER.filter((tfClass) =>
+      classes.some((row) => row.classId === tfClass.name),
+    ),
+  );
+  const showRegionFilters = $derived(regionOptions.length > 1);
+  const showClassFilters = $derived(playedClassOptions.length > 0);
+  const showFilterDivider = $derived(showRegionFilters && showClassFilters);
+  const regionMenuItems = $derived(
+    regionOptions.map((option) => ({
+      value: option.region,
+      label: option.region.toUpperCase(),
+    })),
+  );
+  const classMenuItems = $derived([
+    { value: '', label: 'Overall' },
+    ...playedClassOptions.map((tfClass) => ({ value: tfClass.name, label: tfClass.label })),
+  ]);
   const foes = $derived(stats?.foes ?? []);
   const rivals = $derived(stats?.rivals);
   const maxArenaMatches = $derived(Math.max(1, ...arenas.map((row) => row.matches)));
@@ -177,9 +265,13 @@
     </div>
   </div>
 
+  {#snippet filterDivider()}
+    <span class="h-4 w-px shrink-0 bg-border-default" aria-hidden="true"></span>
+  {/snippet}
+
   {#snippet regionPicker()}
-    {#if regionOptions.length > 1}
-      <div class="flex flex-wrap gap-1" role="group" aria-label="Rating region">
+    {#if showRegionFilters}
+      <div class="flex flex-nowrap gap-1" role="group" aria-label="Rating region">
         {#each regionOptions as option (option.region)}
           {@const flagCode = flagForRegion(option.region, regions)}
           <button
@@ -209,8 +301,8 @@
   {:else}
     <Card padding="none">
       {#snippet header()}
-        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-          <div>
+        <div class="flex flex-nowrap items-center justify-between gap-3 px-5 py-3">
+          <div class="shrink-0">
             <h3 class="text-sm font-semibold text-white">Rating over time</h3>
             {#if peak}
               <p class="text-xs text-text-muted">
@@ -219,12 +311,49 @@
               </p>
             {/if}
           </div>
-          {@render regionPicker()}
+          <div class="flex min-w-0 items-center justify-end gap-2">
+            {#if showRegionFilters}
+              <RatingChipSelect
+                value={region}
+                items={regionMenuItems}
+                ariaLabel="Rating region"
+                onChange={(next) => (pickedRegion = next)}
+              >
+                {#snippet itemPrefix(item)}
+                  <FlagIcon code={flagForRegion(item.value, regions)} class="h-3 w-4 rounded-sm" />
+                {/snippet}
+              </RatingChipSelect>
+            {/if}
+            {#if showFilterDivider}
+              {@render filterDivider()}
+            {/if}
+            {#if showClassFilters}
+              <RatingChipSelect
+                value={chartClass}
+                items={classMenuItems}
+                ariaLabel="Rating class"
+                onChange={(next) => (chartClass = next)}
+              >
+                {#snippet itemPrefix(item)}
+                  {@const icon = classIcon(item.value)}
+                  {#if icon}
+                    <img src={icon} alt="" class="size-4 shrink-0" />
+                  {/if}
+                {/snippet}
+              </RatingChipSelect>
+            {/if}
+          </div>
         </div>
       {/snippet}
       <div class="px-1 pb-2">
-        {#if series.length === 0}
-          <p class="py-8 text-center text-sm text-text-muted">No rating history for this player.</p>
+        {#if chartClass && classRatingLoading}
+          <p class="py-8 text-center text-sm text-text-muted">Loading class rating…</p>
+        {:else if series.length === 0}
+          <p class="py-8 text-center text-sm text-text-muted">
+            {chartClass
+              ? 'No rating history for this class.'
+              : 'No rating history for this player.'}
+          </p>
         {:else}
           <RatingTrend points={series} />
         {/if}
@@ -280,13 +409,20 @@
           <ul class="flex flex-col gap-3">
             {#each classes as row (row.classId)}
               {@const icon = classIcon(row.name)}
+              {@const standing = classStanding(row.classId)}
               <li class="flex flex-col gap-1">
-                <div class="flex items-center justify-between text-sm">
+                <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
                   <span class="flex min-w-0 items-center gap-2 font-medium text-white">
                     {#if icon}
                       <img src={icon} alt="" class="size-5 shrink-0" />
                     {/if}
                     {row.name}
+                    {#if standing}
+                      <span class="font-normal text-text-muted">
+                        {standing.rating}
+                        <span class="font-semibold">(#{standing.rank})</span>
+                      </span>
+                    {/if}
                   </span>
                   <span class="text-text-muted">{row.matches} games</span>
                 </div>

@@ -23,7 +23,8 @@ import { isAdmin, requireCanModerateUser, requireStrictAdmin } from '$lib/server
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getPlayerRatings, getRegions } from '$lib/server/clients/mgePlatform';
+import { getPlayerClasselo, getPlayerRatings, getRegions } from '$lib/server/clients/mgePlatform';
+import { withClasseloRanks } from '$lib/server/services/leaderboard';
 import { buildPageSeo } from '$lib/utils/seo';
 import { z } from 'zod';
 import { formError, validateForm, validationError } from '$lib/server/utils/forms';
@@ -32,9 +33,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
 
   try {
-    const [profile, ratings, platformRegions, formats] = await Promise.all([
+    const [profile, ratings, classRatings, platformRegions, formats] = await Promise.all([
       getPlayerProfile(steamId),
       getPlayerRatings(steamId),
+      getPlayerClasselo(steamId),
       getRegions(),
       getFormatsForFilter(),
     ]);
@@ -83,6 +85,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       }),
       ...profile,
       ratings,
+      classRatings: await withClasseloRanks(classRatings),
       platformRegions,
       formats: formats.map((format) => ({
         code: format.code,

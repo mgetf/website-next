@@ -26,12 +26,13 @@ function normalizeDays(days?: StatsWindow | string): string {
 
 function cacheKey(
   steamId: string,
-  opts: { region: string; days?: StatsWindow | string; tz?: string },
+  opts: { region: string; days?: StatsWindow | string; tz?: string; className?: string },
 ): string {
   const region = opts.region.trim().toLowerCase();
   const days = normalizeDays(opts.days);
   const tz = opts.tz?.trim() ?? '';
-  return `${steamId}:${region}:${days}:${tz}`;
+  const className = opts.className?.trim().toLowerCase() ?? '';
+  return `${steamId}:${region}:${days}:${tz}:${className}`;
 }
 
 function prune(now: number): void {
@@ -58,7 +59,7 @@ function withFoeAvatar(
 
 async function loadEnriched(
   steamId: string,
-  opts: { region: string; days?: StatsWindow | string; tz?: string },
+  opts: { region: string; days?: StatsWindow | string; tz?: string; className?: string },
 ): Promise<PlayerServerStats | null> {
   const stats = await fetchPlatformServerStats(steamId, opts);
   if (!stats) return null;
@@ -105,7 +106,7 @@ async function loadEnriched(
 async function refresh(
   key: string,
   steamId: string,
-  opts: { region: string; days?: StatsWindow | string; tz?: string },
+  opts: { region: string; days?: StatsWindow | string; tz?: string; className?: string },
   stale: CacheEntry | undefined,
 ): Promise<PlayerServerStats | null> {
   try {
@@ -139,7 +140,7 @@ export function resetPlayerServerStatsCache(): void {
  */
 export function isPlayerServerStatsWarm(
   steamId: string,
-  opts: { region: string; days?: StatsWindow | string; tz?: string },
+  opts: { region: string; days?: StatsWindow | string; tz?: string; className?: string },
 ): boolean {
   const key = cacheKey(steamId, opts);
   const now = Date.now();
@@ -151,7 +152,7 @@ export function isPlayerServerStatsWarm(
 
 export async function getEnrichedPlayerServerStats(
   steamId: string,
-  opts: { region: string; days?: StatsWindow | string; tz?: string },
+  opts: { region: string; days?: StatsWindow | string; tz?: string; className?: string },
 ): Promise<PlayerServerStats | null> {
   const key = cacheKey(steamId, opts);
   const now = Date.now();

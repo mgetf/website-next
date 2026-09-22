@@ -9,6 +9,8 @@
   import SearchInput from '$lib/components/ui/SearchInput.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import { TF_CLASSES_DISPLAY_ORDER, tfClassById } from '$lib/constants/tfClasses';
+  import { classIcon } from '$lib/utils/classIcons';
   import { formatRd, PROVISIONAL_RATING_TITLE, ratingValue, RD_TOOLTIP } from '$lib/utils/rating';
   import { flagForRegion } from '$lib/utils/regions';
 
@@ -18,12 +20,14 @@
   let registeredOnly = $state(false);
   let search = $state('');
   let pageSize = $state('50');
+  let selectedClass = $state('');
 
   $effect(() => {
     selectedRegions = data.filters.regions;
     registeredOnly = data.filters.registeredOnly;
     search = data.filters.search;
     pageSize = String(data.filters.pageSize);
+    selectedClass = data.filters.classId != null ? String(data.filters.classId) : '';
   });
 
   const sortBy = $derived<string>(data.filters.sortBy);
@@ -41,6 +45,25 @@
     { value: '50', label: '50' },
     { value: '100', label: '100' },
   ];
+
+  const classOptions = TF_CLASSES_DISPLAY_ORDER.map((cls) => ({
+    value: String(cls.id),
+    label: cls.label,
+  }));
+
+  function classOptionIcon(value: string): string | null {
+    return classIcon(tfClassById(Number(value))?.name);
+  }
+
+  const selectedClassInfo = $derived(
+    data.filters.classId != null ? tfClassById(data.filters.classId) : null,
+  );
+  const selectedClassIcon = $derived(selectedClassInfo ? classIcon(selectedClassInfo.name) : null);
+  const heroSubtitle = $derived(
+    selectedClassInfo
+      ? `${selectedClassInfo.label} rating standings from all active regions`
+      : 'Global rating standings from all active regions',
+  );
 
   function formatRelativeTime(isoString: string | null): string {
     if (!isoString) return '—';
@@ -84,6 +107,7 @@
       pageSize: data.filters.pageSize === 50 ? null : data.filters.pageSize,
       sortBy: data.filters.sortBy === 'elo' ? null : data.filters.sortBy,
       sortDir: data.filters.sortDir === 'desc' ? null : data.filters.sortDir,
+      class: data.filters.classId,
       ...overrides,
     };
     for (const [k, v] of Object.entries(merged)) {
@@ -112,7 +136,10 @@
   }
 
   const hasActiveFilters = $derived(
-    data.filters.registeredOnly || !!data.filters.search || data.filters.regions.length > 0,
+    data.filters.registeredOnly ||
+      !!data.filters.search ||
+      data.filters.regions.length > 0 ||
+      data.filters.classId != null,
   );
   const tableSortBy = $derived(
     data.filters.sortBy === 'lastPlayed' ? 'lastActive' : data.filters.sortBy,
@@ -130,10 +157,12 @@
     selectedRegions = [];
     registeredOnly = false;
     search = '';
+    selectedClass = '';
     applyFilters({
       region: null,
       registeredOnly: null,
       search: null,
+      class: null,
       page: 1,
     });
   }
@@ -165,12 +194,7 @@
   ]);
 </script>
 
-<PageHero
-  title="Rankings"
-  subtitle="Global rating standings from all active regions"
-  maxWidth="max-w-7xl"
-  border={true}
-/>
+<PageHero title="Rankings" subtitle={heroSubtitle} maxWidth="max-w-7xl" border={true} />
 
 <div class="max-w-7xl mx-auto px-6 pt-6">
   <FilterBar onSubmit={commitSearch} onClear={clearFilters} {hasActiveFilters}>
@@ -198,6 +222,26 @@
             <FlagIcon code={flagForRegion(item.value, data.regions)} class="w-5 h-3.5 rounded-sm" />
           {/snippet}
         </MultiSelectMenu>
+      </div>
+
+      <div class="md:w-48">
+        <label for="leaderboard-class" class="block text-sm font-medium text-text-body mb-2"
+          >Class</label
+        >
+        <SelectFilter
+          id="leaderboard-class"
+          bind:value={selectedClass}
+          options={classOptions}
+          allLabel="Overall"
+          onChange={(v) => applyFilters({ class: v || null, page: 1 })}
+        >
+          {#snippet itemPrefix(item)}
+            {@const icon = classOptionIcon(item.value)}
+            {#if icon}
+              <img src={icon} alt="" class="size-5 shrink-0" />
+            {/if}
+          {/snippet}
+        </SelectFilter>
       </div>
 
       <div class="flex-1 min-w-48">
@@ -251,6 +295,16 @@
 {/if}
 
 <div class="max-w-7xl mx-auto px-6 pb-16">
+  <h2 class="mb-6 flex items-center gap-3 text-5xl font-black text-white">
+    {#if selectedClassInfo}
+      {#if selectedClassIcon}
+        <img src={selectedClassIcon} alt="" class="size-12 shrink-0" />
+      {/if}
+      {selectedClassInfo.label}
+    {:else}
+      Overall
+    {/if}
+  </h2>
   <DataTable
     data={data.entries}
     {columns}

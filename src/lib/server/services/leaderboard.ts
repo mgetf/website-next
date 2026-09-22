@@ -1,24 +1,52 @@
 import {
+  getClasseloLeaderboard,
   getLeaderboard,
+  getPlayerClasselo,
   getPlayerRatings,
   type PlatformLeaderboardEntry,
   type LeaderboardSortField,
   type LeaderboardSortDir,
+  type PlatformLeaderboardResponse,
 } from '$lib/server/clients/mgePlatform';
 import {
   getUserDisplaysByIds,
   fetchSteamNames,
   searchUsersByName,
 } from '$lib/server/services/users';
+import type { MgeClasseloRating } from '$lib/types/mge';
 import { steamId64FromSteamId32 } from '$lib/utils/steamid';
 
 const PLATFORM_PAGE_SIZE = 100;
 
+function fetchRegionLeaderboard(
+  region: string,
+  limit: number,
+  offset = 0,
+  minElo?: number,
+  sortBy: LeaderboardSortField = 'elo',
+  sortDir: LeaderboardSortDir = 'desc',
+  classId?: number,
+): Promise<PlatformLeaderboardResponse> {
+  if (classId != null) {
+    return getClasseloLeaderboard(region, classId, limit, offset, minElo, sortBy, sortDir);
+  }
+  return getLeaderboard(region, limit, offset, minElo, sortBy, sortDir);
+}
+
 async function fetchAllRegionEntries(
   region: string,
   minElo?: number,
+  classId?: number,
 ): Promise<{ entries: PlatformLeaderboardEntry[]; total: number }> {
-  const first = await getLeaderboard(region, PLATFORM_PAGE_SIZE, 0, minElo);
+  const first = await fetchRegionLeaderboard(
+    region,
+    PLATFORM_PAGE_SIZE,
+    0,
+    minElo,
+    'elo',
+    'desc',
+    classId,
+  );
   const total = first.total;
 
   if (total <= PLATFORM_PAGE_SIZE) {
@@ -28,7 +56,15 @@ async function fetchAllRegionEntries(
   const extraPages = Math.ceil((total - PLATFORM_PAGE_SIZE) / PLATFORM_PAGE_SIZE);
   const rest = await Promise.all(
     Array.from({ length: extraPages }, (_, i) =>
-      getLeaderboard(region, PLATFORM_PAGE_SIZE, (i + 1) * PLATFORM_PAGE_SIZE, minElo),
+      fetchRegionLeaderboard(
+        region,
+        PLATFORM_PAGE_SIZE,
+        (i + 1) * PLATFORM_PAGE_SIZE,
+        minElo,
+        'elo',
+        'desc',
+        classId,
+      ),
     ),
   );
 
@@ -120,6 +156,7 @@ export interface EloLeaderboardParams {
   registeredOnly?: boolean;
   sortBy?: LeaderboardSortField;
   sortDir?: LeaderboardSortDir;
+  classId?: number;
 }
 
 export async function getEloLeaderboardPage(
@@ -133,12 +170,21 @@ export async function getEloLeaderboardPage(
     registeredOnly,
     sortBy = 'elo',
     sortDir = 'desc',
+    classId,
   } = params;
 
   const offset = (page - 1) * pageSize;
 
   if (regions.length === 1) {
-    const response = await getLeaderboard(regions[0], pageSize, offset, minElo, sortBy, sortDir);
+    const response = await fetchRegionLeaderboard(
+      regions[0],
+      pageSize,
+      offset,
+      minElo,
+      sortBy,
+      sortDir,
+      classId,
+    );
 
     if (response.entries.length === 0) {
       return {
@@ -196,7 +242,9 @@ export async function getEloLeaderboardPage(
   }
 
   // Multi-region: fetch all entries from each region, merge, sort in JS, paginate in memory
-  const regionResults = await Promise.all(regions.map((r) => fetchAllRegionEntries(r, minElo)));
+  const regionResults = await Promise.all(
+    regions.map((r) => fetchAllRegionEntries(r, minElo, classId)),
+  );
 
   type TaggedEntry = PlatformLeaderboardEntry & { sourceRegion: string };
   const tagged: TaggedEntry[] = regionResults.flatMap(({ entries }, i) =>
@@ -300,8 +348,9 @@ export async function getEloLeaderboardPage(
 export async function searchEloLeaderboard(params: {
   regions: string[];
   search: string;
+  classId?: number;
 }): Promise<EloLeaderboardPage> {
-  const { regions, search } = params;
+  const { regions, search, classId } = params;
   const q = search.trim();
   if (!q) return { entries: [], total: 0, totalPages: 0 };
 
@@ -335,7 +384,10 @@ export async function searchEloLeaderboard(params: {
 
   const results = await Promise.all(
     candidates.map(async ({ steamId64, name, avatar }) => {
-      const ratings = await getPlayerRatings(steamId64);
+      const ratings =
+        classId != null
+          ? (await getPlayerClasselo(steamId64)).filter((r) => r.class === classId)
+          : await getPlayerRatings(steamId64);
       return ratings
         .filter((r) => regionSet.has(r.region.toLowerCase()))
         .map((r) => ({
@@ -358,7 +410,7 @@ export async function searchEloLeaderboard(params: {
 
   const ranked = await Promise.all(
     flat.map(async (e) => {
-      const above = await getLeaderboard(e.region, 1, 0, e.elo + 1);
+      const above = await fetchRegionLeaderboard(e.region, 1, 0, e.elo + 1, 'elo', 'desc', classId);
       return { ...e, rank: above.total + 1 };
     }),
   );
@@ -381,4 +433,34 @@ export async function searchEloLeaderboard(params: {
   }));
 
   return { entries, total: entries.length, totalPages: 1 };
+}
+
+const CLASS_RANKED_RD = 100;
+const CLASS_RANKED_MIN_GAMES = 10;
+
+function passesClassRankedBar(rating: MgeClasseloRating): boolean {
+  const games = (rating.wins ?? 0) + (rating.losses ?? 0);
+  if (games < 1) return false;
+  if (rating.rd == null) return true;
+  return rating.rd < CLASS_RANKED_RD && games >= CLASS_RANKED_MIN_GAMES;
+}
+
+export async function withClasseloRanks(
+  ratings: MgeClasseloRating[],
+): Promise<MgeClasseloRating[]> {
+  return Promise.all(
+    ratings.map(async (rating) => {
+      if (rating.eloRank != null || !passesClassRankedBar(rating)) {
+        return { ...rating, eloRank: rating.eloRank ?? null };
+      }
+      const above = await getClasseloLeaderboard(
+        rating.region,
+        rating.class,
+        1,
+        0,
+        Math.floor(rating.elo) + 1,
+      );
+      return { ...rating, eloRank: above.total + 1 };
+    }),
+  );
 }

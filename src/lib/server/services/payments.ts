@@ -443,8 +443,10 @@ export async function getUserPaymentHistory(
 }
 
 /**
- * Load all unpaid participations for a user across all their active teams.
- * Used by the multi-team checkout page.
+ * Load checkout participations for a user's active teams.
+ * A team is included when someone on the roster still owes a signup fee,
+ * including when this user already paid and is covering a teammate.
+ * Individual formats stay limited to the user's own unpaid fee.
  */
 export async function getAllUnpaidParticipations(
   steamId: string,
@@ -453,9 +455,9 @@ export async function getAllUnpaidParticipations(
     where: {
       playerSteamId: steamId,
       active: 1,
-      paymentStatus: 0,
       team: {
         division: { signupCost: { gt: 0 } },
+        players: { some: { active: 1, paymentStatus: 0 } },
       },
     },
     include: {
@@ -483,8 +485,10 @@ export async function getAllUnpaidParticipations(
     const season = team.season;
 
     if (!division || !team.seasonId) continue;
+    if (team.format.isIndividual && pit.paymentStatus !== 0) continue;
 
     const unpaidPlayers = await getTeamUnpaidPlayers(team.id, team.seasonId);
+    if (unpaidPlayers.length === 0) continue;
 
     result.push({
       teamId: team.id,

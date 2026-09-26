@@ -208,3 +208,24 @@ export async function sendDiscordChannelMessage(
     body: JSON.stringify(body),
   });
 }
+
+export async function sendDiscordDirectMessage(discordId: string, content: string): Promise<void> {
+  if (!discordId || !content || !getDiscordBotToken()) return;
+
+  try {
+    const dm = await discordFetch<{ id?: string }>('/users/@me/channels', {
+      method: 'POST',
+      body: JSON.stringify({ recipient_id: discordId }),
+    });
+    if (!dm?.id) return;
+    await discordFetch(`/channels/${dm.id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  } catch (err) {
+    if (err instanceof DiscordGuildError && (err.status === 403 || err.status === 404)) {
+      return;
+    }
+    console.error('[discordGuild] DM failed:', err);
+  }
+}

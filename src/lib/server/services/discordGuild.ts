@@ -293,3 +293,14 @@ export async function syncDiscordMemberRoles(
 
   return 'ok';
 }
+
+export async function sendDiscordChannelMessage(
+  channelId: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  if (!channelId) return;
+  await discordFetch(`/channels/${channelId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}

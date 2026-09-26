@@ -137,9 +137,12 @@
   let isMarkingPaid = $state(false);
   let showUnmarkPaidConfirm = $state(false);
   let isUnmarkingPaid = $state(false);
+  let showUnlinkDiscord = $state(false);
+  let isUnlinkingDiscord = $state(false);
   let readyFormEl: HTMLFormElement | undefined = $state();
   let markPaidFormEl: HTMLFormElement | undefined = $state();
   let unmarkPaidFormEl: HTMLFormElement | undefined = $state();
+  let unlinkDiscordFormEl: HTMLFormElement | undefined = $state();
   let statusFormEl: HTMLFormElement | undefined = $state();
   let divisionFormEl: HTMLFormElement | undefined = $state();
 
@@ -245,6 +248,16 @@
             <DiscordIcon size={14} />
             {player.discordUsername}
           </span>
+          {#if isOwnProfile}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onclick={() => (showUnlinkDiscord = true)}
+            >
+              Unlink
+            </Button>
+          {/if}
         {:else if isOwnProfile}
           <Button
             href={resolve('/auth/discord/login')}
@@ -511,6 +524,30 @@
   </form>
 {/if}
 
+{#if isOwnProfile && player.discordLinked}
+  <form
+    bind:this={unlinkDiscordFormEl}
+    method="POST"
+    action="?/unlinkDiscord"
+    use:enhance={() => {
+      isUnlinkingDiscord = true;
+      return async ({ result, update }) => {
+        await update({ reset: false });
+        isUnlinkingDiscord = false;
+        showUnlinkDiscord = false;
+        if (result.type === 'success') {
+          toast.success(
+            (result.data as { message?: string })?.message || 'Discord account unlinked',
+          );
+        } else if (result.type === 'failure') {
+          toast.error((result.data as { error?: string })?.error || 'Failed to unlink Discord');
+        }
+      };
+    }}
+    class="hidden"
+  ></form>
+{/if}
+
 <ConfirmDialog
   open={showReadyConfirm}
   title="Ready Up"
@@ -545,6 +582,19 @@
   isLoading={isUnmarkingPaid}
   onConfirm={() => unmarkPaidFormEl?.requestSubmit()}
   onCancel={() => (showUnmarkPaidConfirm = false)}
+/>
+
+<ConfirmDialog
+  open={showUnlinkDiscord}
+  title="Unlink Discord"
+  description="Unlink {player.discordUsername ||
+    'this Discord account'} from your mge.tf profile? You will lose the MGER role until you link again."
+  confirmLabel="Unlink Discord"
+  loadingLabel="Unlinking..."
+  variant="danger"
+  isLoading={isUnlinkingDiscord}
+  onConfirm={() => unlinkDiscordFormEl?.requestSubmit()}
+  onCancel={() => (showUnlinkDiscord = false)}
 />
 
 {#if isAdmin}

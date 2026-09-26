@@ -19,7 +19,12 @@ import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
 import { getFormatsForFilter } from '$lib/server/services/formats';
-import { isAdmin, requireCanModerateUser, requireStrictAdmin } from '$lib/server/auth/permissions';
+import {
+  isAdmin,
+  requireAuth,
+  requireCanModerateUser,
+  requireStrictAdmin,
+} from '$lib/server/auth/permissions';
 import { getSession, setSession } from '$lib/server/session';
 import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
@@ -27,7 +32,7 @@ import { getPlayerClasselo, getPlayerRatings, getRegions } from '$lib/server/cli
 import { withClasseloRanks } from '$lib/server/services/leaderboard';
 import { buildPageSeo } from '$lib/utils/seo';
 import { z } from 'zod';
-import { formError, validateForm, validationError } from '$lib/server/utils/forms';
+import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
@@ -187,31 +192,35 @@ export const actions: Actions = {
   },
 
   unlinkDiscord: async ({ params, locals, getClientAddress }) => {
-    if (!locals.user || !isAdmin(locals.user)) {
-      return fail(403, { error: 'Admin access required' });
-    }
+    requireAuth(locals.user);
 
     const { steamId } = params;
+    const isOwn = locals.user.steamId === steamId;
+    if (!isOwn && !isAdmin(locals.user)) {
+      return formError('You can only unlink your own Discord account', 403);
+    }
 
     try {
-      await unlinkDiscord(steamId);
+      const unlinked = await unlinkDiscord(steamId);
 
       await logAudit({
         actorId: locals.user.steamId,
         actorRole: locals.user.permissionLevel,
-        category: AuditCategory.USER,
-        action: AuditAction.USER_DISCORD_UNLINKED,
+        category: isOwn ? AuditCategory.AUTH : AuditCategory.USER,
+        action: isOwn ? AuditAction.AUTH_DISCORD_UNLINKED : AuditAction.USER_DISCORD_UNLINKED,
         targetType: 'User',
         targetId: steamId,
+        metadata: {
+          discordId: unlinked.discordId,
+          discordUsername: unlinked.discordUsername,
+        },
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: 'Discord account unlinked' };
+      return formSuccess(undefined, 'Discord account unlinked');
     } catch (err) {
       console.error('Error unlinking Discord:', err);
-      return fail(400, {
-        error: getErrorMessage(err, 'Failed to unlink Discord'),
-      });
+      return formError(getErrorMessage(err, 'Failed to unlink Discord'), 400);
     }
   },
 

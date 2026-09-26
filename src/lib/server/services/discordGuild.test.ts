@@ -25,6 +25,15 @@ describe('nextMemberRoleIds', () => {
     const next = nextMemberRoleIds(['staff', 'staff'], ['staff'], new Set(['staff']));
     expect(next).toEqual(['staff']);
   });
+
+  it('swaps verification roles without touching staff or region roles', () => {
+    const next = nextMemberRoleIds(
+      ['unverified', 'moderator', 'eu'],
+      ['mger'],
+      new Set(['mger', 'unverified']),
+    );
+    expect(next.sort()).toEqual(['eu', 'mger', 'moderator']);
+  });
 });
 
 describe('filterOrphanManagedRoleHolders', () => {

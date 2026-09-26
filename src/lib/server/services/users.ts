@@ -20,6 +20,10 @@ import { parseDiscordUserId } from '$lib/server/utils/discordId';
 import { formatDiscordUsername, getDiscordAvatarUrl } from '$lib/server/auth/discord';
 import { lookupDiscordUser } from './discordGuild';
 import {
+  applyDiscordLinkVerification,
+  applyDiscordUnlinkVerification,
+} from './discordVerification';
+import {
   isStaffRole,
   markStaffDiscordUnlinked,
   STAFF_PUNISH_BLOCKED_MESSAGE,
@@ -1041,15 +1045,23 @@ export async function unlinkDiscord(steamId: string) {
     throw new Error('No Discord account linked');
   }
 
-  await stripManagedDiscordRoles(user.discord.discordId);
+  const { discordId, discordUsername } = user.discord;
+
+  await stripManagedDiscordRoles(discordId);
+  await applyDiscordUnlinkVerification({
+    discordId,
+    discordUsername,
+    steamId,
+    steamUsername: user.steamUsername,
+  });
 
   await prisma.discord.delete({
-    where: { discordId: user.discord.discordId },
+    where: { discordId },
   });
 
   await markStaffDiscordUnlinked(steamId);
 
-  return { success: true };
+  return { success: true as const, discordId, discordUsername };
 }
 
 /**
@@ -1270,9 +1282,21 @@ export async function linkDiscordAccount(
     conflict('This Discord account is already linked to another user');
   }
 
+  const player = await prisma.user.findUnique({
+    where: { steamId },
+    select: { steamUsername: true },
+  });
+  const steamUsername = player?.steamUsername ?? steamId;
+
   const existingBySteam = await prisma.discord.findUnique({ where: { playerSteamId: steamId } });
   if (existingBySteam && existingBySteam.discordId !== discordId) {
     await stripManagedDiscordRoles(existingBySteam.discordId);
+    await applyDiscordUnlinkVerification({
+      discordId: existingBySteam.discordId,
+      discordUsername: existingBySteam.discordUsername,
+      steamId,
+      steamUsername,
+    });
     await prisma.discord.delete({ where: { discordId: existingBySteam.discordId } });
   }
 
@@ -1284,6 +1308,12 @@ export async function linkDiscordAccount(
 
   const { syncStaffDiscordIfNeeded } = await import('./staff');
   await syncStaffDiscordIfNeeded(steamId);
+  await applyDiscordLinkVerification({
+    discordId,
+    discordUsername,
+    steamId,
+    steamUsername,
+  });
 }
 
 /**

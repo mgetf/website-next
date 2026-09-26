@@ -22,7 +22,7 @@ import {
   invitePlayerBySteamId,
   disbandTeam,
 } from '$lib/server/services/teamManagement';
-import { markPlayerAsPaidManually } from '$lib/server/services/payments';
+import { markPlayerAsPaidManually, unmarkPlayerAsPaid } from '$lib/server/services/payments';
 import { generateJoinToken } from '$lib/server/services/teamSignup';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
 import { calculateWeekLabel, uniqueMatchArenas } from '$lib/server/utils/matchHelpers';
@@ -129,6 +129,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       avatar: p.player.steamAvatar,
       joinedAt: p.startedAt,
       isPaid: p.paymentStatus !== 0,
+      paymentStatus: p.paymentStatus,
       isLeader: p.permissionLevel >= 1, // ADMIN (1) or STATUS (2)
       permissionLevel: p.permissionLevel,
     }));
@@ -544,6 +545,44 @@ export const actions: Actions = {
     } catch (err) {
       return fail('status' in (err as any) ? (err as any).status : 500, {
         error: getErrorMessage(err, 'Failed to mark player as paid'),
+      });
+    }
+  },
+
+  unmarkPlayerPaid: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user) {
+      return fail(401, { error: 'You must be logged in' });
+    }
+
+    if (!isAdmin(locals.user)) {
+      return fail(403, { error: 'Only global admins can manually mark players as unpaid' });
+    }
+
+    const teamId = parseInt(params.id);
+    const formData = await request.formData();
+    const validation = validateForm(formData, playerSteamIdSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { playerSteamId } = validation.data;
+
+    try {
+      await unmarkPlayerAsPaid(playerSteamId, teamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.PAYMENT,
+        action: AuditAction.PAYMENT_UNMARKED_MANUALLY,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { playerSteamId },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Player marked as unpaid' };
+    } catch (err) {
+      return fail('status' in (err as any) ? (err as any).status : 500, {
+        error: getErrorMessage(err, 'Failed to mark player as unpaid'),
       });
     }
   },

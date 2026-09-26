@@ -135,8 +135,11 @@
   let isReadying = $state(false);
   let showMarkPaidConfirm = $state(false);
   let isMarkingPaid = $state(false);
+  let showUnmarkPaidConfirm = $state(false);
+  let isUnmarkingPaid = $state(false);
   let readyFormEl: HTMLFormElement | undefined = $state();
   let markPaidFormEl: HTMLFormElement | undefined = $state();
+  let unmarkPaidFormEl: HTMLFormElement | undefined = $state();
   let statusFormEl: HTMLFormElement | undefined = $state();
   let divisionFormEl: HTMLFormElement | undefined = $state();
 
@@ -382,6 +385,7 @@
           queueMicrotask(() => divisionFormEl?.requestSubmit());
         }}
         onMarkPaid={() => (showMarkPaidConfirm = true)}
+        onUnmarkPaid={() => (showUnmarkPaidConfirm = true)}
       />
     </div>
   {:else}
@@ -483,6 +487,28 @@
   >
     <input type="hidden" name="teamId" value={activeEntry.id} />
   </form>
+
+  <form
+    bind:this={unmarkPaidFormEl}
+    method="POST"
+    action="?/unmark1v1Paid"
+    use:enhance={() => {
+      isUnmarkingPaid = true;
+      return async ({ result, update }) => {
+        await update({ reset: false });
+        isUnmarkingPaid = false;
+        showUnmarkPaidConfirm = false;
+        if (result.type === 'success') {
+          toast.success((result.data as any)?.message || 'Player marked as unpaid');
+        } else if (result.type === 'failure') {
+          toast.error((result.data as any)?.error || 'Failed to mark player as unpaid');
+        }
+      };
+    }}
+    class="hidden"
+  >
+    <input type="hidden" name="teamId" value={activeEntry.id} />
+  </form>
 {/if}
 
 <ConfirmDialog
@@ -507,6 +533,18 @@
   isLoading={isMarkingPaid}
   onConfirm={() => markPaidFormEl?.requestSubmit()}
   onCancel={() => (showMarkPaidConfirm = false)}
+/>
+
+<ConfirmDialog
+  open={showUnmarkPaidConfirm}
+  title="Mark as Unpaid"
+  description="Mark {player.name} as unpaid? They will need to pay the signup fee again. PayPal and item payments are not refunded."
+  confirmLabel="Mark as Unpaid"
+  loadingLabel="Saving..."
+  variant="danger"
+  isLoading={isUnmarkingPaid}
+  onConfirm={() => unmarkPaidFormEl?.requestSubmit()}
+  onCancel={() => (showUnmarkPaidConfirm = false)}
 />
 
 {#if isAdmin}

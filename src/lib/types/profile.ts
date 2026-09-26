@@ -101,6 +101,7 @@ export type Profile1v1Entry = {
   wins: number;
   losses: number;
   isPaid: boolean;
+  paymentStatus: number;
   signupCost: number;
   matches: ProfileMatch[];
 };

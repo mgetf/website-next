@@ -3,6 +3,8 @@ import { notFound, badRequest } from '$lib/server/utils/errors';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { syncTeamPaymentStatus } from '$lib/server/services/payments';
 import type { CheckoutTeamSelection } from '$lib/types/checkout';
+import { leaguePageHref } from '$lib/utils/leagueNav';
+import { getRegionAbbr } from '$lib/utils/region';
 
 const ITEM_ORDER_EXPIRY_MS = 30 * 60 * 1000;
 
@@ -314,6 +316,145 @@ export async function cancelItemPaymentOrder(orderNumber: string, steamId: strin
   });
 }
 
+export type ItemPaymentDisplayPlayer = {
+  steamId: string;
+  name: string;
+};
+
+export type ItemPaymentDisplaySpot = {
+  seasonLabel: string;
+  leaguePath: string;
+  teamName: string | null;
+  teamPath: string | null;
+  itemCount: number;
+  moneyLabel: string | null;
+  players: ItemPaymentDisplayPlayer[];
+};
+
+export type ItemPaymentDisplay = {
+  payer: ItemPaymentDisplayPlayer;
+  itemName: string;
+  moneyLabel: string | null;
+  spots: ItemPaymentDisplaySpot[];
+};
+
+type DisplayTeam = {
+  id: number;
+  name: string;
+  isIndividual: boolean;
+  signupCost: number;
+  itemQuantity: number | null;
+  season: {
+    id: number;
+    seasonNum: number;
+    regionId: number;
+    regionName: string;
+    currencySymbol: string;
+    formatCode: string;
+    formatName: string;
+  } | null;
+};
+
+function formatMoney(symbol: string, amount: number): string {
+  const rounded = Math.round(amount * 100) / 100;
+  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+  return `${symbol}${text}`;
+}
+
+function coveredSteamIds(paidForSteamIds: string[] | undefined, payerSteamId: string): string[] {
+  const ids = paidForSteamIds && paidForSteamIds.length > 0 ? paidForSteamIds : [payerSteamId];
+  return [...new Set(ids)];
+}
+
+export function buildItemPaymentDisplay(input: {
+  payer: ItemPaymentDisplayPlayer;
+  itemName: string;
+  selections: CheckoutTeamSelection[];
+  teams: DisplayTeam[];
+  names: ReadonlyMap<string, string>;
+}): ItemPaymentDisplay {
+  const teamsById = new Map(input.teams.map((team) => [team.id, team]));
+  const spots: ItemPaymentDisplaySpot[] = [];
+  const moneyParts: { symbol: string; amount: number }[] = [];
+
+  for (const selection of input.selections) {
+    const team = teamsById.get(selection.teamId);
+    if (!team) continue;
+
+    const playerIds = coveredSteamIds(selection.paidForSteamIds, input.payer.steamId);
+    const players = playerIds.map((steamId) => ({
+      steamId,
+      name: input.names.get(steamId) ?? 'Unknown player',
+    }));
+    const itemCount =
+      team.itemQuantity != null && team.itemQuantity > 0 ? team.itemQuantity * players.length : 0;
+    const moneyAmount = team.signupCost > 0 ? team.signupCost * players.length : 0;
+    const moneyLabel =
+      team.season && moneyAmount > 0 ? formatMoney(team.season.currencySymbol, moneyAmount) : null;
+
+    if (team.season && moneyAmount > 0) {
+      moneyParts.push({ symbol: team.season.currencySymbol, amount: moneyAmount });
+    }
+
+    const season = team.season;
+    const abbr = season ? getRegionAbbr(season.regionName) : '';
+    spots.push({
+      seasonLabel: season
+        ? `${abbr || season.regionName} ${season.formatName} Season ${season.seasonNum}`
+        : 'a league signup',
+      leaguePath: season
+        ? leaguePageHref(season.formatCode, season.id, season.regionId)
+        : '/leagues',
+      teamName: team.isIndividual ? null : team.name,
+      teamPath: team.isIndividual ? null : `/teams/${team.id}`,
+      itemCount,
+      moneyLabel,
+      players,
+    });
+  }
+
+  const sameSymbol = moneyParts.every((part) => part.symbol === moneyParts[0]?.symbol);
+  const moneyTotal = moneyParts.reduce((sum, part) => sum + part.amount, 0);
+
+  return {
+    payer: input.payer,
+    itemName: input.itemName,
+    moneyLabel:
+      moneyParts.length > 0 && sameSymbol && moneyParts[0]
+        ? formatMoney(moneyParts[0].symbol, moneyTotal)
+        : null,
+    spots,
+  };
+}
+
+function parseCheckoutSelections(
+  raw: string | null,
+  teamId: number,
+  paidForSteamIds: string[],
+): CheckoutTeamSelection[] {
+  if (!raw) return [{ teamId, paidForSteamIds }];
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return [{ teamId, paidForSteamIds }];
+    }
+    const selections = parsed.flatMap((entry) => {
+      if (entry == null || typeof entry !== 'object') return [];
+      const teamIdValue = (entry as { teamId?: unknown }).teamId;
+      const paidFor = (entry as { paidForSteamIds?: unknown }).paidForSteamIds;
+      if (!Number.isInteger(teamIdValue)) return [];
+      const paidForIds = Array.isArray(paidFor)
+        ? paidFor.filter((id): id is string => typeof id === 'string')
+        : [];
+      return [{ teamId: teamIdValue as number, paidForSteamIds: paidForIds }];
+    });
+    return selections.length > 0 ? selections : [{ teamId, paidForSteamIds }];
+  } catch {
+    return [{ teamId, paidForSteamIds }];
+  }
+}
+
 export async function getPendingOrderBySteamId(steamId: string) {
   const order = await prisma.itemPaymentOrder.findFirst({
     where: {
@@ -321,17 +462,90 @@ export async function getPendingOrderBySteamId(steamId: string) {
       status: 'PENDING',
       expiresAt: { gt: new Date() },
     },
+    include: {
+      player: { select: { steamId: true, steamUsername: true } },
+    },
   });
 
   if (!order) return null;
+
+  const selections = parseCheckoutSelections(
+    order.checkoutTeams,
+    order.teamId,
+    order.paidForSteamIds,
+  );
+  const teamIds = [...new Set(selections.map((selection) => selection.teamId))];
+  const teamRows = await prisma.team.findMany({
+    where: { id: { in: teamIds } },
+    select: {
+      id: true,
+      name: true,
+      format: { select: { isIndividual: true } },
+      division: {
+        select: {
+          signupCost: true,
+          itemPayment: { select: { itemQuantity: true } },
+        },
+      },
+      season: {
+        select: {
+          id: true,
+          seasonNum: true,
+          regionId: true,
+          region: { select: { name: true, currencySymbol: true } },
+          format: { select: { code: true, name: true } },
+        },
+      },
+    },
+  });
+
+  const coveredIds = [
+    ...new Set(
+      selections.flatMap((selection) => coveredSteamIds(selection.paidForSteamIds, steamId)),
+    ),
+  ];
+  const namedPlayers = await prisma.user.findMany({
+    where: { steamId: { in: coveredIds } },
+    select: { steamId: true, steamUsername: true },
+  });
+  const names = new Map(namedPlayers.map((player) => [player.steamId, player.steamUsername]));
+
+  const display = buildItemPaymentDisplay({
+    payer: { steamId: order.player.steamId, name: order.player.steamUsername },
+    itemName: order.itemName,
+    selections,
+    teams: teamRows.map((team) => ({
+      id: team.id,
+      name: team.name,
+      isIndividual: team.format.isIndividual,
+      signupCost: team.division?.signupCost ?? 0,
+      itemQuantity: team.division?.itemPayment?.itemQuantity ?? null,
+      season: team.season
+        ? {
+            id: team.season.id,
+            seasonNum: team.season.seasonNum,
+            regionId: team.season.regionId,
+            regionName: team.season.region.name,
+            currencySymbol: team.season.region.currencySymbol,
+            formatCode: team.season.format.code,
+            formatName: team.season.format.name,
+          }
+        : null,
+    })),
+    names,
+  });
 
   return {
     orderNumber: order.orderNumber,
     itemAppId: order.itemAppId,
     itemMarketHashName: order.itemMarketHashName,
+    itemName: order.itemName,
     itemsRequired: order.itemsRequired,
     teamId: order.teamId,
     expiresAt: order.expiresAt.toISOString(),
+    payer: display.payer,
+    moneyLabel: display.moneyLabel,
+    spots: display.spots,
   };
 }
 

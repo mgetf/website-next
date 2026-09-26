@@ -8,8 +8,14 @@ import {
   DiscordGuildError,
   isDiscordGuildConfigured,
   sendDiscordChannelMessage,
+  sendDiscordDirectMessage,
   syncDiscordMemberRoles,
 } from './discordGuild';
+
+const LINKED_DM =
+  'Hey, we noticed you linked your Discord on mge.tf, so we gave you the **MGER** role. You are all set.';
+const UNLINKED_DM =
+  'Hey, you unlinked your Discord on mge.tf, so we removed the **MGER** verified role.';
 
 export type VerificationSyncResult = 'ok' | 'not_in_guild' | 'skipped' | 'error';
 
@@ -109,11 +115,14 @@ export async function applyDiscordLinkVerification(params: {
 
   const profile = profileUrl(params.steamId);
   if (result === 'ok') {
-    await postDiscordVerificationLog({
-      success: true,
-      discordUsername: params.discordUsername,
-      description: `Linked **${params.steamUsername}** (\`${params.steamId}\`) and verified. [Profile](${profile})`,
-    });
+    await Promise.all([
+      postDiscordVerificationLog({
+        success: true,
+        discordUsername: params.discordUsername,
+        description: `Linked **${params.steamUsername}** (\`${params.steamId}\`) and verified. [Profile](${profile})`,
+      }),
+      sendDiscordDirectMessage(params.discordId, LINKED_DM),
+    ]);
     return;
   }
 
@@ -153,11 +162,14 @@ export async function applyDiscordUnlinkVerification(params: {
   }
 
   const inGuild = result === 'ok';
-  await postDiscordVerificationLog({
-    success: true,
-    discordUsername: params.discordUsername,
-    description: inGuild
-      ? `Unlinked **${params.steamUsername}** (\`${params.steamId}\`). MGER removed. [Profile](${profile})`
-      : `Unlinked **${params.steamUsername}** (\`${params.steamId}\`) — not in the Discord server. [Profile](${profile})`,
-  });
+  await Promise.all([
+    postDiscordVerificationLog({
+      success: true,
+      discordUsername: params.discordUsername,
+      description: inGuild
+        ? `Unlinked **${params.steamUsername}** (\`${params.steamId}\`). MGER removed. [Profile](${profile})`
+        : `Unlinked **${params.steamUsername}** (\`${params.steamId}\`) — not in the Discord server. [Profile](${profile})`,
+    }),
+    sendDiscordDirectMessage(params.discordId, UNLINKED_DM),
+  ]);
 }

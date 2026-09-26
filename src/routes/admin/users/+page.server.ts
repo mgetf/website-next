@@ -369,7 +369,7 @@ export const actions: Actions = {
     const { steamId } = validation.data;
 
     try {
-      await unlinkDiscord(steamId);
+      const unlinked = await unlinkDiscord(steamId);
 
       await logAudit({
         actorId: locals.user?.steamId,
@@ -378,6 +378,10 @@ export const actions: Actions = {
         action: AuditAction.USER_DISCORD_UNLINKED,
         targetType: 'User',
         targetId: steamId,
+        metadata: {
+          discordId: unlinked.discordId,
+          discordUsername: unlinked.discordUsername,
+        },
         ipAddress: getClientAddress(),
       });
 

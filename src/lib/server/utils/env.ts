@@ -18,6 +18,9 @@
  *   SOURCEBANS_API_TOKEN   PAT (sbpp_pat_…)
  *   DISCORD_BOT_TOKEN      Same bot token as discord-bot (guild role sync)
  *   DISCORD_GUILD_ID       Guild whose roles are assigned to staff
+ *   DISCORD_VERIFY_ADD_ROLE_IDS     Comma-separated role IDs granted when Discord is linked (MGER)
+ *   DISCORD_VERIFY_REMOVE_ROLE_IDS  Comma-separated role IDs removed when linked (Unverified)
+ *   DISCORD_VERIFICATION_LOG_CHANNEL_ID  Channel for link/unlink role-sync notices
  */
 
 /**
@@ -49,6 +52,9 @@ const RECOMMENDED_VARS = [
   'SOURCEBANS_API_TOKEN',
   'DISCORD_BOT_TOKEN',
   'DISCORD_GUILD_ID',
+  'DISCORD_VERIFY_ADD_ROLE_IDS',
+  'DISCORD_VERIFY_REMOVE_ROLE_IDS',
+  'DISCORD_VERIFICATION_LOG_CHANNEL_ID',
 ] as const;
 
 type RequiredSecret = (typeof REQUIRED_SECRETS)[number];
@@ -186,4 +192,16 @@ export function getDiscordBotToken(): string {
 
 export function getDiscordGuildId(): string {
   return getOptionalEnv('DISCORD_GUILD_ID').trim();
+}
+
+export function getDiscordVerifyAddRoleIds(): string {
+  return getOptionalEnv('DISCORD_VERIFY_ADD_ROLE_IDS').trim();
+}
+
+export function getDiscordVerifyRemoveRoleIds(): string {
+  return getOptionalEnv('DISCORD_VERIFY_REMOVE_ROLE_IDS').trim();
+}
+
+export function getDiscordVerificationLogChannelId(): string {
+  return getOptionalEnv('DISCORD_VERIFICATION_LOG_CHANNEL_ID').trim();
 }

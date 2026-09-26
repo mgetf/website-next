@@ -38,12 +38,15 @@
   let removeTarget: { steamId: string; name: string } | null = $state(null);
   let showMarkPaidDialog = $state(false);
   let markPaidTarget: { steamId: string; name: string } | null = $state(null);
+  let showUnmarkPaidDialog = $state(false);
+  let unmarkPaidTarget: { steamId: string; name: string } | null = $state(null);
   let showReadyDialog = $state(false);
   let showDisbandDialog = $state(false);
 
   let leaveFormEl: HTMLFormElement | undefined = $state();
   let removeFormEl: HTMLFormElement | undefined = $state();
   let markPaidFormEl: HTMLFormElement | undefined = $state();
+  let unmarkPaidFormEl: HTMLFormElement | undefined = $state();
   let readyFormEl: HTMLFormElement | undefined = $state();
   let disbandFormEl: HTMLFormElement | undefined = $state();
 
@@ -66,6 +69,7 @@
 
   const hasUnpaidPlayers = $derived(!data.isFreeDivision && currentRoster.some((p) => !p.isPaid));
   const unpaidPlayers = $derived(currentRoster.filter((p) => !p.isPaid));
+  const paidPlayers = $derived(currentRoster.filter((p) => p.paymentStatus === 1));
   const currentUserIsPaid = $derived(
     currentRoster.find((p) => p.steamId === data.currentUserSteamId)?.isPaid ?? true,
   );
@@ -109,6 +113,8 @@
       removeTarget = null;
       showMarkPaidDialog = false;
       markPaidTarget = null;
+      showUnmarkPaidDialog = false;
+      unmarkPaidTarget = null;
       showReadyDialog = false;
       showDisbandDialog = false;
       if (form.success && form.message) {
@@ -407,10 +413,15 @@
         divisions={data.divisions}
         isFreeDivision={data.isFreeDivision}
         {unpaidPlayers}
+        {paidPlayers}
         busy={submittingAction !== null}
         onMarkPaid={(player) => {
           markPaidTarget = player;
           showMarkPaidDialog = true;
+        }}
+        onUnmarkPaid={(player) => {
+          unmarkPaidTarget = player;
+          showUnmarkPaidDialog = true;
         }}
       />
     </div>
@@ -443,6 +454,16 @@
   class="hidden"
 >
   <input type="hidden" name="playerSteamId" value={markPaidTarget?.steamId ?? ''} />
+</form>
+
+<form
+  bind:this={unmarkPaidFormEl}
+  method="POST"
+  action="?/unmarkPlayerPaid"
+  use:enhance={makeEnhance('unmarkPlayerPaid')}
+  class="hidden"
+>
+  <input type="hidden" name="playerSteamId" value={unmarkPaidTarget?.steamId ?? ''} />
 </form>
 
 <form
@@ -502,6 +523,22 @@
   onCancel={() => {
     showMarkPaidDialog = false;
     markPaidTarget = null;
+  }}
+/>
+
+<ConfirmDialog
+  open={showUnmarkPaidDialog}
+  title="Mark Player as Unpaid"
+  description="Mark {unmarkPaidTarget?.name ??
+    'this player'} as unpaid? They will need to pay the signup fee again. PayPal and item payments are not refunded."
+  confirmLabel="Mark as Unpaid"
+  loadingLabel="Saving..."
+  variant="danger"
+  isLoading={submittingAction === 'unmarkPlayerPaid'}
+  onConfirm={() => unmarkPaidFormEl?.requestSubmit()}
+  onCancel={() => {
+    showUnmarkPaidDialog = false;
+    unmarkPaidTarget = null;
   }}
 />
 

@@ -14,7 +14,7 @@ import {
 } from '$lib/server/services/users';
 import { withdraw1v1Entry, toggle1v1Ready, change1v1Status } from '$lib/server/services/signup1v1';
 import { TeamStatus } from '$prisma/client.js';
-import { markPlayerAsPaidManually } from '$lib/server/services/payments';
+import { markPlayerAsPaidManually, unmarkPlayerAsPaid } from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
@@ -508,6 +508,46 @@ export const actions: Actions = {
       console.error('Error marking 1v1 player as paid:', err);
       return fail(isHttpError(err) ? err.status : 500, {
         error: getErrorMessage(err, 'Failed to mark player as paid'),
+      });
+    }
+  },
+
+  unmark1v1Paid: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user || !isAdmin(locals.user)) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const { steamId } = params;
+    const formData = await request.formData();
+    const validation = validateForm(
+      formData,
+      z.object({
+        teamId: z.coerce.number().int().positive(),
+      }),
+    );
+    if (!validation.success) return validationError(validation.errors);
+
+    const { teamId } = validation.data;
+
+    try {
+      await unmarkPlayerAsPaid(steamId, teamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.PAYMENT,
+        action: AuditAction.PAYMENT_UNMARKED_MANUALLY,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: { targetSteamId: steamId },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Player marked as unpaid' };
+    } catch (err) {
+      console.error('Error marking 1v1 player as unpaid:', err);
+      return fail(isHttpError(err) ? err.status : 500, {
+        error: getErrorMessage(err, 'Failed to mark player as unpaid'),
       });
     }
   },

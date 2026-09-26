@@ -19,6 +19,7 @@
     onUpdateStatus,
     onUpdateDivision,
     onMarkPaid,
+    onUnmarkPaid,
   }: {
     steamId: string;
     isOwn: boolean;
@@ -31,6 +32,7 @@
     onUpdateStatus: (status: string) => void;
     onUpdateDivision: (divisionId: string) => void;
     onMarkPaid: () => void;
+    onUnmarkPaid: () => void;
   } = $props();
 
   let adminStatus = $state('');
@@ -44,6 +46,9 @@
     entry !== null && entry.status === 'UNREADY' && (entry.isPaid || entry.signupCost === 0),
   );
   const needsPayment = $derived(entry !== null && entry.signupCost > 0 && !entry.isPaid);
+  const canUnmarkPaid = $derived(
+    entry !== null && entry.signupCost > 0 && entry.paymentStatus === 1,
+  );
 </script>
 
 <div class="space-y-6">
@@ -265,6 +270,14 @@
             <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
               <Badge color="red">Unpaid</Badge>
               <Button variant="success" size="sm" onclick={onMarkPaid}>Mark as paid</Button>
+            </div>
+          </div>
+        {:else if canUnmarkPaid}
+          <div class="border-t border-border-default pt-4">
+            <h3 class="mb-3 text-sm font-semibold text-white">Mark as unpaid</h3>
+            <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
+              <Badge color="green">Paid</Badge>
+              <Button variant="danger" size="sm" onclick={onUnmarkPaid}>Mark as unpaid</Button>
             </div>
           </div>
         {/if}

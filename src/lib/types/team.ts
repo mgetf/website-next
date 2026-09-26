@@ -13,6 +13,7 @@ export type TeamRosterPlayer = {
   avatar: string | null;
   joinedAt: Date | string;
   isPaid: boolean;
+  paymentStatus: number;
   isLeader: boolean;
   permissionLevel: number;
 };

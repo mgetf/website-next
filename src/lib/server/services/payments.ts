@@ -292,6 +292,77 @@ export async function markPlayerAsPaidManually(
   });
 }
 
+function trackerAmountAfterUnmark(current: number, signupCost: number): number {
+  return Math.max(0, Math.round((current - signupCost) * 100) / 100);
+}
+
+/**
+ * Return a paid player to unpaid.
+ * Removes this team's manual payment row and reduces the season tracker by the signup fee.
+ * PayPal and item payment rows stay in place.
+ */
+export async function unmarkPlayerAsPaid(steamId: string, teamId: number): Promise<void> {
+  const playerInTeam = await prisma.playerInTeam.findUnique({
+    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+    include: {
+      team: {
+        include: { division: true },
+      },
+    },
+  });
+
+  if (!playerInTeam) {
+    notFound('Player is not on this team');
+  }
+
+  if (playerInTeam.paymentStatus !== 1) {
+    badRequest('Player is not marked as paid');
+  }
+
+  if (!playerInTeam.team.seasonId) {
+    badRequest('Team has no associated season');
+  }
+
+  const seasonId = playerInTeam.team.seasonId;
+  const signupCost = playerInTeam.team.division?.signupCost ?? 0;
+
+  await prisma.$transaction(async (tx) => {
+    if (signupCost > 0) {
+      const tracker = await tx.paymentTracker.findUnique({
+        where: { playerSteamId_seasonId: { playerSteamId: steamId, seasonId } },
+      });
+
+      if (tracker) {
+        const nextAmount = trackerAmountAfterUnmark(tracker.amount, signupCost);
+        if (nextAmount === 0) {
+          await tx.paymentTracker.delete({ where: { id: tracker.id } });
+        } else {
+          await tx.paymentTracker.update({
+            where: { id: tracker.id },
+            data: { amount: nextAmount },
+          });
+        }
+      }
+
+      await tx.payment.deleteMany({
+        where: {
+          purchasedFor: steamId,
+          teamId,
+          currency: 'MANUAL',
+        },
+      });
+    }
+
+    await tx.playerInTeam.update({
+      where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
+      data: { paymentStatus: 0 },
+    });
+
+    const format = await requireFormatById(playerInTeam.team.formatId);
+    await syncTeamPaymentStatus(tx, teamId, format.requiredPaidPlayers);
+  });
+}
+
 /**
  * Record a completed PayPal capture: creates payment records and updates player/team payment status.
  * Supports paying for multiple players in a single capture.

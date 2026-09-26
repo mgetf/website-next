@@ -14,16 +14,20 @@
     divisions,
     isFreeDivision,
     unpaidPlayers,
+    paidPlayers,
     busy,
     onMarkPaid,
+    onUnmarkPaid,
   }: {
     teamStatus: string;
     divisionId: number | null;
     divisions: TeamAdminDivision[];
     isFreeDivision: boolean;
     unpaidPlayers: TeamRosterPlayer[];
+    paidPlayers: TeamRosterPlayer[];
     busy: boolean;
     onMarkPaid: (player: { steamId: string; name: string }) => void;
+    onUnmarkPaid: (player: { steamId: string; name: string }) => void;
   } = $props();
 
   let adminStatus = $state('');
@@ -76,33 +80,66 @@
       <p class="text-sm text-text-muted">No divisions available for this team's region.</p>
     {/if}
 
-    {#if !isFreeDivision && unpaidPlayers.length > 0}
+    {#if !isFreeDivision && (unpaidPlayers.length > 0 || paidPlayers.length > 0)}
       <hr class="border-border-default" />
-      <div>
-        <h3 class="mb-4 text-lg font-bold text-white">Mark Player as Paid</h3>
-        <div class="space-y-2">
-          {#each unpaidPlayers as player (player.steamId)}
-            <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
-              <div class="flex items-center gap-3">
-                <img
-                  src={player.avatar || DEFAULT_AVATAR}
-                  alt=""
-                  class="size-8 rounded object-cover"
-                />
-                <span class="font-medium text-white">{player.name}</span>
-                <Badge color="red">Unpaid</Badge>
-              </div>
-              <Button
-                variant="success"
-                size="sm"
-                disabled={busy}
-                onclick={() => onMarkPaid({ steamId: player.steamId, name: player.name })}
-              >
-                Mark as Paid
-              </Button>
+      <div class="space-y-8">
+        {#if unpaidPlayers.length > 0}
+          <div>
+            <h3 class="mb-4 text-lg font-bold text-white">Mark Player as Paid</h3>
+            <div class="space-y-2">
+              {#each unpaidPlayers as player (player.steamId)}
+                <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
+                  <div class="flex items-center gap-3">
+                    <img
+                      src={player.avatar || DEFAULT_AVATAR}
+                      alt=""
+                      class="size-8 rounded object-cover"
+                    />
+                    <span class="font-medium text-white">{player.name}</span>
+                    <Badge color="red">Unpaid</Badge>
+                  </div>
+                  <Button
+                    variant="success"
+                    size="sm"
+                    disabled={busy}
+                    onclick={() => onMarkPaid({ steamId: player.steamId, name: player.name })}
+                  >
+                    Mark as Paid
+                  </Button>
+                </div>
+              {/each}
             </div>
-          {/each}
-        </div>
+          </div>
+        {/if}
+
+        {#if paidPlayers.length > 0}
+          <div>
+            <h3 class="mb-4 text-lg font-bold text-white">Mark Player as Unpaid</h3>
+            <div class="space-y-2">
+              {#each paidPlayers as player (player.steamId)}
+                <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
+                  <div class="flex items-center gap-3">
+                    <img
+                      src={player.avatar || DEFAULT_AVATAR}
+                      alt=""
+                      class="size-8 rounded object-cover"
+                    />
+                    <span class="font-medium text-white">{player.name}</span>
+                    <Badge color="green">Paid</Badge>
+                  </div>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={busy}
+                    onclick={() => onUnmarkPaid({ steamId: player.steamId, name: player.name })}
+                  >
+                    Mark as Unpaid
+                  </Button>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
     {/if}
   </div>

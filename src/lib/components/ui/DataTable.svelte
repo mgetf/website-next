@@ -34,6 +34,7 @@
     rowClass,
     headerClass = '',
     compact = false,
+    dense = false,
     expandedRow,
     expandedContent,
     sortBy,
@@ -52,6 +53,7 @@
     rowClass?: (row: T) => string;
     headerClass?: string;
     compact?: boolean;
+    dense?: boolean;
     expandedRow?: (row: T) => boolean;
     expandedContent?: Snippet<[T]>;
     sortBy?: string;
@@ -77,8 +79,9 @@
     }
   }
 
-  const cellPadding = $derived(compact ? 'px-4 py-1.5' : 'px-4 py-3');
-  const headPadding = $derived(compact ? 'px-4 py-2' : 'px-4 py-3');
+  const cellPadding = $derived(dense ? 'px-3 py-1 text-xs' : compact ? 'px-4 py-1.5' : 'px-4 py-3');
+  const headPadding = $derived(dense ? 'px-3 py-1.5 text-xs' : compact ? 'px-4 py-2' : 'px-4 py-3');
+  const tableFixed = $derived(columns.some((col) => Boolean(col.width)));
   const viewportMaxHeight = $derived.by(() => {
     if (maxVisibleRows == null || maxVisibleRows <= 0) return undefined;
     const headRem = compact ? 2.5 : 3.25;
@@ -104,7 +107,7 @@
     class="bg-surface-card/80 backdrop-blur border border-border-default rounded-lg overflow-hidden"
   >
     <div class="overflow-auto" style:max-height={viewportMaxHeight}>
-      <table class="w-full">
+      <table class={['w-full', tableFixed && 'table-fixed']}>
         <thead
           class="{headerClass || 'bg-surface-card/80'} border-b border-border-default {stickyHead
             ? 'sticky top-0 z-10 bg-surface-card'

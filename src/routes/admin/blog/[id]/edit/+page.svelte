@@ -22,7 +22,7 @@
 <div class="mx-auto max-w-4xl space-y-6">
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h2 class="mb-2 text-3xl font-bold text-white">Edit Post</h2>
+      <h1 class="text-3xl font-bold text-white mb-2">Edit Post</h1>
       <p class="text-text-body">Update the draft or publish changes</p>
     </div>
     {#if data.post.published}

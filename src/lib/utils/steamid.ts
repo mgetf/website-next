@@ -45,20 +45,50 @@ export function steamId64FromSteamId32(steamId32: string): string | null {
   return String(STEAM_ID_64_BASE + z * 2n + y);
 }
 
+function steamId64FromDigits(value: string): string | null {
+  if (!/^\d{17}$/.test(value)) return null;
+  try {
+    return BigInt(value) >= STEAM_ID_64_BASE ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Custom Steam community URL slug, or null if this is not an /id/ URL. */
+export function extractSteamVanity(value: string): string | null {
+  const match = value.trim().match(/steamcommunity\.com\/id\/([^/?#]+)/i);
+  if (!match?.[1]) return null;
+  try {
+    const vanity = decodeURIComponent(match[1]).trim();
+    return vanity || null;
+  } catch {
+    return match[1];
+  }
+}
+
 export function steamId64FromAnyFormat(value: string): string | null {
   const input = value.trim();
   if (!input) return null;
 
   const profileMatch = input.match(/steamcommunity\.com\/profiles\/(\d{17})/i);
-  if (profileMatch) return profileMatch[1];
+  if (profileMatch?.[1]) return steamId64FromDigits(profileMatch[1]);
 
-  if (/^\d{17}$/.test(input)) {
+  const mgeMatch = input.match(/(?:^|https?:\/\/)(?:dev\.)?mge\.tf\/users\/([^/?#]+)/i);
+  if (mgeMatch?.[1]) {
     try {
-      return BigInt(input) >= STEAM_ID_64_BASE ? input : null;
+      const nested = steamId64FromAnyFormat(decodeURIComponent(mgeMatch[1]));
+      if (nested) return nested;
     } catch {
-      return null;
+      const nested = steamId64FromAnyFormat(mgeMatch[1]);
+      if (nested) return nested;
     }
   }
+
+  const steamUri = input.match(/steam:\/\/(?:url\/CommunityPage\/|profiles\/)?(\d{17})/i);
+  if (steamUri?.[1]) return steamId64FromDigits(steamUri[1]);
+
+  const fromDigits = steamId64FromDigits(input);
+  if (fromDigits) return fromDigits;
 
   const steam3 = input.startsWith('[') ? input : `[${input}]`;
   const fromSteam3 = steamId64FromSteamId3(steam3.toUpperCase());

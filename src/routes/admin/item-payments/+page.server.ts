@@ -37,6 +37,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       playerName: o.player.steamUsername,
       teamId: o.team.id,
       teamName: o.team.name,
+      formatName: o.team.format.name,
+      formatIconUrl: o.team.format.iconUrl,
       itemName: o.itemName,
       itemsRequired: o.itemsRequired,
       itemsReceived: o.itemsReceived,

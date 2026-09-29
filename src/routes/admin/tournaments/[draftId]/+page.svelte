@@ -103,7 +103,7 @@
   <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div>
       <Button href="/admin/tournaments" variant="ghost" size="sm">← Tournament editor</Button>
-      <div class="mt-3 flex flex-wrap items-center gap-3">
+      <div class="mt-3 mb-2 flex flex-wrap items-center gap-3">
         <h1 class="text-3xl font-bold text-white">
           {editor.draft.name || 'Untitled tournament'}
         </h1>
@@ -112,7 +112,7 @@
         </Badge>
         <Badge color="orange">Revision {editor.revision}</Badge>
       </div>
-      <p class="mt-2 text-sm text-text-muted">
+      <p class="text-text-body">
         Draft {data.draft.draftId}
         {#if data.draft.eventId}
           · Event {data.draft.eventId}

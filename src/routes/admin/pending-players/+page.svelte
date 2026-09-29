@@ -91,7 +91,7 @@
 
 <div class="max-w-7xl mx-auto space-y-6">
   <div>
-    <h2 class="text-3xl font-bold text-white mb-2">Pending Players</h2>
+    <h1 class="text-3xl font-bold text-white mb-2">Pending Players</h1>
     <p class="text-text-body">
       Approve or deny roster join requests and ready-ups awaiting admin review.
     </p>

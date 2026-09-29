@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  extractSteamVanity,
   steamId32FromSteamId64,
   steamId3FromSteamId64,
   steamId64FromSteamId3,
@@ -58,6 +59,17 @@ describe('steamId64FromAnyFormat', () => {
     expect(steamId64FromAnyFormat(`https://steamcommunity.com/profiles/${SAMPLE_64}`)).toBe(
       SAMPLE_64,
     );
+    expect(steamId64FromAnyFormat(`https://steamcommunity.com/profiles/${SAMPLE_64}/`)).toBe(
+      SAMPLE_64,
+    );
+    expect(steamId64FromAnyFormat(`https://steamcommunity.com/profiles/${SAMPLE_64}?xml=1`)).toBe(
+      SAMPLE_64,
+    );
+  });
+
+  it('parses mge.tf profile URLs', () => {
+    expect(steamId64FromAnyFormat(`https://mge.tf/users/${SAMPLE_64}`)).toBe(SAMPLE_64);
+    expect(steamId64FromAnyFormat(`https://dev.mge.tf/users/${SAMPLE_32}`)).toBe(SAMPLE_64);
   });
 
   it('parses Steam3 and Steam32 forms', () => {
@@ -68,6 +80,18 @@ describe('steamId64FromAnyFormat', () => {
   it('returns null for empty or custom URLs', () => {
     expect(steamId64FromAnyFormat('')).toBeNull();
     expect(steamId64FromAnyFormat('https://steamcommunity.com/id/custom')).toBeNull();
+  });
+});
+
+describe('extractSteamVanity', () => {
+  it('reads a custom community URL slug', () => {
+    expect(extractSteamVanity('https://steamcommunity.com/id/advanti')).toBe('advanti');
+    expect(extractSteamVanity('https://steamcommunity.com/id/advanti/')).toBe('advanti');
+  });
+
+  it('returns null when there is no /id/ path', () => {
+    expect(extractSteamVanity(`https://steamcommunity.com/profiles/${SAMPLE_64}`)).toBeNull();
+    expect(extractSteamVanity(SAMPLE_64)).toBeNull();
   });
 });
 

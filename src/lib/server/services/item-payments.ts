@@ -739,7 +739,13 @@ export async function getItemPaymentOrders(options: {
       where,
       include: {
         player: { select: { steamId: true, steamUsername: true } },
-        team: { select: { id: true, name: true } },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            format: { select: { name: true, iconUrl: true } },
+          },
+        },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       skip: (page - 1) * limit,

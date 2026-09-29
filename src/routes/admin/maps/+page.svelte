@@ -80,9 +80,9 @@
   }
 </script>
 
-<div class="max-w-5xl mx-auto space-y-8">
+<div class="max-w-7xl mx-auto space-y-8">
   <div>
-    <h2 class="text-3xl font-bold text-white mb-2">Maps</h2>
+    <h1 class="text-3xl font-bold text-white mb-2">Maps</h1>
     <p class="text-text-body">
       Catalog of MGE maps for players. Each entry stores a name plus the public URLs for the .bsp
       and .cfg. Downloads zip those files on demand.

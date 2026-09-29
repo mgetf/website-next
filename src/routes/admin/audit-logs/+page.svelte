@@ -159,7 +159,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Header -->
   <div>
-    <h2 class="text-3xl font-bold text-white mb-2">Audit Logs</h2>
+    <h1 class="text-3xl font-bold text-white mb-2">Audit Logs</h1>
     <p class="text-text-body">
       {data.pagination.totalCount.toLocaleString()} total entries recorded
     </p>

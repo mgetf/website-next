@@ -252,7 +252,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h2 class="text-3xl font-bold text-white mb-2">Team Management</h2>
+    <h1 class="text-3xl font-bold text-white mb-2">Team Management</h1>
     <p class="text-text-body">View and manage all teams across all divisions</p>
   </div>
 

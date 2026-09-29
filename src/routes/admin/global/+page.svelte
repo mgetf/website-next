@@ -83,7 +83,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h2 class="text-3xl font-bold text-white mb-2">Global Configuration</h2>
+    <h1 class="text-3xl font-bold text-white mb-2">Global Configuration</h1>
     <p class="text-text-body">Manage site-wide settings and announcements</p>
   </div>
 

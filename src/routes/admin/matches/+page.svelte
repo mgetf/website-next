@@ -130,7 +130,7 @@
   <!-- Page Header -->
   <div class="flex items-center justify-between">
     <div>
-      <h2 class="text-3xl font-bold text-white mb-2">Match Management</h2>
+      <h1 class="text-3xl font-bold text-white mb-2">Match Management</h1>
       <p class="text-text-body">View and manage league matches by week</p>
     </div>
     {#if data.isStrictAdmin}

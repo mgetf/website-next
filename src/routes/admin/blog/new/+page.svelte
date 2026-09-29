@@ -20,7 +20,7 @@
 
 <div class="mx-auto max-w-4xl space-y-6">
   <div>
-    <h2 class="mb-2 text-3xl font-bold text-white">New Post</h2>
+    <h1 class="text-3xl font-bold text-white mb-2">New Post</h1>
     <p class="text-text-body">Write a draft or publish immediately</p>
   </div>
 

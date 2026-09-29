@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
+vi.mock('$lib/server/db', () => ({ prisma: {} }));
+vi.mock('$lib/server/services/users', () => ({
+  fetchSteamAvatars: async () => ({}),
+  getUserDisplaysByIds: async () => ({}),
+}));
 
 import { mapInvestigateResult } from './playerInvestigation';
 import type { InvestigateResult, SteamInvestigation } from '$lib/types/investigation';
@@ -11,6 +16,7 @@ describe('mapInvestigateResult', () => {
       kind: 'steam',
       steamId: 'STEAM_0:1:1',
       steam64: '76561197960265730',
+      avatar: null,
       permName: 'Main',
       knownNames: ['Main'],
       distinctIps: [{ ip: '1.2.3.4', kind: 'usable' }],
@@ -51,5 +57,45 @@ describe('mapInvestigateResult', () => {
     };
     expect(mapInvestigateResult(blocked)).toEqual(blocked);
     expect(mapInvestigateResult(missing)).toEqual(missing);
+  });
+
+  it('repairs mojibake in server names', () => {
+    const steam: SteamInvestigation = {
+      kind: 'steam',
+      steamId: 'STEAM_0:1:1',
+      steam64: '76561197960265730',
+      avatar: null,
+      permName: 'Main',
+      knownNames: ['Main'],
+      distinctIps: [],
+      usableIpCount: 0,
+      firstSeen: null,
+      lastSeen: null,
+      eventCount: 1,
+      sessionCount: 0,
+      totalSeconds: 0,
+      events: [
+        {
+          steamId: 'STEAM_0:1:1',
+          name: 'Main',
+          action: 'connected',
+          at: '2026-01-02T00:00:00.000Z',
+          ip: '1.2.3.4',
+          ipKind: 'usable',
+          serverIp: '10.0.0.1',
+          serverName: 'mge.tf | sÃ£o paulo #1 | triumph',
+          region: 'sa',
+        },
+      ],
+      candidates: [],
+      linkedAlts: [],
+      linkedMain: null,
+      noUsableIps: true,
+    };
+
+    const mapped = mapInvestigateResult(steam);
+    expect(mapped.kind).toBe('steam');
+    if (mapped.kind !== 'steam') return;
+    expect(mapped.events[0]?.serverName).toBe('mge.tf | são paulo #1 | triumph');
   });
 });

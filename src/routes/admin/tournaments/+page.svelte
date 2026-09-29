@@ -68,8 +68,8 @@
 
 <div class="mx-auto max-w-7xl space-y-8">
   <header>
-    <h1 class="text-3xl font-bold text-white">Tournament Editor</h1>
-    <p class="mt-2 text-text-body">
+    <h1 class="text-3xl font-bold text-white mb-2">Tournament Editor</h1>
+    <p class="text-text-body">
       Create drafts, review validation issues, and publish tournament brackets.
     </p>
   </header>

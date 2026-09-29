@@ -214,7 +214,7 @@
 <div class="max-w-4xl mx-auto space-y-6">
   <div class="flex items-end justify-between gap-3">
     <div>
-      <h2 class="text-3xl font-bold text-white mb-2">Staff mappings</h2>
+      <h1 class="text-3xl font-bold text-white mb-2">Staff mappings</h1>
       <p class="text-text-body">
         Map Moderator and Admin to SourceBans groups and Discord roles. Scoped rules add extra
         Discord roles from league assignments.

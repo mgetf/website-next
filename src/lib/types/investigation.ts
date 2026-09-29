@@ -20,6 +20,7 @@ export type DistinctIp = {
 export type AltCandidate = {
   steamId: string;
   steam64: string | null;
+  avatar: string | null;
   score: number;
   label: 'Likely' | 'Possible' | 'Unlikely';
   sharedIps: string[];
@@ -31,6 +32,7 @@ export type AltCandidate = {
 export type AltLinkView = {
   steamId: string;
   steam64: string | null;
+  avatar: string | null;
   mainSteamId: string | null;
   mainSteam64: string | null;
   linkedAt: string | null;
@@ -43,6 +45,7 @@ export type SteamInvestigation = {
   kind: 'steam';
   steamId: string;
   steam64: string | null;
+  avatar: string | null;
   permName: string | null;
   knownNames: string[];
   distinctIps: DistinctIp[];
@@ -62,6 +65,7 @@ export type SteamInvestigation = {
 export type IpAccount = {
   steamId: string;
   steam64: string | null;
+  avatar: string | null;
   name: string | null;
   firstSeen: string | null;
   lastSeen: string | null;

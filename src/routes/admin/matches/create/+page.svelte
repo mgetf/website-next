@@ -235,7 +235,7 @@
 </script>
 
 <div class="max-w-4xl mx-auto space-y-6">
-  <h1 class="text-4xl font-bold text-white mb-8">Create Match Set</h1>
+  <h1 class="text-3xl font-bold text-white mb-8">Create Match Set</h1>
 
   <!-- Main Form -->
   <Card padding="lg">

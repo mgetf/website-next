@@ -978,6 +978,45 @@ export async function fetchSteamNames(steamIds: string[]): Promise<Record<string
 }
 
 /**
+ * Bulk-fetch Steam avatars for a list of Steam64 IDs.
+ * Returns steamId64 → avatarmedium (falls back to avatarfull).
+ */
+export async function fetchSteamAvatars(steamIds: string[]): Promise<Record<string, string>> {
+  if (steamIds.length === 0) return {};
+  const apiKey = getOptionalEnv('STEAM_API_KEY');
+  if (!apiKey) return {};
+
+  const CHUNK_SIZE = 100;
+  const chunks: string[][] = [];
+  for (let i = 0; i < steamIds.length; i += CHUNK_SIZE) {
+    chunks.push(steamIds.slice(i, i + CHUNK_SIZE));
+  }
+
+  try {
+    const responses = await Promise.all(
+      chunks.map((chunk) =>
+        fetch(
+          `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${chunk.join(',')}`,
+        ).then((res) => (res.ok ? res.json() : { response: { players: [] } })),
+      ),
+    );
+
+    const result: Record<string, string> = {};
+    for (const data of responses) {
+      const players: { steamid: string; avatarmedium?: string; avatarfull?: string }[] =
+        data?.response?.players ?? [];
+      for (const p of players) {
+        const avatar = p.avatarmedium || p.avatarfull;
+        if (avatar) result[p.steamid] = avatar;
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Admin: set a custom avatar URL and lock it (prevents Steam auto-sync)
  */
 export async function lockUserAvatar(steamId: string, avatarUrl: string) {

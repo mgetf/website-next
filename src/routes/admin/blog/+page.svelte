@@ -40,7 +40,7 @@
 <div class="mx-auto max-w-7xl space-y-6">
   <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <h2 class="mb-2 text-3xl font-bold text-white">Blog</h2>
+      <h1 class="text-3xl font-bold text-white mb-2">Blog</h1>
       <p class="text-text-body">Write, publish, and manage blog posts</p>
     </div>
     <Button href="/admin/blog/new" variant="primary">New Post</Button>

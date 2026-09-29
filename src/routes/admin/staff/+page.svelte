@@ -69,10 +69,10 @@
 
   const columns: Column[] = [
     { key: 'user', label: 'Staff' },
-    { key: 'discord', label: 'Discord' },
-    { key: 'role', label: 'Role' },
-    { key: 'sync', label: 'Sync' },
-    { key: 'actions', label: 'Actions', align: 'right' },
+    { key: 'discord', label: 'Discord', width: '11rem' },
+    { key: 'role', label: 'Role', width: '7rem' },
+    { key: 'sync', label: 'Sync', width: '8rem' },
+    { key: 'actions', label: 'Actions', align: 'right', width: '14rem' },
   ];
 
   const orphanColumns: Column[] = [
@@ -147,7 +147,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <h2 class="text-3xl font-bold text-white mb-2">Staff</h2>
+      <h1 class="text-3xl font-bold text-white mb-2">Staff</h1>
       <p class="text-text-body">
         Designate site roles, league scope, in-game admin, and Discord roles from one place.
       </p>
@@ -287,46 +287,52 @@
 
   {#each rosterGroups as group (group.regionId ?? 'none')}
     {@const flagCode = group.regionId ? flagForRegion(getRegionAbbr(group.regionName)) : ''}
-    <section class="space-y-2">
-      <div class="flex items-center gap-2 px-1">
+    <section class="space-y-3">
+      <div class="flex items-center gap-3 px-1">
         {#if flagCode}
-          <FlagIcon code={flagCode} class="w-5 h-3.5 rounded-sm" />
+          <FlagIcon code={flagCode} class="h-7 w-10 rounded-sm" />
         {/if}
-        <h3 class="text-sm font-semibold text-white">{group.regionName}</h3>
-        <span class="text-xs text-text-muted">{group.members.length}</span>
+        <h2 class="text-2xl font-bold text-white">{group.regionName}</h2>
+        <span class="text-base text-text-muted">{group.members.length}</span>
       </div>
-      <DataTable data={group.members} {columns} compact>
+      <DataTable data={group.members} {columns}>
         {#snippet cell(row, col)}
           {#if col.key === 'user'}
             {@const chips = staffListChips(row.staffAssignments, {
               regionId: group.regionId ?? undefined,
             })}
-            <div class="flex items-center gap-2 min-w-0">
+            <div class="flex items-start gap-2 min-w-0">
               {#if row.steamAvatar}
-                <img src={row.steamAvatar} alt="" class="w-6 h-6 rounded shrink-0" />
+                <img src={row.steamAvatar} alt="" class="w-8 h-8 rounded shrink-0 mt-0.5" />
               {:else}
                 <div
-                  class="w-6 h-6 bg-surface-hover rounded flex items-center justify-center text-[10px] font-bold text-text-body shrink-0"
+                  class="w-8 h-8 bg-surface-hover rounded flex items-center justify-center text-[10px] font-bold text-text-body shrink-0 mt-0.5"
                 >
                   {row.steamUsername.slice(0, 2).toUpperCase()}
                 </div>
               {/if}
-              <a
-                href="/users/{row.steamId}"
-                class="text-white text-sm font-medium hover:text-primary-400 truncate"
-              >
-                {row.steamUsername}
-              </a>
-              {#each chips as chip (chip.formatId)}
-                {@const theme = formatTheme(chip.formatId)}
-                <span
-                  class="inline-flex items-center gap-1 rounded-md border bg-surface-input px-1.5 py-0 text-[11px] leading-4 {theme.border500_30} shrink-0"
-                  title={chip.title}
+              <div class="min-w-0 flex-1">
+                <a
+                  href="/users/{row.steamId}"
+                  class="text-white text-sm font-medium hover:text-primary-400 truncate block"
                 >
-                  <span class="font-medium {theme.text400}">{chip.formatName}</span>
-                  <span class="text-text-muted">{chip.coverage}</span>
-                </span>
-              {/each}
+                  {row.steamUsername}
+                </a>
+                {#if chips.length > 0}
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    {#each chips as chip (chip.formatId)}
+                      {@const theme = formatTheme(chip.formatId)}
+                      <span
+                        class="inline-flex items-center gap-1 rounded-md border bg-surface-input px-1.5 py-0 text-[11px] leading-4 {theme.border500_30} shrink-0 whitespace-nowrap"
+                        title={chip.title}
+                      >
+                        <span class="font-medium {theme.text400}">{chip.formatName}</span>
+                        <span class="text-text-muted">{chip.coverage}</span>
+                      </span>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
             </div>
           {:else if col.key === 'discord'}
             {#if row.discordId}
@@ -338,34 +344,39 @@
                 <span class="truncate">{row.discordUsername ?? 'Linked'}</span>
               </span>
             {:else}
-              <Badge color="yellow">Not linked</Badge>
+              <Badge color="yellow" class="whitespace-nowrap">Not linked</Badge>
             {/if}
           {:else if col.key === 'role'}
-            <Badge color={permissionBadge(row.permissionLevel)}>
+            <Badge color={permissionBadge(row.permissionLevel)} class="whitespace-nowrap">
               {permissionNames[row.permissionLevel]}
             </Badge>
           {:else if col.key === 'sync'}
-            <div class="space-y-1">
-              <div class="flex items-center gap-1">
+            <div class="min-w-[7.5rem] space-y-1">
+              <div class="flex items-center gap-1 flex-nowrap">
                 <Badge
                   color={syncBadge(row.sourcebansStatus)}
                   tooltip={row.sourcebansError ?? undefined}
+                  class="shrink-0 whitespace-nowrap"
                 >
                   SB {row.sourcebansStatus.toLowerCase()}
                 </Badge>
-                <Badge color={syncBadge(row.discordStatus)} tooltip={row.discordError ?? undefined}>
+                <Badge
+                  color={syncBadge(row.discordStatus)}
+                  tooltip={row.discordError ?? undefined}
+                  class="shrink-0 whitespace-nowrap"
+                >
                   DC {row.discordStatus.toLowerCase()}
                 </Badge>
               </div>
               <p
-                class="text-[11px] text-text-muted"
+                class="text-[11px] text-text-muted whitespace-nowrap"
                 title={row.lastSyncedAt ? new Date(row.lastSyncedAt).toLocaleString() : undefined}
               >
                 {formatRelativeTime(row.lastSyncedAt)}
               </p>
             </div>
           {:else if col.key === 'actions'}
-            <div class="flex justify-end gap-1">
+            <div class="flex justify-end gap-1 flex-nowrap whitespace-nowrap">
               <form
                 method="POST"
                 action="?/retry"

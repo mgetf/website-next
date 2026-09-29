@@ -160,7 +160,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h2 class="text-3xl font-bold text-white mb-2">User Management</h2>
+    <h1 class="text-3xl font-bold text-white mb-2">User Management</h1>
     <p class="text-text-body">
       Manage user accounts, bans, and locks. Staff roles are assigned in Staff.
     </p>

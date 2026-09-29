@@ -5,6 +5,8 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
+  import Tooltip from '$lib/components/ui/Tooltip.svelte';
 
   let { data }: { data: PageData } = $props();
   let cancellingOrder = $state<string | null>(null);
@@ -35,11 +37,11 @@
   }
 </script>
 
-<div>
+<div class="max-w-7xl mx-auto">
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-white">Item Payment Orders</h1>
-      <p class="text-text-body text-sm mt-1">{data.total} total orders</p>
+      <h1 class="text-3xl font-bold text-white mb-2">Item Payment Orders</h1>
+      <p class="text-text-body">{data.total} total orders</p>
     </div>
   </div>
 
@@ -66,7 +68,7 @@
             <tr class="bg-surface-page/80 text-xs text-text-muted uppercase tracking-wider">
               <th class="text-left px-4 py-3 font-medium">Order</th>
               <th class="text-left px-4 py-3 font-medium">Player</th>
-              <th class="text-left px-4 py-3 font-medium">Team</th>
+              <th class="text-left px-4 py-3 font-medium">Target</th>
               <th class="text-left px-4 py-3 font-medium">Items</th>
               <th class="text-left px-4 py-3 font-medium">Status</th>
               <th class="text-left px-4 py-3 font-medium">Trade ID</th>
@@ -90,12 +92,19 @@
                   </a>
                 </td>
                 <td class="px-4 py-3">
-                  <a
-                    href="/teams/{order.teamId}"
-                    class="text-primary-400 hover:text-primary-300 transition-colors text-xs"
-                  >
-                    {order.teamName}
-                  </a>
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    {#if order.formatIconUrl}
+                      <Tooltip text={order.formatName}>
+                        <FormatIcon name={order.formatName} src={order.formatIconUrl} size="sm" />
+                      </Tooltip>
+                    {/if}
+                    <a
+                      href="/teams/{order.teamId}"
+                      class="text-primary-400 hover:text-primary-300 transition-colors text-xs truncate"
+                    >
+                      {order.teamName}
+                    </a>
+                  </div>
                 </td>
                 <td class="px-4 py-3 text-text-label text-xs whitespace-nowrap">
                   {order.itemsReceived}/{order.itemsRequired}

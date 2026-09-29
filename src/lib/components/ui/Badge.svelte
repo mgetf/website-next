@@ -31,7 +31,7 @@
     md: 'px-3 py-1 text-sm',
   };
 
-  const base = 'inline-flex items-center rounded-full font-medium';
+  const base = 'inline-flex items-center whitespace-nowrap rounded-full font-medium';
   const classes = $derived(
     `${base} ${sizeClasses[size]} ${colorClasses[color]} ${extraClass}`.trim(),
   );

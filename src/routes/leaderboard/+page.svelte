@@ -354,22 +354,15 @@
               </svg>
             </div>
           {/if}
-          {#if row.isRegistered && row.name}
-            <a
-              href={resolve('/users/[steamId]', { steamId: row.steamId64 })}
-              class="font-medium text-white hover:text-primary-400 transition-colors truncate"
-            >
-              {row.name}
-            </a>
-          {:else}
-            <a
-              href="https://steamcommunity.com/profiles/{row.steamId64}"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="font-medium text-text-label hover:text-primary-400 transition-colors truncate"
-              >{row.name ?? 'Unknown Player'}</a
-            >
-          {/if}
+          <a
+            href={resolve('/users/[steamId]', { steamId: row.steamId64 })}
+            class="font-medium truncate transition-colors hover:text-primary-400 {row.isRegistered &&
+            row.name
+              ? 'text-white'
+              : 'text-text-label'}"
+          >
+            {row.name ?? 'Unknown Player'}
+          </a>
         </div>
       {:else if col.key === 'elo'}
         <span

@@ -54,6 +54,10 @@ function steamId64FromDigits(value: string): string | null {
   }
 }
 
+export function isSteamId64(value: string): boolean {
+  return steamId64FromDigits(value) !== null;
+}
+
 /** Custom Steam community URL slug, or null if this is not an /id/ URL. */
 export function extractSteamVanity(value: string): string | null {
   const match = value.trim().match(/steamcommunity\.com\/id\/([^/?#]+)/i);

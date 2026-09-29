@@ -29,6 +29,7 @@ import {
   STAFF_PUNISH_BLOCKED_MESSAGE,
   stripManagedDiscordRoles,
 } from './staff';
+import { buildUnregisteredPlayerProfile } from '$lib/utils/unregisteredProfile';
 import { isSafeUrl } from '$lib/utils/safeUrl';
 import {
   mapStaffAssignmentForDisplay,
@@ -79,15 +80,6 @@ export async function getUserBySteamId(steamId: string) {
       },
     },
   });
-}
-
-export async function getRegisteredSteamIds(steamIds: string[]): Promise<string[]> {
-  if (steamIds.length === 0) return [];
-  const users = await prisma.user.findMany({
-    where: { steamId: { in: steamIds } },
-    select: { steamId: true },
-  });
-  return users.map((u) => u.steamId);
 }
 
 /**
@@ -548,9 +540,13 @@ async function getMatchesByTeamIds(
   return result;
 }
 
+export async function getUnregisteredPlayerProfile(steamId: string) {
+  return buildUnregisteredPlayerProfile(steamId, await fetchSteamProfile(steamId));
+}
+
 /**
- * Get complete player profile data
- * Used by player/[steamId] page
+ * Get complete player profile data for a registered mge.tf user.
+ * Returns null when the Steam ID has no website account.
  */
 export async function getPlayerProfile(steamId: string) {
   // Fetch user basic info
@@ -622,6 +618,7 @@ export async function getPlayerProfile(steamId: string) {
   }));
 
   return {
+    registered: true as const,
     player: {
       steamId: user.steamId,
       name: user.steamUsername,

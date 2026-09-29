@@ -1,3 +1,5 @@
+import type { ProfileTab } from '$lib/types/profile';
+
 export function winPct(wins: number, losses: number): string {
   const total = wins + losses;
   if (total === 0) return '0';
@@ -89,8 +91,9 @@ export function teamFormatsIn(
 
 export function parseProfileTab(
   raw: string | null,
-  options: { allow1v1?: boolean } = {},
-): 'overview' | '1v1' | 'stats' {
+  options: { allow1v1?: boolean; allowChat?: boolean } = {},
+): ProfileTab {
+  if (raw === 'chat' && options.allowChat) return 'chat';
   if (raw === 'stats') return 'stats';
   if (raw === '1v1' && options.allow1v1 !== false) return '1v1';
   return 'overview';

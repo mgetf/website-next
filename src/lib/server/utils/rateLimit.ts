@@ -181,6 +181,11 @@ export const serverStatsRateLimiter = new RateLimiter({
   windowMs: 60 * 1000, // 1 minute
 });
 
+export const chatHistoryRateLimiter = new RateLimiter({
+  maxRequests: 60,
+  windowMs: 60 * 1000,
+});
+
 /**
  * Rate limiter for blog comments
  * 8 comments per 5 minutes per user

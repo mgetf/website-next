@@ -1,6 +1,27 @@
 import type { ProfileMatch } from './match';
 
-export type ProfileTab = 'overview' | '1v1' | 'stats';
+export type ProfileTab = 'overview' | '1v1' | 'stats' | 'chat';
+
+export type ChatWindow = '7' | '30' | '90' | 'all';
+
+export interface ProfileChatMessage {
+  id: number;
+  region: string;
+  steamId: string;
+  name: string | null;
+  team: number | null;
+  scope: 'all' | 'team';
+  message: string;
+  serverIp: string;
+  serverName: string | null;
+  map: string | null;
+  ts: string;
+}
+
+export interface ProfileChatPage {
+  messages: ProfileChatMessage[];
+  nextCursor: number | null;
+}
 
 export type StatsWindow = 7 | 30 | 90 | 'all';
 

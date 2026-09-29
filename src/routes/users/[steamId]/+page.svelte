@@ -5,6 +5,7 @@
   import { page } from '$app/state';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import InsightsPanel from '$lib/components/profile/InsightsPanel.svelte';
+  import ChatHistoryPanel from '$lib/components/profile/ChatHistoryPanel.svelte';
   import LeaguePanel from '$lib/components/profile/LeaguePanel.svelte';
   import OverviewPanel from '$lib/components/profile/OverviewPanel.svelte';
   import StaffToolsPanel from '$lib/components/profile/StaffToolsPanel.svelte';
@@ -122,20 +123,17 @@
   ]);
 
   const tab = $derived(
-    parseProfileTab(page.url.searchParams.get('tab'), { allow1v1: isRegistered }),
+    parseProfileTab(page.url.searchParams.get('tab'), {
+      allow1v1: isRegistered,
+      allowChat: isAdmin,
+    }),
   );
-  const tabs = $derived<{ id: ProfileTab; label: string }[]>(
-    isRegistered
-      ? [
-          { id: 'overview', label: 'Overview' },
-          { id: '1v1', label: '1v1' },
-          { id: 'stats', label: 'Stats' },
-        ]
-      : [
-          { id: 'overview', label: 'Overview' },
-          { id: 'stats', label: 'Stats' },
-        ],
-  );
+  const tabs = $derived<{ id: ProfileTab; label: string }[]>([
+    { id: 'overview', label: 'Overview' },
+    ...(isRegistered ? [{ id: '1v1' as const, label: '1v1' }] : []),
+    { id: 'stats', label: 'Stats' },
+    ...(isAdmin ? [{ id: 'chat' as const, label: 'Chat' }] : []),
+  ]);
 
   let withdrawingEntry: Profile1v1Entry | null = $state(null);
   let isWithdrawing = $state(false);
@@ -414,6 +412,10 @@
         onMarkPaid={() => (showMarkPaidConfirm = true)}
         onUnmarkPaid={() => (showUnmarkPaidConfirm = true)}
       />
+    </div>
+  {:else if tab === 'chat' && isAdmin}
+    <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
+      <ChatHistoryPanel steamId={player.steamId} regions={data.platformRegions} />
     </div>
   {:else}
     <div id="panel-stats" role="tabpanel" aria-labelledby="tab-stats">

@@ -18,4 +18,10 @@ describe('parseProfileTab', () => {
     expect(parseProfileTab('1v1', { allow1v1: false })).toBe('overview');
     expect(parseProfileTab('stats', { allow1v1: false })).toBe('stats');
   });
+
+  it('accepts chat only for staff', () => {
+    expect(parseProfileTab('chat')).toBe('overview');
+    expect(parseProfileTab('chat', { allowChat: false })).toBe('overview');
+    expect(parseProfileTab('chat', { allowChat: true })).toBe('chat');
+  });
 });

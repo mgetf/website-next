@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
 import type { InvestigateResult } from '$lib/types/investigation';
-import type { PlayerServerStats, StatsWindow } from '$lib/types/profile';
+import type { PlayerServerStats, ProfileChatPage, StatsWindow } from '$lib/types/profile';
 import { steamId32FromSteamId64 } from '$lib/utils/steamid';
 import { getPlatformAdminSecret } from '$lib/server/utils/env';
 
@@ -237,6 +237,37 @@ export async function getPlayerServerStats(
     );
     if (!res.ok) return null;
     return (await res.json()) as PlayerServerStats;
+  } catch {
+    return null;
+  }
+}
+
+export async function getPlayerChatHistory(
+  steamId64: string,
+  opts: { region?: string; from?: number; to?: number; cursor?: number; limit?: number },
+): Promise<ProfileChatPage | null> {
+  const base = getPlatformUrl();
+  const secret = getPlatformAdminSecret();
+  if (!base || !secret) return null;
+  const steam2Id = steamId32FromSteamId64(steamId64);
+  const params = new URLSearchParams();
+  if (opts.region) params.set('region', opts.region);
+  if (opts.from != null) params.set('from', String(opts.from));
+  if (opts.to != null) params.set('to', String(opts.to));
+  if (opts.cursor != null) params.set('cursor', String(opts.cursor));
+  if (opts.limit != null) params.set('limit', String(opts.limit));
+  try {
+    const res = await fetch(
+      `${base}/api/v1/admin/chat/player/${encodeURIComponent(steam2Id)}?${params}`,
+      {
+        headers: { Authorization: `Bearer ${secret}` },
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as ProfileChatPage;
+    if (!data || !Array.isArray(data.messages)) return null;
+    return data;
   } catch {
     return null;
   }

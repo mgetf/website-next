@@ -41,6 +41,7 @@
     sortDir,
     onSort,
     maxVisibleRows,
+    viewportHeight,
   }: {
     data: T[];
     columns: Column[];
@@ -60,6 +61,7 @@
     sortDir?: 'asc' | 'desc';
     onSort?: (key: string) => void;
     maxVisibleRows?: number;
+    viewportHeight?: string;
   } = $props();
 
   function getAlignClass(align?: 'left' | 'center' | 'right'): string {
@@ -84,11 +86,11 @@
   const tableFixed = $derived(columns.some((col) => Boolean(col.width)));
   const viewportMaxHeight = $derived.by(() => {
     if (maxVisibleRows == null || maxVisibleRows <= 0) return undefined;
-    const headRem = compact ? 2.5 : 3.25;
-    const rowRem = compact ? 2.375 : 3.5;
+    const headRem = dense ? 1.875 : compact ? 2.5 : 3.25;
+    const rowRem = dense ? 1.625 : compact ? 2.375 : 3.5;
     return `calc(${headRem}rem + ${maxVisibleRows} * ${rowRem}rem)`;
   });
-  const stickyHead = $derived(Boolean(viewportMaxHeight));
+  const stickyHead = $derived(Boolean(viewportHeight || viewportMaxHeight));
 </script>
 
 {#if data.length === 0}
@@ -106,7 +108,11 @@
   <div
     class="bg-surface-card/80 backdrop-blur border border-border-default rounded-lg overflow-hidden"
   >
-    <div class="overflow-auto" style:max-height={viewportMaxHeight}>
+    <div
+      class="overflow-auto"
+      style:height={viewportHeight}
+      style:max-height={viewportHeight ? undefined : viewportMaxHeight}
+    >
       <table class={['w-full', tableFixed && 'table-fixed']}>
         <thead
           class="{headerClass || 'bg-surface-card/80'} border-b border-border-default {stickyHead
@@ -117,9 +123,11 @@
             {#each columns as col (col.key)}
               <th
                 scope="col"
-                class="{headPadding} text-sm font-semibold text-text-label {getAlignClass(
-                  col.align,
-                )}"
+                class="{headPadding} {dense
+                  ? ''
+                  : 'text-sm'} font-semibold text-text-label {tableFixed
+                  ? 'overflow-hidden'
+                  : ''} {getAlignClass(col.align)}"
                 style={col.width ? `width: ${col.width}` : undefined}
               >
                 {#if header}
@@ -198,7 +206,11 @@
               onclick={() => handleRowClick(row)}
             >
               {#each columns as col (col.key)}
-                <td class="{cellPadding} {getAlignClass(col.align)}">
+                <td
+                  class="{cellPadding} {getAlignClass(col.align)} {tableFixed
+                    ? 'overflow-hidden'
+                    : ''}"
+                >
                   {@render cell(row, col)}
                 </td>
               {/each}

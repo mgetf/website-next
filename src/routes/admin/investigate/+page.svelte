@@ -6,6 +6,7 @@
   import FormInput from '$lib/components/ui/form/FormInput.svelte';
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
+  import InvestigateChat from '$lib/components/admin/InvestigateChat.svelte';
   import { flagForRegion } from '$lib/utils/regions';
   import { steamId3FromSteamId64 } from '$lib/utils/steamid';
   import type {
@@ -31,6 +32,15 @@
     { key: 'at', label: 'Time', width: '168px' },
   ];
 
+  const steamEventColumns: Column[] = [
+    { key: 'region', label: 'Region', width: '4.5rem', align: 'center' },
+    { key: 'action', label: 'Action', width: '5.5rem' },
+    { key: 'name', label: 'Name', width: '4.5rem' },
+    { key: 'ip', label: 'IP', width: '7.25rem' },
+    { key: 'server', label: 'Server' },
+    { key: 'at', label: 'Time', width: '6.75rem' },
+  ];
+
   const accountColumns: Column[] = [
     { key: 'account', label: 'Account' },
     { key: 'name', label: 'Name' },
@@ -49,6 +59,19 @@
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+    });
+    return `${day} ${time}`;
+  }
+
+  function formatWhenShort(value: string | null): string {
+    if (!value) return 'Unknown';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    const day = date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+    const time = date.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
     });
     return `${day} ${time}`;
   }
@@ -426,48 +449,71 @@
         </Card>
       </div>
 
-      <Card padding="sm">
-        {#snippet header()}
-          <h2 class="text-base sm:text-lg font-semibold text-white">
-            Recent events ({steam.eventCount})
-          </h2>
-        {/snippet}
-        <DataTable data={steam.events} columns={eventColumns} dense emptyMessage="No events">
-          {#snippet cell(row: InvestigateEvent, col)}
-            {#if col.key === 'region'}
-              <span
-                class="inline-flex justify-center"
-                title={row.region.toUpperCase()}
-                aria-label={row.region.toUpperCase()}
-              >
-                <FlagIcon code={flagForRegion(row.region)} class="w-5 h-3.5 rounded-sm" />
-              </span>
-            {:else if col.key === 'action'}
-              <span class="whitespace-nowrap">{row.action}</span>
-            {:else if col.key === 'name'}
-              {row.name ?? 'Unknown'}
-            {:else if col.key === 'ip'}
-              {#if row.ip && row.ipKind === 'usable'}
-                <a
-                  class="text-primary-400 hover:underline whitespace-nowrap"
-                  href="?q={encodeURIComponent(row.ip)}">{row.ip}</a
-                >
-              {:else}
-                <span class="inline-flex items-center gap-1 whitespace-nowrap">
-                  {row.ip ?? 'Unknown'}
-                  {#if row.ipKind && row.ipKind !== 'usable'}
-                    <Badge color={ipKindColor(row.ipKind)}>{ipKindLabel(row.ipKind)}</Badge>
-                  {/if}
-                </span>
-              {/if}
-            {:else if col.key === 'server'}
-              {row.serverName ?? row.serverIp}
-            {:else}
-              <span class="whitespace-nowrap">{formatWhen(row.at)}</span>
-            {/if}
+      <div class="grid items-start gap-4 lg:grid-cols-2">
+        <Card padding="none" class="min-w-0 overflow-hidden">
+          {#snippet header()}
+            <div class="px-4 py-3">
+              <h2 class="text-base font-semibold text-white sm:text-lg">
+                Recent events ({steam.eventCount})
+              </h2>
+            </div>
           {/snippet}
-        </DataTable>
-      </Card>
+          <DataTable
+            data={steam.events}
+            columns={steamEventColumns}
+            dense
+            viewportHeight="32rem"
+            emptyMessage="No events"
+          >
+            {#snippet cell(row: InvestigateEvent, col)}
+              {#if col.key === 'region'}
+                <span
+                  class="inline-flex justify-center"
+                  title={row.region.toUpperCase()}
+                  aria-label={row.region.toUpperCase()}
+                >
+                  <FlagIcon code={flagForRegion(row.region)} class="w-5 h-3.5 rounded-sm" />
+                </span>
+              {:else if col.key === 'action'}
+                <span class="block truncate" title={row.action}>{row.action}</span>
+              {:else if col.key === 'name'}
+                <span class="block truncate" title={row.name ?? 'Unknown'}
+                  >{row.name ?? 'Unknown'}</span
+                >
+              {:else if col.key === 'ip'}
+                {#if row.ip && row.ipKind === 'usable'}
+                  <a
+                    class="block truncate text-primary-400 hover:underline"
+                    title={row.ip}
+                    href="?q={encodeURIComponent(row.ip)}">{row.ip}</a
+                  >
+                {:else}
+                  <span class="inline-flex max-w-full items-center gap-1">
+                    <span class="truncate">{row.ip ?? 'Unknown'}</span>
+                    {#if row.ipKind && row.ipKind !== 'usable'}
+                      <Badge color={ipKindColor(row.ipKind)}>{ipKindLabel(row.ipKind)}</Badge>
+                    {/if}
+                  </span>
+                {/if}
+              {:else if col.key === 'server'}
+                {@const server = row.serverName ?? row.serverIp}
+                <span class="block truncate" title={server}>{server}</span>
+              {:else}
+                <span class="block truncate tabular-nums" title={formatWhen(row.at)}
+                  >{formatWhenShort(row.at)}</span
+                >
+              {/if}
+            {/snippet}
+          </DataTable>
+        </Card>
+        {#if steam.steam64}
+          <div class="min-w-0">
+            {#key steam.steam64}
+              <InvestigateChat steamId={steam.steam64} />
+            {/key}
+          </div>
+        {/if}
+      </div>
     {/if}
   {/if}
 </div>

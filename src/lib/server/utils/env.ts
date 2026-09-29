@@ -22,7 +22,7 @@
  *   DISCORD_VERIFY_REMOVE_ROLE_IDS  Comma-separated role IDs removed when linked (Unverified)
  *   DISCORD_VERIFICATION_LOG_CHANNEL_ID  Channel for link/unlink role-sync notices
  *   MGE_PLATFORM_URL              Platform API origin (ratings / leaderboard / investigate)
- *   MGE_PLATFORM_ADMIN_SECRET     Bearer token matching platform ADMIN_SECRET (investigate)
+ *   MGE_PLATFORM_ADMIN_SECRET     Bearer token matching platform ADMIN_SECRET (investigate, chat)
  */
 
 /**

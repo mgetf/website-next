@@ -27,6 +27,7 @@ describe('flagForRegion', () => {
     expect(flagForRegion('sa')).toBe('ar');
     expect(flagForRegion('eu')).toBe('eu');
     expect(flagForRegion('asia')).toBe('sg');
+    expect(flagForRegion('au')).toBe('au');
     expect(flagForRegion('aus')).toBe('au');
     expect(flagForRegion('oce')).toBe('au');
   });

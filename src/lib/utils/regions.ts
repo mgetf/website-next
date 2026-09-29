@@ -9,6 +9,7 @@ const DEFAULT_REGION_FLAGS: Record<string, string> = {
   sa: 'ar',
   eu: 'eu',
   asia: 'sg',
+  au: 'au',
   aus: 'au',
   oce: 'au',
 };

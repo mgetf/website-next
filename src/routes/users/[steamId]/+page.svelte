@@ -25,6 +25,7 @@
   import { parseProfileTab, profileExternalLinks } from '$lib/utils/profile';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
   import Settings from '~icons/lucide/settings';
+  import Shield from '~icons/lucide/shield';
 
   interface TeamWithMatches {
     teamId: number;
@@ -359,11 +360,17 @@
           aria-selected={tab === item.id}
           aria-controls="panel-{item.id}"
           data-sveltekit-noscroll
-          class="inline-flex items-center border-b-2 px-4 py-3 text-sm font-medium transition-colors {tab ===
-          item.id
+          aria-label={item.id === 'chat' ? 'Chat, staff only' : undefined}
+          class="inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors {item.id ===
+          'chat'
+            ? 'ml-auto'
+            : ''} {tab === item.id
             ? 'border-primary-500 text-white'
             : 'border-transparent text-text-muted hover:text-text-label'}"
         >
+          {#if item.id === 'chat'}
+            <Shield class="size-3.5" aria-hidden="true" />
+          {/if}
           {item.label}
         </a>
       {/each}
@@ -415,7 +422,9 @@
     </div>
   {:else if tab === 'chat' && isAdmin}
     <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
-      <ChatHistoryPanel steamId={player.steamId} regions={data.platformRegions} />
+      {#key player.steamId}
+        <ChatHistoryPanel steamId={player.steamId} regions={data.platformRegions} />
+      {/key}
     </div>
   {:else}
     <div id="panel-stats" role="tabpanel" aria-labelledby="tab-stats">

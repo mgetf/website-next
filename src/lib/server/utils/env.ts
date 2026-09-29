@@ -21,6 +21,8 @@
  *   DISCORD_VERIFY_ADD_ROLE_IDS     Comma-separated role IDs granted when Discord is linked (MGER)
  *   DISCORD_VERIFY_REMOVE_ROLE_IDS  Comma-separated role IDs removed when linked (Unverified)
  *   DISCORD_VERIFICATION_LOG_CHANNEL_ID  Channel for link/unlink role-sync notices
+ *   MGE_PLATFORM_URL              Platform API origin (ratings / leaderboard / investigate)
+ *   MGE_PLATFORM_ADMIN_SECRET     Bearer token matching platform ADMIN_SECRET (investigate)
  */
 
 /**
@@ -46,6 +48,7 @@ const RECOMMENDED_VARS = [
   'LOG_DIR',
   'MGE_PANEL_URL',
   'MGE_PLATFORM_URL',
+  'MGE_PLATFORM_ADMIN_SECRET',
   'PARSER_URL',
   'REALTIME_NOTIFICATIONS_ENABLED',
   'SOURCEBANS_API_URL',
@@ -204,4 +207,8 @@ export function getDiscordVerifyRemoveRoleIds(): string {
 
 export function getDiscordVerificationLogChannelId(): string {
   return getOptionalEnv('DISCORD_VERIFICATION_LOG_CHANNEL_ID').trim();
+}
+
+export function getPlatformAdminSecret(): string {
+  return getOptionalEnv('MGE_PLATFORM_ADMIN_SECRET').trim();
 }

@@ -1,7 +1,9 @@
 import { env } from '$env/dynamic/private';
 import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
+import type { InvestigateResult } from '$lib/types/investigation';
 import type { PlayerServerStats, StatsWindow } from '$lib/types/profile';
 import { steamId32FromSteamId64 } from '$lib/utils/steamid';
+import { getPlatformAdminSecret } from '$lib/server/utils/env';
 
 function getPlatformUrl(): string {
   return (env.MGE_PLATFORM_URL ?? '').replace(/\/$/, '');
@@ -237,5 +239,41 @@ export async function getPlayerServerStats(
     return (await res.json()) as PlayerServerStats;
   } catch {
     return null;
+  }
+}
+
+export function isPlatformInvestigateConfigured(): boolean {
+  return getPlatformUrl().length > 0 && getPlatformAdminSecret().length > 0;
+}
+
+export async function investigatePlayer(query: string): Promise<InvestigateResult> {
+  const base = getPlatformUrl();
+  const secret = getPlatformAdminSecret();
+  if (!base || !secret) {
+    return { kind: 'error', message: 'Platform investigate is not configured' };
+  }
+  try {
+    const res = await fetch(`${base}/api/v1/admin/investigate?q=${encodeURIComponent(query)}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) {
+      if (res.status === 400) {
+        const data = (await res.json().catch(() => null)) as InvestigateResult | null;
+        if (data && typeof data === 'object' && 'kind' in data) return data;
+        return { kind: 'invalid' };
+      }
+      if (res.status === 401 || res.status === 403) {
+        return { kind: 'error', message: 'Platform rejected the admin secret' };
+      }
+      return { kind: 'error', message: 'Platform investigate request failed' };
+    }
+    const data = (await res.json()) as InvestigateResult;
+    if (!data || typeof data !== 'object' || !('kind' in data)) {
+      return { kind: 'error', message: 'Platform returned an unexpected payload' };
+    }
+    return data;
+  } catch {
+    return { kind: 'error', message: 'Could not reach the platform API' };
   }
 }

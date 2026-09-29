@@ -2,6 +2,7 @@ import { error, fail, isHttpError } from '@sveltejs/kit';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import {
   getPlayerProfile,
+  getUnregisteredPlayerProfile,
   getUserBySteamId,
   unlinkDiscord,
   linkDiscordAccountById,
@@ -33,9 +34,14 @@ import { withClasseloRanks } from '$lib/server/services/leaderboard';
 import { buildPageSeo } from '$lib/utils/seo';
 import { z } from 'zod';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
+import { isSteamId64 } from '$lib/utils/steamid';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
+
+  if (!isSteamId64(steamId)) {
+    throw error(404, 'User not found');
+  }
 
   try {
     const [profile, ratings, classRatings, platformRegions, formats] = await Promise.all([
@@ -46,9 +52,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       getFormatsForFilter(),
     ]);
 
-    if (!profile) {
-      throw error(404, 'User not found');
-    }
+    const resolvedProfile = profile ?? (await getUnregisteredPlayerProfile(steamId));
 
     const isOwnProfile = locals.user?.steamId === steamId;
     const isUserAdmin = isAdmin(locals.user);
@@ -56,15 +60,16 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     // Load divisions for the admin division-change control on the active 1v1 entry
     let divisions1v1: { id: number; name: string; signupCost: number; regionId: number }[] = [];
-    if (isUserAdmin && profile.current1v1Entry?.regionId) {
+    if (isUserAdmin && resolvedProfile.current1v1Entry?.regionId) {
       const allDivisions = await getVisibleDivisions();
       divisions1v1 = allDivisions.filter(
-        (d) => d.regionId === profile.current1v1Entry!.regionId && d.formatId === FORMAT_1V1,
+        (d) =>
+          d.regionId === resolvedProfile.current1v1Entry!.regionId && d.formatId === FORMAT_1V1,
       );
     }
 
-    const activeTeam = profile.currentTeams[0];
-    const active1v1 = profile.current1v1Entry;
+    const activeTeam = resolvedProfile.currentTeams[0];
+    const active1v1 = resolvedProfile.current1v1Entry;
     const contextBits = [
       activeTeam
         ? `${activeTeam.teamName} · ${activeTeam.formatName} · ${activeTeam.division} (${activeTeam.regionName}) · S${activeTeam.seasonNum}`
@@ -72,23 +77,26 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       !activeTeam && active1v1
         ? `1v1 · ${active1v1.division} (${active1v1.region}) · S${active1v1.seasonNum}`
         : null,
-      profile.player.discordUsername ? `Discord: ${profile.player.discordUsername}` : null,
+      resolvedProfile.player.discordUsername
+        ? `Discord: ${resolvedProfile.player.discordUsername}`
+        : null,
     ].filter(Boolean);
-    const seoDescription =
-      contextBits.length > 0
-        ? `${profile.player.name} on MGE.tf — ${contextBits.join(' · ')}`
-        : `${profile.player.name}'s player profile on MGE.tf`;
+    const seoDescription = resolvedProfile.registered
+      ? contextBits.length > 0
+        ? `${resolvedProfile.player.name} on MGE.tf — ${contextBits.join(' · ')}`
+        : `${resolvedProfile.player.name}'s player profile on MGE.tf`
+      : `${resolvedProfile.player.name} has played on MGE.tf servers but is not registered on the website.`;
 
     return {
       seo: buildPageSeo(url.origin, {
-        title: `${profile.player.name} | MGE.tf`,
+        title: `${resolvedProfile.player.name} | MGE.tf`,
         description: seoDescription,
-        image: profile.player.avatar,
-        imageAlt: `${profile.player.name}'s avatar`,
+        image: resolvedProfile.player.avatar,
+        imageAlt: `${resolvedProfile.player.name}'s avatar`,
         card: 'summary',
         type: 'profile',
       }),
-      ...profile,
+      ...resolvedProfile,
       ratings,
       classRatings: await withClasseloRanks(classRatings),
       platformRegions,

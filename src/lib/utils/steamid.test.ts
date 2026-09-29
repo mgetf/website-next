@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   extractSteamVanity,
+  isSteamId64,
   steamId32FromSteamId64,
   steamId3FromSteamId64,
   steamId64FromSteamId3,
@@ -80,6 +81,21 @@ describe('steamId64FromAnyFormat', () => {
   it('returns null for empty or custom URLs', () => {
     expect(steamId64FromAnyFormat('')).toBeNull();
     expect(steamId64FromAnyFormat('https://steamcommunity.com/id/custom')).toBeNull();
+  });
+});
+
+describe('isSteamId64', () => {
+  it('accepts a 17-digit Steam64 at or above the Steam base', () => {
+    expect(isSteamId64(SAMPLE_64)).toBe(true);
+    expect(isSteamId64('76561197960265728')).toBe(true);
+  });
+
+  it('rejects other Steam ID shapes and too-small 17-digit values', () => {
+    expect(isSteamId64('')).toBe(false);
+    expect(isSteamId64(SAMPLE_32)).toBe(false);
+    expect(isSteamId64(SAMPLE_3)).toBe(false);
+    expect(isSteamId64('76561197960265727')).toBe(false);
+    expect(isSteamId64('not-a-steam-id')).toBe(false);
   });
 });
 

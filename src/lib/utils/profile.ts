@@ -87,8 +87,12 @@ export function teamFormatsIn(
   return [...seen.values()];
 }
 
-export function parseProfileTab(raw: string | null): 'overview' | '1v1' | 'stats' {
-  if (raw === '1v1' || raw === 'stats') return raw;
+export function parseProfileTab(
+  raw: string | null,
+  options: { allow1v1?: boolean } = {},
+): 'overview' | '1v1' | 'stats' {
+  if (raw === 'stats') return 'stats';
+  if (raw === '1v1' && options.allow1v1 !== false) return '1v1';
   return 'overview';
 }
 

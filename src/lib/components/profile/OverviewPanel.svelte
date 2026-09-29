@@ -24,6 +24,7 @@
     teamFormatsIn,
     winPct,
   } from '$lib/utils/profile';
+  import UserPlus from '~icons/lucide/user-plus';
   import RatingTrend from './RatingTrend.svelte';
 
   const DEFAULT_AVATAR = '/default-avatar.png';
@@ -51,6 +52,7 @@
     onOpen1v1,
     previewCompactSeries,
     formats = [],
+    registered = true,
   }: {
     ratings: MgeRating[];
     regions: PlatformRegion[];
@@ -73,6 +75,7 @@
     onOpen1v1: () => void;
     previewCompactSeries?: { label: string; value: number }[];
     formats?: { code: string; name: string; iconUrl: string | null }[];
+    registered?: boolean;
   } = $props();
 
   const shownRatings = $derived(visibleServerRatings(ratings));
@@ -274,7 +277,9 @@
   <div class="space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-sm font-semibold text-white">Server rating</h2>
-      <Button variant="primary" size="sm" href="/logs?player={steamId}">Logs</Button>
+      {#if shownRatings.length > 0}
+        <Button variant="primary" size="sm" href="/logs?player={steamId}">Logs</Button>
+      {/if}
     </div>
     {#if shownRatings.length === 0}
       <p class="text-sm text-text-muted">
@@ -391,441 +396,467 @@
     {/if}
   </div>
 
-  <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-    <Card padding="none" class="overflow-hidden">
-      {#snippet header()}
-        <div class="flex items-center justify-between px-5 py-3">
-          <div>
-            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-              <FormatIcon name="1v1" src={icon1v1} size="sm" />
-              1v1 league
-            </h2>
-            <p class="text-xs text-text-muted">Season entry on this profile</p>
-          </div>
-        </div>
-      {/snippet}
-      {#if active1v1}
-        <div class="space-y-3 px-5 py-4">
-          <div class="flex items-start justify-between gap-3">
+  {#if !registered}
+    <div
+      class="flex items-start gap-3 rounded-xl border border-dashed border-border-input bg-surface-card px-4 py-3.5"
+    >
+      <div
+        class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-500/10 text-primary-400"
+      >
+        <UserPlus class="size-5" />
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-white">Not registered on MGE.tf</p>
+        <p class="mt-0.5 text-sm text-text-label">
+          This Steam account has no site profile. Server ratings and stats still come from play on
+          MGE.tf game servers.
+        </p>
+      </div>
+    </div>
+  {:else}
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Card padding="none" class="overflow-hidden">
+        {#snippet header()}
+          <div class="flex items-center justify-between px-5 py-3">
             <div>
-              <p>
-                <SeasonScope
-                  region={active1v1.region}
-                  seasonNum={active1v1.seasonNum}
-                  division={active1v1.division}
-                />
-              </p>
-              <p class="mt-1 font-mono text-sm text-format-1v1-400">
-                {active1v1.wins}–{active1v1.losses}
-                <span class="ml-2 font-sans text-xs text-text-muted"
-                  >{winPct(active1v1.wins, active1v1.losses)}% WR</span
-                >
-              </p>
+              <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+                <FormatIcon name="1v1" src={icon1v1} size="sm" />
+                1v1 league
+              </h2>
+              <p class="text-xs text-text-muted">Season entry on this profile</p>
             </div>
-            <Badge color={statusColor(active1v1.status)}>{statusLabel(active1v1.status)}</Badge>
           </div>
-          {#if isOwn && !active1v1.isPaid && active1v1.signupCost > 0}
-            <p class="text-sm text-warning-400">Signup fee still unpaid — ready-up is locked.</p>
-          {/if}
-          <div class="flex flex-wrap gap-2">
+        {/snippet}
+        {#if active1v1}
+          <div class="space-y-3 px-5 py-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p>
+                  <SeasonScope
+                    region={active1v1.region}
+                    seasonNum={active1v1.seasonNum}
+                    division={active1v1.division}
+                  />
+                </p>
+                <p class="mt-1 font-mono text-sm text-format-1v1-400">
+                  {active1v1.wins}–{active1v1.losses}
+                  <span class="ml-2 font-sans text-xs text-text-muted"
+                    >{winPct(active1v1.wins, active1v1.losses)}% WR</span
+                  >
+                </p>
+              </div>
+              <Badge color={statusColor(active1v1.status)}>{statusLabel(active1v1.status)}</Badge>
+            </div>
             {#if isOwn && !active1v1.isPaid && active1v1.signupCost > 0}
-              <Button variant="warning" size="sm" href="/checkout/{steamId}">Go to checkout</Button>
+              <p class="text-sm text-warning-400">Signup fee still unpaid — ready-up is locked.</p>
+            {/if}
+            <div class="flex flex-wrap gap-2">
+              {#if isOwn && !active1v1.isPaid && active1v1.signupCost > 0}
+                <Button variant="warning" size="sm" href="/checkout/{steamId}"
+                  >Go to checkout</Button
+                >
+              {/if}
+            </div>
+          </div>
+        {:else}
+          <div class="px-5 py-8 text-center">
+            <p class="text-sm text-text-muted">No active 1v1 entry</p>
+            {#if isOwn}
+              <div class="mt-3">
+                <Button href="/leagues/1v1" variant="format-1v1" size="sm">Browse 1v1 league</Button
+                >
+              </div>
             {/if}
           </div>
-        </div>
-      {:else}
-        <div class="px-5 py-8 text-center">
-          <p class="text-sm text-text-muted">No active 1v1 entry</p>
-          {#if isOwn}
-            <div class="mt-3">
-              <Button href="/leagues/1v1" variant="format-1v1" size="sm">Browse 1v1 league</Button>
+        {/if}
+      </Card>
+
+      <Card padding="none" class="overflow-hidden">
+        {#snippet header()}
+          <div class="flex items-center justify-between px-5 py-3">
+            <div>
+              <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+                <FormatIcon name="2v2" src={icon2v2} size="sm" />
+                Team leagues
+              </h2>
+              <p class="text-xs text-text-muted">Roster HQ stays on the team page</p>
             </div>
-          {/if}
-        </div>
-      {/if}
-    </Card>
+          </div>
+        {/snippet}
+        {#if currentTeams.length === 0}
+          <div class="px-5 py-8 text-center">
+            <p class="text-sm text-text-muted">No active team</p>
+            {#if isOwn}
+              <div class="mt-3">
+                <Button href="/teams" variant="secondary" size="sm">Browse teams</Button>
+              </div>
+            {/if}
+          </div>
+        {:else if currentTeams.length === 1 && currentTeam}
+          <div class="space-y-3 px-5 py-4">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 items-start gap-3">
+                <img
+                  src={currentTeam.avatar || DEFAULT_AVATAR}
+                  alt=""
+                  class="size-12 shrink-0 rounded-lg object-cover"
+                />
+                <div class="min-w-0">
+                  <a
+                    href={resolve('/teams/[id]', { id: String(currentTeam.teamId) })}
+                    class="inline-flex items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
+                  >
+                    {#if currentTeam.formatIconUrl}
+                      <Tooltip text={currentTeam.formatName}>
+                        <FormatIcon
+                          name={currentTeam.formatName}
+                          src={currentTeam.formatIconUrl}
+                          size="sm"
+                        />
+                      </Tooltip>
+                    {/if}
+                    {currentTeam.teamName}
+                  </a>
+                  <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
+                    <SeasonScope
+                      region={currentTeam.regionName}
+                      seasonNum={currentTeam.seasonNum}
+                      division={currentTeam.division}
+                    />
+                  </p>
+                  <p class="mt-1 font-mono text-sm text-success-400">
+                    {currentTeam.wins}–{currentTeam.losses}
+                    <span class="ml-2 font-sans text-xs text-text-muted"
+                      >{winPct(currentTeam.wins, currentTeam.losses)}% WR</span
+                    >
+                  </p>
+                </div>
+              </div>
+              <Badge color={statusColor(currentTeam.status)}
+                >{statusLabel(currentTeam.status)}</Badge
+              >
+            </div>
+          </div>
+        {:else}
+          <div class="divide-y divide-border-default/50">
+            {#each currentTeams as team (team.teamId)}
+              <div class="flex items-start gap-3 px-5 py-3">
+                <img
+                  src={team.avatar || DEFAULT_AVATAR}
+                  alt=""
+                  class="size-10 shrink-0 rounded-lg object-cover"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-start justify-between gap-2">
+                    <a
+                      href={resolve('/teams/[id]', { id: String(team.teamId) })}
+                      class="inline-flex items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
+                    >
+                      {#if team.formatIconUrl}
+                        <Tooltip text={team.formatName}>
+                          <FormatIcon name={team.formatName} src={team.formatIconUrl} size="sm" />
+                        </Tooltip>
+                      {/if}
+                      {team.teamName}
+                    </a>
+                    <Badge color={statusColor(team.status)}>{statusLabel(team.status)}</Badge>
+                  </div>
+                  <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
+                    <SeasonScope
+                      region={team.regionName}
+                      seasonNum={team.seasonNum}
+                      division={team.division}
+                    />
+                  </p>
+                  <p class="mt-1 font-mono text-sm text-success-400">
+                    {team.wins}–{team.losses}
+                    <span class="ml-2 font-sans text-xs text-text-muted"
+                      >{winPct(team.wins, team.losses)}% WR</span
+                    >
+                  </p>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </Card>
+    </div>
+
+    {#if entries1v1.length > 0}
+      <Card padding="none" class="overflow-hidden">
+        {#snippet header()}
+          <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+              <FormatIcon name="1v1" src={icon1v1} size="sm" />
+              1v1 history
+            </h2>
+            {#if entries1v1.length > 1}
+              <div class="flex flex-wrap gap-1" role="group" aria-label="Season">
+                {#each entries1v1 as entry (entry.id)}
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selected1v1SeasonId ===
+                    String(entry.id)
+                      ? 'border-primary-500 bg-primary-500/15 text-white'
+                      : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
+                    aria-pressed={selected1v1SeasonId === String(entry.id)}
+                    onclick={() => (selected1v1SeasonId = String(entry.id))}
+                  >
+                    Season {entry.seasonNum}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/snippet}
+        {#if selected1v1Entry}
+          <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
+            <p class="text-sm">
+              <SeasonScope
+                region={selected1v1Entry.region}
+                seasonNum={selected1v1Entry.seasonNum}
+                division={selected1v1Entry.division}
+              />
+            </p>
+            <div class="flex items-center gap-3">
+              <p class="text-xs text-text-muted">
+                <span class="font-mono">{selected1v1Entry.wins}–{selected1v1Entry.losses}</span>
+                <span class="ml-2"
+                  >{winPct(selected1v1Entry.wins, selected1v1Entry.losses)}% WR</span
+                >
+              </p>
+              <Badge color={statusColor(selected1v1Entry.status)}
+                >{statusLabel(selected1v1Entry.status)}</Badge
+              >
+            </div>
+          </div>
+          {@render matchHistoryTable(selected1v1Entry.matches, playerName, playerAvatar, 'match')}
+        {/if}
+      </Card>
+    {:else}
+      <Card padding="none" class="overflow-hidden">
+        {#snippet header()}
+          <div class="px-5 py-3">
+            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+              <FormatIcon name="1v1" src={icon1v1} size="sm" />
+              1v1 history
+            </h2>
+          </div>
+        {/snippet}
+        <p class="px-5 py-8 text-center text-sm text-text-muted">No 1v1 season history</p>
+      </Card>
+    {/if}
 
     <Card padding="none" class="overflow-hidden">
       {#snippet header()}
-        <div class="flex items-center justify-between px-5 py-3">
-          <div>
-            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-              <FormatIcon name="2v2" src={icon2v2} size="sm" />
-              Team leagues
-            </h2>
-            <p class="text-xs text-text-muted">Roster HQ stays on the team page</p>
-          </div>
-        </div>
-      {/snippet}
-      {#if currentTeams.length === 0}
-        <div class="px-5 py-8 text-center">
-          <p class="text-sm text-text-muted">No active team</p>
-          {#if isOwn}
-            <div class="mt-3">
-              <Button href="/teams" variant="secondary" size="sm">Browse teams</Button>
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+          <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+            <FormatIcon name="2v2" src={icon2v2} size="sm" />
+            Team history
+          </h2>
+          {#if formatTabs.length > 1}
+            <div class="flex flex-wrap gap-1" role="group" aria-label="Team format">
+              {#each formatTabs as format (format.code)}
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {historyFormat ===
+                  format.code
+                    ? 'border-primary-500 bg-primary-500/15 text-white'
+                    : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
+                  aria-pressed={historyFormat === format.code}
+                  onclick={() => (pickedFormat = format.code)}
+                >
+                  <FormatIcon
+                    name={format.name}
+                    src={iconByCode.get(format.code) ?? format.iconUrl}
+                    size="sm"
+                  />
+                  {format.name}
+                </button>
+              {/each}
             </div>
           {/if}
         </div>
-      {:else if currentTeams.length === 1 && currentTeam}
-        <div class="space-y-3 px-5 py-4">
-          <div class="flex items-start justify-between gap-3">
+      {/snippet}
+      {#if historyTeams.length > 0}
+        {#if historyTeams.length > 1}
+          <div
+            class="flex flex-wrap gap-1 border-b border-border-default/50 px-5 py-2"
+            role="group"
+            aria-label="Season"
+          >
+            {#each historyTeams as team (team.teamId)}
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedHistoryTeamId ===
+                String(team.teamId)
+                  ? 'border-primary-500 bg-primary-500/15 text-white'
+                  : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
+                aria-pressed={selectedHistoryTeamId === String(team.teamId)}
+                onclick={() => (selectedHistoryTeamId = String(team.teamId))}
+              >
+                Season {team.seasonNum}
+              </button>
+            {/each}
+          </div>
+        {/if}
+        {#if selectedHistoryTeam}
+          <div class="flex items-start justify-between gap-3 px-5 py-4">
             <div class="flex min-w-0 items-start gap-3">
               <img
-                src={currentTeam.avatar || DEFAULT_AVATAR}
+                src={selectedHistoryTeam.avatar || DEFAULT_AVATAR}
                 alt=""
                 class="size-12 shrink-0 rounded-lg object-cover"
               />
               <div class="min-w-0">
                 <a
-                  href={resolve('/teams/[id]', { id: String(currentTeam.teamId) })}
-                  class="inline-flex items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
+                  href={resolve('/teams/[id]', { id: String(selectedHistoryTeam.teamId) })}
+                  class="inline-flex min-w-0 items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
                 >
-                  {#if currentTeam.formatIconUrl}
-                    <Tooltip text={currentTeam.formatName}>
+                  {#if selectedHistoryTeam.formatIconUrl}
+                    <Tooltip text={selectedHistoryTeam.formatName}>
                       <FormatIcon
-                        name={currentTeam.formatName}
-                        src={currentTeam.formatIconUrl}
+                        name={selectedHistoryTeam.formatName}
+                        src={selectedHistoryTeam.formatIconUrl}
                         size="sm"
                       />
                     </Tooltip>
                   {/if}
-                  {currentTeam.teamName}
+                  <span class="truncate">{selectedHistoryTeam.teamName}</span>
                 </a>
                 <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
                   <SeasonScope
-                    region={currentTeam.regionName}
-                    seasonNum={currentTeam.seasonNum}
-                    division={currentTeam.division}
+                    region={selectedHistoryTeam.regionName}
+                    seasonNum={selectedHistoryTeam.seasonNum}
+                    division={selectedHistoryTeam.division}
                   />
                 </p>
                 <p class="mt-1 font-mono text-sm text-success-400">
-                  {currentTeam.wins}–{currentTeam.losses}
+                  {selectedHistoryTeam.wins}–{selectedHistoryTeam.losses}
                   <span class="ml-2 font-sans text-xs text-text-muted"
-                    >{winPct(currentTeam.wins, currentTeam.losses)}% WR</span
+                    >{winPct(selectedHistoryTeam.wins, selectedHistoryTeam.losses)}% WR</span
                   >
                 </p>
               </div>
             </div>
-            <Badge color={statusColor(currentTeam.status)}>{statusLabel(currentTeam.status)}</Badge>
-          </div>
-        </div>
-      {:else}
-        <div class="divide-y divide-border-default/50">
-          {#each currentTeams as team (team.teamId)}
-            <div class="flex items-start gap-3 px-5 py-3">
-              <img
-                src={team.avatar || DEFAULT_AVATAR}
-                alt=""
-                class="size-10 shrink-0 rounded-lg object-cover"
-              />
-              <div class="min-w-0 flex-1">
-                <div class="flex items-start justify-between gap-2">
-                  <a
-                    href={resolve('/teams/[id]', { id: String(team.teamId) })}
-                    class="inline-flex items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
-                  >
-                    {#if team.formatIconUrl}
-                      <Tooltip text={team.formatName}>
-                        <FormatIcon name={team.formatName} src={team.formatIconUrl} size="sm" />
-                      </Tooltip>
-                    {/if}
-                    {team.teamName}
-                  </a>
-                  <Badge color={statusColor(team.status)}>{statusLabel(team.status)}</Badge>
-                </div>
-                <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                  <SeasonScope
-                    region={team.regionName}
-                    seasonNum={team.seasonNum}
-                    division={team.division}
-                  />
-                </p>
-                <p class="mt-1 font-mono text-sm text-success-400">
-                  {team.wins}–{team.losses}
-                  <span class="ml-2 font-sans text-xs text-text-muted"
-                    >{winPct(team.wins, team.losses)}% WR</span
-                  >
-                </p>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </Card>
-  </div>
-
-  {#if entries1v1.length > 0}
-    <Card padding="none" class="overflow-hidden">
-      {#snippet header()}
-        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-          <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-            <FormatIcon name="1v1" src={icon1v1} size="sm" />
-            1v1 history
-          </h2>
-          {#if entries1v1.length > 1}
-            <div class="flex flex-wrap gap-1" role="group" aria-label="Season">
-              {#each entries1v1 as entry (entry.id)}
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selected1v1SeasonId ===
-                  String(entry.id)
-                    ? 'border-primary-500 bg-primary-500/15 text-white'
-                    : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
-                  aria-pressed={selected1v1SeasonId === String(entry.id)}
-                  onclick={() => (selected1v1SeasonId = String(entry.id))}
-                >
-                  Season {entry.seasonNum}
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/snippet}
-      {#if selected1v1Entry}
-        <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
-          <p class="text-sm">
-            <SeasonScope
-              region={selected1v1Entry.region}
-              seasonNum={selected1v1Entry.seasonNum}
-              division={selected1v1Entry.division}
-            />
-          </p>
-          <div class="flex items-center gap-3">
-            <p class="text-xs text-text-muted">
-              <span class="font-mono">{selected1v1Entry.wins}–{selected1v1Entry.losses}</span>
-              <span class="ml-2">{winPct(selected1v1Entry.wins, selected1v1Entry.losses)}% WR</span>
-            </p>
-            <Badge color={statusColor(selected1v1Entry.status)}
-              >{statusLabel(selected1v1Entry.status)}</Badge
+            <Badge color={statusColor(selectedHistoryTeam.status)}
+              >{statusLabel(selectedHistoryTeam.status)}</Badge
             >
           </div>
-        </div>
-        {@render matchHistoryTable(selected1v1Entry.matches, playerName, playerAvatar, 'match')}
+          {#if teamSeasons.length > 0}
+            {#if teamSeasons.length > 1}
+              <div
+                class="flex flex-wrap gap-1 border-t border-border-default/50 px-5 py-2"
+                role="group"
+                aria-label="Match history season"
+              >
+                {#each teamSeasons as seasonData (seasonData.seasonId)}
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedTeamSeasonId ===
+                    String(seasonData.seasonId)
+                      ? 'border-primary-500 bg-primary-500/15 text-white'
+                      : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
+                    aria-pressed={selectedTeamSeasonId === String(seasonData.seasonId)}
+                    onclick={() => (selectedTeamSeasonId = String(seasonData.seasonId))}
+                  >
+                    Season {seasonData.seasonNum}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            {#if selectedTeamSeason}
+              {@render matchHistoryTable(
+                selectedTeamSeason.matches,
+                selectedHistoryTeam.teamName,
+                selectedHistoryTeam.avatar,
+                'team',
+              )}
+            {/if}
+          {:else}
+            <p class="px-5 py-8 text-center text-sm text-text-muted">No matches recorded</p>
+          {/if}
+        {/if}
+      {:else}
+        <p class="px-5 py-8 text-center text-sm text-text-muted">No team history</p>
       {/if}
     </Card>
-  {:else}
-    <Card padding="none" class="overflow-hidden">
-      {#snippet header()}
-        <div class="px-5 py-3">
-          <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-            <FormatIcon name="1v1" src={icon1v1} size="sm" />
-            1v1 history
-          </h2>
-        </div>
-      {/snippet}
-      <p class="px-5 py-8 text-center text-sm text-text-muted">No 1v1 season history</p>
-    </Card>
-  {/if}
 
-  <Card padding="none" class="overflow-hidden">
-    {#snippet header()}
-      <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-        <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-          <FormatIcon name="2v2" src={icon2v2} size="sm" />
-          Team history
-        </h2>
-        {#if formatTabs.length > 1}
-          <div class="flex flex-wrap gap-1" role="group" aria-label="Team format">
-            {#each formatTabs as format (format.code)}
-              <button
-                type="button"
-                class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {historyFormat ===
-                format.code
-                  ? 'border-primary-500 bg-primary-500/15 text-white'
-                  : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
-                aria-pressed={historyFormat === format.code}
-                onclick={() => (pickedFormat = format.code)}
-              >
-                <FormatIcon
-                  name={format.name}
-                  src={iconByCode.get(format.code) ?? format.iconUrl}
-                  size="sm"
-                />
-                {format.name}
-              </button>
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <Card padding="none" class="overflow-hidden">
+        {#snippet header()}
+          <div class="px-5 py-3">
+            <h2 class="text-sm font-semibold text-white">Achievements</h2>
+          </div>
+        {/snippet}
+        {#if achievements.length > 0}
+          <div class="divide-y divide-border-default/50">
+            {#each achievements as achievement (achievement.event)}
+              <div class="px-5 py-3">
+                <p class="text-sm text-white">
+                  <span class="font-bold {placementClass(achievement.placement)}"
+                    >{achievement.placement}</span
+                  >
+                  <span class="ml-2">{achievement.event}</span>
+                </p>
+                <p class="mt-0.5 text-xs text-text-muted">{formatDate(achievement.date)}</p>
+              </div>
             {/each}
           </div>
-        {/if}
-      </div>
-    {/snippet}
-    {#if historyTeams.length > 0}
-      {#if historyTeams.length > 1}
-        <div
-          class="flex flex-wrap gap-1 border-b border-border-default/50 px-5 py-2"
-          role="group"
-          aria-label="Season"
-        >
-          {#each historyTeams as team (team.teamId)}
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedHistoryTeamId ===
-              String(team.teamId)
-                ? 'border-primary-500 bg-primary-500/15 text-white'
-                : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
-              aria-pressed={selectedHistoryTeamId === String(team.teamId)}
-              onclick={() => (selectedHistoryTeamId = String(team.teamId))}
-            >
-              Season {team.seasonNum}
-            </button>
-          {/each}
-        </div>
-      {/if}
-      {#if selectedHistoryTeam}
-        <div class="flex items-start justify-between gap-3 px-5 py-4">
-          <div class="flex min-w-0 items-start gap-3">
-            <img
-              src={selectedHistoryTeam.avatar || DEFAULT_AVATAR}
-              alt=""
-              class="size-12 shrink-0 rounded-lg object-cover"
-            />
-            <div class="min-w-0">
-              <a
-                href={resolve('/teams/[id]', { id: String(selectedHistoryTeam.teamId) })}
-                class="inline-flex min-w-0 items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
-              >
-                {#if selectedHistoryTeam.formatIconUrl}
-                  <Tooltip text={selectedHistoryTeam.formatName}>
-                    <FormatIcon
-                      name={selectedHistoryTeam.formatName}
-                      src={selectedHistoryTeam.formatIconUrl}
-                      size="sm"
-                    />
-                  </Tooltip>
-                {/if}
-                <span class="truncate">{selectedHistoryTeam.teamName}</span>
-              </a>
-              <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                <SeasonScope
-                  region={selectedHistoryTeam.regionName}
-                  seasonNum={selectedHistoryTeam.seasonNum}
-                  division={selectedHistoryTeam.division}
-                />
-              </p>
-              <p class="mt-1 font-mono text-sm text-success-400">
-                {selectedHistoryTeam.wins}–{selectedHistoryTeam.losses}
-                <span class="ml-2 font-sans text-xs text-text-muted"
-                  >{winPct(selectedHistoryTeam.wins, selectedHistoryTeam.losses)}% WR</span
-                >
-              </p>
-            </div>
-          </div>
-          <Badge color={statusColor(selectedHistoryTeam.status)}
-            >{statusLabel(selectedHistoryTeam.status)}</Badge
-          >
-        </div>
-        {#if teamSeasons.length > 0}
-          {#if teamSeasons.length > 1}
-            <div
-              class="flex flex-wrap gap-1 border-t border-border-default/50 px-5 py-2"
-              role="group"
-              aria-label="Match history season"
-            >
-              {#each teamSeasons as seasonData (seasonData.seasonId)}
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedTeamSeasonId ===
-                  String(seasonData.seasonId)
-                    ? 'border-primary-500 bg-primary-500/15 text-white'
-                    : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
-                  aria-pressed={selectedTeamSeasonId === String(seasonData.seasonId)}
-                  onclick={() => (selectedTeamSeasonId = String(seasonData.seasonId))}
-                >
-                  Season {seasonData.seasonNum}
-                </button>
-              {/each}
-            </div>
-          {/if}
-          {#if selectedTeamSeason}
-            {@render matchHistoryTable(
-              selectedTeamSeason.matches,
-              selectedHistoryTeam.teamName,
-              selectedHistoryTeam.avatar,
-              'team',
-            )}
-          {/if}
         {:else}
-          <p class="px-5 py-8 text-center text-sm text-text-muted">No matches recorded</p>
+          <p class="px-5 py-8 text-center text-sm text-text-muted">No achievements yet</p>
         {/if}
-      {/if}
-    {:else}
-      <p class="px-5 py-8 text-center text-sm text-text-muted">No team history</p>
-    {/if}
-  </Card>
+      </Card>
 
-  <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-    <Card padding="none" class="overflow-hidden">
-      {#snippet header()}
-        <div class="px-5 py-3">
-          <h2 class="text-sm font-semibold text-white">Achievements</h2>
-        </div>
-      {/snippet}
-      {#if achievements.length > 0}
-        <div class="divide-y divide-border-default/50">
-          {#each achievements as achievement (achievement.event)}
-            <div class="px-5 py-3">
-              <p class="text-sm text-white">
-                <span class="font-bold {placementClass(achievement.placement)}"
-                  >{achievement.placement}</span
+      <Card padding="none" class="overflow-hidden">
+        {#snippet header()}
+          <div class="px-5 py-3">
+            <h2 class="text-sm font-semibold text-white">Tournaments</h2>
+          </div>
+        {/snippet}
+        {#if tournaments.length > 0}
+          <div class="divide-y divide-border-default/50">
+            {#each tournaments as t (t.id)}
+              <div class="flex items-center justify-between gap-3 px-5 py-3">
+                <div class="min-w-0">
+                  <p class="truncate text-sm text-white">{t.name}</p>
+                  <p class="text-xs text-text-muted">{formatDate(t.date)}</p>
+                </div>
+                <span class="text-xs font-bold whitespace-nowrap {placementClass(t.placement)}"
+                  >{t.placement}</span
                 >
-                <span class="ml-2">{achievement.event}</span>
-              </p>
-              <p class="mt-0.5 text-xs text-text-muted">{formatDate(achievement.date)}</p>
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <p class="px-5 py-8 text-center text-sm text-text-muted">No achievements yet</p>
-      {/if}
-    </Card>
-
-    <Card padding="none" class="overflow-hidden">
-      {#snippet header()}
-        <div class="px-5 py-3">
-          <h2 class="text-sm font-semibold text-white">Tournaments</h2>
-        </div>
-      {/snippet}
-      {#if tournaments.length > 0}
-        <div class="divide-y divide-border-default/50">
-          {#each tournaments as t (t.id)}
-            <div class="flex items-center justify-between gap-3 px-5 py-3">
-              <div class="min-w-0">
-                <p class="truncate text-sm text-white">{t.name}</p>
-                <p class="text-xs text-text-muted">{formatDate(t.date)}</p>
               </div>
-              <span class="text-xs font-bold whitespace-nowrap {placementClass(t.placement)}"
-                >{t.placement}</span
-              >
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <p class="px-5 py-8 text-center text-sm text-text-muted">No tournament history</p>
-      {/if}
-    </Card>
+            {/each}
+          </div>
+        {:else}
+          <p class="px-5 py-8 text-center text-sm text-text-muted">No tournament history</p>
+        {/if}
+      </Card>
 
-    <Card padding="none" class="overflow-hidden">
-      {#snippet header()}
-        <div class="px-5 py-3">
-          <h2 class="text-sm font-semibold text-white">Fight nights</h2>
-        </div>
-      {/snippet}
-      {#if fightNights.length > 0}
-        <div class="divide-y divide-border-default/50">
-          {#each fightNights as fn (fn.id)}
-            <div class="flex items-center justify-between gap-3 px-5 py-3">
-              <div class="min-w-0">
-                <p class="text-sm text-white">{fn.fightNightName}</p>
-                <p class="text-xs text-text-muted">vs {fn.opponent}</p>
+      <Card padding="none" class="overflow-hidden">
+        {#snippet header()}
+          <div class="px-5 py-3">
+            <h2 class="text-sm font-semibold text-white">Fight nights</h2>
+          </div>
+        {/snippet}
+        {#if fightNights.length > 0}
+          <div class="divide-y divide-border-default/50">
+            {#each fightNights as fn (fn.id)}
+              <div class="flex items-center justify-between gap-3 px-5 py-3">
+                <div class="min-w-0">
+                  <p class="text-sm text-white">{fn.fightNightName}</p>
+                  <p class="text-xs text-text-muted">vs {fn.opponent}</p>
+                </div>
+                <span class="font-mono text-xs font-bold {resultClass(fn.result)}"
+                  >{fn.result} {fn.score}</span
+                >
               </div>
-              <span class="font-mono text-xs font-bold {resultClass(fn.result)}"
-                >{fn.result} {fn.score}</span
-              >
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <p class="px-5 py-8 text-center text-sm text-text-muted">No fight night history</p>
-      {/if}
-    </Card>
-  </div>
+            {/each}
+          </div>
+        {:else}
+          <p class="px-5 py-8 text-center text-sm text-text-muted">No fight night history</p>
+        {/if}
+      </Card>
+    </div>
+  {/if}
 </div>

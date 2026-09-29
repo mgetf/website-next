@@ -99,10 +99,12 @@
     classRatings: MgeClasseloRating[];
     platformRegions: PlatformRegion[];
     formats: Array<{ code: string; name: string; iconUrl: string | null }>;
+    registered: boolean;
   }
 
   let { data }: { data: PlayerData } = $props();
 
+  const isRegistered = $derived(data.registered);
   const player = $derived(data.player);
   const staffMedalRole = $derived.by(() => {
     if (player.permissionLevel === 'ADMIN') return 'ADMIN' as const;
@@ -119,12 +121,21 @@
     ...data.teamHistory.map((team) => ({ ...team, active: false })),
   ]);
 
-  const tab = $derived(parseProfileTab(page.url.searchParams.get('tab')));
-  const tabs: { id: ProfileTab; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: '1v1', label: '1v1' },
-    { id: 'stats', label: 'Stats' },
-  ];
+  const tab = $derived(
+    parseProfileTab(page.url.searchParams.get('tab'), { allow1v1: isRegistered }),
+  );
+  const tabs = $derived<{ id: ProfileTab; label: string }[]>(
+    isRegistered
+      ? [
+          { id: 'overview', label: 'Overview' },
+          { id: '1v1', label: '1v1' },
+          { id: 'stats', label: 'Stats' },
+        ]
+      : [
+          { id: 'overview', label: 'Overview' },
+          { id: 'stats', label: 'Stats' },
+        ],
+  );
 
   let withdrawingEntry: Profile1v1Entry | null = $state(null);
   let isWithdrawing = $state(false);
@@ -241,44 +252,46 @@
           </Tooltip>
         {/each}
 
-        {#if player.discordLinked}
-          <span
-            class="inline-flex items-center gap-1.5 rounded-lg bg-info-500/20 px-2.5 py-1.5 text-xs text-info-400"
-          >
-            <DiscordIcon size={14} />
-            {player.discordUsername}
-          </span>
-          {#if isOwnProfile}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onclick={() => (showUnlinkDiscord = true)}
+        {#if isRegistered}
+          {#if player.discordLinked}
+            <span
+              class="inline-flex items-center gap-1.5 rounded-lg bg-info-500/20 px-2.5 py-1.5 text-xs text-info-400"
             >
-              Unlink
+              <DiscordIcon size={14} />
+              {player.discordUsername}
+            </span>
+            {#if isOwnProfile}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onclick={() => (showUnlinkDiscord = true)}
+              >
+                Unlink
+              </Button>
+            {/if}
+          {:else if isOwnProfile}
+            <Button
+              href={resolve('/auth/discord/login')}
+              size="sm"
+              class="inline-flex items-center gap-1.5"
+            >
+              <DiscordIcon size={14} />
+              Link Discord
             </Button>
+          {:else}
+            <span
+              class="inline-flex items-center gap-1.5 rounded-lg bg-surface-input px-2.5 py-1.5 text-xs text-text-body"
+            >
+              <DiscordIcon size={14} />
+              Discord not linked
+            </span>
           {/if}
-        {:else if isOwnProfile}
-          <Button
-            href={resolve('/auth/discord/login')}
-            size="sm"
-            class="inline-flex items-center gap-1.5"
-          >
-            <DiscordIcon size={14} />
-            Link Discord
-          </Button>
-        {:else}
-          <span
-            class="inline-flex items-center gap-1.5 rounded-lg bg-surface-input px-2.5 py-1.5 text-xs text-text-body"
-          >
-            <DiscordIcon size={14} />
-            Discord not linked
-          </span>
         {/if}
       </div>
     </div>
 
-    {#if isAdmin}
+    {#if isAdmin && isRegistered}
       <div class="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
         <div class="flex flex-wrap gap-1.5 lg:justify-end">
           <button
@@ -376,10 +389,11 @@
         tournaments={data.tournaments}
         fightNights={data.fightNights}
         formats={data.formats}
+        registered={isRegistered}
         onOpen1v1={() => setTab('1v1')}
       />
     </div>
-  {:else if tab === '1v1'}
+  {:else if tab === '1v1' && isRegistered}
     <div id="panel-1v1" role="tabpanel" aria-labelledby="tab-1v1">
       <LeaguePanel
         steamId={player.steamId}
@@ -597,7 +611,7 @@
   onCancel={() => (showUnlinkDiscord = false)}
 />
 
-{#if isAdmin}
+{#if isAdmin && isRegistered}
   <StaffToolsPanel bind:open={staffOpen} {player} />
 {/if}
 

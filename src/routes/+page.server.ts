@@ -2,7 +2,7 @@ import {
   getTeamsForStandings,
   calculateStandingsStats,
   getTop1v1EntriesForHomepage,
-  getUnassignedTeams,
+  getSeasonSignupTeams,
 } from '$lib/server/services/teams';
 import { getLatestSeasonPerRegionByFormat } from '$lib/server/services/seasons';
 import { findTopDivisionByRegion } from '$lib/server/services/divisions';
@@ -10,6 +10,7 @@ import { getContent, CONTENT_KEYS, getDefaultContent } from '$lib/server/service
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { getUserDisplaysByIds, fetchSteamNames } from '$lib/server/services/users';
 import { getRegions, getLeaderboard } from '$lib/server/clients/mgePlatform';
+import { SIGNUP_LIST_STATUSES } from '$lib/utils/standingsHighlight';
 import { steamId64FromSteamId32 } from '$lib/utils/steamid';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
 import { TeamStatus } from '$prisma/client.js';
@@ -185,13 +186,14 @@ export const load = async () => {
             id: number;
           }[] = [];
 
+          let signupCount = 0;
+
           if (season.signupsOpen) {
-            const unplaced = await getUnassignedTeams(season.id, season.regionId, [
-              'UNREADY',
-              'PENDING',
-              'READY',
+            const signedUp = await getSeasonSignupTeams(season.id, season.regionId, [
+              ...SIGNUP_LIST_STATUSES,
             ]);
-            topTeams = unplaced.slice(0, 8).map((team, index) => ({
+            signupCount = signedUp.length;
+            topTeams = signedUp.slice(0, 8).map((team, index) => ({
               rank: index + 1,
               name: team.name,
               avatar: team.avatar ?? null,
@@ -226,6 +228,7 @@ export const load = async () => {
             regionName: season.region.name,
             season: `Season ${season.seasonNum}`,
             signupsOpen: season.signupsOpen,
+            signupCount,
             topTeams,
           };
         }),
@@ -247,13 +250,14 @@ export const load = async () => {
             points: number;
           }[] = [];
 
+          let signupCount = 0;
+
           if (season.signupsOpen) {
-            const unplaced = await getUnassignedTeams(season.id, season.regionId, [
-              'UNREADY',
-              'PENDING',
-              'READY',
+            const signedUp = await getSeasonSignupTeams(season.id, season.regionId, [
+              ...SIGNUP_LIST_STATUSES,
             ]);
-            topEntries = unplaced.slice(0, 8).map((team, index) => {
+            signupCount = signedUp.length;
+            topEntries = signedUp.slice(0, 8).map((team, index) => {
               const player = team.players[0];
               return {
                 rank: index + 1,
@@ -287,6 +291,7 @@ export const load = async () => {
             regionName: season.region.name,
             season: `Season ${season.seasonNum}`,
             signupsOpen: season.signupsOpen,
+            signupCount,
             topEntries,
           };
         }),

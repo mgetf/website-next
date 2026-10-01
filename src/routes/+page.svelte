@@ -44,6 +44,7 @@
     regionName: string;
     season: string;
     signupsOpen: boolean;
+    signupCount: number;
     topTeams: Team2v2[];
   }
 
@@ -51,6 +52,7 @@
     regionName: string;
     season: string;
     signupsOpen: boolean;
+    signupCount: number;
     topEntries: Entry1v1[];
   }
 
@@ -259,7 +261,9 @@
                   {#if region.signupsOpen}
                     <div class="mb-3">
                       <span class="text-format-2v2-400 text-sm font-bold block">Signups Open!</span>
-                      <p class="text-xs text-text-muted mt-1">Unplaced teams this season</p>
+                      <p class="text-xs text-text-muted mt-1">
+                        {region.signupCount} signed up this season
+                      </p>
                     </div>
                     {#if region.topTeams.length > 0}
                       <div class="space-y-2 mb-3">
@@ -373,7 +377,9 @@
                   {#if region.signupsOpen}
                     <div class="mb-3">
                       <span class="text-format-1v1-400 text-sm font-bold block">Signups Open!</span>
-                      <p class="text-xs text-text-muted mt-1">Unplaced players this season</p>
+                      <p class="text-xs text-text-muted mt-1">
+                        {region.signupCount} signed up this season
+                      </p>
                     </div>
                     {#if region.topEntries.length > 0}
                       <div class="space-y-2 mb-3">

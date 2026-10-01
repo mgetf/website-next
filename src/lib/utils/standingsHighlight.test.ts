@@ -4,6 +4,7 @@ import {
   defaultExpandedDivisionIds,
   isViewerStandingsTeam,
   shouldShowInDivisionStandings,
+  shouldShowOnLeagueDivision,
   withStandingsRanks,
 } from './standingsHighlight';
 
@@ -52,6 +53,12 @@ describe('division standings order', () => {
     losses,
     points,
   });
+  const pending = (wins: number, losses: number, points = 0) => ({
+    status: 'PENDING',
+    wins,
+    losses,
+    points,
+  });
   const dead = (wins: number, losses: number, points = 0) => ({
     status: 'DEAD',
     wins,
@@ -77,6 +84,20 @@ describe('division standings order', () => {
     expect(shouldShowInDivisionStandings(dead(0, 0))).toBe(false);
     expect(shouldShowInDivisionStandings(dead(0, 5))).toBe(true);
     expect(shouldShowInDivisionStandings(unready(1, 4))).toBe(true);
+  });
+
+  it('lists every living signup while signups are open', () => {
+    expect(shouldShowOnLeagueDivision(unready(0, 0), true)).toBe(true);
+    expect(shouldShowOnLeagueDivision(pending(0, 0), true)).toBe(true);
+    expect(shouldShowOnLeagueDivision(ready(0, 0), true)).toBe(true);
+    expect(shouldShowOnLeagueDivision(dead(0, 0), true)).toBe(false);
+    expect(shouldShowOnLeagueDivision(dead(1, 2), true)).toBe(false);
+  });
+
+  it('uses the standings rule after signups close', () => {
+    expect(shouldShowOnLeagueDivision(unready(0, 0), false)).toBe(false);
+    expect(shouldShowOnLeagueDivision(ready(0, 0), false)).toBe(true);
+    expect(shouldShowOnLeagueDivision(dead(0, 4), false)).toBe(true);
   });
 
   it('numbers only READY teams after the ranked group is sorted', () => {

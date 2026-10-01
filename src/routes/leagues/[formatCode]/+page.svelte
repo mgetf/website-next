@@ -469,6 +469,13 @@
                           />
                         {/if}
                         <span class="truncate">{divisionData.division.name}</span>
+                        {#if !data.deadlines.signupClosed}
+                          <span
+                            class="shrink-0 text-sm font-medium normal-case tracking-normal text-text-muted"
+                          >
+                            {divisionData.teams.length} signed up
+                          </span>
+                        {/if}
                       </span>
                       <ChevronDown
                         class="size-5 shrink-0 text-text-muted transition-transform group-hover:text-white {expanded
@@ -487,6 +494,13 @@
                         />
                       {/if}
                       {divisionData.division.name}
+                      {#if !data.deadlines.signupClosed}
+                        <span
+                          class="shrink-0 text-sm font-medium normal-case tracking-normal text-text-muted"
+                        >
+                          {divisionData.teams.length} signed up
+                        </span>
+                      {/if}
                     </span>
                   {/if}
                 </h2>

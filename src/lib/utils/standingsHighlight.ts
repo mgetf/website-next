@@ -29,6 +29,9 @@ export function defaultExpandedDivisionIds(divisions: Array<{ id: number }>): nu
   return divisions.map((division) => division.id);
 }
 
+/** Living entries listed on a league page while that season is still taking signups. */
+export const SIGNUP_LIST_STATUSES = ['UNREADY', 'PENDING', 'READY', 'PLACEMENT'] as const;
+
 /** Green / READY rows are the only ones that receive a standings rank. */
 export function isRankedStandingsTeam(team: Pick<StandingsRecord, 'status'>): boolean {
   return team.status === 'READY';
@@ -44,6 +47,18 @@ export function shouldShowInDivisionStandings(
 ): boolean {
   if (isRankedStandingsTeam(team)) return true;
   return team.wins + team.losses > 0;
+}
+
+/**
+ * Open signups list every entry that has not withdrawn, including 0-0 UNREADY
+ * and PENDING rows. A closed season uses the standings rule.
+ */
+export function shouldShowOnLeagueDivision(
+  team: Pick<StandingsRecord, 'status' | 'wins' | 'losses'>,
+  signupsOpen: boolean,
+): boolean {
+  if (signupsOpen) return team.status !== 'DEAD';
+  return shouldShowInDivisionStandings(team);
 }
 
 /** READY first, then W-L-points. A 0-5 READY team outranks a 0-0 UNREADY/DEAD row. */

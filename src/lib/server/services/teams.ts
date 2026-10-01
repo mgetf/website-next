@@ -366,13 +366,28 @@ export async function getTeamsByDivision(
  * Uses the same standings shape as getTeamsByDivision.
  */
 export async function getUnassignedTeams(seasonId: number, regionId: number, statuses: string[]) {
+  return findLeagueSignupTeams({
+    seasonId,
+    regionId,
+    divisionId: null,
+    status: { in: statuses as TeamStatus[] },
+  });
+}
+
+/**
+ * Signups for a season and region, whether or not they have a division yet.
+ */
+export async function getSeasonSignupTeams(seasonId: number, regionId: number, statuses: string[]) {
+  return findLeagueSignupTeams({
+    seasonId,
+    regionId,
+    status: { in: statuses as TeamStatus[] },
+  });
+}
+
+async function findLeagueSignupTeams(where: Prisma.TeamWhereInput) {
   const teams = await prisma.team.findMany({
-    where: {
-      seasonId,
-      regionId,
-      divisionId: null,
-      status: { in: statuses as any },
-    },
+    where,
     select: {
       id: true,
       name: true,

@@ -15,7 +15,12 @@ import { getLeaguePlayoffsByDivision } from '$lib/server/services/leagueBrackets
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
-import { shouldShowInDivisionStandings, withStandingsRanks } from '$lib/utils/standingsHighlight';
+import {
+  SIGNUP_LIST_STATUSES,
+  compareStandingsTeams,
+  shouldShowOnLeagueDivision,
+  withStandingsRanks,
+} from '$lib/utils/standingsHighlight';
 import { z } from 'zod';
 
 const updateSeasonInfoSchema = z.object({
@@ -89,15 +94,30 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     (division) => division.formatId === format.id,
   );
 
+  const signupsOpen =
+    selectedSeasonId != null &&
+    (allSeasons.find((season) => season.id === selectedSeasonId)?.signupsOpen ?? false);
+  const signupListStatuses = [...new Set([...visibleStatuses, ...SIGNUP_LIST_STATUSES])];
+  const divisionStatuses = signupsOpen ? signupListStatuses : visibleStatuses;
+  const unplacedStatuses = signupsOpen ? signupListStatuses : unassignedStatuses;
+
   const mapLeagueTeams = (
     teams: Awaited<ReturnType<typeof getTeamsByDivision>>,
-    options: { assignRanks: boolean },
+    options: { assignRanks: boolean; signupsOpen?: boolean },
   ) => {
+    const open = options.signupsOpen ?? false;
     const visible = options.assignRanks
-      ? teams.filter(shouldShowInDivisionStandings)
+      ? teams.filter((team) => shouldShowOnLeagueDivision(team, open))
       : teams.filter((team) => team.status !== 'DEAD' || team.wins + team.losses > 0);
+    const ordered = open
+      ? [...visible].sort((a, b) => {
+          const rankedDiff = compareStandingsTeams(a, b);
+          if (rankedDiff !== 0) return rankedDiff;
+          return a.name.localeCompare(b.name);
+        })
+      : visible;
 
-    return withStandingsRanks(visible, options.assignRanks).map((team) => {
+    return withStandingsRanks(ordered, options.assignRanks).map((team) => {
       const players = (team.players ?? []).map((membership) => ({
         steamId: membership.playerSteamId,
         name: membership.player?.steamUsername || 'Unknown',
@@ -132,8 +152,8 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
               name: 'Unplaced',
             },
             teams: mapLeagueTeams(
-              await getUnassignedTeams(selectedSeasonId, selectedRegionId, unassignedStatuses),
-              { assignRanks: false },
+              await getUnassignedTeams(selectedSeasonId, selectedRegionId, unplacedStatuses),
+              { assignRanks: false, signupsOpen },
             ),
           },
           ...(await Promise.all(
@@ -147,9 +167,9 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
                   division.id,
                   selectedSeasonId,
                   selectedRegionId,
-                  visibleStatuses,
+                  divisionStatuses,
                 ),
-                { assignRanks: true },
+                { assignRanks: true, signupsOpen },
               ),
             })),
           )),

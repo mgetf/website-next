@@ -26,6 +26,7 @@ import {
   toggleDivisionVisibility,
   copyDivisions,
   parseDivisionScopeTokens,
+  reorderDivisions,
   setDivisionsHidden,
   updateDivisionsSignupCost,
 } from '$lib/server/services/divisions';
@@ -116,6 +117,11 @@ const copyDivisionsSchema = z.object({
 });
 const bulkDivisionIdsSchema = z.object({
   divisionIds: z.array(z.coerce.number().int().positive()).min(1, 'Select at least one division'),
+});
+const reorderDivisionsSchema = z.object({
+  regionId: z.coerce.number().int().positive(),
+  formatId: z.coerce.number().int().positive(),
+  divisionIds: z.array(z.coerce.number().int().positive()).min(1, 'Division list is required'),
 });
 const bulkSignupCostSchema = bulkDivisionIdsSchema.extend({
   signupCost: z.coerce.number().min(0),
@@ -575,6 +581,32 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Error copying divisions:', error);
       return formError(error instanceof Error ? error.message : 'Failed to copy divisions');
+    }
+  },
+
+  reorderDivisions: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, reorderDivisionsSchema, ['divisionIds']);
+    if (!validation.success) return validationError(validation.errors);
+    const { regionId, formatId, divisionIds } = validation.data;
+
+    try {
+      await reorderDivisions(regionId, formatId, divisionIds);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.DIVISION_REORDERED,
+        targetType: 'Division',
+        metadata: { regionId, formatId, divisionIds },
+        ipAddress: getClientAddress(),
+      });
+      return { success: true, message: 'Division order saved' };
+    } catch (error) {
+      console.error('Error reordering divisions:', error);
+      return formError(error instanceof Error ? error.message : 'Failed to reorder divisions');
     }
   },
 

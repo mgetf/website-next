@@ -5,6 +5,8 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { LIVE_TEAM_COUNT } from '$lib/server/constants/teams';
+import { TeamStatus } from '$prisma/client.js';
 
 /**
  * Get all regions with their season and team counts
@@ -16,7 +18,7 @@ export async function getRegions() {
       _count: {
         select: {
           seasons: true,
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
         },
       },
     },
@@ -150,7 +152,7 @@ export async function deleteRegion(id: number) {
       _count: {
         select: {
           seasons: true,
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
           divisions: true,
           activeSignupSeasons: true,
         },
@@ -174,6 +176,11 @@ export async function deleteRegion(id: number) {
   if (blockers.length > 0) {
     throw new Error(`Cannot delete region: it has ${blockers.join(', ')}.`);
   }
+
+  await prisma.team.updateMany({
+    where: { regionId: id, status: TeamStatus.DEAD },
+    data: { regionId: null },
+  });
 
   return await prisma.region.delete({ where: { id } });
 }

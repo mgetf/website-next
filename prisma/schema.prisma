@@ -765,6 +765,7 @@ model Division {
   hidden     Int    @default(0)
   regionId   Int    @map("region_id")
   formatId   Int    @map("format_id")
+  sortOrder  Int    @default(0) @map("sort_order")
 
   region           Region               @relation(fields: [regionId], references: [id])
   format           Format               @relation(fields: [formatId], references: [id])
@@ -774,6 +775,7 @@ model Division {
 
   @@unique([name, regionId, formatId])
   @@index([formatId])
+  @@index([regionId, formatId, sortOrder])
   @@map("divisions")
 }
 

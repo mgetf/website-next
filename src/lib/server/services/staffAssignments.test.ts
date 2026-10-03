@@ -18,7 +18,7 @@ function assignment(
       steamAvatar: null,
       permissionLevel: 'MODERATOR',
     },
-    division: { id: overrides.divisionId, name: 'Premier' },
+    division: { id: overrides.divisionId, name: 'Premier', sortOrder: 0 },
     ...overrides,
   };
 }
@@ -55,7 +55,7 @@ describe('staffForLeagueFromAssignments', () => {
           steamAvatar: null,
           permissionLevel: 'ADMIN',
         },
-        division: { id: 10, name: 'Premier' },
+        division: { id: 10, name: 'Premier', sortOrder: 0 },
       }),
       assignment({
         formatId: FORMAT_1V1,
@@ -67,7 +67,7 @@ describe('staffForLeagueFromAssignments', () => {
           steamAvatar: null,
           permissionLevel: 'ADMIN',
         },
-        division: { id: 10, name: 'Premier' },
+        division: { id: 10, name: 'Premier', sortOrder: 0 },
       }),
       assignment({
         formatId: FORMAT_2V2,
@@ -79,7 +79,7 @@ describe('staffForLeagueFromAssignments', () => {
           steamAvatar: null,
           permissionLevel: 'MODERATOR',
         },
-        division: { id: 20, name: 'Invite' },
+        division: { id: 20, name: 'Invite', sortOrder: 0 },
       }),
     ];
 
@@ -90,7 +90,7 @@ describe('staffForLeagueFromAssignments', () => {
     expect(grouped[0].staff[0].role).toBe('Head Admin');
   });
 
-  it('sorts head admins before moderators and divisions by id descending', () => {
+  it('sorts head admins before moderators and divisions by catalog order', () => {
     const rows = [
       assignment({
         formatId: FORMAT_2V2,
@@ -102,7 +102,7 @@ describe('staffForLeagueFromAssignments', () => {
           steamAvatar: null,
           permissionLevel: 'MODERATOR',
         },
-        division: { id: 5, name: 'Open' },
+        division: { id: 5, name: 'Open', sortOrder: 1 },
       }),
       assignment({
         formatId: FORMAT_2V2,
@@ -114,7 +114,7 @@ describe('staffForLeagueFromAssignments', () => {
           steamAvatar: null,
           permissionLevel: 'ADMIN',
         },
-        division: { id: 9, name: 'Premier' },
+        division: { id: 9, name: 'Premier', sortOrder: 0 },
       }),
       assignment({
         formatId: FORMAT_2V2,
@@ -126,7 +126,7 @@ describe('staffForLeagueFromAssignments', () => {
           steamAvatar: null,
           permissionLevel: 'MODERATOR',
         },
-        division: { id: 9, name: 'Premier' },
+        division: { id: 9, name: 'Premier', sortOrder: 0 },
       }),
     ];
 

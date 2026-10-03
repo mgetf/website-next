@@ -448,7 +448,7 @@
       })),
     ]}
     {@const modalDivisionOptions = [
-      { value: 'none', label: 'No Division' },
+      { value: 'none', label: 'Unplaced' },
       ...editModalDivisionOptions.map((d) => ({ value: String(d.id), label: d.name })),
     ]}
     {@const statusOptions = [

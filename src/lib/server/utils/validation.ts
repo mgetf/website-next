@@ -28,6 +28,22 @@ export function formatValidationErrors(errors: z.ZodError): Record<string, strin
   return formatted;
 }
 
+/**
+ * Division picker: a positive id, or `none` / empty for Unplaced.
+ */
+export const optionalDivisionIdSchema = z
+  .string()
+  .trim()
+  .transform((value, ctx) => {
+    if (value === '' || value === 'none') return null;
+    const id = Number(value);
+    if (!Number.isInteger(id) || id < 1) {
+      ctx.addIssue({ code: 'custom', message: 'A valid division is required' });
+      return z.NEVER;
+    }
+    return id;
+  });
+
 const nullableText = z.string().trim().nullable();
 const nullableUrl = z.union([z.url(), z.literal(''), z.null()]).transform((value) => value || null);
 const nullableDateTime = z.string().trim().nullable();

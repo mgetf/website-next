@@ -90,9 +90,8 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     }
   }
 
-  const divisions = (await getVisibleDivisions()).filter(
-    (division) => division.formatId === format.id,
-  );
+  const divisions =
+    selectedRegionId != null ? await getVisibleDivisions(format.id, selectedRegionId) : [];
 
   const signupsOpen =
     selectedSeasonId != null &&
@@ -146,16 +145,6 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   const teamsByDivision =
     selectedSeasonId != null && selectedRegionId != null
       ? [
-          {
-            division: {
-              id: 0,
-              name: 'Unplaced',
-            },
-            teams: mapLeagueTeams(
-              await getUnassignedTeams(selectedSeasonId, selectedRegionId, unplacedStatuses),
-              { assignRanks: false, signupsOpen },
-            ),
-          },
           ...(await Promise.all(
             divisions.map(async (division) => ({
               division: {
@@ -173,6 +162,16 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
               ),
             })),
           )),
+          {
+            division: {
+              id: 0,
+              name: 'Unplaced',
+            },
+            teams: mapLeagueTeams(
+              await getUnassignedTeams(selectedSeasonId, selectedRegionId, unplacedStatuses),
+              { assignRanks: false, signupsOpen },
+            ),
+          },
         ]
       : [];
 

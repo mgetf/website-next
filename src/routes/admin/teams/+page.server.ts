@@ -223,7 +223,7 @@ export const actions: Actions = {
       const nextRegionId = regionId === 'none' ? null : regionId ? parseInt(regionId) : null;
 
       const is1v1 = before.formatId === FORMAT_1V1;
-      const divisionChanging = nextDivisionId !== null && nextDivisionId !== before.divisionId;
+      const divisionChanging = nextDivisionId !== before.divisionId;
       const statusChanging = teamStatus !== undefined && teamStatus !== before.status;
 
       // Division changes must go through changeTeamDivision() for payment side-effects.
@@ -232,7 +232,7 @@ export const actions: Actions = {
       // All three can happen in the same form submission, so handle them independently.
 
       if (divisionChanging) {
-        await changeTeamDivision(teamId, nextDivisionId!, locals.user!.steamId);
+        await changeTeamDivision(teamId, nextDivisionId, locals.user!.steamId);
       }
 
       if (statusChanging) {

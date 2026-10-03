@@ -161,7 +161,7 @@
   $effect(() => {
     if (!activeEntry) return;
     admin1v1Status = activeEntry.status;
-    admin1v1DivisionId = activeEntry.divisionId != null ? String(activeEntry.divisionId) : '';
+    admin1v1DivisionId = activeEntry.divisionId != null ? String(activeEntry.divisionId) : 'none';
   });
 
   $effect(() => {

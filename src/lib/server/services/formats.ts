@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { LIVE_TEAM_COUNT } from '$lib/server/constants/teams';
 import { FORMAT_THEME_KEYS, isFormatThemeKey, type FormatThemeKey } from '$lib/constants/formats';
 import { badRequest, notFound } from '$lib/server/utils/errors';
 import {
@@ -84,7 +85,7 @@ export async function getFormats() {
       _count: {
         select: {
           seasons: true,
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
           activeSignupSeasons: true,
         },
       },

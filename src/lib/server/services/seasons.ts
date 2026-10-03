@@ -5,7 +5,8 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { Prisma } from '$prisma/client.js';
+import { LIVE_TEAM_COUNT } from '$lib/server/constants/teams';
+import { TeamStatus } from '$prisma/client.js';
 import { getFormatsWithSeasons } from '$lib/server/services/formats';
 import type { LeagueNav } from '$lib/types/league';
 import { buildLeagueNav } from '$lib/utils/leagueNav';
@@ -21,7 +22,7 @@ export async function getSeasons() {
       format: true,
       _count: {
         select: {
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
           matches: true,
         },
       },
@@ -43,7 +44,7 @@ export async function getSeasonById(id: number) {
       format: true,
       _count: {
         select: {
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
           matches: true,
         },
       },
@@ -198,7 +199,7 @@ export async function deleteSeason(id: number) {
     include: {
       _count: {
         select: {
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
           matches: true,
           teamsHistory: true,
           playoffs: true,
@@ -232,6 +233,11 @@ export async function deleteSeason(id: number) {
   if (blockers.length > 0) {
     throw new Error(`Cannot delete season: it has ${blockers.join(', ')}.`);
   }
+
+  await prisma.team.updateMany({
+    where: { seasonId: id, status: TeamStatus.DEAD },
+    data: { seasonId: null },
+  });
 
   return await prisma.season.delete({ where: { id } });
 }
@@ -314,18 +320,16 @@ export async function updateSeasonInfo(seasonId: number, info: string | null): P
  * Calculates status based on teams and matches
  */
 export function transformSeasonForUI(
-  season: Prisma.SeasonGetPayload<{
-    include: {
-      region: true;
-      format: true;
-      _count: {
-        select: {
-          teams: true;
-          matches: true;
-        };
-      };
-    };
-  }>,
+  season: {
+    id: number;
+    seasonNum: number;
+    regionId: number;
+    formatId: number;
+    numWeeks: number;
+    region: { name: string };
+    format: { name: string };
+    _count: { teams: number; matches: number };
+  },
   isLatest: boolean,
 ) {
   const status = isLatest ? 'Active' : 'Completed';

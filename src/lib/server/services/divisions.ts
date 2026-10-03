@@ -6,7 +6,9 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { LIVE_TEAM_COUNT } from '$lib/server/constants/teams';
 import { upsertDivisionItemPayment } from '$lib/server/services/division-item-payments';
+import { TeamStatus, type Prisma } from '$prisma/client.js';
 
 export type DivisionItemPaymentInput = {
   steamItemId: number;
@@ -25,6 +27,8 @@ export type DivisionBulkResult = {
 
 const SCOPE_TOKEN = /^(\d+):(\d+)$/;
 
+const DIVISION_LIST_ORDER = [{ sortOrder: 'asc' as const }, { id: 'asc' as const }];
+
 function uniquePositiveInts(ids: number[]): number[] {
   const seen = new Set<number>();
   const result: number[] = [];
@@ -34,6 +38,31 @@ function uniquePositiveInts(ids: number[]): number[] {
     result.push(id);
   }
   return result;
+}
+
+export function isCatalogPermutation(existingIds: number[], orderedIds: number[]): boolean {
+  if (existingIds.length !== orderedIds.length || orderedIds.length === 0) return false;
+  const existing = new Set(existingIds);
+  if (existing.size !== existingIds.length) return false;
+  const seen = new Set<number>();
+  for (const id of orderedIds) {
+    if (!existing.has(id) || seen.has(id)) return false;
+    seen.add(id);
+  }
+  return true;
+}
+
+async function nextSortOrder(
+  regionId: number,
+  formatId: number,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<number> {
+  const last = await client.division.findFirst({
+    where: { regionId, formatId },
+    orderBy: { sortOrder: 'desc' },
+    select: { sortOrder: true },
+  });
+  return (last?.sortOrder ?? -1) + 1;
 }
 
 function parseScopeToken(token: string): DivisionScope | null {
@@ -115,25 +144,25 @@ export async function getDivisions() {
       },
       _count: {
         select: {
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
         },
       },
     },
-    orderBy: {
-      id: 'asc',
-    },
+    orderBy: DIVISION_LIST_ORDER,
   });
 }
 
 /**
  * Get visible divisions only (for public use).
- * Pass formatId to limit results to one format's catalog.
- * Ordered by ID descending to show highest divisions first
- * (INVITE -> PREMIER -> INTERMEDIATE -> OPEN -> NEWCOMER)
+ * Pass formatId / regionId to limit results to one catalog.
  */
-export async function getVisibleDivisions(formatId?: number) {
+export async function getVisibleDivisions(formatId?: number, regionId?: number) {
   return await prisma.division.findMany({
-    where: { hidden: 0, ...(formatId != null ? { formatId } : {}) },
+    where: {
+      hidden: 0,
+      ...(formatId != null ? { formatId } : {}),
+      ...(regionId != null ? { regionId } : {}),
+    },
     select: {
       id: true,
       name: true,
@@ -141,7 +170,7 @@ export async function getVisibleDivisions(formatId?: number) {
       regionId: true,
       formatId: true,
     },
-    orderBy: { id: 'desc' },
+    orderBy: DIVISION_LIST_ORDER,
   });
 }
 
@@ -160,19 +189,17 @@ export async function getDivisionsForFilter() {
         select: { name: true },
       },
     },
-    orderBy: { id: 'asc' },
+    orderBy: DIVISION_LIST_ORDER,
   });
 }
 
 /**
- * Find the top-ranked visible division for a specific region and format.
- * Uses id DESC ordering which matches the existing convention
- * (higher id = lower division tier: INVITE > PREMIER > INTERMEDIATE > OPEN > NEWCOMER).
+ * First visible division in a region+format catalog (the top of the public list).
  */
 export async function findTopDivisionByRegion(regionId: number, formatId: number) {
   return await prisma.division.findFirst({
     where: { regionId, formatId, hidden: 0 },
-    orderBy: { id: 'desc' },
+    orderBy: DIVISION_LIST_ORDER,
   });
 }
 
@@ -209,6 +236,8 @@ export async function createDivision(data: {
     throw new Error('Division with this name already exists in this region and format');
   }
 
+  const sortOrder = await nextSortOrder(data.regionId, data.formatId);
+
   return await prisma.division.create({
     data: {
       name: trimmedName,
@@ -216,6 +245,7 @@ export async function createDivision(data: {
       regionId: data.regionId,
       formatId: data.formatId,
       hidden: 0,
+      sortOrder,
     },
   });
 }
@@ -333,7 +363,7 @@ export async function copyDivisions(data: {
       ? { id: { in: selectedIds } }
       : { regionId: data.sourceRegionId, formatId: data.sourceFormatId },
     include: { itemPayment: true },
-    orderBy: { id: 'asc' },
+    orderBy: DIVISION_LIST_ORDER,
   });
 
   if (copyingById && sources.length !== selectedIds.length) {
@@ -361,6 +391,7 @@ export async function copyDivisions(data: {
   let skipped = 0;
 
   for (const scope of targetScopes) {
+    let sortOrder = await nextSortOrder(scope.regionId, scope.formatId);
     for (const source of sources) {
       const existing = await findConflictingName(source.name, scope.regionId, scope.formatId);
       if (existing) {
@@ -375,8 +406,10 @@ export async function copyDivisions(data: {
           hidden: source.hidden,
           regionId: scope.regionId,
           formatId: scope.formatId,
+          sortOrder,
         },
       });
+      sortOrder += 1;
       await copyItemPayment(source.itemPayment, division.id);
       created += 1;
     }
@@ -449,6 +482,10 @@ export async function updateDivision(
     throw new Error('Division with this name already exists in this region and format');
   }
 
+  const sortOrder = scopeChanging
+    ? await nextSortOrder(data.regionId, data.formatId)
+    : division.sortOrder;
+
   return await prisma.division.update({
     where: { id },
     data: {
@@ -456,8 +493,36 @@ export async function updateDivision(
       signupCost: data.signupCost,
       regionId: data.regionId,
       formatId: data.formatId,
+      sortOrder,
     },
   });
+}
+
+export async function reorderDivisions(regionId: number, formatId: number, divisionIds: number[]) {
+  const orderedIds = uniquePositiveInts(divisionIds);
+  const existing = await prisma.division.findMany({
+    where: { regionId, formatId },
+    select: { id: true },
+    orderBy: DIVISION_LIST_ORDER,
+  });
+  const existingIds = existing.map((row) => row.id);
+
+  if (!isCatalogPermutation(existingIds, orderedIds)) {
+    throw new Error('Division list does not match this region and format');
+  }
+
+  if (existingIds.every((id, index) => id === orderedIds[index])) {
+    return;
+  }
+
+  await prisma.$transaction(
+    orderedIds.map((id, index) =>
+      prisma.division.update({
+        where: { id },
+        data: { sortOrder: index },
+      }),
+    ),
+  );
 }
 
 export async function setDivisionsHidden(ids: number[], hidden: 0 | 1) {
@@ -560,7 +625,7 @@ export async function deleteDivision(id: number) {
     include: {
       _count: {
         select: {
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
           staffAssignments: true,
         },
       },
@@ -576,6 +641,11 @@ export async function deleteDivision(id: number) {
     throw new Error(`Cannot delete division: it has ${blockers.join(', ')}.`);
   }
 
+  await prisma.team.updateMany({
+    where: { divisionId: id, status: TeamStatus.DEAD },
+    data: { divisionId: null },
+  });
+
   return await prisma.division.delete({ where: { id } });
 }
 
@@ -590,7 +660,7 @@ export async function deleteDivisions(ids: number[]) {
     include: {
       _count: {
         select: {
-          teams: true,
+          teams: LIVE_TEAM_COUNT,
           staffAssignments: true,
         },
       },
@@ -608,6 +678,11 @@ export async function deleteDivisions(ids: number[]) {
     const names = blocked.map((division) => division.name).join(', ');
     throw new Error(`Cannot delete division: ${names} still have teams or staff assigned.`);
   }
+
+  await prisma.team.updateMany({
+    where: { divisionId: { in: divisionIds }, status: TeamStatus.DEAD },
+    data: { divisionId: null },
+  });
 
   const result = await prisma.division.deleteMany({
     where: { id: { in: divisionIds } },

@@ -16,6 +16,7 @@
   import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
   import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
   import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
+  import DivisionCatalogList from '$lib/components/admin/DivisionCatalogList.svelte';
   import { toast } from '$lib/state/toast.svelte';
   import { FORMAT_THEME_KEYS } from '$lib/constants/formats';
 
@@ -55,15 +56,6 @@
     { key: 'currency', label: 'Currency' },
     { key: 'visibility', label: 'Visibility' },
     { key: 'seasons', label: 'Seasons' },
-    { key: 'teams', label: 'Teams' },
-    ...(data.isStrictAdmin ? [{ key: 'actions', label: 'Actions', align: 'right' as const }] : []),
-  ]);
-
-  const divisionColumns = $derived([
-    ...(data.isStrictAdmin ? [{ key: 'select', label: '', width: '2.5rem' }] : []),
-    { key: 'division', label: 'Division' },
-    { key: 'cost', label: 'Signup Cost' },
-    { key: 'visibility', label: 'Visibility' },
     { key: 'teams', label: 'Teams' },
     ...(data.isStrictAdmin ? [{ key: 'actions', label: 'Actions', align: 'right' as const }] : []),
   ]);
@@ -1076,6 +1068,11 @@
                             : ''}
                           • Currency: {regionData.region?.currencySymbol || '€'}
                         </p>
+                        {#if data.isStrictAdmin && regionData.divisions.length > 1}
+                          <p class="text-xs text-text-muted mt-1">
+                            Drag to set the public league order. Unplaced is always last.
+                          </p>
+                        {/if}
                       </div>
                       {#if data.isStrictAdmin && regionData.region}
                         <div class="flex items-center gap-2">
@@ -1109,88 +1106,24 @@
                     </div>
                   </div>
 
-                  <DataTable data={regionData.divisions} columns={divisionColumns}>
-                    {#snippet cell(division, col)}
-                      {#if col.key === 'select'}
-                        <input
-                          type="checkbox"
-                          checked={isDivisionSelected(division.id)}
-                          onchange={(e) =>
-                            toggleDivisionSelected(division.id, e.currentTarget.checked)}
-                        />
-                      {:else if col.key === 'division'}
-                        <div class="flex items-center gap-3">
-                          <div
-                            class="w-10 h-10 rounded-lg bg-primary-500/10 border border-primary-500/30 flex items-center justify-center"
-                          >
-                            <span class="text-lg font-bold text-primary-400"
-                              >{division.name.charAt(0).toUpperCase()}</span
-                            >
-                          </div>
-                          <div>
-                            <div class="font-semibold text-white">{division.name}</div>
-                            <div class="text-xs text-text-muted">ID: {division.id}</div>
-                          </div>
-                        </div>
-                      {:else if col.key === 'cost'}
-                        <div class="flex items-center gap-2">
-                          {#if division.signupCost > 0}
-                            <span class="text-sm font-medium text-success-400"
-                              >{regionData.region?.currencySymbol ||
-                                '€'}{division.signupCost.toFixed(2)}</span
-                            >
-                          {:else}
-                            <span class="text-sm text-text-muted">Free</span>
-                          {/if}
-                          {#if division.itemPayment}
-                            <Badge color="purple"
-                              >{division.itemPayment.itemQuantity}x {division.itemPayment
-                                .steamItemName}</Badge
-                            >
-                          {/if}
-                        </div>
-                      {:else if col.key === 'visibility'}
-                        <Badge color={division.hidden === 0 ? 'green' : 'zinc'}>
-                          {division.hidden === 0 ? 'Visible' : 'Hidden'}
-                        </Badge>
-                      {:else if col.key === 'teams'}
-                        <span class="text-sm font-medium text-white">{division.teams}</span>
-                        <span class="text-xs text-text-muted ml-1">teams</span>
-                      {:else if col.key === 'actions'}
-                        {#if data.isStrictAdmin}
-                          <div class="flex items-center justify-end gap-2">
-                            <form method="POST" action="?/toggleDivisionVisibility" use:enhance>
-                              <input type="hidden" name="divisionId" value={division.id} />
-                              <Button type="submit" variant="secondary" size="sm">
-                                {division.hidden === 0 ? 'Hide' : 'Show'}
-                              </Button>
-                            </form>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onclick={() => {
-                                editingDivision = division;
-                                selectedEditRegionId = division.regionId;
-                                selectedEditFormatId = division.formatId;
-                              }}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onclick={() => {
-                                deletingDivision = division;
-                                deleteConfirmText = '';
-                              }}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        {/if}
-                      {/if}
-                    {/snippet}
-                  </DataTable>
+                  <DivisionCatalogList
+                    divisions={regionData.divisions}
+                    regionId={regionData.region?.id ?? regionData.divisions[0]?.regionId ?? 0}
+                    formatId={selectedDivisionFormat.id}
+                    currencySymbol={regionData.region?.currencySymbol || '€'}
+                    canReorder={data.isStrictAdmin}
+                    selectedIds={selectedDivisionIds}
+                    onToggleSelected={toggleDivisionSelected}
+                    onEdit={(division) => {
+                      editingDivision = division;
+                      selectedEditRegionId = division.regionId;
+                      selectedEditFormatId = division.formatId;
+                    }}
+                    onDelete={(division) => {
+                      deletingDivision = division;
+                      deleteConfirmText = '';
+                    }}
+                  />
                 </Card>
               {/each}
             </div>

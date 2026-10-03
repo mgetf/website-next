@@ -34,7 +34,7 @@ export type LeagueStaffAssignment = {
     steamAvatar: string | null;
     permissionLevel: string;
   };
-  division: { id: number; name: string };
+  division: { id: number; name: string; sortOrder: number };
 };
 
 const STAFF_ASSIGNMENT_TOKEN = /^(\d+):(\d+)$/;
@@ -105,7 +105,7 @@ function filterAssignmentsForLeague<T extends { formatId: number; regionId: numb
 }
 
 function groupStaffByDivision(assignments: LeagueStaffAssignment[]): LeagueStaffByDivision[] {
-  const map = new Map<number, LeagueStaffByDivision>();
+  const map = new Map<number, LeagueStaffByDivision & { sortOrder: number }>();
 
   for (const assignment of assignments) {
     if (!map.has(assignment.divisionId)) {
@@ -114,6 +114,7 @@ function groupStaffByDivision(assignments: LeagueStaffAssignment[]): LeagueStaff
           id: assignment.division.id,
           name: assignment.division.name,
         },
+        sortOrder: assignment.division.sortOrder,
         staff: [],
       });
     }
@@ -135,7 +136,9 @@ function groupStaffByDivision(assignments: LeagueStaffAssignment[]): LeagueStaff
     });
   }
 
-  return Array.from(map.values()).sort((a, b) => b.division.id - a.division.id);
+  return Array.from(map.values())
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.division.id - b.division.id)
+    .map((group) => ({ division: group.division, staff: group.staff }));
 }
 
 export function staffForLeagueFromAssignments(
@@ -244,7 +247,7 @@ export async function getStaffForLeague(
           permissionLevel: true,
         },
       },
-      division: { select: { id: true, name: true } },
+      division: { select: { id: true, name: true, sortOrder: true } },
     },
   });
 

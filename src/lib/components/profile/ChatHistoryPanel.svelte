@@ -175,10 +175,7 @@
                   {#each group.messages as row (row.id)}
                     <li class="flex items-center gap-2 py-0.5 text-sm leading-5" title={place(row)}>
                       <span class="inline-flex shrink-0" aria-label={row.region.toUpperCase()}>
-                        <FlagIcon
-                          code={flagForRegion(row.region, regions)}
-                          class="h-3 w-4"
-                        />
+                        <FlagIcon code={flagForRegion(row.region, regions)} class="h-3 w-4" />
                       </span>
                       <time
                         datetime={row.ts}

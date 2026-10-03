@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
-import { parseDivisionScopeTokens } from './divisions';
+import { isCatalogPermutation, parseDivisionScopeTokens } from './divisions';
 
 describe('parseDivisionScopeTokens', () => {
   it('parses regionId:formatId tokens and skips blanks', () => {
@@ -20,5 +20,18 @@ describe('parseDivisionScopeTokens', () => {
     expect(() => parseDivisionScopeTokens([`1:${FORMAT_2V2}`, 'nope'])).toThrow(
       'Invalid region/format scope',
     );
+  });
+});
+
+describe('isCatalogPermutation', () => {
+  it('accepts a reordering of the same ids', () => {
+    expect(isCatalogPermutation([1, 2, 3], [3, 1, 2])).toBe(true);
+  });
+
+  it('rejects missing, extra, or duplicate ids', () => {
+    expect(isCatalogPermutation([1, 2, 3], [3, 1])).toBe(false);
+    expect(isCatalogPermutation([1, 2, 3], [3, 1, 2, 4])).toBe(false);
+    expect(isCatalogPermutation([1, 2, 3], [1, 1, 2])).toBe(false);
+    expect(isCatalogPermutation([1, 2, 3], [])).toBe(false);
   });
 });

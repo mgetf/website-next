@@ -39,7 +39,7 @@
   let adminDivisionId = $state('');
   $effect(() => {
     adminStatus = entry?.status ?? '';
-    adminDivisionId = entry?.divisionId != null ? String(entry.divisionId) : '';
+    adminDivisionId = entry?.divisionId != null ? String(entry.divisionId) : 'none';
   });
 
   const canReady = $derived(
@@ -240,7 +240,7 @@
           <Button type="submit" class="mb-6">Update status</Button>
         </form>
 
-        {#if divisions.length > 0}
+        {#if divisions.length > 0 || entry?.divisionId != null}
           <form
             class="flex flex-col gap-3 border-t border-border-default pt-2 sm:flex-row sm:items-end"
             onsubmit={(e) => {
@@ -254,10 +254,13 @@
                 name="divisionId"
                 id="{idPrefix}-division"
                 bind:value={adminDivisionId}
-                options={divisions.map((division) => ({
-                  value: String(division.id),
-                  label: `${division.name}${division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}`,
-                }))}
+                options={[
+                  { value: 'none', label: 'Unplaced' },
+                  ...divisions.map((division) => ({
+                    value: String(division.id),
+                    label: `${division.name}${division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}`,
+                  })),
+                ]}
               />
             </div>
             <Button type="submit" class="mb-6">Update division</Button>

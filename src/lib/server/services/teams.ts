@@ -780,7 +780,7 @@ export async function toggleTeamReady(teamId: number, userSteamId: string) {
 
 export interface ChangeTeamDivisionResult {
   oldDivision: { id: number; name: string; signupCost: number } | null;
-  newDivision: { id: number; name: string; signupCost: number };
+  newDivision: { id: number; name: string; signupCost: number } | null;
   paymentStatusReset: boolean;
   statusReset: boolean;
   notifiedPlayerSteamIds: string[];
@@ -788,15 +788,17 @@ export interface ChangeTeamDivisionResult {
 
 /**
  * Change a team's division with payment status side-effects.
+ * Pass `null` to unplace the team.
  *
  * Free → Paid:  resets paymentStatus to 0 for all active players and the team.
  * Paid → Free:  marks all active players and the team as paid (1), and sends
  *               a refund-eligibility notification to any players who had already paid.
  * Same tier:    no payment changes.
+ * Unplaced is treated as free for payment side-effects.
  */
 export async function changeTeamDivision(
   teamId: number,
-  newDivisionId: number,
+  newDivisionId: number | null,
   adminSteamId: string,
 ): Promise<ChangeTeamDivisionResult> {
   const team = await prisma.team.findUnique({
@@ -812,25 +814,30 @@ export async function changeTeamDivision(
 
   if (!team) notFound('Team not found');
 
-  const newDivision = await prisma.division.findUnique({ where: { id: newDivisionId } });
+  const newDivision =
+    newDivisionId == null
+      ? null
+      : await prisma.division.findUnique({ where: { id: newDivisionId } });
 
-  if (!newDivision) notFound('Division not found');
+  if (newDivisionId != null && !newDivision) notFound('Division not found');
 
   if (team.divisionId === newDivisionId) {
     badRequest('Team is already in that division');
   }
 
-  if (team.regionId && newDivision.regionId !== team.regionId) {
-    badRequest('Division must be in the same region as the team');
-  }
+  if (newDivision) {
+    if (team.regionId && newDivision.regionId !== team.regionId) {
+      badRequest('Division must be in the same region as the team');
+    }
 
-  if (newDivision.formatId !== team.formatId) {
-    badRequest('Division must be in the same format as the team');
+    if (newDivision.formatId !== team.formatId) {
+      badRequest('Division must be in the same format as the team');
+    }
   }
 
   const oldDiv = team.division;
   const oldIsFree = !oldDiv || oldDiv.signupCost === 0;
-  const newIsFree = newDivision.signupCost === 0;
+  const newIsFree = !newDivision || newDivision.signupCost === 0;
 
   const notifiedPlayerSteamIds: string[] = [];
   let paymentStatusReset = false;
@@ -877,7 +884,8 @@ export async function changeTeamDivision(
   // Send notifications outside the transaction (non-critical)
   const teamUrl = `/teams/${teamId}`;
   const oldDivName = oldDiv?.name ?? 'Unknown';
-  const refundMessage = `Your division was changed from ${oldDivName} to ${newDivision.name}. Since you already paid for ${oldDivName}, you may be entitled to a refund. Please contact an admin to discuss your options (PayPal refund, TF2 keys, or site credit for future signups).`;
+  const newDivName = newDivision?.name ?? 'Unplaced';
+  const refundMessage = `Your division was changed from ${oldDivName} to ${newDivName}. Since you already paid for ${oldDivName}, you may be entitled to a refund. Please contact an admin to discuss your options (PayPal refund, TF2 keys, or site credit for future signups).`;
 
   for (const steamId of notifiedPlayerSteamIds) {
     await createNotificationForUser(
@@ -893,7 +901,9 @@ export async function changeTeamDivision(
     oldDivision: oldDiv
       ? { id: oldDiv.id, name: oldDiv.name, signupCost: oldDiv.signupCost }
       : null,
-    newDivision: { id: newDivision.id, name: newDivision.name, signupCost: newDivision.signupCost },
+    newDivision: newDivision
+      ? { id: newDivision.id, name: newDivision.name, signupCost: newDivision.signupCost }
+      : null,
     paymentStatusReset,
     statusReset,
     notifiedPlayerSteamIds,

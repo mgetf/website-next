@@ -35,7 +35,7 @@
 
   $effect(() => {
     adminStatus = teamStatus;
-    adminDivisionId = divisionId != null ? String(divisionId) : '';
+    adminDivisionId = divisionId != null ? String(divisionId) : 'none';
   });
 </script>
 
@@ -63,16 +63,19 @@
 
     <hr class="border-border-default" />
 
-    {#if divisions.length > 0}
+    {#if divisions.length > 0 || divisionId != null}
       <form method="POST" action="?/changeDivision" use:enhance class="max-w-lg">
         <FormSelect
           label="Division"
           name="divisionId"
           bind:value={adminDivisionId}
-          options={divisions.map((division) => ({
-            value: String(division.id),
-            label: `${division.name}${division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}`,
-          }))}
+          options={[
+            { value: 'none', label: 'Unplaced' },
+            ...divisions.map((division) => ({
+              value: String(division.id),
+              label: `${division.name}${division.signupCost > 0 ? ` ($${division.signupCost})` : ' (free)'}`,
+            })),
+          ]}
         />
         <Button type="submit" disabled={busy}>Update Division</Button>
       </form>

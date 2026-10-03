@@ -34,6 +34,7 @@ import { withClasseloRanks } from '$lib/server/services/leaderboard';
 import { buildPageSeo } from '$lib/utils/seo';
 import { z } from 'zod';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
+import { optionalDivisionIdSchema } from '$lib/server/utils/validation';
 import { isSteamId64 } from '$lib/utils/steamid';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -620,16 +621,16 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const teamId = parseInt(formData.get('teamId')?.toString() || '');
-    const divisionId = parseInt(formData.get('divisionId')?.toString() || '');
+    const validation = validateForm(
+      formData,
+      z.object({
+        teamId: z.coerce.number().int().positive('Invalid team ID'),
+        divisionId: optionalDivisionIdSchema,
+      }),
+    );
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!teamId || isNaN(teamId)) {
-      return fail(400, { error: 'Invalid team ID' });
-    }
-
-    if (!divisionId || isNaN(divisionId) || divisionId <= 0) {
-      return fail(400, { error: 'A valid division is required' });
-    }
+    const { teamId, divisionId } = validation.data;
 
     try {
       const result = await changeTeamDivision(teamId, divisionId, locals.user.steamId);
@@ -645,15 +646,18 @@ export const actions: Actions = {
           targetSteamId: params.steamId,
           divisionIdBefore: result.oldDivision?.id ?? null,
           divisionNameBefore: result.oldDivision?.name ?? null,
-          divisionIdAfter: result.newDivision.id,
-          divisionNameAfter: result.newDivision.name,
+          divisionIdAfter: result.newDivision?.id ?? null,
+          divisionNameAfter: result.newDivision?.name ?? 'Unplaced',
           paymentStatusReset: result.paymentStatusReset,
           notifiedPlayers: result.notifiedPlayerSteamIds,
         },
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: `Division changed to ${result.newDivision.name}` };
+      return {
+        success: true,
+        message: `Division changed to ${result.newDivision?.name ?? 'Unplaced'}`,
+      };
     } catch (err) {
       console.error('Error changing 1v1 division:', err);
       return fail(isHttpError(err) ? err.status : 500, {

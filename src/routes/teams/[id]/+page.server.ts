@@ -36,6 +36,7 @@ import {
 } from '$lib/server/services/teamJoin';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getErrorMessage } from '$lib/server/utils/errors';
+import { optionalDivisionIdSchema } from '$lib/server/utils/validation';
 import { getByeWeeksForTeam } from '$lib/server/services/byeWeeks';
 import { buildPageSeo } from '$lib/utils/seo';
 import type { TeamMatchRow } from '$lib/types/team';
@@ -49,7 +50,7 @@ const updateStatusSchema = z.object({
 });
 
 const changeDivisionSchema = z.object({
-  divisionId: z.coerce.number().int().positive('A valid division is required'),
+  divisionId: optionalDivisionIdSchema,
 });
 
 const updateInfoSchema = z.object({
@@ -633,15 +634,18 @@ export const actions: Actions = {
         metadata: {
           divisionIdBefore: result.oldDivision?.id ?? null,
           divisionNameBefore: result.oldDivision?.name ?? null,
-          divisionIdAfter: result.newDivision.id,
-          divisionNameAfter: result.newDivision.name,
+          divisionIdAfter: result.newDivision?.id ?? null,
+          divisionNameAfter: result.newDivision?.name ?? 'Unplaced',
           paymentStatusReset: result.paymentStatusReset,
           notifiedPlayers: result.notifiedPlayerSteamIds,
         },
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: `Division changed to ${result.newDivision.name}` };
+      return {
+        success: true,
+        message: `Division changed to ${result.newDivision?.name ?? 'Unplaced'}`,
+      };
     } catch (err) {
       return fail('status' in (err as any) ? (err as any).status : 500, {
         error: getErrorMessage(err, 'Failed to change division'),

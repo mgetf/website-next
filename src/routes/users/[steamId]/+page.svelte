@@ -351,29 +351,43 @@
 
 <div class="border-b border-border-default bg-surface-page">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <div class="flex gap-1" role="tablist" aria-label="Profile sections">
-      {#each tabs as item (item.id)}
+    <div class="flex gap-1">
+      <div class="flex min-w-0 flex-1 gap-1" role="tablist" aria-label="Profile sections">
+        {#each tabs as item (item.id)}
+          <a
+            href={tabHref(item.id)}
+            role="tab"
+            id="tab-{item.id}"
+            aria-selected={tab === item.id}
+            aria-controls="panel-{item.id}"
+            data-sveltekit-noscroll
+            aria-label={item.id === 'chat' ? 'Chat, staff only' : undefined}
+            class="inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors {item.id ===
+            'chat'
+              ? 'ml-auto'
+              : ''} {tab === item.id
+              ? 'border-primary-500 text-white'
+              : 'border-transparent text-text-muted hover:text-text-label'}"
+          >
+            {#if item.id === 'chat'}
+              <Shield class="size-3.5" aria-hidden="true" />
+            {/if}
+            {item.label}
+          </a>
+        {/each}
+      </div>
+      {#if isAdmin}
         <a
-          href={tabHref(item.id)}
-          role="tab"
-          id="tab-{item.id}"
-          aria-selected={tab === item.id}
-          aria-controls="panel-{item.id}"
-          data-sveltekit-noscroll
-          aria-label={item.id === 'chat' ? 'Chat, staff only' : undefined}
-          class="inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors {item.id ===
-          'chat'
-            ? 'ml-auto'
-            : ''} {tab === item.id
-            ? 'border-primary-500 text-white'
-            : 'border-transparent text-text-muted hover:text-text-label'}"
+          href="{resolve('/admin/investigate')}?q={encodeURIComponent(player.steamId)}"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Investigate, staff only"
+          class="inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-3 text-sm font-medium text-text-muted transition-colors hover:text-text-label"
         >
-          {#if item.id === 'chat'}
-            <Shield class="size-3.5" aria-hidden="true" />
-          {/if}
-          {item.label}
+          <Shield class="size-3.5" aria-hidden="true" />
+          Investigate
         </a>
-      {/each}
+      {/if}
     </div>
   </div>
 </div>

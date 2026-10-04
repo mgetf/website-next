@@ -10,6 +10,8 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import FormError from '$lib/components/ui/form/FormError.svelte';
+  import ProfilingPeek from '$lib/components/admin/ProfilingPeek.svelte';
+  import PlacementPlayerName from '$lib/components/admin/PlacementPlayerName.svelte';
   import SearchInput from '$lib/components/ui/SearchInput.svelte';
   import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
   import { toast } from '$lib/state/toast.svelte';
@@ -18,7 +20,8 @@
   import { flagForRegion } from '$lib/utils/regions';
   import { isFreeDivision } from '$lib/utils/signupDivision';
   import { describePlacementMoves, matchesPlacementSearch } from '$lib/utils/placement';
-  import type { PlacementColumn, PlacementEntry } from '$lib/types/placement';
+  import type { PlacementColumn, PlacementEntry, PlacementPlayer } from '$lib/types/placement';
+  import type { ProfilingScores } from '$lib/types/profiling';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -29,6 +32,15 @@
   let saving = $state(false);
   let saveForm: HTMLFormElement | undefined = $state();
   let lastFormResult: ActionData = null;
+  let peek = $state<{
+    player: PlacementPlayer;
+    x: number;
+    y: number;
+    status: 'loading' | 'ready' | 'error';
+    scores: ProfilingScores | null;
+  } | null>(null);
+  let peekGeneration = 0;
+  const peekCache = new Map<string, ProfilingScores>();
 
   function boardFromData(): PlacementColumn[] {
     return data.divisions.map((division) => ({
@@ -105,6 +117,46 @@
 
   function stopDrag(event: Event) {
     event.stopPropagation();
+  }
+
+  async function openPeek(player: PlacementPlayer, event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const cached = peekCache.get(player.steamId) ?? null;
+    const id = ++peekGeneration;
+    peek = {
+      player,
+      x: event.clientX,
+      y: event.clientY,
+      status: cached ? 'ready' : 'loading',
+      scores: cached,
+    };
+    if (cached) return;
+
+    try {
+      const res = await fetch(`/api/admin/profiling/${encodeURIComponent(player.steamId)}`);
+      if (id !== peekGeneration) return;
+      if (!res.ok) throw new Error('failed');
+      const body = (await res.json()) as { data?: ProfilingScores };
+      if (!body.data) throw new Error('failed');
+      peekCache.set(player.steamId, body.data);
+      peek = {
+        player,
+        x: event.clientX,
+        y: event.clientY,
+        status: 'ready',
+        scores: body.data,
+      };
+    } catch {
+      if (id !== peekGeneration) return;
+      peek = {
+        player,
+        x: event.clientX,
+        y: event.clientY,
+        status: 'error',
+        scores: null,
+      };
+    }
   }
 
   function costLabel(signupCost: number): string {
@@ -330,17 +382,34 @@
                   <a
                     href={cardHref(entry)}
                     class="block truncate text-xs leading-tight text-white hover:text-primary-400"
-                    title={entry.acronym ? `${entry.name} [${entry.acronym}]` : entry.name}
+                    title={data.isIndividual
+                      ? 'Right-click for a profiling snapshot'
+                      : entry.acronym
+                        ? `${entry.name} [${entry.acronym}]`
+                        : entry.name}
                     onpointerdown={stopDrag}
+                    oncontextmenu={(event) => {
+                      const player = entry.players[0];
+                      if (!data.isIndividual || !player) return;
+                      void openPeek(player, event);
+                    }}
                   >
                     {entry.name}
                     {#if entry.acronym}
                       <span class="text-text-muted">[{entry.acronym}]</span>
                     {/if}
                   </a>
-                  {#if !data.isIndividual && roster}
+                  {#if !data.isIndividual && entry.players.length > 0}
                     <p class="truncate text-[10px] leading-tight text-text-muted" title={roster}>
-                      {roster}
+                      {#each entry.players as player, index (player.steamId)}
+                        {#if index > 0}
+                          <span> · </span>
+                        {/if}
+                        <PlacementPlayerName
+                          name={player.steamUsername}
+                          onOpen={(event) => void openPeek(player, event)}
+                        />
+                      {/each}
                     </p>
                   {/if}
                 </div>
@@ -396,3 +465,15 @@
     </ul>
   {/snippet}
 </ConfirmDialog>
+
+{#if peek}
+  <ProfilingPeek
+    name={peek.player.steamUsername}
+    steamId={peek.player.steamId}
+    x={peek.x}
+    y={peek.y}
+    status={peek.status}
+    scores={peek.scores}
+    onClose={() => (peek = null)}
+  />
+{/if}

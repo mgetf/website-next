@@ -15,7 +15,11 @@ import {
 } from '$lib/server/services/users';
 import { withdraw1v1Entry, toggle1v1Ready, change1v1Status } from '$lib/server/services/signup1v1';
 import { TeamStatus } from '$prisma/client.js';
-import { markPlayerAsPaidManually, unmarkPlayerAsPaid } from '$lib/server/services/payments';
+import {
+  getUserPaymentHistory,
+  markPlayerAsPaidManually,
+  unmarkPlayerAsPaid,
+} from '$lib/server/services/payments';
 import { changeTeamDivision } from '$lib/server/services/teams';
 import { getVisibleDivisions } from '$lib/server/services/divisions';
 import { FORMAT_1V1 } from '$lib/server/constants/formats';
@@ -31,6 +35,10 @@ import type { PageServerLoad, Actions } from './$types';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { getPlayerClasselo, getPlayerRatings, getRegions } from '$lib/server/clients/mgePlatform';
 import { withClasseloRanks } from '$lib/server/services/leaderboard';
+import { getPlayerProfiling } from '$lib/server/services/profiling';
+import type { ProfilePaymentHistory } from '$lib/types/profile';
+import type { ProfilingScores } from '$lib/types/profiling';
+import { parseProfileTab } from '$lib/utils/profile';
 import { buildPageSeo } from '$lib/utils/seo';
 import { z } from 'zod';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
@@ -58,6 +66,46 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const isOwnProfile = locals.user?.steamId === steamId;
     const isUserAdmin = isAdmin(locals.user);
     const signupSuccess = url.searchParams.get('signup');
+    const canViewPayments = isOwnProfile || isUserAdmin;
+    const activeTab = parseProfileTab(url.searchParams.get('tab'), {
+      allow1v1: resolvedProfile.registered,
+      allowChat: isUserAdmin,
+      allowPayments: canViewPayments,
+      allowProfiling: isUserAdmin,
+    });
+
+    let payments: ProfilePaymentHistory | null = null;
+    let profiling: ProfilingScores | null = null;
+    if (activeTab === 'payments') {
+      const pageParam = url.searchParams.get('page');
+      const currentPage = Math.max(1, parseInt(pageParam ?? '', 10) || 1);
+      const limit = 20;
+      const history = await getUserPaymentHistory(steamId, currentPage, limit);
+      payments = {
+        entries: history.entries.map((entry) => ({
+          id: entry.id,
+          date: entry.date.toISOString(),
+          method: entry.method,
+          description: entry.description,
+          amount: entry.amount,
+          currency: entry.currency,
+          teamId: entry.teamId,
+          teamName: entry.teamName,
+          status: entry.status,
+        })),
+        total: history.total,
+        currentPage,
+        totalPages: Math.ceil(history.total / limit),
+      };
+    }
+
+    if (activeTab === 'profiling' && isUserAdmin) {
+      try {
+        profiling = await getPlayerProfiling(steamId);
+      } catch {
+        profiling = null;
+      }
+    }
 
     // Load divisions for the admin division-change control on the active 1v1 entry
     let divisions1v1: { id: number; name: string; signupCost: number; regionId: number }[] = [];
@@ -110,6 +158,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       isAdmin: isUserAdmin,
       signupSuccess,
       divisions1v1,
+      payments,
+      profiling,
     };
   } catch (err) {
     console.error('Error loading user profile:', err);

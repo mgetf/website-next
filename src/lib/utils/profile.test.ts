@@ -24,4 +24,16 @@ describe('parseProfileTab', () => {
     expect(parseProfileTab('chat', { allowChat: false })).toBe('overview');
     expect(parseProfileTab('chat', { allowChat: true })).toBe('chat');
   });
+
+  it('accepts payments only for the profile owner or staff', () => {
+    expect(parseProfileTab('payments')).toBe('overview');
+    expect(parseProfileTab('payments', { allowPayments: false })).toBe('overview');
+    expect(parseProfileTab('payments', { allowPayments: true })).toBe('payments');
+  });
+
+  it('accepts profiling only for staff', () => {
+    expect(parseProfileTab('profiling')).toBe('overview');
+    expect(parseProfileTab('profiling', { allowProfiling: false })).toBe('overview');
+    expect(parseProfileTab('profiling', { allowProfiling: true })).toBe('profiling');
+  });
 });

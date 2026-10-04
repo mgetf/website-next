@@ -8,6 +8,8 @@
   import ChatHistoryPanel from '$lib/components/profile/ChatHistoryPanel.svelte';
   import LeaguePanel from '$lib/components/profile/LeaguePanel.svelte';
   import OverviewPanel from '$lib/components/profile/OverviewPanel.svelte';
+  import PaymentHistoryPanel from '$lib/components/profile/PaymentHistoryPanel.svelte';
+  import ProfilingPanel from '$lib/components/profile/ProfilingPanel.svelte';
   import StaffToolsPanel from '$lib/components/profile/StaffToolsPanel.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -18,10 +20,12 @@
   import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
   import type {
     Profile1v1Entry,
+    ProfilePaymentHistory,
     ProfileTab,
     ProfileTeam,
     ProfileTeamSeasonMatches,
   } from '$lib/types/profile';
+  import type { ProfilingScores } from '$lib/types/profiling';
   import { parseProfileTab, profileExternalLinks } from '$lib/utils/profile';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
   import Settings from '~icons/lucide/settings';
@@ -102,6 +106,8 @@
     platformRegions: PlatformRegion[];
     formats: Array<{ code: string; name: string; iconUrl: string | null }>;
     registered: boolean;
+    payments: ProfilePaymentHistory | null;
+    profiling: ProfilingScores | null;
   }
 
   let { data }: { data: PlayerData } = $props();
@@ -123,18 +129,27 @@
     ...data.teamHistory.map((team) => ({ ...team, active: false })),
   ]);
 
+  const canViewPayments = $derived(isOwnProfile || isAdmin);
   const tab = $derived(
     parseProfileTab(page.url.searchParams.get('tab'), {
       allow1v1: isRegistered,
       allowChat: isAdmin,
+      allowPayments: canViewPayments,
+      allowProfiling: isAdmin,
     }),
   );
-  const tabs = $derived<{ id: ProfileTab; label: string }[]>([
+  const tabs = $derived<{ id: ProfileTab; label: string; staff?: boolean }[]>([
     { id: 'overview', label: 'Overview' },
     ...(isRegistered ? [{ id: '1v1' as const, label: '1v1' }] : []),
     { id: 'stats', label: 'Stats' },
-    ...(isAdmin ? [{ id: 'chat' as const, label: 'Chat' }] : []),
+    ...(isOwnProfile ? [{ id: 'payments' as const, label: 'Payments' }] : []),
+    ...(isAdmin && !isOwnProfile
+      ? [{ id: 'payments' as const, label: 'Payments', staff: true }]
+      : []),
+    ...(isAdmin ? [{ id: 'profiling' as const, label: 'Profiling', staff: true }] : []),
+    ...(isAdmin ? [{ id: 'chat' as const, label: 'Chat', staff: true }] : []),
   ]);
+  const firstStaffTab = $derived(tabs.find((item) => item.staff)?.id);
 
   let withdrawingEntry: Profile1v1Entry | null = $state(null);
   let isWithdrawing = $state(false);
@@ -204,6 +219,7 @@
     const params = new URLSearchParams(page.url.searchParams);
     if (next === 'overview') params.delete('tab');
     else params.set('tab', next);
+    if (next !== 'payments') params.delete('page');
     const search = params.toString();
     return search ? `${profilePath}?${search}` : profilePath;
   }
@@ -361,15 +377,15 @@
             aria-selected={tab === item.id}
             aria-controls="panel-{item.id}"
             data-sveltekit-noscroll
-            aria-label={item.id === 'chat' ? 'Chat, staff only' : undefined}
+            aria-label={item.staff ? `${item.label}, staff only` : undefined}
             class="inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors {item.id ===
-            'chat'
+            firstStaffTab
               ? 'ml-auto'
               : ''} {tab === item.id
               ? 'border-primary-500 text-white'
               : 'border-transparent text-text-muted hover:text-text-label'}"
           >
-            {#if item.id === 'chat'}
+            {#if item.staff}
               <Shield class="size-3.5" aria-hidden="true" />
             {/if}
             {item.label}
@@ -433,6 +449,24 @@
         onMarkPaid={() => (showMarkPaidConfirm = true)}
         onUnmarkPaid={() => (showUnmarkPaidConfirm = true)}
       />
+    </div>
+  {:else if tab === 'payments'}
+    <div id="panel-payments" role="tabpanel" aria-labelledby="tab-payments">
+      <PaymentHistoryPanel
+        steamId={player.steamId}
+        entries={data.payments?.entries ?? []}
+        total={data.payments?.total ?? 0}
+        currentPage={data.payments?.currentPage ?? 1}
+        totalPages={data.payments?.totalPages ?? 0}
+      />
+    </div>
+  {:else if tab === 'profiling' && isAdmin}
+    <div id="panel-profiling" role="tabpanel" aria-labelledby="tab-profiling">
+      {#if data.profiling}
+        <ProfilingPanel scores={data.profiling} />
+      {:else}
+        <p class="text-text-muted text-sm">Profiling data is unavailable for this account.</p>
+      {/if}
     </div>
   {:else if tab === 'chat' && isAdmin}
     <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">

@@ -7,6 +7,7 @@
   import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
   import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
   import InvestigateChat from '$lib/components/admin/InvestigateChat.svelte';
+  import ProfilingSummary from '$lib/components/admin/ProfilingSummary.svelte';
   import { flagForRegion } from '$lib/utils/regions';
   import { steamId3FromSteamId64 } from '$lib/utils/steamid';
   import type {
@@ -171,6 +172,9 @@
           <span class="font-medium text-white">{data.result.steamId}</span>.
         </p>
       </Card>
+      {#if data.profiling}
+        <ProfilingSummary scores={data.profiling} steam64={data.result.steam64} />
+      {/if}
     {:else if data.result.kind === 'ip'}
       {@const ipResult = data.result}
       <Card padding="sm">
@@ -256,6 +260,9 @@
     {:else}
       {@const steam = data.result}
       {@const steam3 = steam.steam64 ? steamId3FromSteamId64(steam.steam64) : null}
+      {#if data.profiling}
+        <ProfilingSummary scores={data.profiling} steam64={steam.steam64} />
+      {/if}
       <div class="grid gap-4 sm:gap-6 lg:grid-cols-2">
         <Card padding="sm">
           {#snippet header()}

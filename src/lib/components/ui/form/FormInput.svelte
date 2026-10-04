@@ -8,9 +8,13 @@
     required = false,
     disabled = false,
     maxlength,
+    min,
+    max,
+    step,
     error,
     hint,
     onInput,
+    compact = false,
     class: className = '',
   }: {
     label: string;
@@ -21,16 +25,20 @@
     required?: boolean;
     disabled?: boolean;
     maxlength?: number;
+    min?: string | number;
+    max?: string | number;
+    step?: string | number;
     error?: string;
     hint?: string;
     onInput?: (value: string | null) => void;
+    compact?: boolean;
     class?: string;
   } = $props();
 
   const inputClasses = $derived(
-    `w-full px-4 py-3 bg-surface-input border rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-      error ? 'border-danger-500' : 'border-border-input'
-    } ${className}`,
+    `w-full bg-surface-input border rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+      compact ? 'px-3 py-1.5 text-sm' : 'px-4 py-3'
+    } ${error ? 'border-danger-500' : 'border-border-input'} ${className}`,
   );
 
   function handleInput(event: Event) {
@@ -39,8 +47,11 @@
   }
 </script>
 
-<div class="mb-6">
-  <label for={name} class="block text-sm font-medium text-text-label mb-2">
+<div class={compact ? '' : 'mb-6'}>
+  <label
+    for={name}
+    class="block font-medium text-text-label {compact ? 'mb-1 text-xs' : 'mb-2 text-sm'}"
+  >
     {label}
     {#if required}
       <span class="text-danger-500">*</span>
@@ -55,6 +66,9 @@
     {required}
     {disabled}
     {maxlength}
+    {min}
+    {max}
+    {step}
     oninput={handleInput}
     class={inputClasses}
   />

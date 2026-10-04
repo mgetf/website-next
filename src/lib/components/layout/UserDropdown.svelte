@@ -6,7 +6,6 @@
   import ChevronRight from '~icons/lucide/chevron-right';
   import User from '~icons/lucide/user';
   import Users from '~icons/lucide/users';
-  import Receipt from '~icons/lucide/receipt';
   import Settings from '~icons/lucide/settings';
   import LogOut from '~icons/lucide/log-out';
 
@@ -140,15 +139,6 @@
             </DropdownMenu.SubContent>
           </DropdownMenu.Sub>
         {/if}
-
-        <DropdownMenu.Item class={itemClass}>
-          {#snippet child({ props })}
-            <a href="/users/{user.steamId}/payments" {...props}>
-              <Receipt class="size-5 shrink-0" />
-              <span>Payment History</span>
-            </a>
-          {/snippet}
-        </DropdownMenu.Item>
 
         {#if isAdminUser}
           <DropdownMenu.Item class="{itemClass} text-purple-400 data-highlighted:text-purple-300">

@@ -1187,6 +1187,14 @@ model SiteSettings {
   @@map("site_settings")
 }
 
+model ProfilingSettings {
+  id        Int      @id @default(1)
+  weights   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("profiling_settings")
+}
+
 // Map catalog entries (external .bsp / .cfg URLs, zipped on download)
 model MapFile {
   id          Int      @id @default(autoincrement())

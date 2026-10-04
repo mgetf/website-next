@@ -10,6 +10,7 @@
   import Trophy from '~icons/lucide/trophy';
   import Medal from '~icons/lucide/medal';
   import Users from '~icons/lucide/users';
+  import Columns3 from '~icons/lucide/columns-3';
   import Swords from '~icons/lucide/swords';
   import Hourglass from '~icons/lucide/hourglass';
   import Video from '~icons/lucide/video';
@@ -42,6 +43,7 @@
     { name: 'League', path: '/admin/league', icon: Trophy, adminOnly: false, badge: '' },
     { name: 'Tournaments', path: '/admin/tournaments', icon: Medal, adminOnly: true, badge: '' },
     { name: 'Teams', path: '/admin/teams', icon: Users, adminOnly: false, badge: '' },
+    { name: 'Placement', path: '/admin/placement', icon: Columns3, adminOnly: false, badge: '' },
     { name: 'Matches', path: '/admin/matches', icon: Swords, adminOnly: false, badge: '' },
     {
       name: 'Pending Players',

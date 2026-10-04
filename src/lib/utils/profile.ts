@@ -91,9 +91,16 @@ export function teamFormatsIn(
 
 export function parseProfileTab(
   raw: string | null,
-  options: { allow1v1?: boolean; allowChat?: boolean } = {},
+  options: {
+    allow1v1?: boolean;
+    allowChat?: boolean;
+    allowPayments?: boolean;
+    allowProfiling?: boolean;
+  } = {},
 ): ProfileTab {
   if (raw === 'chat' && options.allowChat) return 'chat';
+  if (raw === 'payments' && options.allowPayments) return 'payments';
+  if (raw === 'profiling' && options.allowProfiling) return 'profiling';
   if (raw === 'stats') return 'stats';
   if (raw === '1v1' && options.allow1v1 !== false) return '1v1';
   return 'overview';

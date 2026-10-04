@@ -1,6 +1,25 @@
 import type { ProfileMatch } from './match';
 
-export type ProfileTab = 'overview' | '1v1' | 'stats' | 'chat';
+export type ProfileTab = 'overview' | '1v1' | 'stats' | 'chat' | 'payments' | 'profiling';
+
+export interface ProfilePaymentEntry {
+  id: string;
+  date: string;
+  method: 'paypal' | 'items' | 'manual';
+  description: string;
+  amount: string;
+  currency: string;
+  teamId: number | null;
+  teamName: string | null;
+  status: 'completed' | 'pending' | 'expired' | 'cancelled';
+}
+
+export interface ProfilePaymentHistory {
+  entries: ProfilePaymentEntry[];
+  total: number;
+  currentPage: number;
+  totalPages: number;
+}
 
 export type ChatWindow = '7' | '30' | '90' | 'all';
 

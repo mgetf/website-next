@@ -78,431 +78,465 @@
       editingAnnouncement = announcement;
     }
   }
+
+  type Tab = 'announcements' | 'seasons' | 'standings' | 'payments';
+
+  const allTabs = [
+    { id: 'announcements', label: 'Announcements', strict: false },
+    { id: 'seasons', label: 'Seasons', strict: false },
+    { id: 'standings', label: 'Standings', strict: true },
+    { id: 'payments', label: 'Payments', strict: true },
+  ] as const satisfies readonly { id: Tab; label: string; strict: boolean }[];
+
+  const tabs = $derived(allTabs.filter((tab) => !tab.strict || data.isStrictAdmin));
+
+  let activeTab = $state<Tab>('announcements');
 </script>
 
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
     <h1 class="text-3xl font-bold text-white mb-2">Global Configuration</h1>
-    <p class="text-text-body">Manage site-wide settings and announcements</p>
+    <p class="text-text-body">Manage announcements, seasons, standings, and payments</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="border-b border-border-default">
+    <nav class="flex gap-4">
+      {#each tabs as tab (tab.id)}
+        <button
+          type="button"
+          onclick={() => (activeTab = tab.id)}
+          class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab === tab.id
+            ? 'border-primary-500 text-primary-400'
+            : 'border-transparent text-text-body hover:text-white'}"
+        >
+          {tab.label}
+        </button>
+      {/each}
+    </nav>
   </div>
 
   <!-- Section 1: Global Announcements -->
-  <Card padding="none" class="p-6 space-y-6">
-    <div class="border-b border-border-default pb-4">
-      <h3 class="text-2xl font-bold text-white mb-2">Global Announcements</h3>
-      <p class="text-text-body">Manage homepage announcement banners</p>
-    </div>
+  {#if activeTab === 'announcements'}
+    <Card padding="none" class="p-6 space-y-6">
+      <div class="border-b border-border-default pb-4">
+        <h3 class="text-2xl font-bold text-white mb-2">Global Announcements</h3>
+        <p class="text-text-body">Manage homepage announcement banners</p>
+      </div>
 
-    <!-- Create Announcement Form -->
-    <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-      <form
-        method="POST"
-        action="?/createAnnouncement"
-        use:enhance={() => {
-          isSubmitting = true;
-          return async ({ update }) => {
-            await update();
-            isSubmitting = false;
-          };
-        }}
-        class="space-y-4"
-      >
-        <div>
-          <label for="content" class="block text-sm font-medium text-text-label mb-2">
-            New Announcement
-          </label>
-          <textarea
-            id="content"
-            name="content"
-            rows="3"
-            maxlength="500"
-            required
-            class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            placeholder="Enter announcement text (max 500 characters)..."></textarea>
-        </div>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating...' : 'Create Announcement'}
-        </Button>
-      </form>
-    </div>
+      <!-- Create Announcement Form -->
+      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
+        <form
+          method="POST"
+          action="?/createAnnouncement"
+          use:enhance={() => {
+            isSubmitting = true;
+            return async ({ update }) => {
+              await update();
+              isSubmitting = false;
+            };
+          }}
+          class="space-y-4"
+        >
+          <div>
+            <label for="content" class="block text-sm font-medium text-text-label mb-2">
+              New Announcement
+            </label>
+            <textarea
+              id="content"
+              name="content"
+              rows="3"
+              maxlength="500"
+              required
+              class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="Enter announcement text (max 500 characters)..."></textarea>
+          </div>
+          <Button type="submit" variant="primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : 'Create Announcement'}
+          </Button>
+        </form>
+      </div>
 
-    <!-- Announcements List -->
-    <div class="space-y-3 border-t border-border-default pt-6">
-      {#if data.announcements.length === 0}
-        <div class="text-center py-12 text-text-muted">
-          <p class="text-lg mb-2">No announcements yet</p>
-          <p class="text-sm">Create your first announcement above</p>
-        </div>
-      {:else}
-        {#each data.announcements as announcement}
-          <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-            <div class="flex flex-col space-y-3">
-              <!-- Announcement Content -->
-              <div class="flex items-start justify-between gap-4">
-                <p class="text-white flex-1">{announcement.content}</p>
-                <div class="flex items-center gap-2 flex-shrink-0">
-                  <!-- Toggle Visibility -->
+      <!-- Announcements List -->
+      <div class="space-y-3 border-t border-border-default pt-6">
+        {#if data.announcements.length === 0}
+          <div class="text-center py-12 text-text-muted">
+            <p class="text-lg mb-2">No announcements yet</p>
+            <p class="text-sm">Create your first announcement above</p>
+          </div>
+        {:else}
+          {#each data.announcements as announcement}
+            <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
+              <div class="flex flex-col space-y-3">
+                <!-- Announcement Content -->
+                <div class="flex items-start justify-between gap-4">
+                  <p class="text-white flex-1">{announcement.content}</p>
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <!-- Toggle Visibility -->
+                    <form
+                      method="POST"
+                      action="?/toggleVisibility"
+                      use:enhance={() => {
+                        isSubmitting = true;
+                        return async ({ update }) => {
+                          await update();
+                          isSubmitting = false;
+                        };
+                      }}
+                      class="inline"
+                    >
+                      <input type="hidden" name="id" value={announcement.id} />
+                      <input
+                        type="hidden"
+                        name="visible"
+                        value={announcement.visible === 1 ? '0' : '1'}
+                      />
+                      <Button
+                        type="submit"
+                        variant={announcement.visible === 1 ? 'success' : 'secondary'}
+                        size="sm"
+                        disabled={isSubmitting}
+                      >
+                        {announcement.visible === 1 ? 'Hide' : 'Show'}
+                      </Button>
+                    </form>
+
+                    <!-- Edit Button -->
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onclick={() => toggleEditForm(announcement)}
+                    >
+                      Edit
+                    </Button>
+
+                    <!-- Delete Button -->
+                    {#if data.isStrictAdmin}
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onclick={() => (deletingAnnouncement = announcement)}
+                      >
+                        Delete
+                      </Button>
+                    {/if}
+                  </div>
+                </div>
+
+                <!-- Edit Form (Hidden by default) -->
+                {#if editingAnnouncement?.id === announcement.id}
                   <form
                     method="POST"
-                    action="?/toggleVisibility"
+                    action="?/editAnnouncement"
                     use:enhance={() => {
                       isSubmitting = true;
                       return async ({ update }) => {
                         await update();
                         isSubmitting = false;
+                        editingAnnouncement = null;
                       };
                     }}
-                    class="inline"
+                    class="space-y-3 pt-3 border-t border-border-input"
                   >
                     <input type="hidden" name="id" value={announcement.id} />
-                    <input
-                      type="hidden"
-                      name="visible"
-                      value={announcement.visible === 1 ? '0' : '1'}
-                    />
-                    <Button
-                      type="submit"
-                      variant={announcement.visible === 1 ? 'success' : 'secondary'}
-                      size="sm"
-                      disabled={isSubmitting}
-                    >
-                      {announcement.visible === 1 ? 'Hide' : 'Show'}
-                    </Button>
+                    <textarea
+                      name="content"
+                      rows="3"
+                      maxlength="500"
+                      required
+                      class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      value={announcement.content}></textarea>
+                    <div class="flex gap-2">
+                      <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
+                        {isSubmitting ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onclick={() => (editingAnnouncement = null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </form>
-
-                  <!-- Edit Button -->
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onclick={() => toggleEditForm(announcement)}
-                  >
-                    Edit
-                  </Button>
-
-                  <!-- Delete Button -->
-                  {#if data.isStrictAdmin}
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onclick={() => (deletingAnnouncement = announcement)}
-                    >
-                      Delete
-                    </Button>
-                  {/if}
-                </div>
+                {/if}
               </div>
-
-              <!-- Edit Form (Hidden by default) -->
-              {#if editingAnnouncement?.id === announcement.id}
-                <form
-                  method="POST"
-                  action="?/editAnnouncement"
-                  use:enhance={() => {
-                    isSubmitting = true;
-                    return async ({ update }) => {
-                      await update();
-                      isSubmitting = false;
-                      editingAnnouncement = null;
-                    };
-                  }}
-                  class="space-y-3 pt-3 border-t border-border-input"
-                >
-                  <input type="hidden" name="id" value={announcement.id} />
-                  <textarea
-                    name="content"
-                    rows="3"
-                    maxlength="500"
-                    required
-                    class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    value={announcement.content}></textarea>
-                  <div class="flex gap-2">
-                    <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
-                      {isSubmitting ? 'Saving...' : 'Save'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onclick={() => (editingAnnouncement = null)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              {/if}
             </div>
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </Card>
-
-  <!-- Section 2: Global Settings -->
-  <Card padding="none" class="p-6 space-y-6">
-    <div class="border-b border-border-default pb-4">
-      <h3 class="text-2xl font-bold text-white mb-2">Global Settings</h3>
-      <p class="text-text-body">Settings that apply across all seasons</p>
-    </div>
-
-    {#if data.globalSettings}
-      <!-- League Fees -->
-      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4 max-w-md">
-        <h4 class="text-lg font-bold text-white mb-3">
-          League Fees:
-          <span class="text-white">${data.globalSettings.leagueFees ?? 0}</span>
-        </h4>
-        <p class="text-sm text-text-body mb-4">Default registration fee amount</p>
-        {#if data.isStrictAdmin}
-          <form
-            method="POST"
-            action="?/updateFees"
-            use:enhance={() => {
-              isSubmitting = true;
-              return async ({ update }) => {
-                await update();
-                isSubmitting = false;
-              };
-            }}
-            class="flex gap-2"
-          >
-            <input
-              type="number"
-              name="fees"
-              min="0"
-              step="1"
-              value={data.globalSettings.leagueFees ?? 0}
-              required
-              class="flex-1 px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-            <Button type="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Updating...' : 'Update'}
-            </Button>
-          </form>
+          {/each}
         {/if}
       </div>
+    </Card>
+  {/if}
 
-      <!-- Season Assignments and Per-Season Settings -->
-      {#if data.isStrictAdmin}
-        <div class="bg-surface-input/50 border border-border-input rounded-lg p-6 mt-6">
-          <h4 class="text-xl font-bold text-white mb-4">Signup Season Assignments</h4>
-          <p class="text-sm text-text-body mb-4">
-            Assign which season new teams will be registered to for each region
-          </p>
-          <div class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-3 mb-6">
-            <p class="text-warning-400 text-sm">
-              <strong>⚠️ Warning:</strong> Changing season assignments affects which season new signups
-              go to. This effectively "ends" signups for the previous season in that region/format.
-            </p>
-          </div>
+  <!-- Section 2: Seasons -->
+  {#if activeTab === 'seasons'}
+    <Card padding="none" class="p-6 space-y-6">
+      <div class="border-b border-border-default pb-4">
+        <h3 class="text-2xl font-bold text-white mb-2">Seasons</h3>
+        <p class="text-text-body">Registration fee and which season new signups join</p>
+      </div>
 
-          {#if !hasAnyRegionsWithSeasons()}
-            <div class="text-center py-8 text-text-body">
-              <p>No regions have seasons created yet.</p>
-              <p class="text-sm mt-1">Create seasons in the League admin panel first.</p>
-            </div>
-          {:else}
-            <!-- Format Tabs - only show formats that have regions with seasons -->
-            <div class="flex border-b border-border-input mb-6">
-              {#each data.formats as format}
-                {@const regionsForFormat = getRegionsWithSeasonsForFormat(format.id)}
-                {#if regionsForFormat.length > 0}
-                  <button
-                    type="button"
-                    onclick={() => (selectedFormatId = format.id)}
-                    class="px-6 py-3 font-medium transition-colors relative {selectedFormatId ===
-                    format.id
-                      ? 'text-primary-400 border-b-2 border-orange-400 -mb-px'
-                      : 'text-text-body hover:text-white'}"
-                  >
-                    {format.code}
-                    <span class="ml-1 text-xs text-text-muted">({regionsForFormat.length})</span>
-                  </button>
-                {/if}
-              {/each}
-            </div>
-
+      {#if data.globalSettings}
+        <!-- League Fees -->
+        <div class="bg-surface-input/50 border border-border-input rounded-lg p-4 max-w-md">
+          <h4 class="text-lg font-bold text-white mb-3">
+            League Fees:
+            <span class="text-white">${data.globalSettings.leagueFees ?? 0}</span>
+          </h4>
+          <p class="text-sm text-text-body mb-4">Default registration fee amount</p>
+          {#if data.isStrictAdmin}
             <form
               method="POST"
-              action="?/updateSeasonAssignments"
-              bind:this={seasonAssignmentForm}
+              action="?/updateFees"
               use:enhance={() => {
                 isSubmitting = true;
                 return async ({ update }) => {
                   await update();
                   isSubmitting = false;
-                  showSeasonAssignmentWarning = false;
                 };
               }}
-              class="space-y-4"
+              class="flex gap-2"
             >
-              <!-- Hidden inputs for non-visible format tabs (to preserve their values) -->
-              {#each data.formats as format}
-                {#if format.id !== selectedFormatId}
-                  {#each getRegionsWithSeasonsForFormat(format.id) as region}
-                    {@const fieldName = `season_${region.id}_${format.id}`}
-                    {@const currentSeasonId = data.activeSeasonMap[`${region.id}-${format.id}`]}
-                    <input type="hidden" name={fieldName} value={currentSeasonId || ''} />
-                  {/each}
-                {/if}
-              {/each}
-
-              <!-- Regions list for selected format -->
-              {#if getRegionsWithSeasonsForFormat(selectedFormatId).length === 0}
-                <div class="text-center py-8 text-text-body">
-                  <p>No seasons created for this format yet.</p>
-                </div>
-              {:else}
-                <div class="space-y-4">
-                  {#each getRegionsWithSeasonsForFormat(selectedFormatId) as region}
-                    {@const fieldName = `season_${region.id}_${selectedFormatId}`}
-                    {@const currentSeasonId =
-                      data.activeSeasonMap[`${region.id}-${selectedFormatId}`]}
-                    {@const regionSeasons = getSeasonsForRegionAndFormat(
-                      region.name,
-                      selectedFormatId,
-                    )}
-                    {@const seasonSettings = currentSeasonId
-                      ? data.seasonSettingsMap[currentSeasonId]
-                      : null}
-
-                    <div class="bg-surface-card/50 rounded-lg p-4 space-y-3">
-                      <!-- Region Header with Season Select -->
-                      <div class="flex items-center gap-4">
-                        <div class="w-24 text-white font-medium">{region.name}</div>
-                        <div class="flex-1">
-                          <SelectMenu
-                            id={fieldName}
-                            name={fieldName}
-                            value={seasonFieldValues[fieldName] ?? ''}
-                            items={[
-                              { value: '', label: 'No Season Selected' },
-                              ...regionSeasons.map(
-                                (season: {
-                                  id: number;
-                                  seasonNum: number;
-                                  _count: { teams: number; matches: number };
-                                }) => ({
-                                  value: String(season.id),
-                                  label: `Season ${season.seasonNum} (${season._count.teams} teams, ${season._count.matches} matches)`,
-                                }),
-                              ),
-                            ]}
-                            size="sm"
-                            onChange={(val) => {
-                              seasonFieldValues = { ...seasonFieldValues, [fieldName]: val };
-                            }}
-                          />
-                        </div>
-                        {#if currentSeasonId}
-                          <div class="text-success-400 text-sm">Active</div>
-                        {:else}
-                          <div class="text-text-muted text-sm">Inactive</div>
-                        {/if}
-                      </div>
-
-                      <!-- Per-Season Settings (only show if a season is selected) -->
-                      {#if currentSeasonId && seasonSettings}
-                        <div
-                          class="flex flex-wrap items-center gap-3 pt-3 border-t border-border-default"
-                        >
-                          <!-- Signups Toggle -->
-                          <Button
-                            type="submit"
-                            formaction="?/toggleSeasonSignups"
-                            formmethod="POST"
-                            name="seasonId"
-                            value={currentSeasonId}
-                            variant={seasonSettings.signupsOpen ? 'success' : 'danger'}
-                            size="sm"
-                            disabled={isSubmitting}
-                          >
-                            Signups: {seasonSettings.signupsOpen ? 'OPEN' : 'CLOSED'}
-                          </Button>
-
-                          <!-- Roster Lock Toggle -->
-                          <Button
-                            type="submit"
-                            formaction="?/toggleSeasonRoster"
-                            formmethod="POST"
-                            name="seasonId"
-                            value={currentSeasonId}
-                            variant={seasonSettings.rosterLocked ? 'danger' : 'success'}
-                            size="sm"
-                            disabled={isSubmitting}
-                          >
-                            Rosters: {seasonSettings.rosterLocked ? 'LOCKED' : 'OPEN'}
-                          </Button>
-
-                          <!-- Payment Toggle -->
-                          <Button
-                            type="submit"
-                            formaction="?/toggleSeasonPayment"
-                            formmethod="POST"
-                            name="seasonId"
-                            value={currentSeasonId}
-                            variant={seasonSettings.paymentRequired ? 'warning' : 'secondary'}
-                            size="sm"
-                            disabled={isSubmitting}
-                          >
-                            Payment: {seasonSettings.paymentRequired ? 'REQUIRED' : 'NOT REQ'}
-                          </Button>
-
-                          <!-- Match Week Info -->
-                          {#if seasonSettings.matchWeek}
-                            <span class="text-xs text-text-muted"
-                              >Week {seasonSettings.matchWeek}</span
-                            >
-                          {/if}
-                        </div>
-                      {/if}
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-
-              <div class="pt-4 border-t border-border-input">
-                <Button
-                  type="button"
-                  variant="primary"
-                  onclick={() => (showSeasonAssignmentWarning = true)}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Updating...' : 'Update Season Assignments'}
-                </Button>
-              </div>
+              <input
+                type="number"
+                name="fees"
+                min="0"
+                step="1"
+                value={data.globalSettings.leagueFees ?? 0}
+                required
+                class="flex-1 px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <Button type="submit" variant="primary" disabled={isSubmitting}>
+                {isSubmitting ? 'Updating...' : 'Update'}
+              </Button>
             </form>
           {/if}
         </div>
 
-        <!-- Season Assignment Confirmation Modal -->
-        <ConfirmDialog
-          open={showSeasonAssignmentWarning}
-          title="Confirm Season Assignment Update"
-          description="Are you sure you want to update the season assignments?"
-          confirmLabel="Yes, Update Assignments"
-          variant="warning"
-          onConfirm={() => seasonAssignmentForm?.requestSubmit()}
-          onCancel={() => (showSeasonAssignmentWarning = false)}
-        >
-          {#snippet preview()}
-            <p class="text-warning-400 text-sm">
-              This action will change which season new team signups are registered to. Teams that
-              haven't completed signup for the previous season will need to re-register for the new
-              season.
+        <!-- Season Assignments and Per-Season Settings -->
+        {#if data.isStrictAdmin}
+          <div class="bg-surface-input/50 border border-border-input rounded-lg p-6 mt-6">
+            <h4 class="text-xl font-bold text-white mb-4">Signup Season Assignments</h4>
+            <p class="text-sm text-text-body mb-4">
+              Assign which season new teams will be registered to for each region
             </p>
-          {/snippet}
-        </ConfirmDialog>
+            <div class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-3 mb-6">
+              <p class="text-warning-400 text-sm">
+                <strong>⚠️ Warning:</strong> Changing season assignments affects which season new signups
+                go to. This effectively "ends" signups for the previous season in that region/format.
+              </p>
+            </div>
+
+            {#if !hasAnyRegionsWithSeasons()}
+              <div class="text-center py-8 text-text-body">
+                <p>No regions have seasons created yet.</p>
+                <p class="text-sm mt-1">Create seasons in the League admin panel first.</p>
+              </div>
+            {:else}
+              <!-- Format Tabs - only show formats that have regions with seasons -->
+              <div class="flex border-b border-border-input mb-6">
+                {#each data.formats as format}
+                  {@const regionsForFormat = getRegionsWithSeasonsForFormat(format.id)}
+                  {#if regionsForFormat.length > 0}
+                    <button
+                      type="button"
+                      onclick={() => (selectedFormatId = format.id)}
+                      class="px-6 py-3 font-medium transition-colors relative {selectedFormatId ===
+                      format.id
+                        ? 'text-primary-400 border-b-2 border-orange-400 -mb-px'
+                        : 'text-text-body hover:text-white'}"
+                    >
+                      {format.code}
+                      <span class="ml-1 text-xs text-text-muted">({regionsForFormat.length})</span>
+                    </button>
+                  {/if}
+                {/each}
+              </div>
+
+              <form
+                method="POST"
+                action="?/updateSeasonAssignments"
+                bind:this={seasonAssignmentForm}
+                use:enhance={() => {
+                  isSubmitting = true;
+                  return async ({ update }) => {
+                    await update();
+                    isSubmitting = false;
+                    showSeasonAssignmentWarning = false;
+                  };
+                }}
+                class="space-y-4"
+              >
+                <!-- Hidden inputs for non-visible format tabs (to preserve their values) -->
+                {#each data.formats as format}
+                  {#if format.id !== selectedFormatId}
+                    {#each getRegionsWithSeasonsForFormat(format.id) as region}
+                      {@const fieldName = `season_${region.id}_${format.id}`}
+                      {@const currentSeasonId = data.activeSeasonMap[`${region.id}-${format.id}`]}
+                      <input type="hidden" name={fieldName} value={currentSeasonId || ''} />
+                    {/each}
+                  {/if}
+                {/each}
+
+                <!-- Regions list for selected format -->
+                {#if getRegionsWithSeasonsForFormat(selectedFormatId).length === 0}
+                  <div class="text-center py-8 text-text-body">
+                    <p>No seasons created for this format yet.</p>
+                  </div>
+                {:else}
+                  <div class="space-y-4">
+                    {#each getRegionsWithSeasonsForFormat(selectedFormatId) as region}
+                      {@const fieldName = `season_${region.id}_${selectedFormatId}`}
+                      {@const currentSeasonId =
+                        data.activeSeasonMap[`${region.id}-${selectedFormatId}`]}
+                      {@const regionSeasons = getSeasonsForRegionAndFormat(
+                        region.name,
+                        selectedFormatId,
+                      )}
+                      {@const seasonSettings = currentSeasonId
+                        ? data.seasonSettingsMap[currentSeasonId]
+                        : null}
+
+                      <div class="bg-surface-card/50 rounded-lg p-4 space-y-3">
+                        <!-- Region Header with Season Select -->
+                        <div class="flex items-center gap-4">
+                          <div class="w-24 text-white font-medium">{region.name}</div>
+                          <div class="flex-1">
+                            <SelectMenu
+                              id={fieldName}
+                              name={fieldName}
+                              value={seasonFieldValues[fieldName] ?? ''}
+                              items={[
+                                { value: '', label: 'No Season Selected' },
+                                ...regionSeasons.map(
+                                  (season: {
+                                    id: number;
+                                    seasonNum: number;
+                                    _count: { teams: number; matches: number };
+                                  }) => ({
+                                    value: String(season.id),
+                                    label: `Season ${season.seasonNum} (${season._count.teams} teams, ${season._count.matches} matches)`,
+                                  }),
+                                ),
+                              ]}
+                              size="sm"
+                              onChange={(val) => {
+                                seasonFieldValues = { ...seasonFieldValues, [fieldName]: val };
+                              }}
+                            />
+                          </div>
+                          {#if currentSeasonId}
+                            <div class="text-success-400 text-sm">Active</div>
+                          {:else}
+                            <div class="text-text-muted text-sm">Inactive</div>
+                          {/if}
+                        </div>
+
+                        <!-- Per-Season Settings (only show if a season is selected) -->
+                        {#if currentSeasonId && seasonSettings}
+                          <div
+                            class="flex flex-wrap items-center gap-3 pt-3 border-t border-border-default"
+                          >
+                            <!-- Signups Toggle -->
+                            <Button
+                              type="submit"
+                              formaction="?/toggleSeasonSignups"
+                              formmethod="POST"
+                              name="seasonId"
+                              value={currentSeasonId}
+                              variant={seasonSettings.signupsOpen ? 'success' : 'danger'}
+                              size="sm"
+                              disabled={isSubmitting}
+                            >
+                              Signups: {seasonSettings.signupsOpen ? 'OPEN' : 'CLOSED'}
+                            </Button>
+
+                            <!-- Roster Lock Toggle -->
+                            <Button
+                              type="submit"
+                              formaction="?/toggleSeasonRoster"
+                              formmethod="POST"
+                              name="seasonId"
+                              value={currentSeasonId}
+                              variant={seasonSettings.rosterLocked ? 'danger' : 'success'}
+                              size="sm"
+                              disabled={isSubmitting}
+                            >
+                              Rosters: {seasonSettings.rosterLocked ? 'LOCKED' : 'OPEN'}
+                            </Button>
+
+                            <!-- Payment Toggle -->
+                            <Button
+                              type="submit"
+                              formaction="?/toggleSeasonPayment"
+                              formmethod="POST"
+                              name="seasonId"
+                              value={currentSeasonId}
+                              variant={seasonSettings.paymentRequired ? 'warning' : 'secondary'}
+                              size="sm"
+                              disabled={isSubmitting}
+                            >
+                              Payment: {seasonSettings.paymentRequired ? 'REQUIRED' : 'NOT REQ'}
+                            </Button>
+
+                            <!-- Match Week Info -->
+                            {#if seasonSettings.matchWeek}
+                              <span class="text-xs text-text-muted"
+                                >Week {seasonSettings.matchWeek}</span
+                              >
+                            {/if}
+                          </div>
+                        {/if}
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+
+                <div class="pt-4 border-t border-border-input">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onclick={() => (showSeasonAssignmentWarning = true)}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Updating...' : 'Update Season Assignments'}
+                  </Button>
+                </div>
+              </form>
+            {/if}
+          </div>
+
+          <!-- Season Assignment Confirmation Modal -->
+          <ConfirmDialog
+            open={showSeasonAssignmentWarning}
+            title="Confirm Season Assignment Update"
+            description="Are you sure you want to update the season assignments?"
+            confirmLabel="Yes, Update Assignments"
+            variant="warning"
+            onConfirm={() => seasonAssignmentForm?.requestSubmit()}
+            onCancel={() => (showSeasonAssignmentWarning = false)}
+          >
+            {#snippet preview()}
+              <p class="text-warning-400 text-sm">
+                This action will change which season new team signups are registered to. Teams that
+                haven't completed signup for the previous season will need to re-register for the
+                new season.
+              </p>
+            {/snippet}
+          </ConfirmDialog>
+        {/if}
+      {:else}
+        <div class="text-center py-12 text-text-muted">
+          <p class="text-text-body">Global settings not initialized</p>
+        </div>
       {/if}
-    {:else}
-      <div class="text-center py-12 text-text-muted">
-        <p class="text-text-body">Global settings not initialized</p>
-      </div>
-    {/if}
-  </Card>
+    </Card>
+  {/if}
 
   <!-- Section 3: League Standings Visibility -->
-  {#if data.isStrictAdmin}
+  {#if activeTab === 'standings' && data.isStrictAdmin}
     <Card padding="none" class="p-6 space-y-6">
       <div class="border-b border-border-default pb-4">
         <h3 class="text-2xl font-bold text-white mb-2">League Standings Visibility</h3>
@@ -562,7 +596,7 @@
   {/if}
 
   <!-- Section 4: Steam Bot Settings -->
-  {#if data.isStrictAdmin}
+  {#if activeTab === 'payments' && data.isStrictAdmin}
     <Card padding="none" class="p-6 space-y-6">
       <div class="border-b border-border-default pb-4">
         <h3 class="text-2xl font-bold text-white mb-2">Steam Bot Settings</h3>

@@ -5,7 +5,7 @@
   import { page } from '$app/state';
   import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
   import InsightsPanel from '$lib/components/profile/InsightsPanel.svelte';
-  import ChatHistoryPanel from '$lib/components/profile/ChatHistoryPanel.svelte';
+  import InvestigationReport from '$lib/components/admin/InvestigationReport.svelte';
   import LeaguePanel from '$lib/components/profile/LeaguePanel.svelte';
   import OverviewPanel from '$lib/components/profile/OverviewPanel.svelte';
   import PaymentHistoryPanel from '$lib/components/profile/PaymentHistoryPanel.svelte';
@@ -25,7 +25,8 @@
     ProfileTeam,
     ProfileTeamSeasonMatches,
   } from '$lib/types/profile';
-  import type { ProfilingScores } from '$lib/types/profiling';
+  import type { InvestigateResult } from '$lib/types/investigation';
+  import type { ProfilingSnapshot } from '$lib/types/profiling';
   import { parseProfileTab, profileExternalLinks } from '$lib/utils/profile';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
   import Settings from '~icons/lucide/settings';
@@ -107,7 +108,9 @@
     formats: Array<{ code: string; name: string; iconUrl: string | null }>;
     registered: boolean;
     payments: ProfilePaymentHistory | null;
-    profiling: ProfilingScores | null;
+    profiling: ProfilingSnapshot | null;
+    investigation: InvestigateResult | null;
+    investigationConfigured: boolean;
   }
 
   let { data }: { data: PlayerData } = $props();
@@ -133,9 +136,9 @@
   const tab = $derived(
     parseProfileTab(page.url.searchParams.get('tab'), {
       allow1v1: isRegistered,
-      allowChat: isAdmin,
       allowPayments: canViewPayments,
       allowProfiling: isAdmin,
+      allowInvestigate: isAdmin,
     }),
   );
   const tabs = $derived<{ id: ProfileTab; label: string; staff?: boolean }[]>([
@@ -147,7 +150,7 @@
       ? [{ id: 'payments' as const, label: 'Payments', staff: true }]
       : []),
     ...(isAdmin ? [{ id: 'profiling' as const, label: 'Profiling', staff: true }] : []),
-    ...(isAdmin ? [{ id: 'chat' as const, label: 'Chat', staff: true }] : []),
+    ...(isAdmin ? [{ id: 'investigate' as const, label: 'Investigate', staff: true }] : []),
   ]);
   const firstStaffTab = $derived(tabs.find((item) => item.staff)?.id);
 
@@ -367,43 +370,29 @@
 
 <div class="border-b border-border-default bg-surface-page">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <div class="flex gap-1">
-      <div class="flex min-w-0 flex-1 gap-1" role="tablist" aria-label="Profile sections">
-        {#each tabs as item (item.id)}
-          <a
-            href={tabHref(item.id)}
-            role="tab"
-            id="tab-{item.id}"
-            aria-selected={tab === item.id}
-            aria-controls="panel-{item.id}"
-            data-sveltekit-noscroll
-            aria-label={item.staff ? `${item.label}, staff only` : undefined}
-            class="inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors {item.id ===
-            firstStaffTab
-              ? 'ml-auto'
-              : ''} {tab === item.id
-              ? 'border-primary-500 text-white'
-              : 'border-transparent text-text-muted hover:text-text-label'}"
-          >
-            {#if item.staff}
-              <Shield class="size-3.5" aria-hidden="true" />
-            {/if}
-            {item.label}
-          </a>
-        {/each}
-      </div>
-      {#if isAdmin}
+    <div class="flex min-w-0 gap-1" role="tablist" aria-label="Profile sections">
+      {#each tabs as item (item.id)}
         <a
-          href="{resolve('/admin/investigate')}?q={encodeURIComponent(player.steamId)}"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Investigate, staff only"
-          class="inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-3 text-sm font-medium text-text-muted transition-colors hover:text-text-label"
+          href={tabHref(item.id)}
+          role="tab"
+          id="tab-{item.id}"
+          aria-selected={tab === item.id}
+          aria-controls="panel-{item.id}"
+          data-sveltekit-noscroll
+          aria-label={item.staff ? `${item.label}, staff only` : undefined}
+          class="inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors {item.id ===
+          firstStaffTab
+            ? 'ml-auto'
+            : ''} {tab === item.id
+            ? 'border-primary-500 text-white'
+            : 'border-transparent text-text-muted hover:text-text-label'}"
         >
-          <Shield class="size-3.5" aria-hidden="true" />
-          Investigate
+          {#if item.staff}
+            <Shield class="size-3.5" aria-hidden="true" />
+          {/if}
+          {item.label}
         </a>
-      {/if}
+      {/each}
     </div>
   </div>
 </div>
@@ -463,16 +452,19 @@
   {:else if tab === 'profiling' && isAdmin}
     <div id="panel-profiling" role="tabpanel" aria-labelledby="tab-profiling">
       {#if data.profiling}
-        <ProfilingPanel scores={data.profiling} />
+        <ProfilingPanel snapshot={data.profiling} steamId={player.steamId} />
       {:else}
         <p class="text-text-muted text-sm">Profiling data is unavailable for this account.</p>
       {/if}
     </div>
-  {:else if tab === 'chat' && isAdmin}
-    <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
-      {#key player.steamId}
-        <ChatHistoryPanel steamId={player.steamId} regions={data.platformRegions} />
-      {/key}
+  {:else if tab === 'investigate' && isAdmin}
+    <div id="panel-investigate" role="tabpanel" aria-labelledby="tab-investigate">
+      <InvestigationReport
+        configured={data.investigationConfigured}
+        result={data.investigation}
+        profiling={data.profiling}
+        linkMode="profile"
+      />
     </div>
   {:else}
     <div id="panel-stats" role="tabpanel" aria-labelledby="tab-stats">

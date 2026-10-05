@@ -93,12 +93,12 @@ export function parseProfileTab(
   raw: string | null,
   options: {
     allow1v1?: boolean;
-    allowChat?: boolean;
     allowPayments?: boolean;
     allowProfiling?: boolean;
+    allowInvestigate?: boolean;
   } = {},
 ): ProfileTab {
-  if (raw === 'chat' && options.allowChat) return 'chat';
+  if ((raw === 'investigate' || raw === 'chat') && options.allowInvestigate) return 'investigate';
   if (raw === 'payments' && options.allowPayments) return 'payments';
   if (raw === 'profiling' && options.allowProfiling) return 'profiling';
   if (raw === 'stats') return 'stats';

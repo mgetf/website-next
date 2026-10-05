@@ -36,14 +36,19 @@ import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/audit
 import { getPlayerClasselo, getPlayerRatings, getRegions } from '$lib/server/clients/mgePlatform';
 import { withClasseloRanks } from '$lib/server/services/leaderboard';
 import { getPlayerProfiling } from '$lib/server/services/profiling';
+import {
+  getPlayerInvestigation,
+  isPlayerInvestigationConfigured,
+} from '$lib/server/services/playerInvestigation';
+import type { InvestigateResult } from '$lib/types/investigation';
 import type { ProfilePaymentHistory } from '$lib/types/profile';
-import type { ProfilingScores } from '$lib/types/profiling';
+import type { ProfilingSnapshot } from '$lib/types/profiling';
 import { parseProfileTab } from '$lib/utils/profile';
 import { buildPageSeo } from '$lib/utils/seo';
 import { z } from 'zod';
 import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
 import { optionalDivisionIdSchema } from '$lib/server/utils/validation';
-import { isSteamId64 } from '$lib/utils/steamid';
+import { isSteamId64, steamId64FromAnyFormat } from '$lib/utils/steamid';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;
@@ -69,13 +74,16 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const canViewPayments = isOwnProfile || isUserAdmin;
     const activeTab = parseProfileTab(url.searchParams.get('tab'), {
       allow1v1: resolvedProfile.registered,
-      allowChat: isUserAdmin,
       allowPayments: canViewPayments,
       allowProfiling: isUserAdmin,
+      allowInvestigate: isUserAdmin,
     });
 
     let payments: ProfilePaymentHistory | null = null;
-    let profiling: ProfilingScores | null = null;
+    let profiling: ProfilingSnapshot | null = null;
+    let investigation: InvestigateResult | null = null;
+    const investigationConfigured =
+      activeTab === 'investigate' && isPlayerInvestigationConfigured();
     if (activeTab === 'payments') {
       const pageParam = url.searchParams.get('page');
       const currentPage = Math.max(1, parseInt(pageParam ?? '', 10) || 1);
@@ -97,6 +105,21 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         currentPage,
         totalPages: Math.ceil(history.total / limit),
       };
+    }
+
+    if (activeTab === 'investigate' && isUserAdmin && investigationConfigured) {
+      investigation = await getPlayerInvestigation(steamId);
+      if (investigation.kind === 'steam' || investigation.kind === 'not-found') {
+        const profiledId =
+          investigation.steam64 ?? steamId64FromAnyFormat(investigation.steamId) ?? steamId;
+        try {
+          profiling = await getPlayerProfiling(profiledId, {
+            investigation: investigation.kind === 'steam' ? investigation : undefined,
+          });
+        } catch {
+          profiling = null;
+        }
+      }
     }
 
     if (activeTab === 'profiling' && isUserAdmin) {
@@ -160,6 +183,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       divisions1v1,
       payments,
       profiling,
+      investigation,
+      investigationConfigured,
     };
   } catch (err) {
     console.error('Error loading user profile:', err);

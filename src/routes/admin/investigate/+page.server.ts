@@ -6,7 +6,7 @@ import {
 } from '$lib/server/services/playerInvestigation';
 import { getPlayerProfiling } from '$lib/server/services/profiling';
 import { steamId64FromAnyFormat } from '$lib/utils/steamid';
-import type { ProfilingScores } from '$lib/types/profiling';
+import type { ProfilingSnapshot } from '$lib/types/profiling';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);
@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   }
 
   const result = await getPlayerInvestigation(q);
-  let profiling: ProfilingScores | null = null;
+  let profiling: ProfilingSnapshot | null = null;
   if (result.kind === 'steam' || result.kind === 'not-found') {
     const steamId = result.steam64 ?? steamId64FromAnyFormat(result.steamId);
     if (steamId) {

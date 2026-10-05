@@ -19,10 +19,13 @@ describe('parseProfileTab', () => {
     expect(parseProfileTab('stats', { allow1v1: false })).toBe('stats');
   });
 
-  it('accepts chat only for staff', () => {
+  it('accepts investigate only for staff, including the old chat tab', () => {
+    expect(parseProfileTab('investigate')).toBe('overview');
     expect(parseProfileTab('chat')).toBe('overview');
-    expect(parseProfileTab('chat', { allowChat: false })).toBe('overview');
-    expect(parseProfileTab('chat', { allowChat: true })).toBe('chat');
+    expect(parseProfileTab('investigate', { allowInvestigate: false })).toBe('overview');
+    expect(parseProfileTab('chat', { allowInvestigate: false })).toBe('overview');
+    expect(parseProfileTab('investigate', { allowInvestigate: true })).toBe('investigate');
+    expect(parseProfileTab('chat', { allowInvestigate: true })).toBe('investigate');
   });
 
   it('accepts payments only for the profile owner or staff', () => {

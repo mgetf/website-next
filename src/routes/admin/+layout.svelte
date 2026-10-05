@@ -18,7 +18,6 @@
   import Gavel from '~icons/lucide/gavel';
   import User from '~icons/lucide/user';
   import Search from '~icons/lucide/search';
-  import Gauge from '~icons/lucide/gauge';
   import UserCog from '~icons/lucide/user-cog';
   import Globe from '~icons/lucide/globe';
   import Newspaper from '~icons/lucide/newspaper';
@@ -58,7 +57,6 @@
     { name: 'Disputes', path: '/admin/disputes', icon: Gavel, adminOnly: false, badge: '' },
     { name: 'Users', path: '/admin/users', icon: User, adminOnly: false, badge: '' },
     { name: 'Investigate', path: '/admin/investigate', icon: Search, adminOnly: false, badge: '' },
-    { name: 'Profiling', path: '/admin/profiling', icon: Gauge, adminOnly: false, badge: '' },
     { name: 'Staff', path: '/admin/staff', icon: UserCog, adminOnly: true, badge: '' },
     { name: 'Global', path: '/admin/global', icon: Globe, adminOnly: false, badge: '' },
     { name: 'Blog', path: '/admin/blog', icon: Newspaper, adminOnly: false, badge: '' },

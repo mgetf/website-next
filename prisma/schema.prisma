@@ -1187,12 +1187,12 @@ model SiteSettings {
   @@map("site_settings")
 }
 
-model ProfilingSettings {
-  id        Int      @id @default(1)
-  weights   Json
+model ProfilingCache {
+  steamId   String   @id @map("steam_id")
+  snapshot  Json
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("profiling_settings")
+  @@map("profiling_cache")
 }
 
 // Map catalog entries (external .bsp / .cfg URLs, zipped on download)

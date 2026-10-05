@@ -1,27 +1,37 @@
 <script lang="ts">
-  import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
-  import type { ProfilingScores } from '$lib/types/profiling';
-  import { formatProfilingPercent, formatProfilingRaw } from '$lib/utils/profiling';
+  import type { ProfilingSnapshot } from '$lib/types/profiling';
+  import { formatRelativeTime } from '$lib/utils/profile';
+  import {
+    formatProfilingCount,
+    formatProfilingHours,
+    formatProfilingScore,
+    formatSteamAgeYears,
+    formatSteamCreatedAt,
+    PROFILING_CARD_LOGOS,
+  } from '$lib/utils/profiling';
 
   let {
     name,
     steamId,
     x,
     y,
+    snapshot,
     status,
-    scores,
     onClose,
   }: {
     name: string;
     steamId: string;
     x: number;
     y: number;
+    snapshot: ProfilingSnapshot | null;
     status: 'loading' | 'ready' | 'error';
-    scores: ProfilingScores | null;
     onClose: () => void;
   } = $props();
+
+  const PEEK_WIDTH = 384;
+  const PEEK_MARGIN = 8;
 
   let root = $state<HTMLElement | null>(null);
 
@@ -32,43 +42,91 @@
     };
   }
 
-  const left = $derived.by(() => {
-    if (typeof window === 'undefined') return x;
-    return Math.max(8, Math.min(x, window.innerWidth - 304));
-  });
-  const top = $derived.by(() => {
-    if (typeof window === 'undefined') return y;
-    return Math.max(8, Math.min(y, window.innerHeight - 24));
+  const position = $derived.by(() => {
+    if (typeof window === 'undefined') {
+      return { left: x, top: y, maxHeight: 512 };
+    }
+    const left = Math.max(PEEK_MARGIN, Math.min(x, window.innerWidth - PEEK_WIDTH - PEEK_MARGIN));
+    const maxHeight = Math.min(512, window.innerHeight - PEEK_MARGIN * 2);
+    let top = y;
+    if (top + 240 > window.innerHeight - PEEK_MARGIN) {
+      top = Math.max(PEEK_MARGIN, window.innerHeight - maxHeight - PEEK_MARGIN);
+    }
+    return { left, top, maxHeight: window.innerHeight - top - PEEK_MARGIN };
   });
 
-  $effect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.button === 2) return;
-      if (root && event.target instanceof Node && root.contains(event.target)) return;
-      onClose();
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('keydown', onKey);
-    };
+  const steamRows = $derived.by(() => {
+    if (!snapshot) return [];
+    const rows: { label: string; value: string }[] = [];
+    if (snapshot.steamAgeYears != null) {
+      rows.push({ label: 'Account age', value: formatSteamAgeYears(snapshot.steamAgeYears) });
+    }
+    if (snapshot.steamCreatedAt) {
+      rows.push({ label: 'Created', value: formatSteamCreatedAt(snapshot.steamCreatedAt) });
+    }
+    if (snapshot.steamLevel != null) {
+      rows.push({ label: 'Steam level', value: formatProfilingCount(snapshot.steamLevel) });
+    }
+    if (snapshot.gameCount != null) {
+      rows.push({ label: 'Games', value: formatProfilingCount(snapshot.gameCount) });
+    }
+    return rows;
   });
+
+  const scoreRows = $derived.by(() => {
+    if (!snapshot) return [];
+    return [
+      ...snapshot.scores
+        .slice()
+        .sort((a, b) => b.score - a.score)
+        .map((row) => ({
+          key: `region-${row.region}`,
+          label: row.region.toUpperCase(),
+          value: formatProfilingScore(row.score),
+        })),
+      ...snapshot.classScores
+        .slice()
+        .sort((a, b) => b.score - a.score)
+        .map((row) => ({
+          key: `class-${row.classId}-${row.region}`,
+          label: row.className,
+          value: formatProfilingScore(row.score),
+        })),
+    ];
+  });
+
+  const hasFacts = $derived(
+    snapshot != null &&
+      (snapshot.tf2Hours != null ||
+        steamRows.length > 0 ||
+        scoreRows.length > 0 ||
+        snapshot.logsTfCount != null ||
+        snapshot.mgeServerHours != null),
+  );
+
+  function onPointerDown(event: PointerEvent) {
+    if (event.button === 2) return;
+    if (root && event.target instanceof Node && root.contains(event.target)) return;
+    onClose();
+  }
+
+  function onKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') onClose();
+  }
 </script>
+
+<svelte:window onpointerdown={onPointerDown} onkeydown={onKeydown} />
 
 <div
   {@attach trackRoot}
-  class="fixed z-50 w-72 max-w-[calc(100vw-1rem)]"
-  style="left: {left}px; top: {top}px;"
+  class="fixed z-50 w-96 max-w-[calc(100vw-1rem)]"
+  style="left: {position.left}px; top: {position.top}px; max-height: {position.maxHeight}px"
   role="dialog"
   tabindex="-1"
-  aria-label="Profiling snapshot for {name}"
+  aria-label="Profiling details for {name}"
   oncontextmenu={(event) => event.preventDefault()}
 >
-  <Card padding="sm" class="max-h-[min(32rem,calc(100vh-1rem))] overflow-y-auto shadow-lg">
+  <Card padding="sm" class="max-h-full overflow-y-auto shadow-lg">
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0">
         <h2 class="truncate text-sm font-semibold text-white">{name}</h2>
@@ -79,66 +137,104 @@
 
     {#if status === 'loading'}
       <p class="mt-3 text-sm text-text-muted">Loading snapshot…</p>
-    {:else if status === 'error' || !scores}
+    {:else if status === 'error' && !snapshot}
       <p class="mt-3 text-sm text-danger-400">Could not load this player's profiling snapshot.</p>
-    {:else}
-      <div class="mt-3 rounded-lg border border-border-default bg-surface-input/60 px-3 py-2">
-        <p class="text-[10px] font-medium uppercase tracking-wide text-text-muted">Evidence</p>
-        <p class="text-2xl font-bold tabular-nums text-white">
-          {formatProfilingPercent(scores.evidence)}
-        </p>
-        <p class="text-[11px] leading-snug text-text-muted">
-          Skill discounted by uncertainty. Same scale for every account, not a division.
-        </p>
-      </div>
+    {:else if !hasFacts}
+      <p class="mt-3 text-sm text-text-muted">No profiling numbers for this player yet.</p>
+    {:else if snapshot}
+      <div class="mt-3 space-y-3">
+        {#if snapshot.tf2Hours != null}
+          <div class="flex items-baseline justify-between gap-3 text-xs">
+            <span class="inline-flex items-center gap-1.5 text-text-body">
+              <img src={PROFILING_CARD_LOGOS.tf2} alt="" class="h-3.5 w-3.5 object-contain" />
+              Hours in TF2
+            </span>
+            <span class="shrink-0 font-semibold tabular-nums text-white">
+              {formatProfilingHours(snapshot.tf2Hours)}
+            </span>
+          </div>
+        {/if}
 
-      <dl class="mt-3 grid grid-cols-3 gap-2 text-center">
-        <div>
-          <dt class="text-[10px] text-text-muted">Skill</dt>
-          <dd class="text-sm font-semibold tabular-nums text-white">
-            {formatProfilingPercent(scores.skill)}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-[10px] text-text-muted">Uncertainty</dt>
-          <dd class="text-sm font-semibold tabular-nums text-white">
-            {formatProfilingPercent(scores.skillUncertainty)}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-[10px] text-text-muted">Trust</dt>
-          <dd class="text-sm font-semibold tabular-nums text-white">
-            {formatProfilingPercent(scores.trust)}
-          </dd>
-        </div>
-      </dl>
+        {#if steamRows.length > 0 || snapshot.profilePublic === false}
+          <section>
+            <div class="mb-1.5 flex items-center gap-1.5">
+              <img
+                src={PROFILING_CARD_LOGOS.steam}
+                alt=""
+                class="h-3.5 w-3.5 brightness-0 invert"
+              />
+              <h3 class="text-[10px] font-medium uppercase tracking-wide text-text-muted">Steam</h3>
+            </div>
+            <dl class="space-y-1">
+              {#each steamRows as row (row.label)}
+                <div class="flex items-baseline justify-between gap-3 text-xs">
+                  <dt class="text-text-body">{row.label}</dt>
+                  <dd class="shrink-0 font-semibold tabular-nums text-white">{row.value}</dd>
+                </div>
+              {/each}
+            </dl>
+            {#if snapshot.profilePublic === false}
+              <p class="mt-1.5 text-xs text-warning-400">Steam profile is private</p>
+            {/if}
+          </section>
+        {/if}
 
-      {#if scores.alts.length > 0}
-        <div class="mt-3 flex flex-wrap gap-1">
-          {#each scores.alts as alt (`${alt.label}-${alt.steam64 ?? alt.steamId}`)}
-            <Badge color={alt.label === 'Linked' ? 'red' : 'yellow'}>
-              {alt.label}
-              {alt.name ?? alt.steam64 ?? alt.steamId}
-            </Badge>
-          {/each}
-        </div>
-      {/if}
+        {#if scoreRows.length > 0}
+          <section>
+            <h3 class="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+              Score
+            </h3>
+            <ul class="space-y-1">
+              {#each scoreRows as row (row.key)}
+                <li class="flex items-baseline justify-between gap-3 text-xs">
+                  <span class="text-text-body">{row.label}</span>
+                  <span class="shrink-0 font-semibold tabular-nums text-white">{row.value}</span>
+                </li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
 
-      <ul class="mt-3 space-y-1.5">
-        {#each scores.signals as signal (`${signal.axis}-${signal.id}`)}
-          <li class="flex items-baseline justify-between gap-3 text-xs">
-            <span class="min-w-0 text-text-body">
-              {signal.label}
-              {#if signal.missing}
-                <span class="text-warning-400">missing</span>
+        {#if snapshot.logsTfCount != null || snapshot.mgeServerHours != null}
+          <section>
+            <h3 class="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+              Activity
+            </h3>
+            <dl class="space-y-1">
+              {#if snapshot.logsTfCount != null}
+                <div class="flex items-baseline justify-between gap-3 text-xs">
+                  <dt class="inline-flex items-center gap-1.5 text-text-body">
+                    <img
+                      src={PROFILING_CARD_LOGOS.logs}
+                      alt=""
+                      class="h-3.5 w-3.5 object-contain"
+                    />
+                    logs.tf
+                  </dt>
+                  <dd class="shrink-0 font-semibold tabular-nums text-white">
+                    {formatProfilingCount(snapshot.logsTfCount)}
+                  </dd>
+                </div>
               {/if}
-            </span>
-            <span class="shrink-0 font-mono tabular-nums text-text-label">
-              {formatProfilingRaw(signal.raw)}
-            </span>
-          </li>
-        {/each}
-      </ul>
+              {#if snapshot.mgeServerHours != null}
+                <div class="flex items-baseline justify-between gap-3 text-xs">
+                  <dt class="inline-flex items-center gap-1.5 text-text-body">
+                    <img src={PROFILING_CARD_LOGOS.mge} alt="" class="h-3.5 w-3.5 object-contain" />
+                    Hours on mge.tf
+                  </dt>
+                  <dd class="shrink-0 font-semibold tabular-nums text-white">
+                    {formatProfilingHours(snapshot.mgeServerHours)}
+                  </dd>
+                </div>
+              {/if}
+            </dl>
+          </section>
+        {/if}
+      </div>
+    {/if}
+
+    {#if snapshot?.cachedAt}
+      <p class="mt-3 text-[10px] text-text-muted">Cached {formatRelativeTime(snapshot.cachedAt)}</p>
     {/if}
   </Card>
 </div>

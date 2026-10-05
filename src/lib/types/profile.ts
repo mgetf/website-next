@@ -1,6 +1,6 @@
 import type { ProfileMatch } from './match';
 
-export type ProfileTab = 'overview' | '1v1' | 'stats' | 'chat' | 'payments' | 'profiling';
+export type ProfileTab = 'overview' | '1v1' | 'stats' | 'payments' | 'profiling' | 'investigate';
 
 export interface ProfilePaymentEntry {
   id: string;

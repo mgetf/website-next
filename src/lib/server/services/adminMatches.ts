@@ -783,8 +783,8 @@ export async function adminUpdateScores(
 }
 
 /**
- * Get available week and playoff round options for a season
- * Returns default weeks 1-8 when no matches exist yet
+ * Week and playoff rounds that already have matches in this season.
+ * An empty list means nothing has been created yet.
  */
 export async function getWeekOptionsForSeason(
   seasonId: number | null,
@@ -820,12 +820,6 @@ export async function getWeekOptionsForSeason(
         value: `p${m.playoffRound}`,
         label: `Playoffs - ${formatPlayoffRound(m.playoffRound)}`,
       });
-    }
-  }
-
-  if (options.length === 0) {
-    for (let i = 1; i <= 8; i++) {
-      options.push({ value: i.toString(), label: `Week ${i}` });
     }
   }
 

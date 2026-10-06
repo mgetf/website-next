@@ -9,6 +9,7 @@
   import { filterDivisionsByRegionAndFormat } from '$lib/utils/leagueScope';
 
   let { data }: { data: PageData } = $props();
+  const isStrictAdmin = $derived(data.isStrictAdmin);
 
   let isPlayoff = $state(false);
   let selectedFormatId = $state<number | null>(null);
@@ -48,11 +49,13 @@
 
   let dndItems = $state<DndTeam[]>([]);
   let originalDndItems: DndTeam[] = [];
-  let playoffMatchups = $state<unknown[]>([]);
+  let playoffSelections = $state<{ home: string; away: string }[]>([]);
 
   let weekLabel = $state<string | null>(null);
   let existingMatchSetsCount = $state(0);
   let showPreview = $state(false);
+  let pendingAction = $state<'save' | 'publish' | null>(null);
+  let hydratedDraftId = $state<number | null>(null);
 
   const previewPairs = $derived.by(() => {
     const pairs: { home: DndTeam; away: DndTeam }[] = [];
@@ -172,7 +175,7 @@
         showPreview = true;
 
         if (preview.isPlayoff) {
-          playoffMatchups = preview.matchups || [];
+          playoffSelections = (preview.matchups || []).map(() => ({ home: '', away: '' }));
         } else {
           const items = buildDndItems({
             matchups: preview.matchups as Array<{ home?: DndTeam; away?: DndTeam }> | undefined,
@@ -202,7 +205,9 @@
         const error =
           result.data && typeof result.data === 'object' && 'error' in result.data
             ? String(result.data.error)
-            : 'Failed to create matches';
+            : pendingAction === 'publish'
+              ? 'Failed to publish matches'
+              : 'Failed to save draft';
         alert(`Error: ${error}`);
       }
 
@@ -210,6 +215,7 @@
         // Keep loading state true during redirect
       } else {
         isCreating = false;
+        pendingAction = null;
       }
 
       await update();
@@ -233,11 +239,60 @@
       showPreview = false;
       dndItems = [];
       originalDndItems = [];
-      playoffMatchups = [];
+      playoffSelections = [];
       weekLabel = null;
       existingMatchSetsCount = 0;
     }
   }
+
+  $effect(() => {
+    const draft = data.draft;
+    if (!draft || hydratedDraftId === draft.id) return;
+
+    selectedFormatId = draft.formatId;
+    selectedRegionId = draft.regionId;
+    selectedDivisionId = draft.divisionId;
+    isPlayoff = draft.isPlayoff;
+    weekNo = draft.weekNo;
+    boSeries = draft.boSeries;
+    selectedArenaId = draft.arenaId;
+    matchDateTime = draft.matchDateTime;
+    matchTimezone = draft.matchTimezone || 'UTC';
+    mapBanPoolId = draft.mapBanPoolId;
+    playoffRound = draft.playoffRound;
+    boGames = draft.boGames;
+
+    const teamsById: Record<number, DndTeam> = {};
+    for (const pairing of draft.pairings) {
+      teamsById[pairing.home.id] = pairing.home;
+      teamsById[pairing.away.id] = pairing.away;
+    }
+    for (const bye of draft.byeTeams) {
+      teamsById[bye.id] = bye;
+    }
+    previewTeams = Object.values(teamsById);
+    showPreview = true;
+
+    if (draft.isPlayoff) {
+      playoffSelections = draft.pairings.map((pairing) => ({
+        home: String(pairing.home.id),
+        away: String(pairing.away.id),
+      }));
+      dndItems = [];
+      originalDndItems = [];
+    } else {
+      const items: DndTeam[] = [];
+      for (const pairing of draft.pairings) {
+        items.push(pairing.home, pairing.away);
+      }
+      items.push(...draft.byeTeams);
+      dndItems = items;
+      originalDndItems = [...items];
+      playoffSelections = [];
+    }
+
+    hydratedDraftId = draft.id;
+  });
 
   function onFormatChange() {
     selectedRegionId = null;
@@ -251,8 +306,53 @@
   }
 </script>
 
+{#snippet draftActions(disabled: boolean)}
+  {#if data.draft}
+    <input type="hidden" name="draftId" value={data.draft.id} />
+  {/if}
+  <div class="flex flex-col sm:flex-row gap-3 mt-6">
+    <Button
+      variant="secondary"
+      type="submit"
+      formaction="?/saveDraft"
+      {disabled}
+      class="flex-1"
+      onclick={() => (pendingAction = 'save')}
+    >
+      {isCreating && pendingAction === 'save' ? 'Saving...' : 'Save as draft'}
+    </Button>
+    {#if isStrictAdmin}
+      <Button
+        variant="success"
+        type="submit"
+        formaction="?/publishMatchSet"
+        {disabled}
+        class="flex-1"
+        onclick={() => (pendingAction = 'publish')}
+      >
+        {isCreating && pendingAction === 'publish' ? 'Publishing...' : 'Publish matches'}
+      </Button>
+    {/if}
+  </div>
+  {#if !isStrictAdmin}
+    <p class="text-xs text-text-muted mt-2">
+      Moderators can save drafts. An admin has to publish them before players see the matches.
+    </p>
+  {/if}
+{/snippet}
+
 <div class="max-w-4xl mx-auto space-y-6">
-  <h1 class="text-3xl font-bold text-white mb-8">Create Match Set</h1>
+  <div>
+    <a href="/admin/matches" class="text-sm text-text-muted hover:text-white">← Match Management</a>
+    <h1 class="text-3xl font-bold text-white mt-2 mb-2">
+      {data.draft ? 'Edit Match Set Draft' : 'Create Match Set'}
+    </h1>
+    <p class="text-text-body">
+      {data.draft
+        ? 'Update the pairings, then save the draft or ask an admin to publish it.'
+        : 'Preview pairings and save them as a draft. Admins publish drafts to create live matches.'}
+    </p>
+  </div>
 
   <!-- Main Form -->
   <Card padding="lg">
@@ -530,7 +630,7 @@
         </div>
       {/if}
 
-      {#if isPlayoff ? playoffMatchups.length === 0 : dndItems.length === 0}
+      {#if isPlayoff ? playoffSelections.length === 0 : dndItems.length === 0}
         <div class="text-center py-8">
           <p class="text-text-body">No eligible teams found for this configuration.</p>
           <p class="text-sm text-text-muted mt-2">
@@ -541,7 +641,7 @@
         <!-- Playoff Match Selection -->
         <form
           method="POST"
-          action="?/createMatchSet"
+          action="?/saveDraft"
           use:enhance={handleCreateEnhance}
           class="space-y-4"
         >
@@ -567,13 +667,13 @@
           </div>
 
           <p class="text-text-label mb-4">
-            <span class="font-semibold text-white">{playoffMatchups.length} matches</span> will be created.
+            <span class="font-semibold text-white">{playoffSelections.length} matches</span> in this draft.
             Select teams for each matchup:
           </p>
 
           <!-- Manual Team Selection for Playoffs -->
           <div class="space-y-4">
-            {#each playoffMatchups as matchup, i (i)}
+            {#each playoffSelections as selection, i (i)}
               <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
                 <h4 class="text-white font-semibold mb-3">Match {i + 1}</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -581,6 +681,7 @@
                     <FormSelect
                       label="Home Team"
                       name="homeTeamIds"
+                      bind:value={selection.home}
                       required
                       placeholder="Select Home Team"
                       options={previewTeams.map((t) => ({
@@ -594,6 +695,7 @@
                     <FormSelect
                       label="Away Team"
                       name="awayTeamIds"
+                      bind:value={selection.away}
                       required
                       placeholder="Select Away Team"
                       options={previewTeams.map((t) => ({
@@ -607,11 +709,9 @@
             {/each}
           </div>
 
-          <Button variant="success" type="submit" disabled={isCreating} class="w-full mt-6">
-            {isCreating
-              ? 'Creating...'
-              : `Create ${playoffMatchups.length} Playoff Match${playoffMatchups.length === 1 ? '' : 'es'}`}
-          </Button>
+          {@render draftActions(
+            isCreating || playoffSelections.some((sel) => !sel.home || !sel.away),
+          )}
         </form>
       {:else}
         <div class="space-y-4">
@@ -620,7 +720,7 @@
               <span class="font-semibold text-white"
                 >{previewPairs.length} match{previewPairs.length === 1 ? '' : 'es'}</span
               >
-              will be created. Drag teams to change pairings or home/away sides.
+              in this draft. Drag teams to change pairings or home/away sides.
             </p>
             <Button variant="ghost" size="sm" onclick={resetToSuggestedPairing}>
               Reset to suggested
@@ -683,7 +783,7 @@
           {/if}
 
           <!-- Create form — serialises current pairing order as hidden inputs -->
-          <form method="POST" action="?/createMatchSet" use:enhance={handleCreateEnhance}>
+          <form method="POST" action="?/saveDraft" use:enhance={handleCreateEnhance}>
             <input type="hidden" name="regionId" value={selectedRegionId} />
             <input type="hidden" name="divisionId" value={selectedDivisionId} />
             <input type="hidden" name="weekNo" value={weekNo || ''} />
@@ -697,17 +797,11 @@
               <input type="hidden" name="homeTeamIds" value={pair.home.id} />
               <input type="hidden" name="awayTeamIds" value={pair.away.id} />
             {/each}
+            {#if previewByeTeam}
+              <input type="hidden" name="byeTeamIds" value={previewByeTeam.id} />
+            {/if}
 
-            <Button
-              variant="success"
-              type="submit"
-              disabled={isCreating || previewPairs.length === 0}
-              class="w-full mt-6"
-            >
-              {isCreating
-                ? 'Creating...'
-                : `Create ${previewPairs.length} Match${previewPairs.length === 1 ? '' : 'es'}`}
-            </Button>
+            {@render draftActions(isCreating || previewPairs.length === 0)}
           </form>
         </div>
       {/if}
@@ -726,8 +820,14 @@
       ></div>
 
       <div class="text-center">
-        <p class="text-xl font-semibold text-white">Creating matches...</p>
-        <p class="text-sm text-text-body mt-2">Please wait while we create your match set</p>
+        <p class="text-xl font-semibold text-white">
+          {pendingAction === 'publish' ? 'Publishing matches...' : 'Saving draft...'}
+        </p>
+        <p class="text-sm text-text-body mt-2">
+          {pendingAction === 'publish'
+            ? 'Please wait while we create the live matches'
+            : 'Please wait while we save this match set'}
+        </p>
       </div>
     </div>
   </div>

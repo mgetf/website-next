@@ -18,6 +18,7 @@
   import { statusColor, statusLabel } from '$lib/utils/profile';
   import { parseTeamTab } from '$lib/utils/team';
   import { hasMetPaidPlayerRequirement, paidPlayersNeeded } from '$lib/utils/rosterPayments';
+  import { hasMetMinRosterSize } from '$lib/utils/rosterSize';
   import Settings from '~icons/lucide/settings';
   import TriangleAlert from '~icons/lucide/triangle-alert';
 
@@ -56,9 +57,13 @@
     return items;
   });
 
+  const rosterStepComplete = $derived(
+    hasMetMinRosterSize(currentRoster.length, team.minRosterSize),
+  );
   const canToggleReady = $derived(
     data.canManageTeam &&
       team.status === 'UNREADY' &&
+      rosterStepComplete &&
       (data.isFreeDivision ||
         hasMetPaidPlayerRequirement(
           data.paidPlayerCount,
@@ -316,6 +321,20 @@
 </div>
 
 <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+  {#if (data.canManageTeam || data.isOnTeam) && team.status === 'UNREADY' && !rosterStepComplete}
+    <div
+      class="mb-6 flex items-start gap-3 rounded-lg border border-warning-500/30 bg-warning-500/5 p-5"
+    >
+      <TriangleAlert class="mt-0.5 size-6 shrink-0 text-warning-400" />
+      <div>
+        <h3 class="text-lg font-bold text-white">Roster incomplete</h3>
+        <p class="mt-1 text-sm text-text-body">
+          This team needs at least {team.minRosterSize} active players to ready up ({currentRoster.length}/{team.minRosterSize}).
+        </p>
+      </div>
+    </div>
+  {/if}
+
   {#if data.isOnTeam && hasUnpaidPlayers && (!paymentStepComplete || !currentUserIsPaid) && team.status !== 'DEAD'}
     <div
       class="mb-6 flex flex-col items-start gap-4 rounded-lg border border-warning-500/30 bg-warning-500/5 p-5 sm:flex-row sm:items-center"
@@ -323,7 +342,7 @@
       <div class="flex flex-1 items-start gap-3">
         <TriangleAlert class="mt-0.5 size-6 shrink-0 text-warning-400" />
         <div>
-          {#if !currentUserIsPaid && paymentStepComplete}
+          {#if !currentUserIsPaid && paymentStepComplete && rosterStepComplete}
             <h3 class="text-lg font-bold text-white">Signup fee unpaid</h3>
             <p class="mt-1 text-sm text-text-body">
               You haven't paid your signup fee yet. The team can ready up, but your payment is still
@@ -370,6 +389,9 @@
         isOwner={data.isOwner}
         isGlobalAdmin={data.isGlobalAdmin}
         isFreeDivision={data.isFreeDivision}
+        minRosterSize={team.minRosterSize}
+        activePlayerCount={currentRoster.length}
+        {rosterStepComplete}
         paidPlayerCount={data.paidPlayerCount}
         {playersNeededToPay}
         {paymentStepComplete}

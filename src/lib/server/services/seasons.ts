@@ -283,14 +283,19 @@ export async function getSeasonsForFilter(limit = 50) {
 }
 
 /**
- * Get seasons for a specific region (or all regions), newest first
- * Includes region relation; used for admin match filter
+ * Seasons for the admin match filters, newest first.
+ * formatId and regionId let each dropdown depend on the one before it.
  */
 export async function getSeasonsByRegion(regionId?: number) {
   return await prisma.season.findMany({
     where: regionId ? { regionId } : {},
-    include: { region: true },
-    orderBy: { seasonNum: 'desc' },
+    select: {
+      id: true,
+      seasonNum: true,
+      regionId: true,
+      formatId: true,
+    },
+    orderBy: [{ seasonNum: 'desc' }, { formatId: 'asc' }, { regionId: 'asc' }],
   });
 }
 

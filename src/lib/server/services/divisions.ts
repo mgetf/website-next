@@ -174,6 +174,14 @@ export async function getVisibleDivisions(formatId?: number, regionId?: number) 
   });
 }
 
+/** Region and format of one division, used to resolve its current season. */
+export async function getDivisionScope(id: number) {
+  return prisma.division.findUnique({
+    where: { id },
+    select: { id: true, regionId: true, formatId: true },
+  });
+}
+
 /**
  * Get divisions for filter UI (simplified)
  */

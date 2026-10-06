@@ -20,7 +20,12 @@
   import { getRegionAbbr } from '$lib/utils/region';
   import { flagForRegion } from '$lib/utils/regions';
   import { isFreeDivision } from '$lib/utils/signupDivision';
-  import { describePlacementMoves, matchesPlacementSearch } from '$lib/utils/placement';
+  import { hasMetMinRosterSize } from '$lib/utils/rosterSize';
+  import {
+    describePlacementMoves,
+    matchesPlacementSearch,
+    mergePlacementColumnItems,
+  } from '$lib/utils/placement';
   import type { PlacementColumn, PlacementEntry, PlacementPlayer } from '$lib/types/placement';
   import type { ProfilingSnapshot } from '$lib/types/profiling';
 
@@ -29,6 +34,7 @@
   const flipDurationMs = 180;
 
   let search = $state('');
+  let rosterFilter = $state('placeable');
   let showConfirm = $state(false);
   let saving = $state(false);
   let saveForm: HTMLFormElement | undefined = $state();
@@ -81,6 +87,13 @@
   const hasPaymentEffects = $derived(moves.some((move) => move.effect !== 'none'));
   const searchActive = $derived(search.trim().length > 0);
   const entityLabel = $derived(data.isIndividual ? 'players' : 'teams');
+  const rosterFilterOptions = $derived([
+    {
+      value: 'placeable',
+      label: `At least ${data.minRosterSize} ${data.minRosterSize === 1 ? 'player' : 'players'}`,
+    },
+    { value: 'all', label: `All ${entityLabel}` },
+  ]);
   const regionFlagCode = $derived.by(() => {
     const region = data.regions.find((item) => item.id === data.regionId);
     return region ? flagForRegion(getRegionAbbr(region.name)) : '';
@@ -99,16 +112,33 @@
     columns = boardFromData();
   }
 
-  function updateColumnItems(divisionId: number, items: PlacementEntry[]) {
-    columns = columns.map((column) => (column.id === divisionId ? { ...column, items } : column));
+  const placeableOnly = $derived(rosterFilter === 'placeable');
+
+  function isHiddenByRoster(entry: PlacementEntry): boolean {
+    return placeableOnly && !hasMetMinRosterSize(entry.players.length, data.minRosterSize);
+  }
+
+  function shownItems(items: PlacementEntry[]): PlacementEntry[] {
+    return items.filter((item) => !isHiddenByRoster(item));
+  }
+
+  function commitColumn(divisionId: number, visibleItems: PlacementEntry[]) {
+    columns = columns.map((column) =>
+      column.id === divisionId
+        ? {
+            ...column,
+            items: mergePlacementColumnItems(column.items, visibleItems, isHiddenByRoster),
+          }
+        : column,
+    );
   }
 
   function handleConsider(divisionId: number, event: CustomEvent<DndEvent<PlacementEntry>>) {
-    updateColumnItems(divisionId, event.detail.items);
+    commitColumn(divisionId, event.detail.items);
   }
 
   function handleFinalize(divisionId: number, event: CustomEvent<DndEvent<PlacementEntry>>) {
-    updateColumnItems(divisionId, event.detail.items);
+    commitColumn(divisionId, event.detail.items);
   }
 
   function stopDrag(event: Event) {
@@ -297,6 +327,17 @@
           onChange={(value) => goToScope({ format: formatValue, region: value })}
         />
       </div>
+      <div class="w-52">
+        <label for="placement-roster" class="mb-1.5 block text-sm font-medium text-text-body"
+          >Roster</label
+        >
+        <SelectFilter
+          id="placement-roster"
+          bind:value={rosterFilter}
+          options={rosterFilterOptions}
+          showAllOption={false}
+        />
+      </div>
       <div class="min-w-48 flex-1">
         <label for="placement-search" class="mb-1.5 block text-sm font-medium text-text-body"
           >Search</label
@@ -329,9 +370,9 @@
   {:else}
     <div class="flex min-h-0 flex-1 gap-2 overflow-hidden">
       {#each columns as column (column.id)}
-        {@const visibleCount = column.items.filter((item) =>
-          matchesPlacementSearch(item, search),
-        ).length}
+        {@const shown = shownItems(column.items)}
+        {@const visibleCount = shown.filter((item) => matchesPlacementSearch(item, search)).length}
+        {@const hiddenCount = column.items.length - shown.length}
         <Card
           padding="none"
           class="h-full min-h-0 min-w-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:min-h-0 [&>div]:flex-col"
@@ -349,15 +390,18 @@
               >
             </div>
             <p class="text-[10px] leading-tight text-text-muted">
-              {searchActive ? `${visibleCount} matching · ` : ''}{column.items.length}
-              {column.items.length === 1 ? (data.isIndividual ? 'player' : 'team') : entityLabel}
+              {searchActive ? `${visibleCount} matching · ` : ''}{shown.length}
+              {shown.length === 1 ? (data.isIndividual ? 'player' : 'team') : entityLabel}
+              {#if hiddenCount > 0}
+                <span> · {hiddenCount} below min</span>
+              {/if}
             </p>
           </div>
           <div
             class="grid min-h-0 flex-1 content-start gap-1 overflow-x-hidden overflow-y-auto p-1.5"
-            use:fitItemColumns={column.items.length}
+            use:fitItemColumns={shown.length}
             use:dndzone={{
-              items: column.items,
+              items: shown,
               type: 'placement-board',
               flipDurationMs,
               dragDisabled: saving,
@@ -365,7 +409,7 @@
             onconsider={(event) => handleConsider(column.id, event)}
             onfinalize={(event) => handleFinalize(column.id, event)}
           >
-            {#each column.items as entry (entry.id)}
+            {#each shown as entry (entry.id)}
               {@const matches = matchesPlacementSearch(entry, search)}
               <div
                 class="flex min-w-0 items-start gap-1.5 rounded border border-border-default bg-surface-input px-1.5 py-1.5 {saving

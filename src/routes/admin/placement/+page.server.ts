@@ -59,6 +59,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     (requestedRegionId && regions.some((region) => region.id === requestedRegionId)
       ? requestedRegionId
       : regions[0]?.id) ?? null;
+  const minRosterSize = formats.find((format) => format.id === formatId)?.minRosterSize ?? 1;
 
   if (formatId == null || regionId == null) {
     return {
@@ -69,6 +70,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       seasonId: null,
       seasonNum: null,
       isIndividual: false,
+      minRosterSize,
       currencySymbol: '$',
       divisions: [],
       entries: [],
@@ -86,6 +88,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       seasonId: null,
       seasonNum: null,
       isIndividual: formats.find((format) => format.id === formatId)?.isIndividual ?? false,
+      minRosterSize,
       currencySymbol: '$',
       divisions: [],
       entries: [],
@@ -104,6 +107,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     seasonId,
     seasonNum: currentSeason.seasonNum,
     isIndividual: board.format.isIndividual,
+    minRosterSize,
     currencySymbol: board.region.currencySymbol,
     divisions: board.divisions,
     entries: board.entries,

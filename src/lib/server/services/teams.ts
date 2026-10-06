@@ -10,6 +10,7 @@ import type { Prisma } from '$prisma/client.js';
 import { notFound, badRequest, forbidden } from '$lib/server/utils/errors';
 import { createNotificationForUser } from '$lib/server/services/notifications';
 import { paidPlayersNeeded } from '$lib/utils/rosterPayments';
+import { hasMetMinRosterSize } from '$lib/utils/rosterSize';
 import { compareStandingsTeams } from '$lib/utils/standingsHighlight';
 
 /**
@@ -460,6 +461,7 @@ export async function getTeamById(id: number) {
           themeKey: true,
           iconUrl: true,
           requiredPaidPlayers: true,
+          minRosterSize: true,
           maxRosterSize: true,
         },
       },
@@ -692,19 +694,27 @@ export async function updateTeam(
   });
 }
 
+function assertMinRosterForReady(activePlayerCount: number, minRosterSize: number) {
+  if (hasMetMinRosterSize(activePlayerCount, minRosterSize)) return;
+  badRequest(
+    `Need at least ${minRosterSize} active players to ready up (currently ${activePlayerCount})`,
+  );
+}
+
 /**
- * Set a team's status with payment enforcement (admin action).
+ * Set a team's status with roster and payment enforcement (admin action).
  *
- * Setting to READY is hard-blocked for paid divisions unless enough
- * active players already have a non-zero paymentStatus (capped to the
- * current roster so a 2-player team is not blocked by a 3-player cap).
+ * Setting to READY or PENDING always requires the format's minimum active
+ * roster, including free divisions. Paid divisions also require enough
+ * active players to have a non-zero paymentStatus (capped to the current
+ * roster so a 2-player team is not blocked by a 3-player cap).
  * Admins must use the "Mark as paid" action first.
  */
 export async function adminSetTeamStatus(id: number, status: TeamStatus) {
   const team = await prisma.team.findUnique({
     where: { id },
     include: {
-      format: { select: { requiredPaidPlayers: true } },
+      format: { select: { requiredPaidPlayers: true, minRosterSize: true } },
       division: { select: { signupCost: true } },
       players: {
         where: { active: 1 },
@@ -716,6 +726,8 @@ export async function adminSetTeamStatus(id: number, status: TeamStatus) {
   if (!team) notFound('Team not found');
 
   if (status === TeamStatus.READY || status === TeamStatus.PENDING) {
+    assertMinRosterForReady(team.players.length, team.format.minRosterSize);
+
     const isFreeDiv = !team.division || team.division.signupCost === 0;
     if (!isFreeDiv) {
       const paidCount = team.players.filter((p) => p.paymentStatus !== 0).length;
@@ -736,14 +748,15 @@ export async function adminSetTeamStatus(id: number, status: TeamStatus) {
 
 /**
  * Toggle a team from UNREADY to PENDING.
- * Requires the caller to be a team admin (permissionLevel >= 1)
- * and enough active players to be paid (capped to current roster size).
+ * Requires the caller to be a team admin (permissionLevel >= 1),
+ * at least the format's minimum active players, and — on paid divisions —
+ * enough of those players to be paid (capped to current roster size).
  */
 export async function toggleTeamReady(teamId: number, userSteamId: string) {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
-      format: { select: { requiredPaidPlayers: true } },
+      format: { select: { requiredPaidPlayers: true, minRosterSize: true } },
       players: {
         where: { active: 1 },
         select: { playerSteamId: true, permissionLevel: true, paymentStatus: true },
@@ -762,6 +775,8 @@ export async function toggleTeamReady(teamId: number, userSteamId: string) {
   if (team.status !== TeamStatus.UNREADY) {
     badRequest('Team must be in UNREADY status to toggle ready');
   }
+
+  assertMinRosterForReady(team.players.length, team.format.minRosterSize);
 
   const isFreeDiv = !team.division || team.division.signupCost === 0;
   if (!isFreeDiv) {

@@ -38,6 +38,7 @@ model Format {
 ### What the app reads at runtime
 
 - `isIndividual` — signup hub/routes, join, checkout teammate picker, listings
+- `minRosterSize` — ready-up and admin PENDING/READY require this many active players, separate from payment
 - `maxRosterSize` — join / pending-player caps
 - `requiredPaidPlayers` — payments, ready-up, admin status
 - `supportsAcronym` / `supportsReregistration` — team create and re-register flows
@@ -60,7 +61,6 @@ Nav leagues come from formats that already have seasons. The signup hub lists ev
 
 These fields are stored and editable in admin, but runtime does not gate on them yet:
 
-- `minRosterSize` — ready-up does not require this many players on the roster
 - `supportsJoinPassword` — team create still always requires a join password
 
 `FORMAT_1V1` / `FORMAT_2V2` remain as seeded-id constants for 1v1-specific display (match scoring, admin withdraw vs disband, profile 1v1 section).

@@ -23,6 +23,9 @@
     isOwner,
     isGlobalAdmin,
     isFreeDivision,
+    minRosterSize,
+    activePlayerCount,
+    rosterStepComplete,
     paidPlayerCount,
     playersNeededToPay,
     paymentStepComplete,
@@ -44,6 +47,9 @@
     isOwner: boolean;
     isGlobalAdmin: boolean;
     isFreeDivision: boolean;
+    minRosterSize: number;
+    activePlayerCount: number;
+    rosterStepComplete: boolean;
     paidPlayerCount: number;
     playersNeededToPay: number;
     paymentStepComplete: boolean;
@@ -128,6 +134,39 @@
 
       {#if teamStatus === 'UNREADY'}
         <div class="space-y-4">
+          <div
+            class="rounded-lg border p-4 {rosterStepComplete
+              ? 'border-success-500/30 bg-success-500/5'
+              : 'border-warning-500/30 bg-warning-500/5'}"
+          >
+            <div class="mb-2 flex items-center gap-3">
+              <span
+                class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white {rosterStepComplete
+                  ? 'bg-success-600'
+                  : 'bg-warning-600'}"
+              >
+                {#if rosterStepComplete}
+                  <Check class="size-4" />
+                {:else}
+                  1
+                {/if}
+              </span>
+              <h3 class="text-base font-bold text-white">Roster</h3>
+              <span
+                class="ml-auto text-sm font-medium {rosterStepComplete
+                  ? 'text-success-400'
+                  : 'text-warning-400'}"
+              >
+                {activePlayerCount}/{minRosterSize} players
+              </span>
+            </div>
+            {#if !rosterStepComplete}
+              <p class="ml-10 text-sm text-text-body">
+                Need at least {minRosterSize} active players before the team can ready up.
+              </p>
+            {/if}
+          </div>
+
           {#if !isFreeDivision}
             <div
               class="rounded-lg border p-4 {paymentStepComplete
@@ -143,7 +182,7 @@
                   {#if paymentStepComplete}
                     <Check class="size-4" />
                   {:else}
-                    1
+                    2
                   {/if}
                 </span>
                 <h3 class="text-base font-bold text-white">Pay signup fees</h3>
@@ -198,12 +237,12 @@
                   ? 'bg-primary-600'
                   : 'bg-surface-input'}"
               >
-                {isFreeDivision ? '1' : '2'}
+                {isFreeDivision ? '2' : '3'}
               </span>
               <h3 class="text-base font-bold {canToggleReady ? 'text-white' : 'text-text-muted'}">
                 Ready up
               </h3>
-              {#if !canToggleReady && !isFreeDivision}
+              {#if !canToggleReady}
                 <Lock class="size-4 text-text-muted" />
               {/if}
             </div>
@@ -213,6 +252,10 @@
                   Once ready, an admin will review your team and approve it for the season.
                 </p>
                 <Button variant="primary" disabled={busy} onclick={onReady}>Ready Up</Button>
+              {:else if !rosterStepComplete}
+                <p class="text-sm text-text-muted">
+                  Available once the roster has at least {minRosterSize} active players.
+                </p>
               {:else if !isFreeDivision && !paymentStepComplete}
                 <p class="text-sm text-text-muted">
                   Available after at least {playersNeededToPay} player{playersNeededToPay === 1

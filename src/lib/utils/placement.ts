@@ -126,6 +126,20 @@ export function placementAssignmentError(params: {
   return null;
 }
 
+/**
+ * Keep teams hidden by the roster filter in the column while the drag list
+ * only contains the teams currently shown.
+ */
+export function mergePlacementColumnItems<T extends { id: number }>(
+  current: T[],
+  visibleNext: T[],
+  keepHidden: (item: T) => boolean,
+): T[] {
+  const visibleIds = new Set(visibleNext.map((item) => item.id));
+  const hidden = current.filter((item) => keepHidden(item) && !visibleIds.has(item.id));
+  return [...visibleNext, ...hidden];
+}
+
 export function matchesPlacementSearch(
   entry: { name: string; acronym: string | null; players: { steamUsername: string }[] },
   query: string,

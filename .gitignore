@@ -32,3 +32,5 @@ vite.config.ts.timestamp-*
 
 *.code-workspace
 *.ps1
+# Reads production credentials from the Railway CLI at runtime. Nothing secret is stored in the file.
+!scripts/refresh-local-db.ps1

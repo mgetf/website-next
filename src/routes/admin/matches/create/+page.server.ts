@@ -12,9 +12,13 @@ import {
   createMatchSet,
   calculateWeekLabel as calculateWeekLabelService,
 } from '$lib/server/services/adminMatches';
-import { getSeasons, getSeasonById } from '$lib/server/services/seasons';
+import { getSeasonById } from '$lib/server/services/seasons';
 import { getRegions } from '$lib/server/services/regions';
-import { getDivisions } from '$lib/server/services/divisions';
+import { getDivisionScope, getDivisions } from '$lib/server/services/divisions';
+import {
+  getAllActiveSignupSeasons,
+  getSignupSeasonForRegion,
+} from '$lib/server/services/signupSeasons';
 import { getArenas } from '$lib/server/services/arenas';
 import { getMapBanPools } from '$lib/server/services/mapBanPools';
 import { getAllPlayoffs, getPlayoffBySeason } from '$lib/server/services/playoffs';
@@ -30,7 +34,6 @@ const optionalInt = z.preprocess(
 const previewMatchesSchema = z.object({
   regionId: z.coerce.number().int(),
   divisionId: z.coerce.number().int(),
-  seasonId: z.coerce.number().int(),
   weekNo: optionalInt,
   isPlayoff: z
     .string()
@@ -42,7 +45,6 @@ const previewMatchesSchema = z.object({
 const createMatchSetSchema = z.object({
   regionId: z.coerce.number().int(),
   divisionId: z.coerce.number().int(),
-  seasonId: z.coerce.number().int(),
   boSeries: z.coerce.number().int(),
   weekNo: optionalInt,
   arenaId: optionalInt,
@@ -59,26 +61,50 @@ const createMatchSetSchema = z.object({
   awayTeamIds: z.array(z.coerce.number().int()).optional().default([]),
 });
 
+async function resolveCurrentSeason(
+  regionId: number,
+  divisionId: number,
+): Promise<{ seasonId: number } | { error: string }> {
+  const division = await getDivisionScope(divisionId);
+  if (!division || division.regionId !== regionId) {
+    return { error: 'Division does not belong to this region' };
+  }
+
+  const seasonId = await getSignupSeasonForRegion(regionId, division.formatId);
+  if (seasonId == null) {
+    return { error: 'No current season for this format and region' };
+  }
+
+  return { seasonId };
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
   requireStrictAdmin(locals.user);
 
-  // Fetch data for dropdowns using services
-  const [seasons, regions, divisions, arenas, mapBanPools, playoffs] = await Promise.all([
-    getSeasons(),
-    getRegions(),
-    getDivisions(),
-    getArenas(),
-    getMapBanPools(),
-    getAllPlayoffs(),
-  ]);
+  const [regions, divisions, arenas, mapBanPools, playoffs, activeSignupSeasons] =
+    await Promise.all([
+      getRegions(),
+      getDivisions(),
+      getArenas(),
+      getMapBanPools(),
+      getAllPlayoffs(),
+      getAllActiveSignupSeasons(),
+    ]);
 
   return {
-    seasons,
     regions,
     divisions,
     mapBanPools,
     arenas,
     playoffs,
+    activeSeasons: activeSignupSeasons.map((row) => ({
+      regionId: row.regionId,
+      formatId: row.formatId,
+      formatName: row.format.name,
+      seasonId: row.seasonId,
+      seasonNum: row.season.seasonNum,
+      numWeeks: row.season.numWeeks,
+    })),
   };
 };
 
@@ -92,7 +118,10 @@ export const actions: Actions = {
     const formData = await request.formData();
     const validation = validateForm(formData, previewMatchesSchema);
     if (!validation.success) return validationError(validation.errors);
-    const { regionId, divisionId, seasonId, weekNo, isPlayoff, playoffRound } = validation.data;
+    const { regionId, divisionId, weekNo, isPlayoff, playoffRound } = validation.data;
+    const resolved = await resolveCurrentSeason(regionId, divisionId);
+    if ('error' in resolved) return fail(400, { error: resolved.error });
+    const { seasonId } = resolved;
 
     try {
       const teams = await getEligibleTeams(regionId, divisionId, seasonId);
@@ -219,7 +248,6 @@ export const actions: Actions = {
     const {
       regionId,
       divisionId,
-      seasonId,
       boSeries,
       weekNo,
       arenaId,
@@ -253,6 +281,10 @@ export const actions: Actions = {
         });
       }
     }
+
+    const resolved = await resolveCurrentSeason(regionId, divisionId);
+    if ('error' in resolved) return fail(400, { error: resolved.error });
+    const { seasonId } = resolved;
 
     try {
       // Get season to extract seasonNo

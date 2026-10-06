@@ -1,15 +1,15 @@
 /**
  * Match Creation Wizard - Server Logic
- * Dedicated page for creating matches with a progressive wizard interface
+ * Dedicated page for creating match set drafts with a progressive wizard interface
  */
 
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
+import type { ActionFailure } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { requireStrictAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { getErrorMessage } from '$lib/server/utils/errors';
 import {
   getEligibleTeams,
-  createMatchSet,
   calculateWeekLabel as calculateWeekLabelService,
 } from '$lib/server/services/adminMatches';
 import { getSeasonById } from '$lib/server/services/seasons';
@@ -22,9 +22,20 @@ import {
 import { getArenas } from '$lib/server/services/arenas';
 import { getMapBanPools } from '$lib/server/services/mapBanPools';
 import { getAllPlayoffs, getPlayoffBySeason } from '$lib/server/services/playoffs';
+import {
+  getMatchSetDraftDetail,
+  publishMatchSetDraft,
+  saveMatchSetDraft,
+  type SaveMatchSetDraftInput,
+} from '$lib/server/services/matchSetDrafts';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
+import {
+  formError,
+  validateForm,
+  validationError,
+  type FormActionError,
+} from '$lib/server/utils/forms';
 
 const optionalInt = z.preprocess(
   (val) => (val === '' || val === null || val === undefined ? undefined : val),
@@ -42,7 +53,8 @@ const previewMatchesSchema = z.object({
   playoffRound: optionalInt,
 });
 
-const createMatchSetSchema = z.object({
+const saveMatchSetSchema = z.object({
+  draftId: optionalInt,
   regionId: z.coerce.number().int(),
   divisionId: z.coerce.number().int(),
   boSeries: z.coerce.number().int(),
@@ -59,6 +71,7 @@ const createMatchSetSchema = z.object({
   boGames: optionalInt,
   homeTeamIds: z.array(z.coerce.number().int()).optional().default([]),
   awayTeamIds: z.array(z.coerce.number().int()).optional().default([]),
+  byeTeamIds: z.array(z.coerce.number().int()).optional().default([]),
 });
 
 async function resolveCurrentSeason(
@@ -78,8 +91,102 @@ async function resolveCurrentSeason(
   return { seasonId };
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
-  requireStrictAdmin(locals.user);
+async function buildDraftInput(
+  formData: FormData,
+  actorId: string,
+): Promise<{ data: SaveMatchSetDraftInput } | { error: ActionFailure<FormActionError> }> {
+  const validation = validateForm(formData, saveMatchSetSchema, [
+    'homeTeamIds',
+    'awayTeamIds',
+    'byeTeamIds',
+  ]);
+  if (!validation.success) return { error: validationError(validation.errors) };
+  const {
+    draftId,
+    regionId,
+    divisionId,
+    boSeries,
+    weekNo,
+    arenaId,
+    matchDateTime,
+    matchTimezone,
+    mapBanPoolId,
+    isPlayoff,
+    playoffRound,
+    boGames,
+    homeTeamIds,
+    awayTeamIds,
+    byeTeamIds,
+  } = validation.data;
+
+  if (isPlayoff) {
+    if (!playoffRound) {
+      return { error: formError('Playoff round is required for playoff matches') };
+    }
+    if (!mapBanPoolId) {
+      return { error: formError('Map ban pool is required for playoff matches') };
+    }
+  } else if (!weekNo || weekNo < 1) {
+    return { error: formError('Week number is required for regular season matches') };
+  }
+
+  if (homeTeamIds.length === 0 || awayTeamIds.length === 0) {
+    return { error: formError('Please select teams for all matchups') };
+  }
+  if (homeTeamIds.length !== awayTeamIds.length) {
+    return { error: formError('Home and away team selections must match') };
+  }
+
+  const resolved = await resolveCurrentSeason(regionId, divisionId);
+  if ('error' in resolved) return { error: formError(resolved.error) };
+  const { seasonId } = resolved;
+
+  const season = await getSeasonById(seasonId);
+  if (!season) {
+    return { error: formError('Season not found') };
+  }
+
+  let playoffId: number | undefined;
+  if (isPlayoff) {
+    const playoff = await getPlayoffBySeason(seasonId);
+    if (!playoff) {
+      return { error: formError('No playoff configuration found for this season') };
+    }
+    playoffId = playoff.id;
+  }
+
+  return {
+    data: {
+      draftId,
+      regionId,
+      divisionId,
+      seasonId,
+      seasonNo: season.seasonNum,
+      weekNo: weekNo || undefined,
+      boSeries,
+      boGames: boGames || undefined,
+      arenaId,
+      matchDateTime,
+      matchTimezone: matchTimezone || undefined,
+      mapBanPoolId,
+      isPlayoff,
+      playoffId,
+      playoffRound: playoffRound || undefined,
+      pairings: homeTeamIds.map((homeTeamId, i) => ({
+        homeTeamId,
+        awayTeamId: awayTeamIds[i],
+      })),
+      byeTeamIds,
+      actorId,
+    },
+  };
+}
+
+export const load: PageServerLoad = async ({ locals, url }) => {
+  requireAdmin(locals.user);
+
+  const draftIdParam = url.searchParams.get('draftId');
+  const draftId = draftIdParam ? parseInt(draftIdParam, 10) : NaN;
 
   const [regions, divisions, arenas, mapBanPools, playoffs, activeSignupSeasons] =
     await Promise.all([
@@ -91,7 +198,18 @@ export const load: PageServerLoad = async ({ locals }) => {
       getAllActiveSignupSeasons(),
     ]);
 
+  let draft = null;
+  if (Number.isInteger(draftId) && draftId > 0) {
+    const existing = await getMatchSetDraftDetail(draftId);
+    if (existing.status !== 'DRAFT') {
+      throw redirect(303, `/admin/matches/drafts/${existing.id}`);
+    }
+    draft = existing;
+  }
+
   return {
+    isStrictAdmin: isStrictAdmin(locals.user),
+    draft,
     regions,
     divisions,
     mapBanPools,
@@ -113,7 +231,7 @@ export const actions: Actions = {
    * Preview eligible teams and match pairings (includes week label calculation)
    */
   previewMatches: async ({ request, locals }) => {
-    requireStrictAdmin(locals.user);
+    requireAdmin(locals.user);
 
     const formData = await request.formData();
     const validation = validateForm(formData, previewMatchesSchema);
@@ -236,157 +354,72 @@ export const actions: Actions = {
     }
   },
 
-  /**
-   * Create the match set
-   */
-  createMatchSet: async ({ request, locals, getClientAddress }) => {
-    requireStrictAdmin(locals.user);
+  saveDraft: async ({ request, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
 
     const formData = await request.formData();
-    const validation = validateForm(formData, createMatchSetSchema, ['homeTeamIds', 'awayTeamIds']);
-    if (!validation.success) return validationError(validation.errors);
-    const {
-      regionId,
-      divisionId,
-      boSeries,
-      weekNo,
-      arenaId,
-      matchDateTime,
-      matchTimezone,
-      mapBanPoolId,
-      isPlayoff,
-      playoffRound,
-      boGames,
-      homeTeamIds,
-      awayTeamIds,
-    } = validation.data;
-
-    // Additional validation for playoff matches
-    if (isPlayoff) {
-      if (!playoffRound) {
-        return fail(400, {
-          error: 'Playoff round is required for playoff matches',
-        });
-      }
-      if (!mapBanPoolId) {
-        return fail(400, {
-          error: 'Map ban pool is required for playoff matches',
-        });
-      }
-    } else {
-      // Validation for regular (non-playoff) matches
-      if (!weekNo || weekNo < 1) {
-        return fail(400, {
-          error: 'Week number is required for regular season matches',
-        });
-      }
-    }
-
-    const resolved = await resolveCurrentSeason(regionId, divisionId);
-    if ('error' in resolved) return fail(400, { error: resolved.error });
-    const { seasonId } = resolved;
+    const built = await buildDraftInput(formData, locals.user.steamId);
+    if ('error' in built) return built.error;
 
     try {
-      // Get season to extract seasonNo
-      const season = await getSeasonById(seasonId);
-
-      if (!season) {
-        console.error('Season not found:', seasonId);
-        return fail(400, { error: 'Season not found' });
-      }
-
-      let matches;
-      let byeTeamIds: number[] = [];
-
-      if (isPlayoff) {
-        // Get playoff configuration
-        const playoff = await getPlayoffBySeason(seasonId);
-        if (!playoff) {
-          return fail(400, {
-            error: 'No playoff configuration found for this season',
-          });
-        }
-
-        if (homeTeamIds.length === 0 || awayTeamIds.length === 0) {
-          return fail(400, {
-            error: 'Please select teams for all playoff matchups',
-          });
-        }
-
-        if (homeTeamIds.length !== awayTeamIds.length) {
-          return fail(400, {
-            error: 'Home and away team selections must match',
-          });
-        }
-
-        // Create playoff matches using the existing createPlayoffMatch function
-        const { createPlayoffMatch } = await import('$lib/server/services/adminMatches');
-        const createdMatches = [];
-
-        for (let i = 0; i < homeTeamIds.length; i++) {
-          const homeTeamId = homeTeamIds[i];
-          const awayTeamId = awayTeamIds[i];
-
-          const match = await createPlayoffMatch({
-            seasonId,
-            seasonNo: season.seasonNum,
-            playoffId: playoff.id,
-            playoffRound: playoffRound!,
-            homeTeamId,
-            awayTeamId,
-            boSeries,
-            boGames: boGames || undefined,
-            matchDateTime,
-            matchTimezone: matchTimezone || undefined,
-            mapBanPoolId,
-          });
-
-          createdMatches.push(match);
-        }
-
-        matches = createdMatches;
-      } else {
-        const result = await createMatchSet(regionId, divisionId, {
-          seasonId,
-          seasonNo: season.seasonNum,
-          weekNo: weekNo || undefined,
-          boSeries,
-          arenaId,
-          matchDateTime,
-          matchTimezone: matchTimezone || undefined,
-          mapBanPoolId,
-          manualPairings:
-            homeTeamIds.length > 0 && homeTeamIds.length === awayTeamIds.length
-              ? homeTeamIds.map((homeTeamId, i) => ({ homeTeamId, awayTeamId: awayTeamIds[i] }))
-              : undefined,
-        });
-
-        matches = result.matches;
-        byeTeamIds = result.byeTeams.map((t) => t.id);
-      }
+      const draft = await saveMatchSetDraft(built.data);
 
       await logAudit({
-        actorId: locals.user?.steamId,
-        actorRole: locals.user?.permissionLevel,
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
         category: AuditCategory.MATCH,
-        action: AuditAction.MATCH_CREATED,
-        targetType: 'Season',
-        targetId: String(seasonId),
+        action: AuditAction.MATCH_SET_DRAFT_SAVED,
+        targetType: 'MatchSetDraft',
+        targetId: String(draft.id),
         metadata: {
-          matchCount: matches.length,
-          isPlayoff,
-          divisionId,
-          weekNo: weekNo ?? null,
-          byeTeamIds,
+          matchCount: draft.pairings.length,
+          isPlayoff: draft.isPlayoff,
+          divisionId: draft.divisionId,
+          weekNo: draft.weekNo,
+          byeTeamIds: draft.byeTeams.map((team) => team.id),
         },
         ipAddress: getClientAddress(),
       });
 
-      throw redirect(303, `/admin/matches?created=${matches.length}`);
+      throw redirect(303, `/admin/matches/drafts/${draft.id}`);
     } catch (err) {
       if (isRedirect(err)) throw err;
-      console.error('Error creating match set:', err);
-      return fail(400, { error: getErrorMessage(err, 'Failed to create matches') });
+      return fail(400, { error: getErrorMessage(err, 'Failed to save draft') });
+    }
+  },
+
+  publishMatchSet: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const built = await buildDraftInput(formData, locals.user.steamId);
+    if ('error' in built) return built.error;
+
+    try {
+      const draft = await saveMatchSetDraft(built.data);
+      const published = await publishMatchSetDraft(draft.id, locals.user.steamId);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_SET_PUBLISHED,
+        targetType: 'MatchSetDraft',
+        targetId: String(draft.id),
+        metadata: {
+          matchCount: published.matchCount,
+          byeTeamCount: published.byeTeamCount,
+          isPlayoff: draft.isPlayoff,
+          divisionId: draft.divisionId,
+          weekNo: draft.weekNo,
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      throw redirect(303, `/admin/matches?created=${published.matchCount}`);
+    } catch (err) {
+      if (isRedirect(err)) throw err;
+      return fail(400, { error: getErrorMessage(err, 'Failed to publish matches') });
     }
   },
 };

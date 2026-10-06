@@ -40,6 +40,12 @@ enum MatchStatus {
   DISPUTE // 2
 }
 
+enum MatchSetDraftStatus {
+  DRAFT
+  PUBLISHED
+  DISCARDED
+}
+
 enum TeamStatus {
   DEAD // -1
   UNREADY // 0
@@ -504,6 +510,9 @@ model User {
   eventDraftsCreated         EventDraft[]       @relation("EventDraftCreatedBy")
   eventDraftsUpdated         EventDraft[]       @relation("EventDraftUpdatedBy")
   eventRevisionsPublished    EventRevision[]    @relation("EventRevisionPublishedBy")
+  matchSetDraftsCreated      MatchSetDraft[]    @relation("MatchSetDraftCreatedBy")
+  matchSetDraftsUpdated      MatchSetDraft[]    @relation("MatchSetDraftUpdatedBy")
+  matchSetDraftsPublished    MatchSetDraft[]    @relation("MatchSetDraftPublishedBy")
   rulebookRevisionsPublished RulebookRevision[] @relation("RulebookRevisionPublishedBy")
   blogPosts                  BlogPost[]
   blogComments               BlogComment[]
@@ -588,10 +597,11 @@ model Arena {
   avatar     String?
   playoffMap Int     @default(0) @map("playoff_map")
 
-  games         Game[]
-  mapsInPool    MapInPool[]
-  mapBanActions MapBanAction[]
-  eventGames    EventGame[]
+  games          Game[]
+  mapsInPool     MapInPool[]
+  mapBanActions  MapBanAction[]
+  eventGames     EventGame[]
+  matchSetDrafts MatchSetDraft[]
 
   @@map("arenas")
 }
@@ -621,6 +631,7 @@ model Season {
   activeSignupSeasons ActiveSignupSeason[]
   itemPaymentOrders   ItemPaymentOrder[]
   byeWeeks            ByeWeek[]
+  matchSetDrafts      MatchSetDraft[]
 
   @@map("seasons")
 }
@@ -632,8 +643,9 @@ model Playoff {
   doubleElim   Int?    @map("double_elim")
   isTournament Boolean @map("is_tournament")
 
-  season  Season  @relation(fields: [seasonId], references: [id])
-  matches Match[]
+  season         Season          @relation(fields: [seasonId], references: [id])
+  matches        Match[]
+  matchSetDrafts MatchSetDraft[]
 
   @@map("playoffs")
 }
@@ -740,6 +752,49 @@ model Match {
   @@map("matches")
 }
 
+// Working copy of a weekly/playoff match set. Moderators can save pairings
+// here without creating public Match rows; only admins can publish.
+model MatchSetDraft {
+  id            Int                 @id @default(autoincrement())
+  status        MatchSetDraftStatus @default(DRAFT)
+  regionId      Int                 @map("region_id")
+  divisionId    Int                 @map("division_id")
+  seasonId      Int                 @map("season_id")
+  seasonNo      Int                 @map("season_no")
+  weekNo        Int?                @map("week_no")
+  boSeries      Int                 @map("bo_series")
+  boGames       Int?                @map("bo_games")
+  arenaId       Int?                @map("arena_id")
+  matchDateTime String?             @map("match_date_time")
+  matchTimezone String?             @map("match_timezone")
+  mapBanPoolId  Int?                @map("map_ban_pool_id")
+  isPlayoff     Boolean             @default(false) @map("is_playoff")
+  playoffId     Int?                @map("playoff_id")
+  playoffRound  Int?                @map("playoff_round")
+  pairings      Json
+  byeTeamIds    Json                @default("[]") @map("bye_team_ids")
+  createdBy     String              @map("created_by")
+  updatedBy     String?             @map("updated_by")
+  publishedBy   String?             @map("published_by")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  publishedAt   DateTime?           @map("published_at")
+
+  region     Region      @relation(fields: [regionId], references: [id])
+  division   Division    @relation(fields: [divisionId], references: [id])
+  season     Season      @relation(fields: [seasonId], references: [id])
+  arena      Arena?      @relation(fields: [arenaId], references: [id], onDelete: SetNull)
+  mapBanPool MapBanPool? @relation(fields: [mapBanPoolId], references: [id], onDelete: SetNull)
+  playoff    Playoff?    @relation(fields: [playoffId], references: [id], onDelete: SetNull)
+  creator    User        @relation("MatchSetDraftCreatedBy", fields: [createdBy], references: [steamId])
+  updater    User?       @relation("MatchSetDraftUpdatedBy", fields: [updatedBy], references: [steamId], onDelete: SetNull)
+  publisher  User?       @relation("MatchSetDraftPublishedBy", fields: [publishedBy], references: [steamId], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([seasonId, status])
+  @@map("match_set_drafts")
+}
+
 model Global {
   id                       Int      @id @default(autoincrement())
   leagueFees               Int      @default(0) @map("league_fees")
@@ -772,6 +827,7 @@ model Division {
   teams            Team[]
   staffAssignments StaffAssignment[]
   itemPayment      DivisionItemPayment?
+  matchSetDrafts   MatchSetDraft[]
 
   @@unique([name, regionId, formatId])
   @@index([formatId])
@@ -860,6 +916,7 @@ model Region {
   activeSignupSeasons    ActiveSignupSeason[]
   staffDiscordRules      StaffDiscordRule[]
   staffSourcebansServers StaffSourcebansServer[]
+  matchSetDrafts         MatchSetDraft[]
 
   @@map("regions")
 }
@@ -991,8 +1048,9 @@ model MapBanPool {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
 
-  mapsInPool   MapInPool[]
-  matchMapBans MatchMapBan[]
+  mapsInPool     MapInPool[]
+  matchMapBans   MatchMapBan[]
+  matchSetDrafts MatchSetDraft[]
 
   @@map("map_ban_pools")
 }

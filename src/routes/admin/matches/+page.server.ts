@@ -5,13 +5,9 @@
 
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { requireAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
 import { MatchStatus } from '$prisma/client.js';
 import {
-  createMatchSet,
-  createPlayoffMatch,
-  getEligibleTeams,
   updateMatchStatus,
   getWeekOptionsForSeason,
   getMatchesForAdminWeekView,
@@ -21,46 +17,10 @@ import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getSeasonsByRegion } from '$lib/server/services/seasons';
 import { parseFilterId, resolveAdminMatchFilters } from '$lib/utils/matchFilters';
 import { getMatchWeekLabels } from '$lib/server/services/matches';
+import { listPendingMatchSetDrafts } from '$lib/server/services/matchSetDrafts';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { z } from 'zod';
 import { validateForm, validationError } from '$lib/server/utils/forms';
-
-const optionalInt = z.preprocess(
-  (val) => (val === '' || val === null || val === undefined ? undefined : val),
-  z.coerce.number().int().optional(),
-);
-
-const previewMatchesSchema = z.object({
-  regionId: z.coerce.number().int(),
-  divisionId: z.coerce.number().int(),
-  seasonId: z.coerce.number().int(),
-});
-
-const createMatchSetSchema = z.object({
-  regionId: z.coerce.number().int(),
-  divisionId: z.coerce.number().int(),
-  seasonId: z.coerce.number().int(),
-  seasonNo: z.coerce.number().int(),
-  weekNo: z.coerce.number().int(),
-  boSeries: z.coerce.number().int(),
-  arenaId: optionalInt,
-  matchDateTime: z.string().optional().default(''),
-  mapBanPoolId: optionalInt,
-});
-
-const createPlayoffMatchSchema = z.object({
-  seasonId: z.coerce.number().int(),
-  seasonNo: z.coerce.number().int(),
-  playoffId: z.coerce.number().int(),
-  playoffRound: z.coerce.number().int(),
-  homeTeamId: z.coerce.number().int(),
-  awayTeamId: z.coerce.number().int(),
-  boSeries: z.coerce.number().int(),
-  boGames: optionalInt,
-  arenaId: optionalInt,
-  matchDateTime: z.string().optional().default(''),
-  mapBanPoolId: optionalInt,
-});
 
 const updateMatchStatusSchema = z.object({
   matchId: z.coerce.number().int(),
@@ -70,10 +30,11 @@ const updateMatchStatusSchema = z.object({
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);
 
-  const [regions, formats, seasons] = await Promise.all([
+  const [regions, formats, seasons, pendingDrafts] = await Promise.all([
     getRegionsForFilter(),
     getFormatsForFilter(),
     getSeasonsByRegion(),
+    listPendingMatchSetDrafts(),
   ]);
 
   const resolved = resolveAdminMatchFilters({
@@ -144,6 +105,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   return {
     isStrictAdmin: isStrictAdmin(locals.user),
+    pendingDrafts,
     matchesByDivision: sortedDivisions,
     formats: formats.map((format) => ({ id: format.id, name: format.name })),
     regions: regions.map((region) => ({ id: region.id, name: region.name })),
@@ -164,136 +126,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-  previewMatches: async ({ request, locals }) => {
-    requireAdmin(locals.user);
-
-    const formData = await request.formData();
-    const validation = validateForm(formData, previewMatchesSchema);
-    if (!validation.success) return validationError(validation.errors);
-    const { regionId, divisionId, seasonId } = validation.data;
-
-    try {
-      const teams = await getEligibleTeams(regionId, divisionId, seasonId);
-
-      return { preview: { teams }, success: true };
-    } catch (err) {
-      return fail(400, { error: getErrorMessage(err, 'Failed to load teams') });
-    }
-  },
-
-  createMatchSet: async ({ request, locals, getClientAddress }) => {
-    requireStrictAdmin(locals.user);
-
-    const formData = await request.formData();
-    const validation = validateForm(formData, createMatchSetSchema);
-    if (!validation.success) return validationError(validation.errors);
-    const {
-      regionId,
-      divisionId,
-      seasonId,
-      seasonNo,
-      weekNo,
-      boSeries,
-      arenaId,
-      matchDateTime,
-      mapBanPoolId,
-    } = validation.data;
-
-    try {
-      const { matches, byeTeams } = await createMatchSet(regionId, divisionId, {
-        seasonId,
-        seasonNo,
-        weekNo,
-        boSeries,
-        arenaId,
-        matchDateTime,
-        mapBanPoolId,
-      });
-
-      await logAudit({
-        actorId: locals.user?.steamId,
-        actorRole: locals.user?.permissionLevel,
-        category: AuditCategory.MATCH,
-        action: AuditAction.MATCH_CREATED,
-        targetType: 'Season',
-        targetId: String(seasonId),
-        metadata: {
-          matchCount: matches.length,
-          byeTeamIds: byeTeams.map((t) => t.id),
-          divisionId,
-          weekNo,
-          boSeries,
-        },
-        ipAddress: getClientAddress(),
-      });
-
-      return {
-        success: true,
-        message: `Created ${matches.length} matches successfully`,
-      };
-    } catch (err) {
-      return fail(400, { error: getErrorMessage(err, 'Failed to create matches') });
-    }
-  },
-
-  createPlayoffMatch: async ({ request, locals, getClientAddress }) => {
-    requireStrictAdmin(locals.user);
-
-    const formData = await request.formData();
-    const validation = validateForm(formData, createPlayoffMatchSchema);
-    if (!validation.success) return validationError(validation.errors);
-    const {
-      seasonId,
-      seasonNo,
-      playoffId,
-      playoffRound,
-      homeTeamId,
-      awayTeamId,
-      boSeries,
-      boGames,
-      arenaId,
-      matchDateTime,
-      mapBanPoolId,
-    } = validation.data;
-
-    try {
-      const match = await createPlayoffMatch({
-        seasonId,
-        seasonNo,
-        playoffId,
-        playoffRound,
-        homeTeamId,
-        awayTeamId,
-        boSeries,
-        boGames,
-        arenaId,
-        matchDateTime,
-        mapBanPoolId,
-      });
-
-      await logAudit({
-        actorId: locals.user?.steamId,
-        actorRole: locals.user?.permissionLevel,
-        category: AuditCategory.MATCH,
-        action: AuditAction.MATCH_CREATED,
-        targetType: 'Match',
-        targetId: String(match.id),
-        metadata: { playoffRound, homeTeamId, awayTeamId, boSeries, seasonId },
-        ipAddress: getClientAddress(),
-      });
-
-      return {
-        success: true,
-        message: `Playoff match created successfully`,
-        matchId: match.id,
-      };
-    } catch (err) {
-      return fail(400, {
-        error: getErrorMessage(err, 'Failed to create playoff match'),
-      });
-    }
-  },
-
   updateMatchStatus: async ({ request, locals, getClientAddress }) => {
     requireAdmin(locals.user);
 

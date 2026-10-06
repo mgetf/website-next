@@ -8,7 +8,9 @@
   import { toast } from '$lib/state/toast.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
   import { formatPlayoffRound } from '$lib/utils/playoffs';
+  import { formatDateTime } from '$lib/utils/datetime';
   import {
     formatsWithSeasons,
     parseFilterId,
@@ -30,10 +32,16 @@
 
   $effect(() => {
     const created = page.url.searchParams.get('created');
+    const discarded = page.url.searchParams.get('discarded');
     if (created) {
       toast.success(`Successfully created ${created} match${created === '1' ? '' : 'es'}!`);
       const url = new URL(page.url);
       url.searchParams.delete('created');
+      goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+    } else if (discarded) {
+      toast.success('Draft discarded');
+      const url = new URL(page.url);
+      url.searchParams.delete('discarded');
       goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
     }
   });
@@ -187,10 +195,64 @@
       <h1 class="text-3xl font-bold text-white mb-2">Match Management</h1>
       <p class="text-text-body">View and manage league matches by week</p>
     </div>
-    {#if data.isStrictAdmin}
-      <Button variant="primary" href="/admin/matches/create" size="lg">+ Create Matches</Button>
-    {/if}
+    <Button variant="primary" href="/admin/matches/create" size="lg">+ Create Matches</Button>
   </div>
+
+  {#if data.pendingDrafts.length > 0}
+    <Card padding="none" class="overflow-hidden">
+      <div
+        class="bg-warning-500/10 px-6 py-4 border-b border-warning-500/30 flex items-center justify-between gap-4"
+      >
+        <div>
+          <h2 class="text-lg font-bold text-white">Pending drafts</h2>
+          <p class="text-sm text-text-body">Saved match sets waiting for an admin to publish</p>
+        </div>
+        <Badge color="yellow">{data.pendingDrafts.length}</Badge>
+      </div>
+      <DataTable
+        data={data.pendingDrafts}
+        columns={[
+          { key: 'scope', label: 'Division' },
+          { key: 'round', label: 'Round' },
+          { key: 'matches', label: 'Matches', align: 'center' },
+          { key: 'author', label: 'Created by' },
+          { key: 'saved', label: 'Saved' },
+          { key: 'actions', label: 'Actions', align: 'right', srOnly: true },
+        ]}
+      >
+        {#snippet cell(draft, col)}
+          {#if col.key === 'scope'}
+            <div>
+              <div class="font-semibold text-white">{draft.divisionName}</div>
+              <div class="text-xs text-text-muted">
+                {draft.formatName} · {draft.regionName} · Season {draft.seasonNo}
+              </div>
+            </div>
+          {:else if col.key === 'round'}
+            <span class="text-text-label">
+              {#if draft.isPlayoff && draft.playoffRound != null}
+                {formatPlayoffRound(draft.playoffRound)}
+              {:else if draft.weekNo != null}
+                Week {draft.weekNo}
+              {:else}
+                —
+              {/if}
+            </span>
+          {:else if col.key === 'matches'}
+            <span class="text-white">{draft.matchCount}</span>
+          {:else if col.key === 'author'}
+            <span class="text-text-label">{draft.createdByName}</span>
+          {:else if col.key === 'saved'}
+            <span class="text-text-body">{formatDateTime(draft.createdAt)}</span>
+          {:else if col.key === 'actions'}
+            <Button href="/admin/matches/drafts/{draft.id}" variant="secondary" size="sm"
+              >Review</Button
+            >
+          {/if}
+        {/snippet}
+      </DataTable>
+    </Card>
+  {/if}
 
   <!-- Filters -->
   <FilterBar>

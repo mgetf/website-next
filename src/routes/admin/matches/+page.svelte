@@ -9,6 +9,13 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import { formatPlayoffRound } from '$lib/utils/playoffs';
+  import {
+    formatsWithSeasons,
+    parseFilterId,
+    regionsForFormat,
+    resolveAdminMatchFilters,
+    seasonsForScope,
+  } from '$lib/utils/matchFilters';
 
   let { data }: { data: PageData } = $props();
 
@@ -31,52 +38,99 @@
     }
   });
 
-  let selectedRegion = $state('');
-  let selectedSeason = $state('');
-  let selectedWeek = $state('1');
+  const selectedFormat = $derived(data.filters.formatId);
+  const selectedRegion = $derived(data.filters.regionId);
+  const selectedSeason = $derived(data.filters.seasonId);
+  const selectedWeek = $derived(data.filters.week);
 
-  $effect(() => {
-    selectedRegion = data.filters.regionId || '';
-    selectedSeason = data.filters.seasonId || '';
-    selectedWeek = data.filters.week || '1';
-  });
+  const formatOptions = $derived(
+    formatsWithSeasons(data.formats, data.seasons).map((format) => ({
+      value: format.id.toString(),
+      label: format.name,
+    })),
+  );
 
   const regionOptions = $derived(
-    data.regions.map((r) => ({ value: r.id.toString(), label: r.name })),
+    regionsForFormat(data.regions, data.seasons, parseFilterId(selectedFormat)).map((region) => ({
+      value: region.id.toString(),
+      label: region.name,
+    })),
   );
 
   const seasonOptions = $derived(
-    data.seasons.map((s) => ({ value: s.id.toString(), label: `Season ${s.seasonNum}` })),
+    seasonsForScope(data.seasons, parseFilterId(selectedFormat), parseFilterId(selectedRegion)).map(
+      (season) => ({
+        value: season.id.toString(),
+        label: `Season ${season.seasonNum}`,
+      }),
+    ),
   );
 
   const weekOptions = $derived(
-    data.weekOptions.length > 0
-      ? data.weekOptions.map((o) => ({ value: o.value, label: o.label }))
-      : [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ value: n.toString(), label: `Week ${n}` })),
+    data.weekOptions.map((option) => ({ value: option.value, label: option.label })),
   );
 
+  function gotoFilters(next: {
+    formatId: string;
+    regionId: string;
+    seasonId: string;
+    week?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (next.formatId) params.set('formatId', next.formatId);
+    if (next.regionId) params.set('regionId', next.regionId);
+    if (next.seasonId) params.set('seasonId', next.seasonId);
+    if (next.week) params.set('week', next.week);
+    goto(`/admin/matches?${params.toString()}`, { keepFocus: true, noScroll: true });
+  }
+
+  function onFormatChange(value: string) {
+    const next = resolveAdminMatchFilters({
+      formats: data.formats,
+      regions: data.regions,
+      seasons: data.seasons,
+      formatId: parseFilterId(value),
+      regionId: parseFilterId(selectedRegion),
+      seasonId: parseFilterId(selectedSeason),
+    });
+    gotoFilters({
+      formatId: next.formatId?.toString() ?? '',
+      regionId: next.regionId?.toString() ?? '',
+      seasonId: next.seasonId?.toString() ?? '',
+    });
+  }
+
   function onRegionChange(value: string) {
-    selectedRegion = value;
-    selectedSeason = '';
-    applyFilters();
+    const next = resolveAdminMatchFilters({
+      formats: data.formats,
+      regions: data.regions,
+      seasons: data.seasons,
+      formatId: parseFilterId(selectedFormat),
+      regionId: parseFilterId(value),
+      seasonId: parseFilterId(selectedSeason),
+    });
+    gotoFilters({
+      formatId: next.formatId?.toString() ?? '',
+      regionId: next.regionId?.toString() ?? '',
+      seasonId: next.seasonId?.toString() ?? '',
+    });
   }
 
   function onSeasonChange(value: string) {
-    selectedSeason = value;
-    applyFilters();
+    gotoFilters({
+      formatId: selectedFormat,
+      regionId: selectedRegion,
+      seasonId: value,
+    });
   }
 
   function onWeekChange(value: string) {
-    selectedWeek = value;
-    applyFilters();
-  }
-
-  function applyFilters() {
-    const params = new URLSearchParams();
-    if (selectedRegion) params.set('regionId', selectedRegion);
-    if (selectedSeason) params.set('seasonId', selectedSeason);
-    if (selectedWeek) params.set('week', selectedWeek);
-    goto(`/admin/matches?${params.toString()}`);
+    gotoFilters({
+      formatId: selectedFormat,
+      regionId: selectedRegion,
+      seasonId: selectedSeason,
+      week: value,
+    });
   }
 
   function formatMatchDate(dateTime: string | Date | null): string {
@@ -141,32 +195,60 @@
   <!-- Filters -->
   <FilterBar>
     {#snippet filters()}
-      <div class="md:w-48">
-        <label for="region" class="block text-sm font-medium text-text-body mb-2">Region</label>
+      <div class="md:w-40">
+        <label for="match-format" class="block text-sm font-medium text-text-body mb-2"
+          >Format</label
+        >
         <SelectFilter
+          id="match-format"
+          value={selectedFormat}
+          options={formatOptions}
+          showAllOption={false}
+          disabled={formatOptions.length === 0}
+          allLabel="No formats"
+          onChange={onFormatChange}
+        />
+      </div>
+
+      <div class="md:w-40">
+        <label for="match-region" class="block text-sm font-medium text-text-body mb-2"
+          >Region</label
+        >
+        <SelectFilter
+          id="match-region"
           value={selectedRegion}
           options={regionOptions}
           showAllOption={false}
+          disabled={regionOptions.length === 0}
+          allLabel={selectedFormat ? 'No regions' : 'Pick a format first'}
           onChange={onRegionChange}
         />
       </div>
 
-      <div class="md:w-48">
-        <label for="season" class="block text-sm font-medium text-text-body mb-2">Season</label>
+      <div class="md:w-40">
+        <label for="match-season" class="block text-sm font-medium text-text-body mb-2"
+          >Season</label
+        >
         <SelectFilter
+          id="match-season"
           value={selectedSeason}
           options={seasonOptions}
           showAllOption={false}
+          disabled={!selectedRegion || seasonOptions.length === 0}
+          allLabel={selectedRegion ? 'No seasons' : 'Pick a region first'}
           onChange={onSeasonChange}
         />
       </div>
 
       <div class="md:w-48">
-        <label for="round" class="block text-sm font-medium text-text-body mb-2">Round</label>
+        <label for="match-round" class="block text-sm font-medium text-text-body mb-2">Round</label>
         <SelectFilter
+          id="match-round"
           value={selectedWeek}
           options={weekOptions}
           showAllOption={false}
+          disabled={!selectedSeason || weekOptions.length === 0}
+          allLabel={selectedSeason ? 'No rounds' : 'Pick a season first'}
           onChange={onWeekChange}
         />
       </div>
@@ -180,7 +262,7 @@
       <p class="text-text-muted mt-2">Try selecting a different week or season</p>
     </Card>
   {:else}
-    {#each data.matchesByDivision as division}
+    {#each data.matchesByDivision as division (division.id)}
       <Card padding="none" class="overflow-hidden">
         <!-- Division Header -->
         <div class="bg-surface-input px-6 py-4 border-b border-border-input">
@@ -191,15 +273,12 @@
         <DataTable data={division.matches} columns={matchColumns}>
           {#snippet cell(match, col)}
             {#if col.key === 'match'}
-              <a
-                href="/matches/{match.id}"
-                class="text-info-400 hover:text-blue-300 hover:underline"
-              >
+              <a href="/matches/{match.id}" class="text-info-400 hover:text-white hover:underline">
                 {getMatchTitle(match)}
               </a>
             {:else if col.key === 'maps'}
               <div class="flex items-center justify-center gap-1">
-                {#each match.games as game}
+                {#each match.games as game (game.id)}
                   {#if game.arena}
                     <div class="relative group">
                       {#if game.arena.avatar}

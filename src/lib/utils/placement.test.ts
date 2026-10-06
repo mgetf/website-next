@@ -6,6 +6,7 @@ import {
   diffPlacementMoves,
   divisionByTeamId,
   matchesPlacementSearch,
+  mergePlacementColumnItems,
   placementAssignmentError,
   placementPaymentEffect,
 } from './placement';
@@ -212,6 +213,26 @@ describe('placementAssignmentError', () => {
         formatId: FORMAT_2V2,
       }),
     ).toBe('Cannot place teams into a hidden division');
+  });
+
+  it('keeps short rosters in the column while the board only shows placeable teams', () => {
+    const full = { id: 1, players: 2 };
+    const short = { id: 2, players: 1 };
+    const incoming = { id: 3, players: 2 };
+    const keepShort = (item: { players: number }) => item.players < 2;
+
+    expect(mergePlacementColumnItems([full, short], [full], keepShort)).toEqual([full, short]);
+    expect(mergePlacementColumnItems([full, short], [], keepShort)).toEqual([short]);
+    expect(mergePlacementColumnItems([short], [incoming], keepShort)).toEqual([incoming, short]);
+  });
+
+  it('replaces the column when every team is visible', () => {
+    const first = { id: 1, players: 2 };
+    const second = { id: 2, players: 2 };
+    expect(mergePlacementColumnItems([first, second], [second, first], () => false)).toEqual([
+      second,
+      first,
+    ]);
   });
 
   it('accepts a valid move', () => {

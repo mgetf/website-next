@@ -1,5 +1,6 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
+import { FORMAT_2V2 } from '../../../src/lib/constants/formats';
 import type { SeasonSeed } from './season';
 
 export async function loginAs(
@@ -240,9 +241,9 @@ export async function adminCreateWeekMatch(
   await page.goto('/admin/matches/create');
   await expect(page.getByRole('heading', { name: 'Create Match Set' })).toBeVisible();
 
+  await selectControlled(page, '#formatId', { value: String(FORMAT_2V2) });
   await selectControlled(page, '#regionId', { value: String(league.regionId) });
   await selectControlled(page, '#divisionId', { value: String(league.divisionId) });
-  await selectControlled(page, '#seasonId', { value: String(league.seasonId) });
   await page.locator('#weekNo').fill(String(weekNo));
   await selectControlled(page, '#arenaId', { value: String(arenaId) });
   await selectControlled(page, '#boSeries', { value: String(boSeries) });
@@ -268,9 +269,9 @@ export async function adminCreatePlayoffMatch(
   await expect(page.getByRole('heading', { name: 'Create Match Set' })).toBeVisible();
 
   await page.locator('input[name="isPlayoff"]').check();
+  await selectControlled(page, '#formatId', { value: String(FORMAT_2V2) });
   await selectControlled(page, '#regionId', { value: String(league.regionId) });
   await selectControlled(page, '#divisionId', { value: String(league.divisionId) });
-  await selectControlled(page, '#seasonId', { value: String(league.seasonId) });
   await selectControlled(page, '#playoffRound', { value: '1' });
   await selectControlled(page, '#mapBanPoolId', { value: String(league.mapBanPoolId) });
   await selectControlled(page, '#boSeries', { value: String(boSeries) });

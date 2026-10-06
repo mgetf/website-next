@@ -16,10 +16,10 @@ import {
   getWeekOptionsForSeason,
   getMatchesForAdminWeekView,
 } from '$lib/server/services/adminMatches';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { getVisibleRegions } from '$lib/server/services/regions';
-import { getMapBanPools } from '$lib/server/services/mapBanPools';
+import { getFormatsForFilter } from '$lib/server/services/formats';
+import { getRegionsForFilter } from '$lib/server/services/regions';
 import { getSeasonsByRegion } from '$lib/server/services/seasons';
+import { parseFilterId, resolveAdminMatchFilters } from '$lib/utils/matchFilters';
 import { getMatchWeekLabels } from '$lib/server/services/matches';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 import { z } from 'zod';
@@ -70,46 +70,44 @@ const updateMatchStatusSchema = z.object({
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);
 
-  const regionIdParam = url.searchParams.get('regionId');
-  const seasonIdParam = url.searchParams.get('seasonId');
-  const weekParam = url.searchParams.get('week');
-
-  const [divisions, regions, mapBanPools] = await Promise.all([
-    getVisibleDivisions(),
-    getVisibleRegions(),
-    getMapBanPools(),
+  const [regions, formats, seasons] = await Promise.all([
+    getRegionsForFilter(),
+    getFormatsForFilter(),
+    getSeasonsByRegion(),
   ]);
 
-  const selectedRegionId = regionIdParam ? parseInt(regionIdParam) : (regions[0]?.id ?? null);
+  const resolved = resolveAdminMatchFilters({
+    formats,
+    regions,
+    seasons,
+    formatId: parseFilterId(url.searchParams.get('formatId')),
+    regionId: parseFilterId(url.searchParams.get('regionId')),
+    seasonId: parseFilterId(url.searchParams.get('seasonId')),
+  });
 
-  const seasons = await getSeasonsByRegion(selectedRegionId ?? undefined);
-
-  const selectedSeasonId = seasonIdParam ? parseInt(seasonIdParam) : (seasons[0]?.id ?? null);
+  const weekOptions = await getWeekOptionsForSeason(resolved.seasonId);
+  const requestedWeek = url.searchParams.get('week');
+  const week =
+    requestedWeek && weekOptions.some((option) => option.value === requestedWeek)
+      ? requestedWeek
+      : (weekOptions[0]?.value ?? null);
 
   let weekNo: number | null = null;
   let playoffRound: number | null = null;
-  let isPlayoffs = false;
 
-  if (weekParam) {
-    if (weekParam.startsWith('p')) {
-      isPlayoffs = true;
-      playoffRound = parseInt(weekParam.slice(1));
-    } else {
-      weekNo = parseInt(weekParam);
-    }
-  } else {
-    weekNo = 1;
+  if (week?.startsWith('p')) {
+    playoffRound = parseInt(week.slice(1));
+  } else if (week) {
+    weekNo = parseInt(week);
   }
-
-  const weekOptions = await getWeekOptionsForSeason(selectedSeasonId);
 
   let matchesByDivision: Record<string, any[]> = {};
 
-  if (selectedSeasonId) {
+  if (resolved.seasonId && (weekNo !== null || playoffRound !== null)) {
     const matches = await getMatchesForAdminWeekView({
-      seasonId: selectedSeasonId,
-      weekNo: isPlayoffs ? null : weekNo,
-      playoffRound: isPlayoffs ? playoffRound : null,
+      seasonId: resolved.seasonId,
+      weekNo,
+      playoffRound,
     });
 
     const weekLabelMap = await getMatchWeekLabels(matches);
@@ -147,15 +145,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   return {
     isStrictAdmin: isStrictAdmin(locals.user),
     matchesByDivision: sortedDivisions,
-    seasons,
-    divisions,
-    regions,
-    mapBanPools,
+    formats: formats.map((format) => ({ id: format.id, name: format.name })),
+    regions: regions.map((region) => ({ id: region.id, name: region.name })),
+    seasons: seasons.map((season) => ({
+      id: season.id,
+      seasonNum: season.seasonNum,
+      regionId: season.regionId,
+      formatId: season.formatId,
+    })),
     weekOptions,
     filters: {
-      regionId: selectedRegionId?.toString() ?? null,
-      seasonId: selectedSeasonId?.toString() ?? null,
-      week: weekParam ?? '1',
+      formatId: resolved.formatId?.toString() ?? '',
+      regionId: resolved.regionId?.toString() ?? '',
+      seasonId: resolved.seasonId?.toString() ?? '',
+      week: week ?? '',
     },
   };
 };

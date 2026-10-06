@@ -6,14 +6,14 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import { filterDivisionsByRegionAndFormat } from '$lib/utils/leagueScope';
 
   let { data }: { data: PageData } = $props();
 
   let isPlayoff = $state(false);
+  let selectedFormatId = $state<number | null>(null);
   let selectedRegionId = $state<number | null>(null);
   let selectedDivisionId = $state<number | null>(null);
-  let selectedSeasonId = $state<number | null>(null);
   let weekNo = $state<number | null>(null);
   let boSeries = $state(1);
   let selectedArenaId = $state<number | null>(null);
@@ -67,26 +67,38 @@
   let isCreating = $state(false);
   let isPreviewing = $state(false);
 
-  const selectedSeason = $derived(
-    selectedSeasonId ? data.seasons.find((s) => s.id === selectedSeasonId) : null,
+  const currentSeason = $derived(
+    selectedFormatId != null && selectedRegionId != null
+      ? (data.activeSeasons.find(
+          (row) => row.formatId === selectedFormatId && row.regionId === selectedRegionId,
+        ) ?? null)
+      : null,
+  );
+  const selectedSeasonId = $derived(currentSeason?.seasonId ?? null);
+
+  const formatOptions = $derived(
+    data.activeSeasons
+      .filter(
+        (row, index, rows) => rows.findIndex((other) => other.formatId === row.formatId) === index,
+      )
+      .map((row) => ({ value: String(row.formatId), label: row.formatName }))
+      .sort((a, b) => Number(a.value) - Number(b.value)),
   );
 
-  const regionsWithSeasons = $derived(
-    data.regions.filter((r) => data.seasons.some((s) => s.regionId === r.id)),
+  const regionsForSelectedFormat = $derived(
+    data.regions.filter((region) =>
+      data.activeSeasons.some(
+        (row) => row.formatId === selectedFormatId && row.regionId === region.id,
+      ),
+    ),
   );
 
-  const seasonsForRegion = $derived(
-    selectedRegionId ? data.seasons.filter((s) => s.regionId === selectedRegionId) : [],
-  );
-
-  const divisionsForRegion = $derived(
-    selectedRegionId
-      ? data.divisions.filter((d) => {
-          if (d.regionId !== selectedRegionId) return false;
-          if (selectedSeason) return d.formatId === selectedSeason.formatId;
-          return true;
-        })
-      : [],
+  const divisionsForScope = $derived(
+    filterDivisionsByRegionAndFormat(
+      data.divisions,
+      selectedRegionId ? String(selectedRegionId) : '',
+      selectedFormatId ? String(selectedFormatId) : '',
+    ),
   );
 
   const canPreview = $derived(
@@ -227,9 +239,14 @@
     }
   }
 
+  function onFormatChange() {
+    selectedRegionId = null;
+    selectedDivisionId = null;
+    onFieldChange();
+  }
+
   function onRegionChange() {
     selectedDivisionId = null;
-    selectedSeasonId = null;
     onFieldChange();
   }
 </script>
@@ -254,6 +271,22 @@
           </label>
         </div>
 
+        <!-- Format -->
+        <div>
+          <FormSelect
+            label="Format"
+            name="formatId"
+            value={String(selectedFormatId ?? '')}
+            required
+            placeholder="Select Format"
+            options={formatOptions}
+            onChange={(v) => {
+              selectedFormatId = v ? parseInt(v) : null;
+              onFormatChange();
+            }}
+          />
+        </div>
+
         <!-- Region -->
         <div>
           <FormSelect
@@ -261,14 +294,29 @@
             name="regionId"
             value={String(selectedRegionId ?? '')}
             required
-            placeholder="Select Region"
-            options={regionsWithSeasons.map((r) => ({ value: String(r.id), label: r.name }))}
+            disabled={!selectedFormatId}
+            placeholder={selectedFormatId ? 'Select Region' : 'Select Format First'}
+            options={regionsForSelectedFormat.map((r) => ({ value: String(r.id), label: r.name }))}
             onChange={(v) => {
               selectedRegionId = v ? parseInt(v) : null;
               onRegionChange();
             }}
           />
         </div>
+
+        {#if selectedFormatId && selectedRegionId}
+          {#if currentSeason}
+            <p class="text-sm text-text-body">
+              Current season:
+              <span class="font-semibold text-white">Season {currentSeason.seasonNum}</span>
+            </p>
+          {:else}
+            <p class="text-sm text-warning-400">
+              No current season for this format and region. Set the active season in Global
+              settings.
+            </p>
+          {/if}
+        {/if}
 
         <!-- Division -->
         <div>
@@ -277,44 +325,18 @@
             name="divisionId"
             value={String(selectedDivisionId ?? '')}
             required
-            disabled={!selectedRegionId}
-            placeholder={selectedRegionId ? 'Select Division' : 'Select Region First'}
-            options={divisionsForRegion.map((d) => ({ value: String(d.id), label: d.name }))}
+            disabled={!selectedRegionId || !currentSeason}
+            placeholder={selectedRegionId
+              ? currentSeason
+                ? 'Select Division'
+                : 'No current season'
+              : 'Select Region First'}
+            options={divisionsForScope.map((d) => ({ value: String(d.id), label: d.name }))}
             onChange={(v) => {
               selectedDivisionId = v ? parseInt(v) : null;
               onFieldChange();
             }}
           />
-        </div>
-
-        <!-- Season -->
-        <div>
-          <FormSelect
-            label="Season"
-            name="seasonId"
-            value={String(selectedSeasonId ?? '')}
-            required
-            disabled={!selectedRegionId}
-            placeholder={selectedRegionId ? 'Select Season' : 'Select Region First'}
-            options={seasonsForRegion.map((s) => ({
-              value: String(s.id),
-              label: `Season ${s.seasonNum} (${s.format.name})`,
-            }))}
-            onChange={(v) => {
-              selectedSeasonId = v ? parseInt(v) : null;
-              onFieldChange();
-            }}
-          />
-          {#if selectedSeason}
-            <div class="mt-2">
-              <FormatBadge
-                name={selectedSeason.format.name}
-                themeKey={selectedSeason.format.themeKey}
-                iconUrl={selectedSeason.format.iconUrl}
-                size="md"
-              />
-            </div>
-          {/if}
         </div>
 
         <!-- Playoff Round -->
@@ -355,16 +377,16 @@
               oninput={onFieldChange}
               required
               min="1"
-              max={selectedSeason?.numWeeks || 999}
+              max={currentSeason?.numWeeks || 999}
               disabled={!selectedSeasonId}
               class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              placeholder={selectedSeasonId
-                ? `Enter week (1-${selectedSeason?.numWeeks || '?'})`
-                : 'Select Season First'}
+              placeholder={currentSeason
+                ? `Enter week (1-${currentSeason.numWeeks})`
+                : 'No current season'}
             />
-            {#if selectedSeason}
+            {#if currentSeason}
               <p class="text-xs text-text-muted mt-1">
-                Season has {selectedSeason.numWeeks} weeks
+                Season has {currentSeason.numWeeks} weeks
               </p>
             {/if}
           </div>
@@ -525,7 +547,6 @@
         >
           <input type="hidden" name="regionId" value={selectedRegionId} />
           <input type="hidden" name="divisionId" value={selectedDivisionId} />
-          <input type="hidden" name="seasonId" value={selectedSeasonId} />
           <input type="hidden" name="boSeries" value={boSeries} />
           <input type="hidden" name="matchDateTime" value={matchDateTime} />
           <input type="hidden" name="matchTimezone" value={matchTimezone} />
@@ -552,7 +573,7 @@
 
           <!-- Manual Team Selection for Playoffs -->
           <div class="space-y-4">
-            {#each playoffMatchups as matchup, i}
+            {#each playoffMatchups as matchup, i (i)}
               <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
                 <h4 class="text-white font-semibold mb-3">Match {i + 1}</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -665,7 +686,6 @@
           <form method="POST" action="?/createMatchSet" use:enhance={handleCreateEnhance}>
             <input type="hidden" name="regionId" value={selectedRegionId} />
             <input type="hidden" name="divisionId" value={selectedDivisionId} />
-            <input type="hidden" name="seasonId" value={selectedSeasonId} />
             <input type="hidden" name="weekNo" value={weekNo || ''} />
             <input type="hidden" name="boSeries" value={boSeries} />
             <input type="hidden" name="arenaId" value={selectedArenaId || ''} />
@@ -673,7 +693,7 @@
             <input type="hidden" name="matchTimezone" value={matchTimezone} />
             <input type="hidden" name="mapBanPoolId" value={mapBanPoolId || ''} />
 
-            {#each previewPairs as pair}
+            {#each previewPairs as pair (`${pair.home.id}-${pair.away.id}`)}
               <input type="hidden" name="homeTeamIds" value={pair.home.id} />
               <input type="hidden" name="awayTeamIds" value={pair.away.id} />
             {/each}

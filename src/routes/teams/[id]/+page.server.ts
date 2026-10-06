@@ -358,6 +358,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       formatName: team.format.name,
       formatThemeKey: team.format.themeKey,
       formatIconUrl: team.format.iconUrl,
+      minRosterSize: team.format.minRosterSize,
       maxRosterSize: team.format.maxRosterSize,
     },
     currentRoster,

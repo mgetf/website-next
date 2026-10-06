@@ -257,6 +257,7 @@ export async function getFormatsForFilter(): Promise<
     themeKey: string;
     isIndividual: boolean;
     iconUrl: string | null;
+    minRosterSize: number;
   }[]
 > {
   return prisma.format.findMany({
@@ -267,6 +268,7 @@ export async function getFormatsForFilter(): Promise<
       themeKey: true,
       isIndividual: true,
       iconUrl: true,
+      minRosterSize: true,
     },
     orderBy: { id: 'asc' },
   });

@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server/db';
 import type { LeagueDivisionMatch, LeagueMatchStatus } from '$lib/types/league';
+import { MatchStatus } from '$prisma/client.js';
 import {
   divisionIdForLeagueMatch,
   isRegularSeasonLeagueMatch,
@@ -108,4 +109,16 @@ export async function getLeagueMatchesByDivision(
   }
 
   return grouped;
+}
+
+/** True once this season has a reported result (played or disputed). */
+export async function seasonHasPlayedMatches(seasonId: number): Promise<boolean> {
+  const match = await prisma.match.findFirst({
+    where: {
+      seasonId,
+      status: { in: [MatchStatus.PLAYED, MatchStatus.DISPUTE] },
+    },
+    select: { id: true },
+  });
+  return match != null;
 }

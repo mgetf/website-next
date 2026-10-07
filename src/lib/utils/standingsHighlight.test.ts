@@ -3,6 +3,7 @@ import {
   compareStandingsTeams,
   defaultExpandedDivisionIds,
   isViewerStandingsTeam,
+  listsLivingSignups,
   shouldShowInDivisionStandings,
   shouldShowOnLeagueDivision,
   withStandingsRanks,
@@ -98,6 +99,13 @@ describe('division standings order', () => {
     expect(shouldShowOnLeagueDivision(unready(0, 0), false)).toBe(false);
     expect(shouldShowOnLeagueDivision(ready(0, 0), false)).toBe(true);
     expect(shouldShowOnLeagueDivision(dead(0, 4), false)).toBe(true);
+  });
+
+  it('keeps the signup roster until the season records a match', () => {
+    expect(listsLivingSignups(true, false)).toBe(true);
+    expect(listsLivingSignups(true, true)).toBe(true);
+    expect(listsLivingSignups(false, false)).toBe(true);
+    expect(listsLivingSignups(false, true)).toBe(false);
   });
 
   it('numbers only READY teams after the ranked group is sorted', () => {

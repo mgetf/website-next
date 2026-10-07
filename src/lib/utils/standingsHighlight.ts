@@ -50,8 +50,18 @@ export function shouldShowInDivisionStandings(
 }
 
 /**
- * Open signups list every entry that has not withdrawn, including 0-0 UNREADY
- * and PENDING rows. A closed season uses the standings rule.
+ * Keep the public division list as a signup roster while signups are open, and
+ * after they close until the season has a recorded match. Once a result exists,
+ * a closed season uses the standings rule.
+ */
+export function listsLivingSignups(signupsOpen: boolean, matchesStarted: boolean): boolean {
+  return signupsOpen || !matchesStarted;
+}
+
+/**
+ * Open signups (and a closed season that has not played yet) list every entry
+ * that has not withdrawn, including 0-0 UNREADY and PENDING rows. After the
+ * first result, a closed season uses the standings rule.
  */
 export function shouldShowOnLeagueDivision(
   team: Pick<StandingsRecord, 'status' | 'wins' | 'losses'>,

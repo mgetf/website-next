@@ -1389,3 +1389,23 @@ export async function linkDiscordAccountById(
 
   return { discordId, discordUsername: discordUsername || null };
 }
+
+export async function getTradeOfferUrl(steamId: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    select: { tradeOfferUrl: true },
+  });
+  return user?.tradeOfferUrl ?? null;
+}
+
+export async function setTradeOfferUrl(
+  steamId: string,
+  tradeOfferUrl: string | null,
+): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { steamId }, select: { steamId: true } });
+  if (!user) notFound('User not found');
+  await prisma.user.update({
+    where: { steamId },
+    data: { tradeOfferUrl },
+  });
+}

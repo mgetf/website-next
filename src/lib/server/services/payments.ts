@@ -6,6 +6,12 @@
 
 import { prisma } from '#lib/server/db.js';
 import { notFound, badRequest } from '#lib/server/utils/errors.js';
+import {
+  itemAmountLabel,
+  moneyAmountLabel,
+  isItemLedgerCoveredByOrder,
+  parseRecordedItemPayment,
+} from '#lib/utils/paymentAmount.js';
 import { hasMetPaidPlayerRequirement } from '#lib/utils/rosterPayments.js';
 import type { Prisma } from '#prisma/client.js';
 import { requireFormatById } from './formats';
@@ -407,6 +413,7 @@ export async function recordPayPalCapture(options: {
       await tx.payment.create({
         data: {
           paymentId: `${captureId}-${i}`,
+          paypalCaptureId: captureId,
           purchasedFor: targetSteamId,
           purchasedBy: payerSteamId,
           amount: signupCost.toString(),
@@ -433,10 +440,50 @@ export interface PaymentHistoryEntry {
   method: 'paypal' | 'items' | 'manual';
   description: string;
   amount: string;
+  amountLabel: string;
+  iconUrl: string | null;
   currency: string;
   teamId: number | null;
   teamName: string | null;
-  status: 'completed' | 'pending' | 'expired' | 'cancelled';
+  regionName: string | null;
+  seasonNum: number | null;
+  division: string | null;
+  formatName: string | null;
+  formatIconUrl: string | null;
+  status: 'completed' | 'pending' | 'expired' | 'cancelled' | 'refunded' | 'refund_pending';
+  refundable: boolean;
+  refundBlockReason: string | null;
+  canRemoveFromTeam: boolean;
+}
+
+const historyTeamSelect = {
+  id: true,
+  name: true,
+  division: { select: { name: true } },
+  region: { select: { name: true } },
+  season: { select: { seasonNum: true } },
+  format: { select: { name: true, iconUrl: true } },
+} as const;
+
+function historyTeamScope(
+  team: {
+    id: number;
+    name: string;
+    division: { name: string } | null;
+    region: { name: string } | null;
+    season: { seasonNum: number } | null;
+    format: { name: string; iconUrl: string | null } | null;
+  } | null,
+) {
+  return {
+    teamId: team?.id ?? null,
+    teamName: team?.name ?? null,
+    regionName: team?.region?.name ?? null,
+    seasonNum: team?.season?.seasonNum ?? null,
+    division: team?.division?.name ?? null,
+    formatName: team?.format?.name ?? null,
+    formatIconUrl: team?.format?.iconUrl ?? null,
+  };
 }
 
 export async function getUserPaymentHistory(
@@ -444,42 +491,131 @@ export async function getUserPaymentHistory(
   page: number = 1,
   limit: number = 20,
 ): Promise<{ entries: PaymentHistoryEntry[]; total: number }> {
-  const [payments, itemOrders] = await Promise.all([
+  const [payments, itemOrders, refunds, account, steamItems] = await Promise.all([
     prisma.payment.findMany({
       where: { purchasedBy: steamId },
-      include: { team: { select: { id: true, name: true } } },
+      include: { team: { select: historyTeamSelect } },
       orderBy: { purchaseDate: 'desc' },
     }),
     prisma.itemPaymentOrder.findMany({
       where: { playerSteamId: steamId },
-      include: { team: { select: { id: true, name: true } } },
+      include: { team: { select: historyTeamSelect } },
       orderBy: { createdAt: 'desc' },
+    }),
+    prisma.paymentRefund.findMany({
+      where: { playerSteamId: steamId, status: { in: ['PENDING', 'COMPLETED'] } },
+      select: { paymentId: true, itemOrderNumber: true, status: true },
+    }),
+    prisma.user.findUnique({
+      where: { steamId },
+      select: { tradeOfferUrl: true },
+    }),
+    prisma.steamItem.findMany({
+      select: { name: true, marketHashName: true, iconUrl: true },
     }),
   ]);
 
-  const completedItemOrderNumbers = new Set(
-    itemOrders.filter((o) => o.status === 'COMPLETED').map((o) => o.tradeOfferId),
+  const iconByName = new Map(steamItems.map((item) => [item.name, item.iconUrl]));
+  const iconByHash = new Map(steamItems.map((item) => [item.marketHashName, item.iconUrl]));
+
+  const itemOrderNumbers = new Set(itemOrders.map((order) => order.orderNumber));
+  const itemTradeOfferIds = new Set(
+    itemOrders.flatMap((order) => (order.tradeOfferId ? [order.tradeOfferId] : [])),
+  );
+
+  const refundByPayment = new Map(
+    refunds.filter((row) => row.paymentId).map((row) => [row.paymentId as string, row.status]),
+  );
+  const refundByOrder = new Map(
+    refunds
+      .filter((row) => row.itemOrderNumber)
+      .map((row) => [row.itemOrderNumber as string, row.status]),
+  );
+
+  const rosterKeys = new Set<string>();
+  for (const payment of payments) {
+    if (payment.teamId) rosterKeys.add(`${payment.teamId}:${payment.purchasedFor}`);
+  }
+  for (const order of itemOrders) {
+    const targets =
+      order.paidForSteamIds.length > 0 ? order.paidForSteamIds : [order.playerSteamId];
+    for (const target of targets) rosterKeys.add(`${order.teamId}:${target}`);
+  }
+  const roster = rosterKeys.size
+    ? await prisma.playerInTeam.findMany({
+        where: {
+          active: 1,
+          OR: [...rosterKeys].map((key) => {
+            const [teamId, playerSteamId] = key.split(':');
+            return { teamId: Number(teamId), playerSteamId };
+          }),
+        },
+        select: { teamId: true, playerSteamId: true, permissionLevel: true },
+      })
+    : [];
+  const removable = new Set(
+    roster
+      .filter((row) => row.permissionLevel !== 2)
+      .map((row) => `${row.teamId}:${row.playerSteamId}`),
   );
 
   const entries: PaymentHistoryEntry[] = [];
+  const refundWindowMs = 180 * 24 * 60 * 60 * 1000;
+  const hasTradeOfferUrl = Boolean(account?.tradeOfferUrl);
 
   for (const p of payments) {
-    if (completedItemOrderNumbers.has(p.paymentId)) continue;
+    if (isItemLedgerCoveredByOrder(p, itemOrderNumbers, itemTradeOfferIds)) continue;
 
     let method: PaymentHistoryEntry['method'] = 'paypal';
     if (p.currency === 'ITEMS') method = 'items';
     else if (p.currency === 'MANUAL') method = 'manual';
 
+    const openRefund = refundByPayment.get(p.paymentId);
+    let status: PaymentHistoryEntry['status'] = 'completed';
+    let refundable = method === 'paypal';
+    let refundBlockReason: string | null = null;
+    if (method === 'manual') {
+      refundable = false;
+      refundBlockReason = 'Manual payments are not refunded automatically.';
+    } else if (method === 'items') {
+      refundable = false;
+      refundBlockReason = 'Refund the Steam item order instead.';
+    } else if (openRefund === 'COMPLETED') {
+      status = 'refunded';
+      refundable = false;
+      refundBlockReason = 'Already refunded.';
+    } else if (openRefund === 'PENDING') {
+      status = 'refund_pending';
+      refundable = false;
+      refundBlockReason = 'A refund is already in progress.';
+    } else if (Date.now() - p.purchaseDate.getTime() > refundWindowMs) {
+      refundable = false;
+      refundBlockReason = 'PayPal only allows refunds within 180 days of the payment.';
+    }
+
+    const recordedItem = method === 'items' ? parseRecordedItemPayment(p.description ?? '') : null;
     entries.push({
       id: p.paymentId,
       date: p.purchaseDate,
       method,
       description: p.description ?? '',
       amount: p.amount,
+      amountLabel:
+        method === 'manual'
+          ? 'Manual'
+          : method === 'items'
+            ? recordedItem
+              ? itemAmountLabel(recordedItem.name, recordedItem.quantity)
+              : (p.description ?? 'Items')
+            : moneyAmountLabel(p.amount, p.currency ?? 'USD'),
+      iconUrl:
+        method === 'items' && recordedItem ? (iconByName.get(recordedItem.name) ?? null) : null,
       currency: p.currency ?? 'USD',
-      teamId: p.team?.id ?? null,
-      teamName: p.team?.name ?? null,
-      status: 'completed',
+      ...historyTeamScope(p.team),
+      status,
+      refundable,
+      refundBlockReason,
+      canRemoveFromTeam: p.teamId ? removable.has(`${p.teamId}:${p.purchasedFor}`) : false,
     });
   }
 
@@ -489,18 +625,44 @@ export async function getUserPaymentHistory(
       PENDING: 'pending',
       EXPIRED: 'expired',
       CANCELLED: 'cancelled',
+      REFUNDED: 'refunded',
     };
+    const openRefund = refundByOrder.get(o.orderNumber);
+    let status = statusMap[o.status] ?? 'pending';
+    let refundable = o.status === 'COMPLETED';
+    let refundBlockReason: string | null = null;
+    if (o.status === 'REFUNDED' || openRefund === 'COMPLETED') {
+      status = 'refunded';
+      refundable = false;
+      refundBlockReason = 'Already refunded.';
+    } else if (openRefund === 'PENDING') {
+      status = 'refund_pending';
+      refundable = false;
+      refundBlockReason = 'A refund is already in progress.';
+    } else if (o.status !== 'COMPLETED') {
+      refundable = false;
+      refundBlockReason = 'Only a completed item payment can be refunded.';
+    } else if (!hasTradeOfferUrl) {
+      refundable = false;
+      refundBlockReason = 'This player has not saved a Steam trade offer link.';
+    }
 
+    const targets = o.paidForSteamIds.length > 0 ? o.paidForSteamIds : [o.playerSteamId];
+    const iconFromHash = iconByHash.get(o.itemMarketHashName);
     entries.push({
       id: o.orderNumber,
       date: o.status === 'COMPLETED' && o.completedAt ? o.completedAt : o.createdAt,
       method: 'items',
       description: `${o.itemsRequired}x ${o.itemName}`,
       amount: `${o.itemsRequired}`,
+      amountLabel: itemAmountLabel(o.itemName, o.itemsRequired),
+      iconUrl: iconFromHash !== undefined ? iconFromHash : (iconByName.get(o.itemName) ?? null),
       currency: 'ITEMS',
-      teamId: o.team?.id ?? null,
-      teamName: o.team?.name ?? null,
-      status: statusMap[o.status] ?? 'pending',
+      ...historyTeamScope(o.team),
+      status,
+      refundable,
+      refundBlockReason,
+      canRemoveFromTeam: targets.some((target) => removable.has(`${o.teamId}:${target}`)),
     });
   }
 
@@ -640,6 +802,7 @@ export async function recordMultiTeamPayPalCapture(options: {
         await tx.payment.create({
           data: {
             paymentId: `${captureId}-${paymentIndex}`,
+            paypalCaptureId: captureId,
             purchasedFor: targetSteamId,
             purchasedBy: payerSteamId,
             amount: signupCost.toString(),

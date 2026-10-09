@@ -109,6 +109,8 @@
     formats: Array<{ code: string; name: string; iconUrl: string | null }>;
     registered: boolean;
     payments: ProfilePaymentHistory | null;
+    tradeOfferUrl: string | null;
+    hasTradeOfferUrl: boolean;
     profiling: ProfilingSnapshot | null;
     investigation: InvestigateResult | null;
     investigationConfigured: boolean;
@@ -460,6 +462,10 @@
         total={data.payments?.total ?? 0}
         currentPage={data.payments?.currentPage ?? 1}
         totalPages={data.payments?.totalPages ?? 0}
+        {isAdmin}
+        isOwnProfile={data.isOwnProfile}
+        hasTradeOfferUrl={data.hasTradeOfferUrl}
+        tradeOfferUrl={data.tradeOfferUrl}
       />
     </div>
   {:else if tab === 'profiling' && isAdmin}

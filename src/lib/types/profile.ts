@@ -8,10 +8,20 @@ export interface ProfilePaymentEntry {
   method: 'paypal' | 'items' | 'manual';
   description: string;
   amount: string;
+  amountLabel: string;
+  iconUrl: string | null;
   currency: string;
   teamId: number | null;
   teamName: string | null;
-  status: 'completed' | 'pending' | 'expired' | 'cancelled';
+  regionName: string | null;
+  seasonNum: number | null;
+  division: string | null;
+  formatName: string | null;
+  formatIconUrl: string | null;
+  status: 'completed' | 'pending' | 'expired' | 'cancelled' | 'refunded' | 'refund_pending';
+  refundable: boolean;
+  refundBlockReason: string | null;
+  canRemoveFromTeam: boolean;
 }
 
 export interface ProfilePaymentHistory {

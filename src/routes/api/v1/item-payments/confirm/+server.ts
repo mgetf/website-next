@@ -1,8 +1,8 @@
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
-import { requireRateLimitedApiKey } from '$lib/server/auth/apiKey';
-import { confirmItemPayment } from '$lib/server/services/item-payments';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+
+import { requireRateLimitedApiKey } from '#lib/server/auth/apiKey.js';
+import { confirmItemPayment } from '#lib/server/services/item-payments.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 
 export const POST: RequestHandler = async ({ request }) => {
   const auth = await requireRateLimitedApiKey(request);
@@ -18,13 +18,13 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     body = await request.json();
   } catch {
-    return json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+    return Response.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const { orderNumber, tradeOfferId, itemsReceived, senderSteamId } = body;
 
   if (!orderNumber || !tradeOfferId || itemsReceived == null || !senderSteamId) {
-    return json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    return Response.json({ success: false, error: 'Missing required fields' }, { status: 400 });
   }
 
   try {
@@ -40,10 +40,10 @@ export const POST: RequestHandler = async ({ request }) => {
       metadata: { orderNumber, tradeOfferId, itemsReceived, senderSteamId },
     });
 
-    return json({ success: true });
+    return Response.json({ success: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     const status = (err as { status?: number }).status ?? 500;
-    return json({ success: false, error: message }, { status });
+    return Response.json({ success: false, error: message }, { status });
   }
 };

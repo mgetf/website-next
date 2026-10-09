@@ -1,21 +1,21 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth, requireNotBanned, isBanned } from '$lib/server/auth/permissions';
+import { requireAuth, requireNotBanned, isBanned } from '#lib/server/auth/permissions.js';
 import {
   joinByPassword,
   isPlayerInTeam,
   isPlayerInAnyActiveTeam,
   hasAnyPendingRequest,
-} from '$lib/server/services/teamJoin';
-import { getTeamById } from '$lib/server/services/teams';
-import { requireFormatById } from '$lib/server/services/formats';
-import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
+} from '#lib/server/services/teamJoin.js';
+import { getTeamById } from '#lib/server/services/teams.js';
+import { requireFormatById } from '#lib/server/services/formats.js';
+import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '#lib/server/services/settings.js';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { createNotificationForTeam } from '$lib/server/services/notifications';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { passwordRateLimiter, checkFormActionRateLimit } from '$lib/server/utils/rateLimit';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { createNotificationForTeam } from '#lib/server/services/notifications.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { passwordRateLimiter, checkFormActionRateLimit } from '#lib/server/utils/rateLimit.js';
 
 const joinTeamSchema = z.object({
   password: z.string().min(1, 'Password is required'),

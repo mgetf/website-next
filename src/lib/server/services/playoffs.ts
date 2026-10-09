@@ -1,6 +1,6 @@
-import { prisma } from '$lib/server/db';
-import { notFound, badRequest, internalError } from '$lib/server/utils/errors';
-import type { Prisma } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import { notFound, badRequest, internalError } from '#lib/server/utils/errors.js';
+import type { Prisma } from '#prisma/client.js';
 
 export interface CreatePlayoffParams {
   seasonId: number;

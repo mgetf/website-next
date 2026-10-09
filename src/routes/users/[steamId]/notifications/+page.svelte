@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
-  import { goto, invalidateAll } from '$app/navigation';
-  import { notificationState } from '$lib/state/notifications.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
+  import { goto, refreshAll } from '$app/navigation';
+  import { notificationState } from '#lib/state/notifications.svelte.js';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
   import MessageSquare from '~icons/lucide/message-square';
   import User from '~icons/lucide/user';
   import Swords from '~icons/lucide/swords';
@@ -78,7 +78,7 @@
 
   async function handleMarkAsRead(notificationId: number) {
     await notificationState.markAsRead(notificationId);
-    await invalidateAll();
+    await refreshAll();
   }
 
   function handleMarkAllReadEnhance() {
@@ -90,7 +90,7 @@
           ...n,
           isRead: true,
         }));
-        await invalidateAll();
+        await refreshAll();
       }
     };
   }

@@ -3,9 +3,9 @@
  * Display-only scope of staff to a format + division (region is implied by the division).
  */
 
-import { prisma } from '$lib/server/db';
-import { badRequest } from '$lib/server/utils/errors';
-import type { StaffAssignmentDisplay } from '$lib/types/staff';
+import { prisma } from '#lib/server/db.js';
+import { badRequest } from '#lib/server/utils/errors.js';
+import type { StaffAssignmentDisplay } from '#lib/types/staff.js';
 
 export type StaffAssignmentPair = {
   formatId: number;

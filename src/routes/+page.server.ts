@@ -3,17 +3,17 @@ import {
   calculateStandingsStats,
   getTop1v1EntriesForHomepage,
   getSeasonSignupTeams,
-} from '$lib/server/services/teams';
-import { getLatestSeasonPerRegionByFormat } from '$lib/server/services/seasons';
-import { findTopDivisionByRegion } from '$lib/server/services/divisions';
-import { getContent, CONTENT_KEYS, getDefaultContent } from '$lib/server/services/siteContent';
-import { getGlobalSettings } from '$lib/server/services/settings';
-import { getUserDisplaysByIds, fetchSteamNames } from '$lib/server/services/users';
-import { getRegions, getLeaderboard } from '$lib/server/clients/mgePlatform';
-import { SIGNUP_LIST_STATUSES } from '$lib/utils/standingsHighlight';
-import { steamId64FromSteamId32 } from '$lib/utils/steamid';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
-import { TeamStatus } from '$prisma/client.js';
+} from '#lib/server/services/teams.js';
+import { getLatestSeasonPerRegionByFormat } from '#lib/server/services/seasons.js';
+import { findTopDivisionByRegion } from '#lib/server/services/divisions.js';
+import { getContent, CONTENT_KEYS, getDefaultContent } from '#lib/server/services/siteContent.js';
+import { getGlobalSettings } from '#lib/server/services/settings.js';
+import { getUserDisplaysByIds, fetchSteamNames } from '#lib/server/services/users.js';
+import { getRegions, getLeaderboard } from '#lib/server/clients/mgePlatform.js';
+import { SIGNUP_LIST_STATUSES } from '#lib/utils/standingsHighlight.js';
+import { steamId64FromSteamId32 } from '#lib/utils/steamid.js';
+import { FORMAT_1V1, FORMAT_2V2 } from '#lib/server/constants/formats.js';
+import { TeamStatus } from '#prisma/client.js';
 
 const REGION_ORDER: Record<string, number> = {
   na: 0,

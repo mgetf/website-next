@@ -1,13 +1,13 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
-  import Dialog from '$lib/components/ui/Dialog.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import Dialog from '#lib/components/ui/Dialog.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import SelectMenu from '#lib/components/ui/SelectMenu.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 

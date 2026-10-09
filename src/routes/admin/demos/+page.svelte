@@ -1,10 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { PageData } from './$types';
-  import FilterBar from '$lib/components/ui/FilterBar.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import FilterBar from '#lib/components/ui/FilterBar.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
 
   let { data }: { data: PageData } = $props();
 

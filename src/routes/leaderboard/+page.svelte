@@ -2,17 +2,22 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import FilterBar from '$lib/components/ui/FilterBar.svelte';
-  import MultiSelectMenu from '$lib/components/ui/MultiSelectMenu.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-  import SearchInput from '$lib/components/ui/SearchInput.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import { TF_CLASSES_DISPLAY_ORDER, tfClassById } from '$lib/constants/tfClasses';
-  import { classIcon } from '$lib/utils/classIcons';
-  import { formatRd, PROVISIONAL_RATING_TITLE, ratingValue, RD_TOOLTIP } from '$lib/utils/rating';
-  import { flagForRegion } from '$lib/utils/regions';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import FilterBar from '#lib/components/ui/FilterBar.svelte';
+  import MultiSelectMenu from '#lib/components/ui/MultiSelectMenu.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
+  import SearchInput from '#lib/components/ui/SearchInput.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import { TF_CLASSES_DISPLAY_ORDER, tfClassById } from '#lib/constants/tfClasses.js';
+  import { classIcon } from '#lib/utils/classIcons.js';
+  import {
+    formatRd,
+    PROVISIONAL_RATING_TITLE,
+    ratingValue,
+    RD_TOOLTIP,
+  } from '#lib/utils/rating.js';
+  import { flagForRegion } from '#lib/utils/regions.js';
 
   let { data } = $props();
 
@@ -98,7 +103,7 @@
   }
 
   function applyFilters(overrides: Record<string, string | number | boolean | null> = {}) {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
     const merged: Record<string, string | number | boolean | null> = {
       region: regionParam(selectedRegions),
       registeredOnly: registeredOnly ? '1' : null,
@@ -114,25 +119,25 @@
       if (v == null || v === '' || v === false) params.delete(k);
       else params.set(k, String(v));
     }
-    goto(resolve('/leaderboard') + `?${params}`);
+    goto(resolve('leaderboard') + `?${params}`);
   }
 
   function changePage(p: number) {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
     params.set('page', String(p));
-    goto(resolve('/leaderboard') + `?${params}`);
+    goto(resolve('leaderboard') + `?${params}`);
   }
 
   function handleSort(key: string) {
     const sortKey = key === 'lastActive' ? 'lastPlayed' : key;
     const newDir: 'asc' | 'desc' = sortBy === sortKey && sortDir === 'desc' ? 'asc' : 'desc';
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
     params.set('sortBy', sortKey);
     params.set('sortDir', newDir);
     params.set('page', '1');
     if (sortKey === 'elo') params.delete('sortBy');
     if (newDir === 'desc') params.delete('sortDir');
-    goto(resolve('/leaderboard') + `?${params}`);
+    goto(resolve('leaderboard') + `?${params}`);
   }
 
   const hasActiveFilters = $derived(
@@ -144,7 +149,6 @@
   const tableSortBy = $derived(
     data.filters.sortBy === 'lastPlayed' ? 'lastActive' : data.filters.sortBy,
   );
-
   const emptyMessage = $derived(
     data.filters.search ? 'No players match your search.' : 'No players found.',
   );
@@ -171,7 +175,14 @@
     { key: 'rank', label: '#', width: '60px' },
     { key: 'region', label: 'Region', width: '90px' },
     { key: 'player', label: 'Player' },
-    { key: 'elo', label: 'Rating', align: 'right', width: '80px', sortable: true },
+    {
+      key: 'elo',
+      label: 'Rating',
+      align: 'right',
+      width: '80px',
+      sortable: true,
+    },
+
     {
       key: 'rd',
       label: 'RD',
@@ -180,10 +191,39 @@
       sortable: true,
       headerTooltip: RD_TOOLTIP,
     },
-    { key: 'games', label: 'Games', align: 'center', width: '70px', sortable: true },
-    { key: 'wins', label: 'W', align: 'center', width: '50px', sortable: true },
-    { key: 'losses', label: 'L', align: 'center', width: '50px', sortable: true },
-    { key: 'winrate', label: 'W/L %', align: 'center', width: '70px', sortable: true },
+
+    {
+      key: 'games',
+      label: 'Games',
+      align: 'center',
+      width: '70px',
+      sortable: true,
+    },
+
+    {
+      key: 'wins',
+      label: 'W',
+      align: 'center',
+      width: '50px',
+      sortable: true,
+    },
+
+    {
+      key: 'losses',
+      label: 'L',
+      align: 'center',
+      width: '50px',
+      sortable: true,
+    },
+
+    {
+      key: 'winrate',
+      label: 'W/L %',
+      align: 'center',
+      width: '70px',
+      sortable: true,
+    },
+
     {
       key: 'lastActive',
       label: 'Last Active',
@@ -350,7 +390,7 @@
               >
                 <path
                   d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"
-                />
+                ></path>
               </svg>
             </div>
           {/if}

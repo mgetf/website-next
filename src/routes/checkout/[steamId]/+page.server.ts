@@ -1,21 +1,21 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth, isBanned } from '$lib/server/auth/permissions';
-import { getAllUnpaidParticipations } from '$lib/server/services/payments';
-import { isPayPalTestMode, getPayPalConfig } from '$lib/server/services/paypal';
-import { getGlobalSettings } from '$lib/server/services/settings';
+import { requireAuth, isBanned } from '#lib/server/auth/permissions.js';
+import { getAllUnpaidParticipations } from '#lib/server/services/payments.js';
+import { isPayPalTestMode, getPayPalConfig } from '#lib/server/services/paypal.js';
+import { getGlobalSettings } from '#lib/server/services/settings.js';
 import {
   createItemPaymentOrder,
   createMultiTeamItemOrder,
   cancelItemPaymentOrder,
   getPendingOrderForUser,
-} from '$lib/server/services/item-payments';
-import { fetchSteamProfile } from '$lib/server/services/users';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+} from '#lib/server/services/item-payments.js';
+import { fetchSteamProfile } from '#lib/server/services/users.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 import { redirect, fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { logPrismaError } from '$lib/server/utils/prisma-errors';
-import type { CheckoutTeamSelection } from '$lib/types/checkout';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { logPrismaError } from '#lib/server/utils/prisma-errors.js';
+import type { CheckoutTeamSelection } from '#lib/types/checkout.js';
 
 const createItemOrderSchema = z.object({
   teams: z.string().min(1, 'Missing teams'),

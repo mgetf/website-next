@@ -13,15 +13,15 @@ All backend business logic lives in `src/lib/server/services/<domain>.ts`.
 
 - One file per domain: `teams.ts`, `matches.ts`, `payments.ts`, etc.
 - Use **named exports only** — no `export default`.
-- Import Prisma from `$lib/server/db` (never instantiate a new client).
-- Import Prisma types from `$prisma/client.js`.
+- Import Prisma from `#lib/server/db` (never instantiate a new client).
+- Import Prisma types from `#prisma/client.js`.
 
 ## Error Handling in Services
 
-Services should throw errors using the utilities from `$lib/server/utils/errors`:
+Services should throw errors using the utilities from `#lib/server/utils/errors`:
 
 ```typescript
-import { notFound, forbidden, badRequest } from '$lib/server/utils/errors';
+import { notFound, forbidden, badRequest } from '#lib/server/utils/errors';
 
 // ✅ CORRECT — use error utilities
 export async function getTeam(id: number) {
@@ -43,11 +43,11 @@ Services MAY import and call other services. This is expected for domain coordin
 
 ## Constants
 
-Magic numbers for database IDs belong in `$lib/server/constants/`:
+Magic numbers for database IDs belong in `#lib/server/constants/`:
 
 ```typescript
 // ✅ CORRECT
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
+import { FORMAT_1V1, FORMAT_2V2 } from '#lib/server/constants/formats';
 
 // ❌ WRONG — magic numbers
 where: { formatId: 1 }

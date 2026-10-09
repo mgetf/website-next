@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { prisma } from '$lib/server/db';
-import { badRequest, notFound } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { badRequest, notFound } from '#lib/server/utils/errors.js';
 
 export const togglePostLikeSchema = z.object({
   postId: z.coerce.number().int().positive('Invalid post ID'),

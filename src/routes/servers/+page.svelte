@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import type { PublicGameServer } from '$lib/types/servers';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
+  import type { PublicGameServer } from '#lib/types/servers.js';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
   import RegionSection from './_components/RegionSection.svelte';
 
   let { data }: { data: PageData } = $props();

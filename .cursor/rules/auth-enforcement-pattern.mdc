@@ -46,4 +46,4 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 ```
 
-All auth functions are imported from `$lib/server/auth/permissions`.
+All auth functions are imported from `#lib/server/auth/permissions`.

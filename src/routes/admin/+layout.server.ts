@@ -4,7 +4,7 @@
  */
 
 import type { LayoutServerLoad } from './$types';
-import { requireAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);

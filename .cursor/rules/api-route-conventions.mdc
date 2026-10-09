@@ -17,7 +17,7 @@ Do NOT create API routes for things that should be form actions.
 
 ## Auth Patterns by Route Type
 
-- `/api/v1/*` — API key auth via `requireApiKey(request)` from `$lib/server/auth/apiKey`
+- `/api/v1/*` — API key auth via `requireApiKey(request)` from `#lib/server/auth/apiKey`
 - `/api/*` (non-v1) — Session auth via `locals.user`
 - Form actions — Session auth via `locals.user` with `requireAuth()`/`requireAdmin()`
 

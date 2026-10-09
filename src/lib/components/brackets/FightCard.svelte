@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { CardBracketData } from '$lib/types/bracket';
+  import type { CardBracketData } from '#lib/types/bracket.js';
   import MatchCard from './MatchCard.svelte';
 
   interface Props {

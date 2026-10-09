@@ -53,7 +53,7 @@ The bracket components are **presentation-layer only** — they accept a generic
 
 ### Presentation Interface
 
-The components consume these types (defined in `$lib/types/bracket.ts`):
+The components consume these types (defined in `#lib/types/bracket.ts`):
 
 **`BracketData`** — the top-level structure passed to a bracket renderer:
 
@@ -122,7 +122,7 @@ The league playoff mapper converts from the existing `Match` model (with `homeTe
 
 ### Why This Separation Matters
 
-The components never import from `$lib/server/`. The types live in `$lib/types/bracket.ts` (client-safe, per the client/server boundary rule). The mappers live in service files. This means:
+The components never import from `#lib/server/`. The types live in `$lib/types/bracket.ts` (client-safe, per the client/server boundary rule). The mappers live in service files. This means:
 
 - Components work identically whether the data came from events, leagues, or fixture files
 - Testing uses fixture data in the presentation format — no database needed
@@ -429,7 +429,7 @@ Each phase is a self-contained unit of work that delivers something testable. Ph
 
 **What gets built:**
 
-- `$lib/types/bracket.ts` — all presentation-layer types (`BracketData`, `BracketRound`, `BracketMatch`, `BracketSide`, `BracketGame`)
+- `#lib/types/bracket.ts` — all presentation-layer types (`BracketData`, `BracketRound`, `BracketMatch`, `BracketSide`, `BracketGame`)
 - Fixture JSON files for development and testing:
   - `single-elim-8.json` — 8-participant single elimination, all matches completed
   - `single-elim-byes.json` — single elimination with bye slots

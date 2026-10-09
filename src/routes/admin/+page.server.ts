@@ -4,20 +4,20 @@
  */
 
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
-import { getAdminAnalytics } from '$lib/server/services/analytics';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
+import { getAdminAnalytics } from '#lib/server/services/analytics.js';
 import {
   getPendingApprovals,
   approvePendingItem,
   declinePendingItem,
-} from '$lib/server/services/pendingPlayers';
-import type { AuditContext } from '$lib/server/services/pendingPlayers';
-import { getRecentUnplayedMatches } from '$lib/server/services/adminMatches';
-import { getActiveSignupSeasonsWithDeadlines } from '$lib/server/services/signupSeasons';
+} from '#lib/server/services/pendingPlayers.js';
+import type { AuditContext } from '#lib/server/services/pendingPlayers.js';
+import { getRecentUnplayedMatches } from '#lib/server/services/adminMatches.js';
+import { getActiveSignupSeasonsWithDeadlines } from '#lib/server/services/signupSeasons.js';
 import { isHttpError } from '@sveltejs/kit';
 import { z } from 'zod';
-import { formError, validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { formError, validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 const approveSchema = z.object({
   kind: z.enum(['JOIN_REQUEST', 'ENTRY_READY']).default('JOIN_REQUEST'),

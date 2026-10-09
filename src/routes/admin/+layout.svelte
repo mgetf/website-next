@@ -4,7 +4,7 @@
   import type { SvelteHTMLElements } from 'svelte/elements';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import Button from '$lib/components/ui/Button.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
   import ArrowLeft from '~icons/lucide/arrow-left';
   import LayoutDashboard from '~icons/lucide/layout-dashboard';
   import Trophy from '~icons/lucide/trophy';

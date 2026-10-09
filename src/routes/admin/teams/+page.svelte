@@ -3,21 +3,21 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { enhance } from '$app/forms';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import FilterBar from '$lib/components/ui/FilterBar.svelte';
-  import SearchInput from '$lib/components/ui/SearchInput.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-  import Dialog from '$lib/components/ui/Dialog.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import LeagueScopeFilters from '$lib/components/ui/LeagueScopeFilters.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import { FORMAT_1V1 } from '$lib/constants/formats';
-  import { regionIdsByFormatFromSeasons } from '$lib/utils/leagueScope';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import FilterBar from '#lib/components/ui/FilterBar.svelte';
+  import SearchInput from '#lib/components/ui/SearchInput.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
+  import Dialog from '#lib/components/ui/Dialog.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import LeagueScopeFilters from '#lib/components/ui/LeagueScopeFilters.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import { FORMAT_1V1 } from '#lib/constants/formats.js';
+  import { regionIdsByFormatFromSeasons } from '#lib/utils/leagueScope.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -146,7 +146,7 @@
   }
 
   function updateFilters(updates: Record<string, string>) {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
 
     if (updates.region !== undefined && !updates.region) {
       params.delete('season');
@@ -195,7 +195,7 @@
       params.delete('page');
     }
 
-    goto(`?${params.toString()}`, { keepFocus: true, replaceState: true });
+    goto(`?${params.toString()}`, { reset: false, replace: true });
   }
 
   const statusNames: Record<string, string> = {

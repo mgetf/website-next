@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { RoundRobinStanding } from '$lib/types/bracket';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
+  import type { RoundRobinStanding } from '#lib/types/bracket.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
 
   interface Props {
     standings: RoundRobinStanding[];

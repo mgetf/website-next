@@ -1,24 +1,23 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { enhance, type SubmitFunction } from '$app/forms';
+  import { refreshAll } from '$app/navigation';
   import { page } from '$app/state';
-  import type { SubmitFunction } from '@sveltejs/kit';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import Dialog from '$lib/components/ui/Dialog.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import DivisionCatalogList from '$lib/components/admin/DivisionCatalogList.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import { FORMAT_THEME_KEYS } from '$lib/constants/formats';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import Dialog from '#lib/components/ui/Dialog.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import SelectMenu from '#lib/components/ui/SelectMenu.svelte';
+  import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
+  import DivisionCatalogList from '#lib/components/admin/DivisionCatalogList.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import { FORMAT_THEME_KEYS } from '#lib/constants/formats.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -82,11 +81,11 @@
 
   // Get initial tab from URL query param, default to 'seasons'
   const validTabs = ['seasons', 'regions', 'divisions', 'arenas', 'formats'] as const;
+
   const urlTab = page.url.searchParams.get('tab');
   const initialTab = validTabs.includes(urlTab as any)
     ? (urlTab as (typeof validTabs)[number])
     : 'seasons';
-
   let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' | 'formats' = $state(initialTab);
   let isSubmitting = $state(false);
   let createSeasonRegionId = $state('');
@@ -481,9 +480,9 @@
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-xl font-bold text-white">Seasons</h3>
         {#if data.isStrictAdmin}
-          <Button variant="primary" onclick={() => (showSeasonForm = !showSeasonForm)}>
-            {showSeasonForm ? '✕ Cancel' : '+ Create Season'}
-          </Button>
+          <Button variant="primary" onclick={() => (showSeasonForm = !showSeasonForm)}
+            >{showSeasonForm ? '✕ Cancel' : '+ Create Season'}</Button
+          >
         {/if}
       </div>
 
@@ -568,12 +567,13 @@
               </div>
             </div>
             <div class="mt-4 flex justify-end gap-3">
-              <Button type="button" variant="secondary" onclick={() => (showSeasonForm = false)}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Creating...' : 'Create Season'}
-              </Button>
+              <Button type="button" variant="secondary" onclick={() => (showSeasonForm = false)}
+                >Cancel</Button
+              >
+
+              <Button type="submit" variant="primary" disabled={isSubmitting}
+                >{isSubmitting ? 'Creating...' : 'Create Season'}</Button
+              >
             </div>
           </form>
         </Card>
@@ -692,10 +692,9 @@
                           <Button
                             variant="secondary"
                             size="sm"
-                            onclick={() => (editingSeason = season)}
+                            onclick={() => (editingSeason = season)}>Edit</Button
                           >
-                            Edit
-                          </Button>
+
                           <Button
                             variant="danger"
                             size="sm"
@@ -723,9 +722,9 @@
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-xl font-bold text-white">Regions</h3>
         {#if data.isStrictAdmin}
-          <Button variant="primary" onclick={() => (showRegionForm = !showRegionForm)}>
-            {showRegionForm ? '✕ Cancel' : '+ Add Region'}
-          </Button>
+          <Button variant="primary" onclick={() => (showRegionForm = !showRegionForm)}
+            >{showRegionForm ? '✕ Cancel' : '+ Add Region'}</Button
+          >
         {/if}
       </div>
 
@@ -823,9 +822,9 @@
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-xl font-bold text-white">Divisions</h3>
         {#if data.isStrictAdmin}
-          <Button variant="primary" onclick={() => (showDivisionForm = !showDivisionForm)}>
-            {showDivisionForm ? '✕ Cancel' : '+ Add Division'}
-          </Button>
+          <Button variant="primary" onclick={() => (showDivisionForm = !showDivisionForm)}
+            >{showDivisionForm ? '✕ Cancel' : '+ Add Division'}</Button
+          >
         {/if}
       </div>
 
@@ -960,12 +959,13 @@
               a destination are skipped.
             </p>
             <div class="mt-4 flex justify-end gap-3">
-              <Button type="button" variant="secondary" onclick={() => (showDivisionForm = false)}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Creating...' : 'Create Division'}
-              </Button>
+              <Button type="button" variant="secondary" onclick={() => (showDivisionForm = false)}
+                >Cancel</Button
+              >
+
+              <Button type="submit" variant="primary" disabled={isSubmitting}
+                >{isSubmitting ? 'Creating...' : 'Create Division'}</Button
+              >
             </div>
           </form>
         </Card>
@@ -1015,10 +1015,9 @@
                   openCopyDialog({
                     formatId: selectedDivisionFormatId ?? selectedDivisionFormat.id,
                     selectedOnly: true,
-                  })}
+                  })}>Copy selected</Button
               >
-                Copy selected
-              </Button>
+
               <form method="POST" action="?/bulkHideDivisions" use:enhance>
                 {#each selectedDivisionIds as id}
                   <input type="hidden" name="divisionIds" value={id} />
@@ -1031,10 +1030,12 @@
                 {/each}
                 <Button type="submit" variant="secondary" size="sm">Show</Button>
               </form>
+
               <Button variant="secondary" size="sm" onclick={openBulkCostDialog}>Set cost</Button>
-              <Button variant="danger" size="sm" onclick={() => (showBulkDeleteConfirm = true)}>
-                Delete
-              </Button>
+
+              <Button variant="danger" size="sm" onclick={() => (showBulkDeleteConfirm = true)}
+                >Delete</Button
+              >
             </div>
           </Card>
         {/if}
@@ -1141,9 +1142,10 @@
             <h3 class="text-xl font-bold text-white">Arenas</h3>
             <p class="text-sm text-text-body mt-1">Manage map arenas for matches</p>
           </div>
-          <Button variant="primary" onclick={() => (showArenaForm = !showArenaForm)}>
-            {showArenaForm ? '✕ Cancel' : '+ Add Arena'}
-          </Button>
+
+          <Button variant="primary" onclick={() => (showArenaForm = !showArenaForm)}
+            >{showArenaForm ? '✕ Cancel' : '+ Add Arena'}</Button
+          >
         </div>
 
         {#if showArenaForm}
@@ -1160,7 +1162,7 @@
                   isSubmitting = false;
                   if (result.type === 'success') {
                     showArenaForm = false;
-                    await invalidateAll();
+                    await refreshAll();
                   }
                 };
               }}
@@ -1230,12 +1232,13 @@
                 />
               </div>
               <div class="mt-4 flex justify-end gap-3">
-                <Button type="button" variant="secondary" onclick={() => (showArenaForm = false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating...' : 'Create Arena'}
-                </Button>
+                <Button type="button" variant="secondary" onclick={() => (showArenaForm = false)}
+                  >Cancel</Button
+                >
+
+                <Button type="submit" variant="primary" disabled={isSubmitting}
+                  >{isSubmitting ? 'Creating...' : 'Create Arena'}</Button
+                >
               </div>
             </form>
           </Card>
@@ -1315,9 +1318,10 @@
             <h3 class="text-xl font-bold text-white">Map Ban Pools</h3>
             <p class="text-sm text-text-body mt-1">Manage map pools for ban/pick phase</p>
           </div>
-          <Button variant="primary" onclick={() => (showPoolForm = !showPoolForm)}>
-            {showPoolForm ? '✕ Cancel' : '+ Create Pool'}
-          </Button>
+
+          <Button variant="primary" onclick={() => (showPoolForm = !showPoolForm)}
+            >{showPoolForm ? '✕ Cancel' : '+ Create Pool'}</Button
+          >
         </div>
 
         {#if showPoolForm}
@@ -1352,12 +1356,13 @@
                   />
                 </div>
                 <div class="flex items-end gap-3">
-                  <Button type="button" variant="secondary" onclick={() => (showPoolForm = false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" variant="primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Creating...' : 'Create Pool'}
-                  </Button>
+                  <Button type="button" variant="secondary" onclick={() => (showPoolForm = false)}
+                    >Cancel</Button
+                  >
+
+                  <Button type="submit" variant="primary" disabled={isSubmitting}
+                    >{isSubmitting ? 'Creating...' : 'Create Pool'}</Button
+                  >
                 </div>
               </div>
             </form>
@@ -1396,16 +1401,19 @@
                         {pool.isActive ? 'Deactivate' : 'Activate'}
                       </Button>
                     </form>
-                    <Button variant="secondary" size="sm" onclick={() => (addingMapsToPool = pool)}>
-                      Add Maps
-                    </Button>
-                    <Button variant="secondary" size="sm" onclick={() => (editingPool = pool)}>
-                      Edit
-                    </Button>
+
+                    <Button variant="secondary" size="sm" onclick={() => (addingMapsToPool = pool)}
+                      >Add Maps</Button
+                    >
+
+                    <Button variant="secondary" size="sm" onclick={() => (editingPool = pool)}
+                      >Edit</Button
+                    >
+
                     {#if data.isStrictAdmin}
-                      <Button variant="danger" size="sm" onclick={() => (deletingPool = pool)}>
-                        Delete
-                      </Button>
+                      <Button variant="danger" size="sm" onclick={() => (deletingPool = pool)}
+                        >Delete</Button
+                      >
                     {/if}
                   </div>
                 </div>
@@ -1467,9 +1475,9 @@
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-xl font-bold text-white">Formats</h3>
         {#if data.isStrictAdmin}
-          <Button variant="primary" onclick={() => (showFormatForm = !showFormatForm)}>
-            {showFormatForm ? 'Cancel' : '+ Add Format'}
-          </Button>
+          <Button variant="primary" onclick={() => (showFormatForm = !showFormatForm)}
+            >{showFormatForm ? 'Cancel' : '+ Add Format'}</Button
+          >
         {/if}
       </div>
 
@@ -1493,6 +1501,7 @@
           >
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormInput label="Name" name="name" placeholder="e.g., Ultiduo" required />
+
               <FormInput
                 label="Code"
                 name="code"
@@ -1637,9 +1646,10 @@
             {:else if col.key === 'actions'}
               {#if data.isStrictAdmin}
                 <div class="flex items-center justify-end gap-2">
-                  <Button variant="secondary" size="sm" onclick={() => (editingFormat = format)}>
-                    Edit
-                  </Button>
+                  <Button variant="secondary" size="sm" onclick={() => (editingFormat = format)}
+                    >Edit</Button
+                  >
+
                   <Button
                     variant="danger"
                     size="sm"
@@ -1686,9 +1696,11 @@
         class="min-w-0 flex-1"
       >
         <input type="hidden" name="formatId" value={editingFormat.id} />
-        <label for="edit-format-icon" class="block text-xs font-medium text-text-label mb-1">
-          {editingFormat.iconUrl ? 'Replace icon' : 'Upload icon'}
-        </label>
+
+        <label for="edit-format-icon" class="block text-xs font-medium text-text-label mb-1"
+          >{editingFormat.iconUrl ? 'Replace icon' : 'Upload icon'}</label
+        >
+
         <input
           id="edit-format-icon"
           name="icon"
@@ -1817,12 +1829,13 @@
       </div>
 
       <div class="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="secondary" onclick={() => (editingFormat = null)}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <Button type="button" variant="secondary" onclick={() => (editingFormat = null)}
+          >Cancel</Button
+        >
+
+        <Button type="submit" variant="primary" disabled={isSubmitting}
+          >{isSubmitting ? 'Saving...' : 'Save Changes'}</Button
+        >
       </div>
     </form>
   </Dialog>
@@ -1860,12 +1873,13 @@
       />
 
       <div class="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onclick={() => (editingRegion = null)}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <Button type="button" variant="secondary" onclick={() => (editingRegion = null)}
+          >Cancel</Button
+        >
+
+        <Button type="submit" variant="primary" disabled={isSubmitting}
+          >{isSubmitting ? 'Saving...' : 'Save Changes'}</Button
+        >
       </div>
     </form>
   </Dialog>
@@ -1928,12 +1942,13 @@
       />
 
       <div class="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onclick={() => (editingSeason = null)}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <Button type="button" variant="secondary" onclick={() => (editingSeason = null)}
+          >Cancel</Button
+        >
+
+        <Button type="submit" variant="primary" disabled={isSubmitting}
+          >{isSubmitting ? 'Saving...' : 'Save Changes'}</Button
+        >
       </div>
     </form>
   </Dialog>
@@ -2111,12 +2126,13 @@
           {copyTargetKeys.length} destination{copyTargetKeys.length === 1 ? '' : 's'} selected
         </p>
         <div class="flex gap-2">
-          <Button type="button" variant="ghost" size="sm" onclick={selectAllCopyTargets}>
-            Select all
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onclick={() => (copyTargetKeys = [])}>
-            Clear
-          </Button>
+          <Button type="button" variant="ghost" size="sm" onclick={selectAllCopyTargets}
+            >Select all</Button
+          >
+
+          <Button type="button" variant="ghost" size="sm" onclick={() => (copyTargetKeys = [])}
+            >Clear</Button
+          >
         </div>
       </div>
 
@@ -2195,6 +2211,7 @@
 
       <div class="flex gap-3 justify-end">
         <Button type="button" variant="secondary" onclick={closeCopyDialog}>Cancel</Button>
+
         <Button
           type="submit"
           variant="primary"
@@ -2310,7 +2327,7 @@
           isSubmitting = false;
           if (result.type === 'success') {
             editingArena = null;
-            await invalidateAll();
+            await refreshAll();
           }
         };
       }}
@@ -2364,12 +2381,13 @@
       />
 
       <div class="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onclick={() => (editingArena = null)}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <Button type="button" variant="secondary" onclick={() => (editingArena = null)}
+          >Cancel</Button
+        >
+
+        <Button type="submit" variant="primary" disabled={isSubmitting}
+          >{isSubmitting ? 'Saving...' : 'Save Changes'}</Button
+        >
       </div>
     </form>
   </Dialog>
@@ -2395,9 +2413,12 @@
           <p class="text-danger-400 text-sm">This action cannot be undone.</p>
         </div>
         <div>
-          <label for="arenaDeleteConfirm" class="block text-sm text-text-body mb-1"
-            >Type <strong class="text-white">DELETE</strong> to confirm</label
-          >
+          <label for="arenaDeleteConfirm" class="block text-sm text-text-body mb-1">
+            Type
+            <strong class="text-white">DELETE</strong>
+            to confirm
+          </label>
+
           <input
             id="arenaDeleteConfirm"
             type="text"
@@ -2426,6 +2447,7 @@
         class="flex gap-3"
       >
         <input type="hidden" name="arenaId" value={deletingArena!.id} />
+
         <button
           type="button"
           onclick={() => (deletingArena = null)}
@@ -2437,9 +2459,8 @@
           type="submit"
           variant="danger"
           disabled={isSubmitting || deletingArena!.games > 0 || deleteConfirmText !== 'DELETE'}
+          >{isSubmitting ? 'Deleting...' : 'Delete Arena'}</Button
         >
-          {isSubmitting ? 'Deleting...' : 'Delete Arena'}
-        </Button>
       </form>
     {/snippet}
   </Dialog>
@@ -2466,12 +2487,13 @@
       <FormInput label="Pool Name" name="name" value={editingPool.name} required />
 
       <div class="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onclick={() => (editingPool = null)}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <Button type="button" variant="secondary" onclick={() => (editingPool = null)}
+          >Cancel</Button
+        >
+
+        <Button type="submit" variant="primary" disabled={isSubmitting}
+          >{isSubmitting ? 'Saving...' : 'Save Changes'}</Button
+        >
       </div>
     </form>
   </Dialog>
@@ -2519,6 +2541,7 @@
         class="flex gap-3"
       >
         <input type="hidden" name="poolId" value={deletingPool!.id} />
+
         <button
           type="button"
           onclick={() => (deletingPool = null)}
@@ -2530,9 +2553,8 @@
           type="submit"
           variant="danger"
           disabled={isSubmitting || deletingPool!.matchesUsed > 0}
+          >{isSubmitting ? 'Deleting...' : 'Delete Pool'}</Button
         >
-          {isSubmitting ? 'Deleting...' : 'Delete Pool'}
-        </Button>
       </form>
     {/snippet}
   </Dialog>
@@ -2599,12 +2621,13 @@
       </div>
 
       <div class="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onclick={() => (addingMapsToPool = null)}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Adding...' : 'Add Selected Maps'}
-        </Button>
+        <Button type="button" variant="secondary" onclick={() => (addingMapsToPool = null)}
+          >Cancel</Button
+        >
+
+        <Button type="submit" variant="primary" disabled={isSubmitting}
+          >{isSubmitting ? 'Adding...' : 'Add Selected Maps'}</Button
+        >
       </div>
     </form>
   </Dialog>
@@ -2665,12 +2688,13 @@
       {/if}
 
       <div class="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onclick={() => (showPlayoffModal = null)}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : 'Save'}
-        </Button>
+        <Button type="button" variant="secondary" onclick={() => (showPlayoffModal = null)}
+          >Cancel</Button
+        >
+
+        <Button type="submit" variant="primary" disabled={isSubmitting}
+          >{isSubmitting ? 'Saving...' : 'Save'}</Button
+        >
       </div>
     </form>
   </Dialog>
@@ -2706,9 +2730,12 @@
           <p class="text-danger-400 text-sm">This action cannot be undone.</p>
         </div>
         <div>
-          <label for="seasonDeleteConfirm" class="block text-sm text-text-body mb-1"
-            >Type <strong class="text-white">DELETE</strong> to confirm</label
-          >
+          <label for="seasonDeleteConfirm" class="block text-sm text-text-body mb-1">
+            Type
+            <strong class="text-white">DELETE</strong>
+            to confirm
+          </label>
+
           <input
             id="seasonDeleteConfirm"
             type="text"
@@ -2737,6 +2764,7 @@
         class="flex gap-3"
       >
         <input type="hidden" name="seasonId" value={deletingSeason!.id} />
+
         <button
           type="button"
           onclick={() => (deletingSeason = null)}
@@ -2750,10 +2778,8 @@
           disabled={isSubmitting ||
             deletingSeason!.teams > 0 ||
             deletingSeason!.matches > 0 ||
-            deleteConfirmText !== 'DELETE'}
+            deleteConfirmText !== 'DELETE'}>{isSubmitting ? 'Deleting...' : 'Delete Season'}</Button
         >
-          {isSubmitting ? 'Deleting...' : 'Delete Season'}
-        </Button>
       </form>
     {/snippet}
   </Dialog>
@@ -2787,9 +2813,12 @@
           <p class="text-danger-400 text-sm">This action cannot be undone.</p>
         </div>
         <div>
-          <label for="regionDeleteConfirm" class="block text-sm text-text-body mb-1"
-            >Type <strong class="text-white">DELETE</strong> to confirm</label
-          >
+          <label for="regionDeleteConfirm" class="block text-sm text-text-body mb-1">
+            Type
+            <strong class="text-white">DELETE</strong>
+            to confirm
+          </label>
+
           <input
             id="regionDeleteConfirm"
             type="text"
@@ -2818,6 +2847,7 @@
         class="flex gap-3"
       >
         <input type="hidden" name="regionId" value={deletingRegion!.id} />
+
         <button
           type="button"
           onclick={() => (deletingRegion = null)}
@@ -2831,10 +2861,8 @@
           disabled={isSubmitting ||
             deletingRegion!.seasons > 0 ||
             deletingRegion!.teams > 0 ||
-            deleteConfirmText !== 'DELETE'}
+            deleteConfirmText !== 'DELETE'}>{isSubmitting ? 'Deleting...' : 'Delete Region'}</Button
         >
-          {isSubmitting ? 'Deleting...' : 'Delete Region'}
-        </Button>
       </form>
     {/snippet}
   </Dialog>
@@ -2860,9 +2888,12 @@
           <p class="text-danger-400 text-sm">This action cannot be undone.</p>
         </div>
         <div>
-          <label for="divisionDeleteConfirm" class="block text-sm text-text-body mb-1"
-            >Type <strong class="text-white">DELETE</strong> to confirm</label
-          >
+          <label for="divisionDeleteConfirm" class="block text-sm text-text-body mb-1">
+            Type
+            <strong class="text-white">DELETE</strong>
+            to confirm
+          </label>
+
           <input
             id="divisionDeleteConfirm"
             type="text"
@@ -2891,6 +2922,7 @@
         class="flex gap-3"
       >
         <input type="hidden" name="divisionId" value={deletingDivision!.id} />
+
         <button
           type="button"
           onclick={() => (deletingDivision = null)}
@@ -2902,9 +2934,8 @@
           type="submit"
           variant="danger"
           disabled={isSubmitting || deletingDivision!.teams > 0 || deleteConfirmText !== 'DELETE'}
+          >{isSubmitting ? 'Deleting...' : 'Delete Division'}</Button
         >
-          {isSubmitting ? 'Deleting...' : 'Delete Division'}
-        </Button>
       </form>
     {/snippet}
   </Dialog>
@@ -2941,9 +2972,12 @@
           <p class="text-danger-400 text-sm">This action cannot be undone.</p>
         </div>
         <div>
-          <label for="formatDeleteConfirm" class="block text-sm text-text-body mb-1"
-            >Type <strong class="text-white">DELETE</strong> to confirm</label
-          >
+          <label for="formatDeleteConfirm" class="block text-sm text-text-body mb-1">
+            Type
+            <strong class="text-white">DELETE</strong>
+            to confirm
+          </label>
+
           <input
             id="formatDeleteConfirm"
             type="text"
@@ -2972,6 +3006,7 @@
         class="flex gap-3"
       >
         <input type="hidden" name="formatId" value={deletingFormat!.id} />
+
         <button
           type="button"
           onclick={() => (deletingFormat = null)}
@@ -2986,10 +3021,8 @@
             deletingFormat!.seasons > 0 ||
             deletingFormat!.teams > 0 ||
             deletingFormat!.activeSignupSeasons > 0 ||
-            deleteConfirmText !== 'DELETE'}
+            deleteConfirmText !== 'DELETE'}>{isSubmitting ? 'Deleting...' : 'Delete Format'}</Button
         >
-          {isSubmitting ? 'Deleting...' : 'Delete Format'}
-        </Button>
       </form>
     {/snippet}
   </Dialog>

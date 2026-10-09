@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { PublicGameServer } from '$lib/types/servers';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import { resolveRegionFlag } from '$lib/utils/regions';
+  import type { PublicGameServer } from '#lib/types/servers.js';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import { resolveRegionFlag } from '#lib/utils/regions.js';
   import ServerRow from './ServerRow.svelte';
 
   let {

@@ -4,7 +4,7 @@
  * All arena-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.js';
 
 /**
  * Get all arenas with their game counts

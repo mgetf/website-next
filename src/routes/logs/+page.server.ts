@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { listMatchLogs, listMatchLogsByPlayer } from '$lib/server/services/matchLogs';
-import { getUserBySteamId } from '$lib/server/services/users';
+import { listMatchLogs, listMatchLogsByPlayer } from '#lib/server/services/matchLogs.js';
+import { getUserBySteamId } from '#lib/server/services/users.js';
 
 export const load: PageServerLoad = async ({ url }) => {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));

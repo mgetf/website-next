@@ -1,5 +1,5 @@
-import type { StaffAssignmentDisplay } from '$lib/types/staff';
-import { getRegionAbbr, sortRegionsByAbbr } from '$lib/utils/region';
+import type { StaffAssignmentDisplay } from '#lib/types/staff.js';
+import { getRegionAbbr, sortRegionsByAbbr } from '#lib/utils/region.js';
 
 type StaffDisplayItem = Pick<
   StaffAssignmentDisplay,

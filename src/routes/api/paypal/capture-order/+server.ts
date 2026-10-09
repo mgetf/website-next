@@ -1,21 +1,20 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   capturePayPalOrder,
   isPayPalTestMode,
   isPayPalTestModeMisconfigured,
-} from '$lib/server/services/paypal';
+} from '#lib/server/services/paypal.js';
 import {
   recordPayPalCapture,
   recordMultiTeamPayPalCapture,
   resolvePayPalCheckoutQuote,
   paypalAmountsMatch,
-} from '$lib/server/services/payments';
-import { logError } from '$lib/server/utils/logger';
-import { requireAuth, isAdmin, requireNotBanned } from '$lib/server/auth/permissions';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { paymentRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
-import { getErrorMessage } from '$lib/server/utils/errors';
+} from '#lib/server/services/payments.js';
+import { logError } from '#lib/server/utils/logger.js';
+import { requireAuth, isAdmin, requireNotBanned } from '#lib/server/auth/permissions.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { paymentRateLimiter, checkRateLimit } from '#lib/server/utils/rateLimit.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 export const POST: RequestHandler = async ({ request, locals, getClientAddress }) => {
   try {
@@ -26,7 +25,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
     if (!allowed && response) return response;
 
     if (isPayPalTestModeMisconfigured()) {
-      return json(
+      return Response.json(
         { success: false, error: 'Payment system misconfigured. Please contact support.' },
         { status: 503 },
       );
@@ -36,7 +35,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
     const { orderID, steamId, teams, teamId, paidForSteamIds } = body;
 
     if (!orderID || !steamId) {
-      return json({ error: 'Missing required fields' }, { status: 400 });
+      return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     // Normalise to teams array; fall back to legacy single-team shape
@@ -48,11 +47,11 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
           : [];
 
     if (teamsArray.length === 0) {
-      return json({ error: 'Missing required fields' }, { status: 400 });
+      return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     if (locals.user.steamId !== steamId && !isAdmin(locals.user)) {
-      return json(
+      return Response.json(
         { error: 'Unauthorized: Cannot capture payment for another user' },
         { status: 403 },
       );
@@ -79,7 +78,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
         steamId,
         error: result.error || 'Unknown error',
       });
-      return json(
+      return Response.json(
         {
           success: false,
           error: 'Failed to capture payment. Please contact support.',
@@ -94,7 +93,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 
     if (!purchase || !capture) {
       await logError('PayPal capture-order invalid response', { orderID, steamId });
-      return json(
+      return Response.json(
         {
           success: false,
           error: 'Invalid payment response. Please contact support.',
@@ -115,7 +114,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
         actualAmount: amount,
         actualCurrency: currency,
       });
-      return json(
+      return Response.json(
         {
           success: false,
           error: 'Payment amount mismatch. Please contact support.',
@@ -161,7 +160,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       ipAddress: getClientAddress(),
     });
 
-    return json({ success: true, teamId: firstTeamId });
+    return Response.json({ success: true, teamId: firstTeamId });
   } catch (err) {
     const message = getErrorMessage(err, 'Internal server error');
     const status =
@@ -175,7 +174,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
       });
     }
 
-    return json(
+    return Response.json(
       { success: false, error: status < 500 ? message : 'Internal server error' },
       { status },
     );

@@ -3,8 +3,8 @@
  * Provides league statistics for admin dashboard
  */
 
-import { prisma } from '$lib/server/db';
-import { MatchStatus, DemoStatus, Prisma } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import { MatchStatus, DemoStatus, Prisma } from '#prisma/client.js';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 
 interface PlayerPerDivision {

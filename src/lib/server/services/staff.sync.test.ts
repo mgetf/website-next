@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { UserRole } from '$prisma/client.js';
+import { UserRole } from '#prisma/client.js';
 import { SourcebansError } from './sourcebans';
 import {
   syncDiscordForStaff,

@@ -1,4 +1,4 @@
-import type { TeamPageTab } from '$lib/types/team';
+import type { TeamPageTab } from '#lib/types/team.js';
 
 export function parseTeamTab(raw: string | null, canManage: boolean): TeamPageTab {
   if (raw === 'management' && canManage) return 'management';

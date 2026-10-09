@@ -1,11 +1,11 @@
 <script lang="ts">
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import Dialog from '$lib/components/ui/Dialog.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import Dialog from '#lib/components/ui/Dialog.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
   import BitsCheckbox from './BitsCheckbox.svelte';
   import BitsDropdownMenu from './BitsDropdownMenu.svelte';
   import BitsSwitch from './BitsSwitch.svelte';

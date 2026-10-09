@@ -1,7 +1,7 @@
 <script lang="ts">
   import { DropdownMenu } from 'bits-ui';
-  import type { NavUserTeam, SessionUser } from '$lib/types/user';
-  import { UserRole } from '$lib/types/user';
+  import type { NavUserTeam, SessionUser } from '#lib/types/user.js';
+  import { UserRole } from '#lib/types/user.js';
   import ChevronDown from '~icons/lucide/chevron-down';
   import ChevronRight from '~icons/lucide/chevron-right';
   import User from '~icons/lucide/user';

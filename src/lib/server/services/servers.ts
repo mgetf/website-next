@@ -7,8 +7,8 @@
  */
 
 import { z } from 'zod';
-import { env } from '$env/dynamic/private';
-import type { PublicGameServer, ServersPageData } from '$lib/types/servers';
+import { MGE_PANEL_URL } from '$app/env/private';
+import type { PublicGameServer, ServersPageData } from '#lib/types/servers.js';
 
 // ---------------------------------------------------------------------------
 // Zod schema — validates the panel response shape
@@ -59,7 +59,7 @@ interface CacheEntry {
 let cache: CacheEntry | null = null;
 
 function getPanelBaseUrl(): string {
-  return (env.MGE_PANEL_URL ?? 'https://panel.mge.tf').replace(/\/$/, '');
+  return (MGE_PANEL_URL ?? 'https://panel.mge.tf').replace(/\/$/, '');
 }
 
 // ---------------------------------------------------------------------------

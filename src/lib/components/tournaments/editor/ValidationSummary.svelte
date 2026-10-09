@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { ValidationIssue } from '$lib/types/tournament-editor';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
+  import type { ValidationIssue } from '#lib/types/tournament-editor.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
 
   let { issues }: { issues: ValidationIssue[] } = $props();
 

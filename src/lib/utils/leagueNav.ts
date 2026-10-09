@@ -1,6 +1,11 @@
-import type { LeagueNav, LeagueNavCell, LeagueNavFormat, LeagueNavRegion } from '$lib/types/league';
-import { getRegionAbbr, sortRegionsByAbbr } from '$lib/utils/region';
-import { flagForRegion } from '$lib/utils/regions';
+import type {
+  LeagueNav,
+  LeagueNavCell,
+  LeagueNavFormat,
+  LeagueNavRegion,
+} from '#lib/types/league.js';
+import { getRegionAbbr, sortRegionsByAbbr } from '#lib/utils/region.js';
+import { flagForRegion } from '#lib/utils/regions.js';
 
 /** Flagship formats first, then remaining formats in the order provided. */
 const PREFERRED_FORMAT_CODES = ['2v2', '1v1'];

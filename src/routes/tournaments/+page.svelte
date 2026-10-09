@@ -1,11 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import type { EventListItem } from '$lib/types/event';
+  import type { EventListItem } from '#lib/types/event.js';
   import { resolve } from '$app/paths';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
   import Trophy from '~icons/lucide/trophy';
   import Globe from '~icons/lucide/globe';
   import Swords from '~icons/lucide/swords';

@@ -11,24 +11,25 @@ Do NOT use raw `process.env` scattered throughout the codebase.
 
 ## Rules
 
-1. **Security secrets** (`JWT_SECRET`, `SESSION_SECRET`): Use `getRequiredEnv()` or the named helpers (`getJwtSecret()`, `getSessionSecret()`) from `$lib/server/utils/env.ts`.
+1. **Security secrets** (`JWT_SECRET`, `SESSION_SECRET`): Use `getRequiredEnv()` or the named helpers (`getJwtSecret()`, `getSessionSecret()`) from `#lib/server/utils/env.ts`, or import from `$app/env/private` after declaring them in `src/env.ts`.
 
-2. **Service credentials** (PayPal, R2, Steam API, Discord, etc.): Access via `$env/dynamic/private` from SvelteKit, OR add a named getter to `$lib/server/utils/env.ts`.
+2. **Service credentials** (PayPal, R2, Steam API, Discord, etc.): Access via `$app/env/private` from SvelteKit (declared in `src/env.ts`), OR add a named getter to `#lib/server/utils/env.ts`.
 
-3. **Database URL**: The only acceptable `process.env.DATABASE_URL` usage is in `$lib/server/db.ts`. Nowhere else.
+3. **Database URL**: The only acceptable `process.env.DATABASE_URL` usage is in `#lib/server/db.ts`. Nowhere else.
 
 4. **New environment variables**: When adding a new env var:
-   - Add it to `REQUIRED_SECRETS` or `RECOMMENDED_VARS` in `env.ts` if it's a secret/credential
+   - Declare it in `src/env.ts` via `defineEnvVars()`
+   - Add it to `REQUIRED_SECRETS` or `RECOMMENDED_VARS` in `#lib/server/utils/env.ts` if it's a secret/credential used by the getters
    - Create a getter function if it'll be accessed from multiple places
    - Document it in the `env.ts` file header comment
 
 ```typescript
 // ✅ CORRECT
-import { getRequiredEnv, getOptionalEnv } from '$lib/server/utils/env';
-import { env } from '$env/dynamic/private';
+import { getRequiredEnv, getOptionalEnv } from '#lib/server/utils/env.js';
+import { DISCORD_CLIENT_ID } from '$app/env/private';
 
 const secret = getRequiredEnv('JWT_SECRET');
-const clientId = env.DISCORD_CLIENT_ID;
+const clientId = DISCORD_CLIENT_ID;
 
 // ❌ WRONG — raw process.env in a service file
 const apiKey = process.env.STEAM_API_KEY;

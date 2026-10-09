@@ -1,11 +1,11 @@
 <script lang="ts">
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
   import {
     filterDivisionsByRegionAndFormat,
     filterRegionsByFormat,
     type DivisionScopeOption,
     type ScopeOption,
-  } from '$lib/utils/leagueScope';
+  } from '#lib/utils/leagueScope.js';
 
   let {
     formats,

@@ -3,13 +3,13 @@
  * Handles team joining via token and password
  */
 
-import { prisma } from '$lib/server/db';
-import type { Prisma } from '$prisma/client.js';
-import { notFound, badRequest } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import type { Prisma } from '#prisma/client.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
 import { validateJoinToken } from './teamSignup';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { isSeasonCurrentlyActive } from './settings';
-import { verifyPassword } from '$lib/server/utils/password';
+import { verifyPassword } from '#lib/server/utils/password.js';
 import { requireFormatById } from './formats';
 
 type TeamJoinTeam = Prisma.TeamGetPayload<{

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { PublicGameServer } from '$lib/types/servers';
-  import Badge from '$lib/components/ui/Badge.svelte';
+  import type { PublicGameServer } from '#lib/types/servers.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
   import ServerStatusBadge from './ServerStatusBadge.svelte';
   import ConnectChip from './ConnectChip.svelte';
 

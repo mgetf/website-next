@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import SelectMenu from '$lib/components/ui/SelectMenu.svelte';
+  import SelectMenu from '#lib/components/ui/SelectMenu.svelte';
 
   type Option = {
     value: string;

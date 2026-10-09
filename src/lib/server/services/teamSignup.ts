@@ -3,14 +3,14 @@
  * Handles team creation, re-registration, and join token generation
  */
 
-import { prisma } from '$lib/server/db';
-import { TeamStatus } from '$prisma/client.js';
-import type { Prisma } from '$prisma/client.js';
-import { badRequest, forbidden } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { TeamStatus } from '#prisma/client.js';
+import type { Prisma } from '#prisma/client.js';
+import { badRequest, forbidden } from '#lib/server/utils/errors.js';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
 import { requireFormatById } from './formats';
-import { hashPassword } from '$lib/server/utils/password';
-import { createTeamInviteToken, parseTeamInviteToken } from '$lib/server/utils/teamInviteToken';
+import { hashPassword } from '#lib/server/utils/password.js';
+import { createTeamInviteToken, parseTeamInviteToken } from '#lib/server/utils/teamInviteToken.js';
 import {
   initialPlayerPaymentStatus,
   initialTeamPaymentStatus,

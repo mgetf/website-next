@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { prisma } from '$lib/server/db';
-import { badRequest, forbidden, notFound } from '$lib/server/utils/errors';
-import type { BlogCommentNode } from '$lib/types/blogComment';
+import { prisma } from '#lib/server/db.js';
+import { badRequest, forbidden, notFound } from '#lib/server/utils/errors.js';
+import type { BlogCommentNode } from '#lib/types/blogComment.js';
 
 export const blogCommentFormSchema = z.object({
   postId: z.coerce.number().int().positive('Invalid post ID'),

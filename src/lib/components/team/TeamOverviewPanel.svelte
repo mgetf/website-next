@@ -1,17 +1,17 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
   import type {
     TeamAchievement,
     TeamMatchRow,
     TeamPastPlayer,
     TeamRosterPlayer,
     TeamSeasonMatches,
-  } from '$lib/types/team';
-  import { formatDate, placementClass, resultClass } from '$lib/utils/profile';
+  } from '#lib/types/team.js';
+  import { formatDate, placementClass, resultClass } from '#lib/utils/profile.js';
   import Trophy from '~icons/lucide/trophy';
 
   const DEFAULT_AVATAR = '/default-avatar.png';

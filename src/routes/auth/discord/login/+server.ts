@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDiscordAuthUrl } from '$lib/server/auth/discord';
-import { requireAuth } from '$lib/server/auth/permissions';
+import { getDiscordAuthUrl } from '#lib/server/auth/discord.js';
+import { requireAuth } from '#lib/server/auth/permissions.js';
 
 export const GET: RequestHandler = async ({ locals, request, cookies }) => {
   requireAuth(locals.user);

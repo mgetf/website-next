@@ -5,7 +5,7 @@
  * sides/scores, acyclic progression, valid destination slots, format-specific
  * round rules, and placement consistency. Used by the editor UI for live
  * feedback and by the server before publishing (see
- * `$lib/server/services/eventEditor.ts`).
+ * `#lib/server/services/eventEditor.ts`).
  */
 
 import type {
@@ -13,8 +13,8 @@ import type {
   DraftStage,
   DraftEliminationMatch,
   ValidationIssue,
-} from '$lib/types/tournament-editor';
-import { normalizeParticipantName } from '$lib/utils/tournamentParticipantSearch';
+} from '#lib/types/tournament-editor.js';
+import { normalizeParticipantName } from '#lib/utils/tournamentParticipantSearch.js';
 
 export function validateDraftStructure(payload: EventDraftPayload): ValidationIssue[] {
   const issues: ValidationIssue[] = [];

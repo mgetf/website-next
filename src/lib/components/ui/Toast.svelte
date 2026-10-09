@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ToastType } from '$lib/state/toast.svelte';
+  import type { ToastType } from '#lib/state/toast.svelte.js';
 
   let {
     type,

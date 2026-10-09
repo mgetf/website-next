@@ -3,13 +3,13 @@
  * Free vs paid is determined only by signupCost, never by division name.
  */
 
-import { prisma } from '$lib/server/db';
-import { badRequest } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { badRequest } from '#lib/server/utils/errors.js';
 import {
   FREE_DIVISION_ACK_FIELD,
   isFreeDivision,
   needsFreeDivisionAcknowledgment,
-} from '$lib/utils/signupDivision';
+} from '#lib/utils/signupDivision.js';
 
 export type SignupDivision = {
   id: number;

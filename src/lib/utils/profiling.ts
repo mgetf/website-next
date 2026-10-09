@@ -2,7 +2,7 @@ import type {
   ProfilingClassScore,
   ProfilingRegionScore,
   ProfilingSnapshot,
-} from '$lib/types/profiling';
+} from '#lib/types/profiling.js';
 
 export const PROFILING_MISSING = '—';
 

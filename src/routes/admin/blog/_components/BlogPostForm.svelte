@@ -1,8 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
+  import MarkdownEditor from '#lib/components/markdown/MarkdownEditor.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
 
   let {
     initialTitle = '',

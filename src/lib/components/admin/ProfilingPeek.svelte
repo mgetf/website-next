@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import type { ProfilingSnapshot } from '$lib/types/profiling';
-  import { formatRelativeTime } from '$lib/utils/profile';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import type { ProfilingSnapshot } from '#lib/types/profiling.js';
+  import { formatRelativeTime } from '#lib/utils/profile.js';
   import {
     formatProfilingCount,
     formatProfilingHours,
@@ -10,7 +10,7 @@
     formatSteamAgeYears,
     formatSteamCreatedAt,
     PROFILING_CARD_LOGOS,
-  } from '$lib/utils/profiling';
+  } from '#lib/utils/profiling.js';
 
   let {
     name,

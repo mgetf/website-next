@@ -8,8 +8,8 @@ import {
   normalizeLegacyEventDraftPayload,
   type EventDraftPayload,
   type ValidationIssue,
-} from '$lib/types/tournament-editor';
-import { validateDraftStructure } from '$lib/utils/tournamentDraftValidation';
+} from '#lib/types/tournament-editor.js';
+import { validateDraftStructure } from '#lib/utils/tournamentDraftValidation.js';
 
 // ===== Common Field Schemas =====
 

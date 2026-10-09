@@ -1,9 +1,9 @@
-import { prisma } from '$lib/server/db';
-import { Prisma } from '$prisma/client.js';
-import { steamId3FromSteamId64 } from '$lib/utils/steamid';
-import { uploadBufferToR2, getPublicUrl } from '$lib/server/utils/r2Upload';
-import { getParserUrl } from '$lib/server/utils/env';
-import { notFound } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { Prisma } from '#prisma/client.js';
+import { steamId3FromSteamId64 } from '#lib/utils/steamid.js';
+import { uploadBufferToR2, getPublicUrl } from '#lib/server/utils/r2Upload.js';
+import { getParserUrl } from '#lib/server/utils/env.js';
+import { notFound } from '#lib/server/utils/errors.js';
 import type {
   ParsedMatch,
   MatchLogSummary,
@@ -11,7 +11,7 @@ import type {
   MatchPreview,
   MatchPreviewSide,
   PlayerRecord,
-} from '$lib/types/matchLog';
+} from '#lib/types/matchLog.js';
 
 const LOGS_PER_PAGE = 50;
 

@@ -5,22 +5,22 @@
 
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
-import { MatchStatus } from '$prisma/client.js';
+import { requireAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
+import { MatchStatus } from '#prisma/client.js';
 import {
   updateMatchStatus,
   getWeekOptionsForSeason,
   getMatchesForAdminWeekView,
-} from '$lib/server/services/adminMatches';
-import { getFormatsForFilter } from '$lib/server/services/formats';
-import { getRegionsForFilter } from '$lib/server/services/regions';
-import { getSeasonsByRegion } from '$lib/server/services/seasons';
-import { parseFilterId, resolveAdminMatchFilters } from '$lib/utils/matchFilters';
-import { getMatchWeekLabels } from '$lib/server/services/matches';
-import { listPendingMatchSetDrafts } from '$lib/server/services/matchSetDrafts';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+} from '#lib/server/services/adminMatches.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
+import { getRegionsForFilter } from '#lib/server/services/regions.js';
+import { getSeasonsByRegion } from '#lib/server/services/seasons.js';
+import { parseFilterId, resolveAdminMatchFilters } from '#lib/utils/matchFilters.js';
+import { getMatchWeekLabels } from '#lib/server/services/matches.js';
+import { listPendingMatchSetDrafts } from '#lib/server/services/matchSetDrafts.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
 
 const updateMatchStatusSchema = z.object({
   matchId: z.coerce.number().int(),

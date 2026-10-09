@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import type { BracketMatch } from '$lib/types/bracket';
-  import Badge from '$lib/components/ui/Badge.svelte';
+  import type { BracketMatch } from '#lib/types/bracket.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
   import MatchSide from './MatchSide.svelte';
 
   interface Props {

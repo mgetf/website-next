@@ -3,10 +3,10 @@
  * Handles demo upload, retrieval, and reporting operations
  */
 
-import { prisma } from '$lib/server/db';
-import { uploadToR2 } from '$lib/server/utils/r2Upload';
-import { DemoStatus } from '$prisma/client.js';
-import { assertSafeBasename, safeDemoStorageName } from '$lib/server/utils/filenames';
+import { prisma } from '#lib/server/db.js';
+import { uploadToR2 } from '#lib/server/utils/r2Upload.js';
+import { DemoStatus } from '#prisma/client.js';
+import { assertSafeBasename, safeDemoStorageName } from '#lib/server/utils/filenames.js';
 import fs from 'fs';
 
 interface UploadDemoData {

@@ -2,10 +2,10 @@
   import type { PageData } from './$types';
   import PaypalCheckout from './PaypalCheckout.svelte';
   import ItemPaymentCheckout from './ItemPaymentCheckout.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import type { CheckoutParticipation, CheckoutTeamSelection } from '$lib/types/checkout';
+  import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import type { CheckoutParticipation, CheckoutTeamSelection } from '#lib/types/checkout.js';
 
   let { data }: { data: PageData } = $props();
 

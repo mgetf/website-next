@@ -1,4 +1,4 @@
-import type { MatchSetDraftPairingInput } from '$lib/types/matchSetDraft';
+import type { MatchSetDraftPairingInput } from '#lib/types/matchSetDraft.js';
 
 export function parseMatchSetPairings(value: unknown): MatchSetDraftPairingInput[] {
   if (!Array.isArray(value)) {

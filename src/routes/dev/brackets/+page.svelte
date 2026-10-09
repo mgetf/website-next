@@ -1,15 +1,15 @@
 <script lang="ts">
-  import type { BracketData, BracketMatch } from '$lib/types/bracket';
-  import MatchCard from '$lib/components/brackets/MatchCard.svelte';
-  import BracketRenderer from '$lib/components/brackets/BracketRenderer.svelte';
+  import type { BracketData, BracketMatch } from '#lib/types/bracket.js';
+  import MatchCard from '#lib/components/brackets/MatchCard.svelte';
+  import BracketRenderer from '#lib/components/brackets/BracketRenderer.svelte';
 
-  import singleElim8Raw from '$lib/fixtures/brackets/single-elim-8.json';
-  import singleElimByesRaw from '$lib/fixtures/brackets/single-elim-byes.json';
-  import fightCard4Raw from '$lib/fixtures/brackets/fight-card-4.json';
-  import twoV2Raw from '$lib/fixtures/brackets/2v2-single-elim-8.json';
-  import doubleElim16Raw from '$lib/fixtures/brackets/double-elim-16.json';
-  import doubleElimResetRaw from '$lib/fixtures/brackets/double-elim-reset.json';
-  import singleElimGamesRaw from '$lib/fixtures/brackets/single-elim-8-games.json';
+  import singleElim8Raw from '#lib/fixtures/brackets/single-elim-8.json';
+  import singleElimByesRaw from '#lib/fixtures/brackets/single-elim-byes.json';
+  import fightCard4Raw from '#lib/fixtures/brackets/fight-card-4.json';
+  import twoV2Raw from '#lib/fixtures/brackets/2v2-single-elim-8.json';
+  import doubleElim16Raw from '#lib/fixtures/brackets/double-elim-16.json';
+  import doubleElimResetRaw from '#lib/fixtures/brackets/double-elim-reset.json';
+  import singleElimGamesRaw from '#lib/fixtures/brackets/single-elim-8-games.json';
 
   const singleElim8 = singleElim8Raw as BracketData;
   const singleElimByes = singleElimByesRaw as BracketData;

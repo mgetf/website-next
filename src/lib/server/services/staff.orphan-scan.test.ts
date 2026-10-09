@@ -14,7 +14,7 @@ const { listDiscordGuildMembers, listDiscordGuildRoles, isDiscordGuildConfigured
     },
   }));
 
-vi.mock('$lib/server/db', () => ({ prisma }));
+vi.mock('#lib/server/db.js', () => ({ prisma }));
 
 vi.mock('./discordGuild', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./discordGuild')>();

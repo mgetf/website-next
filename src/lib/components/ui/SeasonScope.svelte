@@ -1,8 +1,8 @@
 <script lang="ts">
   import FlagIcon from './FlagIcon.svelte';
-  import { getRegionAbbr } from '$lib/utils/region';
-  import { flagForRegion } from '$lib/utils/regions';
-  import { sentenceCase } from '$lib/utils/profile';
+  import { getRegionAbbr } from '#lib/utils/region.js';
+  import { flagForRegion } from '#lib/utils/regions.js';
+  import { sentenceCase } from '#lib/utils/profile.js';
 
   let {
     region,

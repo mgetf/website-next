@@ -1,12 +1,11 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createPayPalOrder, isPayPalTestModeMisconfigured } from '$lib/server/services/paypal';
-import { resolvePayPalCheckoutQuote } from '$lib/server/services/payments';
-import { logError } from '$lib/server/utils/logger';
-import { requireAuth, isAdmin, requireNotBanned } from '$lib/server/auth/permissions';
-import { getOptionalEnv } from '$lib/server/utils/env';
-import { paymentRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { createPayPalOrder, isPayPalTestModeMisconfigured } from '#lib/server/services/paypal.js';
+import { resolvePayPalCheckoutQuote } from '#lib/server/services/payments.js';
+import { logError } from '#lib/server/utils/logger.js';
+import { requireAuth, isAdmin, requireNotBanned } from '#lib/server/auth/permissions.js';
+import { getOptionalEnv } from '#lib/server/utils/env.js';
+import { paymentRateLimiter, checkRateLimit } from '#lib/server/utils/rateLimit.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
@@ -17,7 +16,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (!allowed && response) return response;
 
     if (isPayPalTestModeMisconfigured()) {
-      return json(
+      return Response.json(
         { error: 'Payment system misconfigured. Please contact support.' },
         { status: 503 },
       );
@@ -27,7 +26,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const { currency: _ignoredCurrency, steamId, teams, teamId, paidForSteamIds } = body;
 
     if (!steamId) {
-      return json({ error: 'Missing required fields' }, { status: 400 });
+      return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     // Normalise to teams array; fall back to legacy single-team shape
@@ -39,11 +38,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
           : [];
 
     if (teamsArray.length === 0) {
-      return json({ error: 'Missing required fields' }, { status: 400 });
+      return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     if (locals.user.steamId !== steamId && !isAdmin(locals.user)) {
-      return json(
+      return Response.json(
         { error: 'Unauthorized: Cannot create payment for another user' },
         { status: 403 },
       );
@@ -75,10 +74,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         error: result.error || 'Unknown error',
       });
 
-      return json({ error: 'Failed to create payment order. Please try again.' }, { status: 500 });
+      return Response.json(
+        { error: 'Failed to create payment order. Please try again.' },
+        { status: 500 },
+      );
     }
 
-    return json({
+    return Response.json({
       ...result.order,
       // Echo server quote so the client can assert before capture
       expectedAmount: quote.amount,
@@ -98,6 +100,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       });
     }
 
-    return json({ error: status < 500 ? message : 'Internal server error' }, { status });
+    return Response.json({ error: status < 500 ? message : 'Internal server error' }, { status });
   }
 };

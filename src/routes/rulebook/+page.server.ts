@@ -4,8 +4,8 @@
  */
 
 import type { PageServerLoad } from './$types';
-import { getPublishedRulebook } from '$lib/server/services/siteContent';
-import { buildPageSeo } from '$lib/utils/seo';
+import { getPublishedRulebook } from '#lib/server/services/siteContent.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
 
 export const load: PageServerLoad = async ({ url }) => {
   const rulebook = await getPublishedRulebook();

@@ -3,15 +3,15 @@
  * CRUD operations for static site content (rulebook, homepage text, etc.)
  */
 
-import { prisma } from '$lib/server/db';
-import { badRequest, conflict, notFound } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import type {
   PublishedRulebook,
   RulebookRevisionDetail,
   RulebookRevisionSummary,
-} from '$lib/types/rulebook';
-import { nextRulebookVersion, validateRulebookPublish } from '$lib/utils/rulebookPublish';
-import { diffText } from '$lib/utils/textDiff';
+} from '#lib/types/rulebook.js';
+import { nextRulebookVersion, validateRulebookPublish } from '#lib/utils/rulebookPublish.js';
+import { diffText } from '#lib/utils/textDiff.js';
 
 // Content keys used throughout the site
 export const CONTENT_KEYS = {

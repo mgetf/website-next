@@ -1,20 +1,20 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth, requireNotBanned } from '$lib/server/auth/permissions';
+import { requireAuth, requireNotBanned } from '#lib/server/auth/permissions.js';
 import {
   validateTokenAndGetTeam,
   acceptInviteByToken,
   declineInvitation,
   hasAnyPendingRequest,
-} from '$lib/server/services/teamJoin';
+} from '#lib/server/services/teamJoin.js';
 import {
   isSeasonCurrentlyActive,
   isTeamSeasonActive,
   getEffectiveRosterLock,
-} from '$lib/server/services/settings';
+} from '#lib/server/services/settings.js';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 const tokenSchema = z.object({
   token: z.string().min(1, 'Invalid token'),
@@ -82,7 +82,7 @@ export const actions: Actions = {
     const { token } = validation.data;
 
     // Get team ID from token to check season settings
-    const { validateJoinToken: decodeToken } = await import('$lib/server/services/teamSignup');
+    const { validateJoinToken: decodeToken } = await import('#lib/server/services/teamSignup.js');
     const { teamId } = decodeToken(token);
 
     const seasonActive = await isTeamSeasonActive(teamId);
@@ -119,7 +119,7 @@ export const actions: Actions = {
 
     try {
       // Just decode to get team ID, then delete pending
-      const { validateJoinToken } = await import('$lib/server/services/teamSignup');
+      const { validateJoinToken } = await import('#lib/server/services/teamSignup.js');
       const { teamId } = validateJoinToken(token);
 
       await declineInvitation(locals.user.steamId, teamId);

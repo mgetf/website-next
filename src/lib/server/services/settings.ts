@@ -4,7 +4,7 @@
  * All global settings and configuration business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.js';
 import { setActiveSignupSeason } from './signupSeasons';
 
 /**

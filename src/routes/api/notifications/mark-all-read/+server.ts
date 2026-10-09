@@ -4,8 +4,8 @@
  */
 
 import type { RequestHandler } from './$types';
-import { json, error } from '@sveltejs/kit';
-import { markAllAsRead } from '$lib/server/services/notifications';
+import { error } from '@sveltejs/kit';
+import { markAllAsRead } from '#lib/server/services/notifications.js';
 
 export const POST: RequestHandler = async ({ locals }) => {
   if (!locals.user) {
@@ -14,7 +14,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 
   try {
     await markAllAsRead(locals.user.steamId);
-    return json({ success: true });
+    return Response.json({ success: true });
   } catch (err) {
     throw error(500, 'Failed to mark notifications as read');
   }

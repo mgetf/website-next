@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { EventDraftPayload } from '$lib/types/tournament-editor';
-  import { previewDraftStage } from '$lib/utils/tournamentPreview';
-  import BracketRenderer from '$lib/components/brackets/BracketRenderer.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
+  import type { EventDraftPayload } from '#lib/types/tournament-editor.js';
+  import { previewDraftStage } from '#lib/utils/tournamentPreview.js';
+  import BracketRenderer from '#lib/components/brackets/BracketRenderer.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
 
   let { draft }: { draft: EventDraftPayload } = $props();
 

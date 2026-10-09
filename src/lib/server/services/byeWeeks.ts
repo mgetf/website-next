@@ -3,7 +3,7 @@
  * Tracks weeks where a team has no scheduled match due to an odd number of eligible teams.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.js';
 
 /**
  * Get all bye weeks for a team, ordered by season then week number.

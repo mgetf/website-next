@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { LeagueDivisionMatch } from '$lib/types/league';
+  import type { LeagueDivisionMatch } from '#lib/types/league.js';
   import {
     filterLeagueMatchesByWeek,
     formatLeagueMatchScore,
@@ -7,7 +7,7 @@
     isLeagueMatchSideWinner,
     latestLeagueWeek,
     leagueWeekNumbers,
-  } from '$lib/utils/leagueMatches';
+  } from '#lib/utils/leagueMatches.js';
 
   interface Props {
     matches: LeagueDivisionMatch[];

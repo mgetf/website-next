@@ -4,13 +4,13 @@
  */
 
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
-import { getDisputedMatches, resolveDispute } from '$lib/server/services/disputes';
-import { MatchStatus } from '$prisma/client.js';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
+import { getDisputedMatches, resolveDispute } from '#lib/server/services/disputes.js';
+import { MatchStatus } from '#prisma/client.js';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 
 const resolveDisputeSchema = z.object({
   matchId: z.coerce.number().int().positive('Invalid match ID'),

@@ -1,16 +1,16 @@
 import type { Actions, PageServerLoad } from './$types';
-import { requireStrictAdmin } from '$lib/server/auth/permissions';
+import { requireStrictAdmin } from '#lib/server/auth/permissions.js';
 import { z } from 'zod';
-import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getDivisions } from '$lib/server/services/divisions';
-import { getRegions } from '$lib/server/services/regions';
-import { getFormatsForFilter } from '$lib/server/services/formats';
+import { formError, formSuccess, validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { getDivisions } from '#lib/server/services/divisions.js';
+import { getRegions } from '#lib/server/services/regions.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
 import {
   getRegionIdsByFormat,
   parseStaffAssignmentTokens,
-} from '$lib/server/services/staffAssignments';
+} from '#lib/server/services/staffAssignments.js';
 import {
   demoteStaff,
   designateStaff,
@@ -26,7 +26,7 @@ import {
   searchUsersForStaff,
   stripAllOrphanManagedDiscordRoles,
   stripOrphanManagedDiscordRoles,
-} from '$lib/server/services/staff';
+} from '#lib/server/services/staff.js';
 
 const steamIdSchema = z.object({
   steamId: z.string().min(1, 'Invalid user ID'),

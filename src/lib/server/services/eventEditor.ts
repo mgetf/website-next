@@ -1,21 +1,24 @@
-import { prisma } from '$lib/server/db';
-import { badRequest, conflict, notFound } from '$lib/server/utils/errors';
-import { validateEventDraftPayload, eventDraftPayloadSchema } from '$lib/server/utils/validation';
-import { hasBlockingErrors, isStaleDraftRevision } from '$lib/utils/tournamentDraftValidation';
+import { prisma } from '#lib/server/db.js';
+import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
+import {
+  validateEventDraftPayload,
+  eventDraftPayloadSchema,
+} from '#lib/server/utils/validation.js';
+import { hasBlockingErrors, isStaleDraftRevision } from '#lib/utils/tournamentDraftValidation.js';
 import {
   inferBracketTopology,
   isStructurallyFlat,
   type TopologyResult,
-} from '$lib/server/utils/bracketTopology';
+} from '#lib/server/utils/bracketTopology.js';
 import {
   buildCardBracket,
   buildDoubleElimBracket,
   buildRoundRobinBracket,
   buildSingleElimBracket,
   type BracketStageInput,
-} from '$lib/server/utils/bracketBuilders';
-import { mapEventStatusToBracketStatus } from '$lib/server/services/events';
-import { AuditAction, AuditCategory, logAudit } from '$lib/server/services/auditLog';
+} from '#lib/server/utils/bracketBuilders.js';
+import { mapEventStatusToBracketStatus } from '#lib/server/services/events.js';
+import { AuditAction, AuditCategory, logAudit } from '#lib/server/services/auditLog.js';
 import {
   createEmptyDraftPayload,
   normalizeLegacyEventDraftPayload,
@@ -27,9 +30,9 @@ import {
   type EventRevisionSummary,
   type TournamentEditorListItem,
   type ValidationIssue,
-} from '$lib/types/tournament-editor';
-import type { Prisma } from '$prisma/client.js';
-import { steamId64FromAnyFormat } from '$lib/utils/steamid';
+} from '#lib/types/tournament-editor.js';
+import type { Prisma } from '#prisma/client.js';
+import { steamId64FromAnyFormat } from '#lib/utils/steamid.js';
 
 export interface EventEditorActor {
   steamId: string;

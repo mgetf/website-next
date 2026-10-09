@@ -6,9 +6,9 @@
  * in development (which can exhaust database connections)
  */
 
-import { PrismaClient } from '$prisma/client.js';
+import { PrismaClient } from '#prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { dev, building } from '$app/environment';
+import { dev, building } from '$app/env';
 
 // Load .env file in development (Vite SSR doesn't auto-populate process.env)
 if (dev && !building) {

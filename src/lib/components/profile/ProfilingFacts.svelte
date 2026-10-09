@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Card from '$lib/components/ui/Card.svelte';
-  import type { ProfilingSnapshot } from '$lib/types/profiling';
+  import Card from '#lib/components/ui/Card.svelte';
+  import type { ProfilingSnapshot } from '#lib/types/profiling.js';
   import {
     formatProfilingCount,
     formatProfilingHours,
@@ -9,7 +9,7 @@
     formatSteamCreatedAt,
     headlineScore,
     remainingScoreLabels,
-  } from '$lib/utils/profiling';
+  } from '#lib/utils/profiling.js';
 
   let {
     snapshot,

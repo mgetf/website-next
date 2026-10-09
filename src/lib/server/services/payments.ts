@@ -4,12 +4,12 @@
  * All payment-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import { notFound, badRequest } from '$lib/server/utils/errors';
-import { hasMetPaidPlayerRequirement } from '$lib/utils/rosterPayments';
-import type { Prisma } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
+import { hasMetPaidPlayerRequirement } from '#lib/utils/rosterPayments.js';
+import type { Prisma } from '#prisma/client.js';
 import { requireFormatById } from './formats';
-import type { CheckoutParticipation } from '$lib/types/checkout';
+import type { CheckoutParticipation } from '#lib/types/checkout.js';
 
 type TeamPaymentDb = Pick<Prisma.TransactionClient, 'playerInTeam' | 'team'>;
 

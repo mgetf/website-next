@@ -1,13 +1,13 @@
-import { prisma } from '$lib/server/db';
-import type { LeagueDivisionMatch, LeagueMatchStatus } from '$lib/types/league';
-import { MatchStatus } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import type { LeagueDivisionMatch, LeagueMatchStatus } from '#lib/types/league.js';
+import { MatchStatus } from '#prisma/client.js';
 import {
   divisionIdForLeagueMatch,
   isRegularSeasonLeagueMatch,
   leagueMatchSideFromTeam,
   toLeagueDivisionMatch,
   type LeagueTeamSideInput,
-} from '$lib/utils/leagueMatches';
+} from '#lib/utils/leagueMatches.js';
 
 const teamSelect = {
   id: true,

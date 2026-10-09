@@ -3,8 +3,8 @@
  * Utility functions for match management
  */
 
-import type { Match } from '$prisma/client.js';
-import type { TeamMatchArena } from '$lib/types/team';
+import type { Match } from '#prisma/client.js';
+import type { TeamMatchArena } from '#lib/types/team.js';
 
 /**
  * Calculate week label with suffix for multi-match weeks (e.g., "1a", "1b")

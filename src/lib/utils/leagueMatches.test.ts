@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LeagueDivisionMatch } from '$lib/types/league';
+import type { LeagueDivisionMatch } from '#lib/types/league.js';
 import {
   divisionIdForLeagueMatch,
   formatLeagueMatchScore,

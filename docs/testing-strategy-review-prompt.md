@@ -36,7 +36,7 @@ Review the testing strategy proposal document below for a competitive gaming lea
 ### 4. Architecture Fit
 
 - The project uses a layered architecture: Routes → Services → Prisma. Does the testing strategy properly leverage this separation?
-- The project has explicit rules about client/server boundaries (`$lib/server/` is server-only). Does the testing setup respect this?
+- The project has explicit rules about client/server boundaries (`#lib/server/` is server-only). Does the testing setup respect this?
 - The project uses `$prisma/client.js` as a path alias (mapped to `./prisma/generated` in svelte.config.js). Will this resolve correctly in Vitest?
 - The project uses SvelteKit's `$app/state`, `$env/dynamic/private`, and other special `$`-prefixed imports. How should these be handled in tests?
 
@@ -1316,20 +1316,20 @@ Prisma Client (src/lib/server/db.ts) ← Singleton connection
 - Route handlers are thin orchestrators — no Prisma imports
 - Services own ALL database queries and business logic
 - Services use named exports only (no default exports)
-- Services import Prisma from `$lib/server/db`, types from `$prisma/client.js`
+- Services import Prisma from `#lib/server/db`, types from `$prisma/client.js`
 - Load functions map Prisma objects to plain serializable shapes before returning
 
 ### Client/Server Boundary
 
-- `$lib/server/` is server-only — client code must never import from it (not even `import type`)
-- Shared types live in `$lib/types/` (e.g., `SessionUser`, `UserRole`, `ProfileMatch`)
-- Prisma types stay server-side; mirror needed types in `$lib/types/`
-- Client state uses `.svelte.ts` files with `$state` class singletons (see `$lib/state/`)
+- `#lib/server/` is server-only — client code must never import from it (not even `import type`)
+- Shared types live in `#lib/types/` (e.g., `SessionUser`, `UserRole`, `ProfileMatch`)
+- Prisma types stay server-side; mirror needed types in `#lib/types/`
+- Client state uses `.svelte.ts` files with `$state` class singletons (see `#lib/state/`)
 
 ### Auth
 
 - Session set in `hooks.server.ts` → `event.locals.user`
-- Auth guards: `requireAuth()`, `requireAdmin()`, `requireNotBanned()`, `requireTeamAdmin()` from `$lib/server/auth/permissions`
+- Auth guards: `requireAuth()`, `requireAdmin()`, `requireNotBanned()`, `requireTeamAdmin()` from `#lib/server/auth/permissions.js`
 - Admin routes protected at layout level (`/admin/+layout.server.ts`)
 - Every protected route/action must call auth guards as its first operation
 - `/api/v1/*` uses API key auth; `/api/*` uses session auth
@@ -1337,25 +1337,25 @@ Prisma Client (src/lib/server/db.ts) ← Singleton connection
 ### Mutations
 
 - User-facing mutations use SvelteKit form actions (not API routes)
-- Form input should be validated with Zod schemas via `validateForm()` from `$lib/server/utils/forms`
+- Form input should be validated with Zod schemas via `validateForm()` from `#lib/server/utils/forms.js`
 - Error responses should use `validationError()` / `formError()` helpers for consistent shapes
 - API routes are for SSE, webhooks, and external integrations only
 
 ### Error Handling
 
-- Services should throw via `notFound()`, `forbidden()`, `badRequest()` from `$lib/server/utils/errors`
+- Services should throw via `notFound()`, `forbidden()`, `badRequest()` from `#lib/server/utils/errors.js`
 - Route actions return `fail()` via the form helper utilities
 - Custom `AppError` subclasses available for structured errors
 
 ### Environment Variables
 
-- Security secrets: `getRequiredEnv()` from `$lib/server/utils/env`
+- Security secrets: `getRequiredEnv()` from `#lib/server/utils/env.js`
 - Service credentials: `$env/dynamic/private` or named getters in `env.ts`
 - Raw `process.env` only in `db.ts` for `DATABASE_URL`
 
 ### Constants
 
-- Format IDs: `FORMAT_1V1`, `FORMAT_2V2` from `$lib/constants/formats` (client-safe) or `$lib/server/constants/formats` (server-only) — never hardcode `1` or `2`
+- Format IDs: `FORMAT_1V1`, `FORMAT_2V2` from `#lib/constants/formats` (client-safe) or `$lib/server/constants/formats` (server-only) — never hardcode `1` or `2`
 
 ## Commands
 
@@ -1780,8 +1780,8 @@ export function shouldSwitchTurn(actionCount: number, boSeries: number): boolean
 ### `src/lib/server/auth/permissions.ts`
 
 ```typescript
-import type { SessionUser } from '$lib/types/user';
-import { UserRole, BanStatus } from '$lib/types/user';
+import type { SessionUser } from '#lib/types/user.js';
+import { UserRole, BanStatus } from '#lib/types/user.js';
 import { UserRole as PrismaUserRole } from '$prisma/client.js';
 import { prisma } from '../db';
 import { unauthorized, forbidden } from '../utils/errors';

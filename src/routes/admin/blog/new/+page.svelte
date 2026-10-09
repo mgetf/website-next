@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ActionData } from './$types';
   import BlogPostForm from '../_components/BlogPostForm.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
 
   let { form }: { form: ActionData } = $props();
 

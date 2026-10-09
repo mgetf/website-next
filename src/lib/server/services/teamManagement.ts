@@ -3,9 +3,9 @@
  * Handles team editing, roster management, and player approvals
  */
 
-import { prisma } from '$lib/server/db';
-import type { Prisma } from '$prisma/client.js';
-import { notFound, badRequest } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import type { Prisma } from '#prisma/client.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
 import { uploadToR2, saveTempFile, deleteTempFile, validateUploadedFile } from '../utils/r2Upload';
 import path from 'path';
 import { createNotificationForUser } from './notifications';

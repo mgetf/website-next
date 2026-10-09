@@ -1,10 +1,10 @@
-import { prisma } from '$lib/server/db';
-import type { LeaguePlayoffDivision } from '$lib/types/league';
+import { prisma } from '#lib/server/db.js';
+import type { LeaguePlayoffDivision } from '#lib/types/league.js';
 import {
   buildLeaguePlayoffDivisions,
   type LeaguePlayoffMatchInput,
   type LeaguePlayoffSideInput,
-} from '$lib/server/utils/leagueBrackets';
+} from '#lib/server/utils/leagueBrackets.js';
 
 const teamSelect = {
   id: true,

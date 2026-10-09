@@ -4,10 +4,10 @@
  * All notification-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import type { NotificationType } from '$prisma/client.js';
-import { notificationHub, buildNotifyPayload } from '$lib/server/realtime/notificationHub';
-import type { NotificationPayload } from '$lib/server/realtime/notificationHub';
+import { prisma } from '#lib/server/db.js';
+import type { NotificationType } from '#prisma/client.js';
+import { notificationHub, buildNotifyPayload } from '#lib/server/realtime/notificationHub.js';
+import type { NotificationPayload } from '#lib/server/realtime/notificationHub.js';
 
 const actorSelect = {
   steamId: true,

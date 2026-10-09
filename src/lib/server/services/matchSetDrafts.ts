@@ -4,21 +4,21 @@
  * and is enforced at the route layer with requireStrictAdmin.
  */
 
-import { prisma } from '$lib/server/db';
-import { MatchSetDraftStatus } from '$prisma/client.js';
-import type { Prisma } from '$prisma/client.js';
-import { badRequest, conflict, notFound } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { MatchSetDraftStatus } from '#prisma/client.js';
+import type { Prisma } from '#prisma/client.js';
+import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import type {
   MatchSetDraftDetail,
   MatchSetDraftListItem,
   MatchSetDraftPairingInput,
   MatchSetDraftTeam,
-} from '$lib/types/matchSetDraft';
+} from '#lib/types/matchSetDraft.js';
 import {
   parseByeTeamIds,
   parseMatchSetPairings,
   validateMatchSetDraftTeams,
-} from '$lib/utils/matchSetDraft';
+} from '#lib/utils/matchSetDraft.js';
 import { createMatchSet, createPlayoffMatch } from './adminMatches';
 
 export interface SaveMatchSetDraftInput {

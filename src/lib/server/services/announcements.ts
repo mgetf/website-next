@@ -4,7 +4,7 @@
  * All announcement-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.js';
 
 /**
  * Get all announcements (admin view)

@@ -1,28 +1,28 @@
 import { z } from 'zod';
 import type { Actions, PageServerLoad } from './$types';
-import { getBlogPostById, parseBlogPostId } from '$lib/server/services/blog';
+import { getBlogPostById, parseBlogPostId } from '#lib/server/services/blog.js';
 import {
   blogCommentFormSchema,
   createBlogComment,
   deleteBlogComment,
   getCommentsForPost,
-} from '$lib/server/services/blogComments';
+} from '#lib/server/services/blogComments.js';
 import {
   toggleBlogPostLike,
   toggleBlogCommentLike,
   togglePostLikeSchema,
   toggleCommentLikeSchema,
-} from '$lib/server/services/blogLikes';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { isAdmin, requireAuth, requireNotBanned } from '$lib/server/auth/permissions';
-import { buildPageSeo } from '$lib/utils/seo';
-import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+} from '#lib/server/services/blogLikes.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { isAdmin, requireAuth, requireNotBanned } from '#lib/server/auth/permissions.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
+import { formError, formSuccess, validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 import {
   blogCommentRateLimiter,
   blogLikeRateLimiter,
   checkFormActionRateLimit,
-} from '$lib/server/utils/rateLimit';
+} from '#lib/server/utils/rateLimit.js';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const id = parseBlogPostId(params.id);

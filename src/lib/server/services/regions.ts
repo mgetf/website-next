@@ -4,9 +4,9 @@
  * All region-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import { LIVE_TEAM_COUNT } from '$lib/server/constants/teams';
-import { TeamStatus } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import { LIVE_TEAM_COUNT } from '#lib/server/constants/teams.js';
+import { TeamStatus } from '#prisma/client.js';
 
 /**
  * Get all regions with their season and team counts

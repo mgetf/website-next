@@ -1,12 +1,12 @@
 import type { PageServerLoad } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
 import {
   getPlayerInvestigation,
   isPlayerInvestigationConfigured,
-} from '$lib/server/services/playerInvestigation';
-import { getPlayerProfiling } from '$lib/server/services/profiling';
-import { steamId64FromAnyFormat } from '$lib/utils/steamid';
-import type { ProfilingSnapshot } from '$lib/types/profiling';
+} from '#lib/server/services/playerInvestigation.js';
+import { getPlayerProfiling } from '#lib/server/services/profiling.js';
+import { steamId64FromAnyFormat } from '#lib/utils/steamid.js';
+import type { ProfilingSnapshot } from '#lib/types/profiling.js';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdmin(locals.user);

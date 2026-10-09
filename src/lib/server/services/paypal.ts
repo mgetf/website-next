@@ -9,8 +9,8 @@
  * accidentally accept free mock captures.
  */
 
-import { getOptionalEnv } from '$lib/server/utils/env';
-import { getAppEnvironment } from '$lib/server/utils/environment';
+import { getOptionalEnv } from '#lib/server/utils/env.js';
+import { getAppEnvironment } from '#lib/server/utils/environment.js';
 
 // Cached access token
 let cachedToken: string | null = null;

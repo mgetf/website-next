@@ -1,9 +1,9 @@
 <script lang="ts">
-  import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import { PROVISIONAL_RATING_TITLE, ratingValue } from '$lib/utils/rating';
-  import { resolveRegionFlag } from '$lib/utils/regions';
+  import MarkdownRenderer from '#lib/components/markdown/MarkdownRenderer.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import { PROVISIONAL_RATING_TITLE, ratingValue } from '#lib/utils/rating.js';
+  import { resolveRegionFlag } from '#lib/utils/regions.js';
 
   interface EloEntry {
     elo: number;

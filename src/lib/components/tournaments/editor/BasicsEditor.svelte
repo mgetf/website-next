@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { EventDraftPayload } from '$lib/types/tournament-editor';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import type { EventDraftPayload } from '#lib/types/tournament-editor.js';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
 
   let { draft = $bindable() }: { draft: EventDraftPayload } = $props();
 

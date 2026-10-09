@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { requireStrictAdmin } from '$lib/server/auth/permissions';
-import { getAuditLogs, getAuditLogStats, AuditCategory } from '$lib/server/services/auditLog';
+import { requireStrictAdmin } from '#lib/server/auth/permissions.js';
+import { getAuditLogs, getAuditLogStats, AuditCategory } from '#lib/server/services/auditLog.js';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireStrictAdmin(locals.user);

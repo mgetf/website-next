@@ -1,7 +1,7 @@
 <script lang="ts">
-  import ProfilingFacts from '$lib/components/profile/ProfilingFacts.svelte';
-  import ProfilingRefresh from '$lib/components/admin/ProfilingRefresh.svelte';
-  import type { ProfilingSnapshot } from '$lib/types/profiling';
+  import ProfilingFacts from '#lib/components/profile/ProfilingFacts.svelte';
+  import ProfilingRefresh from '#lib/components/admin/ProfilingRefresh.svelte';
+  import type { ProfilingSnapshot } from '#lib/types/profiling.js';
 
   let { snapshot, steam64 }: { snapshot: ProfilingSnapshot; steam64: string | null } = $props();
 </script>

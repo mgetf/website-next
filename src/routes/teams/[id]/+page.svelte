@@ -4,21 +4,21 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import TeamAdminPanel from '$lib/components/team/TeamAdminPanel.svelte';
-  import TeamManagementPanel from '$lib/components/team/TeamManagementPanel.svelte';
-  import TeamOverviewPanel from '$lib/components/team/TeamOverviewPanel.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import SeasonScope from '$lib/components/ui/SeasonScope.svelte';
-  import Tooltip from '$lib/components/ui/Tooltip.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import type { TeamPageTab } from '$lib/types/team';
-  import { statusColor, statusLabel } from '$lib/utils/profile';
-  import { parseTeamTab } from '$lib/utils/team';
-  import { hasMetPaidPlayerRequirement, paidPlayersNeeded } from '$lib/utils/rosterPayments';
-  import { hasMetMinRosterSize } from '$lib/utils/rosterSize';
+  import TeamAdminPanel from '#lib/components/team/TeamAdminPanel.svelte';
+  import TeamManagementPanel from '#lib/components/team/TeamManagementPanel.svelte';
+  import TeamOverviewPanel from '#lib/components/team/TeamOverviewPanel.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
+  import SeasonScope from '#lib/components/ui/SeasonScope.svelte';
+  import Tooltip from '#lib/components/ui/Tooltip.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import type { TeamPageTab } from '#lib/types/team.js';
+  import { statusColor, statusLabel } from '#lib/utils/profile.js';
+  import { parseTeamTab } from '#lib/utils/team.js';
+  import { hasMetPaidPlayerRequirement, paidPlayersNeeded } from '#lib/utils/rosterPayments.js';
+  import { hasMetMinRosterSize } from '#lib/utils/rosterSize.js';
   import Settings from '~icons/lucide/settings';
   import TriangleAlert from '~icons/lucide/triangle-alert';
 
@@ -97,16 +97,16 @@
     const disbanded = page.url.searchParams.get('disbanded');
     if (payment === 'success') {
       toast.success('Payment Successful! Your signup fee has been paid. Thank you!');
-      void goto(teamPath, { replaceState: true });
+      void goto(teamPath, { replace: true });
     } else if (signup) {
       toast.success('Team created successfully! Your registration is complete.');
-      void goto(teamPath, { replaceState: true });
+      void goto(teamPath, { replace: true });
     } else if (joined === 'awaiting-admin') {
       toast.success('Join request submitted! An admin will review it shortly.');
-      void goto(teamPath, { replaceState: true });
+      void goto(teamPath, { replace: true });
     } else if (disbanded === '1') {
       toast.success('Team has been disbanded.');
-      void goto(teamPath, { replaceState: true });
+      void goto(teamPath, { replace: true });
     }
   });
 
@@ -131,7 +131,7 @@
   });
 
   function tabHref(next: TeamPageTab): string {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
     if (next === 'overview') params.delete('tab');
     else params.set('tab', next);
     const search = params.toString();
@@ -307,7 +307,7 @@
           id="tab-{item.id}"
           aria-selected={tab === item.id}
           aria-controls="panel-{item.id}"
-          data-sveltekit-noscroll
+          data-sveltekit-reset="false"
           class="inline-flex items-center border-b-2 px-4 py-3 text-sm font-medium transition-colors {tab ===
           item.id
             ? 'border-primary-500 text-white'

@@ -5,13 +5,13 @@
 
 import { error, fail, redirect, isRedirect, isHttpError } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth } from '$lib/server/auth/permissions';
+import { requireAuth } from '#lib/server/auth/permissions.js';
 import { z } from 'zod';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
-import { MatchStatus } from '$prisma/client.js';
+import { MatchStatus } from '#prisma/client.js';
 import {
   getMatchDetails,
   canUserManageMatch,
@@ -19,7 +19,7 @@ import {
   submitMatchScores,
   disputeMatch,
   getMatchWeekLabel,
-} from '$lib/server/services/matches';
+} from '#lib/server/services/matches.js';
 import {
   createMatchComm,
   createAdminActionComm,
@@ -32,22 +32,22 @@ import {
   formatRescheduleDateTime,
   getRescheduleDisplay,
   settleExpiredReschedules,
-} from '$lib/server/services/matchComms';
-import { getMapBanStatus, processBanPickAction } from '$lib/server/services/mapBans';
-import { canDisputeMatch, localDatetimeToUtc } from '$lib/server/utils/matchHelpers';
-import { createNotificationForMatch } from '$lib/server/services/notifications';
-import { uploadDemo, reportDemo, getUserDemoReports } from '$lib/server/services/demos';
-import { assertSafeBasename, safeDemoStorageName } from '$lib/server/utils/filenames';
+} from '#lib/server/services/matchComms.js';
+import { getMapBanStatus, processBanPickAction } from '#lib/server/services/mapBans.js';
+import { canDisputeMatch, localDatetimeToUtc } from '#lib/server/utils/matchHelpers.js';
+import { createNotificationForMatch } from '#lib/server/services/notifications.js';
+import { uploadDemo, reportDemo, getUserDemoReports } from '#lib/server/services/demos.js';
+import { assertSafeBasename, safeDemoStorageName } from '#lib/server/utils/filenames.js';
 import {
   adminUpdateMatchSchedule,
   adminUpdateMatchArenas,
   adminDeleteMatch as deleteMatchRecord,
   adminUpdateScores,
-} from '$lib/server/services/adminMatches';
-import { getArenas } from '$lib/server/services/arenas';
-import { getContent, getDefaultContent, CONTENT_KEYS } from '$lib/server/services/siteContent';
-import { buildPageSeo } from '$lib/utils/seo';
-import { formatPlayoffRound } from '$lib/utils/playoffs';
+} from '#lib/server/services/adminMatches.js';
+import { getArenas } from '#lib/server/services/arenas.js';
+import { getContent, getDefaultContent, CONTENT_KEYS } from '#lib/server/services/siteContent.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
+import { formatPlayoffRound } from '#lib/utils/playoffs.js';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';

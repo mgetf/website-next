@@ -1,5 +1,5 @@
-import type { DraftParticipant } from '$lib/types/tournament-editor';
-import { steamId64FromAnyFormat } from '$lib/utils/steamid';
+import type { DraftParticipant } from '#lib/types/tournament-editor.js';
+import { steamId64FromAnyFormat } from '#lib/utils/steamid.js';
 
 export interface ParticipantSearchUser {
   steamId: string;

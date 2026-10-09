@@ -46,22 +46,22 @@ const architectureChecks: Check[] = [
   {
     name: 'No direct Prisma in routes',
     globs: ROUTE_SERVER_TS,
-    pattern: /from '\$lib\/server\/db'/,
+    pattern: /from '#lib\/server\/db/,
     message: 'Use service functions instead.',
     severity: 'error',
   },
   {
-    name: 'No client imports from $lib/server',
+    name: 'No client imports from #lib/server',
     globs: [ALL_SVELTE],
-    pattern: /from '\$lib\/server\//,
-    message: 'Move types to $lib/types/.',
+    pattern: /from '#lib\/server\//,
+    message: 'Move types to #lib/types/.',
     severity: 'error',
   },
   {
     name: 'No raw @prisma/client imports',
     globs: ['src/**/*.ts', ALL_SVELTE],
     pattern: /from '@prisma\/client'/,
-    message: 'Use $prisma/client.js alias.',
+    message: 'Use #prisma/client.js subpath import.',
     severity: 'error',
   },
   {
@@ -75,7 +75,7 @@ const architectureChecks: Check[] = [
     name: 'No @sveltejs/kit in services',
     globs: [SERVICE_TS],
     pattern: /from '@sveltejs\/kit'/,
-    message: 'Use notFound/badRequest/forbidden from $lib/server/utils/errors.',
+    message: 'Use notFound/badRequest/forbidden from #lib/server/utils/errors.js.',
     severity: 'error',
   },
   {
@@ -89,7 +89,7 @@ const architectureChecks: Check[] = [
     name: 'No raw process.env in services or routes',
     globs: [SERVICE_TS, ROUTE_TS, ROUTE_SVELTE],
     pattern: /process\.env\./,
-    message: 'Use getOptionalEnv/getRequiredEnv or $env/dynamic/private.',
+    message: 'Use getOptionalEnv/getRequiredEnv or $app/env/private.',
     severity: 'error',
   },
   {

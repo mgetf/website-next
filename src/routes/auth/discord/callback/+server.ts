@@ -5,10 +5,10 @@ import {
   verifyDiscordOAuthState,
   formatDiscordUsername,
   getDiscordAvatarUrl,
-} from '$lib/server/auth/discord';
-import { requireAuth } from '$lib/server/auth/permissions';
-import { linkDiscordAccount } from '$lib/server/services/users';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+} from '#lib/server/auth/discord.js';
+import { requireAuth } from '#lib/server/auth/permissions.js';
+import { linkDiscordAccount } from '#lib/server/services/users.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 
 function profileErrorRedirect(
   steamId: string,

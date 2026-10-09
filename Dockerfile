@@ -39,6 +39,7 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV ADDRESS_HEADER=CF-Connecting-IP
+ENV BODY_SIZE_LIMIT=250M
 
 # Apply pending migrations then start the app (Railway Release Command can also call migrate alone)
 CMD [ "bun", "run", "start:prod" ]

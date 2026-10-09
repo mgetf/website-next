@@ -11,7 +11,7 @@
  */
 
 import pg from 'pg';
-import { building } from '$app/environment';
+import { building } from '$app/env';
 
 const NOTIFY_CHANNEL = 'notifications';
 

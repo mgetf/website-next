@@ -4,8 +4,8 @@
  */
 
 import SteamAuth from 'node-steam-openid';
-import { env } from '$env/dynamic/private';
-import { getOptionalEnv } from '$lib/server/utils/env';
+import { STEAM_API_KEY } from '$app/env/private';
+import { getOptionalEnv } from '#lib/server/utils/env.js';
 
 /**
  * Get canonical site origin for Steam OpenID realm/returnUrl.
@@ -32,6 +32,6 @@ export function createSteamAuth(request: Request): SteamAuth {
   return new SteamAuth({
     realm: domain,
     returnUrl: `${domain}/auth/verify`,
-    apiKey: env.STEAM_API_KEY ?? '',
+    apiKey: STEAM_API_KEY ?? '',
   });
 }

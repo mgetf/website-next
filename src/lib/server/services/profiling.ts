@@ -1,26 +1,26 @@
-import { prisma } from '$lib/server/db';
-import { Prisma } from '$prisma/client.js';
-import { fetchLogsTfTotalCount } from '$lib/server/clients/logsTf';
-import { getPlayerClasselo, getPlayerRatings } from '$lib/server/clients/mgePlatform';
-import { fetchSteamAccountSignals } from '$lib/server/clients/steam';
+import { prisma } from '#lib/server/db.js';
+import { Prisma } from '#prisma/client.js';
+import { fetchLogsTfTotalCount } from '#lib/server/clients/logsTf.js';
+import { getPlayerClasselo, getPlayerRatings } from '#lib/server/clients/mgePlatform.js';
+import { fetchSteamAccountSignals } from '#lib/server/clients/steam.js';
 import {
   getPlayerInvestigation,
   isPlayerInvestigationConfigured,
-} from '$lib/server/services/playerInvestigation';
-import { tfClassById } from '$lib/constants/tfClasses';
-import type { SteamInvestigation } from '$lib/types/investigation';
-import type { MgeClasseloRating, MgeRating } from '$lib/types/mge';
+} from '#lib/server/services/playerInvestigation.js';
+import { tfClassById } from '#lib/constants/tfClasses.js';
+import type { SteamInvestigation } from '#lib/types/investigation.js';
+import type { MgeClasseloRating, MgeRating } from '#lib/types/mge.js';
 import type {
   ProfilingClassScore,
   ProfilingRegionScore,
   ProfilingSnapshot,
-} from '$lib/types/profiling';
+} from '#lib/types/profiling.js';
 import {
   emptyProfilingSnapshot,
   parseProfilingSnapshot,
   profilingSnapshotFacts,
-} from '$lib/utils/profiling';
-import { isSteamId64, steamId64FromAnyFormat } from '$lib/utils/steamid';
+} from '#lib/utils/profiling.js';
+import { isSteamId64, steamId64FromAnyFormat } from '#lib/utils/steamid.js';
 
 const INVESTIGATE_TIMEOUT_MS = 8000;
 const BATCH_LIMIT = 200;

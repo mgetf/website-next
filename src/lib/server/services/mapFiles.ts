@@ -5,10 +5,10 @@
  * endpoint fetches those URLs and zips them into the TF2 directory layout.
  */
 
-import { prisma } from '$lib/server/db';
-import { notFound, badRequest, conflict } from '$lib/server/utils/errors';
-import { isPrismaLikeError } from '$lib/server/utils/prisma-errors';
-import { assertPublicHttpsUrl, PublicHttpsUrlError } from '$lib/server/utils/publicHttpsUrl';
+import { prisma } from '#lib/server/db.js';
+import { notFound, badRequest, conflict } from '#lib/server/utils/errors.js';
+import { isPrismaLikeError } from '#lib/server/utils/prisma-errors.js';
+import { assertPublicHttpsUrl, PublicHttpsUrlError } from '#lib/server/utils/publicHttpsUrl.js';
 
 export const MAP_NAME_PATTERN = /^[a-z0-9_]+$/;
 

@@ -1,13 +1,13 @@
 import type { PageServerLoad } from './$types';
-import { getSignupContext } from '$lib/server/services/teamSignup';
-import { get1v1SignupContext } from '$lib/server/services/signup1v1';
+import { getSignupContext } from '#lib/server/services/teamSignup.js';
+import { get1v1SignupContext } from '#lib/server/services/signup1v1.js';
 import {
   getOpenSignupFormats,
   getCurrentSignupSeasonIds,
-} from '$lib/server/services/signupSeasons';
-import { getSignupFeeSummaries } from '$lib/server/services/signupFees';
-import { getPlayerCurrentTeamName } from '$lib/server/services/teams';
-import type { SignupFeeSummary } from '$lib/types/signupFee';
+} from '#lib/server/services/signupSeasons.js';
+import { getSignupFeeSummaries } from '#lib/server/services/signupFees.js';
+import { getPlayerCurrentTeamName } from '#lib/server/services/teams.js';
+import type { SignupFeeSummary } from '#lib/types/signupFee.js';
 
 interface FormatSignupInfo {
   format: {

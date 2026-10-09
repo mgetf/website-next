@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from '$lib/components/ui/Button.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
 
   let { connect, sdrConnect }: { connect: string; sdrConnect?: string } = $props();
 

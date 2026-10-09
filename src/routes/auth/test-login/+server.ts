@@ -5,10 +5,10 @@
 
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { setSession, sanitizeRedirectUrl } from '$lib/server/session';
-import { getAppEnvironment } from '$lib/server/utils/environment';
-import { upsertTestLoginUser } from '$lib/server/services/users';
-import { UserRole, BanStatus, type SessionUser } from '$lib/types/user';
+import { setSession, sanitizeRedirectUrl } from '#lib/server/session.js';
+import { getAppEnvironment } from '#lib/server/utils/environment.js';
+import { upsertTestLoginUser } from '#lib/server/services/users.js';
+import { UserRole, BanStatus, type SessionUser } from '#lib/types/user.js';
 import { z } from 'zod';
 
 const steamIdSchema = z

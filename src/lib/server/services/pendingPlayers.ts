@@ -6,11 +6,11 @@
  * is automatically tracked.
  */
 
-import { prisma } from '$lib/server/db';
-import { TeamStatus } from '$prisma/client.js';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
-import type { PendingApproval } from '$lib/types/pendingApproval';
-import { badRequest, notFound } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { TeamStatus } from '#prisma/client.js';
+import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
+import type { PendingApproval } from '#lib/types/pendingApproval.js';
+import { badRequest, notFound } from '#lib/server/utils/errors.js';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
 import { logAudit, AuditCategory, AuditAction } from './auditLog';
 import { syncTeamPaymentStatus } from './payments';

@@ -4,15 +4,15 @@
  */
 
 import type { LayoutServerLoad } from './$types';
-import { hasAnySignupsOpen } from '$lib/server/services/settings';
-import { getUserActiveTeams, isSignedUpForAllOpenFormats } from '$lib/server/services/users';
-import { getNotificationsForDropdown } from '$lib/server/services/notifications';
-import { getVisibleAnnouncements } from '$lib/server/services/announcements';
-import { getSiteSettings } from '$lib/server/services/siteSettings';
-import { getLeagueNav } from '$lib/server/services/seasons';
-import { getOpenSignupFormats } from '$lib/server/services/signupSeasons';
-import { isRealtimeNotificationsEnabled } from '$lib/server/utils/env';
-import { EMPTY_LEAGUE_NAV } from '$lib/types/league';
+import { hasAnySignupsOpen } from '#lib/server/services/settings.js';
+import { getUserActiveTeams, isSignedUpForAllOpenFormats } from '#lib/server/services/users.js';
+import { getNotificationsForDropdown } from '#lib/server/services/notifications.js';
+import { getVisibleAnnouncements } from '#lib/server/services/announcements.js';
+import { getSiteSettings } from '#lib/server/services/siteSettings.js';
+import { getLeagueNav } from '#lib/server/services/seasons.js';
+import { getOpenSignupFormats } from '#lib/server/services/signupSeasons.js';
+import { isRealtimeNotificationsEnabled } from '#lib/server/utils/env.js';
+import { EMPTY_LEAGUE_NAV } from '#lib/types/league.js';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   // If site is dev-gated (staging mode, non-admin user), return minimal data

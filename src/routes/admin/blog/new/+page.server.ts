@@ -1,14 +1,14 @@
 import type { Actions, PageServerLoad } from './$types';
 import { isRedirect, redirect } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
 import {
   blogPostFormSchema,
   coverImageFromFormData,
   createBlogPost,
-} from '$lib/server/services/blog';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { validateForm, validationError, formError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+} from '#lib/server/services/blog.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { validateForm, validationError, formError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);

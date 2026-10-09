@@ -1,12 +1,12 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
 import {
   getAnnouncements,
   createAnnouncement,
   updateAnnouncement,
   toggleAnnouncementVisibility,
   deleteAnnouncement,
-} from '$lib/server/services/announcements';
+} from '#lib/server/services/announcements.js';
 import {
   getGlobalSettings,
   updateGlobalSettings,
@@ -15,16 +15,16 @@ import {
   toggleSeasonRosterLocked,
   toggleSeasonPaymentRequired,
   updateSeasonSettings,
-} from '$lib/server/services/settings';
-import { getAllActiveSignupSeasons } from '$lib/server/services/signupSeasons';
-import { getRegions } from '$lib/server/services/regions';
-import { getSeasons } from '$lib/server/services/seasons';
-import { getFormatsForFilter } from '$lib/server/services/formats';
+} from '#lib/server/services/settings.js';
+import { getAllActiveSignupSeasons } from '#lib/server/services/signupSeasons.js';
+import { getRegions } from '#lib/server/services/regions.js';
+import { getSeasons } from '#lib/server/services/seasons.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError, formError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { validateForm, validationError, formError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 import {
   getSteamItems,
   createSteamItem as createSteamItemService,
@@ -32,7 +32,7 @@ import {
   clearSteamItemIcon,
   deleteSteamItem as deleteSteamItemService,
   steamItemIconFileFromFormData,
-} from '$lib/server/services/steam-items';
+} from '#lib/server/services/steam-items.js';
 
 const createAnnouncementSchema = z.object({
   content: z

@@ -1,30 +1,30 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
-import { requireFormatByCode } from '$lib/server/services/formats';
-import { getSignupContext, createTeam } from '$lib/server/services/teamSignup';
+import { requireNotBanned, isBanned } from '#lib/server/auth/permissions.js';
+import { requireFormatByCode } from '#lib/server/services/formats.js';
+import { getSignupContext, createTeam } from '#lib/server/services/teamSignup.js';
 import {
   getSignupSeasonForRegion,
   getRegionsOpenForSignup,
-} from '$lib/server/services/signupSeasons';
-import { formAcknowledgedSignupScope } from '$lib/utils/signupAck';
-import { getSignupFeeSummary } from '$lib/server/services/signupFees';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { checkPaymentRequired } from '$lib/server/services/payments';
-import { formAcknowledgedFreeDivision } from '$lib/server/services/signupDivision';
-import { getTeamAuditSnapshot } from '$lib/server/services/teams';
+} from '#lib/server/services/signupSeasons.js';
+import { formAcknowledgedSignupScope } from '#lib/utils/signupAck.js';
+import { getSignupFeeSummary } from '#lib/server/services/signupFees.js';
+import { getVisibleDivisions } from '#lib/server/services/divisions.js';
+import { checkPaymentRequired } from '#lib/server/services/payments.js';
+import { formAcknowledgedFreeDivision } from '#lib/server/services/signupDivision.js';
+import { getTeamAuditSnapshot } from '#lib/server/services/teams.js';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 import {
   validateUploadedFile,
   saveTempFile,
   uploadToR2,
   deleteTempFile,
-} from '$lib/server/utils/r2Upload';
+} from '#lib/server/utils/r2Upload.js';
 import path from 'path';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { loginToParticipateHref } from '$lib/utils/signupLogin';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { loginToParticipateHref } from '#lib/utils/signupLogin.js';
 
 const createTeamFormSchema = z.object({
   name: z.string().min(1, 'Team name is required'),

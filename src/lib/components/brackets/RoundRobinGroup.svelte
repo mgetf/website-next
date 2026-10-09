@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { RoundRobinBracketData } from '$lib/types/bracket';
+  import type { RoundRobinBracketData } from '#lib/types/bracket.js';
   import RoundRobinMatchList from './RoundRobinMatchList.svelte';
   import RoundRobinStandings from './RoundRobinStandings.svelte';
 

@@ -276,7 +276,7 @@ Offloading realtime to **Ably / Pusher / Supabase Realtime / a Redis pub-sub tie
 ## Execution Notes
 
 - Each phase should be executed (and re-planned in detail) in its **own focused Cursor Plan session**. This document provides the sequencing, validation gates, and rollback story; the per-phase Plan session provides the line-level implementation plan.
-- Adhere to existing conventions: DB access stays in services (`src/lib/server/services/`), the hub lives under `src/lib/server/`, the client boundary is respected (no `$lib/server` imports in `.svelte`/state files).
+- Adhere to existing conventions: DB access stays in services (`src/lib/server/services/`), the hub lives under `src/lib/server/`, the client boundary is respected (no `#lib/server` imports in `.svelte`/state files).
 - Update this RFC's Status as phases complete, mirroring the convention used by other proposals in this folder.
 
 ---

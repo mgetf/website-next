@@ -6,5 +6,5 @@
   "ignore": ["src/test-mocks/**"],
   "ignoreFiles": ["src/lib/index.ts", "scripts/**"],
   "ignoreExportsUsedInFile": true,
-  "entry": ["tests/e2e/**/*.ts"]
+  "entry": ["tests/e2e/**/*.ts", "src/env.ts"]
 }

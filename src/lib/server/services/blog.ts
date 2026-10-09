@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { prisma } from '$lib/server/db';
-import { badRequest, notFound } from '$lib/server/utils/errors';
-import { getCommentCountsForPosts } from '$lib/server/services/blogComments';
-import { getLikeCountsForPosts } from '$lib/server/services/blogLikes';
+import { prisma } from '#lib/server/db.js';
+import { badRequest, notFound } from '#lib/server/utils/errors.js';
+import { getCommentCountsForPosts } from '#lib/server/services/blogComments.js';
+import { getLikeCountsForPosts } from '#lib/server/services/blogLikes.js';
 import {
   deleteFromR2,
   deleteTempFile,
@@ -11,13 +11,13 @@ import {
   saveTempFile,
   uploadToR2,
   validateUploadedFile,
-} from '$lib/server/utils/r2Upload';
+} from '#lib/server/utils/r2Upload.js';
 import type {
   BlogPostAuthor,
   BlogPostDetail,
   BlogPostPagination,
   BlogPostSummary,
-} from '$lib/types/blog';
+} from '#lib/types/blog.js';
 
 export const blogPostFormSchema = z.object({
   title: z

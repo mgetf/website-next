@@ -1,17 +1,17 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
-  import DiffView from '$lib/components/markdown/DiffView.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import Dialog from '$lib/components/ui/Dialog.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
+  import MarkdownEditor from '#lib/components/markdown/MarkdownEditor.svelte';
+  import DiffView from '#lib/components/markdown/DiffView.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import Dialog from '#lib/components/ui/Dialog.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
   import type { PageData } from './$types';
-  import { toast } from '$lib/state/toast.svelte';
-  import { diffText } from '$lib/utils/textDiff';
-  import { RULEBOOK_MESSAGE_MIN_LENGTH } from '$lib/utils/rulebookPublish';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import { diffText } from '#lib/utils/textDiff.js';
+  import { RULEBOOK_MESSAGE_MIN_LENGTH } from '#lib/utils/rulebookPublish.js';
 
   let { data }: { data: PageData } = $props();
 

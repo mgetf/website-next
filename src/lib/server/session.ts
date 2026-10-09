@@ -4,13 +4,13 @@
  */
 
 import type { Cookies } from '@sveltejs/kit';
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 import crypto from 'crypto';
-import { getSessionSecret } from '$lib/server/utils/env';
-import { sanitizeRedirectUrl } from '$lib/server/utils/redirect';
+import { getSessionSecret } from '#lib/server/utils/env.js';
+import { sanitizeRedirectUrl } from '#lib/server/utils/redirect.js';
 // Import shared types that work on both client and server
-export type { SessionUser } from '$lib/types/user';
-import type { SessionUser } from '$lib/types/user';
+export type { SessionUser } from '#lib/types/user.js';
+import type { SessionUser } from '#lib/types/user.js';
 
 export { sanitizeRedirectUrl };
 

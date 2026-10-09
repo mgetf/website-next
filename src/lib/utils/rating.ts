@@ -1,4 +1,4 @@
-import type { MgeRating } from '$lib/types/mge';
+import type { MgeRating } from '#lib/types/mge.js';
 
 export const PROVISIONAL_RATING_TITLE = 'Rating still adjusting (new or returning player)';
 export const RD_TOOLTIP = 'Rating deviation. Lower is more certain.';

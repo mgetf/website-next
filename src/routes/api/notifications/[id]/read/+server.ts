@@ -4,8 +4,8 @@
  */
 
 import type { RequestHandler } from './$types';
-import { json, error } from '@sveltejs/kit';
-import { markAsRead } from '$lib/server/services/notifications';
+import { error } from '@sveltejs/kit';
+import { markAsRead } from '#lib/server/services/notifications.js';
 
 export const POST: RequestHandler = async ({ params, locals }) => {
   if (!locals.user) {
@@ -19,7 +19,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
   try {
     await markAsRead(notificationId, locals.user.steamId);
-    return json({ success: true });
+    return Response.json({ success: true });
   } catch (err) {
     throw error(403, 'Unauthorized or notification not found');
   }

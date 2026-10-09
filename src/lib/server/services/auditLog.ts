@@ -5,7 +5,7 @@
  * logAudit() is fire-and-forget — failures never propagate to callers.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.js';
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 

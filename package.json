@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "bun@1.x.x",
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=22.17.0",
     "npm": ">=999999.0.0",
     "pnpm": ">=999999.0.0",
     "yarn": ">=999999.0.0"
@@ -37,27 +37,27 @@
     "formats:open-seasons": "bun run scripts/open-team-format-seasons.ts"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.130",
-    "@playwright/test": "^1.62.1",
-    "@sveltejs/adapter-node": "^5.5.7",
-    "@sveltejs/kit": "^2.70.3",
-    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@iconify-json/lucide": "^1.2.141",
+    "@playwright/test": "^1.64.0",
+    "@sveltejs/adapter-node": "^6.0.0",
+    "@sveltejs/kit": "^3.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/archiver": "^8.0.0",
-    "@types/node": "^26.3.0",
+    "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
     "dotenv": "^17.4.2",
     "dotenv-cli": "^11.0.0",
     "husky": "^9.1.7",
-    "knip": "^6.32.3",
-    "lint-staged": "^17.3.0",
-    "prettier": "^3.9.6",
+    "knip": "^6.40.0",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
     "prettier-plugin-svelte": "^4.1.1",
     "prisma": "^7.10.0",
-    "svelte": "^5.56.10",
+    "svelte": "^5.57.2",
     "svelte-check": "^4.7.6",
     "typescript": "^6.0.3",
     "unplugin-icons": "^23.0.1",
-    "vite": "^8.2.2",
+    "vite": "^8.3.4",
     "vitest": "^4.1.11"
   },
   "trustedDependencies": [
@@ -67,28 +67,33 @@
     "prisma"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1119.0",
-    "@milkdown/crepe": "^7.22.1",
-    "@milkdown/kit": "7.22.1",
+    "@aws-sdk/client-s3": "^3.1148.0",
+    "@milkdown/crepe": "^7.22.2",
+    "@milkdown/kit": "7.22.2",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@tailwindcss/vite": "^4.3.3",
     "archiver": "^8.0.0",
-    "bits-ui": "^2.19.2",
+    "bits-ui": "^2.19.5",
     "chart.js": "^4.5.1",
     "diff": "^9.0.0",
     "flag-icons": "^7.5.0",
     "fuse.js": "^7.5.0",
     "node-steam-openid": "^2.0.0",
-    "pg": "^8.23.0",
+    "pg": "^8.23.1",
     "rehype-raw": "^7.0.0",
-    "svelte-dnd-action": "^0.9.79",
+    "svelte-dnd-action": "^0.9.80",
     "svelte-exmarkdown": "^5.0.2",
     "tailwindcss": "^4.3.3",
     "unist-util-visit": "^5.1.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "lint-staged": {
     "*.{js,ts,svelte,css,html,json,md,yaml,yml}": "prettier --check"
+  },
+  "imports": {
+    "#lib": "./src/lib/index.js",
+    "#lib/*": "./src/lib/*",
+    "#prisma/*": "./prisma/generated/*"
   }
 }

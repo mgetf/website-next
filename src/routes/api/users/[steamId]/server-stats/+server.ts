@@ -1,21 +1,20 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { TF_CLASSES_DISPLAY_ORDER } from '$lib/constants/tfClasses';
+import { TF_CLASSES_DISPLAY_ORDER } from '#lib/constants/tfClasses.js';
 import {
   getEnrichedPlayerServerStats,
   isPlayerServerStatsWarm,
-} from '$lib/server/services/playerStats';
-import { checkRateLimit, serverStatsRateLimiter } from '$lib/server/utils/rateLimit';
+} from '#lib/server/services/playerStats.js';
+import { checkRateLimit, serverStatsRateLimiter } from '#lib/server/utils/rateLimit.js';
 
 export const GET: RequestHandler = async ({ params, url, getClientAddress }) => {
   const region = url.searchParams.get('region') ?? '';
   if (!region) {
-    return json({ error: 'region is required' }, { status: 400 });
+    return Response.json({ error: 'region is required' }, { status: 400 });
   }
 
   const className = url.searchParams.get('class')?.trim().toLowerCase() || undefined;
   if (className && !TF_CLASSES_DISPLAY_ORDER.some((tfClass) => tfClass.name === className)) {
-    return json({ error: 'invalid class' }, { status: 400 });
+    return Response.json({ error: 'invalid class' }, { status: 400 });
   }
 
   const query = {
@@ -33,8 +32,8 @@ export const GET: RequestHandler = async ({ params, url, getClientAddress }) => 
   const stats = await getEnrichedPlayerServerStats(params.steamId, query);
 
   if (!stats) {
-    return json({ error: 'Failed to load server stats' }, { status: 502 });
+    return Response.json({ error: 'Failed to load server stats' }, { status: 502 });
   }
 
-  return json(stats);
+  return Response.json(stats);
 };

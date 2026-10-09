@@ -1,18 +1,18 @@
 <script lang="ts">
-  import type { SessionUser, NavUserTeam } from '$lib/types/user';
-  import type { Notification } from '$lib/state/notifications.svelte';
-  import { EMPTY_LEAGUE_NAV, type LeagueNav } from '$lib/types/league';
+  import type { SessionUser, NavUserTeam } from '#lib/types/user.js';
+  import type { Notification } from '#lib/state/notifications.svelte.js';
+  import { EMPTY_LEAGUE_NAV, type LeagueNav } from '#lib/types/league.js';
   import NotificationDropdown from './NotificationDropdown.svelte';
   import UserDropdown from './UserDropdown.svelte';
   import LeaguesDropdown from './LeaguesDropdown.svelte';
   import LeaguesNavGrid from './LeaguesNavGrid.svelte';
   import { afterNavigate } from '$app/navigation';
   import { page } from '$app/state';
-  import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
-  import YoutubeIcon from '$lib/components/icons/YoutubeIcon.svelte';
-  import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
-  import NewChip from '$lib/components/ui/NewChip.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
+  import signInThroughSteam from '#lib/assets/signin-thru-steam.png';
+  import YoutubeIcon from '#lib/components/icons/YoutubeIcon.svelte';
+  import DiscordIcon from '#lib/components/icons/DiscordIcon.svelte';
+  import NewChip from '#lib/components/ui/NewChip.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
 
   type Props = {
     user: SessionUser | null;
@@ -97,7 +97,9 @@
     };
   }
 
-  afterNavigate(() => {
+  afterNavigate(({ shallow, type }) => {
+    if (shallow && type === 'goto') return;
+
     closeMobileMenu();
   });
 </script>
@@ -163,7 +165,7 @@
                     stroke-linejoin="round"
                     stroke-width="2"
                     d="M19 9l-7 7-7-7"
-                  />
+                  ></path>
                 </svg>
               </button>
               <div
@@ -228,6 +230,7 @@
           {:else}
             <div class="flex items-center gap-3">
               <UserDropdown {user} {userTeams} />
+
               <NotificationDropdown {notifications} userSteamId={user.steamId} {realtimeEnabled} />
             </div>
           {/if}
@@ -247,14 +250,14 @@
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M6 18L18 6M6 6l12 12"
-                />
+                ></path>
               {:else}
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M4 6h16M4 12h16M4 18h16"
-                />
+                ></path>
               {/if}
             </svg>
           </button>
@@ -276,9 +279,8 @@
           >
             Leagues
           </p>
-          <div class="px-3 pb-1">
-            <LeaguesNavGrid {leagueNav} onNavigate={closeMobileMenu} />
-          </div>
+
+          <div class="px-3 pb-1"><LeaguesNavGrid {leagueNav} onNavigate={closeMobileMenu} /></div>
         {/if}
 
         <div class="my-2 border-t border-border-default"></div>

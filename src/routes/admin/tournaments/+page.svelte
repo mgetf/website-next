@@ -1,16 +1,16 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
-  import type { Column } from '$lib/components/ui/DataTable.svelte';
-  import type { TournamentEditorListItem } from '$lib/types/tournament-editor';
+  import type { Column } from '#lib/components/ui/DataTable.svelte';
+  import type { TournamentEditorListItem } from '#lib/types/tournament-editor.js';
   import { enhance } from '$app/forms';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
   import Trophy from '~icons/lucide/trophy';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();

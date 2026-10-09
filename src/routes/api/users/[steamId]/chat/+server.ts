@@ -1,8 +1,7 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
-import { getStaffPlayerChat, parseChatWindow } from '$lib/server/services/playerChat';
-import { chatHistoryRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
+import { getStaffPlayerChat, parseChatWindow } from '#lib/server/services/playerChat.js';
+import { chatHistoryRateLimiter, checkRateLimit } from '#lib/server/utils/rateLimit.js';
 
 export const GET: RequestHandler = async ({ locals, params, url }) => {
   requireAdmin(locals.user);
@@ -11,21 +10,22 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
   if (!allowed) return response!;
 
   const window = parseChatWindow(url.searchParams.get('days'));
-  if (!window) return json({ error: 'invalid days' }, { status: 400 });
+  if (!window) return Response.json({ error: 'invalid days' }, { status: 400 });
 
   const region = url.searchParams.get('region')?.trim() ?? '';
   if (region && !/^[a-z0-9_-]{1,16}$/i.test(region) && region !== 'all') {
-    return json({ error: 'invalid region' }, { status: 400 });
+    return Response.json({ error: 'invalid region' }, { status: 400 });
   }
 
   const cursorRaw = url.searchParams.get('cursor');
   let cursor: number | undefined;
   if (cursorRaw) {
-    if (!/^\d+$/.test(cursorRaw)) return json({ error: 'invalid cursor' }, { status: 400 });
+    if (!/^\d+$/.test(cursorRaw))
+      return Response.json({ error: 'invalid cursor' }, { status: 400 });
     cursor = Number(cursorRaw);
   }
 
   const page = await getStaffPlayerChat(params.steamId, { region, window, cursor });
-  if (!page) return json({ error: 'Failed to load chat' }, { status: 502 });
-  return json(page);
+  if (!page) return Response.json({ error: 'Failed to load chat' }, { status: 502 });
+  return Response.json(page);
 };

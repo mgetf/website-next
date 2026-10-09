@@ -3,9 +3,9 @@
  * Handles role-based access control
  */
 
-import type { SessionUser } from '$lib/types/user';
-import { UserRole, BanStatus } from '$lib/types/user';
-import { UserRole as PrismaUserRole } from '$prisma/client.js';
+import type { SessionUser } from '#lib/types/user.js';
+import { UserRole, BanStatus } from '#lib/types/user.js';
+import { UserRole as PrismaUserRole } from '#prisma/client.js';
 import { prisma } from '../db';
 import { unauthorized, forbidden } from '../utils/errors';
 

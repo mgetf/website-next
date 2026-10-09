@@ -1,10 +1,10 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import type { RulebookRevisionSummary } from '$lib/types/rulebook';
-  import { formatDateTime } from '$lib/utils/datetime';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import type { RulebookRevisionSummary } from '#lib/types/rulebook.js';
+  import { formatDateTime } from '#lib/utils/datetime.js';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();

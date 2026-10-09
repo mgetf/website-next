@@ -3,12 +3,12 @@
  * Handles match messages and reschedule requests
  */
 
-import { prisma } from '$lib/server/db';
-import type { User, Match, MatchComm, Prisma } from '$prisma/client.js';
-import { MatchStatus, UserRole } from '$prisma/client.js';
-import { notFound, badRequest } from '$lib/server/utils/errors';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { isTeamManager } from '$lib/server/utils/matchScoring';
+import { prisma } from '#lib/server/db.js';
+import type { User, Match, MatchComm, Prisma } from '#prisma/client.js';
+import { MatchStatus, UserRole } from '#prisma/client.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { isTeamManager } from '#lib/server/utils/matchScoring.js';
 
 const RESCHEDULE_RESPONSE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const RESCHEDULE_STATUS_PENDING = 0;

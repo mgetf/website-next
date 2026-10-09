@@ -14,11 +14,11 @@
  * "Active" (not withdrawn) means status !== DEAD.
  */
 
-import { prisma } from '$lib/server/db';
-import { TeamStatus } from '$prisma/client.js';
-import { badRequest, forbidden, notFound } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { TeamStatus } from '#prisma/client.js';
+import { badRequest, forbidden, notFound } from '#lib/server/utils/errors.js';
 import { getCurrentSignupSeasonIds, getSignupSeasonForRegion } from './signupSeasons';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
 import { disbandTeam } from './teamManagement';
 import {
   initialPlayerPaymentStatus,

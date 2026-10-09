@@ -2,12 +2,12 @@
   import type { PageData } from './$types';
   import type { Component } from 'svelte';
   import type { SvelteHTMLElements } from 'svelte/elements';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import SignupFeeLabel from '$lib/components/signup/SignupFeeLabel.svelte';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import { getFormatThemeClasses } from '$lib/constants/formats';
-  import { loginToParticipateHref } from '$lib/utils/signupLogin';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import SignupFeeLabel from '#lib/components/signup/SignupFeeLabel.svelte';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
+  import { getFormatThemeClasses } from '#lib/constants/formats.js';
+  import { loginToParticipateHref } from '#lib/utils/signupLogin.js';
   import Lock from '~icons/lucide/lock';
   import Trophy from '~icons/lucide/trophy';
   import UserPlus from '~icons/lucide/user-plus';

@@ -13,7 +13,7 @@ import {
   parseProfilingSnapshot,
   profilingCardChips,
 } from './profiling';
-import type { ProfilingSnapshot } from '$lib/types/profiling';
+import type { ProfilingSnapshot } from '#lib/types/profiling.js';
 
 function snapshot(overrides: Partial<ProfilingSnapshot> = {}): ProfilingSnapshot {
   return { ...emptyProfilingSnapshot(), ...overrides };

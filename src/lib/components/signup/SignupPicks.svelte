@@ -1,8 +1,8 @@
 <script lang="ts">
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import SignupFeeLabel from '$lib/components/signup/SignupFeeLabel.svelte';
-  import { isFreeDivision, needsFreeDivisionAcknowledgment } from '$lib/utils/signupDivision';
-  import type { SignupFeeSummary } from '$lib/types/signupFee';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import SignupFeeLabel from '#lib/components/signup/SignupFeeLabel.svelte';
+  import { isFreeDivision, needsFreeDivisionAcknowledgment } from '#lib/utils/signupDivision.js';
+  import type { SignupFeeSummary } from '#lib/types/signupFee.js';
 
   type RegionOption = {
     id: number;

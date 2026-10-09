@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import InvestigationReport from '$lib/components/admin/InvestigationReport.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import InvestigationReport from '#lib/components/admin/InvestigationReport.svelte';
 
   let { data }: { data: PageData } = $props();
 

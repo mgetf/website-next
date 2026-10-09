@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { UserRole } from '$prisma/client.js';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
+import { UserRole } from '#prisma/client.js';
+import { FORMAT_1V1, FORMAT_2V2 } from '#lib/server/constants/formats.js';
 import {
   catalogDiscordRoleIds,
   classifyStaffSyncResult,

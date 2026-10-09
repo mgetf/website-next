@@ -1,5 +1,5 @@
 import { structuredPatch } from 'diff';
-import type { DiffHunk, DiffLine } from '$lib/types/rulebook';
+import type { DiffHunk, DiffLine } from '#lib/types/rulebook.js';
 
 function toDiffLine(raw: string): DiffLine | null {
   if (raw.startsWith('\\')) {

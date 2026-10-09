@@ -4,8 +4,8 @@
  * All dispute-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import { MatchStatus } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import { MatchStatus } from '#prisma/client.js';
 
 /**
  * Get all disputed matches with team and season info

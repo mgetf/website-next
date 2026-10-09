@@ -1,22 +1,22 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import InvestigateChat from '$lib/components/admin/InvestigateChat.svelte';
-  import ProfilingSummary from '$lib/components/admin/ProfilingSummary.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import InvestigateChat from '#lib/components/admin/InvestigateChat.svelte';
+  import ProfilingSummary from '#lib/components/admin/ProfilingSummary.svelte';
   import type {
     AltCandidate,
     ClientIpKind,
     InvestigateEvent,
     InvestigateResult,
     IpAccount,
-  } from '$lib/types/investigation';
-  import type { ProfilingSnapshot } from '$lib/types/profiling';
-  import { flagForRegion } from '$lib/utils/regions';
-  import { steamId3FromSteamId64, steamId64FromAnyFormat } from '$lib/utils/steamid';
+  } from '#lib/types/investigation.js';
+  import type { ProfilingSnapshot } from '#lib/types/profiling.js';
+  import { flagForRegion } from '#lib/utils/regions.js';
+  import { steamId3FromSteamId64, steamId64FromAnyFormat } from '#lib/utils/steamid.js';
 
   let {
     configured = true,
@@ -121,14 +121,14 @@
     if (linkMode === 'profile') {
       const id = steam64 ?? steamId64FromAnyFormat(steamId);
       if (id) return `${resolve('/users/[steamId]', { steamId: id })}?tab=investigate`;
-      return `${resolve('/admin/investigate')}?q=${encodeURIComponent(steamId)}`;
+      return `${resolve('admin/investigate')}?q=${encodeURIComponent(steamId)}`;
     }
     return searchHref(steamId);
   }
 
   function ipHref(ip: string): string {
     if (linkMode === 'profile') {
-      return `${resolve('/admin/investigate')}?q=${encodeURIComponent(ip)}`;
+      return `${resolve('admin/investigate')}?q=${encodeURIComponent(ip)}`;
     }
     return searchHref(ip);
   }

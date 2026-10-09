@@ -1,30 +1,30 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireFormatByCode } from '$lib/server/services/formats';
-import { getSeasons, getSeasonInfo, updateSeasonInfo } from '$lib/server/services/seasons';
-import { getVisibleRegions } from '$lib/server/services/regions';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
+import { requireFormatByCode } from '#lib/server/services/formats.js';
+import { getSeasons, getSeasonInfo, updateSeasonInfo } from '#lib/server/services/seasons.js';
+import { getVisibleRegions } from '#lib/server/services/regions.js';
+import { getVisibleDivisions } from '#lib/server/services/divisions.js';
 import {
   getTeamsByDivision,
   getUnassignedTeams,
   findRecentSeasonWithTeams,
-} from '$lib/server/services/teams';
-import { isUserSignedUpForFormat } from '$lib/server/services/users';
-import { getStaffForLeague } from '$lib/server/services/staffAssignments';
+} from '#lib/server/services/teams.js';
+import { isUserSignedUpForFormat } from '#lib/server/services/users.js';
+import { getStaffForLeague } from '#lib/server/services/staffAssignments.js';
 import {
   getLeagueMatchesByDivision,
   seasonHasPlayedMatches,
-} from '$lib/server/services/leagueMatches';
-import { getLeaguePlayoffsByDivision } from '$lib/server/services/leagueBrackets';
-import { getGlobalSettings } from '$lib/server/services/settings';
-import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
-import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
+} from '#lib/server/services/leagueMatches.js';
+import { getLeaguePlayoffsByDivision } from '#lib/server/services/leagueBrackets.js';
+import { getGlobalSettings } from '#lib/server/services/settings.js';
+import { isAdmin, requireAdmin } from '#lib/server/auth/permissions.js';
+import { formError, formSuccess, validateForm, validationError } from '#lib/server/utils/forms.js';
 import {
   SIGNUP_LIST_STATUSES,
   compareStandingsTeams,
   listsLivingSignups,
   shouldShowOnLeagueDivision,
   withStandingsRanks,
-} from '$lib/utils/standingsHighlight';
+} from '#lib/utils/standingsHighlight.js';
 import { z } from 'zod';
 
 const updateSeasonInfoSchema = z.object({

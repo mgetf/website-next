@@ -1,5 +1,5 @@
-import { prisma } from '$lib/server/db';
-import { notFound } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { notFound } from '#lib/server/utils/errors.js';
 import type {
   EventListItem,
   EventDetail,
@@ -7,16 +7,16 @@ import type {
   EventStageDetail,
   EventParticipantEntry,
   EventUser,
-} from '$lib/types/event';
-import type { BracketData, BracketFormat, BracketStatus } from '$lib/types/bracket';
+} from '#lib/types/event.js';
+import type { BracketData, BracketFormat, BracketStatus } from '#lib/types/bracket.js';
 import {
   buildCardBracket,
   buildDoubleElimBracket,
   buildRoundRobinBracket,
   buildSingleElimBracket,
   type BracketStageInput,
-} from '$lib/server/utils/bracketBuilders';
-import type { EventStatus as PrismaEventStatus } from '$prisma/client.js';
+} from '#lib/server/utils/bracketBuilders.js';
+import type { EventStatus as PrismaEventStatus } from '#prisma/client.js';
 
 const USER_SELECT = {
   steamId: true,

@@ -2,13 +2,17 @@
   import '../app.css';
   import 'flag-icons/css/flag-icons.min.css';
   import type { LayoutData } from './$types';
-  import Navigation from '$lib/components/layout/Navigation.svelte';
-  import AnnouncementBanner from '$lib/components/layout/AnnouncementBanner.svelte';
-  import LoadingBar from '$lib/components/layout/LoadingBar.svelte';
-  import DevGate from '$lib/components/layout/DevGate.svelte';
-  import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
-  import { identifyUser } from '$lib/utils/posthog';
-  import { DEFAULT_SEO_DESCRIPTION, DEFAULT_SEO_IMAGE_PATH, toAbsoluteUrl } from '$lib/utils/seo';
+  import Navigation from '#lib/components/layout/Navigation.svelte';
+  import AnnouncementBanner from '#lib/components/layout/AnnouncementBanner.svelte';
+  import LoadingBar from '#lib/components/layout/LoadingBar.svelte';
+  import DevGate from '#lib/components/layout/DevGate.svelte';
+  import ToastContainer from '#lib/components/ui/ToastContainer.svelte';
+  import { identifyUser } from '#lib/utils/posthog.js';
+  import {
+    DEFAULT_SEO_DESCRIPTION,
+    DEFAULT_SEO_IMAGE_PATH,
+    toAbsoluteUrl,
+  } from '#lib/utils/seo.js';
   import { onMount } from 'svelte';
   import { afterNavigate } from '$app/navigation';
   import { page } from '$app/state';
@@ -40,7 +44,9 @@
   });
 
   // Scroll to top on every navigation
-  afterNavigate(() => {
+  afterNavigate(({ shallow, type }) => {
+    if (shallow && type === 'goto') return;
+
     const mainContent = document.getElementById('main-content');
     if (mainContent) {
       mainContent.scrollTo({ top: 0, behavior: 'instant' });

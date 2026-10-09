@@ -7,14 +7,14 @@ import {
   type LeaderboardSortField,
   type LeaderboardSortDir,
   type PlatformLeaderboardResponse,
-} from '$lib/server/clients/mgePlatform';
+} from '#lib/server/clients/mgePlatform.js';
 import {
   getUserDisplaysByIds,
   fetchSteamNames,
   searchUsersByName,
-} from '$lib/server/services/users';
-import type { MgeClasseloRating } from '$lib/types/mge';
-import { steamId64FromSteamId32 } from '$lib/utils/steamid';
+} from '#lib/server/services/users.js';
+import type { MgeClasseloRating } from '#lib/types/mge.js';
+import { steamId64FromSteamId32 } from '#lib/utils/steamid.js';
 
 const PLATFORM_PAGE_SIZE = 100;
 

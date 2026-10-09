@@ -5,7 +5,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getOptionalEnv } from '$lib/server/utils/env';
+import { getOptionalEnv } from '#lib/server/utils/env.js';
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 

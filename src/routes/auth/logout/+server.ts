@@ -5,8 +5,8 @@
 
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { clearSession } from '$lib/server/session';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { clearSession } from '#lib/server/session.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 
 export const POST: RequestHandler = async ({ cookies, locals, getClientAddress }) => {
   const user = locals.user;

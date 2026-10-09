@@ -1,4 +1,4 @@
-import { getSourcebansApiToken, getSourcebansApiUrl } from '$lib/server/utils/env';
+import { getSourcebansApiToken, getSourcebansApiUrl } from '#lib/server/utils/env.js';
 
 export class SourcebansError extends Error {
   constructor(

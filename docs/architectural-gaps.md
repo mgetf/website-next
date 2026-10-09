@@ -56,7 +56,7 @@ Severity ratings:
 
 ### The Principle
 
-All user input from form actions should be validated through Zod schemas using `validateForm()` from `$lib/server/utils/forms`. Shared schemas live in `$lib/server/utils/validation.ts`. This ensures type-safe, consistent input handling and prevents raw string casting.
+All user input from form actions should be validated through Zod schemas using `validateForm()` from `#lib/server/utils/forms`. Shared schemas live in `$lib/server/utils/validation.ts`. This ensures type-safe, consistent input handling and prevents raw string casting.
 
 ### The Violation
 
@@ -138,7 +138,7 @@ rg "formData\.get\(" src/routes -g "+page.server.ts" -c
 
 ### The Principle
 
-Form action responses should have a predictable shape so that Svelte components can handle success and error states consistently. The project provides `formError()`, `validationError()`, and `formSuccess()` helpers in `$lib/server/utils/forms` that enforce the shape `{ success: boolean, message: string, errors?: Record<string, string> }`.
+Form action responses should have a predictable shape so that Svelte components can handle success and error states consistently. The project provides `formError()`, `validationError()`, and `formSuccess()` helpers in `#lib/server/utils/forms` that enforce the shape `{ success: boolean, message: string, errors?: Record<string, string> }`.
 
 ### The Violation
 
@@ -222,7 +222,7 @@ rg -l "return fail\(" src/routes -g "+page.server.ts" | ForEach-Object { if (rg 
 
 ### The Principle
 
-Services in `src/lib/server/services/` should be framework-agnostic business logic layers. They should not depend on SvelteKit's HTTP-oriented `error()` function. The project provides framework-agnostic error utilities in `$lib/server/utils/errors` (`notFound()`, `forbidden()`, `badRequest()`, `conflict()`, `unauthorized()`) that wrap `error()` but keep the service vocabulary clean.
+Services in `src/lib/server/services/` should be framework-agnostic business logic layers. They should not depend on SvelteKit's HTTP-oriented `error()` function. The project provides framework-agnostic error utilities in `#lib/server/utils/errors` (`notFound()`, `forbidden()`, `badRequest()`, `conflict()`, `unauthorized()`) that wrap `error()` but keep the service vocabulary clean.
 
 ### The Violation
 
@@ -242,7 +242,7 @@ Services in `src/lib/server/services/` should be framework-agnostic business log
 | `pendingPlayers.ts` | 3                          |
 | `mapBans.ts`        | 7                          |
 
-Meanwhile, `$lib/server/utils/errors` provides `notFound()`, `forbidden()`, `badRequest()`, `conflict()`, `unauthorized()` which are purpose-built for services but are underused. Additionally, `AppError`, `ValidationError`, `AuthenticationError`, `AuthorizationError`, `NotFoundError`, and `ConflictError` classes are defined in `errors.ts` but never instantiated anywhere in the codebase.
+Meanwhile, `#lib/server/utils/errors` provides `notFound()`, `forbidden()`, `badRequest()`, `conflict()`, `unauthorized()` which are purpose-built for services but are underused. Additionally, `AppError`, `ValidationError`, `AuthenticationError`, `AuthorizationError`, `NotFoundError`, and `ConflictError` classes are defined in `errors.ts` but never instantiated anywhere in the codebase.
 
 ### Why This Matters
 
@@ -254,9 +254,9 @@ New services will copy the `import { error } from '@sveltejs/kit'` pattern becau
 
 ### Remediation Approach
 
-1. **Phase 1**: Replace `import { error } from '@sveltejs/kit'` in all 11 services with imports from `$lib/server/utils/errors`. Map each `throw error(400, msg)` → `badRequest(msg)`, `throw error(404, msg)` → `notFound(msg)`, `throw error(403, msg)` → `forbidden(msg)`, etc. These are drop-in replacements since the error utilities already call `error()` internally.
+1. **Phase 1**: Replace `import { error } from '@sveltejs/kit'` in all 11 services with imports from `#lib/server/utils/errors`. Map each `throw error(400, msg)` → `badRequest(msg)`, `throw error(404, msg)` → `notFound(msg)`, `throw error(403, msg)` → `forbidden(msg)`, etc. These are drop-in replacements since the error utilities already call `error()` internally.
 2. **Phase 2 (optional)**: Evaluate whether the custom error classes (`AppError`, `ValidationError`, etc.) should be adopted or removed. If they're not going to be used, delete them to avoid confusion.
-3. **Add a cursor rule** to enforce that services import from `$lib/server/utils/errors`, not from `@sveltejs/kit`.
+3. **Add a cursor rule** to enforce that services import from `#lib/server/utils/errors`, not from `@sveltejs/kit`.
 
 **Estimated scope**: 11 files, ~100 individual `throw error()` calls. Each replacement is mechanical — same behavior, different import. Can be done per-service in isolated PRs.
 
@@ -290,7 +290,7 @@ rg "notFound\(|badRequest\(|forbidden\(|conflict\(|unauthorized\(" src/lib/serve
 
 ### The Principle
 
-Environment variables should be accessed through a centralized layer that validates their presence and provides type-safe getters. The project has this layer in `$lib/server/utils/env.ts` with `getRequiredEnv()`, `getOptionalEnv()`, `getJwtSecret()`, and `getSessionSecret()`. SvelteKit also provides `$env/dynamic/private` for runtime env access.
+Environment variables should be accessed through a centralized layer that validates their presence and provides type-safe getters. The project has this layer in `#lib/server/utils/env.ts` with `getRequiredEnv()`, `getOptionalEnv()`, `getJwtSecret()`, and `getSessionSecret()`. SvelteKit also provides `$env/dynamic/private` for runtime env access.
 
 ### The Violation
 
@@ -299,7 +299,7 @@ Three different access patterns coexist:
 **Pattern 1 — Central env utilities (2 files):**
 
 ```typescript
-import { getRequiredEnv } from '$lib/server/utils/env';
+import { getRequiredEnv } from '#lib/server/utils/env.js';
 const secret = getRequiredEnv('JWT_SECRET');
 ```
 
@@ -373,14 +373,14 @@ rg "validateEnvironment\(\)" src/hooks.server.ts -c
 
 ### The Principle
 
-Files in `$lib/server/` are server-only. Client-side code (`.svelte` files, `$lib/state/`, `$lib/components/`, `$lib/utils/`) must never import from `$lib/server/`, even with `import type`. Shared types that both client and server need belong in `$lib/types/`.
+Files in `#lib/server/` are server-only. Client-side code (`.svelte` files, `$lib/state/`, `$lib/components/`, `$lib/utils/`) must never import from `$lib/server/`, even with `import type`. Shared types that both client and server need belong in `$lib/types/`.
 
 ### The Violation
 
 **File:** `src/routes/users/[steamId]/+page.svelte`, line 9:
 
 ```typescript
-import type { ProfileMatch } from '$lib/server/services/users';
+import type { ProfileMatch } from '#lib/server/services/users.js';
 ```
 
 `ProfileMatch` is defined in `src/lib/server/services/users.ts` (lines 331–338):
@@ -396,11 +396,11 @@ export interface ProfileMatch {
 }
 ```
 
-There is currently no file in `$lib/types/` for match-related types. Only `$lib/types/user.ts` exists.
+There is currently no file in `#lib/types/` for match-related types. Only `$lib/types/user.ts` exists.
 
 ### Why This Matters
 
-Even `import type` from `$lib/server/` creates a conceptual dependency from client to server code. If a bundler or future SvelteKit version enforces server-only boundaries more strictly, this import will break. More importantly, it sets a precedent: if one `.svelte` file imports types from services, contributors will do the same, gradually eroding the boundary.
+Even `import type` from `#lib/server/` creates a conceptual dependency from client to server code. If a bundler or future SvelteKit version enforces server-only boundaries more strictly, this import will break. More importantly, it sets a precedent: if one `.svelte` file imports types from services, contributors will do the same, gradually eroding the boundary.
 
 ### Blast Radius
 
@@ -408,11 +408,11 @@ Moderate. Currently only one violation exists. But without enforcement, every ne
 
 ### Remediation Approach
 
-1. Create `$lib/types/match.ts` with the `ProfileMatch` interface.
-2. Update `users.ts` service to import `ProfileMatch` from `$lib/types/match.ts`.
-3. Update `users/[steamId]/+page.svelte` to import from `$lib/types/match.ts`.
-4. Add a CI boundary check (grep for `from '$lib/server` in `.svelte` files) to prevent recurrence.
-5. Establish a convention: when a service defines a type that a component needs, it goes in `$lib/types/`.
+1. Create `#lib/types/match.ts` with the `ProfileMatch` interface.
+2. Update `users.ts` service to import `ProfileMatch` from `#lib/types/match.ts`.
+3. Update `users/[steamId]/+page.svelte` to import from `#lib/types/match.ts`.
+4. Add a CI boundary check (grep for `from '#lib/server` in `.svelte` files) to prevent recurrence.
+5. Establish a convention: when a service defines a type that a component needs, it goes in `#lib/types/`.
 
 **Estimated scope**: 3 files, ~10 minutes. The CI check is the important part.
 
@@ -430,7 +430,7 @@ rg "from '\$lib/types/" src/routes -g "*.svelte" --files-with-matches
 # Target: should include files that previously imported from $lib/server
 ```
 
-**CI-enforceable:** Yes — already in the CI workflow. Fail if any `.svelte` file imports from `$lib/server`.
+**CI-enforceable:** Yes — already in the CI workflow. Fail if any `.svelte` file imports from `#lib/server`.
 
 ---
 
@@ -592,7 +592,7 @@ The created CI workflow includes:
 1. **Type check job**: `bun install` → `bun run generate` → `bun run prepare` → `bun run check` → `bun run format:check`
 2. **Boundary check job**: Grep-based checks for:
    - No direct Prisma imports in route files
-   - No `.svelte` files importing from `$lib/server/`
+   - No `.svelte` files importing from `#lib/server/`
    - No `@prisma/client` imports (must use `$prisma` alias)
    - Warning on hardcoded format IDs
 
@@ -663,7 +663,7 @@ Without tests, any change to business logic is a gamble. A contributor fixing a 
 ### Remediation Approach
 
 1. **Install Vitest**: It integrates natively with Vite (already used by the project). Add `vitest` to devDependencies and a `"test": "vitest run"` script.
-2. **Configure for SvelteKit**: Use `vitest.config.ts` that extends the Vite config to resolve `$lib`, `$prisma`, and other aliases.
+2. **Configure for SvelteKit**: Use `vitest.config.ts` that extends the Vite config to resolve `#lib`, `$prisma`, and other aliases.
 3. **Prisma mocking strategy**: Use `vitest-mock-extended` or manual mocks for `prisma` to avoid needing a database for unit tests. For integration tests, use a test database with `prisma migrate deploy`.
 4. **Priority test targets** (in order of risk):
    - `permissions.ts` — auth guard correctness
@@ -742,7 +742,7 @@ If a contributor adds a new route and returns `{ team: await getTeamById(id) }` 
 1. **Document the convention** in a cursor rule (done — see `service-layer-conventions.mdc`).
 2. **Audit existing load functions**: Review each load function to verify it returns explicitly shaped objects, not raw Prisma results. This is a read-only audit.
 3. **Consider return type annotations**: Adding explicit return types to load functions would catch accidental Prisma leaks at compile time. However, SvelteKit's type inference from `PageServerLoad` makes this optional.
-4. **Long-term**: Consider creating DTO (Data Transfer Object) types in `$lib/types/` that load functions must conform to. This creates a compile-time contract.
+4. **Long-term**: Consider creating DTO (Data Transfer Object) types in `#lib/types/` that load functions must conform to. This creates a compile-time contract.
 
 **Estimated scope**: The audit is a review task. Fixing violations is per-route. Creating DTOs is a larger architectural effort that may not be worth the complexity for a project of this size.
 
@@ -762,7 +762,7 @@ rg "from '\$prisma/client" src/routes -g "+page.server.ts" --files-with-matches
 # Not a violation per se (Prisma enums in server files are fine), but worth auditing.
 ```
 
-**CI-enforceable:** Not reliably. This gap requires human review or explicit return type annotations on load functions. If DTOs are introduced in `$lib/types/`, you could check that load functions reference DTO types.
+**CI-enforceable:** Not reliably. This gap requires human review or explicit return type annotations on load functions. If DTOs are introduced in `#lib/types/`, you could check that load functions reference DTO types.
 
 ---
 
@@ -846,7 +846,7 @@ rg "logAudit\(" src/routes/api/paypal/capture-order/+server.ts -c  # payment fai
 
 ### The Principle
 
-Format IDs (`1` for 1v1, `2` for 2v2) should always be referenced via constants (`FORMAT_1V1`, `FORMAT_2V2`) from `$lib/server/constants/formats.ts`. Magic numbers make the code fragile and opaque.
+Format IDs (`1` for 1v1, `2` for 2v2) should always be referenced via constants (`FORMAT_1V1`, `FORMAT_2V2`) from `#lib/server/constants/formats.ts`. Magic numbers make the code fragile and opaque.
 
 ### The Violation
 
@@ -857,13 +857,13 @@ Server-side code consistently uses the constants (20+ files). However, one clien
 
 All use patterns like `team.formatId === 1` instead of comparing to a constant.
 
-The root cause: `FORMAT_1V1` and `FORMAT_2V2` live in `$lib/server/constants/formats.ts`, which is inside the server boundary. Client components can't import from there.
+The root cause: `FORMAT_1V1` and `FORMAT_2V2` live in `#lib/server/constants/formats.ts`, which is inside the server boundary. Client components can't import from there.
 
 ### Remediation Approach
 
-1. Create `$lib/constants/formats.ts` (not under `server/`) with the same constants.
-2. Update the server-side `$lib/server/constants/formats.ts` to re-export from the shared location, or keep both in sync.
-3. Update `admin/teams/+page.svelte` to import from `$lib/constants/formats.ts`.
+1. Create `#lib/constants/formats.ts` (not under `server/`) with the same constants.
+2. Update the server-side `#lib/server/constants/formats.ts` to re-export from the shared location, or keep both in sync.
+3. Update `admin/teams/+page.svelte` to import from `#lib/constants/formats.ts`.
 4. Add a CI check or lint rule for hardcoded `formatId === 1` or `formatId === 2` patterns.
 
 **Estimated scope**: 3 files, ~15 minutes. The shared constant file is the key change.

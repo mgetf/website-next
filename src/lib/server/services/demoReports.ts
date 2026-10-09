@@ -4,8 +4,8 @@
  * All demo report-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import type { DemoStatus } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import type { DemoStatus } from '#prisma/client.js';
 
 /**
  * Get all demo reports with related data (demo, reporter, player, match)

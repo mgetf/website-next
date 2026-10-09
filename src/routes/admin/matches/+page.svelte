@@ -2,22 +2,22 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import type { PageData } from './$types';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import FilterBar from '$lib/components/ui/FilterBar.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import { formatPlayoffRound } from '$lib/utils/playoffs';
-  import { formatDateTime } from '$lib/utils/datetime';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import FilterBar from '#lib/components/ui/FilterBar.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import { formatPlayoffRound } from '#lib/utils/playoffs.js';
+  import { formatDateTime } from '#lib/utils/datetime.js';
   import {
     formatsWithSeasons,
     parseFilterId,
     regionsForFormat,
     resolveAdminMatchFilters,
     seasonsForScope,
-  } from '$lib/utils/matchFilters';
+  } from '#lib/utils/matchFilters.js';
 
   let { data }: { data: PageData } = $props();
 
@@ -35,14 +35,14 @@
     const discarded = page.url.searchParams.get('discarded');
     if (created) {
       toast.success(`Successfully created ${created} match${created === '1' ? '' : 'es'}!`);
-      const url = new URL(page.url);
+      const url = new URL(page.url.href);
       url.searchParams.delete('created');
-      goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+      goto(url.toString(), { replace: true, reset: false });
     } else if (discarded) {
       toast.success('Draft discarded');
-      const url = new URL(page.url);
+      const url = new URL(page.url.href);
       url.searchParams.delete('discarded');
-      goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+      goto(url.toString(), { replace: true, reset: false });
     }
   });
 
@@ -89,7 +89,7 @@
     if (next.regionId) params.set('regionId', next.regionId);
     if (next.seasonId) params.set('seasonId', next.seasonId);
     if (next.week) params.set('week', next.week);
-    goto(`/admin/matches?${params.toString()}`, { keepFocus: true, noScroll: true });
+    goto(`/admin/matches?${params.toString()}`, { reset: false });
   }
 
   function onFormatChange(value: string) {

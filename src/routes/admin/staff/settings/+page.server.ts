@@ -1,11 +1,11 @@
 import type { Actions, PageServerLoad } from './$types';
-import { requireStrictAdmin } from '$lib/server/auth/permissions';
+import { requireStrictAdmin } from '#lib/server/auth/permissions.js';
 import { z } from 'zod';
-import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getFormatsForFilter } from '$lib/server/services/formats';
-import { getRegions } from '$lib/server/services/regions';
+import { formError, formSuccess, validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
+import { getRegions } from '#lib/server/services/regions.js';
 import {
   formatStaffResyncSummary,
   getStaffMappings,
@@ -15,13 +15,16 @@ import {
   type StaffDiscordRuleInput,
   type StaffRoleMappingInput,
   type StaffSourcebansServerInput,
-} from '$lib/server/services/staff';
+} from '#lib/server/services/staff.js';
 import {
   isSourcebansConfigured,
   listSourcebansGroups,
   listSourcebansServers,
-} from '$lib/server/services/sourcebans';
-import { isDiscordGuildConfigured, listDiscordGuildRoles } from '$lib/server/services/discordGuild';
+} from '#lib/server/services/sourcebans.js';
+import {
+  isDiscordGuildConfigured,
+  listDiscordGuildRoles,
+} from '#lib/server/services/discordGuild.js';
 
 function optionalId(value: string): number | null {
   if (!value) return null;

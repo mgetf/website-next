@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/server/constants/formats';
+import { FORMAT_1V1, FORMAT_2V2 } from '#lib/server/constants/formats.js';
 import { isCatalogPermutation, parseDivisionScopeTokens } from './divisions';
 
 describe('parseDivisionScopeTokens', () => {

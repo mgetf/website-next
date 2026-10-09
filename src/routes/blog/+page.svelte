@@ -1,9 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Paginator from '$lib/components/ui/Paginator.svelte';
-  import { formatDateTime } from '$lib/utils/datetime';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import Paginator from '#lib/components/ui/Paginator.svelte';
+  import { formatDateTime } from '#lib/utils/datetime.js';
 
   let { data } = $props();
 

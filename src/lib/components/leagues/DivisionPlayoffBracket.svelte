@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { BracketData } from '$lib/types/bracket';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import BracketRenderer from '$lib/components/brackets/BracketRenderer.svelte';
+  import type { BracketData } from '#lib/types/bracket.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import BracketRenderer from '#lib/components/brackets/BracketRenderer.svelte';
 
   let {
     bracket,

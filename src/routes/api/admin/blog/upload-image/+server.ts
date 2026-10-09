@@ -1,7 +1,7 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
-import { uploadContentImage } from '$lib/server/services/blog';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
+import { uploadContentImage } from '#lib/server/services/blog.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   requireAdmin(locals.user);
@@ -13,5 +13,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 
   const url = await uploadContentImage(file);
-  return json({ url });
+  return Response.json({ url });
 };

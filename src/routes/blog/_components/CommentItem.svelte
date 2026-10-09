@@ -1,12 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import type { BlogCommentNode } from '$lib/types/blogComment';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import type { BlogCommentNode } from '#lib/types/blogComment.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
   import CommentForm from './CommentForm.svelte';
   import CommentItem from './CommentItem.svelte';
   import LikeButton from './LikeButton.svelte';
-  import { formatDateTime } from '$lib/utils/datetime';
+  import { formatDateTime } from '#lib/utils/datetime.js';
 
   const MAX_VISUAL_DEPTH = 6;
 

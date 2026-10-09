@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
-import { getMatchLog, getRawLogUrl } from '$lib/server/services/matchLogs';
-import { notFound } from '$lib/server/utils/errors';
-import { steamId64FromSteamId3 } from '$lib/utils/steamid';
+import { getMatchLog, getRawLogUrl } from '#lib/server/services/matchLogs.js';
+import { notFound } from '#lib/server/utils/errors.js';
+import { steamId64FromSteamId3 } from '#lib/utils/steamid.js';
 
 export const load: PageServerLoad = async ({ params }) => {
   const id = parseInt(params.id, 10);

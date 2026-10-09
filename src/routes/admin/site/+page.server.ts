@@ -4,7 +4,7 @@
  */
 
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin, requireStrictAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin } from '#lib/server/auth/permissions.js';
 import {
   getSiteSettings,
   updateSiteSettings,
@@ -12,7 +12,7 @@ import {
   updateBackgroundImage,
   updateBackgroundSettings,
   removeBackgroundImage,
-} from '$lib/server/services/siteSettings';
+} from '#lib/server/services/siteSettings.js';
 import {
   getAllContent,
   upsertContent,
@@ -21,7 +21,7 @@ import {
   publishRulebook,
   CONTENT_KEYS,
   getDefaultContent,
-} from '$lib/server/services/siteContent';
+} from '#lib/server/services/siteContent.js';
 import {
   uploadToR2,
   saveTempFile,
@@ -29,15 +29,20 @@ import {
   validateUploadedFile,
   extensionForImageMime,
   isR2Available,
-} from '$lib/server/utils/r2Upload';
+} from '#lib/server/utils/r2Upload.js';
 import { fail, isHttpError } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError, formError, formSuccess } from '$lib/server/utils/forms';
-import { RULEBOOK_MESSAGE_MIN_LENGTH } from '$lib/utils/rulebookPublish';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { UserRole } from '$lib/types/user';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { createApiKey, getApiKeys, toggleApiKey, deleteApiKey } from '$lib/server/services/apiKeys';
+import { validateForm, validationError, formError, formSuccess } from '#lib/server/utils/forms.js';
+import { RULEBOOK_MESSAGE_MIN_LENGTH } from '#lib/utils/rulebookPublish.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { UserRole } from '#lib/types/user.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import {
+  createApiKey,
+  getApiKeys,
+  toggleApiKey,
+  deleteApiKey,
+} from '#lib/server/services/apiKeys.js';
 
 const siteTitleSchema = z.object({
   siteTitle: z.string().min(1, 'Site title is required'),

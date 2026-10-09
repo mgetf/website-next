@@ -1,12 +1,12 @@
 <script lang="ts">
-  import Card from '$lib/components/ui/Card.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import { formatWeaponName } from '$lib/utils/weaponNames';
-  import { classIcon } from '$lib/utils/classIcons';
-  import { cleanArenaName } from '$lib/utils/arenaNames';
-  import type { ParsedMatch, KillEvent, PlayerRecord } from '$lib/types/matchLog';
+  import Card from '#lib/components/ui/Card.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import { formatWeaponName } from '#lib/utils/weaponNames.js';
+  import { classIcon } from '#lib/utils/classIcons.js';
+  import { cleanArenaName } from '#lib/utils/arenaNames.js';
+  import type { ParsedMatch, KillEvent, PlayerRecord } from '#lib/types/matchLog.js';
 
   interface PageLog {
     id: number;

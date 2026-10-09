@@ -23,4 +23,6 @@ export interface OrphanManagedDiscordAudit {
   configured: boolean;
   error: string | null;
   members: OrphanManagedDiscordMember[];
+  /** When Discord was last asked for the member list. Null until the first refresh. */
+  fetchedAt: string | null;
 }

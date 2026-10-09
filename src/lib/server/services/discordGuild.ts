@@ -1,9 +1,11 @@
 import { getDiscordBotToken, getDiscordGuildId } from '$lib/server/utils/env';
+import { logDiscordRateLimit, readDiscordRateLimit } from '$lib/server/utils/discordRateLimit';
 
 const DISCORD_API_BASE = 'https://discord.com/api/v10';
 const MAX_ATTEMPTS = 5;
 const MIN_RETRY_MS = 250;
-const MAX_RETRY_MS = 5000;
+/** Only honor short per-route pauses. A longer Retry-After is a real block; retrying it adds more 429s. */
+const MAX_RETRY_WAIT_MS = 2_000;
 
 export class DiscordGuildError extends Error {
   constructor(
@@ -93,21 +95,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function retryAfterMs(response: Response, payload: unknown): number {
-  const header = response.headers.get('Retry-After');
-  if (header) {
-    const seconds = Number(header);
-    if (Number.isFinite(seconds)) {
-      return Math.min(Math.max(seconds * 1000, MIN_RETRY_MS), MAX_RETRY_MS);
-    }
-  }
-  if (payload && typeof payload === 'object' && 'retry_after' in payload) {
-    const seconds = Number((payload as { retry_after: unknown }).retry_after);
-    if (Number.isFinite(seconds)) {
-      return Math.min(Math.max(seconds * 1000, MIN_RETRY_MS), MAX_RETRY_MS);
-    }
-  }
-  return 1000;
+function retryDelayMs(retryAfterSeconds: number | null): number | null {
+  if (retryAfterSeconds == null) return 1_000;
+  const ms = retryAfterSeconds * 1000;
+  if (ms > MAX_RETRY_WAIT_MS) return null;
+  return Math.max(ms, MIN_RETRY_MS);
 }
 
 function discordErrorMessage(status: number, payload: unknown): string {
@@ -115,6 +107,10 @@ function discordErrorMessage(status: number, payload: unknown): string {
     payload && typeof payload === 'object' && 'message' in payload
       ? String((payload as { message: unknown }).message)
       : '';
+
+  if (status === 429) {
+    return 'Discord is rate limiting the bot. Wait a few minutes before trying again.';
+  }
 
   if (status === 403) {
     if (/missing access/i.test(apiMessage)) {
@@ -156,9 +152,20 @@ async function discordFetch<T>(path: string, init: RequestInit = {}): Promise<T>
       payload = null;
     }
 
-    if (response.status === 429 && attempt < MAX_ATTEMPTS) {
-      await sleep(retryAfterMs(response, payload));
-      continue;
+    if (response.status === 429) {
+      const info = readDiscordRateLimit(response, payload);
+      logDiscordRateLimit({
+        source: 'bot',
+        method: init.method ?? 'GET',
+        path,
+        attempt,
+        info,
+      });
+      const delay = retryDelayMs(info.retryAfterSeconds);
+      if (delay != null && attempt < MAX_ATTEMPTS) {
+        await sleep(delay);
+        continue;
+      }
     }
 
     if (!response.ok) {

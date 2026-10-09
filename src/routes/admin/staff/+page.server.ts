@@ -18,6 +18,7 @@ import {
   formatStaffResyncSummary,
   formatStaffSyncMessage,
   getOrphanManagedDiscordMembers,
+  refreshOrphanManagedDiscordMembers,
   getStaffRoster,
   isStaffRole,
   resyncAllStaff,
@@ -204,6 +205,15 @@ export const actions: Actions = {
     } catch (error) {
       return formError(getErrorMessage(error, 'Failed to resync staff'), 400);
     }
+  },
+
+  refreshOrphanDiscord: async ({ locals }) => {
+    requireStrictAdmin(locals.user);
+
+    const audit = await refreshOrphanManagedDiscordMembers();
+    if (!audit.configured) return formError('Discord bot is not configured', 400);
+    if (audit.error) return formError(audit.error, 502);
+    return formSuccess(undefined, 'Discord member list updated.');
   },
 
   stripOrphanDiscord: async ({ request, locals, getClientAddress }) => {

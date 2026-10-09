@@ -10,7 +10,10 @@ import {
 } from '$lib/server/services/teams';
 import { isUserSignedUpForFormat } from '$lib/server/services/users';
 import { getStaffForLeague } from '$lib/server/services/staffAssignments';
-import { getLeagueMatchesByDivision } from '$lib/server/services/leagueMatches';
+import {
+  getLeagueMatchesByDivision,
+  seasonHasPlayedMatches,
+} from '$lib/server/services/leagueMatches';
 import { getLeaguePlayoffsByDivision } from '$lib/server/services/leagueBrackets';
 import { getGlobalSettings } from '$lib/server/services/settings';
 import { isAdmin, requireAdmin } from '$lib/server/auth/permissions';
@@ -18,6 +21,7 @@ import { formError, formSuccess, validateForm, validationError } from '$lib/serv
 import {
   SIGNUP_LIST_STATUSES,
   compareStandingsTeams,
+  listsLivingSignups,
   shouldShowOnLeagueDivision,
   withStandingsRanks,
 } from '$lib/utils/standingsHighlight';
@@ -96,9 +100,12 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   const signupsOpen =
     selectedSeasonId != null &&
     (allSeasons.find((season) => season.id === selectedSeasonId)?.signupsOpen ?? false);
+  const matchesStarted =
+    selectedSeasonId != null ? await seasonHasPlayedMatches(selectedSeasonId) : false;
+  const listLivingSignups = listsLivingSignups(signupsOpen, matchesStarted);
   const signupListStatuses = [...new Set([...visibleStatuses, ...SIGNUP_LIST_STATUSES])];
-  const divisionStatuses = signupsOpen ? signupListStatuses : visibleStatuses;
-  const unplacedStatuses = signupsOpen ? signupListStatuses : unassignedStatuses;
+  const divisionStatuses = listLivingSignups ? signupListStatuses : visibleStatuses;
+  const unplacedStatuses = listLivingSignups ? signupListStatuses : unassignedStatuses;
 
   const mapLeagueTeams = (
     teams: Awaited<ReturnType<typeof getTeamsByDivision>>,
@@ -158,7 +165,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
                   selectedRegionId,
                   divisionStatuses,
                 ),
-                { assignRanks: true, signupsOpen },
+                { assignRanks: true, signupsOpen: listLivingSignups },
               ),
             })),
           )),
@@ -169,7 +176,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
             },
             teams: mapLeagueTeams(
               await getUnassignedTeams(selectedSeasonId, selectedRegionId, unplacedStatuses),
-              { assignRanks: false, signupsOpen },
+              { assignRanks: false, signupsOpen: listLivingSignups },
             ),
           },
         ]

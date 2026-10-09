@@ -26,6 +26,7 @@ import {
   listDiscordGuildMembers,
   listDiscordGuildRoles,
   syncDiscordMemberRoles,
+  type DiscordGuildMemberSnapshot,
 } from './discordGuild';
 import type {
   OrphanManagedDiscordAudit,
@@ -622,6 +623,7 @@ export async function stripManagedDiscordRoles(
   const managed = catalogDiscordRoleIds(snapshot);
   if (managed.size === 0) return;
   await integrations.discord.syncMemberRoles(discordId, [], managed);
+  dropManagedRolesFromMemberScan(discordId, managed);
 }
 
 async function staffDiscordIdSet(): Promise<Set<string>> {
@@ -636,70 +638,145 @@ async function staffDiscordIdSet(): Promise<Set<string>> {
   return ids;
 }
 
-export async function getOrphanManagedDiscordMembers(): Promise<OrphanManagedDiscordAudit> {
-  if (!isDiscordGuildConfigured()) {
-    return { configured: false, error: null, members: [] };
+type DiscordMemberScan = {
+  fetchedAt: string;
+  members: DiscordGuildMemberSnapshot[];
+  roleNamesById: Map<string, string>;
+};
+
+let memberScan: DiscordMemberScan | null = null;
+let memberScanError: string | null = null;
+let memberScanInFlight: Promise<OrphanManagedDiscordAudit> | null = null;
+
+function unconfiguredOrphanAudit(): OrphanManagedDiscordAudit {
+  return { configured: false, error: null, members: [], fetchedAt: null };
+}
+
+/** Drop the in-memory Discord member list. Used by tests. */
+export function resetOrphanDiscordMemberScan(): void {
+  memberScan = null;
+  memberScanError = null;
+  memberScanInFlight = null;
+}
+
+function dropManagedRolesFromMemberScan(discordId: string, managed: ReadonlySet<string>): void {
+  const member = memberScan?.members.find((row) => row.discordId === discordId);
+  if (!member) return;
+  member.roleIds = member.roleIds.filter((roleId) => !managed.has(roleId));
+}
+
+async function buildOrphanAudit(
+  scan: DiscordMemberScan,
+  managed: Set<string>,
+  error: string | null,
+): Promise<OrphanManagedDiscordAudit> {
+  if (managed.size === 0 || scan.members.length === 0) {
+    return { configured: true, error, members: [], fetchedAt: scan.fetchedAt };
   }
+
+  const staffDiscordIds = await staffDiscordIdSet();
+  const orphans = filterOrphanManagedRoleHolders(
+    scan.members,
+    staffDiscordIds,
+    managed,
+    scan.roleNamesById,
+  );
+  if (orphans.length === 0) {
+    return { configured: true, error, members: [], fetchedAt: scan.fetchedAt };
+  }
+
+  const links = await prisma.discord.findMany({
+    where: { discordId: { in: orphans.map((orphan) => orphan.discordId) } },
+    select: {
+      discordId: true,
+      playerSteamId: true,
+      player: { select: { steamUsername: true } },
+    },
+  });
+  const linkById = new Map(
+    links.map((link) => [
+      link.discordId,
+      {
+        steamId: link.playerSteamId,
+        steamUsername: link.player?.steamUsername ?? null,
+      },
+    ]),
+  );
+
+  return {
+    configured: true,
+    error,
+    fetchedAt: scan.fetchedAt,
+    members: orphans.map((orphan) => {
+      const linked = linkById.get(orphan.discordId);
+      return {
+        ...orphan,
+        linkedSteamId: linked?.steamId ?? null,
+        linkedSteamUsername: linked?.steamUsername ?? null,
+      };
+    }),
+  };
+}
+
+/**
+ * Orphan roles from the last Discord member fetch. Does not call Discord.
+ * Staff designations are read from the database on each call, so promoting
+ * someone drops them from this list without another Discord request.
+ */
+export async function getOrphanManagedDiscordMembers(): Promise<OrphanManagedDiscordAudit> {
+  if (!isDiscordGuildConfigured()) return unconfiguredOrphanAudit();
+
+  const snapshot = await loadMappingSnapshot();
+  const managed = catalogDiscordRoleIds(snapshot);
+  if (!memberScan) {
+    return { configured: true, error: memberScanError, members: [], fetchedAt: null };
+  }
+  return buildOrphanAudit(memberScan, managed, memberScanError);
+}
+
+/** Ask Discord for guild members and replace the in-memory scan. */
+export async function refreshOrphanManagedDiscordMembers(): Promise<OrphanManagedDiscordAudit> {
+  if (memberScanInFlight) return memberScanInFlight;
+
+  memberScanInFlight = refreshOrphanManagedDiscordMembersNow().finally(() => {
+    memberScanInFlight = null;
+  });
+  return memberScanInFlight;
+}
+
+async function refreshOrphanManagedDiscordMembersNow(): Promise<OrphanManagedDiscordAudit> {
+  if (!isDiscordGuildConfigured()) return unconfiguredOrphanAudit();
 
   const snapshot = await loadMappingSnapshot();
   const managed = catalogDiscordRoleIds(snapshot);
   if (managed.size === 0) {
-    return { configured: true, error: null, members: [] };
+    memberScan = {
+      fetchedAt: new Date().toISOString(),
+      members: [],
+      roleNamesById: new Map(),
+    };
+    memberScanError = null;
+    return buildOrphanAudit(memberScan, managed, null);
   }
 
   try {
-    const [guildMembers, guildRoles, staffDiscordIds] = await Promise.all([
+    const [guildMembers, guildRoles] = await Promise.all([
       listDiscordGuildMembers(),
       listDiscordGuildRoles(),
-      staffDiscordIdSet(),
     ]);
-
-    const roleNamesById = new Map(guildRoles.map((role) => [role.id, role.name]));
-    const orphans = filterOrphanManagedRoleHolders(
-      guildMembers,
-      staffDiscordIds,
-      managed,
-      roleNamesById,
-    );
-
-    if (orphans.length === 0) {
-      return { configured: true, error: null, members: [] };
-    }
-
-    const links = await prisma.discord.findMany({
-      where: { discordId: { in: orphans.map((orphan) => orphan.discordId) } },
-      select: {
-        discordId: true,
-        playerSteamId: true,
-        player: { select: { steamUsername: true } },
-      },
-    });
-    const linkById = new Map(
-      links.map((link) => [
-        link.discordId,
-        {
-          steamId: link.playerSteamId,
-          steamUsername: link.player?.steamUsername ?? null,
-        },
-      ]),
-    );
-
-    return {
-      configured: true,
-      error: null,
-      members: orphans.map((orphan) => {
-        const linked = linkById.get(orphan.discordId);
-        return {
-          ...orphan,
-          linkedSteamId: linked?.steamId ?? null,
-          linkedSteamUsername: linked?.steamUsername ?? null,
-        };
-      }),
+    memberScan = {
+      fetchedAt: new Date().toISOString(),
+      members: guildMembers,
+      roleNamesById: new Map(guildRoles.map((role) => [role.id, role.name])),
     };
+    memberScanError = null;
+    return buildOrphanAudit(memberScan, managed, null);
   } catch (err) {
     const message =
       err instanceof DiscordGuildError ? err.message : 'Could not list Discord members';
-    return { configured: true, error: clipError(message), members: [] };
+    memberScanError = clipError(message);
+    if (memberScan) return buildOrphanAudit(memberScan, managed, memberScanError);
+    return { configured: true, error: memberScanError, members: [], fetchedAt: null };
   }
 }
 
@@ -726,7 +803,8 @@ export async function stripAllOrphanManagedDiscordRoles(
   integrations: StaffIntegrations = defaultIntegrations(),
 ): Promise<{ stripped: number; failed: number }> {
   const audit = await getOrphanManagedDiscordMembers();
-  if (audit.error) badRequest(audit.error);
+  if (!audit.fetchedAt) badRequest('Refresh the Discord member list before stripping roles.');
+  if (audit.error && audit.members.length === 0) badRequest(audit.error);
 
   let stripped = 0;
   let failed = 0;

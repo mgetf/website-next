@@ -1,5 +1,6 @@
-import { redirect, error, isHttpError, type RequestHandler } from '@sveltejs/kit';
+import { redirect, error, isHttpError, isRedirect, type RequestHandler } from '@sveltejs/kit';
 import {
+  DiscordRateLimitError,
   exchangeDiscordCode,
   verifyDiscordOAuthState,
   formatDiscordUsername,
@@ -9,8 +10,21 @@ import { requireAuth } from '$lib/server/auth/permissions';
 import { linkDiscordAccount } from '$lib/server/services/users';
 import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
 
+function profileErrorRedirect(
+  steamId: string,
+  code: string,
+  retryAfterSeconds?: number | null,
+): never {
+  const params = new URLSearchParams({ error: code });
+  if (retryAfterSeconds != null && Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) {
+    params.set('retry', String(Math.ceil(retryAfterSeconds)));
+  }
+  redirect(302, `/users/${steamId}?${params.toString()}`);
+}
+
 export const GET: RequestHandler = async ({ url, request, cookies, locals, getClientAddress }) => {
   requireAuth(locals.user);
+  const steamId = locals.user.steamId;
 
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
@@ -18,7 +32,7 @@ export const GET: RequestHandler = async ({ url, request, cookies, locals, getCl
   const oauthError = url.searchParams.get('error');
   if (oauthError) {
     console.error('[Discord OAuth] User denied or error:', oauthError);
-    redirect(302, '/?error=discord_auth_cancelled');
+    profileErrorRedirect(steamId, 'discord_auth_cancelled');
   }
 
   if (!code || !state) {
@@ -26,14 +40,17 @@ export const GET: RequestHandler = async ({ url, request, cookies, locals, getCl
   }
 
   let discordUser;
-  let steamId: string;
 
   try {
-    ({ steamId } = verifyDiscordOAuthState(state, cookies, locals.user.steamId));
+    verifyDiscordOAuthState(state, cookies, steamId);
     discordUser = await exchangeDiscordCode(code, request);
   } catch (err) {
+    if (isRedirect(err)) throw err;
+    if (err instanceof DiscordRateLimitError) {
+      profileErrorRedirect(steamId, 'discord_rate_limited', err.retryAfterSeconds);
+    }
     console.error('[Discord OAuth] Callback failed:', err);
-    redirect(302, '/?error=discord_link_failed');
+    profileErrorRedirect(steamId, 'discord_link_failed');
   }
 
   const discordUsername = formatDiscordUsername(discordUser);
@@ -42,11 +59,12 @@ export const GET: RequestHandler = async ({ url, request, cookies, locals, getCl
   try {
     await linkDiscordAccount(discordUser.id, discordUsername, discordAvatar, steamId);
   } catch (err) {
+    if (isRedirect(err)) throw err;
     if (isHttpError(err) && err.status === 409) {
-      redirect(302, '/?error=discord_already_linked');
+      profileErrorRedirect(steamId, 'discord_already_linked');
     }
     console.error('[Discord OAuth] Link failed:', err);
-    redirect(302, '/?error=discord_link_failed');
+    profileErrorRedirect(steamId, 'discord_link_failed');
   }
 
   await logAudit({

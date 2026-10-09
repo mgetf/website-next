@@ -27,6 +27,7 @@
   } from '$lib/types/profile';
   import type { InvestigateResult } from '$lib/types/investigation';
   import type { ProfilingSnapshot } from '$lib/types/profiling';
+  import { discordLinkNotice } from '$lib/utils/discordLinkError';
   import { parseProfileTab, profileExternalLinks } from '$lib/utils/profile';
   import { steamId32FromSteamId64 } from '$lib/utils/steamid';
   import Settings from '~icons/lucide/settings';
@@ -186,11 +187,18 @@
     const discord = page.url.searchParams.get('discord');
     const error = page.url.searchParams.get('error');
     const signup = page.url.searchParams.get('signup');
+    const retryRaw = Number(page.url.searchParams.get('retry'));
+    const retrySeconds = Number.isFinite(retryRaw) ? retryRaw : null;
+    const discordNotice = discordLinkNotice(error, retrySeconds);
     if (discord === 'linked') {
       toast.success('Discord account linked successfully!');
       goto(profilePath, { replaceState: true });
-    } else if (error === 'discord_auth_failed') {
-      toast.error('Failed to link Discord account');
+    } else if (discordNotice) {
+      if (discordNotice.tone === 'warning') {
+        toast.warning(discordNotice.message, { duration: 12000 });
+      } else {
+        toast.error(discordNotice.message, { duration: 8000 });
+      }
       goto(profilePath, { replaceState: true });
     } else if (signup === '1v1') {
       toast.success('Successfully signed up for the 1v1 league!');

@@ -7,5 +7,5 @@ export const GET: RequestHandler = async ({ locals, request, cookies }) => {
   requireAuth(locals.user);
 
   const authUrl = getDiscordAuthUrl(request, locals.user.steamId, cookies);
-  redirect(302, authUrl);
+  redirect(302, authUrl, { external: ['https://discord.com'] });
 };

@@ -3,33 +3,33 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
-  import InsightsPanel from '$lib/components/profile/InsightsPanel.svelte';
-  import InvestigationReport from '$lib/components/admin/InvestigationReport.svelte';
-  import LeaguePanel from '$lib/components/profile/LeaguePanel.svelte';
-  import OverviewPanel from '$lib/components/profile/OverviewPanel.svelte';
-  import PaymentHistoryPanel from '$lib/components/profile/PaymentHistoryPanel.svelte';
-  import ProfilingPanel from '$lib/components/profile/ProfilingPanel.svelte';
-  import StaffToolsPanel from '$lib/components/profile/StaffToolsPanel.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import Dialog from '$lib/components/ui/Dialog.svelte';
-  import StaffRoleBadge from '$lib/components/ui/StaffRoleBadge.svelte';
-  import Tooltip from '$lib/components/ui/Tooltip.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
+  import DiscordIcon from '#lib/components/icons/DiscordIcon.svelte';
+  import InsightsPanel from '#lib/components/profile/InsightsPanel.svelte';
+  import InvestigationReport from '#lib/components/admin/InvestigationReport.svelte';
+  import LeaguePanel from '#lib/components/profile/LeaguePanel.svelte';
+  import OverviewPanel from '#lib/components/profile/OverviewPanel.svelte';
+  import PaymentHistoryPanel from '#lib/components/profile/PaymentHistoryPanel.svelte';
+  import ProfilingPanel from '#lib/components/profile/ProfilingPanel.svelte';
+  import StaffToolsPanel from '#lib/components/profile/StaffToolsPanel.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import Dialog from '#lib/components/ui/Dialog.svelte';
+  import StaffRoleBadge from '#lib/components/ui/StaffRoleBadge.svelte';
+  import Tooltip from '#lib/components/ui/Tooltip.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import type { MgeClasseloRating, MgeRating, PlatformRegion } from '#lib/types/mge.js';
   import type {
     Profile1v1Entry,
     ProfilePaymentHistory,
     ProfileTab,
     ProfileTeam,
     ProfileTeamSeasonMatches,
-  } from '$lib/types/profile';
-  import type { InvestigateResult } from '$lib/types/investigation';
-  import type { ProfilingSnapshot } from '$lib/types/profiling';
-  import { discordLinkNotice } from '$lib/utils/discordLinkError';
-  import { parseProfileTab, profileExternalLinks } from '$lib/utils/profile';
-  import { steamId32FromSteamId64 } from '$lib/utils/steamid';
+  } from '#lib/types/profile.js';
+  import type { InvestigateResult } from '#lib/types/investigation.js';
+  import type { ProfilingSnapshot } from '#lib/types/profiling.js';
+  import { discordLinkNotice } from '#lib/utils/discordLinkError.js';
+  import { parseProfileTab, profileExternalLinks } from '#lib/utils/profile.js';
+  import { steamId32FromSteamId64 } from '#lib/utils/steamid.js';
   import Settings from '~icons/lucide/settings';
   import Shield from '~icons/lucide/shield';
 
@@ -150,8 +150,18 @@
     ...(isAdmin && !isOwnProfile
       ? [{ id: 'payments' as const, label: 'Payments', staff: true }]
       : []),
+
     ...(isAdmin ? [{ id: 'profiling' as const, label: 'Profiling', staff: true }] : []),
-    ...(isAdmin ? [{ id: 'investigate' as const, label: 'Investigate', staff: true }] : []),
+
+    ...(isAdmin
+      ? [
+          {
+            id: 'investigate' as const,
+            label: 'Investigate',
+            staff: true,
+          },
+        ]
+      : []),
   ]);
   const firstStaffTab = $derived(tabs.find((item) => item.staff)?.id);
 
@@ -192,17 +202,17 @@
     const discordNotice = discordLinkNotice(error, retrySeconds);
     if (discord === 'linked') {
       toast.success('Discord account linked successfully!');
-      goto(profilePath, { replaceState: true });
+      goto(profilePath, { replace: true });
     } else if (discordNotice) {
       if (discordNotice.tone === 'warning') {
         toast.warning(discordNotice.message, { duration: 12000 });
       } else {
         toast.error(discordNotice.message, { duration: 8000 });
       }
-      goto(profilePath, { replaceState: true });
+      goto(profilePath, { replace: true });
     } else if (signup === '1v1') {
       toast.success('Successfully signed up for the 1v1 league!');
-      goto(profilePath, { replaceState: true });
+      goto(profilePath, { replace: true });
     }
   });
 
@@ -227,7 +237,7 @@
   }
 
   function tabHref(next: ProfileTab): string {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
     if (next === 'overview') params.delete('tab');
     else params.set('tab', next);
     if (next !== 'payments') params.delete('page');
@@ -236,7 +246,7 @@
   }
 
   function setTab(next: ProfileTab) {
-    void goto(tabHref(next), { keepFocus: true, noScroll: true });
+    void goto(tabHref(next), { reset: false });
   }
 </script>
 
@@ -291,14 +301,12 @@
                 type="button"
                 variant="ghost"
                 size="sm"
-                onclick={() => (showUnlinkDiscord = true)}
+                onclick={() => (showUnlinkDiscord = true)}>Unlink</Button
               >
-                Unlink
-              </Button>
             {/if}
           {:else if isOwnProfile}
             <Button
-              href={resolve('/auth/discord/login')}
+              href={resolve('auth/discord/login')}
               size="sm"
               class="inline-flex items-center gap-1.5"
             >
@@ -366,11 +374,8 @@
           class="inline-flex items-center gap-1.5"
           aria-expanded={staffOpen}
           aria-controls="staff-tools-panel"
-          onclick={() => (staffOpen = true)}
+          onclick={() => (staffOpen = true)}><Settings class="size-3.5" />Staff tools</Button
         >
-          <Settings class="size-3.5" />
-          Staff tools
-        </Button>
       </div>
     {/if}
   </div>
@@ -386,7 +391,7 @@
           id="tab-{item.id}"
           aria-selected={tab === item.id}
           aria-controls="panel-{item.id}"
-          data-sveltekit-noscroll
+          data-sveltekit-reset="false"
           aria-label={item.staff ? `${item.label}, staff only` : undefined}
           class="inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors {item.id ===
           firstStaffTab
@@ -710,10 +715,9 @@
       type="button"
       variant="secondary"
       class="flex-1"
-      onclick={() => (withdrawingEntry = null)}
+      onclick={() => (withdrawingEntry = null)}>Cancel</Button
     >
-      Cancel
-    </Button>
+
     {#if withdrawingEntry}
       <form
         method="POST"

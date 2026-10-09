@@ -1,4 +1,4 @@
-import type { PageSeo } from '$lib/types/seo';
+import type { PageSeo } from '#lib/types/seo.js';
 
 export const DEFAULT_SEO_DESCRIPTION =
   'MGE.tf is a competitive Team Fortress 2 MGE league platform for 2v2 tournaments and seasonal play';

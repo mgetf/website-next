@@ -1,19 +1,19 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
-  import type { EventDraftPayload } from '$lib/types/tournament-editor';
-  import { nextDraftId } from '$lib/types/tournament-editor';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import type { EventDraftPayload } from '#lib/types/tournament-editor.js';
+  import { nextDraftId } from '#lib/types/tournament-editor.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
   import {
     normalizeParticipantName,
     participantDuplicateMessage,
     searchParticipantUsers,
-  } from '$lib/utils/tournamentParticipantSearch';
-  import { steamId64FromAnyFormat } from '$lib/utils/steamid';
+  } from '#lib/utils/tournamentParticipantSearch.js';
+  import { steamId64FromAnyFormat } from '#lib/utils/steamid.js';
 
   type EditorUser = { steamId: string; name: string; avatar: string | null };
 
@@ -49,6 +49,7 @@
     if (!trimmedQuery) return null;
     const normalizedSteamId = steamId64FromAnyFormat(trimmedQuery);
     const normalizedName = normalizeParticipantName(trimmedQuery);
+
     return (
       searchUsers.find(
         (user) =>
@@ -94,9 +95,10 @@
     try {
       const params = new URLSearchParams({ q: query });
       const response = await fetch(
-        `${resolve('/api/admin/tournament-participants/search')}?${params}`,
+        `${resolve('api/admin/tournament-participants/search')}?${params}`,
         { signal: controller.signal },
       );
+
       if (!response.ok) throw new Error('Participant search failed.');
 
       const payload = (await response.json()) as { success?: boolean; data?: EditorUser[] };

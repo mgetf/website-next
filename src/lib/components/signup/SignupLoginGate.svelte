@@ -1,8 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import { loginToParticipateHref } from '$lib/utils/signupLogin';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import { loginToParticipateHref } from '#lib/utils/signupLogin.js';
 
   const href = $derived(loginToParticipateHref(page.url.pathname));
 </script>

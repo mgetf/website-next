@@ -3,7 +3,7 @@ import {
   getDiscordVerifyAddRoleIds,
   getDiscordVerifyRemoveRoleIds,
   getOptionalEnv,
-} from '$lib/server/utils/env';
+} from '#lib/server/utils/env.js';
 import {
   DiscordGuildError,
   isDiscordGuildConfigured,

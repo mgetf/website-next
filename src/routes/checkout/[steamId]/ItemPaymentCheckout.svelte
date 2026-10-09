@@ -1,8 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { toast } from '$lib/state/toast.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import type { CheckoutTeamSelection } from '$lib/types/checkout';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import Button from '#lib/components/ui/Button.svelte';
+  import type { CheckoutTeamSelection } from '#lib/types/checkout.js';
 
   let {
     teams,

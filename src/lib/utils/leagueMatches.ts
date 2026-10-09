@@ -3,7 +3,7 @@ import type {
   LeagueMatchSide,
   LeagueMatchStatus,
   LeagueMatchWeekGroup,
-} from '$lib/types/league';
+} from '#lib/types/league.js';
 
 export function groupLeagueMatchesByWeek(matches: LeagueDivisionMatch[]): LeagueMatchWeekGroup[] {
   const groups = new Map<number, LeagueMatchWeekGroup>();

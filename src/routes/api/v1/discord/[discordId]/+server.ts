@@ -11,9 +11,9 @@
  */
 
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
-import { requireRateLimitedApiKey } from '$lib/server/auth/apiKey';
-import { getUserByDiscordId } from '$lib/server/services/users';
+
+import { requireRateLimitedApiKey } from '#lib/server/auth/apiKey.js';
+import { getUserByDiscordId } from '#lib/server/services/users.js';
 
 export const GET: RequestHandler = async ({ params, request }) => {
   const auth = await requireRateLimitedApiKey(request);
@@ -22,16 +22,19 @@ export const GET: RequestHandler = async ({ params, request }) => {
   const { discordId } = params;
 
   if (!discordId) {
-    return json({ error: 'Missing discordId' }, { status: 400 });
+    return Response.json({ error: 'Missing discordId' }, { status: 400 });
   }
 
   const record = await getUserByDiscordId(discordId);
 
   if (!record || !record.player) {
-    return json({ error: 'No mge.tf account linked to this Discord user' }, { status: 404 });
+    return Response.json(
+      { error: 'No mge.tf account linked to this Discord user' },
+      { status: 404 },
+    );
   }
 
-  return json({
+  return Response.json({
     steamId: record.player.steamId,
     steamUsername: record.player.steamUsername,
     discordUsername: record.discordUsername,

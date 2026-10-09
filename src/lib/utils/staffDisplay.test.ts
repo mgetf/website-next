@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/constants/formats';
-import type { StaffAssignmentDisplay } from '$lib/types/staff';
+import { FORMAT_1V1, FORMAT_2V2 } from '#lib/constants/formats.js';
+import type { StaffAssignmentDisplay } from '#lib/types/staff.js';
 import {
   groupStaffByFormatAndRegion,
   groupStaffRosterByRegion,

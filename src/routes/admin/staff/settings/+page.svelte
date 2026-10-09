@@ -1,13 +1,13 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 

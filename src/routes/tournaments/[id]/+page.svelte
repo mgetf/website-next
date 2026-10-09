@@ -1,12 +1,12 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
-  import type { BracketData } from '$lib/types/bracket';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import BracketRenderer from '$lib/components/brackets/BracketRenderer.svelte';
+  import type { BracketData } from '#lib/types/bracket.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import BracketRenderer from '#lib/components/brackets/BracketRenderer.svelte';
   import Trophy from '~icons/lucide/trophy';
   import Globe from '~icons/lucide/globe';
   import Swords from '~icons/lucide/swords';

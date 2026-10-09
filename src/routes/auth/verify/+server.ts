@@ -5,13 +5,13 @@
 
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createSteamAuth } from '$lib/server/auth/steam';
-import { setSession, getAndClearRedirectUrl } from '$lib/server/session';
-import { getPermissionLevel } from '$lib/server/auth/permissions';
-import { findOrCreateSteamUser } from '$lib/server/services/users';
-import { BanStatus, UserRole } from '$lib/types/user';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { authRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
+import { createSteamAuth } from '#lib/server/auth/steam.js';
+import { setSession, getAndClearRedirectUrl } from '#lib/server/session.js';
+import { getPermissionLevel } from '#lib/server/auth/permissions.js';
+import { findOrCreateSteamUser } from '#lib/server/services/users.js';
+import { BanStatus, UserRole } from '#lib/types/user.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { authRateLimiter, checkRateLimit } from '#lib/server/utils/rateLimit.js';
 
 export const GET: RequestHandler = async ({ cookies, request, getClientAddress }) => {
   const { allowed, response } = checkRateLimit(authRateLimiter, getClientAddress());

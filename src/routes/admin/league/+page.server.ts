@@ -1,22 +1,22 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
 import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError, formError } from '$lib/server/utils/forms';
+import { validateForm, validationError, formError } from '#lib/server/utils/forms.js';
 import {
   getSeasons,
   createSeason,
   updateSeason,
   deleteSeason,
   transformSeasonForUI,
-} from '$lib/server/services/seasons';
+} from '#lib/server/services/seasons.js';
 import {
   getRegions,
   createRegion,
   updateRegion,
   deleteRegion,
   toggleRegionVisibility,
-} from '$lib/server/services/regions';
+} from '#lib/server/services/regions.js';
 import {
   getDivisions,
   createDivisionsForScopes,
@@ -29,15 +29,15 @@ import {
   reorderDivisions,
   setDivisionsHidden,
   updateDivisionsSignupCost,
-} from '$lib/server/services/divisions';
-import { getArenas, createArena, updateArena, deleteArena } from '$lib/server/services/arenas';
+} from '#lib/server/services/divisions.js';
+import { getArenas, createArena, updateArena, deleteArena } from '#lib/server/services/arenas.js';
 import {
   uploadToR2,
   validateUploadedFile,
   extensionForImageMime,
   saveTempFile,
   deleteTempFile,
-} from '$lib/server/utils/r2Upload';
+} from '#lib/server/utils/r2Upload.js';
 import {
   getMapBanPools,
   createMapBanPool,
@@ -46,12 +46,12 @@ import {
   addMapsToPool,
   removeMapFromPool,
   deleteMapBanPool,
-} from '$lib/server/services/mapBanPools';
+} from '#lib/server/services/mapBanPools.js';
 import {
   getPlayoffBySeason,
   createPlayoff,
   updatePlayoffBySeason,
-} from '$lib/server/services/playoffs';
+} from '#lib/server/services/playoffs.js';
 import {
   getFormats,
   createFormat,
@@ -60,14 +60,14 @@ import {
   uploadFormatIcon,
   clearFormatIcon,
   formatIconFileFromFormData,
-} from '$lib/server/services/formats';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { getSteamItems } from '$lib/server/services/steam-items';
+} from '#lib/server/services/formats.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { getSteamItems } from '#lib/server/services/steam-items.js';
 import {
   upsertDivisionItemPayment,
   deleteDivisionItemPayment,
-} from '$lib/server/services/division-item-payments';
+} from '#lib/server/services/division-item-payments.js';
 
 const seasonIdSchema = z.object({ seasonId: z.coerce.number().int().positive() });
 const regionIdSchema = z.object({ regionId: z.coerce.number().int().positive() });

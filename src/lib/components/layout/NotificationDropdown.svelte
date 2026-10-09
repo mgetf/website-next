@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Popover } from 'bits-ui';
-  import { notificationState, type Notification } from '$lib/state/notifications.svelte';
+  import { notificationState, type Notification } from '#lib/state/notifications.svelte.js';
   import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import MessageSquare from '~icons/lucide/message-square';

@@ -1,6 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
-
-vi.mock('$env/dynamic/private', () => ({ env: {} }));
+import { describe, expect, it } from 'vitest';
 
 import { parsePlatformRegionCodes } from './mgePlatform';
 

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { PageData } from './$types';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
   import CircleCheck from '~icons/lucide/circle-check';
 
   let { data }: { data: PageData } = $props();

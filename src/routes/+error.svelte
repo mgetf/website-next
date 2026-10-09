@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import Button from '$lib/components/ui/Button.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
 
   const errorConfig: Record<number, { title: string; description: string }> = {
     400: {

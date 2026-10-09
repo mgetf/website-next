@@ -1,10 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import type { TeamAdminDivision, TeamRosterPlayer } from '$lib/types/team';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import type { TeamAdminDivision, TeamRosterPlayer } from '#lib/types/team.js';
 
   const DEFAULT_AVATAR = '/default-avatar.png';
 

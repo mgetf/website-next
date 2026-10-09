@@ -3,7 +3,7 @@
  * Client-side analytics tracking
  */
 
-import type { SessionUser } from '$lib/types/user';
+import type { SessionUser } from '#lib/types/user.js';
 
 declare global {
   interface Window {

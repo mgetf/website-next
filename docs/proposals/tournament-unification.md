@@ -598,7 +598,7 @@ The bracket renderer needs:
 4. **Fetch games within a match** → join `event_games`
 5. **Determine bracket structure** → `bracket_format` on the **stage** tells the renderer whether it's single elim, double elim, round robin, or a flat card; `round` + `order_num` define the bracket tree within
 
-Each stage maps to one `BracketData` object (the presentation-layer type from `$lib/types/bracket.ts`). The event detail page renders one bracket section per stage. A cup with a single `SINGLE_ELIM` stage renders as one bracket tree. The World Championship renders 4 sections — two group standings tables, a play-in bracket, and a double-elim bracket.
+Each stage maps to one `BracketData` object (the presentation-layer type from `#lib/types/bracket.ts`). The event detail page renders one bracket section per stage. A cup with a single `SINGLE_ELIM` stage renders as one bracket tree. The World Championship renders 4 sections — two group standings tables, a play-in bracket, and a double-elim bracket.
 
 Same component, same query pattern, works for all event types and complexities.
 

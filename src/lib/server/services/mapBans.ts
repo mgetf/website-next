@@ -3,11 +3,11 @@
  * Handles turn-based map ban and pick phases for matches
  */
 
-import { prisma } from '$lib/server/db';
-import type { Match, MatchMapBan } from '$prisma/client.js';
-import { MapBanActionType } from '$prisma/client.js';
-import { notFound, badRequest } from '$lib/server/utils/errors';
-import { determineNextAction, shouldSwitchTurn } from '$lib/server/utils/mapBanLogic';
+import { prisma } from '#lib/server/db.js';
+import type { Match, MatchMapBan } from '#prisma/client.js';
+import { MapBanActionType } from '#prisma/client.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
+import { determineNextAction, shouldSwitchTurn } from '#lib/server/utils/mapBanLogic.js';
 
 export { determineNextAction, shouldSwitchTurn };
 

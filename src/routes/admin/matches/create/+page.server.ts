@@ -6,36 +6,36 @@
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import type { ActionFailure } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 import {
   getEligibleTeams,
   calculateWeekLabel as calculateWeekLabelService,
-} from '$lib/server/services/adminMatches';
-import { getSeasonById } from '$lib/server/services/seasons';
-import { getRegions } from '$lib/server/services/regions';
-import { getDivisionScope, getDivisions } from '$lib/server/services/divisions';
+} from '#lib/server/services/adminMatches.js';
+import { getSeasonById } from '#lib/server/services/seasons.js';
+import { getRegions } from '#lib/server/services/regions.js';
+import { getDivisionScope, getDivisions } from '#lib/server/services/divisions.js';
 import {
   getAllActiveSignupSeasons,
   getSignupSeasonForRegion,
-} from '$lib/server/services/signupSeasons';
-import { getArenas } from '$lib/server/services/arenas';
-import { getMapBanPools } from '$lib/server/services/mapBanPools';
-import { getAllPlayoffs, getPlayoffBySeason } from '$lib/server/services/playoffs';
+} from '#lib/server/services/signupSeasons.js';
+import { getArenas } from '#lib/server/services/arenas.js';
+import { getMapBanPools } from '#lib/server/services/mapBanPools.js';
+import { getAllPlayoffs, getPlayoffBySeason } from '#lib/server/services/playoffs.js';
 import {
   getMatchSetDraftDetail,
   publishMatchSetDraft,
   saveMatchSetDraft,
   type SaveMatchSetDraftInput,
-} from '$lib/server/services/matchSetDrafts';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+} from '#lib/server/services/matchSetDrafts.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 import { z } from 'zod';
 import {
   formError,
   validateForm,
   validationError,
   type FormActionError,
-} from '$lib/server/utils/forms';
+} from '#lib/server/utils/forms.js';
 
 const optionalInt = z.preprocess(
   (val) => (val === '' || val === null || val === undefined ? undefined : val),
@@ -297,7 +297,7 @@ export const actions: Actions = {
       } else {
         // Regular season logic
         // Generate matchups using the pairing algorithm
-        const { pairTeamsForMatches } = await import('$lib/server/services/adminMatches');
+        const { pairTeamsForMatches } = await import('#lib/server/services/adminMatches.js');
         const pairedTeams = await pairTeamsForMatches(teams, seasonId);
 
         // Convert paired teams array into matchup objects

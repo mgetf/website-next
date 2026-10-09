@@ -1,4 +1,4 @@
-import { isFreeDivision } from '$lib/utils/signupDivision';
+import { isFreeDivision } from '#lib/utils/signupDivision.js';
 import type {
   PlacementAssignment,
   PlacementColumn,
@@ -6,7 +6,7 @@ import type {
   PlacementMove,
   PlacementPaymentEffect,
   PlacementTeamContext,
-} from '$lib/types/placement';
+} from '#lib/types/placement.js';
 
 export function placementPaymentEffect(
   fromSignupCost: number,

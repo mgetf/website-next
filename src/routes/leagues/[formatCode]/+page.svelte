@@ -1,26 +1,26 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { enhance } from '$app/forms';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
-  import MarkdownEditor from '$lib/components/markdown/MarkdownEditor.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import DivisionMatchList from '$lib/components/leagues/DivisionMatchList.svelte';
-  import DivisionPlayoffBracket from '$lib/components/leagues/DivisionPlayoffBracket.svelte';
-  import LeagueRegionSeasonMenu from '$lib/components/leagues/LeagueRegionSeasonMenu.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import { getFormatThemeClasses } from '$lib/constants/formats';
-  import type { BracketData } from '$lib/types/bracket';
-  import type { LeagueDivisionMatch } from '$lib/types/league';
-  import { getRegionAbbr as abbreviateRegion } from '$lib/utils/region';
-  import { flagForRegion } from '$lib/utils/regions';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import MarkdownRenderer from '#lib/components/markdown/MarkdownRenderer.svelte';
+  import MarkdownEditor from '#lib/components/markdown/MarkdownEditor.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import DivisionMatchList from '#lib/components/leagues/DivisionMatchList.svelte';
+  import DivisionPlayoffBracket from '#lib/components/leagues/DivisionPlayoffBracket.svelte';
+  import LeagueRegionSeasonMenu from '#lib/components/leagues/LeagueRegionSeasonMenu.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
+  import { getFormatThemeClasses } from '#lib/constants/formats.js';
+  import type { BracketData } from '#lib/types/bracket.js';
+  import type { LeagueDivisionMatch } from '#lib/types/league.js';
+  import { getRegionAbbr as abbreviateRegion } from '#lib/utils/region.js';
+  import { flagForRegion } from '#lib/utils/regions.js';
   import {
     defaultExpandedDivisionIds,
     isViewerStandingsTeam,
     STANDINGS_MAX_VISIBLE_ROWS,
-  } from '$lib/utils/standingsHighlight';
+  } from '#lib/utils/standingsHighlight.js';
   import ChevronDown from '~icons/lucide/chevron-down';
 
   const standingsColumns = [
@@ -173,7 +173,7 @@
     const params = new URLSearchParams();
     params.set('season', selectedSeason.toString());
     params.set('region', selectedRegion.toString());
-    goto(`?${params.toString()}`, { keepFocus: true, replaceState: false });
+    goto(`?${params.toString()}`, { reset: false });
   });
 
   function getRegionAbbr(regionId: number): string {

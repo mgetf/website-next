@@ -1,12 +1,11 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { enhance } from '$app/forms';
-  import type { SubmitFunction } from '@sveltejs/kit';
+  import { enhance, type SubmitFunction } from '$app/forms';
   import { dndzone } from 'svelte-dnd-action';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import { filterDivisionsByRegionAndFormat } from '$lib/utils/leagueScope';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import { filterDivisionsByRegionAndFormat } from '#lib/utils/leagueScope.js';
 
   let { data }: { data: PageData } = $props();
   const isStrictAdmin = $derived(data.isStrictAdmin);
@@ -77,8 +76,8 @@
         ) ?? null)
       : null,
   );
-  const selectedSeasonId = $derived(currentSeason?.seasonId ?? null);
 
+  const selectedSeasonId = $derived(currentSeason?.seasonId ?? null);
   const formatOptions = $derived(
     data.activeSeasons
       .filter(
@@ -87,7 +86,6 @@
       .map((row) => ({ value: String(row.formatId), label: row.formatName }))
       .sort((a, b) => Number(a.value) - Number(b.value)),
   );
-
   const regionsForSelectedFormat = $derived(
     data.regions.filter((region) =>
       data.activeSeasons.some(
@@ -95,7 +93,6 @@
       ),
     ),
   );
-
   const divisionsForScope = $derived(
     filterDivisionsByRegionAndFormat(
       data.divisions,
@@ -103,7 +100,6 @@
       selectedFormatId ? String(selectedFormatId) : '',
     ),
   );
-
   const canPreview = $derived(
     selectedRegionId &&
       selectedDivisionId &&
@@ -318,9 +314,9 @@
       {disabled}
       class="flex-1"
       onclick={() => (pendingAction = 'save')}
+      >{isCreating && pendingAction === 'save' ? 'Saving...' : 'Save as draft'}</Button
     >
-      {isCreating && pendingAction === 'save' ? 'Saving...' : 'Save as draft'}
-    </Button>
+
     {#if isStrictAdmin}
       <Button
         variant="success"
@@ -329,9 +325,8 @@
         {disabled}
         class="flex-1"
         onclick={() => (pendingAction = 'publish')}
+        >{isCreating && pendingAction === 'publish' ? 'Publishing...' : 'Publish matches'}</Button
       >
-        {isCreating && pendingAction === 'publish' ? 'Publishing...' : 'Publish matches'}
-      </Button>
     {/if}
   </div>
   {#if !isStrictAdmin}

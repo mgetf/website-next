@@ -4,12 +4,12 @@
  * All season-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import { LIVE_TEAM_COUNT } from '$lib/server/constants/teams';
-import { TeamStatus } from '$prisma/client.js';
-import { getFormatsWithSeasons } from '$lib/server/services/formats';
-import type { LeagueNav } from '$lib/types/league';
-import { buildLeagueNav } from '$lib/utils/leagueNav';
+import { prisma } from '#lib/server/db.js';
+import { LIVE_TEAM_COUNT } from '#lib/server/constants/teams.js';
+import { TeamStatus } from '#prisma/client.js';
+import { getFormatsWithSeasons } from '#lib/server/services/formats.js';
+import type { LeagueNav } from '#lib/types/league.js';
+import { buildLeagueNav } from '#lib/utils/leagueNav.js';
 
 /**
  * Get all seasons with their region and team/match counts

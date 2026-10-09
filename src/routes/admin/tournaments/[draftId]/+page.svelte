@@ -1,19 +1,22 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
-  import type { EventDraftPayload } from '$lib/types/tournament-editor';
-  import { createEmptyDraftPayload } from '$lib/types/tournament-editor';
-  import { hasBlockingErrors, validateDraftStructure } from '$lib/utils/tournamentDraftValidation';
-  import BasicsEditor from '$lib/components/tournaments/editor/BasicsEditor.svelte';
-  import BracketPreview from '$lib/components/tournaments/editor/BracketPreview.svelte';
-  import ParticipantsEditor from '$lib/components/tournaments/editor/ParticipantsEditor.svelte';
-  import PlacementsEditor from '$lib/components/tournaments/editor/PlacementsEditor.svelte';
-  import PublishControls from '$lib/components/tournaments/editor/PublishControls.svelte';
-  import StagesEditor from '$lib/components/tournaments/editor/StagesEditor.svelte';
-  import ValidationSummary from '$lib/components/tournaments/editor/ValidationSummary.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import type { EventDraftPayload } from '#lib/types/tournament-editor.js';
+  import { createEmptyDraftPayload } from '#lib/types/tournament-editor.js';
+  import {
+    hasBlockingErrors,
+    validateDraftStructure,
+  } from '#lib/utils/tournamentDraftValidation.js';
+  import BasicsEditor from '#lib/components/tournaments/editor/BasicsEditor.svelte';
+  import BracketPreview from '#lib/components/tournaments/editor/BracketPreview.svelte';
+  import ParticipantsEditor from '#lib/components/tournaments/editor/ParticipantsEditor.svelte';
+  import PlacementsEditor from '#lib/components/tournaments/editor/PlacementsEditor.svelte';
+  import PublishControls from '#lib/components/tournaments/editor/PublishControls.svelte';
+  import StagesEditor from '#lib/components/tournaments/editor/StagesEditor.svelte';
+  import ValidationSummary from '#lib/components/tournaments/editor/ValidationSummary.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let lastFormResult: ActionData = null;

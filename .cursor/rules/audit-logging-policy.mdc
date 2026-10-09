@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Audit Logging Policy
 
-Use `logAudit()` from `$lib/server/services/auditLog` for actions that modify data in sensitive or admin contexts.
+Use `logAudit()` from `#lib/server/services/auditLog` for actions that modify data in sensitive or admin contexts.
 
 ## Actions That MUST Be Audit Logged
 
@@ -24,7 +24,7 @@ Use `logAudit()` from `$lib/server/services/auditLog` for actions that modify da
 ## Usage
 
 ```typescript
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog';
 
 await logAudit({
   actorId: locals.user.steamId,

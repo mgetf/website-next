@@ -1,19 +1,19 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
 import {
   getPendingApprovals,
   approvePendingItem,
   declinePendingItem,
-} from '$lib/server/services/pendingPlayers';
-import type { AuditContext } from '$lib/server/services/pendingPlayers';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { getVisibleRegions } from '$lib/server/services/regions';
-import { getFormatsForFilter } from '$lib/server/services/formats';
-import { getRegionIdsByFormat } from '$lib/server/services/staffAssignments';
+} from '#lib/server/services/pendingPlayers.js';
+import type { AuditContext } from '#lib/server/services/pendingPlayers.js';
+import { getVisibleDivisions } from '#lib/server/services/divisions.js';
+import { getVisibleRegions } from '#lib/server/services/regions.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
+import { getRegionIdsByFormat } from '#lib/server/services/staffAssignments.js';
 import { isHttpError } from '@sveltejs/kit';
 import { z } from 'zod';
-import { formError, validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { formError, validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 const approveSchema = z.object({
   kind: z.enum(['JOIN_REQUEST', 'ENTRY_READY']).default('JOIN_REQUEST'),

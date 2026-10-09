@@ -2,29 +2,29 @@
   import type { PageData, ActionData } from './$types';
   import { goto } from '$app/navigation';
   import { enhance } from '$app/forms';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import FilterBar from '$lib/components/ui/FilterBar.svelte';
-  import SearchInput from '$lib/components/ui/SearchInput.svelte';
-  import Dialog from '$lib/components/ui/Dialog.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import StaffAssignmentFields from '$lib/components/admin/StaffAssignmentFields.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import { getFormatThemeClasses } from '$lib/constants/formats';
-  import { getRegionAbbr } from '$lib/utils/region';
-  import { flagForRegion } from '$lib/utils/regions';
-  import { groupStaffRosterByRegion, staffListChips } from '$lib/utils/staffDisplay';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import FilterBar from '#lib/components/ui/FilterBar.svelte';
+  import SearchInput from '#lib/components/ui/SearchInput.svelte';
+  import Dialog from '#lib/components/ui/Dialog.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import StaffAssignmentFields from '#lib/components/admin/StaffAssignmentFields.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import DiscordIcon from '#lib/components/icons/DiscordIcon.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import { getFormatThemeClasses } from '#lib/constants/formats.js';
+  import { getRegionAbbr } from '#lib/utils/region.js';
+  import { flagForRegion } from '#lib/utils/regions.js';
+  import { groupStaffRosterByRegion, staffListChips } from '#lib/utils/staffDisplay.js';
   import type {
     OrphanManagedDiscordMember,
     StaffAssignmentDisplay,
     StaffSyncStatusDisplay,
-  } from '$lib/types/staff';
+  } from '#lib/types/staff.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 

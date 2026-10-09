@@ -1,10 +1,10 @@
 <script lang="ts">
   import { deserialize, enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { refreshAll } from '$app/navigation';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
 
   type CatalogDivision = {
     id: number;
@@ -107,7 +107,7 @@
             ? result.data.message
             : 'Division order saved';
         toast.success(message);
-        await invalidateAll();
+        await refreshAll();
       } else {
         items = previous;
         const error =

@@ -1,17 +1,17 @@
 import type { Actions, PageServerLoad } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
 import { z } from 'zod';
-import { validateForm, validationError, formError, formSuccess } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { getFormatsForFilter } from '$lib/server/services/formats';
-import { getRegionsForFilter } from '$lib/server/services/regions';
+import { validateForm, validationError, formError, formSuccess } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
+import { getRegionsForFilter } from '#lib/server/services/regions.js';
 import {
   applyDivisionPlacements,
   getCurrentPlacementSeason,
   getPlacementBoard,
-} from '$lib/server/services/placement';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import type { PlacementAssignment } from '$lib/types/placement';
+} from '#lib/server/services/placement.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import type { PlacementAssignment } from '#lib/types/placement.js';
 
 const saveSchema = z.object({
   seasonId: z.coerce.number().int().positive(),

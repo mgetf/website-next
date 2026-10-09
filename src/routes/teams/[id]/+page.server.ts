@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError, formError } from '$lib/server/utils/forms';
+import { validateForm, validationError, formError } from '#lib/server/utils/forms.js';
 import {
   getTeamById,
   getTeamEventPlacements,
@@ -9,9 +9,14 @@ import {
   adminSetTeamStatus,
   changeTeamDivision,
   toggleTeamReady,
-} from '$lib/server/services/teams';
-import { isAdmin, isTeamAdmin, requireAuth, requireTeamAdmin } from '$lib/server/auth/permissions';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
+} from '#lib/server/services/teams.js';
+import {
+  isAdmin,
+  isTeamAdmin,
+  requireAuth,
+  requireTeamAdmin,
+} from '#lib/server/auth/permissions.js';
+import { getVisibleDivisions } from '#lib/server/services/divisions.js';
 import {
   getTeamForEdit,
   updateTeamInfo,
@@ -21,25 +26,25 @@ import {
   demotePlayer,
   invitePlayerBySteamId,
   disbandTeam,
-} from '$lib/server/services/teamManagement';
-import { markPlayerAsPaidManually, unmarkPlayerAsPaid } from '$lib/server/services/payments';
-import { generateJoinToken } from '$lib/server/services/teamSignup';
-import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '$lib/server/services/settings';
-import { calculateWeekLabel, uniqueMatchArenas } from '$lib/server/utils/matchHelpers';
-import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
+} from '#lib/server/services/teamManagement.js';
+import { markPlayerAsPaidManually, unmarkPlayerAsPaid } from '#lib/server/services/payments.js';
+import { generateJoinToken } from '#lib/server/services/teamSignup.js';
+import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '#lib/server/services/settings.js';
+import { calculateWeekLabel, uniqueMatchArenas } from '#lib/server/utils/matchHelpers.js';
+import { compareMatchHistoryOrder, formatPlayoffRound } from '#lib/utils/playoffs.js';
+import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
 import {
   getPendingStatusForTeam,
   hasAnyPendingRequest,
   acceptTeamInvite,
   declineInvitation,
-} from '$lib/server/services/teamJoin';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { optionalDivisionIdSchema } from '$lib/server/utils/validation';
-import { getByeWeeksForTeam } from '$lib/server/services/byeWeeks';
-import { buildPageSeo } from '$lib/utils/seo';
-import type { TeamMatchRow } from '$lib/types/team';
+} from '#lib/server/services/teamJoin.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { optionalDivisionIdSchema } from '#lib/server/utils/validation.js';
+import { getByeWeeksForTeam } from '#lib/server/services/byeWeeks.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
+import type { TeamMatchRow } from '#lib/types/team.js';
 
 const playerSteamIdSchema = z.object({
   playerSteamId: z.string().min(1, 'Player Steam ID is required'),

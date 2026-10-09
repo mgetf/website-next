@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import Skeleton from '$lib/components/ui/Skeleton.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import Skeleton from '#lib/components/ui/Skeleton.svelte';
 
   let { regionPicker }: { regionPicker?: Snippet } = $props();
 

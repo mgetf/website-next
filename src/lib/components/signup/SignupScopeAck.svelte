@@ -3,7 +3,7 @@
     SIGNUP_CHECKBOX_CLASS,
     SIGNUP_SCOPE_ACK_FIELD,
     signupScopeAckLabel,
-  } from '$lib/utils/signupAck';
+  } from '#lib/utils/signupAck.js';
 
   let {
     formatName,

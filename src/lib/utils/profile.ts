@@ -1,4 +1,4 @@
-import type { ProfileTab } from '$lib/types/profile';
+import type { ProfileTab } from '#lib/types/profile.js';
 
 export function winPct(wins: number, losses: number): string {
   const total = wins + losses;

@@ -1,12 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import type { TeamManagementData, TeamRosterPlayer } from '$lib/types/team';
-  import { teamRoleName } from '$lib/utils/team';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import type { TeamManagementData, TeamRosterPlayer } from '#lib/types/team.js';
+  import { teamRoleName } from '#lib/utils/team.js';
   import Check from '~icons/lucide/check';
   import Lock from '~icons/lucide/lock';
 

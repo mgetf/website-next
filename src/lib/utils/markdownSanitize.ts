@@ -3,7 +3,7 @@
  */
 
 import { visit } from 'unist-util-visit';
-import { isSafeUrl } from '$lib/utils/safeUrl';
+import { isSafeUrl } from '#lib/utils/safeUrl.js';
 
 type HastNode = {
   type: string;

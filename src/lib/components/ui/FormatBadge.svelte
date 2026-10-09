@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getFormatThemeClasses } from '$lib/constants/formats';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
+  import { getFormatThemeClasses } from '#lib/constants/formats.js';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
 
   type Size = 'sm' | 'md';
 

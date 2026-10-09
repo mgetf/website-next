@@ -3,17 +3,17 @@
  * Match creation, bulk operations, and admin-only functions
  */
 
-import { prisma } from '$lib/server/db';
-import type { Team } from '$prisma/client.js';
-import { MatchStatus, TeamStatus } from '$prisma/client.js';
-import { notFound, badRequest } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import type { Team } from '#prisma/client.js';
+import { MatchStatus, TeamStatus } from '#prisma/client.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
 import {
   calculateWinLossRatio,
   calculatePointsPerGame,
   localDatetimeToUtc,
-} from '$lib/server/utils/matchHelpers';
+} from '#lib/server/utils/matchHelpers.js';
 import { createNotificationForRoster } from './notifications';
-import { formatPlayoffRound } from '$lib/utils/playoffs';
+import { formatPlayoffRound } from '#lib/utils/playoffs.js';
 
 /**
  * Sort teams by standings

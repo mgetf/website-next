@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { BracketRound } from '$lib/types/bracket';
-  import Card from '$lib/components/ui/Card.svelte';
+  import type { BracketRound } from '#lib/types/bracket.js';
+  import Card from '#lib/components/ui/Card.svelte';
   import MatchCard from './MatchCard.svelte';
 
   interface Props {

@@ -1,16 +1,16 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import SignupLoginGate from '$lib/components/signup/SignupLoginGate.svelte';
-  import SignupPicks from '$lib/components/signup/SignupPicks.svelte';
-  import SignupScopeAck from '$lib/components/signup/SignupScopeAck.svelte';
-  import FreeDivisionAck from '$lib/components/signup/FreeDivisionAck.svelte';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import { getFormatThemeClasses } from '$lib/constants/formats';
-  import { SIGNUP_CHECKBOX_CLASS } from '$lib/utils/signupAck';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import SignupLoginGate from '#lib/components/signup/SignupLoginGate.svelte';
+  import SignupPicks from '#lib/components/signup/SignupPicks.svelte';
+  import SignupScopeAck from '#lib/components/signup/SignupScopeAck.svelte';
+  import FreeDivisionAck from '#lib/components/signup/FreeDivisionAck.svelte';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
+  import { getFormatThemeClasses } from '#lib/constants/formats.js';
+  import { SIGNUP_CHECKBOX_CLASS } from '#lib/utils/signupAck.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 

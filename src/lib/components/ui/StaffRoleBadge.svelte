@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Tooltip from '$lib/components/ui/Tooltip.svelte';
+  import Tooltip from '#lib/components/ui/Tooltip.svelte';
 
   type StaffRole = 'ADMIN' | 'MODERATOR';
 

@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { getRulebookRevision } from '$lib/server/services/siteContent';
-import { buildPageSeo } from '$lib/utils/seo';
+import { getRulebookRevision } from '#lib/server/services/siteContent.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
 
 export const load: PageServerLoad = async ({ params, url }) => {
   const version = Number(params.version);

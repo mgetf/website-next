@@ -4,7 +4,7 @@
  */
 
 import crypto from 'crypto';
-import { getJwtSecret } from '$lib/server/utils/env';
+import { getJwtSecret } from '#lib/server/utils/env.js';
 
 export const TEAM_INVITE_TTL_SECONDS = 60 * 60;
 

@@ -53,9 +53,9 @@ bun run test:e2e   # requires Postgres (see docker-compose.test.yml / .env.test)
 ## Architecture Must-Knows
 
 - **Service layer for the database**: all Prisma access lives in `src/lib/server/services/<domain>.ts`. Route files (`+page.server.ts`, `+server.ts`) never import Prisma directly.
-- **Client/server boundary**: code under `$lib/server/` is server-only. Client code (`.svelte`, `$lib/state/`, `$lib/utils/`, `$lib/components/`) must never import from it, not even with `import type`. Shared types belong in `$lib/types/`.
-- **Form actions for mutations**: user-facing mutations are SvelteKit form actions, validated with Zod via `validateForm()` from `$lib/server/utils/forms`. API routes are reserved for SSE, webhooks, and external integrations.
-- **Auth guards first**: every protected `load` function and form action must call the appropriate guard (`requireAuth`, `requireAdmin`, `requireNotBanned`, `requireTeamAdmin`, etc.) from `$lib/server/auth/permissions` as its first operation.
+- **Client/server boundary**: code under `#lib/server/` is server-only. Client code (`.svelte`, `#lib/state/`, `#lib/utils/`, `#lib/components/`) must never import from it, not even with `import type`. Shared types belong in `#lib/types/`.
+- **Form actions for mutations**: user-facing mutations are SvelteKit form actions, validated with Zod via `validateForm()` from `#lib/server/utils/forms.js`. API routes are reserved for SSE, webhooks, and external integrations.
+- **Auth guards first**: every protected `load` function and form action must call the appropriate guard (`requireAuth`, `requireAdmin`, `requireNotBanned`, `requireTeamAdmin`, etc.) from `#lib/server/auth/permissions.js` as its first operation.
 
 See [AGENTS.md](AGENTS.md) for the full architecture guide, including error handling, environment variable access, and file organization conventions.
 

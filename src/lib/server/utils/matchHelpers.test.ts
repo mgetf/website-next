@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Match } from '$prisma/client.js';
+import type { Match } from '#prisma/client.js';
 import {
   calculatePointsPerGame,
   calculateWeekLabel,

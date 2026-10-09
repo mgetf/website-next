@@ -10,14 +10,14 @@
  */
 
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
-import { requireRateLimitedApiKey } from '$lib/server/auth/apiKey';
-import { getManagedDiscordRoleIds } from '$lib/server/services/staff';
+
+import { requireRateLimitedApiKey } from '#lib/server/auth/apiKey.js';
+import { getManagedDiscordRoleIds } from '#lib/server/services/staff.js';
 
 export const GET: RequestHandler = async ({ request }) => {
   const auth = await requireRateLimitedApiKey(request);
   if (auth instanceof Response) return auth;
 
   const roleIds = await getManagedDiscordRoleIds();
-  return json({ roleIds });
+  return Response.json({ roleIds });
 };

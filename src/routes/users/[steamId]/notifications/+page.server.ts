@@ -7,13 +7,13 @@
 
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
-import { requireAuth } from '$lib/server/auth/permissions';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { requireAuth } from '#lib/server/auth/permissions.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 import {
   getAllNotifications,
   getNotificationCounts,
   markAllAsRead,
-} from '$lib/server/services/notifications';
+} from '#lib/server/services/notifications.js';
 
 const PAGE_SIZE = 20;
 

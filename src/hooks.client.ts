@@ -1,11 +1,20 @@
-import type { HandleClientError } from '@sveltejs/kit';
+import type { HandleClientError } from '@sveltejs/kit/hooks';
 
-export const handleError: HandleClientError = async ({ error, status, message }) => {
+export const handleError: HandleClientError = async ({ error, kind }) => {
+  if (kind === 'app') {
+    return error;
+  }
+
   const errorId = crypto.randomUUID();
-  console.error(`[${errorId}] Client error (${status}):`, error);
+
+  if (kind === 'framework') {
+    return { ...error, code: errorId };
+  }
+
+  console.error(`[${errorId}] Client error:`, error);
 
   return {
-    message,
+    message: 'Internal Error',
     code: errorId,
   };
 };

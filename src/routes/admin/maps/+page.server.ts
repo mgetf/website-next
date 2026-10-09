@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
 import {
   getMapFiles,
   getMapFileById,
@@ -7,11 +7,11 @@ import {
   updateMapFile,
   deleteMapFile,
   MAP_NAME_PATTERN,
-} from '$lib/server/services/mapFiles';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getErrorMessage } from '$lib/server/utils/errors';
+} from '#lib/server/services/mapFiles.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 import { z } from 'zod';
-import { validateForm, validationError, formError, formSuccess } from '$lib/server/utils/forms';
+import { validateForm, validationError, formError, formSuccess } from '#lib/server/utils/forms.js';
 
 const httpsUrlSchema = z
   .string()

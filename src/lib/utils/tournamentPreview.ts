@@ -5,13 +5,13 @@ import type {
   BracketSide,
   BracketStatus,
   RoundRobinStanding,
-} from '$lib/types/bracket';
+} from '#lib/types/bracket.js';
 import type {
   DraftEliminationMatch,
   DraftMatchBase,
   DraftStage,
   EventDraftPayload,
-} from '$lib/types/tournament-editor';
+} from '#lib/types/tournament-editor.js';
 
 function bracketStatus(status: EventDraftPayload['status']): BracketStatus {
   if (status === 'COMPLETED') return 'completed';

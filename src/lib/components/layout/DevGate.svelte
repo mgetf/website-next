@@ -5,8 +5,8 @@
    * Provides a Steam login button and explains the access restriction.
    */
 
-  import type { SessionUser } from '$lib/types/user';
-  import signInThroughSteam from '$lib/assets/signin-thru-steam.png';
+  import type { SessionUser } from '#lib/types/user.js';
+  import signInThroughSteam from '#lib/assets/signin-thru-steam.png';
 
   interface Props {
     user: SessionUser | null;

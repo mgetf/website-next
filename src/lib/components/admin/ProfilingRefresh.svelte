@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
-  import Button from '$lib/components/ui/Button.svelte';
-  import { formatRelativeTime } from '$lib/utils/profile';
+  import { refreshAll } from '$app/navigation';
+  import Button from '#lib/components/ui/Button.svelte';
+  import { formatRelativeTime } from '#lib/utils/profile.js';
 
   let {
     steamId,
@@ -23,7 +23,7 @@
         headers: { 'content-type': 'application/json' },
       });
       if (!res.ok) throw new Error('failed');
-      await invalidateAll();
+      await refreshAll();
     } catch {
       error = 'Could not reload this snapshot.';
     } finally {

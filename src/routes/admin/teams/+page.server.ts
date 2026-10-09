@@ -1,10 +1,10 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
-import { TeamStatus } from '$prisma/client.js';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
+import { TeamStatus } from '#prisma/client.js';
 import { fail } from '@sveltejs/kit';
-import { getSeasonsForFilter } from '$lib/server/services/seasons';
-import { getRegionsForFilter } from '$lib/server/services/regions';
-import { getDivisionsForFilter } from '$lib/server/services/divisions';
+import { getSeasonsForFilter } from '#lib/server/services/seasons.js';
+import { getRegionsForFilter } from '#lib/server/services/regions.js';
+import { getDivisionsForFilter } from '#lib/server/services/divisions.js';
 import {
   getTeams,
   countTeams,
@@ -12,16 +12,16 @@ import {
   adminSetTeamStatus,
   changeTeamDivision,
   getTeamAuditSnapshot,
-} from '$lib/server/services/teams';
-import { disbandTeam, hardDeleteTeam } from '$lib/server/services/teamManagement';
-import { change1v1Status } from '$lib/server/services/signup1v1';
-import { getFormatsForFilter } from '$lib/server/services/formats';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
-import { getMatchesByTeamIds } from '$lib/server/services/adminMatches';
+} from '#lib/server/services/teams.js';
+import { disbandTeam, hardDeleteTeam } from '#lib/server/services/teamManagement.js';
+import { change1v1Status } from '#lib/server/services/signup1v1.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
+import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
+import { getMatchesByTeamIds } from '#lib/server/services/adminMatches.js';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 // Zod schema for team update form
 const updateTeamSchema = z.object({
@@ -413,7 +413,7 @@ export const actions: Actions = {
     const { teamId } = validation.data;
 
     try {
-      const { restore1v1Entry } = await import('$lib/server/services/signup1v1');
+      const { restore1v1Entry } = await import('#lib/server/services/signup1v1.js');
       await restore1v1Entry(teamId);
 
       await logAudit({

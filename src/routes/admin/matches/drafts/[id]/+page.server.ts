@@ -1,14 +1,14 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
-import { getErrorMessage, notFound } from '$lib/server/utils/errors';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
+import { getErrorMessage, notFound } from '#lib/server/utils/errors.js';
 import {
   discardMatchSetDraft,
   getMatchSetDraftDetail,
   publishMatchSetDraft,
-} from '$lib/server/services/matchSetDrafts';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { formError } from '$lib/server/utils/forms';
+} from '#lib/server/services/matchSetDrafts.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { formError } from '#lib/server/utils/forms.js';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   requireAdmin(locals.user);

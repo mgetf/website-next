@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
   import CircleX from '~icons/lucide/circle-x';
   import Lock from '~icons/lucide/lock';
   import TriangleAlert from '~icons/lucide/triangle-alert';

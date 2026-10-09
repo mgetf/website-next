@@ -1,5 +1,5 @@
-import { prisma } from '$lib/server/db';
-import { notFound, badRequest } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
 import {
   deleteFromR2,
   deleteTempFile,
@@ -8,7 +8,7 @@ import {
   saveTempFile,
   uploadToR2,
   validateUploadedFile,
-} from '$lib/server/utils/r2Upload';
+} from '#lib/server/utils/r2Upload.js';
 
 export type SteamItemRecord = {
   id: number;

@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { getUsersPublic } from '$lib/server/services/users';
-import { buildPageSeo } from '$lib/utils/seo';
+import { getUsersPublic } from '#lib/server/services/users.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
 
 export const load: PageServerLoad = async ({ url }) => {
   const page = parseInt(url.searchParams.get('page') || '1');

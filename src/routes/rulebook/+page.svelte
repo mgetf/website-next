@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
-  import RulebookTOC from '$lib/components/markdown/RulebookTOC.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import { formatDateTime } from '$lib/utils/datetime';
+  import MarkdownRenderer from '#lib/components/markdown/MarkdownRenderer.svelte';
+  import RulebookTOC from '#lib/components/markdown/RulebookTOC.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import { formatDateTime } from '#lib/utils/datetime.js';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();

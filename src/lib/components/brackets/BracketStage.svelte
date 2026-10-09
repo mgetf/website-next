@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Attachment } from 'svelte/attachments';
-  import type { BracketMatch, BracketRound } from '$lib/types/bracket';
+  import type { BracketMatch, BracketRound } from '#lib/types/bracket.js';
   import BracketRoundComponent from './BracketRound.svelte';
 
   interface Props {

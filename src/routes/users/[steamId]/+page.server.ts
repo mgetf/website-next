@@ -1,5 +1,5 @@
 import { error, fail, isHttpError } from '@sveltejs/kit';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 import {
   getPlayerProfile,
   getUnregisteredPlayerProfile,
@@ -12,43 +12,51 @@ import {
   unlockUserAvatar,
   banUser,
   clearPunishment,
-} from '$lib/server/services/users';
-import { withdraw1v1Entry, toggle1v1Ready, change1v1Status } from '$lib/server/services/signup1v1';
-import { TeamStatus } from '$prisma/client.js';
+} from '#lib/server/services/users.js';
+import {
+  withdraw1v1Entry,
+  toggle1v1Ready,
+  change1v1Status,
+} from '#lib/server/services/signup1v1.js';
+import { TeamStatus } from '#prisma/client.js';
 import {
   getUserPaymentHistory,
   markPlayerAsPaidManually,
   unmarkPlayerAsPaid,
-} from '$lib/server/services/payments';
-import { changeTeamDivision } from '$lib/server/services/teams';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
-import { getFormatsForFilter } from '$lib/server/services/formats';
+} from '#lib/server/services/payments.js';
+import { changeTeamDivision } from '#lib/server/services/teams.js';
+import { getVisibleDivisions } from '#lib/server/services/divisions.js';
+import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
 import {
   isAdmin,
   requireAuth,
   requireCanModerateUser,
   requireStrictAdmin,
-} from '$lib/server/auth/permissions';
-import { getSession, setSession } from '$lib/server/session';
+} from '#lib/server/auth/permissions.js';
+import { getSession, setSession } from '#lib/server/session.js';
 import type { PageServerLoad, Actions } from './$types';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { getPlayerClasselo, getPlayerRatings, getRegions } from '$lib/server/clients/mgePlatform';
-import { withClasseloRanks } from '$lib/server/services/leaderboard';
-import { getPlayerProfiling } from '$lib/server/services/profiling';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import {
+  getPlayerClasselo,
+  getPlayerRatings,
+  getRegions,
+} from '#lib/server/clients/mgePlatform.js';
+import { withClasseloRanks } from '#lib/server/services/leaderboard.js';
+import { getPlayerProfiling } from '#lib/server/services/profiling.js';
 import {
   getPlayerInvestigation,
   isPlayerInvestigationConfigured,
-} from '$lib/server/services/playerInvestigation';
-import type { InvestigateResult } from '$lib/types/investigation';
-import type { ProfilePaymentHistory } from '$lib/types/profile';
-import type { ProfilingSnapshot } from '$lib/types/profiling';
-import { parseProfileTab } from '$lib/utils/profile';
-import { buildPageSeo } from '$lib/utils/seo';
+} from '#lib/server/services/playerInvestigation.js';
+import type { InvestigateResult } from '#lib/types/investigation.js';
+import type { ProfilePaymentHistory } from '#lib/types/profile.js';
+import type { ProfilingSnapshot } from '#lib/types/profiling.js';
+import { parseProfileTab } from '#lib/utils/profile.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
 import { z } from 'zod';
-import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
-import { optionalDivisionIdSchema } from '$lib/server/utils/validation';
-import { isSteamId64, steamId64FromAnyFormat } from '$lib/utils/steamid';
+import { formError, formSuccess, validateForm, validationError } from '#lib/server/utils/forms.js';
+import { optionalDivisionIdSchema } from '#lib/server/utils/validation.js';
+import { isSteamId64, steamId64FromAnyFormat } from '#lib/utils/steamid.js';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { steamId } = params;

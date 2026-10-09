@@ -5,7 +5,7 @@
  */
 
 import { randomBytes } from 'crypto';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.js';
 
 export type ApiKeyRecord = {
   id: number;

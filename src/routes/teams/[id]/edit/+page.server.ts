@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
-import { requireAuth, requireTeamAdmin } from '$lib/server/auth/permissions';
-import { getTeamFormatCheck } from '$lib/server/services/teams';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
+import { requireAuth, requireTeamAdmin } from '#lib/server/auth/permissions.js';
+import { getTeamFormatCheck } from '#lib/server/services/teams.js';
+import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {

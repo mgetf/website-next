@@ -1,4 +1,4 @@
-import { getOptionalEnv } from '$lib/server/utils/env';
+import { getOptionalEnv } from '#lib/server/utils/env.js';
 
 const TF2_APP_ID = 440;
 const STEAM_TIMEOUT_MS = 4000;

@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { getPublicServers } from '$lib/server/services/servers';
-import { buildPageSeo } from '$lib/utils/seo';
+import { getPublicServers } from '#lib/server/services/servers.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
 
 export const load: PageServerLoad = async ({ setHeaders, url }) => {
   setHeaders({ 'cache-control': 'public, max-age=15' });

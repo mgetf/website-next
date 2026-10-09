@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { MatchComm } from '$prisma/client.js';
-import { UserRole } from '$prisma/client.js';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/constants/formats';
+import type { MatchComm } from '#prisma/client.js';
+import { UserRole } from '#prisma/client.js';
+import { FORMAT_1V1, FORMAT_2V2 } from '#lib/constants/formats.js';
 import { canRespondToReschedule } from './matchComms';
 
 function comm(owner: string): MatchComm {

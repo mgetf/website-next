@@ -1,17 +1,17 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { ActionData, PageData } from './$types';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
-  import FilterBar from '$lib/components/ui/FilterBar.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-  import LeagueScopeFilters from '$lib/components/ui/LeagueScopeFilters.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import { steamId32FromSteamId64 } from '$lib/utils/steamid';
-  import type { PendingApprovalKind } from '$lib/types/pendingApproval';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
+  import FilterBar from '#lib/components/ui/FilterBar.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
+  import LeagueScopeFilters from '#lib/components/ui/LeagueScopeFilters.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import { steamId32FromSteamId64 } from '#lib/utils/steamid.js';
+  import type { PendingApprovalKind } from '#lib/types/pendingApproval.js';
   import CircleCheck from '~icons/lucide/circle-check';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();

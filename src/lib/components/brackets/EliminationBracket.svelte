@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Attachment } from 'svelte/attachments';
-  import type { BracketRound, EliminationBracketData } from '$lib/types/bracket';
+  import type { BracketRound, EliminationBracketData } from '#lib/types/bracket.js';
   import BracketStage from './BracketStage.svelte';
   import MatchCard from './MatchCard.svelte';
 

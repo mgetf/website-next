@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { DiffHunk, DiffLineType } from '$lib/types/rulebook';
-  import { formatHunkHeader } from '$lib/utils/textDiff';
+  import type { DiffHunk, DiffLineType } from '#lib/types/rulebook.js';
+  import { formatHunkHeader } from '#lib/utils/textDiff.js';
 
   let { hunks }: { hunks: DiffHunk[] } = $props();
 

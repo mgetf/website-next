@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlayerServerStats } from '$lib/types/profile';
+import type { PlayerServerStats } from '#lib/types/profile.js';
 
 const { getPlayerServerStats } = vi.hoisted(() => ({
   getPlayerServerStats: vi.fn(),
 }));
 
-vi.mock('$lib/server/clients/mgePlatform', () => ({
+vi.mock('#lib/server/clients/mgePlatform.js', () => ({
   getPlayerServerStats,
 }));
 
-vi.mock('$lib/server/services/users', () => ({
+vi.mock('#lib/server/services/users.js', () => ({
   getUserDisplaysByIds: vi.fn(async () => ({})),
 }));
 

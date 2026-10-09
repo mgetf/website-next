@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { FREE_DIVISION_ACK_FIELD } from '$lib/utils/signupDivision';
-  import { SIGNUP_CHECKBOX_CLASS } from '$lib/utils/signupAck';
+  import { FREE_DIVISION_ACK_FIELD } from '#lib/utils/signupDivision.js';
+  import { SIGNUP_CHECKBOX_CLASS } from '#lib/utils/signupAck.js';
 
   let { visible }: { visible: boolean } = $props();
 </script>

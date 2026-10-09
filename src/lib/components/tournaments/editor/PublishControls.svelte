@@ -3,12 +3,12 @@
     EventDraftPayload,
     EventRevisionSummary,
     ValidationIssue,
-  } from '$lib/types/tournament-editor';
+  } from '#lib/types/tournament-editor.js';
   import { enhance } from '$app/forms';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 
   let {
     payload,
@@ -72,7 +72,7 @@
           if (typeof response.data?.revision === 'number') revision = response.data.revision;
           onSaved(response.data?.issues ?? []);
         }
-        await update({ reset: false, invalidateAll: false });
+        await update({ reset: false, refreshAll: false });
         saving = false;
       };
     }}

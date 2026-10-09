@@ -1,10 +1,10 @@
-import { prisma } from '$lib/server/db';
-import { notFound, badRequest } from '$lib/server/utils/errors';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { syncTeamPaymentStatus } from '$lib/server/services/payments';
-import type { CheckoutTeamSelection } from '$lib/types/checkout';
-import { leaguePageHref } from '$lib/utils/leagueNav';
-import { getRegionAbbr } from '$lib/utils/region';
+import { prisma } from '#lib/server/db.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { syncTeamPaymentStatus } from '#lib/server/services/payments.js';
+import type { CheckoutTeamSelection } from '#lib/types/checkout.js';
+import { leaguePageHref } from '#lib/utils/leagueNav.js';
+import { getRegionAbbr } from '#lib/utils/region.js';
 
 const ITEM_ORDER_EXPIRY_MS = 30 * 60 * 1000;
 

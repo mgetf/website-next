@@ -1,12 +1,12 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
   import { enhance } from '$app/forms';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import { formatDateTime } from '$lib/utils/datetime';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import { formatDateTime } from '#lib/utils/datetime.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 

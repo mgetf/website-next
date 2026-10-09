@@ -2,9 +2,9 @@
  * Shared Bracket Builders
  *
  * Pure functions that turn a generic match list into presentation
- * `BracketData`. Both the public mapper (`$lib/server/services/events.ts`,
+ * `BracketData`. Both the public mapper (`#lib/server/services/events.ts`,
  * working from persisted `EventMatch` rows) and the admin editor's live
- * preview (`$lib/server/services/eventEditor.ts`, working from an in-memory
+ * preview (`#lib/server/services/eventEditor.ts`, working from an in-memory
  * draft) funnel through the same code here so a stage renders identically
  * before and after publishing.
  */
@@ -19,7 +19,7 @@ import type {
   BracketStatus,
   MatchStatus,
   RoundRobinStanding,
-} from '$lib/types/bracket';
+} from '#lib/types/bracket.js';
 
 export interface BracketPlayerInput {
   displayName: string;

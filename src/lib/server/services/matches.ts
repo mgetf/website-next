@@ -3,18 +3,18 @@
  * Core business logic for league matches (2v2 and 1v1)
  */
 
-import { prisma } from '$lib/server/db';
-import type { Match, Game, Team } from '$prisma/client.js';
-import { MatchStatus } from '$prisma/client.js';
-import { notFound, badRequest } from '$lib/server/utils/errors';
-import { calculateWeekLabel } from '$lib/server/utils/matchHelpers';
+import { prisma } from '#lib/server/db.js';
+import type { Match, Game, Team } from '#prisma/client.js';
+import { MatchStatus } from '#prisma/client.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
+import { calculateWeekLabel } from '#lib/server/utils/matchHelpers.js';
 import {
   calculateMatchWinner,
   canUserManageMatch,
   validateScoreSubmission,
   type GameResult,
-} from '$lib/server/utils/matchScoring';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
+} from '#lib/server/utils/matchScoring.js';
+import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
 import { createNotificationForTeamOwners, createNotificationForAdmins } from './notifications';
 
 export { calculateMatchWinner, canUserManageMatch, validateScoreSubmission };

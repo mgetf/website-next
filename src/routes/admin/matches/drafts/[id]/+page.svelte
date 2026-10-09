@@ -1,13 +1,13 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { ActionData, PageData } from './$types';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import { formatDateTime } from '$lib/utils/datetime';
-  import { formatPlayoffRound } from '$lib/utils/playoffs';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import { formatDateTime } from '#lib/utils/datetime.js';
+  import { formatPlayoffRound } from '#lib/utils/playoffs.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 

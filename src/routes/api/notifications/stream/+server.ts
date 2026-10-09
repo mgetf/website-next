@@ -22,10 +22,13 @@ import { error } from '@sveltejs/kit';
 import {
   getLatestNotificationId,
   getNotificationsSinceId,
-} from '$lib/server/services/notifications';
-import { notificationHub } from '$lib/server/realtime/notificationHub';
-import type { HubPayload, NotificationIdOnlyPayload } from '$lib/server/realtime/notificationHub';
-import { isRealtimeNotificationsEnabled } from '$lib/server/utils/env';
+} from '#lib/server/services/notifications.js';
+import { notificationHub } from '#lib/server/realtime/notificationHub.js';
+import type {
+  HubPayload,
+  NotificationIdOnlyPayload,
+} from '#lib/server/realtime/notificationHub.js';
+import { isRealtimeNotificationsEnabled } from '#lib/server/utils/env.js';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 

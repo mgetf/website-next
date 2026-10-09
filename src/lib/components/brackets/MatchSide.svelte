@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { BracketSide, MatchStatus } from '$lib/types/bracket';
-  import Badge from '$lib/components/ui/Badge.svelte';
+  import type { BracketSide, MatchStatus } from '#lib/types/bracket.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
   import { useBracketHover } from './bracket-hover.svelte';
 
   interface Props {

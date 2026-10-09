@@ -3,7 +3,7 @@
  * Manage site-wide settings like title, favicon, background image, etc.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.js';
 
 export interface SiteSettingsData {
   id: number;

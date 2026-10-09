@@ -3,10 +3,10 @@
  * SourceBans and Discord are derived from configurable mappings.
  */
 
-import { prisma } from '$lib/server/db';
-import { UserRole, type StaffSyncStatus } from '$prisma/client.js';
-import { notFound, badRequest } from '$lib/server/utils/errors';
-import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
+import { prisma } from '#lib/server/db.js';
+import { UserRole, type StaffSyncStatus } from '#prisma/client.js';
+import { notFound, badRequest } from '#lib/server/utils/errors.js';
+import { invalidateCachedSessionVersion } from '#lib/server/auth/sessionCache.js';
 import {
   mapStaffAssignmentForDisplay,
   replaceStaffAssignments,
@@ -32,7 +32,7 @@ import type {
   OrphanManagedDiscordAudit,
   StaffAssignmentDisplay,
   StaffSyncStatusDisplay,
-} from '$lib/types/staff';
+} from '#lib/types/staff.js';
 
 export const STAFF_ROLES = [UserRole.MODERATOR, UserRole.ADMIN] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];

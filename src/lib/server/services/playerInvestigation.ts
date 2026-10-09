@@ -1,10 +1,10 @@
-import { prisma } from '$lib/server/db';
-import { getOptionalEnv } from '$lib/server/utils/env';
+import { prisma } from '#lib/server/db.js';
+import { getOptionalEnv } from '#lib/server/utils/env.js';
 import {
   investigatePlayer,
   isPlatformInvestigateConfigured,
-} from '$lib/server/clients/mgePlatform';
-import { fetchSteamAvatars, getUserDisplaysByIds } from '$lib/server/services/users';
+} from '#lib/server/clients/mgePlatform.js';
+import { fetchSteamAvatars, getUserDisplaysByIds } from '#lib/server/services/users.js';
 import type {
   AltCandidate,
   AltLinkView,
@@ -15,9 +15,9 @@ import type {
   IpAccount,
   IpInvestigation,
   SteamInvestigation,
-} from '$lib/types/investigation';
-import { extractSteamVanity, steamId64FromAnyFormat } from '$lib/utils/steamid';
-import { repairUtf8Mojibake } from '$lib/utils/textEncoding';
+} from '#lib/types/investigation.js';
+import { extractSteamVanity, steamId64FromAnyFormat } from '#lib/utils/steamid.js';
+import { repairUtf8Mojibake } from '#lib/utils/textEncoding.js';
 
 const IPV4_RE = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 

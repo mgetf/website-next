@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { getPublishedBlogPosts } from '$lib/server/services/blog';
-import { buildPageSeo } from '$lib/utils/seo';
+import { getPublishedBlogPosts } from '#lib/server/services/blog.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
 
 export const load: PageServerLoad = async ({ url }) => {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);

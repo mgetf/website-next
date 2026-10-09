@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/constants/formats';
-import type { PlacementColumn, PlacementTeamContext } from '$lib/types/placement';
+import { FORMAT_1V1, FORMAT_2V2 } from '#lib/constants/formats.js';
+import type { PlacementColumn, PlacementTeamContext } from '#lib/types/placement.js';
 import {
   describePlacementMoves,
   diffPlacementMoves,

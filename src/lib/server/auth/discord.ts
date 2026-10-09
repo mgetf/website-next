@@ -2,17 +2,17 @@
  * Discord OAuth2 Authentication Utility
  * Handles Discord login flow for account linking
  */
+import { DISCORD_REDIRECT_URI, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET } from '$app/env/private';
 
-import { env } from '$env/dynamic/private';
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 import type { Cookies } from '@sveltejs/kit';
 import crypto from 'crypto';
-import { getSessionSecret } from '$lib/server/utils/env';
+import { getSessionSecret } from '#lib/server/utils/env.js';
 import {
   DiscordRateLimitError,
   logDiscordRateLimit,
   readDiscordRateLimit,
-} from '$lib/server/utils/discordRateLimit';
+} from '#lib/server/utils/discordRateLimit.js';
 
 export { DiscordRateLimitError };
 
@@ -45,8 +45,8 @@ type DiscordOAuthState = {
 };
 
 function getRedirectUri(request: Request): string {
-  if (env.DISCORD_REDIRECT_URI) {
-    return env.DISCORD_REDIRECT_URI.trim().replace(/^["']|["']$/g, '');
+  if (DISCORD_REDIRECT_URI) {
+    return DISCORD_REDIRECT_URI.trim().replace(/^["']|["']$/g, '');
   }
   const url = new URL(request.url);
   return `${url.protocol}//${url.host}/auth/discord/callback`;
@@ -127,7 +127,7 @@ export function getDiscordAuthUrl(request: Request, steamId: string, cookies: Co
   });
 
   const params = new URLSearchParams({
-    client_id: env.DISCORD_CLIENT_ID || '',
+    client_id: DISCORD_CLIENT_ID || '',
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'identify',
@@ -221,8 +221,8 @@ export async function exchangeDiscordCode(code: string, request: Request): Promi
   const redirectUri = getRedirectUri(request);
 
   const tokenParams = new URLSearchParams({
-    client_id: env.DISCORD_CLIENT_ID || '',
-    client_secret: env.DISCORD_CLIENT_SECRET || '',
+    client_id: DISCORD_CLIENT_ID || '',
+    client_secret: DISCORD_CLIENT_SECRET || '',
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
@@ -238,6 +238,7 @@ export async function exchangeDiscordCode(code: string, request: Request): Promi
   });
 
   const tokenPayload = await readDiscordBody(tokenResponse);
+
   assertDiscordOk(
     tokenResponse,
     tokenPayload,
@@ -245,7 +246,6 @@ export async function exchangeDiscordCode(code: string, request: Request): Promi
     '/oauth2/token',
     'Failed to exchange Discord authorization code',
   );
-
   const accessToken =
     tokenPayload && typeof tokenPayload === 'object' && 'access_token' in tokenPayload
       ? String((tokenPayload as { access_token: unknown }).access_token)

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { BracketData } from '$lib/types/bracket';
+  import type { BracketData } from '#lib/types/bracket.js';
   import EliminationBracket from './EliminationBracket.svelte';
   import FightCard from './FightCard.svelte';
   import RoundRobinGroup from './RoundRobinGroup.svelte';

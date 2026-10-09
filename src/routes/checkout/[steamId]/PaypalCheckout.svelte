@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import type { CheckoutTeamSelection } from '$lib/types/checkout';
+  import type { CheckoutTeamSelection } from '#lib/types/checkout.js';
 
   let {
     paypalClientId,

@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { getMapFiles } from '$lib/server/services/mapFiles';
+import { getMapFiles } from '#lib/server/services/mapFiles.js';
 
 export const load: PageServerLoad = async () => {
   const maps = await getMapFiles();

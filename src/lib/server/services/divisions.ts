@@ -5,10 +5,10 @@
  * Divisions are scoped to a region and a format.
  */
 
-import { prisma } from '$lib/server/db';
-import { LIVE_TEAM_COUNT } from '$lib/server/constants/teams';
-import { upsertDivisionItemPayment } from '$lib/server/services/division-item-payments';
-import { TeamStatus, type Prisma } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import { LIVE_TEAM_COUNT } from '#lib/server/constants/teams.js';
+import { upsertDivisionItemPayment } from '#lib/server/services/division-item-payments.js';
+import { TeamStatus, type Prisma } from '#prisma/client.js';
 
 export type DivisionItemPaymentInput = {
   steamItemId: number;

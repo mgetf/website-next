@@ -4,13 +4,13 @@
  */
 
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdmin } from '$lib/server/auth/permissions';
-import { getAllDemoReports, updateDemoReport } from '$lib/server/services/demoReports';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
+import { getAllDemoReports, updateDemoReport } from '#lib/server/services/demoReports.js';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import type { DemoStatus } from '$prisma/client.js';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import type { DemoStatus } from '#prisma/client.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 
 const updateReportSchema = z.object({
   reportId: z.coerce.number().int().positive('Invalid report ID'),

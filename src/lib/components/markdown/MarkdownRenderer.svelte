@@ -3,7 +3,7 @@
   import { gfmPlugin } from 'svelte-exmarkdown/gfm';
   import rehypeRaw from 'rehype-raw';
   import type { HTMLImgAttributes } from 'svelte/elements';
-  import { rehypeSanitizeUrls } from '$lib/utils/markdownSanitize';
+  import { rehypeSanitizeUrls } from '#lib/utils/markdownSanitize.js';
 
   interface Props {
     content: string;

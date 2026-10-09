@@ -1,6 +1,6 @@
 <script lang="ts">
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import type { SignupFeeItem, SignupFeeRegion, SignupFeeSummary } from '$lib/types/signupFee';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import type { SignupFeeItem, SignupFeeRegion, SignupFeeSummary } from '#lib/types/signupFee.js';
 
   let {
     fee,

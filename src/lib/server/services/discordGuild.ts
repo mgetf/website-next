@@ -1,5 +1,5 @@
-import { getDiscordBotToken, getDiscordGuildId } from '$lib/server/utils/env';
-import { logDiscordRateLimit, readDiscordRateLimit } from '$lib/server/utils/discordRateLimit';
+import { getDiscordBotToken, getDiscordGuildId } from '#lib/server/utils/env.js';
+import { logDiscordRateLimit, readDiscordRateLimit } from '#lib/server/utils/discordRateLimit.js';
 
 const DISCORD_API_BASE = 'https://discord.com/api/v10';
 const MAX_ATTEMPTS = 5;

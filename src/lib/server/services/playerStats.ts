@@ -1,6 +1,6 @@
-import { getPlayerServerStats as fetchPlatformServerStats } from '$lib/server/clients/mgePlatform';
-import { getUserDisplaysByIds } from '$lib/server/services/users';
-import type { PlayerFoe, PlayerServerStats, StatsWindow } from '$lib/types/profile';
+import { getPlayerServerStats as fetchPlatformServerStats } from '#lib/server/clients/mgePlatform.js';
+import { getUserDisplaysByIds } from '#lib/server/services/users.js';
+import type { PlayerFoe, PlayerServerStats, StatsWindow } from '#lib/types/profile.js';
 
 const DEFAULT_AVATAR = '/default-avatar.png';
 

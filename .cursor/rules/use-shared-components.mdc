@@ -7,13 +7,13 @@ alwaysApply: true
 
 ## Components
 
-NEVER write inline button, card, badge, or table styles. Always use the shared components from `$lib/components/ui/`.
+NEVER write inline button, card, badge, or table styles. Always use the shared components from `#lib/components/ui/`.
 
 ### Button
 
 ```svelte
 <!-- ✅ CORRECT -->
-import Button from '$lib/components/ui/Button.svelte';
+import Button from '#lib/components/ui/Button.svelte';
 
 <Button variant="primary" size="md">Save</Button>
 <Button variant="secondary">Cancel</Button>
@@ -34,7 +34,7 @@ import Button from '$lib/components/ui/Button.svelte';
 
 ```svelte
 <!-- ✅ CORRECT -->
-import Card from '$lib/components/ui/Card.svelte';
+import Card from '#lib/components/ui/Card.svelte';
 
 <Card>Content</Card>
 <Card padding="lg">Wide content</Card>
@@ -51,7 +51,7 @@ import Card from '$lib/components/ui/Card.svelte';
 
 ```svelte
 <!-- ✅ CORRECT -->
-import Badge from '$lib/components/ui/Badge.svelte';
+import Badge from '#lib/components/ui/Badge.svelte';
 
 <Badge color="green">Active</Badge>
 <Badge color="red" size="md">Banned</Badge>
@@ -103,7 +103,7 @@ Admin pages use `primary-*` (orange), not blue. Blue is reserved for 2v2 format 
 
 ```svelte
 <!-- ✅ CORRECT -->
-import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
+import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
 
 const columns: Column[] = [
   { key: 'name', label: 'Name' },
@@ -148,8 +148,8 @@ NEVER write raw `<input>` or `<select>` with inline Tailwind styling for visible
 
 ```svelte
 <!-- ✅ CORRECT -->
-import FormInput from '$lib/components/ui/form/FormInput.svelte';
-import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
+import FormInput from '#lib/components/ui/form/FormInput.svelte';
+import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
 
 <FormInput label="Team Name" name="name" bind:value={name} required />
 <FormSelect label="Division" name="division" bind:value={division} options={[{ value: '1', label: 'Premier' }]} />
@@ -167,7 +167,7 @@ NEVER use `window.confirm()` or `confirm()` for destructive action confirmations
 
 ```svelte
 <!-- ✅ CORRECT -->
-import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 
 let showConfirm = $state(false);
 

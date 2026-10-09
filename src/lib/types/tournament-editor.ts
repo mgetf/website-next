@@ -3,7 +3,7 @@
  *
  * Client-safe shapes for the editable event draft. The same payload shape is
  * stored in `EventDraft.payload`, rendered by the live preview, and consumed
- * by the publish transaction in `$lib/server/services/eventEditor.ts`.
+ * by the publish transaction in `#lib/server/services/eventEditor.ts`.
  *
  * Every match/stage/participant carries a stable string `id` that is local to
  * the draft. IDs that look like DB row numbers (e.g. "482") refer to an

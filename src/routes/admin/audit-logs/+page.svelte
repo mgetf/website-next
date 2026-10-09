@@ -2,10 +2,10 @@
   import type { PageData } from './$types';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -119,7 +119,7 @@
   }
 
   function applyFilters() {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
     params.set('page', '1');
     const sd = (k: string, v: string) => (v ? params.set(k, v) : params.delete(k));
     sd('category', filterCategory);
@@ -129,15 +129,15 @@
     sd('targetId', filterTargetId);
     sd('dateFrom', filterDateFrom);
     sd('dateTo', filterDateTo);
-    goto(`?${params.toString()}`, { keepFocus: true });
+    goto(`?${params.toString()}`, { reset: false });
   }
 
   function clearFilters() {
-    goto('/admin/audit-logs', { keepFocus: true });
+    goto('/admin/audit-logs', { reset: false });
   }
 
   function goToPage(p: number) {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
     params.set('page', String(p));
     goto(`?${params.toString()}`);
   }

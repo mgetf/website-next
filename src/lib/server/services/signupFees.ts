@@ -1,7 +1,7 @@
-import { prisma } from '$lib/server/db';
-import type { SignupFeeItem, SignupFeeRegion, SignupFeeSummary } from '$lib/types/signupFee';
-import { getRegionAbbr, sortRegionsByAbbr } from '$lib/utils/region';
-import { flagForRegion } from '$lib/utils/regions';
+import { prisma } from '#lib/server/db.js';
+import type { SignupFeeItem, SignupFeeRegion, SignupFeeSummary } from '#lib/types/signupFee.js';
+import { getRegionAbbr, sortRegionsByAbbr } from '#lib/utils/region.js';
+import { flagForRegion } from '#lib/utils/regions.js';
 
 export type DivisionFeeInput = {
   regionId: number;

@@ -7,7 +7,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
-import { getOptionalEnv } from '$lib/server/utils/env';
+import { getOptionalEnv } from '#lib/server/utils/env.js';
 
 const R2_ENDPOINT = getOptionalEnv('S3_EU_ENDPOINT') || getOptionalEnv('S3_ENDPOINT');
 const R2_ACCESS_KEY_ID = getOptionalEnv('S3_ACCESS_KEY_ID');

@@ -1,16 +1,16 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireStrictAdmin } from '$lib/server/auth/permissions';
+import { requireStrictAdmin } from '#lib/server/auth/permissions.js';
 import {
   cloneEventToDraft,
   createEventDraft,
   importHistoricalEventDrafts,
   listTournamentEditorItems,
   type EventEditorActor,
-} from '$lib/server/services/eventEditor';
-import { eventDraftCloneSchema, eventDraftCreateSchema } from '$lib/server/utils/validation';
-import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+} from '#lib/server/services/eventEditor.js';
+import { eventDraftCloneSchema, eventDraftCreateSchema } from '#lib/server/utils/validation.js';
+import { formError, formSuccess, validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 function editorActor(
   user: NonNullable<App.Locals['user']>,

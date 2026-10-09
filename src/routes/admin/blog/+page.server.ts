@@ -1,15 +1,15 @@
 import type { Actions, PageServerLoad } from './$types';
-import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '$lib/server/auth/permissions';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
 import {
   blogPostIdSchema,
   deleteBlogPost,
   getAllBlogPostsForAdmin,
   publishBlogPost,
   unpublishBlogPost,
-} from '$lib/server/services/blog';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { validateForm, validationError, formError, formSuccess } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+} from '#lib/server/services/blog.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { validateForm, validationError, formError, formSuccess } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireAdmin(locals.user);

@@ -4,20 +4,20 @@
  * All user-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
-import { TeamStatus } from '$prisma/client.js';
+import { prisma } from '#lib/server/db.js';
+import { TeamStatus } from '#prisma/client.js';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
-import { FORMAT_1V1 } from '$lib/server/constants/formats';
-import type { NavUserTeam } from '$lib/types/user';
-import type { ProfileMatch } from '$lib/types/match';
-import type { ProfileTeamSeasonMatches } from '$lib/types/profile';
-import { getOptionalEnv } from '$lib/server/utils/env';
-import { compareMatchHistoryOrder, formatPlayoffRound } from '$lib/utils/playoffs';
-import { calculateWeekLabel, uniqueMatchArenas } from '$lib/server/utils/matchHelpers';
-import { invalidateCachedSessionVersion } from '$lib/server/auth/sessionCache';
-import { badRequest, conflict, notFound } from '$lib/server/utils/errors';
-import { parseDiscordUserId } from '$lib/server/utils/discordId';
-import { formatDiscordUsername, getDiscordAvatarUrl } from '$lib/server/auth/discord';
+import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
+import type { NavUserTeam } from '#lib/types/user.js';
+import type { ProfileMatch } from '#lib/types/match.js';
+import type { ProfileTeamSeasonMatches } from '#lib/types/profile.js';
+import { getOptionalEnv } from '#lib/server/utils/env.js';
+import { compareMatchHistoryOrder, formatPlayoffRound } from '#lib/utils/playoffs.js';
+import { calculateWeekLabel, uniqueMatchArenas } from '#lib/server/utils/matchHelpers.js';
+import { invalidateCachedSessionVersion } from '#lib/server/auth/sessionCache.js';
+import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
+import { parseDiscordUserId } from '#lib/server/utils/discordId.js';
+import { formatDiscordUsername, getDiscordAvatarUrl } from '#lib/server/auth/discord.js';
 import { lookupDiscordUser } from './discordGuild';
 import {
   applyDiscordLinkVerification,
@@ -29,8 +29,8 @@ import {
   STAFF_PUNISH_BLOCKED_MESSAGE,
   stripManagedDiscordRoles,
 } from './staff';
-import { buildUnregisteredPlayerProfile } from '$lib/utils/unregisteredProfile';
-import { isSafeUrl } from '$lib/utils/safeUrl';
+import { buildUnregisteredPlayerProfile } from '#lib/utils/unregisteredProfile.js';
+import { isSafeUrl } from '#lib/utils/safeUrl.js';
 import {
   mapStaffAssignmentForDisplay,
   replaceStaffAssignments,

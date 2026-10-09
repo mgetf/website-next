@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
   import ChevronDown from '~icons/lucide/chevron-down';
   import LogOut from '~icons/lucide/log-out';
   import Settings from '~icons/lucide/settings';

@@ -1,15 +1,15 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { ActionData, PageData } from './$types';
-  import BarChart from '$lib/components/charts/BarChart.svelte';
-  import DoughnutChart from '$lib/components/charts/DoughnutChart.svelte';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import BarChart from '#lib/components/charts/BarChart.svelte';
+  import DoughnutChart from '#lib/components/charts/DoughnutChart.svelte';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
   import CircleCheck from '~icons/lucide/circle-check';
   import ClipboardList from '~icons/lucide/clipboard-list';
 

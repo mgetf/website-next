@@ -2,9 +2,9 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import type { ProfilePaymentEntry } from '$lib/types/profile';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import type { ProfilePaymentEntry } from '#lib/types/profile.js';
 
   let {
     steamId,
@@ -75,14 +75,13 @@
   }
 
   function goToPage(next: number) {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
     params.set('tab', 'payments');
     if (next <= 1) params.delete('page');
     else params.set('page', String(next));
     const search = params.toString();
     void goto(search ? `${profilePath}?${search}` : profilePath, {
-      keepFocus: true,
-      noScroll: true,
+      reset: false,
     });
   }
 </script>

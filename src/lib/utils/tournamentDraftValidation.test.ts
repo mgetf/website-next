@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { EventDraftPayload } from '$lib/types/tournament-editor';
+import type { EventDraftPayload } from '#lib/types/tournament-editor.js';
 import {
   hasBlockingErrors,
   isStaleDraftRevision,

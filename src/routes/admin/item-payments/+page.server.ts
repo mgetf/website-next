@@ -1,13 +1,13 @@
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { requireAdmin } from '$lib/server/auth/permissions';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { requireAdmin } from '#lib/server/auth/permissions.js';
 import {
   getItemPaymentOrders,
   adminCancelItemPaymentOrder,
   expireOverdueOrders,
-} from '$lib/server/services/item-payments';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+} from '#lib/server/services/item-payments.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 import type { PageServerLoad, Actions } from './$types';
 
 const orderNumberSchema = z.object({

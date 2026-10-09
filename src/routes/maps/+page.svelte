@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import SearchInput from '$lib/components/ui/SearchInput.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import SearchInput from '#lib/components/ui/SearchInput.svelte';
 
   type MapRow = (typeof data.maps)[number];
 

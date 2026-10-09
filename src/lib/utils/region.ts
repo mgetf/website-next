@@ -10,7 +10,7 @@ const REGION_SORT_ORDER = ['NA', 'SA', 'EU', 'ASIA', 'AUS'];
 
 /**
  * Short label for a region name (NA, EU, ASIA, …).
- * Flags are `flagForRegion(abbr)` in `$lib/utils/regions`.
+ * Flags are `flagForRegion(abbr)` in `#lib/utils/regions.js`.
  */
 export function getRegionAbbr(name: string): string {
   const rule = REGION_RULES.find((r) => r.match.test(name));

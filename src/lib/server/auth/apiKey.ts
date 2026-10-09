@@ -6,8 +6,8 @@
  */
 
 import { error } from '@sveltejs/kit';
-import { validateApiKey, type ApiKeyRecord } from '$lib/server/services/apiKeys';
-import { apiRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
+import { validateApiKey, type ApiKeyRecord } from '#lib/server/services/apiKeys.js';
+import { apiRateLimiter, checkRateLimit } from '#lib/server/utils/rateLimit.js';
 
 /**
  * Extract and validate the Bearer token from the Authorization header.

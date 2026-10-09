@@ -1,14 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: {} }));
-vi.mock('$lib/server/db', () => ({ prisma: {} }));
-vi.mock('$lib/server/services/users', () => ({
+vi.mock('#lib/server/db.js', () => ({ prisma: {} }));
+vi.mock('#lib/server/services/users.js', () => ({
   fetchSteamAvatars: async () => ({}),
   getUserDisplaysByIds: async () => ({}),
 }));
 
 import { mapInvestigateResult } from './playerInvestigation';
-import type { InvestigateResult, SteamInvestigation } from '$lib/types/investigation';
+import type { InvestigateResult, SteamInvestigation } from '#lib/types/investigation.js';
 
 describe('mapInvestigateResult', () => {
   it('copies steam payloads into a serializable shape', () => {

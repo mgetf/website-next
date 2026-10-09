@@ -1,21 +1,21 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import Card from '$lib/components/ui/Card.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import { TF_CLASSES_DISPLAY_ORDER } from '$lib/constants/tfClasses';
-  import { ratingValue, visibleServerRatings } from '$lib/utils/rating';
-  import { classIcon } from '$lib/utils/classIcons';
-  import { flagForRegion } from '$lib/utils/regions';
-  import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
-  import type { PlayerServerStats, StatsWindow } from '$lib/types/profile';
-  import { STATS_WINDOWS } from '$lib/types/profile';
+  import Card from '#lib/components/ui/Card.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import { TF_CLASSES_DISPLAY_ORDER } from '#lib/constants/tfClasses.js';
+  import { ratingValue, visibleServerRatings } from '#lib/utils/rating.js';
+  import { classIcon } from '#lib/utils/classIcons.js';
+  import { flagForRegion } from '#lib/utils/regions.js';
+  import type { MgeClasseloRating, MgeRating, PlatformRegion } from '#lib/types/mge.js';
+  import type { PlayerServerStats, StatsWindow } from '#lib/types/profile.js';
+  import { STATS_WINDOWS } from '#lib/types/profile.js';
   import {
     chartPointsFromSeries,
     formatDuration,
     formatRelativeTime,
     resultClass,
-  } from '$lib/utils/profile';
+  } from '#lib/utils/profile.js';
   import ActivityHeatmap from './ActivityHeatmap.svelte';
   import InsightsSkeleton from './InsightsSkeleton.svelte';
   import RatingChipSelect from './RatingChipSelect.svelte';

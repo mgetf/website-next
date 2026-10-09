@@ -1,5 +1,5 @@
-import { getPlayerChatHistory } from '$lib/server/clients/mgePlatform';
-import type { ChatWindow, ProfileChatPage } from '$lib/types/profile';
+import { getPlayerChatHistory } from '#lib/server/clients/mgePlatform.js';
+import type { ChatWindow, ProfileChatPage } from '#lib/types/profile.js';
 
 const DAY_SECONDS = 86400;
 

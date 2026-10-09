@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Popover } from 'bits-ui';
-  import type { LeagueNav } from '$lib/types/league';
-  import Card from '$lib/components/ui/Card.svelte';
+  import type { LeagueNav } from '#lib/types/league.js';
+  import Card from '#lib/components/ui/Card.svelte';
   import LeaguesNavGrid from './LeaguesNavGrid.svelte';
   import { page } from '$app/state';
   import ChevronDown from '~icons/lucide/chevron-down';

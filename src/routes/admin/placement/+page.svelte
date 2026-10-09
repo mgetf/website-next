@@ -1,33 +1,32 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
-  import type { SubmitFunction } from '@sveltejs/kit';
-  import { goto, invalidateAll } from '$app/navigation';
-  import { enhance } from '$app/forms';
+  import { goto, refreshAll } from '$app/navigation';
+  import { enhance, type SubmitFunction } from '$app/forms';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { untrack } from 'svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import ProfilingCardFacts from '$lib/components/admin/ProfilingCardFacts.svelte';
-  import ProfilingPeek from '$lib/components/admin/ProfilingPeek.svelte';
-  import SearchInput from '$lib/components/ui/SearchInput.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import { statusLabel } from '$lib/utils/profile';
-  import { getRegionAbbr } from '$lib/utils/region';
-  import { flagForRegion } from '$lib/utils/regions';
-  import { isFreeDivision } from '$lib/utils/signupDivision';
-  import { hasMetMinRosterSize } from '$lib/utils/rosterSize';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import ProfilingCardFacts from '#lib/components/admin/ProfilingCardFacts.svelte';
+  import ProfilingPeek from '#lib/components/admin/ProfilingPeek.svelte';
+  import SearchInput from '#lib/components/ui/SearchInput.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import { statusLabel } from '#lib/utils/profile.js';
+  import { getRegionAbbr } from '#lib/utils/region.js';
+  import { flagForRegion } from '#lib/utils/regions.js';
+  import { isFreeDivision } from '#lib/utils/signupDivision.js';
+  import { hasMetMinRosterSize } from '#lib/utils/rosterSize.js';
   import {
     describePlacementMoves,
     matchesPlacementSearch,
     mergePlacementColumnItems,
-  } from '$lib/utils/placement';
-  import type { PlacementColumn, PlacementEntry, PlacementPlayer } from '$lib/types/placement';
-  import type { ProfilingSnapshot } from '$lib/types/profiling';
+  } from '#lib/utils/placement.js';
+  import type { PlacementColumn, PlacementEntry, PlacementPlayer } from '#lib/types/placement.js';
+  import type { ProfilingSnapshot } from '#lib/types/profiling.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -264,7 +263,7 @@
       saving = false;
       await update();
       if (result.type === 'success') {
-        await invalidateAll();
+        await refreshAll();
       }
     };
   };
@@ -292,14 +291,13 @@
         <Button variant="secondary" size="sm" disabled={!dirty || saving} onclick={discard}
           >Discard</Button
         >
+
         <Button
           variant="primary"
           size="sm"
           disabled={!dirty || saving}
-          onclick={() => (showConfirm = true)}
+          onclick={() => (showConfirm = true)}>Save</Button
         >
-          Save
-        </Button>
       </div>
     </div>
     <div class="flex flex-wrap items-end gap-3">
@@ -392,6 +390,7 @@
             <p class="text-[10px] leading-tight text-text-muted">
               {searchActive ? `${visibleCount} matching · ` : ''}{shown.length}
               {shown.length === 1 ? (data.isIndividual ? 'player' : 'team') : entityLabel}
+
               {#if hiddenCount > 0}
                 <span> · {hiddenCount} below min</span>
               {/if}

@@ -1,19 +1,23 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import SeasonScope from '$lib/components/ui/SeasonScope.svelte';
-  import Tooltip from '$lib/components/ui/Tooltip.svelte';
-  import { PROVISIONAL_RATING_TITLE, ratingValue, visibleServerRatings } from '$lib/utils/rating';
-  import { flagForRegion } from '$lib/utils/regions';
-  import type { MgeRating, PlatformRegion } from '$lib/types/mge';
-  import type { ProfileMatch } from '$lib/types/match';
-  import type { PlayerServerStats, Profile1v1Entry, ProfileTeam } from '$lib/types/profile';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
+  import SeasonScope from '#lib/components/ui/SeasonScope.svelte';
+  import Tooltip from '#lib/components/ui/Tooltip.svelte';
+  import {
+    PROVISIONAL_RATING_TITLE,
+    ratingValue,
+    visibleServerRatings,
+  } from '#lib/utils/rating.js';
+  import { flagForRegion } from '#lib/utils/regions.js';
+  import type { MgeRating, PlatformRegion } from '#lib/types/mge.js';
+  import type { ProfileMatch } from '#lib/types/match.js';
+  import type { PlayerServerStats, Profile1v1Entry, ProfileTeam } from '#lib/types/profile.js';
   import {
     chartPointsFromSeries,
     formatDate,
@@ -23,7 +27,7 @@
     statusLabel,
     teamFormatsIn,
     winPct,
-  } from '$lib/utils/profile';
+  } from '#lib/utils/profile.js';
   import UserPlus from '~icons/lucide/user-plus';
   import RatingTrend from './RatingTrend.svelte';
 

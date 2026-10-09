@@ -227,7 +227,7 @@ Urgent because the tree already exists in the database and nowhere in the player
 - `Match.playoffId`, signed `playoffRound` (`>0` upper, `<0` lower, `0` used as unlabeled “Playoff” / grand-final-ish)
 - Labels: `formatPlayoffRound()` → “Upper Round N” / “Lower Round N”
 - Builders: `buildSingleElimBracket` / `buildDoubleElimBracket` in `src/lib/server/utils/bracketBuilders.ts`
-- Presentation: `BracketData` in `$lib/types/bracket.ts` already documents a league mapper
+- Presentation: `BracketData` in `#lib/types/bracket.ts` already documents a league mapper
 - `MatchCard` already follows `match.href`
 
 Admin creates playoff matches **per region/division**. One `Playoff` row is per season, but the matches belong to division teams. Render **one bracket per division that has playoff matches**, not one mashed tree for the whole season.

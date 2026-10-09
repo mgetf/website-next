@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { BlogCommentNode } from '$lib/types/blogComment';
-  import Card from '$lib/components/ui/Card.svelte';
+  import type { BlogCommentNode } from '#lib/types/blogComment.js';
+  import Card from '#lib/components/ui/Card.svelte';
   import CommentForm from './CommentForm.svelte';
   import CommentItem from './CommentItem.svelte';
 

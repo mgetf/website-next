@@ -1,14 +1,14 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { goto } from '$app/navigation';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import SearchInput from '$lib/components/ui/SearchInput.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormatBadge from '$lib/components/ui/FormatBadge.svelte';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import SearchInput from '#lib/components/ui/SearchInput.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
   import Users from '~icons/lucide/users';
 
   let { data }: { data: PageData } = $props();
@@ -125,7 +125,7 @@
 
     params.set('page', '1');
 
-    goto(`/teams?${params.toString()}`, { replaceState: true });
+    goto(`/teams?${params.toString()}`, { replace: true });
   }
 
   function changePage(page: number) {

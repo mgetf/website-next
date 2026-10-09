@@ -1,12 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { toast } from '$lib/state/toast.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
   import type { PageData } from './$types';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import Tooltip from '$lib/components/ui/Tooltip.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
+  import Tooltip from '#lib/components/ui/Tooltip.svelte';
 
   let { data }: { data: PageData } = $props();
   let cancellingOrder = $state<string | null>(null);

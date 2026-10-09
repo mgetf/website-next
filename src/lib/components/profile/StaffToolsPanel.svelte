@@ -1,11 +1,11 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import DiscordIcon from '#lib/components/icons/DiscordIcon.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
   import X from '~icons/lucide/x';
 
   interface StaffToolsPlayer {

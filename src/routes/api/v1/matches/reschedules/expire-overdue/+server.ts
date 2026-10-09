@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
-import { requireRateLimitedApiKey } from '$lib/server/auth/apiKey';
-import { settleExpiredReschedules } from '$lib/server/services/matchComms';
+
+import { requireRateLimitedApiKey } from '#lib/server/auth/apiKey.js';
+import { settleExpiredReschedules } from '#lib/server/services/matchComms.js';
 
 export const POST: RequestHandler = async ({ request }) => {
   const auth = await requireRateLimitedApiKey(request);
@@ -9,7 +9,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const settledCount = await settleExpiredReschedules();
 
-  return json({
+  return Response.json({
     success: true,
     settledCount,
   });

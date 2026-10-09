@@ -1,13 +1,13 @@
 /**
  * Shared Vitest setup.
- * Prisma is mocked so modules that import `$lib/server/db` can load without DATABASE_URL.
+ * Prisma is mocked so modules that import `#lib/server/db.js` can load without DATABASE_URL.
  */
 import { vi } from 'vitest';
 
 process.env.SESSION_SECRET ??= 'test-session-secret-at-least-32-chars!!';
 process.env.JWT_SECRET ??= 'test-jwt-secret-at-least-32-chars!!!!!!';
 
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.js', () => ({
   prisma: {
     playerInTeam: {
       findUnique: vi.fn(),

@@ -1,13 +1,13 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
-  import Card from '$lib/components/ui/Card.svelte';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import Card from '#lib/components/ui/Card.svelte';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
 
   type MapRow = (typeof data.maps)[number];
 

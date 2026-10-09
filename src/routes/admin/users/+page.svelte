@@ -3,20 +3,20 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { enhance } from '$app/forms';
-  import DataTable from '$lib/components/ui/DataTable.svelte';
-  import FilterBar from '$lib/components/ui/FilterBar.svelte';
-  import SearchInput from '$lib/components/ui/SearchInput.svelte';
-  import SelectFilter from '$lib/components/ui/SelectFilter.svelte';
-  import Dialog from '$lib/components/ui/Dialog.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import FormInput from '$lib/components/ui/form/FormInput.svelte';
-  import FormError from '$lib/components/ui/form/FormError.svelte';
-  import { toast } from '$lib/state/toast.svelte';
-  import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
-  import { getFormatThemeClasses } from '$lib/constants/formats';
-  import { staffListChips } from '$lib/utils/staffDisplay';
+  import DataTable from '#lib/components/ui/DataTable.svelte';
+  import FilterBar from '#lib/components/ui/FilterBar.svelte';
+  import SearchInput from '#lib/components/ui/SearchInput.svelte';
+  import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
+  import Dialog from '#lib/components/ui/Dialog.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import FormInput from '#lib/components/ui/form/FormInput.svelte';
+  import FormError from '#lib/components/ui/form/FormError.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
+  import DiscordIcon from '#lib/components/icons/DiscordIcon.svelte';
+  import { getFormatThemeClasses } from '#lib/constants/formats.js';
+  import { staffListChips } from '#lib/utils/staffDisplay.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -75,7 +75,7 @@
   }
 
   function updateFilters(updates: Record<string, string>) {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams.toString());
 
     Object.entries(updates).forEach(([key, value]) => {
       if (value) {
@@ -89,7 +89,7 @@
       params.delete('page');
     }
 
-    goto(`?${params.toString()}`, { keepFocus: true, replaceState: true });
+    goto(`?${params.toString()}`, { reset: false, replace: true });
   }
 
   const permissionNames: Record<string, string> = {

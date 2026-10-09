@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { getEventById, getEventBracketData } from '$lib/server/services/events';
-import { buildPageSeo } from '$lib/utils/seo';
+import { getEventById, getEventBracketData } from '#lib/server/services/events.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
 
 export const load: PageServerLoad = async ({ params, url }) => {
   const id = parseInt(params.id);

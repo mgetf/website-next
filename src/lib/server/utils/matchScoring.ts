@@ -3,8 +3,8 @@
  * Kept free of Prisma so unit tests and the matches service can share them.
  */
 
-import { UserRole, type SessionUser } from '$lib/types/user';
-import { FORMAT_1V1 } from '$lib/constants/formats';
+import { UserRole, type SessionUser } from '#lib/types/user.js';
+import { FORMAT_1V1 } from '#lib/constants/formats.js';
 
 export interface GameResult {
   gameNum: number;

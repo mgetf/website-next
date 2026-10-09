@@ -1,6 +1,6 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { requireStrictAdmin } from '$lib/server/auth/permissions';
+import { requireStrictAdmin } from '#lib/server/auth/permissions.js';
 import {
   getEventDraft,
   getEventDraftRevisions,
@@ -9,16 +9,16 @@ import {
   restoreEventRevision,
   saveEventDraft,
   type EventEditorActor,
-} from '$lib/server/services/eventEditor';
-import { getArenas } from '$lib/server/services/arenas';
+} from '#lib/server/services/eventEditor.js';
+import { getArenas } from '#lib/server/services/arenas.js';
 import {
   eventDraftPublishSchema,
   eventDraftSaveSchema,
   eventRevisionRestoreSchema,
-} from '$lib/server/utils/validation';
-import { formError, formSuccess, validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { validateDraftStructure } from '$lib/utils/tournamentDraftValidation';
+} from '#lib/server/utils/validation.js';
+import { formError, formSuccess, validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { validateDraftStructure } from '#lib/utils/tournamentDraftValidation.js';
 
 function draftIdFromParams(params: { draftId: string }): number {
   const draftId = Number(params.draftId);

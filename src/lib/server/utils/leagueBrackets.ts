@@ -1,13 +1,13 @@
-import type { BracketData, BracketStatus } from '$lib/types/bracket';
-import type { LeaguePlayoffDivision } from '$lib/types/league';
-import { scoresForLeagueMatch } from '$lib/utils/leagueMatches';
-import { formatPlayoffRound } from '$lib/utils/playoffs';
+import type { BracketData, BracketStatus } from '#lib/types/bracket.js';
+import type { LeaguePlayoffDivision } from '#lib/types/league.js';
+import { scoresForLeagueMatch } from '#lib/utils/leagueMatches.js';
+import { formatPlayoffRound } from '#lib/utils/playoffs.js';
 import {
   buildDoubleElimBracket,
   buildSingleElimBracket,
   type BracketMatchInput,
   type BracketPlayerInput,
-} from '$lib/server/utils/bracketBuilders';
+} from '#lib/server/utils/bracketBuilders.js';
 
 export type LeaguePlayoffSideInput = {
   id: number;

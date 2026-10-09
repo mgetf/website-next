@@ -4,13 +4,17 @@
  * through changeTeamDivision() so payment side-effects stay in one place.
  */
 
-import { prisma } from '$lib/server/db';
-import { TeamStatus } from '$prisma/client.js';
-import { badRequest, notFound } from '$lib/server/utils/errors';
-import { changeTeamDivision, type ChangeTeamDivisionResult } from '$lib/server/services/teams';
-import { getSignupSeasonForRegion } from '$lib/server/services/signupSeasons';
-import { placementAssignmentError } from '$lib/utils/placement';
-import type { PlacementAssignment, PlacementDivision, PlacementEntry } from '$lib/types/placement';
+import { prisma } from '#lib/server/db.js';
+import { TeamStatus } from '#prisma/client.js';
+import { badRequest, notFound } from '#lib/server/utils/errors.js';
+import { changeTeamDivision, type ChangeTeamDivisionResult } from '#lib/server/services/teams.js';
+import { getSignupSeasonForRegion } from '#lib/server/services/signupSeasons.js';
+import { placementAssignmentError } from '#lib/utils/placement.js';
+import type {
+  PlacementAssignment,
+  PlacementDivision,
+  PlacementEntry,
+} from '#lib/types/placement.js';
 
 const PLACEMENT_STATUSES: TeamStatus[] = [
   TeamStatus.UNREADY,

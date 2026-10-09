@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
-import { getEloLeaderboardPage, searchEloLeaderboard } from '$lib/server/services/leaderboard';
-import { getRegions } from '$lib/server/clients/mgePlatform';
-import type { LeaderboardSortField, LeaderboardSortDir } from '$lib/server/clients/mgePlatform';
-import { isValidTfClassId } from '$lib/constants/tfClasses';
+import { getEloLeaderboardPage, searchEloLeaderboard } from '#lib/server/services/leaderboard.js';
+import { getRegions } from '#lib/server/clients/mgePlatform.js';
+import type { LeaderboardSortField, LeaderboardSortDir } from '#lib/server/clients/mgePlatform.js';
+import { isValidTfClassId } from '#lib/constants/tfClasses.js';
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const DEFAULT_PAGE_SIZE = 50;

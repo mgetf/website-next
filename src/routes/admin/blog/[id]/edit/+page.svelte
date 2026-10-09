@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
   import BlogPostForm from '../../_components/BlogPostForm.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import { toast } from '$lib/state/toast.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import { toast } from '#lib/state/toast.svelte.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 

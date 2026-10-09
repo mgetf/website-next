@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { LeagueNav, LeagueNavFormat } from '$lib/types/league';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
-  import FormatIcon from '$lib/components/ui/FormatIcon.svelte';
-  import { getFormatThemeClasses } from '$lib/constants/formats';
+  import type { LeagueNav, LeagueNavFormat } from '#lib/types/league.js';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
+  import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
+  import { getFormatThemeClasses } from '#lib/constants/formats.js';
   import { page } from '$app/state';
 
   type Props = {

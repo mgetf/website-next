@@ -4,7 +4,7 @@
  * All map ban pool-related business logic and database operations.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.js';
 
 /**
  * Get all map ban pools with their maps and match counts

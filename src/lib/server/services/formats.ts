@@ -3,10 +3,14 @@
  * Manages game formats and their behavioral configuration.
  */
 
-import { prisma } from '$lib/server/db';
-import { LIVE_TEAM_COUNT } from '$lib/server/constants/teams';
-import { FORMAT_THEME_KEYS, isFormatThemeKey, type FormatThemeKey } from '$lib/constants/formats';
-import { badRequest, notFound } from '$lib/server/utils/errors';
+import { prisma } from '#lib/server/db.js';
+import { LIVE_TEAM_COUNT } from '#lib/server/constants/teams.js';
+import {
+  FORMAT_THEME_KEYS,
+  isFormatThemeKey,
+  type FormatThemeKey,
+} from '#lib/constants/formats.js';
+import { badRequest, notFound } from '#lib/server/utils/errors.js';
 import {
   deleteFromR2,
   deleteTempFile,
@@ -15,7 +19,7 @@ import {
   saveTempFile,
   uploadToR2,
   validateUploadedFile,
-} from '$lib/server/utils/r2Upload';
+} from '#lib/server/utils/r2Upload.js';
 
 export type FormatConfigInput = {
   name: string;

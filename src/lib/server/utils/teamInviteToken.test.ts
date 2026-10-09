@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { generateJoinToken, validateJoinToken } from '$lib/server/services/teamSignup';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { generateJoinToken, validateJoinToken } from '#lib/server/services/teamSignup.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 import {
   createTeamInviteToken,
   parseTeamInviteToken,
   TEAM_INVITE_TTL_SECONDS,
-} from '$lib/server/utils/teamInviteToken';
+} from '#lib/server/utils/teamInviteToken.js';
 
 function messageOf(fn: () => void): string {
   try {

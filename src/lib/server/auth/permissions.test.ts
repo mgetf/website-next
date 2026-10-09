@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isHttpError } from '@sveltejs/kit';
-import { BanStatus, UserRole, type SessionUser } from '$lib/types/user';
+import { BanStatus, UserRole, type SessionUser } from '#lib/types/user.js';
 import {
   canModerateUser,
   hasRole,

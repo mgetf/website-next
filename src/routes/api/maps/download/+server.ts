@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
+
 import { ZipArchive } from 'archiver';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
@@ -7,9 +7,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { finished } from 'node:stream/promises';
-import { getMapFilesByIds } from '$lib/server/services/mapFiles';
-import { mapDownloadRateLimiter, checkRateLimit } from '$lib/server/utils/rateLimit';
-import { fetchPublicHttps, PublicHttpsUrlError } from '$lib/server/utils/publicHttpsUrl';
+import { getMapFilesByIds } from '#lib/server/services/mapFiles.js';
+import { mapDownloadRateLimiter, checkRateLimit } from '#lib/server/utils/rateLimit.js';
+import { fetchPublicHttps, PublicHttpsUrlError } from '#lib/server/utils/publicHttpsUrl.js';
 
 interface MapRequest {
   id: number;
@@ -64,13 +64,13 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   try {
     body = await request.json();
   } catch {
-    return json({ error: 'Invalid JSON body' }, { status: 400 });
+    return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const rawMaps = body?.maps;
 
   if (!Array.isArray(rawMaps) || rawMaps.length === 0) {
-    return json({ error: 'maps must be a non-empty array' }, { status: 400 });
+    return Response.json({ error: 'maps must be a non-empty array' }, { status: 400 });
   }
 
   const mapRequests: MapRequest[] = [];
@@ -84,11 +84,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   }
 
   if (mapRequests.length === 0) {
-    return json({ error: 'No valid map entries provided' }, { status: 400 });
+    return Response.json({ error: 'No valid map entries provided' }, { status: 400 });
   }
 
   if (mapRequests.length > 50) {
-    return json({ error: 'Cannot download more than 50 maps at once' }, { status: 400 });
+    return Response.json({ error: 'Cannot download more than 50 maps at once' }, { status: 400 });
   }
 
   const mapIds = mapRequests.map((m) => m.id);
@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   const maps = await getMapFilesByIds(uniqueIds);
 
   if (maps.length !== uniqueIds.length) {
-    return json({ error: 'One or more maps were not found' }, { status: 404 });
+    return Response.json({ error: 'One or more maps were not found' }, { status: 404 });
   }
 
   const prefByMapId = new Map(mapRequests.map((r) => [r.id, r]));
@@ -160,7 +160,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
           ? err.message
           : 'Failed to build map zip';
     console.error('Map zip build failed:', err);
-    return json({ error: message }, { status: 502 });
+    return Response.json({ error: message }, { status: 502 });
   }
 
   try {
@@ -185,6 +185,6 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   } catch (err) {
     await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
     console.error('Map zip read failed:', err);
-    return json({ error: 'Failed to read map zip' }, { status: 500 });
+    return Response.json({ error: 'Failed to read map zip' }, { status: 500 });
   }
 };

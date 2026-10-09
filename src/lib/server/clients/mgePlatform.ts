@@ -1,12 +1,12 @@
-import { env } from '$env/dynamic/private';
-import type { MgeClasseloRating, MgeRating, PlatformRegion } from '$lib/types/mge';
-import type { InvestigateResult } from '$lib/types/investigation';
-import type { PlayerServerStats, ProfileChatPage, StatsWindow } from '$lib/types/profile';
-import { steamId32FromSteamId64 } from '$lib/utils/steamid';
-import { getPlatformAdminSecret } from '$lib/server/utils/env';
+import { MGE_PLATFORM_URL } from '$app/env/private';
+import type { MgeClasseloRating, MgeRating, PlatformRegion } from '#lib/types/mge.js';
+import type { InvestigateResult } from '#lib/types/investigation.js';
+import type { PlayerServerStats, ProfileChatPage, StatsWindow } from '#lib/types/profile.js';
+import { steamId32FromSteamId64 } from '#lib/utils/steamid.js';
+import { getPlatformAdminSecret } from '#lib/server/utils/env.js';
 
 function getPlatformUrl(): string {
-  return (env.MGE_PLATFORM_URL ?? '').replace(/\/$/, '');
+  return (MGE_PLATFORM_URL ?? '').replace(/\/$/, '');
 }
 
 function mapRatingFields<T extends MgeRating>(rating: T): T {

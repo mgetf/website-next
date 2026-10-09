@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { ProfilingSnapshot } from '$lib/types/profiling';
-  import { formatRelativeTime } from '$lib/utils/profile';
-  import { emptyProfilingSnapshot, profilingCardChips } from '$lib/utils/profiling';
+  import type { ProfilingSnapshot } from '#lib/types/profiling.js';
+  import { formatRelativeTime } from '#lib/utils/profile.js';
+  import { emptyProfilingSnapshot, profilingCardChips } from '#lib/utils/profiling.js';
 
   let {
     snapshot,

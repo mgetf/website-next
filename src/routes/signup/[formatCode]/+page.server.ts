@@ -1,22 +1,22 @@
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail, isRedirect } from '@sveltejs/kit';
-import { requireNotBanned, isBanned } from '$lib/server/auth/permissions';
-import { requireFormatByCode } from '$lib/server/services/formats';
-import { get1v1SignupContext, signup1v1 } from '$lib/server/services/signup1v1';
+import { requireNotBanned, isBanned } from '#lib/server/auth/permissions.js';
+import { requireFormatByCode } from '#lib/server/services/formats.js';
+import { get1v1SignupContext, signup1v1 } from '#lib/server/services/signup1v1.js';
 import {
   getSignupSeasonForRegion,
   getRegionsOpenForSignup,
-} from '$lib/server/services/signupSeasons';
-import { formAcknowledgedSignupScope } from '$lib/utils/signupAck';
-import { getSignupFeeSummary } from '$lib/server/services/signupFees';
-import { getVisibleDivisions } from '$lib/server/services/divisions';
-import { checkPaymentRequired } from '$lib/server/services/payments';
-import { formAcknowledgedFreeDivision } from '$lib/server/services/signupDivision';
+} from '#lib/server/services/signupSeasons.js';
+import { formAcknowledgedSignupScope } from '#lib/utils/signupAck.js';
+import { getSignupFeeSummary } from '#lib/server/services/signupFees.js';
+import { getVisibleDivisions } from '#lib/server/services/divisions.js';
+import { checkPaymentRequired } from '#lib/server/services/payments.js';
+import { formAcknowledgedFreeDivision } from '#lib/server/services/signupDivision.js';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
-import { loginToParticipateHref } from '$lib/utils/signupLogin';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import { loginToParticipateHref } from '#lib/utils/signupLogin.js';
 
 // Zod schema for individual signup form
 const signupSchema = z.object({

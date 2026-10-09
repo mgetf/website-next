@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BanStatus, UserRole, type SessionUser } from '$lib/types/user';
-import { FORMAT_1V1, FORMAT_2V2 } from '$lib/constants/formats';
+import { BanStatus, UserRole, type SessionUser } from '#lib/types/user.js';
+import { FORMAT_1V1, FORMAT_2V2 } from '#lib/constants/formats.js';
 import { calculateMatchWinner, canUserManageMatch, validateScoreSubmission } from './matchScoring';
 
 function user(overrides: Partial<SessionUser> = {}): SessionUser {

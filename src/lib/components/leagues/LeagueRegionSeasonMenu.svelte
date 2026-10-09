@@ -1,6 +1,6 @@
 <script lang="ts">
   import { DropdownMenu } from 'bits-ui';
-  import FlagIcon from '$lib/components/ui/FlagIcon.svelte';
+  import FlagIcon from '#lib/components/ui/FlagIcon.svelte';
   import Check from '~icons/lucide/check';
   import ChevronDown from '~icons/lucide/chevron-down';
 

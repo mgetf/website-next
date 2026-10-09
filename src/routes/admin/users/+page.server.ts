@@ -4,10 +4,10 @@ import {
   requireStrictAdmin,
   requireCanModerateUser,
   isStrictAdmin,
-} from '$lib/server/auth/permissions';
+} from '#lib/server/auth/permissions.js';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { formError, validateForm, validationError } from '$lib/server/utils/forms';
+import { formError, validateForm, validationError } from '#lib/server/utils/forms.js';
 import {
   getUsers,
   countUsers,
@@ -21,11 +21,11 @@ import {
   unlockUserName,
   lockUserAvatar,
   unlockUserAvatar,
-} from '$lib/server/services/users';
-import { getFormatsForFilter } from '$lib/server/services/formats';
-import { mapStaffAssignmentForDisplay } from '$lib/server/services/staffAssignments';
-import { getErrorMessage } from '$lib/server/utils/errors';
-import { logAudit, AuditCategory, AuditAction } from '$lib/server/services/auditLog';
+} from '#lib/server/services/users.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
+import { mapStaffAssignmentForDisplay } from '#lib/server/services/staffAssignments.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
+import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 
 const steamIdSchema = z.object({
   steamId: z.string().min(1, 'Invalid user ID'),

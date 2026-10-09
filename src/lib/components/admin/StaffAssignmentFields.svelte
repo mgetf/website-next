@@ -1,8 +1,11 @@
 <script lang="ts">
-  import FormSelect from '$lib/components/ui/form/FormSelect.svelte';
-  import { getFormatThemeClasses } from '$lib/constants/formats';
-  import { filterDivisionsByRegionAndFormat, filterRegionsByFormat } from '$lib/utils/leagueScope';
-  import { groupStaffByFormatAndRegion } from '$lib/utils/staffDisplay';
+  import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
+  import { getFormatThemeClasses } from '#lib/constants/formats.js';
+  import {
+    filterDivisionsByRegionAndFormat,
+    filterRegionsByFormat,
+  } from '#lib/utils/leagueScope.js';
+  import { groupStaffByFormatAndRegion } from '#lib/utils/staffDisplay.js';
 
   type FormatOption = { id: number; name: string; themeKey: string };
   type RegionOption = { id: number; name: string };

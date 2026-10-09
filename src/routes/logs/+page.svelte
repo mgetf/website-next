@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import DataTable, { type Column } from '$lib/components/ui/DataTable.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import { classIcon } from '$lib/utils/classIcons';
-  import { cleanArenaName } from '$lib/utils/arenaNames';
+  import DataTable, { type Column } from '#lib/components/ui/DataTable.svelte';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import Button from '#lib/components/ui/Button.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import { classIcon } from '#lib/utils/classIcons.js';
+  import { cleanArenaName } from '#lib/utils/arenaNames.js';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();

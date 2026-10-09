@@ -1,15 +1,15 @@
 import type { PageServerLoad, Actions } from './$types';
-import { requireAuth, requireNotBanned } from '$lib/server/auth/permissions';
+import { requireAuth, requireNotBanned } from '#lib/server/auth/permissions.js';
 import {
   getUserPendingInvites,
   acceptTeamInvite,
   declineInvitation,
-} from '$lib/server/services/teamJoin';
-import { getEffectiveRosterLock } from '$lib/server/services/settings';
+} from '#lib/server/services/teamJoin.js';
+import { getEffectiveRosterLock } from '#lib/server/services/settings.js';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { validateForm, validationError } from '$lib/server/utils/forms';
-import { getErrorMessage } from '$lib/server/utils/errors';
+import { validateForm, validationError } from '#lib/server/utils/forms.js';
+import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 const teamIdSchema = z.object({
   teamId: z.coerce.number().int().positive('Invalid team ID'),

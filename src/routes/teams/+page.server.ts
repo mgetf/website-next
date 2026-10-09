@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types';
-import { getTeamsPublic } from '$lib/server/services/teams';
-import { getRegions } from '$lib/server/services/regions';
-import { getSeasons } from '$lib/server/services/seasons';
-import { getFormatsForFilter } from '$lib/server/services/formats';
-import { buildPageSeo } from '$lib/utils/seo';
+import { getTeamsPublic } from '#lib/server/services/teams.js';
+import { getRegions } from '#lib/server/services/regions.js';
+import { getSeasons } from '#lib/server/services/seasons.js';
+import { getFormatsForFilter } from '#lib/server/services/formats.js';
+import { buildPageSeo } from '#lib/utils/seo.js';
 
 export const load: PageServerLoad = async ({ url }) => {
   const page = parseInt(url.searchParams.get('page') || '1');

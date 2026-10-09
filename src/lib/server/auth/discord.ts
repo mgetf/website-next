@@ -8,6 +8,13 @@ import { dev } from '$app/environment';
 import type { Cookies } from '@sveltejs/kit';
 import crypto from 'crypto';
 import { getSessionSecret } from '$lib/server/utils/env';
+import {
+  DiscordRateLimitError,
+  logDiscordRateLimit,
+  readDiscordRateLimit,
+} from '$lib/server/utils/discordRateLimit';
+
+export { DiscordRateLimitError };
 
 /**
  * Discord OAuth2 endpoints
@@ -178,6 +185,35 @@ export function verifyDiscordOAuthState(
   return { steamId: stateData.steamId };
 }
 
+async function readDiscordBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+function assertDiscordOk(
+  response: Response,
+  payload: unknown,
+  method: string,
+  path: string,
+  fallbackMessage: string,
+): void {
+  if (response.status === 429) {
+    const info = readDiscordRateLimit(response, payload);
+    logDiscordRateLimit({ source: 'oauth', method, path, info });
+    throw new DiscordRateLimitError(info.retryAfterSeconds);
+  }
+
+  if (!response.ok) {
+    console.error(`${fallbackMessage}:`, payload);
+    throw new Error(fallbackMessage);
+  }
+}
+
 /**
  * Exchange authorization code for access token and fetch Discord user data
  */
@@ -201,14 +237,22 @@ export async function exchangeDiscordCode(code: string, request: Request): Promi
     body: tokenParams.toString(),
   });
 
-  if (!tokenResponse.ok) {
-    const errorText = await tokenResponse.text();
-    console.error('Discord token exchange failed:', errorText);
+  const tokenPayload = await readDiscordBody(tokenResponse);
+  assertDiscordOk(
+    tokenResponse,
+    tokenPayload,
+    'POST',
+    '/oauth2/token',
+    'Failed to exchange Discord authorization code',
+  );
+
+  const accessToken =
+    tokenPayload && typeof tokenPayload === 'object' && 'access_token' in tokenPayload
+      ? String((tokenPayload as { access_token: unknown }).access_token)
+      : '';
+  if (!accessToken) {
     throw new Error('Failed to exchange Discord authorization code');
   }
-
-  const tokenData = await tokenResponse.json();
-  const accessToken = tokenData.access_token;
 
   const userResponse = await fetch(DISCORD_USER_ENDPOINT, {
     headers: {
@@ -217,13 +261,16 @@ export async function exchangeDiscordCode(code: string, request: Request): Promi
     },
   });
 
-  if (!userResponse.ok) {
-    const errorText = await userResponse.text();
-    console.error('Discord user fetch failed:', errorText);
-    throw new Error('Failed to fetch Discord user data');
-  }
+  const userPayload = await readDiscordBody(userResponse);
+  assertDiscordOk(
+    userResponse,
+    userPayload,
+    'GET',
+    '/users/@me',
+    'Failed to fetch Discord user data',
+  );
 
-  return (await userResponse.json()) as DiscordUser;
+  return userPayload as DiscordUser;
 }
 
 /**

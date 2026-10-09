@@ -167,10 +167,30 @@
           <h3 class="text-sm font-semibold text-white">Unmanaged Discord roles</h3>
           <p class="text-xs text-text-muted">
             Members who hold hub-managed roles but are not designated staff on this site.
+            {#if data.orphanDiscord.fetchedAt}
+              Last loaded from Discord {formatRelativeTime(data.orphanDiscord.fetchedAt)}.
+            {:else}
+              Discord is asked for this list only when you refresh.
+            {/if}
           </p>
         </div>
-        {#if orphanMembers.length > 0}
-          <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
+          <form
+            method="POST"
+            action="?/refreshOrphanDiscord"
+            use:enhance={() => {
+              isSubmitting = true;
+              return async ({ update }) => {
+                await update();
+                isSubmitting = false;
+              };
+            }}
+          >
+            <Button type="submit" variant="secondary" size="sm" disabled={isSubmitting}>
+              Refresh from Discord
+            </Button>
+          </form>
+          {#if orphanMembers.length > 0}
             <Badge color="yellow">{orphanMembers.length}</Badge>
             <Button
               variant="danger"
@@ -180,21 +200,29 @@
             >
               Strip all
             </Button>
-          </div>
-        {/if}
+          {/if}
+        </div>
       </div>
 
       {#if data.orphanDiscord.error}
         <Card>
           <p class="text-sm text-danger-400">{data.orphanDiscord.error}</p>
         </Card>
-      {:else if orphanMembers.length === 0}
+      {/if}
+      {#if !data.orphanDiscord.fetchedAt && !data.orphanDiscord.error}
+        <Card>
+          <p class="text-sm text-text-muted">
+            This list has not been loaded. Refresh pulls every Discord member once and keeps the
+            result until you refresh again or the server restarts.
+          </p>
+        </Card>
+      {:else if data.orphanDiscord.fetchedAt && orphanMembers.length === 0}
         <Card>
           <p class="text-sm text-text-muted">
             No Discord members hold hub-managed roles without a staff designation.
           </p>
         </Card>
-      {:else}
+      {:else if orphanMembers.length > 0}
         <DataTable data={orphanMembers} columns={orphanColumns} compact>
           {#snippet cell(row, col)}
             {#if col.key === 'discord'}

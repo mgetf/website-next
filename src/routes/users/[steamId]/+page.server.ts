@@ -12,6 +12,8 @@ import {
   unlockUserAvatar,
   banUser,
   clearPunishment,
+  getTradeOfferUrl,
+  setTradeOfferUrl,
 } from '#lib/server/services/users.js';
 import {
   withdraw1v1Entry,
@@ -24,6 +26,8 @@ import {
   markPlayerAsPaidManually,
   unmarkPlayerAsPaid,
 } from '#lib/server/services/payments.js';
+import { requestRefund } from '#lib/server/services/refunds.js';
+import { canonicalTradeOfferUrl } from '#lib/utils/tradeOfferUrl.js';
 import { changeTeamDivision } from '#lib/server/services/teams.js';
 import { getVisibleDivisions } from '#lib/server/services/divisions.js';
 import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
@@ -88,6 +92,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     });
 
     let payments: ProfilePaymentHistory | null = null;
+    let tradeOfferUrl: string | null = null;
+    let hasTradeOfferUrl = false;
     let profiling: ProfilingSnapshot | null = null;
     let investigation: InvestigateResult | null = null;
     const investigationConfigured =
@@ -97,6 +103,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       const currentPage = Math.max(1, parseInt(pageParam ?? '', 10) || 1);
       const limit = 20;
       const history = await getUserPaymentHistory(steamId, currentPage, limit);
+      const storedTradeOfferUrl = await getTradeOfferUrl(steamId);
+      hasTradeOfferUrl = Boolean(storedTradeOfferUrl);
+      tradeOfferUrl = isOwnProfile ? storedTradeOfferUrl : null;
       payments = {
         entries: history.entries.map((entry) => ({
           id: entry.id,
@@ -104,10 +113,20 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           method: entry.method,
           description: entry.description,
           amount: entry.amount,
+          amountLabel: entry.amountLabel,
+          iconUrl: entry.iconUrl,
           currency: entry.currency,
           teamId: entry.teamId,
           teamName: entry.teamName,
+          regionName: entry.regionName,
+          seasonNum: entry.seasonNum,
+          division: entry.division,
+          formatName: entry.formatName,
+          formatIconUrl: entry.formatIconUrl,
           status: entry.status,
+          refundable: entry.refundable,
+          refundBlockReason: entry.refundBlockReason,
+          canRemoveFromTeam: entry.canRemoveFromTeam,
         })),
         total: history.total,
         currentPage,
@@ -190,6 +209,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       signupSuccess,
       divisions1v1,
       payments,
+      tradeOfferUrl,
+      hasTradeOfferUrl,
       profiling,
       investigation,
       investigationConfigured,
@@ -746,6 +767,85 @@ export const actions: Actions = {
       return fail(isHttpError(err) ? err.status : 500, {
         error: getErrorMessage(err, 'Failed to change division'),
       });
+    }
+  },
+
+  saveTradeOfferUrl: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user) return formError('You must be logged in', 401);
+    if (locals.user.steamId !== params.steamId) {
+      return formError('You can only change your own trade offer link', 403);
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(
+      formData,
+      z.object({
+        tradeOfferUrl: z.string().max(300),
+      }),
+    );
+    if (!validation.success) return validationError(validation.errors);
+
+    const raw = validation.data.tradeOfferUrl.trim();
+    const canonical = raw ? canonicalTradeOfferUrl(raw) : null;
+    if (raw && !canonical) {
+      return formError('Paste a Steam trade offer link (steamcommunity.com/tradeoffer/new).', 400);
+    }
+
+    try {
+      await setTradeOfferUrl(params.steamId, canonical);
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.PAYMENT,
+        action: AuditAction.USER_TRADE_OFFER_URL_SET,
+        targetType: 'User',
+        targetId: params.steamId,
+        metadata: { set: Boolean(canonical) },
+        ipAddress: getClientAddress(),
+      });
+      return formSuccess(
+        undefined,
+        canonical ? 'Trade offer link saved.' : 'Trade offer link removed.',
+      );
+    } catch (err) {
+      return formError(
+        getErrorMessage(err, 'Could not save the trade offer link'),
+        isHttpError(err) ? err.status : 500,
+      );
+    }
+  },
+
+  refundPayment: async ({ request, params, locals, getClientAddress }) => {
+    if (!locals.user || !isAdmin(locals.user)) return formError('Admin access required', 403);
+
+    const formData = await request.formData();
+    const validation = validateForm(
+      formData,
+      z.object({
+        sourceId: z.string().trim().min(1).max(120),
+        method: z.enum(['paypal', 'items']),
+        reason: z.string().trim().min(3, 'Give a short reason').max(500),
+        markUnpaid: z.string().optional(),
+        removeFromTeam: z.string().optional(),
+      }),
+    );
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const result = await requestRefund({
+        profileSteamId: params.steamId,
+        method: validation.data.method,
+        sourceId: validation.data.sourceId,
+        reason: validation.data.reason,
+        markUnpaid: validation.data.markUnpaid === '1',
+        removeFromTeam: validation.data.removeFromTeam === '1',
+        actorSteamId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        ipAddress: getClientAddress(),
+      });
+      return formSuccess(undefined, result.message);
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Refund failed'), isHttpError(err) ? err.status : 500);
     }
   },
 };

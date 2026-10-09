@@ -129,6 +129,18 @@ enum ItemPaymentStatus {
   COMPLETED
   EXPIRED
   CANCELLED
+  REFUNDED
+}
+
+enum PaymentRefundMethod {
+  PAYPAL
+  ITEMS
+}
+
+enum PaymentRefundStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -476,6 +488,7 @@ model User {
   nameOverride    Int       @default(0) @map("name_override")
   avatarOverride  Int       @default(0) @map("avatar_override")
   sessionVersion  Int       @default(0) @map("session_version")
+  tradeOfferUrl   String?   @map("trade_offer_url")
 
   staffAssignments           StaffAssignment[]
   staffSyncState             StaffSyncState?
@@ -506,6 +519,8 @@ model User {
   eventParticipants          EventParticipant[]
   eventPlacements            EventPlacement[]
   itemPaymentOrders          ItemPaymentOrder[]
+  refundsReceived            PaymentRefund[]    @relation("RefundPlayer")
+  refundsIssued              PaymentRefund[]    @relation("RefundActor")
   mapFilesUploaded           MapFile[]
   eventDraftsCreated         EventDraft[]       @relation("EventDraftCreatedBy")
   eventDraftsUpdated         EventDraft[]       @relation("EventDraftUpdatedBy")
@@ -1010,14 +1025,53 @@ model Payment {
   amount       String
   currency     String?
   purchaseDate DateTime @map("purchase_date")
-  description  String?
-  teamId       Int?     @map("team_id")
+  description     String?
+  teamId          Int?     @map("team_id")
+  paypalCaptureId String?  @map("paypal_capture_id")
 
   forUser User  @relation("PaymentFor", fields: [purchasedFor], references: [steamId])
   byUser  User  @relation("PaymentBy", fields: [purchasedBy], references: [steamId])
   team    Team? @relation(fields: [teamId], references: [id])
 
   @@map("payments")
+}
+
+model PaymentRefund {
+  id                 Int                 @id @default(autoincrement())
+  method             PaymentRefundMethod
+  status             PaymentRefundStatus @default(PENDING)
+  playerSteamId      String              @map("player_steam_id")
+  teamId             Int?                @map("team_id")
+  paymentId          String?             @map("payment_id")
+  itemOrderNumber    String?             @map("item_order_number")
+  grossAmount        String?             @map("gross_amount")
+  feeAmount          String?             @map("fee_amount")
+  refundAmount       String?             @map("refund_amount")
+  currency           String?
+  itemName           String?             @map("item_name")
+  itemAppId          Int?                @map("item_app_id")
+  itemMarketHashName String?             @map("item_market_hash_name")
+  itemQuantity       Int?                @map("item_quantity")
+  paypalCaptureId    String?             @map("paypal_capture_id")
+  paypalRefundId     String?             @map("paypal_refund_id")
+  tradeOfferId       String?             @map("trade_offer_id")
+  markUnpaid         Boolean             @default(false) @map("mark_unpaid")
+  removeFromTeam     Boolean             @default(false) @map("remove_from_team")
+  targetSteamIds     String[]            @default([]) @map("target_steam_ids")
+  reason             String
+  actorSteamId       String              @map("actor_steam_id")
+  errorMessage       String?             @map("error_message")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  completedAt        DateTime?           @map("completed_at")
+
+  player User @relation("RefundPlayer", fields: [playerSteamId], references: [steamId])
+  actor  User @relation("RefundActor", fields: [actorSteamId], references: [steamId])
+
+  @@index([status, method])
+  @@index([playerSteamId])
+  @@index([paymentId])
+  @@index([itemOrderNumber])
+  @@map("payment_refunds")
 }
 
 model PaymentTracker {

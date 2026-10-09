@@ -11,7 +11,7 @@
   let { data }: { data: PageData } = $props();
   let cancellingOrder = $state<string | null>(null);
 
-  const statuses = ['ALL', 'PENDING', 'COMPLETED', 'EXPIRED', 'CANCELLED'] as const;
+  const statuses = ['ALL', 'PENDING', 'COMPLETED', 'EXPIRED', 'CANCELLED', 'REFUNDED'] as const;
 
   function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US', {
@@ -22,10 +22,11 @@
     });
   }
 
-  function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'red' | 'zinc' {
+  function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'red' | 'zinc' | 'purple' {
     if (status === 'COMPLETED') return 'green';
     if (status === 'PENDING') return 'yellow';
     if (status === 'EXPIRED') return 'red';
+    if (status === 'REFUNDED') return 'purple';
     return 'zinc';
   }
 
@@ -33,6 +34,7 @@
     if (status === 'COMPLETED') return 'Completed';
     if (status === 'PENDING') return 'Pending';
     if (status === 'EXPIRED') return 'Expired';
+    if (status === 'REFUNDED') return 'Refunded';
     return 'Cancelled';
   }
 </script>

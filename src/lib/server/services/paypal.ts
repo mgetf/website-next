@@ -356,3 +356,131 @@ export async function capturePayPalOrder(
     return { success: false, error: 'Network error capturing PayPal order' };
   }
 }
+
+export interface PayPalCaptureBreakdown {
+  id: string;
+  status: string;
+  gross: number;
+  fee: number;
+  currency: string;
+}
+
+export async function getPayPalCapture(
+  captureId: string,
+): Promise<{ success: boolean; capture?: PayPalCaptureBreakdown; error?: string }> {
+  if (isPayPalTestMode()) {
+    return {
+      success: true,
+      capture: {
+        id: captureId,
+        status: 'COMPLETED',
+        gross: 0,
+        fee: 0,
+        currency: 'USD',
+      },
+    };
+  }
+
+  const config = getPayPalConfig();
+  const tokenResult = await getPayPalAccessToken();
+  if (!tokenResult.token) {
+    return { success: false, error: tokenResult.error || 'Failed to get access token' };
+  }
+
+  try {
+    const response = await fetch(`${config.apiBase}/v2/payments/captures/${captureId}`, {
+      headers: { Authorization: `Bearer ${tokenResult.token}` },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: paypalIssueMessage(data, 'Failed to load the PayPal payment'),
+      };
+    }
+
+    const gross = parseFloat(
+      data.amount?.value ?? data.seller_receivable_breakdown?.gross_amount?.value,
+    );
+    const fee = parseFloat(data.seller_receivable_breakdown?.paypal_fee?.value ?? '0');
+    const currency =
+      data.amount?.currency_code ?? data.seller_receivable_breakdown?.gross_amount?.currency_code;
+    if (!Number.isFinite(gross) || !currency) {
+      return { success: false, error: 'PayPal did not return the payment amount' };
+    }
+
+    return {
+      success: true,
+      capture: {
+        id: captureId,
+        status: String(data.status ?? ''),
+        gross,
+        fee: Number.isFinite(fee) ? fee : 0,
+        currency,
+      },
+    };
+  } catch {
+    return { success: false, error: 'Network error loading the PayPal payment' };
+  }
+}
+
+export async function refundPayPalCapture(params: {
+  captureId: string;
+  amount: string;
+  currency: string;
+  note: string;
+}): Promise<{ success: boolean; refundId?: string; error?: string }> {
+  if (isPayPalTestMode()) {
+    return { success: true, refundId: `TEST-REFUND-${Date.now()}` };
+  }
+
+  const config = getPayPalConfig();
+  const tokenResult = await getPayPalAccessToken();
+  if (!tokenResult.token) {
+    return { success: false, error: tokenResult.error || 'Failed to get access token' };
+  }
+
+  try {
+    const response = await fetch(
+      `${config.apiBase}/v2/payments/captures/${params.captureId}/refund`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokenResult.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: { value: params.amount, currency_code: params.currency },
+          note_to_payer: params.note,
+        }),
+      },
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: paypalIssueMessage(data, 'PayPal refused the refund') };
+    }
+    if (!data.id) {
+      return { success: false, error: 'PayPal did not return a refund id' };
+    }
+    return { success: true, refundId: String(data.id) };
+  } catch {
+    return { success: false, error: 'Network error refunding the PayPal payment' };
+  }
+}
+
+function paypalIssueMessage(
+  data: { message?: string; details?: { issue?: string }[] },
+  fallback: string,
+): string {
+  const issue = data.details?.[0]?.issue;
+  if (issue === 'INSUFFICIENT_FUNDS' || issue === 'REFUND_FAILED_INSUFFICIENT_FUNDS') {
+    return 'The PayPal account does not have enough balance to refund this payment.';
+  }
+  if (issue === 'CAPTURE_FULLY_REFUNDED' || issue === 'REFUND_AMOUNT_EXCEEDED') {
+    return 'That PayPal payment is already refunded.';
+  }
+  if (issue === 'REFUND_NOT_ALLOWED_AFTER_180_DAYS' || issue === 'REFUND_TIME_LIMIT_EXCEEDED') {
+    return 'PayPal only allows refunds within 180 days of the payment.';
+  }
+  return fallback;
+}

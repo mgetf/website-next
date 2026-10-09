@@ -31,5 +31,5 @@ export const GET: RequestHandler = async ({ cookies, url, request, getClientAddr
     throw redirect(302, '/?error=steam_unavailable');
   }
 
-  throw redirect(302, redirectUrl);
+  throw redirect(302, redirectUrl, { external: ['https://steamcommunity.com'] });
 };

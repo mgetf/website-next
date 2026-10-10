@@ -204,6 +204,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     if (existing.status !== 'DRAFT') {
       throw redirect(303, `/admin/matches/drafts/${existing.id}`);
     }
+    if (existing.kind === 'SINGLE') {
+      throw redirect(303, `/admin/matches/new?draftId=${existing.id}`);
+    }
     draft = existing;
   }
 

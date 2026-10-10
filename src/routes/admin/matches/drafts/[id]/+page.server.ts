@@ -48,6 +48,7 @@ export const actions: Actions = {
         metadata: {
           matchCount: published.matchCount,
           byeTeamCount: published.byeTeamCount,
+          byesCleared: published.byesCleared,
         },
         ipAddress: getClientAddress(),
       });

@@ -14,6 +14,8 @@ import {
 } from '#lib/server/utils/matchHelpers.js';
 import { createNotificationForRoster } from './notifications';
 import { formatPlayoffRound } from '#lib/utils/playoffs.js';
+import { countPairMeetings } from '#lib/utils/singleMatch.js';
+import type { SingleMatchBoard } from '#lib/types/matchSetDraft.js';
 
 /**
  * Sort teams by standings
@@ -123,6 +125,67 @@ interface CreateMatchSetParams {
   boGames?: number;
   // Optional admin-specified pairings (skips auto-pairing algorithm when provided)
   manualPairings?: { homeTeamId: number; awayTeamId: number }[];
+}
+
+interface ScheduleRegularMatchParams {
+  homeTeamId: number;
+  awayTeamId: number;
+  seasonId: number;
+  seasonNo: number;
+  weekNo?: number;
+  boSeries: number;
+  arenaId?: number;
+  matchDateTime?: string;
+  matchTimezone?: string;
+  mapBanPoolId?: number;
+}
+
+async function scheduleRegularMatch(params: ScheduleRegularMatchParams) {
+  const match = await prisma.match.create({
+    data: {
+      homeTeamId: params.homeTeamId,
+      awayTeamId: params.awayTeamId,
+      seasonId: params.seasonId,
+      seasonNo: params.seasonNo,
+      weekNo: params.weekNo,
+      boSeries: params.boSeries,
+      matchDateTime: params.matchDateTime
+        ? localDatetimeToUtc(params.matchDateTime, params.matchTimezone || 'UTC')
+        : null,
+      matchTimezone: params.matchTimezone || null,
+      status: MatchStatus.UNPLAYED,
+    },
+  });
+
+  for (let gameNum = 1; gameNum <= params.boSeries; gameNum++) {
+    await prisma.game.create({
+      data: {
+        matchId: match.id,
+        gameNum,
+        arenaId: params.arenaId || null,
+      },
+    });
+  }
+
+  if (params.mapBanPoolId) {
+    await prisma.matchMapBan.create({
+      data: {
+        matchId: match.id,
+        poolId: params.mapBanPoolId,
+        currentTurn: 1, // Starts with away team (will ban first)
+        banPhaseComplete: false,
+      },
+    });
+  }
+
+  await createNotificationForRoster(
+    [params.homeTeamId, params.awayTeamId],
+    'MATCH_CREATED',
+    `/matches/${match.id}`,
+    `New match scheduled for Week ${params.weekNo}`,
+  );
+
+  return match;
 }
 
 /**
@@ -242,51 +305,18 @@ export async function createMatchSet(
       );
     }
 
-    const match = await prisma.match.create({
-      data: {
-        homeTeamId: homeTeam.id,
-        awayTeamId: awayTeam.id,
-        seasonId,
-        seasonNo,
-        weekNo,
-        boSeries,
-        matchDateTime: matchDateTime
-          ? localDatetimeToUtc(matchDateTime, matchTimezone || 'UTC')
-          : null,
-        matchTimezone: matchTimezone || null,
-        status: MatchStatus.UNPLAYED,
-      },
+    const match = await scheduleRegularMatch({
+      homeTeamId: homeTeam.id,
+      awayTeamId: awayTeam.id,
+      seasonId,
+      seasonNo,
+      weekNo,
+      boSeries,
+      arenaId,
+      matchDateTime,
+      matchTimezone,
+      mapBanPoolId,
     });
-
-    // Create games for this match
-    for (let gameNum = 1; gameNum <= boSeries; gameNum++) {
-      await prisma.game.create({
-        data: {
-          matchId: match.id,
-          gameNum,
-          arenaId: arenaId || null,
-        },
-      });
-    }
-
-    // Initialize map ban phase if pool specified
-    if (mapBanPoolId) {
-      await prisma.matchMapBan.create({
-        data: {
-          matchId: match.id,
-          poolId: mapBanPoolId,
-          currentTurn: 1, // Starts with away team (will ban first)
-          banPhaseComplete: false,
-        },
-      });
-    }
-
-    await createNotificationForRoster(
-      [homeTeam.id, awayTeam.id],
-      'MATCH_CREATED',
-      `/matches/${match.id}`,
-      `New match scheduled for Week ${weekNo}`,
-    );
 
     matches.push(match);
   }
@@ -430,6 +460,139 @@ export async function createPlayoffMatch(params: CreatePlayoffMatchParams) {
   );
 
   return match;
+}
+
+/**
+ * Both teams must be eligible in the same division before a single match is saved or published.
+ */
+export async function assertEligibleMatchTeams(
+  regionId: number,
+  divisionId: number,
+  seasonId: number,
+  homeTeamId: number,
+  awayTeamId: number,
+) {
+  if (homeTeamId === awayTeamId) {
+    badRequest('A team cannot play against itself');
+  }
+
+  const teams = await getEligibleTeams(regionId, divisionId, seasonId);
+  const eligibleIds = new Set(teams.map((team) => team.id));
+  if (!eligibleIds.has(homeTeamId) || !eligibleIds.has(awayTeamId)) {
+    badRequest('Both teams must be ready in this division for the current season');
+  }
+}
+
+/**
+ * Create one regular-season match without giving the rest of the division a bye.
+ * A bye already stored for either team in this week is removed.
+ */
+export async function createSingleRegularMatch(params: {
+  regionId: number;
+  divisionId: number;
+  seasonId: number;
+  seasonNo: number;
+  weekNo: number;
+  homeTeamId: number;
+  awayTeamId: number;
+  boSeries: number;
+  arenaId?: number;
+  matchDateTime?: string;
+  matchTimezone?: string;
+  mapBanPoolId?: number;
+}) {
+  await assertEligibleMatchTeams(
+    params.regionId,
+    params.divisionId,
+    params.seasonId,
+    params.homeTeamId,
+    params.awayTeamId,
+  );
+
+  const match = await scheduleRegularMatch(params);
+  const cleared = await prisma.byeWeek.deleteMany({
+    where: {
+      seasonId: params.seasonId,
+      weekNo: params.weekNo,
+      teamId: { in: [params.homeTeamId, params.awayTeamId] },
+    },
+  });
+
+  return { match, byesCleared: cleared.count };
+}
+
+/**
+ * Eligible teams for one match, plus whether they already play this round,
+ * whether they are on a bye, and how often each pair has met this season.
+ */
+export async function getSingleMatchBoard(params: {
+  regionId: number;
+  divisionId: number;
+  seasonId: number;
+  weekNo?: number;
+  playoffRound?: number;
+}): Promise<SingleMatchBoard> {
+  const { regionId, divisionId, seasonId, weekNo, playoffRound } = params;
+  const teams = await getEligibleTeams(regionId, divisionId, seasonId);
+  const teamIds = teams.map((team) => team.id);
+
+  if (teamIds.length === 0) {
+    return {
+      divisionId,
+      seasonId,
+      weekNo: weekNo ?? null,
+      playoffRound: playoffRound ?? null,
+      teams: [],
+      meetings: [],
+    };
+  }
+
+  const [seasonMatches, byes] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        seasonId,
+        homeTeamId: { in: teamIds },
+        awayTeamId: { in: teamIds },
+      },
+      select: { homeTeamId: true, awayTeamId: true, weekNo: true, playoffRound: true },
+    }),
+    weekNo != null
+      ? prisma.byeWeek.findMany({
+          where: { seasonId, weekNo, teamId: { in: teamIds } },
+          select: { teamId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const scheduled = new Set<number>();
+  for (const match of seasonMatches) {
+    const inRound =
+      playoffRound != null
+        ? match.playoffRound === playoffRound
+        : weekNo != null && match.weekNo === weekNo && match.playoffRound == null;
+    if (!inRound) continue;
+    scheduled.add(match.homeTeamId);
+    scheduled.add(match.awayTeamId);
+  }
+
+  const byeIds = new Set(byes.map((bye) => bye.teamId));
+
+  return {
+    divisionId,
+    seasonId,
+    weekNo: weekNo ?? null,
+    playoffRound: playoffRound ?? null,
+    teams: teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      acronym: team.acronym,
+      wins: team.wins,
+      losses: team.losses,
+      scheduledThisRound: scheduled.has(team.id),
+      onBye: byeIds.has(team.id),
+    })),
+    meetings: countPairMeetings(seasonMatches),
+  };
 }
 
 /**

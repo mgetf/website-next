@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import type { PageData } from './$types';
   import DataTable from '#lib/components/ui/DataTable.svelte';
@@ -35,14 +36,24 @@
     const discarded = page.url.searchParams.get('discarded');
     if (created) {
       toast.success(`Successfully created ${created} match${created === '1' ? '' : 'es'}!`);
-      const url = new URL(page.url.href);
-      url.searchParams.delete('created');
-      goto(url.toString(), { replace: true, reset: false });
+      const params = new URLSearchParams(page.url.searchParams.toString());
+      params.delete('created');
+      const query = params.toString();
+      if (query) {
+        goto(resolve(`/admin/matches?${query}`), { replace: true, reset: false });
+      } else {
+        goto(resolve('/admin/matches'), { replace: true, reset: false });
+      }
     } else if (discarded) {
       toast.success('Draft discarded');
-      const url = new URL(page.url.href);
-      url.searchParams.delete('discarded');
-      goto(url.toString(), { replace: true, reset: false });
+      const params = new URLSearchParams(page.url.searchParams.toString());
+      params.delete('discarded');
+      const query = params.toString();
+      if (query) {
+        goto(resolve(`/admin/matches?${query}`), { replace: true, reset: false });
+      } else {
+        goto(resolve('/admin/matches'), { replace: true, reset: false });
+      }
     }
   });
 
@@ -89,7 +100,12 @@
     if (next.regionId) params.set('regionId', next.regionId);
     if (next.seasonId) params.set('seasonId', next.seasonId);
     if (next.week) params.set('week', next.week);
-    goto(`/admin/matches?${params.toString()}`, { reset: false });
+    const query = params.toString();
+    if (query) {
+      goto(resolve(`/admin/matches?${query}`), { reset: false });
+    } else {
+      goto(resolve('/admin/matches'), { reset: false });
+    }
   }
 
   function onFormatChange(value: string) {
@@ -193,9 +209,12 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-3xl font-bold text-white mb-2">Match Management</h1>
-      <p class="text-text-body">View and manage league matches by week</p>
+      <p class="text-text-body">View league matches, or schedule one match or a full week</p>
     </div>
-    <Button variant="primary" href="/admin/matches/create" size="lg">+ Create Matches</Button>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <Button variant="secondary" href={resolve('/admin/matches/create')}>Create week</Button>
+      <Button variant="primary" href={resolve('/admin/matches/new')} size="lg">New match</Button>
+    </div>
   </div>
 
   {#if data.pendingDrafts.length > 0}
@@ -229,15 +248,20 @@
               </div>
             </div>
           {:else if col.key === 'round'}
-            <span class="text-text-label">
-              {#if draft.isPlayoff && draft.playoffRound != null}
-                {formatPlayoffRound(draft.playoffRound)}
-              {:else if draft.weekNo != null}
-                Week {draft.weekNo}
-              {:else}
-                —
-              {/if}
-            </span>
+            <div class="flex items-center gap-2">
+              <Badge color={draft.kind === 'SINGLE' ? 'orange' : 'zinc'}>
+                {draft.kind === 'SINGLE' ? 'Single' : 'Week'}
+              </Badge>
+              <span class="text-text-label">
+                {#if draft.isPlayoff && draft.playoffRound != null}
+                  {formatPlayoffRound(draft.playoffRound)}
+                {:else if draft.weekNo != null}
+                  Week {draft.weekNo}
+                {:else}
+                  —
+                {/if}
+              </span>
+            </div>
           {:else if col.key === 'matches'}
             <span class="text-white">{draft.matchCount}</span>
           {:else if col.key === 'author'}
@@ -245,9 +269,13 @@
           {:else if col.key === 'saved'}
             <span class="text-text-body">{formatDateTime(draft.createdAt)}</span>
           {:else if col.key === 'actions'}
-            <Button href="/admin/matches/drafts/{draft.id}" variant="secondary" size="sm"
-              >Review</Button
+            <Button
+              href={resolve('/admin/matches/drafts/[id]', { id: String(draft.id) })}
+              variant="secondary"
+              size="sm"
             >
+              Review
+            </Button>
           {/if}
         {/snippet}
       </DataTable>
@@ -335,7 +363,10 @@
         <DataTable data={division.matches} columns={matchColumns}>
           {#snippet cell(match, col)}
             {#if col.key === 'match'}
-              <a href="/matches/{match.id}" class="text-info-400 hover:text-white hover:underline">
+              <a
+                href={resolve('/matches/[id]', { id: String(match.id) })}
+                class="text-info-400 hover:text-white hover:underline"
+              >
                 {getMatchTitle(match)}
               </a>
             {:else if col.key === 'maps'}
@@ -375,7 +406,7 @@
               <span class="text-sm text-text-label">{formatMatchDate(match.matchDateTime)}</span>
             {:else if col.key === 'home'}
               <a
-                href="/teams/{match.homeTeam.id}"
+                href={resolve('/teams/[id]', { id: String(match.homeTeam.id) })}
                 class="text-primary-400 hover:text-primary-300 hover:underline {getWinnerClass(
                   match,
                   match.homeTeamId,
@@ -387,7 +418,7 @@
               <span class="text-white font-semibold">{getScoreDisplay(match)}</span>
             {:else if col.key === 'away'}
               <a
-                href="/teams/{match.awayTeam.id}"
+                href={resolve('/teams/[id]', { id: String(match.awayTeam.id) })}
                 class="text-primary-400 hover:text-primary-300 hover:underline {getWinnerClass(
                   match,
                   match.awayTeamId,

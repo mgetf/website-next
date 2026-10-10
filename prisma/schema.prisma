@@ -46,6 +46,11 @@ enum MatchSetDraftStatus {
   DISCARDED
 }
 
+enum MatchSetDraftKind {
+  SET
+  SINGLE
+}
+
 enum TeamStatus {
   DEAD // -1
   UNREADY // 0
@@ -772,6 +777,7 @@ model Match {
 model MatchSetDraft {
   id            Int                 @id @default(autoincrement())
   status        MatchSetDraftStatus @default(DRAFT)
+  kind          MatchSetDraftKind   @default(SET)
   regionId      Int                 @map("region_id")
   divisionId    Int                 @map("division_id")
   seasonId      Int                 @map("season_id")

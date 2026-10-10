@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { resolve } from '$app/paths';
   import type { ActionData, PageData } from './$types';
   import Badge from '#lib/components/ui/Badge.svelte';
   import Button from '#lib/components/ui/Button.svelte';
@@ -40,10 +41,12 @@
 <div class="max-w-4xl mx-auto space-y-6">
   <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div>
-      <a href="/admin/matches" class="text-sm text-text-muted hover:text-white"
+      <a href={resolve('/admin/matches')} class="text-sm text-text-muted hover:text-white"
         >← Match Management</a
       >
-      <h1 class="text-3xl font-bold text-white mt-2 mb-2">Match Set Draft</h1>
+      <h1 class="text-3xl font-bold text-white mt-2 mb-2">
+        {draft.kind === 'SINGLE' ? 'Match draft' : 'Match Set Draft'}
+      </h1>
       <p class="text-text-body">
         {draft.divisionName} · {draft.regionName} · {draft.formatName} Season {draft.seasonNo}
       </p>
@@ -126,6 +129,15 @@
       {/each}
     </div>
 
+    {#if draft.byesToClear.length > 0}
+      <div class="mt-4 p-3 rounded-lg bg-warning-500/10 border border-warning-500/30">
+        <p class="text-sm text-warning-300 font-medium mb-1">Bye will be cleared</p>
+        <p class="text-text-body text-sm">
+          Publishing removes the bye for {draft.byesToClear.map((team) => team.name).join(' and ')}.
+        </p>
+      </div>
+    {/if}
+
     {#if draft.byeTeams.length > 0}
       <div class="mt-4 p-3 rounded-lg bg-warning-500/10 border border-warning-500/30">
         <p class="text-sm text-warning-300 font-medium mb-1">Bye week</p>
@@ -138,7 +150,13 @@
 
   {#if isEditable}
     <div class="flex flex-col sm:flex-row gap-3">
-      <Button variant="secondary" href="/admin/matches/create?draftId={draft.id}" class="flex-1">
+      <Button
+        variant="secondary"
+        href={draft.kind === 'SINGLE'
+          ? `${resolve('/admin/matches/new')}?draftId=${draft.id}`
+          : `${resolve('/admin/matches/create')}?draftId=${draft.id}`}
+        class="flex-1"
+      >
         Edit draft
       </Button>
       <Button variant="danger" onclick={() => (confirmDiscard = true)} class="flex-1">
@@ -146,7 +164,7 @@
       </Button>
       {#if data.isStrictAdmin}
         <Button variant="success" onclick={() => (confirmPublish = true)} class="flex-1">
-          Publish matches
+          {draft.kind === 'SINGLE' ? 'Publish match' : 'Publish matches'}
         </Button>
       {:else}
         <p class="text-sm text-text-muted sm:self-center">Only admins can publish this draft.</p>
@@ -159,7 +177,9 @@
   class="hidden"
   method="POST"
   action="?/publish"
-  bind:this={publishForm}
+  {@attach (node) => {
+    publishForm = node;
+  }}
   use:enhance={() => {
     isSubmitting = true;
     return async ({ update }) => {
@@ -172,7 +192,9 @@
   class="hidden"
   method="POST"
   action="?/discard"
-  bind:this={discardForm}
+  {@attach (node) => {
+    discardForm = node;
+  }}
   use:enhance={() => {
     isSubmitting = true;
     return async ({ update }) => {
@@ -184,8 +206,14 @@
 
 <ConfirmDialog
   open={confirmPublish}
-  title="Publish match set"
-  description="This creates live matches and notifies the teams. Players will see them immediately."
+  title={draft.kind === 'SINGLE' ? 'Publish this match' : 'Publish match set'}
+  description={draft.kind === 'SINGLE'
+    ? draft.byesToClear.length > 0
+      ? `This creates one live match and notifies both teams. ${draft.byesToClear
+          .map((team) => team.name)
+          .join(' and ')} will no longer have a bye this week.`
+      : 'This creates one live match and notifies both teams. Players will see it immediately.'
+    : 'This creates live matches and notifies the teams. Players will see them immediately.'}
   confirmLabel="Publish"
   variant="success"
   isLoading={isSubmitting}

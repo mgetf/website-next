@@ -5,11 +5,12 @@
  */
 
 import { prisma } from '#lib/server/db.js';
-import { MatchSetDraftStatus } from '#prisma/client.js';
+import { MatchSetDraftKind, MatchSetDraftStatus } from '#prisma/client.js';
 import type { Prisma } from '#prisma/client.js';
 import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import type {
   MatchSetDraftDetail,
+  MatchSetDraftKind as MatchSetDraftKindName,
   MatchSetDraftListItem,
   MatchSetDraftPairingInput,
   MatchSetDraftTeam,
@@ -19,10 +20,16 @@ import {
   parseMatchSetPairings,
   validateMatchSetDraftTeams,
 } from '#lib/utils/matchSetDraft.js';
-import { createMatchSet, createPlayoffMatch } from './adminMatches';
+import {
+  assertEligibleMatchTeams,
+  createMatchSet,
+  createPlayoffMatch,
+  createSingleRegularMatch,
+} from './adminMatches';
 
 export interface SaveMatchSetDraftInput {
   draftId?: number;
+  kind?: MatchSetDraftKindName;
   regionId: number;
   divisionId: number;
   seasonId: number;
@@ -118,8 +125,24 @@ async function mapDraftDetail(draft: DraftWithRelations): Promise<MatchSetDraftD
 
   const byId = seedTeams(teams);
 
+  let byesToClear: MatchSetDraftTeam[] = [];
+  if (
+    draft.kind === MatchSetDraftKind.SINGLE &&
+    !draft.isPlayoff &&
+    draft.weekNo != null &&
+    pairings.length === 1
+  ) {
+    const pairedIds = [pairings[0].homeTeamId, pairings[0].awayTeamId];
+    const byes = await prisma.byeWeek.findMany({
+      where: { seasonId: draft.seasonId, weekNo: draft.weekNo, teamId: { in: pairedIds } },
+      select: { teamId: true },
+    });
+    byesToClear = byes.map((bye) => byId.get(bye.teamId) ?? placeholderTeam(bye.teamId));
+  }
+
   return {
     id: draft.id,
+    kind: draft.kind,
     status: draft.status,
     regionId: draft.region.id,
     regionName: draft.region.name,
@@ -146,6 +169,7 @@ async function mapDraftDetail(draft: DraftWithRelations): Promise<MatchSetDraftD
       away: byId.get(pairing.awayTeamId) ?? placeholderTeam(pairing.awayTeamId),
     })),
     byeTeams: byeTeamIds.map((id) => byId.get(id) ?? placeholderTeam(id)),
+    byesToClear,
     createdByName: draft.creator.steamUsername,
     createdAt: draft.createdAt.toISOString(),
     updatedAt: draft.updatedAt.toISOString(),
@@ -168,6 +192,7 @@ export async function listPendingMatchSetDrafts(): Promise<MatchSetDraftListItem
     }
     return {
       id: draft.id,
+      kind: draft.kind,
       isPlayoff: draft.isPlayoff,
       weekNo: draft.weekNo,
       playoffRound: draft.playoffRound,
@@ -191,12 +216,46 @@ export async function getMatchSetDraftDetail(id: number): Promise<MatchSetDraftD
   return mapDraftDetail(draft);
 }
 
+function requireSingleMatchShape(pairings: MatchSetDraftPairingInput[], byeTeamIds: number[]) {
+  if (pairings.length !== 1) {
+    badRequest('A single match draft needs exactly one pairing');
+  }
+  if (byeTeamIds.length > 0) {
+    badRequest('A single match draft cannot assign byes');
+  }
+}
+
 export async function saveMatchSetDraft(
   input: SaveMatchSetDraftInput,
 ): Promise<MatchSetDraftDetail> {
   requireValidTeams(input.pairings, input.byeTeamIds);
 
+  const requestedKind = input.kind === 'SINGLE' ? MatchSetDraftKind.SINGLE : MatchSetDraftKind.SET;
+  if (requestedKind === MatchSetDraftKind.SINGLE) {
+    requireSingleMatchShape(input.pairings, input.byeTeamIds);
+  }
+
+  let kind = requestedKind;
+  if (input.draftId) {
+    const existing = await prisma.matchSetDraft.findUnique({
+      where: { id: input.draftId },
+      select: { id: true, status: true, kind: true },
+    });
+    if (!existing) notFound('Match set draft not found');
+    if (existing.status !== MatchSetDraftStatus.DRAFT) {
+      conflict('Only unpublished drafts can be changed');
+    }
+    if (input.kind && existing.kind !== requestedKind) {
+      badRequest('Cannot change a draft between a week set and a single match');
+    }
+    kind = input.kind ? requestedKind : existing.kind;
+    if (kind === MatchSetDraftKind.SINGLE) {
+      requireSingleMatchShape(input.pairings, input.byeTeamIds);
+    }
+  }
+
   const data = {
+    kind,
     regionId: input.regionId,
     divisionId: input.divisionId,
     seasonId: input.seasonId,
@@ -255,7 +314,7 @@ export async function discardMatchSetDraft(id: number): Promise<void> {
 export async function publishMatchSetDraft(
   id: number,
   publisherId: string,
-): Promise<{ matchCount: number; byeTeamCount: number }> {
+): Promise<{ matchCount: number; byeTeamCount: number; byesCleared: number }> {
   const draft = await prisma.matchSetDraft.findUnique({ where: { id } });
   if (!draft) notFound('Match set draft not found');
   if (draft.status !== MatchSetDraftStatus.DRAFT) {
@@ -266,8 +325,61 @@ export async function publishMatchSetDraft(
 
   let matchCount = 0;
   let byeTeamCount = 0;
+  let byesCleared = 0;
 
-  if (draft.isPlayoff) {
+  if (draft.kind === MatchSetDraftKind.SINGLE) {
+    const byeTeamIds = requireByeTeamIds(draft.byeTeamIds);
+    requireSingleMatchShape(pairings, byeTeamIds);
+    const pairing = pairings[0];
+
+    if (draft.isPlayoff) {
+      if (!draft.playoffId || draft.playoffRound == null) {
+        badRequest('Playoff ID and round are required to publish this draft');
+      }
+      await assertEligibleMatchTeams(
+        draft.regionId,
+        draft.divisionId,
+        draft.seasonId,
+        pairing.homeTeamId,
+        pairing.awayTeamId,
+      );
+      await createPlayoffMatch({
+        seasonId: draft.seasonId,
+        seasonNo: draft.seasonNo,
+        playoffId: draft.playoffId,
+        playoffRound: draft.playoffRound,
+        homeTeamId: pairing.homeTeamId,
+        awayTeamId: pairing.awayTeamId,
+        boSeries: draft.boSeries,
+        boGames: draft.boGames ?? undefined,
+        arenaId: draft.arenaId ?? undefined,
+        matchDateTime: draft.matchDateTime ?? undefined,
+        matchTimezone: draft.matchTimezone ?? undefined,
+        mapBanPoolId: draft.mapBanPoolId ?? undefined,
+      });
+      matchCount = 1;
+    } else {
+      if (draft.weekNo == null) {
+        badRequest('Week number is required to publish this match');
+      }
+      const result = await createSingleRegularMatch({
+        regionId: draft.regionId,
+        divisionId: draft.divisionId,
+        seasonId: draft.seasonId,
+        seasonNo: draft.seasonNo,
+        weekNo: draft.weekNo,
+        homeTeamId: pairing.homeTeamId,
+        awayTeamId: pairing.awayTeamId,
+        boSeries: draft.boSeries,
+        arenaId: draft.arenaId ?? undefined,
+        matchDateTime: draft.matchDateTime ?? undefined,
+        matchTimezone: draft.matchTimezone ?? undefined,
+        mapBanPoolId: draft.mapBanPoolId ?? undefined,
+      });
+      matchCount = 1;
+      byesCleared = result.byesCleared;
+    }
+  } else if (draft.isPlayoff) {
     if (!draft.playoffId || draft.playoffRound == null) {
       badRequest('Playoff ID and round are required to publish this draft');
     }
@@ -313,5 +425,5 @@ export async function publishMatchSetDraft(
     },
   });
 
-  return { matchCount, byeTeamCount };
+  return { matchCount, byeTeamCount, byesCleared };
 }

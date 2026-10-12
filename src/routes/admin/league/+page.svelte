@@ -1867,6 +1867,7 @@
         value={editingRegion.currencyCode || 'USD'}
         options={[
           { value: 'USD', label: '$ (USD)' },
+          { value: 'AUD', label: 'A$ (AUD)' },
           { value: 'EUR', label: '€ (EUR)' },
         ]}
         hint="The currency used for PayPal charges and displaying signup costs in this region."

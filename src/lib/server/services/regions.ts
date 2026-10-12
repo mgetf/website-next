@@ -86,6 +86,7 @@ export async function createRegion(name: string) {
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$',
+  AUD: 'A$',
   EUR: '€',
 };
 

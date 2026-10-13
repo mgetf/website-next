@@ -307,9 +307,50 @@
   // Delete confirmation text (shared across all delete dialogs)
   let deleteConfirmText = $state('');
 
-  // Playoff management state
+  // Playoff management state. Empty string means that division has no format yet.
   let showPlayoffModal: (typeof data.seasons)[0] | null = $state(null);
-  let playoffFormat = $state<'tournament' | 'rounds'>('tournament');
+  let divisionFormats = $state<Record<number, string>>({});
+
+  const playoffFormatOptions = [
+    { value: 'SINGLE_ELIM', label: 'Single elimination' },
+    { value: 'DOUBLE_ELIM', label: 'Double elimination' },
+  ];
+
+  const playoffDivisions = $derived(
+    showPlayoffModal
+      ? data.divisions.filter(
+          (division) =>
+            division.hidden === 0 &&
+            division.regionId === showPlayoffModal?.regionId &&
+            division.formatId === showPlayoffModal?.formatId,
+        )
+      : [],
+  );
+
+  const divisionFormatsPayload = $derived(
+    JSON.stringify(
+      playoffDivisions.map((division) => {
+        const format = divisionFormats[division.id];
+        return {
+          divisionId: division.id,
+          format: format === 'SINGLE_ELIM' || format === 'DOUBLE_ELIM' ? format : null,
+        };
+      }),
+    ),
+  );
+
+  function openPlayoffModal(season: (typeof data.seasons)[0]) {
+    const next: Record<number, string> = {};
+    for (const row of season.divisionPlayoffs) {
+      next[row.divisionId] = row.format;
+    }
+    divisionFormats = next;
+    showPlayoffModal = season;
+  }
+
+  function playoffFormatLabel(format: string) {
+    return format === 'DOUBLE_ELIM' ? 'Double elimination' : 'Single elimination';
+  }
 
   // Toast notifications for form results
   const isEditingAny = $derived(
@@ -664,7 +705,15 @@
                       <span class="text-sm font-medium text-white">{season.matches}</span>
                       <span class="text-xs text-text-muted ml-1">matches</span>
                     {:else if col.key === 'playoffs'}
-                      {#if season.playoff}
+                      {#if season.divisionPlayoffs.length > 0}
+                        <ul class="space-y-0.5">
+                          {#each season.divisionPlayoffs as row (row.divisionId)}
+                            <li class="text-sm text-text-label">
+                              {row.divisionName} · {playoffFormatLabel(row.format)}
+                            </li>
+                          {/each}
+                        </ul>
+                      {:else if season.playoff}
                         <span class="text-sm text-text-label">
                           {season.playoff.isTournament
                             ? 'Tournament'
@@ -679,15 +728,11 @@
                           <Button
                             variant="format-1v1"
                             size="sm"
-                            onclick={() => {
-                              showPlayoffModal = season;
-                              playoffFormat =
-                                (season as any).playoff?.isTournament !== false
-                                  ? 'tournament'
-                                  : 'rounds';
-                            }}
+                            onclick={() => openPlayoffModal(season)}
                           >
-                            {season.playoff ? 'Update Playoffs' : 'Add Playoffs'}
+                            {season.divisionPlayoffs.length > 0 || season.playoff
+                              ? 'Update Playoffs'
+                              : 'Add Playoffs'}
                           </Button>
                           <Button
                             variant="secondary"
@@ -2637,7 +2682,8 @@
 {#if showPlayoffModal}
   <Dialog open={true} title="Manage Playoffs" onClose={() => (showPlayoffModal = null)}>
     <p class="text-text-body text-sm mb-6">
-      Configure playoff settings for Season {showPlayoffModal.seasonNum} ({showPlayoffModal.region})
+      Choose the playoff format for each division in Season {showPlayoffModal.seasonNum} ({showPlayoffModal.region},
+      {showPlayoffModal.format}). Leave a division unset until you decide.
     </p>
 
     <form
@@ -2655,37 +2701,24 @@
       }}
     >
       <input type="hidden" name="seasonId" value={showPlayoffModal.id} />
+      <input type="hidden" name="divisionFormats" value={divisionFormatsPayload} />
 
-      <FormSelect
-        label="Playoff Format"
-        name="format"
-        value={playoffFormat}
-        options={[
-          { value: 'tournament', label: 'Tournament' },
-          { value: 'rounds', label: 'Rounds' },
-        ]}
-        onChange={(val) => {
-          playoffFormat = val as 'tournament' | 'rounds';
-        }}
-      />
-
-      {#if playoffFormat === 'rounds'}
-        <FormInput
-          label="Number of Rounds"
-          name="numRounds"
-          type="number"
-          value={String(showPlayoffModal.playoff?.numRounds || 2)}
-        />
-
-        <FormSelect
-          label="Double Elimination"
-          name="doubleElim"
-          value={String(showPlayoffModal.playoff?.doubleElim || 0)}
-          options={[
-            { value: '0', label: 'No' },
-            { value: '1', label: 'Yes' },
-          ]}
-        />
+      {#if playoffDivisions.length === 0}
+        <p class="text-sm text-text-muted mb-6">No divisions for this region and format.</p>
+      {:else}
+        <div class="max-h-96 overflow-y-auto pr-1">
+          {#each playoffDivisions as division (division.id)}
+            <FormSelect
+              label={division.name}
+              name="divisionFormat_{division.id}"
+              options={[{ value: 'UNSET', label: 'Not set' }, ...playoffFormatOptions]}
+              value={divisionFormats[division.id] || 'UNSET'}
+              onChange={(value) => {
+                divisionFormats[division.id] = value === 'UNSET' ? '' : value;
+              }}
+            />
+          {/each}
+        </div>
       {/if}
 
       <div class="flex gap-3 justify-end">
@@ -2693,7 +2726,10 @@
           >Cancel</Button
         >
 
-        <Button type="submit" variant="primary" disabled={isSubmitting}
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={isSubmitting || playoffDivisions.length === 0}
           >{isSubmitting ? 'Saving...' : 'Save'}</Button
         >
       </div>

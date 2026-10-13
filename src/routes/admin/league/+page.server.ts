@@ -49,8 +49,9 @@ import {
 } from '#lib/server/services/mapBanPools.js';
 import {
   getPlayoffBySeason,
-  createPlayoff,
-  updatePlayoffBySeason,
+  listSeasonDivisionPlayoffs,
+  parseDivisionPlayoffChoices,
+  saveSeasonDivisionPlayoffs,
 } from '#lib/server/services/playoffs.js';
 import {
   getFormats,
@@ -149,20 +150,10 @@ const removeMapFromPoolSchema = z.object({
   arenaId: z.coerce.number().int().positive(),
 });
 
-const managePlayoffSchema = z
-  .object({
-    seasonId: z.coerce.number().int().positive(),
-    format: z.enum(['tournament', 'rounds']),
-    numRounds: z.coerce.number().int().positive().optional().catch(undefined),
-    doubleElim: z.string().optional().default('0'),
-  })
-  .refine(
-    (data) => data.format !== 'rounds' || (data.numRounds !== undefined && data.numRounds >= 1),
-    {
-      message: 'Number of rounds is required for rounds format and must be >= 1',
-      path: ['numRounds'],
-    },
-  );
+const managePlayoffSchema = z.object({
+  seasonId: z.coerce.number().int().positive(),
+  divisionFormats: z.string().min(2, 'Division playoff choices are required'),
+});
 
 const boolFromCheckbox = z.preprocess(
   (v) => v === 'true' || v === 'on' || v === true || v === '1',
@@ -209,6 +200,14 @@ export const load: PageServerLoad = async ({ locals }) => {
   // Fetch steam items for division item payment config
   const steamItems = await getSteamItems();
 
+  const divisionPlayoffRows = await listSeasonDivisionPlayoffs();
+  const divisionPlayoffsBySeason = new Map<number, typeof divisionPlayoffRows>();
+  for (const row of divisionPlayoffRows) {
+    const existing = divisionPlayoffsBySeason.get(row.seasonId) ?? [];
+    existing.push(row);
+    divisionPlayoffsBySeason.set(row.seasonId, existing);
+  }
+
   // Build a set of the latest season id per format+region combination
   const latestByFormatRegion = new Map<string, number>();
   for (const season of seasons) {
@@ -238,6 +237,11 @@ export const load: PageServerLoad = async ({ locals }) => {
               isTournament: playoff.isTournament,
             }
           : null,
+        divisionPlayoffs: (divisionPlayoffsBySeason.get(season.id) ?? []).map((row) => ({
+          divisionId: row.divisionId,
+          divisionName: row.divisionName,
+          format: row.format,
+        })),
       };
     }),
   );
@@ -1050,56 +1054,26 @@ export const actions: Actions = {
     const formData = await request.formData();
     const validation = validateForm(formData, managePlayoffSchema);
     if (!validation.success) return validationError(validation.errors);
-    const { seasonId, format, numRounds, doubleElim: doubleElimStr } = validation.data;
-    const isTournament = format === 'tournament';
-    const doubleElim = doubleElimStr === '1' ? 1 : 0;
+    const { seasonId, divisionFormats } = validation.data;
+    const choices = parseDivisionPlayoffChoices(divisionFormats);
+    if (!choices) return formError('Invalid playoff choices');
 
     try {
-      // Check if playoff already exists for this season
-      const existingPlayoff = await getPlayoffBySeason(seasonId);
-
-      if (existingPlayoff) {
-        await updatePlayoffBySeason(seasonId, {
-          numRounds: isTournament ? undefined : (numRounds ?? undefined),
-          doubleElim,
-          isTournament,
-        });
-        await logAudit({
-          actorId: locals.user?.steamId,
-          actorRole: locals.user?.permissionLevel,
-          category: AuditCategory.LEAGUE_CONFIG,
-          action: AuditAction.PLAYOFF_UPDATED,
-          targetType: 'Season',
-          targetId: String(seasonId),
-          metadata: { isTournament, numRounds, doubleElim },
-          ipAddress: getClientAddress(),
-        });
-        return {
-          success: true,
-          message: 'Playoff configuration updated successfully!',
-        };
-      } else {
-        await createPlayoff({
-          seasonId,
-          numRounds: isTournament ? undefined : (numRounds ?? undefined),
-          doubleElim,
-          isTournament,
-        });
-        await logAudit({
-          actorId: locals.user?.steamId,
-          actorRole: locals.user?.permissionLevel,
-          category: AuditCategory.LEAGUE_CONFIG,
-          action: AuditAction.PLAYOFF_UPDATED,
-          targetType: 'Season',
-          targetId: String(seasonId),
-          metadata: { isTournament, numRounds, doubleElim, created: true },
-          ipAddress: getClientAddress(),
-        });
-        return {
-          success: true,
-          message: 'Playoff configuration created successfully!',
-        };
-      }
+      await saveSeasonDivisionPlayoffs(seasonId, choices);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.PLAYOFF_UPDATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { divisionPlayoffs: choices },
+        ipAddress: getClientAddress(),
+      });
+      return {
+        success: true,
+        message: 'Playoff formats saved',
+      };
     } catch (error) {
       console.error('Error managing playoff:', error);
       return fail(400, {

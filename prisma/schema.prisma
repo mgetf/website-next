@@ -120,6 +120,12 @@ enum BracketFormat {
   CARD
 }
 
+// Admin-chosen playoff shape for one skill division inside a season.
+enum PlayoffFormat {
+  SINGLE_ELIM
+  DOUBLE_ELIM
+}
+
 // Explicit bracket topology section for elimination matches.
 // MAIN is used for single-elimination brackets (no winners/losers split).
 enum BracketSection {
@@ -643,8 +649,9 @@ model Season {
 
   region              Region               @relation(fields: [regionId], references: [id])
   format              Format               @relation(fields: [formatId], references: [id])
-  playoffs            Playoff[]
-  teams               Team[]
+  playoffs               Playoff[]
+  seasonDivisionPlayoffs SeasonDivisionPlayoff[]
+  teams                  Team[]
   matches             Match[]
   teamsHistory        TeamHistory[]
   paymentTrackers     PaymentTracker[]
@@ -668,6 +675,21 @@ model Playoff {
   matchSetDrafts MatchSetDraft[]
 
   @@map("playoffs")
+}
+
+// Format chosen for one division of one season. No row means the admin has not chosen yet.
+model SeasonDivisionPlayoff {
+  id         Int           @id @default(autoincrement())
+  seasonId   Int           @map("season_id")
+  divisionId Int           @map("division_id")
+  format     PlayoffFormat
+
+  season   Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, divisionId])
+  @@index([divisionId])
+  @@map("season_division_playoffs")
 }
 
 model Team {
@@ -845,8 +867,9 @@ model Division {
 
   region           Region               @relation(fields: [regionId], references: [id])
   format           Format               @relation(fields: [formatId], references: [id])
-  teams            Team[]
-  staffAssignments StaffAssignment[]
+  teams                  Team[]
+  seasonDivisionPlayoffs SeasonDivisionPlayoff[]
+  staffAssignments       StaffAssignment[]
   itemPayment      DivisionItemPayment?
   matchSetDrafts   MatchSetDraft[]
 

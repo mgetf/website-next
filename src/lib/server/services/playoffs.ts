@@ -1,18 +1,41 @@
+import { z } from 'zod';
 import { prisma } from '#lib/server/db.js';
 import { notFound, badRequest, internalError } from '#lib/server/utils/errors.js';
-import type { Prisma } from '#prisma/client.js';
+import { PlayoffFormat } from '#prisma/client.js';
 
-export interface CreatePlayoffParams {
-  seasonId: number;
-  numRounds?: number;
-  doubleElim?: number;
-  isTournament: boolean;
-}
+export const DIVISION_PLAYOFF_FORMATS = ['SINGLE_ELIM', 'DOUBLE_ELIM'] as const;
+export type DivisionPlayoffFormat = (typeof DIVISION_PLAYOFF_FORMATS)[number];
 
-export interface UpdatePlayoffParams {
-  numRounds?: number;
-  doubleElim?: number;
-  isTournament?: boolean;
+export type DivisionPlayoffChoice = {
+  divisionId: number;
+  format: DivisionPlayoffFormat | null;
+};
+
+const divisionPlayoffChoiceSchema = z.object({
+  divisionId: z.number().int().positive(),
+  format: z.enum(DIVISION_PLAYOFF_FORMATS).nullable(),
+});
+
+/**
+ * Parse the season playoff form payload.
+ * Every division is present. `null` means the admin left that division unset.
+ * Returns null when the payload is not that list.
+ */
+export function parseDivisionPlayoffChoices(raw: string): DivisionPlayoffChoice[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  const result = z.array(divisionPlayoffChoiceSchema).safeParse(parsed);
+  if (!result.success) return null;
+
+  const ids = result.data.map((choice) => choice.divisionId);
+  if (new Set(ids).size !== ids.length) return null;
+
+  return result.data;
 }
 
 /**
@@ -61,120 +84,88 @@ export async function getAllPlayoffs() {
   }
 }
 
-/**
- * Create a new playoff configuration
- */
-export async function createPlayoff(params: CreatePlayoffParams) {
-  const { seasonId, numRounds, doubleElim, isTournament } = params;
+export type SeasonDivisionPlayoffRow = {
+  seasonId: number;
+  divisionId: number;
+  divisionName: string;
+  format: DivisionPlayoffFormat;
+};
 
-  try {
-    // Check if season exists
-    const season = await prisma.season.findUnique({
-      where: { id: seasonId },
-    });
+/** Chosen playoff formats, in division display order within each season. */
+export async function listSeasonDivisionPlayoffs(): Promise<SeasonDivisionPlayoffRow[]> {
+  const rows = await prisma.seasonDivisionPlayoff.findMany({
+    select: {
+      seasonId: true,
+      divisionId: true,
+      format: true,
+      division: { select: { name: true } },
+    },
+    orderBy: [{ seasonId: 'asc' }, { division: { sortOrder: 'asc' } }, { divisionId: 'asc' }],
+  });
 
-    if (!season) {
-      notFound('Season not found');
-    }
-
-    // Check if playoff already exists for this season
-    const existingPlayoff = await prisma.playoff.findFirst({
-      where: { seasonId },
-    });
-
-    if (existingPlayoff) {
-      badRequest('Playoff configuration already exists for this season');
-    }
-
-    // Create playoff
-    const playoff = await prisma.playoff.create({
-      data: {
-        seasonId,
-        numRounds: numRounds || null,
-        doubleElim: doubleElim || 0,
-        isTournament,
-      },
-      include: {
-        season: {
-          include: {
-            region: true,
-          },
-        },
-      },
-    });
-
-    return playoff;
-  } catch (err) {
-    if (err instanceof Error && 'status' in err) {
-      throw err;
-    }
-    console.error('Error creating playoff:', err);
-    internalError('Failed to create playoff configuration');
-  }
+  return rows.map((row) => ({
+    seasonId: row.seasonId,
+    divisionId: row.divisionId,
+    divisionName: row.division.name,
+    format: row.format,
+  }));
 }
 
 /**
- * Update an existing playoff configuration
+ * Replace playoff format choices for the visible divisions of a season.
+ * A null format removes that division's choice. Hidden divisions are left alone.
  */
-export async function updatePlayoff(playoffId: number, params: UpdatePlayoffParams) {
-  const { numRounds, doubleElim, isTournament } = params;
+export async function saveSeasonDivisionPlayoffs(
+  seasonId: number,
+  choices: DivisionPlayoffChoice[],
+) {
+  const season = await prisma.season.findUnique({
+    where: { id: seasonId },
+    select: { id: true, regionId: true, formatId: true },
+  });
+  if (!season) notFound('Season not found');
 
-  try {
-    // Check if playoff exists
-    const existingPlayoff = await prisma.playoff.findUnique({
-      where: { id: playoffId },
-    });
-
-    if (!existingPlayoff) {
-      notFound('Playoff configuration not found');
-    }
-
-    // Update playoff
-    const playoff = await prisma.playoff.update({
-      where: { id: playoffId },
-      data: {
-        numRounds: numRounds !== undefined ? numRounds : existingPlayoff.numRounds,
-        doubleElim: doubleElim !== undefined ? doubleElim : existingPlayoff.doubleElim,
-        isTournament: isTournament !== undefined ? isTournament : existingPlayoff.isTournament,
-      },
-      include: {
-        season: {
-          include: {
-            region: true,
-          },
-        },
-      },
-    });
-
-    return playoff;
-  } catch (err) {
-    if (err instanceof Error && 'status' in err) {
-      throw err;
-    }
-    console.error('Error updating playoff:', err);
-    internalError('Failed to update playoff configuration');
+  const divisions = await prisma.division.findMany({
+    where: { regionId: season.regionId, formatId: season.formatId, hidden: 0 },
+    select: { id: true },
+  });
+  const allowedIds = divisions.map((division) => division.id);
+  if (allowedIds.length === 0) {
+    if (choices.length === 0) return;
+    badRequest('Playoff choices do not match the divisions for this region and format');
   }
-}
+  const submittedIds = choices.map((choice) => choice.divisionId);
+  const allowed = new Set(allowedIds);
 
-/**
- * Update playoff by season ID
- */
-export async function updatePlayoffBySeason(seasonId: number, params: UpdatePlayoffParams) {
-  try {
-    const existingPlayoff = await prisma.playoff.findFirst({
-      where: { seasonId },
-    });
-
-    if (!existingPlayoff) {
-      notFound('Playoff configuration not found for this season');
-    }
-
-    return await updatePlayoff(existingPlayoff.id, params);
-  } catch (err) {
-    if (err instanceof Error && 'status' in err) {
-      throw err;
-    }
-    console.error('Error updating playoff by season:', err);
-    internalError('Failed to update playoff configuration');
+  if (
+    submittedIds.length !== allowedIds.length ||
+    submittedIds.some((divisionId) => !allowed.has(divisionId))
+  ) {
+    badRequest('Playoff choices do not match the divisions for this region and format');
   }
+
+  const chosen = choices.filter(
+    (choice): choice is { divisionId: number; format: DivisionPlayoffFormat } =>
+      choice.format != null,
+  );
+
+  await prisma.$transaction([
+    prisma.seasonDivisionPlayoff.deleteMany({
+      where: { seasonId, divisionId: { in: allowedIds } },
+    }),
+    ...(chosen.length > 0
+      ? [
+          prisma.seasonDivisionPlayoff.createMany({
+            data: chosen.map((choice) => ({
+              seasonId,
+              divisionId: choice.divisionId,
+              format:
+                choice.format === 'DOUBLE_ELIM'
+                  ? PlayoffFormat.DOUBLE_ELIM
+                  : PlayoffFormat.SINGLE_ELIM,
+            })),
+          }),
+        ]
+      : []),
+  ]);
 }

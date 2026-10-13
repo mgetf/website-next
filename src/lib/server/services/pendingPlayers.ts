@@ -328,7 +328,9 @@ export async function approvePlayer(playerSteamId: string, teamId: number, audit
         active: 1,
         permissionLevel: 0,
         paymentStatus,
-        startedAt: new Date(),
+        // A player has one membership row. startedAt stays the first join;
+        // leftAt is only set while they are off the team.
+        leftAt: null,
       },
     });
 

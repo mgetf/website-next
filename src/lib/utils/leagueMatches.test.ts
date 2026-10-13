@@ -8,6 +8,7 @@ import {
   isRegularSeasonLeagueMatch,
   leagueMatchSideFromTeam,
   scoresForLeagueMatch,
+  toLeagueDivisionBye,
   toLeagueDivisionMatch,
   filterLeagueMatchesByWeek,
   latestLeagueWeek,
@@ -19,6 +20,7 @@ function match(
 ): LeagueDivisionMatch {
   const weekLabel = partial.weekLabel ?? `Week ${partial.weekNo}`;
   return {
+    kind: 'match',
     weekLabel,
     status: 'UNPLAYED',
     href: '#',
@@ -42,6 +44,22 @@ describe('groupLeagueMatchesByWeek', () => {
     expect(grouped.map((g) => g.weekNo)).toEqual([1, 2]);
     expect(grouped[0].matches.map((m) => m.id)).toEqual([1, 2]);
     expect(grouped[1].matches.map((m) => m.id)).toEqual([3, 4]);
+  });
+
+  it('lists byes after matches in the same week', () => {
+    const grouped = groupLeagueMatchesByWeek([
+      {
+        kind: 'bye',
+        id: 1,
+        weekNo: 1,
+        weekLabel: 'Week 1',
+        href: '/teams/9',
+        team: { id: 9, name: 'Solo', avatar: null, href: '/teams/9' },
+      },
+      match({ id: 20, weekNo: 1 }),
+    ]);
+
+    expect(grouped[0].matches.map((row) => row.kind)).toEqual(['match', 'bye']);
   });
 });
 
@@ -146,6 +164,7 @@ describe('toLeagueDivisionMatch', () => {
     });
 
     expect(row).toEqual({
+      kind: 'match',
       id: 44,
       weekNo: 2,
       weekLabel: 'Week 2',
@@ -155,6 +174,25 @@ describe('toLeagueDivisionMatch', () => {
       away: { id: 2, name: 'Away', avatar: null, href: '/teams/2' },
       homeScore: 2,
       awayScore: 1,
+    });
+  });
+});
+
+describe('toLeagueDivisionBye', () => {
+  it('links the row to the team that has the bye', () => {
+    expect(
+      toLeagueDivisionBye({
+        id: 8,
+        weekNo: 1,
+        team: { id: 9, name: 'Solo', avatar: null, href: '/users/abc' },
+      }),
+    ).toEqual({
+      kind: 'bye',
+      id: 8,
+      weekNo: 1,
+      weekLabel: 'Week 1',
+      href: '/users/abc',
+      team: { id: 9, name: 'Solo', avatar: null, href: '/users/abc' },
     });
   });
 });

@@ -1,10 +1,11 @@
 import { prisma } from '#lib/server/db.js';
-import type { LeagueDivisionMatch, LeagueMatchStatus } from '#lib/types/league.js';
+import type { LeagueMatchStatus, LeagueScheduleRow } from '#lib/types/league.js';
 import { MatchStatus } from '#prisma/client.js';
 import {
   divisionIdForLeagueMatch,
   isRegularSeasonLeagueMatch,
   leagueMatchSideFromTeam,
+  toLeagueDivisionBye,
   toLeagueDivisionMatch,
   type LeagueTeamSideInput,
 } from '#lib/utils/leagueMatches.js';
@@ -62,30 +63,44 @@ function sideInputFromTeam(team: {
 export async function getLeagueMatchesByDivision(
   seasonId: number,
   regionId: number,
-): Promise<Record<number, LeagueDivisionMatch[]>> {
-  const rows = await prisma.match.findMany({
-    where: {
-      seasonId,
-      playoffId: null,
-      weekNo: { not: null },
-      homeTeam: { regionId },
-    },
-    select: {
-      id: true,
-      weekNo: true,
-      playoffId: true,
-      status: true,
-      winnerId: true,
-      winnerScore: true,
-      loserScore: true,
-      homeTeamId: true,
-      homeTeam: { select: teamSelect },
-      awayTeam: { select: teamSelect },
-    },
-    orderBy: [{ weekNo: 'asc' }, { id: 'asc' }],
-  });
+): Promise<Record<number, LeagueScheduleRow[]>> {
+  const [rows, byes] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        seasonId,
+        playoffId: null,
+        weekNo: { not: null },
+        homeTeam: { regionId },
+      },
+      select: {
+        id: true,
+        weekNo: true,
+        playoffId: true,
+        status: true,
+        winnerId: true,
+        winnerScore: true,
+        loserScore: true,
+        homeTeamId: true,
+        homeTeam: { select: teamSelect },
+        awayTeam: { select: teamSelect },
+      },
+      orderBy: [{ weekNo: 'asc' }, { id: 'asc' }],
+    }),
+    prisma.byeWeek.findMany({
+      where: {
+        seasonId,
+        team: { regionId, divisionId: { not: null } },
+      },
+      select: {
+        id: true,
+        weekNo: true,
+        team: { select: teamSelect },
+      },
+      orderBy: { id: 'asc' },
+    }),
+  ]);
 
-  const grouped: Record<number, LeagueDivisionMatch[]> = {};
+  const grouped: Record<number, LeagueScheduleRow[]> = {};
 
   for (const row of rows) {
     if (!isRegularSeasonLeagueMatch(row) || row.weekNo == null) continue;
@@ -106,6 +121,19 @@ export async function getLeagueMatchesByDivision(
     });
 
     (grouped[divisionId] ??= []).push(match);
+  }
+
+  for (const bye of byes) {
+    const divisionId = bye.team.divisionId;
+    if (divisionId == null) continue;
+
+    (grouped[divisionId] ??= []).push(
+      toLeagueDivisionBye({
+        id: bye.id,
+        weekNo: bye.weekNo,
+        team: leagueMatchSideFromTeam(sideInputFromTeam(bye.team)),
+      }),
+    );
   }
 
   return grouped;

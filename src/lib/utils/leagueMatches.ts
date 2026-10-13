@@ -1,11 +1,18 @@
 import type {
+  LeagueDivisionBye,
   LeagueDivisionMatch,
   LeagueMatchSide,
   LeagueMatchStatus,
   LeagueMatchWeekGroup,
+  LeagueScheduleRow,
 } from '#lib/types/league.js';
 
-export function groupLeagueMatchesByWeek(matches: LeagueDivisionMatch[]): LeagueMatchWeekGroup[] {
+function scheduleRowOrder(a: LeagueScheduleRow, b: LeagueScheduleRow): number {
+  if (a.kind !== b.kind) return a.kind === 'match' ? -1 : 1;
+  return a.id - b.id;
+}
+
+export function groupLeagueMatchesByWeek(matches: LeagueScheduleRow[]): LeagueMatchWeekGroup[] {
   const groups = new Map<number, LeagueMatchWeekGroup>();
 
   for (const match of matches) {
@@ -25,7 +32,7 @@ export function groupLeagueMatchesByWeek(matches: LeagueDivisionMatch[]): League
     .sort((a, b) => a.weekNo - b.weekNo)
     .map((group) => ({
       ...group,
-      matches: [...group.matches].sort((a, b) => a.id - b.id),
+      matches: [...group.matches].sort(scheduleRowOrder),
     }));
 }
 
@@ -123,6 +130,7 @@ export function toLeagueDivisionMatch(input: {
 }): LeagueDivisionMatch {
   const scores = scoresForLeagueMatch(input);
   return {
+    kind: 'match',
     id: input.id,
     weekNo: input.weekNo,
     weekLabel: `Week ${input.weekNo}`,
@@ -135,19 +143,34 @@ export function toLeagueDivisionMatch(input: {
   };
 }
 
-export function leagueWeekNumbers(matches: LeagueDivisionMatch[]): number[] {
+export function toLeagueDivisionBye(input: {
+  id: number;
+  weekNo: number;
+  team: LeagueMatchSide;
+}): LeagueDivisionBye {
+  return {
+    kind: 'bye',
+    id: input.id,
+    weekNo: input.weekNo,
+    weekLabel: `Week ${input.weekNo}`,
+    href: input.team.href,
+    team: input.team,
+  };
+}
+
+export function leagueWeekNumbers(matches: LeagueScheduleRow[]): number[] {
   return [...new Set(matches.map((match) => match.weekNo))].sort((a, b) => a - b);
 }
 
-export function latestLeagueWeek(matches: LeagueDivisionMatch[]): number | null {
+export function latestLeagueWeek(matches: LeagueScheduleRow[]): number | null {
   const weeks = leagueWeekNumbers(matches);
   return weeks.length > 0 ? weeks[weeks.length - 1] : null;
 }
 
 export function filterLeagueMatchesByWeek(
-  matches: LeagueDivisionMatch[],
+  matches: LeagueScheduleRow[],
   week: number | 'all',
-): LeagueDivisionMatch[] {
+): LeagueScheduleRow[] {
   if (week === 'all') return matches;
   return matches.filter((match) => match.weekNo === week);
 }

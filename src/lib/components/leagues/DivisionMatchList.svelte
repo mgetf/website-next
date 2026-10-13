@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { LeagueDivisionMatch } from '#lib/types/league.js';
+  import Badge from '#lib/components/ui/Badge.svelte';
+  import type { LeagueDivisionMatch, LeagueScheduleRow } from '#lib/types/league.js';
   import {
     filterLeagueMatchesByWeek,
     formatLeagueMatchScore,
@@ -10,7 +11,7 @@
   } from '#lib/utils/leagueMatches.js';
 
   interface Props {
-    matches: LeagueDivisionMatch[];
+    matches: LeagueScheduleRow[];
     viewerTeamId?: number;
   }
 
@@ -21,7 +22,7 @@
   let weekSelection = $state<number | 'all' | 'auto'>('auto');
 
   const weekKey = $derived(
-    `${weekNumbers.join(',')}:${matches.map((match) => match.id).join(',')}`,
+    `${weekNumbers.join(',')}:${matches.map((match) => `${match.kind}-${match.id}`).join(',')}`,
   );
   $effect(() => {
     weekKey;
@@ -48,9 +49,10 @@
     return 'text-text-muted';
   }
 
-  function isViewerMatch(match: LeagueDivisionMatch): boolean {
+  function isViewerRow(row: LeagueScheduleRow): boolean {
     if (viewerTeamId == null) return false;
-    return match.home.id === viewerTeamId || match.away.id === viewerTeamId;
+    if (row.kind === 'bye') return row.team.id === viewerTeamId;
+    return row.home.id === viewerTeamId || row.away.id === viewerTeamId;
   }
 
   function pillClass(selected: boolean): string {
@@ -117,43 +119,67 @@
             ? 'border-t border-border-default'
             : ''}"
         >
-          {#each week.matches as match (match.id)}
-            {@const score = formatLeagueMatchScore(match)}
+          {#each week.matches as row (`${row.kind}-${row.id}`)}
             <li>
-              <a
-                href={match.href}
-                class="grid grid-cols-[minmax(0,1fr)_2.25rem_minmax(0,1fr)] items-center gap-x-2 px-4 py-1.5 hover:bg-surface-input/50 transition-colors {isViewerMatch(
-                  match,
-                )
-                  ? 'bg-primary-500/10'
-                  : ''}"
-              >
-                <span class="flex min-w-0 items-center justify-end gap-1.5">
-                  <span class="truncate text-xs {sideClass(match, 'home')}">{match.home.name}</span>
-                  <img
-                    src={match.home.avatar || defaultAvatar}
-                    alt=""
-                    class="h-5 w-5 shrink-0 rounded object-cover"
-                  />
-                </span>
-
-                <span
-                  class="text-center text-xs {score
-                    ? 'tabular-nums font-semibold text-white'
-                    : 'font-medium text-text-muted'}"
+              {#if row.kind === 'bye'}
+                <a
+                  href={row.href}
+                  class="grid grid-cols-[minmax(0,1fr)_3.25rem_minmax(0,1fr)] items-center gap-x-2 px-4 py-1.5 hover:bg-surface-input/50 transition-colors {isViewerRow(
+                    row,
+                  )
+                    ? 'bg-primary-500/10'
+                    : ''}"
                 >
-                  {score ?? 'vs'}
-                </span>
+                  <span class="flex min-w-0 items-center justify-end gap-1.5">
+                    <span class="truncate text-xs text-white">{row.team.name}</span>
+                    <img
+                      src={row.team.avatar || defaultAvatar}
+                      alt=""
+                      class="h-5 w-5 shrink-0 rounded object-cover"
+                    />
+                  </span>
+                  <span class="flex justify-center">
+                    <Badge color="yellow">Bye</Badge>
+                  </span>
+                  <span></span>
+                </a>
+              {:else}
+                {@const score = formatLeagueMatchScore(row)}
+                <a
+                  href={row.href}
+                  class="grid grid-cols-[minmax(0,1fr)_3.25rem_minmax(0,1fr)] items-center gap-x-2 px-4 py-1.5 hover:bg-surface-input/50 transition-colors {isViewerRow(
+                    row,
+                  )
+                    ? 'bg-primary-500/10'
+                    : ''}"
+                >
+                  <span class="flex min-w-0 items-center justify-end gap-1.5">
+                    <span class="truncate text-xs {sideClass(row, 'home')}">{row.home.name}</span>
+                    <img
+                      src={row.home.avatar || defaultAvatar}
+                      alt=""
+                      class="h-5 w-5 shrink-0 rounded object-cover"
+                    />
+                  </span>
 
-                <span class="flex min-w-0 items-center gap-1.5">
-                  <img
-                    src={match.away.avatar || defaultAvatar}
-                    alt=""
-                    class="h-5 w-5 shrink-0 rounded object-cover"
-                  />
-                  <span class="truncate text-xs {sideClass(match, 'away')}">{match.away.name}</span>
-                </span>
-              </a>
+                  <span
+                    class="text-center text-xs {score
+                      ? 'tabular-nums font-semibold text-white'
+                      : 'font-medium text-text-muted'}"
+                  >
+                    {score ?? 'vs'}
+                  </span>
+
+                  <span class="flex min-w-0 items-center gap-1.5">
+                    <img
+                      src={row.away.avatar || defaultAvatar}
+                      alt=""
+                      class="h-5 w-5 shrink-0 rounded object-cover"
+                    />
+                    <span class="truncate text-xs {sideClass(row, 'away')}">{row.away.name}</span>
+                  </span>
+                </a>
+              {/if}
             </li>
           {/each}
         </ul>

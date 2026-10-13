@@ -142,7 +142,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     }));
 
   const pastRoster = team.players
-    .filter((p) => p.active === 0 || p.leftAt !== null)
+    .filter((p) => p.active === 0)
     .map((p) => ({
       steamId: p.player.steamId,
       name: p.player.steamUsername,

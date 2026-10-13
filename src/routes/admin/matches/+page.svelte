@@ -213,7 +213,7 @@
     </div>
     <div class="flex flex-col gap-2 sm:flex-row">
       <Button variant="secondary" href={resolve('/admin/matches/create')}>Create week</Button>
-      <Button variant="primary" href={resolve('/admin/matches/new')} size="lg">New match</Button>
+      <Button variant="primary" href={resolve('/admin/matches/new')}>New match</Button>
     </div>
   </div>
 

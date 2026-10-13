@@ -48,6 +48,7 @@ import { getArenas } from '#lib/server/services/arenas.js';
 import { getContent, getDefaultContent, CONTENT_KEYS } from '#lib/server/services/siteContent.js';
 import { buildPageSeo } from '#lib/utils/seo.js';
 import { formatPlayoffRound } from '#lib/utils/playoffs.js';
+import { getPlayoffMatchLabel } from '#lib/server/services/playoffSlots.js';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -132,7 +133,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const permissions = canUserManageMatch(user, match);
 
   // Calculate week label for multi-match weeks (using service layer)
-  const weekLabel = await getMatchWeekLabel(match);
+  const [weekLabel, playoffLabel] = await Promise.all([
+    getMatchWeekLabel(match),
+    getPlayoffMatchLabel(matchId),
+  ]);
 
   // Get pending reschedule request
   const pendingReschedule = await getPendingReschedule(matchId);
@@ -223,8 +227,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   const homeName = match.homeTeam.name;
   const awayName = match.awayTeam.name;
-  const roundBit =
-    match.playoffRound != null
+  const roundBit = playoffLabel
+    ? playoffLabel
+    : match.playoffRound != null
       ? formatPlayoffRound(match.playoffRound)
       : weekLabel
         ? `Week ${weekLabel}`
@@ -256,6 +261,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     }),
     match,
     weekLabel,
+    playoffLabel,
     permissions,
     pendingReschedule,
     pendingRescheduleFormatted,

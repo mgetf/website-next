@@ -6,14 +6,24 @@ import { PlayoffFormat } from '#prisma/client.js';
 export const DIVISION_PLAYOFF_FORMATS = ['SINGLE_ELIM', 'DOUBLE_ELIM'] as const;
 export type DivisionPlayoffFormat = (typeof DIVISION_PLAYOFF_FORMATS)[number];
 
+/** Best-of length for a playoff series or for the games on one arena. */
+export const PLAYOFF_SERIES_LENGTHS = [3, 5, 7] as const;
+export type PlayoffSeriesLength = (typeof PLAYOFF_SERIES_LENGTHS)[number];
+
 export type DivisionPlayoffChoice = {
   divisionId: number;
   format: DivisionPlayoffFormat | null;
+  series: PlayoffSeriesLength | null;
+  arenaGames: PlayoffSeriesLength | null;
 };
+
+const playoffLengthSchema = z.union([z.literal(3), z.literal(5), z.literal(7)]).nullable();
 
 const divisionPlayoffChoiceSchema = z.object({
   divisionId: z.number().int().positive(),
   format: z.enum(DIVISION_PLAYOFF_FORMATS).nullable(),
+  series: playoffLengthSchema,
+  arenaGames: playoffLengthSchema,
 });
 
 /**
@@ -89,6 +99,8 @@ export type SeasonDivisionPlayoffRow = {
   divisionId: number;
   divisionName: string;
   format: DivisionPlayoffFormat;
+  series: PlayoffSeriesLength;
+  arenaGames: PlayoffSeriesLength;
 };
 
 /** Chosen playoff formats, in division display order within each season. */
@@ -98,6 +110,8 @@ export async function listSeasonDivisionPlayoffs(): Promise<SeasonDivisionPlayof
       seasonId: true,
       divisionId: true,
       format: true,
+      series: true,
+      arenaGames: true,
       division: { select: { name: true } },
     },
     orderBy: [{ seasonId: 'asc' }, { division: { sortOrder: 'asc' } }, { divisionId: 'asc' }],
@@ -108,7 +122,14 @@ export async function listSeasonDivisionPlayoffs(): Promise<SeasonDivisionPlayof
     divisionId: row.divisionId,
     divisionName: row.division.name,
     format: row.format,
+    series: playoffLength(row.series),
+    arenaGames: playoffLength(row.arenaGames),
   }));
+}
+
+function playoffLength(length: number): PlayoffSeriesLength {
+  if (length === 3 || length === 5 || length === 7) return length;
+  badRequest('Playoff length must be best of 3, 5, or 7');
 }
 
 /**
@@ -144,9 +165,22 @@ export async function saveSeasonDivisionPlayoffs(
     badRequest('Playoff choices do not match the divisions for this region and format');
   }
 
+  if (
+    choices.some(
+      (choice) => choice.format != null && (choice.series == null || choice.arenaGames == null),
+    )
+  ) {
+    badRequest('Choose a series and an arena length for every division that has a playoff format');
+  }
+
   const chosen = choices.filter(
-    (choice): choice is { divisionId: number; format: DivisionPlayoffFormat } =>
-      choice.format != null,
+    (
+      choice,
+    ): choice is DivisionPlayoffChoice & {
+      format: DivisionPlayoffFormat;
+      series: PlayoffSeriesLength;
+      arenaGames: PlayoffSeriesLength;
+    } => choice.format != null && choice.series != null && choice.arenaGames != null,
   );
 
   await prisma.$transaction([
@@ -163,6 +197,8 @@ export async function saveSeasonDivisionPlayoffs(
                 choice.format === 'DOUBLE_ELIM'
                   ? PlayoffFormat.DOUBLE_ELIM
                   : PlayoffFormat.SINGLE_ELIM,
+              series: choice.series,
+              arenaGames: choice.arenaGames,
             })),
           }),
         ]

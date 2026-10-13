@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isHttpError, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError, formError } from '#lib/server/utils/forms.js';
 import {
@@ -53,6 +53,10 @@ import {
   parseDivisionPlayoffChoices,
   saveSeasonDivisionPlayoffs,
 } from '#lib/server/services/playoffs.js';
+import {
+  generateDivisionPlayoffBracket,
+  listGeneratedPlayoffDivisions,
+} from '#lib/server/services/playoffSlots.js';
 import {
   getFormats,
   createFormat,
@@ -155,6 +159,12 @@ const managePlayoffSchema = z.object({
   divisionFormats: z.string().min(2, 'Division playoff choices are required'),
 });
 
+const generatePlayoffSchema = z.object({
+  seasonId: z.coerce.number().int().positive(),
+  divisionId: z.coerce.number().int().positive(),
+  mapBanPoolId: z.coerce.number().int().positive(),
+});
+
 const boolFromCheckbox = z.preprocess(
   (v) => v === 'true' || v === 'on' || v === true || v === '1',
   z.boolean(),
@@ -201,11 +211,18 @@ export const load: PageServerLoad = async ({ locals }) => {
   const steamItems = await getSteamItems();
 
   const divisionPlayoffRows = await listSeasonDivisionPlayoffs();
+  const generatedPlayoffRows = await listGeneratedPlayoffDivisions();
   const divisionPlayoffsBySeason = new Map<number, typeof divisionPlayoffRows>();
   for (const row of divisionPlayoffRows) {
     const existing = divisionPlayoffsBySeason.get(row.seasonId) ?? [];
     existing.push(row);
     divisionPlayoffsBySeason.set(row.seasonId, existing);
+  }
+  const generatedDivisionsBySeason = new Map<number, number[]>();
+  for (const row of generatedPlayoffRows) {
+    const existing = generatedDivisionsBySeason.get(row.seasonId) ?? [];
+    existing.push(row.divisionId);
+    generatedDivisionsBySeason.set(row.seasonId, existing);
   }
 
   // Build a set of the latest season id per format+region combination
@@ -241,7 +258,10 @@ export const load: PageServerLoad = async ({ locals }) => {
           divisionId: row.divisionId,
           divisionName: row.divisionName,
           format: row.format,
+          series: row.series,
+          arenaGames: row.arenaGames,
         })),
+        generatedDivisionIds: generatedDivisionsBySeason.get(season.id) ?? [],
       };
     }),
   );
@@ -1072,13 +1092,58 @@ export const actions: Actions = {
       });
       return {
         success: true,
-        message: 'Playoff formats saved',
+        message: 'Playoff choices saved',
       };
     } catch (error) {
       console.error('Error managing playoff:', error);
       return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to manage playoff configuration',
+        error: getErrorMessage(error, 'Failed to manage playoff configuration'),
       });
+    }
+  },
+
+  generatePlayoff: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, generatePlayoffSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { seasonId, divisionId, mapBanPoolId } = validation.data;
+
+    try {
+      const generated = await generateDivisionPlayoffBracket(seasonId, divisionId, mapBanPoolId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.PLAYOFF_BRACKET_GENERATED,
+        targetType: 'Division',
+        targetId: String(divisionId),
+        metadata: {
+          seasonId,
+          mapBanPoolId,
+          format: generated.format,
+          teamCount: generated.teamCount,
+          slotCount: generated.slotCount,
+          matchCount: generated.matchCount,
+        },
+        ipAddress: getClientAddress(),
+      });
+      return {
+        success: true,
+        message: `${generated.divisionName} bracket created: ${generated.teamCount} teams, ${generated.matchCount} matches`,
+      };
+    } catch (error) {
+      console.error('Error generating playoff bracket:', error);
+      if (isHttpError(error)) {
+        const body = error.body;
+        const message =
+          typeof body === 'object' && body && 'message' in body && typeof body.message === 'string'
+            ? body.message
+            : 'Failed to generate the playoff bracket';
+        return formError(message, error.status);
+      }
+      return formError('Failed to generate the playoff bracket', 500);
     }
   },
 

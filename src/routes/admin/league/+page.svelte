@@ -308,12 +308,27 @@
   let deleteConfirmText = $state('');
 
   // Playoff management state. Empty string means that division has no format yet.
-  let showPlayoffModal: (typeof data.seasons)[0] | null = $state(null);
+  let playoffSeasonId = $state<number | null>(null);
+  const showPlayoffModal = $derived(
+    playoffSeasonId == null
+      ? null
+      : (data.seasons.find((season) => season.id === playoffSeasonId) ?? null),
+  );
   let divisionFormats = $state<Record<number, string>>({});
+  let divisionSeries = $state<Record<number, string>>({});
+  let divisionArenaGames = $state<Record<number, string>>({});
+  let generatePoolId = $state('');
+  let generateTarget = $state<{ divisionId: number; divisionName: string } | null>(null);
+  let generatePlayoffForm = $state<HTMLFormElement | null>(null);
 
   const playoffFormatOptions = [
     { value: 'SINGLE_ELIM', label: 'Single elimination' },
     { value: 'DOUBLE_ELIM', label: 'Double elimination' },
+  ];
+  const playoffSeriesOptions = [
+    { value: '3', label: 'Best of 3' },
+    { value: '5', label: 'Best of 5' },
+    { value: '7', label: 'Best of 7' },
   ];
 
   const playoffDivisions = $derived(
@@ -331,21 +346,91 @@
     JSON.stringify(
       playoffDivisions.map((division) => {
         const format = divisionFormats[division.id];
+        const series = Number(divisionSeries[division.id]);
+        const arenaGames = Number(divisionArenaGames[division.id]);
         return {
           divisionId: division.id,
           format: format === 'SINGLE_ELIM' || format === 'DOUBLE_ELIM' ? format : null,
+          series: series === 3 || series === 5 || series === 7 ? series : null,
+          arenaGames: arenaGames === 3 || arenaGames === 5 || arenaGames === 7 ? arenaGames : null,
         };
       }),
     ),
   );
 
+  const playoffPoolOptions = $derived(
+    data.mapBanPools
+      .filter((pool) => pool.isActive && pool.maps.length > 0)
+      .map((pool) => ({ value: String(pool.id), label: pool.name })),
+  );
+  const generatedDivisionIds = $derived(new Set(showPlayoffModal?.generatedDivisionIds ?? []));
+
+  function savedPlayoffFormat(divisionId: number) {
+    return (
+      showPlayoffModal?.divisionPlayoffs.find((row) => row.divisionId === divisionId)?.format ??
+      null
+    );
+  }
+
+  function selectedPlayoffFormat(divisionId: number) {
+    const format = divisionFormats[divisionId];
+    return format === 'SINGLE_ELIM' || format === 'DOUBLE_ELIM' ? format : null;
+  }
+
+  function savedPlayoffSeries(divisionId: number) {
+    return (
+      showPlayoffModal?.divisionPlayoffs.find((row) => row.divisionId === divisionId)?.series ??
+      null
+    );
+  }
+
+  function selectedPlayoffSeries(divisionId: number) {
+    const series = Number(divisionSeries[divisionId]);
+    return series === 3 || series === 5 || series === 7 ? series : null;
+  }
+
+  function savedArenaGames(divisionId: number) {
+    return (
+      showPlayoffModal?.divisionPlayoffs.find((row) => row.divisionId === divisionId)?.arenaGames ??
+      null
+    );
+  }
+
+  function selectedArenaGames(divisionId: number) {
+    const arenaGames = Number(divisionArenaGames[divisionId]);
+    return arenaGames === 3 || arenaGames === 5 || arenaGames === 7 ? arenaGames : null;
+  }
+
+  function canGenerateDivision(divisionId: number) {
+    const saved = savedPlayoffFormat(divisionId);
+    const savedSeries = savedPlayoffSeries(divisionId);
+    const savedGames = savedArenaGames(divisionId);
+    return (
+      saved != null &&
+      savedSeries != null &&
+      savedGames != null &&
+      selectedPlayoffFormat(divisionId) === saved &&
+      selectedPlayoffSeries(divisionId) === savedSeries &&
+      selectedArenaGames(divisionId) === savedGames &&
+      !generatedDivisionIds.has(divisionId) &&
+      generatePoolId !== ''
+    );
+  }
+
   function openPlayoffModal(season: (typeof data.seasons)[0]) {
-    const next: Record<number, string> = {};
+    const nextFormats: Record<number, string> = {};
+    const nextSeries: Record<number, string> = {};
+    const nextArenaGames: Record<number, string> = {};
     for (const row of season.divisionPlayoffs) {
-      next[row.divisionId] = row.format;
+      nextFormats[row.divisionId] = row.format;
+      nextSeries[row.divisionId] = String(row.series);
+      nextArenaGames[row.divisionId] = String(row.arenaGames);
     }
-    divisionFormats = next;
-    showPlayoffModal = season;
+    divisionFormats = nextFormats;
+    divisionSeries = nextSeries;
+    divisionArenaGames = nextArenaGames;
+    generateTarget = null;
+    playoffSeasonId = season.id;
   }
 
   function playoffFormatLabel(format: string) {
@@ -709,7 +794,11 @@
                         <ul class="space-y-0.5">
                           {#each season.divisionPlayoffs as row (row.divisionId)}
                             <li class="text-sm text-text-label">
-                              {row.divisionName} · {playoffFormatLabel(row.format)}
+                              {row.divisionName} · {playoffFormatLabel(row.format)} · Best of {row.series},
+                              each arena best of {row.arenaGames}
+                              {#if season.generatedDivisionIds.includes(row.divisionId)}
+                                <span class="text-text-muted"> · Bracket ready</span>
+                              {/if}
                             </li>
                           {/each}
                         </ul>
@@ -2680,10 +2769,20 @@
 {/if}
 
 {#if showPlayoffModal}
-  <Dialog open={true} title="Manage Playoffs" onClose={() => (showPlayoffModal = null)}>
+  <Dialog
+    open={true}
+    title="Manage Playoffs"
+    maxWidth="3xl"
+    onClose={() => {
+      playoffSeasonId = null;
+      generateTarget = null;
+    }}
+  >
     <p class="text-text-body text-sm mb-6">
-      Choose the playoff format for each division in Season {showPlayoffModal.seasonNum} ({showPlayoffModal.region},
-      {showPlayoffModal.format}). Leave a division unset until you decide.
+      Choose the playoff format, the number of arenas, and the length of each arena for every
+      division in Season {showPlayoffModal.seasonNum} ({showPlayoffModal.region},
+      {showPlayoffModal.format}). Leave a division unset until you decide. Both lengths are best of
+      3, 5, or 7.
     </p>
 
     <form
@@ -2691,12 +2790,9 @@
       action="?/managePlayoff"
       use:enhance={() => {
         isSubmitting = true;
-        return async ({ update, result }) => {
-          await update();
+        return async ({ update }) => {
+          await update({ reset: false });
           isSubmitting = false;
-          if (result.type === 'success') {
-            showPlayoffModal = null;
-          }
         };
       }}
     >
@@ -2706,24 +2802,54 @@
       {#if playoffDivisions.length === 0}
         <p class="text-sm text-text-muted mb-6">No divisions for this region and format.</p>
       {:else}
-        <div class="max-h-96 overflow-y-auto pr-1">
+        <div class="mb-6 space-y-4">
           {#each playoffDivisions as division (division.id)}
-            <FormSelect
-              label={division.name}
-              name="divisionFormat_{division.id}"
-              options={[{ value: 'UNSET', label: 'Not set' }, ...playoffFormatOptions]}
-              value={divisionFormats[division.id] || 'UNSET'}
-              onChange={(value) => {
-                divisionFormats[division.id] = value === 'UNSET' ? '' : value;
-              }}
-            />
+            <section class="rounded-lg border border-border-default p-4">
+              <h3 class="mb-4 text-sm font-semibold text-white">{division.name}</h3>
+              <div class="grid grid-cols-1 gap-x-6 sm:grid-cols-3">
+                <FormSelect
+                  label="Format"
+                  name="divisionFormat_{division.id}"
+                  options={[{ value: 'UNSET', label: 'Not set' }, ...playoffFormatOptions]}
+                  value={divisionFormats[division.id] || 'UNSET'}
+                  onChange={(value) => {
+                    divisionFormats[division.id] = value === 'UNSET' ? '' : value;
+                  }}
+                />
+                <FormSelect
+                  label="Series"
+                  name="divisionSeries_{division.id}"
+                  options={[{ value: 'UNSET', label: 'Not set' }, ...playoffSeriesOptions]}
+                  value={divisionSeries[division.id] || 'UNSET'}
+                  hint="Number of arenas."
+                  onChange={(value) => {
+                    divisionSeries[division.id] = value === 'UNSET' ? '' : value;
+                  }}
+                />
+                <FormSelect
+                  label="Each arena"
+                  name="divisionArenaGames_{division.id}"
+                  options={[{ value: 'UNSET', label: 'Not set' }, ...playoffSeriesOptions]}
+                  value={divisionArenaGames[division.id] || 'UNSET'}
+                  hint="Games on each arena."
+                  onChange={(value) => {
+                    divisionArenaGames[division.id] = value === 'UNSET' ? '' : value;
+                  }}
+                />
+              </div>
+            </section>
           {/each}
         </div>
       {/if}
 
       <div class="flex gap-3 justify-end">
-        <Button type="button" variant="secondary" onclick={() => (showPlayoffModal = null)}
-          >Cancel</Button
+        <Button
+          type="button"
+          variant="secondary"
+          onclick={() => {
+            playoffSeasonId = null;
+            generateTarget = null;
+          }}>Cancel</Button
         >
 
         <Button
@@ -2734,7 +2860,92 @@
         >
       </div>
     </form>
+
+    {#if showPlayoffModal.divisionPlayoffs.length > 0}
+      <div class="mt-8 border-t border-border-default pt-6">
+        <h2 class="text-sm font-semibold text-white mb-2">Generate brackets</h2>
+        <p class="text-text-body text-sm mb-4">
+          Uses the saved format, series, and arena length, and every team in that division that has
+          not withdrawn. Matches are created where both teams are already known.
+        </p>
+
+        <FormSelect
+          label="Map ban pool"
+          name="generateMapBanPool"
+          options={playoffPoolOptions}
+          bind:value={generatePoolId}
+          placeholder="Choose a pool"
+        />
+
+        {#each playoffDivisions as division (division.id)}
+          {@const saved = savedPlayoffFormat(division.id)}
+          {@const selected = selectedPlayoffFormat(division.id)}
+          {@const savedSeries = savedPlayoffSeries(division.id)}
+          {@const selectedSeries = selectedPlayoffSeries(division.id)}
+          {@const savedGames = savedArenaGames(division.id)}
+          {@const selectedGames = selectedArenaGames(division.id)}
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div class="text-sm text-text-label">{division.name}</div>
+              {#if generatedDivisionIds.has(division.id)}
+                <p class="text-xs text-text-muted">Bracket ready</p>
+              {:else if saved && (selected !== saved || selectedSeries !== savedSeries || selectedGames !== savedGames)}
+                <p class="text-xs text-warning-400">
+                  Save the format, series, and arena length before generating.
+                </p>
+              {:else if !saved}
+                <p class="text-xs text-text-muted">
+                  Choose a format, a series, and an arena length, then save.
+                </p>
+              {/if}
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={!canGenerateDivision(division.id) || isSubmitting}
+              onclick={() =>
+                (generateTarget = { divisionId: division.id, divisionName: division.name })}
+            >
+              Generate
+            </Button>
+          </div>
+        {/each}
+
+        <form
+          bind:this={generatePlayoffForm}
+          method="POST"
+          action="?/generatePlayoff"
+          class="hidden"
+          use:enhance={() => {
+            isSubmitting = true;
+            return async ({ update, result }) => {
+              await update();
+              isSubmitting = false;
+              if (result.type === 'success') generateTarget = null;
+            };
+          }}
+        >
+          <input type="hidden" name="seasonId" value={showPlayoffModal.id} />
+          <input type="hidden" name="divisionId" value={generateTarget?.divisionId ?? ''} />
+          <input type="hidden" name="mapBanPoolId" value={generatePoolId} />
+        </form>
+      </div>
+    {/if}
   </Dialog>
+
+  <ConfirmDialog
+    open={generateTarget !== null}
+    title="Generate playoff bracket"
+    description={generateTarget
+      ? `Create the ${generateTarget.divisionName} bracket from every team that has not withdrawn? Matches with both teams known are scheduled now.`
+      : ''}
+    confirmLabel="Generate"
+    variant="info"
+    isLoading={isSubmitting}
+    onConfirm={() => generatePlayoffForm?.requestSubmit()}
+    onCancel={() => (generateTarget = null)}
+  />
 {/if}
 
 {#if deletingSeason}

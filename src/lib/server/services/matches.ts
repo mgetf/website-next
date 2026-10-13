@@ -16,6 +16,7 @@ import {
 } from '#lib/server/utils/matchScoring.js';
 import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
 import { createNotificationForTeamOwners, createNotificationForAdmins } from './notifications';
+import { advancePlayoffFromMatch, notifyNewPlayoffMatches } from './playoffSlots';
 
 export { calculateMatchWinner, canUserManageMatch, validateScoreSubmission };
 export type { GameResult };
@@ -254,12 +255,15 @@ export async function submitMatchScores(
       data: { rescheduleStatus: 3 }, // Canceled
     });
 
+    const createdMatches = await advancePlayoffFromMatch(tx, matchId);
+
     return {
       winnerId,
       winnerScore,
       loserScore,
       homeTeamId: match.homeTeamId,
       awayTeamId: match.awayTeamId,
+      createdMatches,
     };
   });
 
@@ -271,6 +275,8 @@ export async function submitMatchScores(
       active: 1,
     },
   });
+
+  await notifyNewPlayoffMatches(result.createdMatches);
 
   if (submitterTeam) {
     const opposingTeamId =

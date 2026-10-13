@@ -803,7 +803,9 @@
                   >
                   <span class="ml-2">{achievement.event}</span>
                 </p>
-                <p class="mt-0.5 text-xs text-text-muted">{formatDate(achievement.date)}</p>
+                {#if achievement.date}
+                  <p class="mt-0.5 text-xs text-text-muted">{formatDate(achievement.date)}</p>
+                {/if}
               </div>
             {/each}
           </div>

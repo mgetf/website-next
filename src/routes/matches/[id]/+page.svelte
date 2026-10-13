@@ -546,6 +546,8 @@
           Match #{match.id}
           {#if data.weekLabel}
             <span class="text-text-body">- Week {data.weekLabel}</span>
+          {:else if data.playoffLabel}
+            <span class="text-text-body">- {data.playoffLabel}</span>
           {:else if match.playoffRound}
             <span class="text-text-body">- {formatPlayoffRound(match.playoffRound)}</span>
           {/if}

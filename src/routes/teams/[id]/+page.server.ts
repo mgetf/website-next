@@ -17,6 +17,7 @@ import {
   requireTeamAdmin,
 } from '#lib/server/auth/permissions.js';
 import { getVisibleDivisions } from '#lib/server/services/divisions.js';
+import { listPlayoffAchievementsForTeams } from '#lib/server/services/playoffPlacements.js';
 import {
   getTeamForEdit,
   updateTeamInfo,
@@ -150,10 +151,20 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       leftAt: p.leftAt,
     }));
 
-  const [byeWeeks, achievements] = await Promise.all([
+  const [byeWeeks, eventPlacements, playoffPlacements] = await Promise.all([
     getByeWeeksForTeam(teamId),
     getTeamEventPlacements(team.name, team.acronym),
+    listPlayoffAchievementsForTeams([teamId]),
   ]);
+  const achievements = [
+    ...playoffPlacements.map((placement) => ({
+      id: placement.id,
+      name: placement.name,
+      date: null,
+      placement: placement.placement,
+    })),
+    ...eventPlacements,
+  ];
 
   // Combine and organize matches by season
   const allMatches = [

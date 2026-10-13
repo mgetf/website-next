@@ -63,9 +63,16 @@ export interface LeagueMatchWeekGroup {
   matches: LeagueDivisionMatch[];
 }
 
+export interface LeaguePlayoffPlacement {
+  place: number;
+  label: string;
+  href: string;
+}
+
 /** One division's playoff tree on `/leagues/[format]`. */
 export interface LeaguePlayoffDivision {
   divisionId: number;
   divisionName: string;
   bracket: BracketData;
+  placements: LeaguePlayoffPlacement[];
 }

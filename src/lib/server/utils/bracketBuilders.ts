@@ -348,7 +348,7 @@ function buildSide(
     players.length === 1 ? players[0].displayName : players.map((p) => p.displayName).join(' & ');
 
   const bracketPlayers: BracketPlayer[] = players
-    .filter((p) => p.displayName !== 'BYE')
+    .filter((p) => p.displayName !== 'BYE' && p.displayName !== 'TBD')
     .map((p) => {
       const href = p.href ?? (p.steamId ? `/users/${p.steamId}` : undefined);
       return {

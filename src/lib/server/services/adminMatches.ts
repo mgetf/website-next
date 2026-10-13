@@ -13,6 +13,7 @@ import {
   localDatetimeToUtc,
 } from '#lib/server/utils/matchHelpers.js';
 import { createNotificationForRoster } from './notifications';
+import { advancePlayoffFromMatch, notifyNewPlayoffMatches } from './playoffSlots';
 import { formatPlayoffRound } from '#lib/utils/playoffs.js';
 import { countPairMeetings } from '#lib/utils/singleMatch.js';
 import type { SingleMatchBoard } from '#lib/types/matchSetDraft.js';
@@ -750,7 +751,7 @@ export async function adminUpdateScores(
   gameResults: GameResult[],
   options: { resolveDispute?: boolean; boSeries?: number } = {},
 ) {
-  return await prisma.$transaction(async (tx) => {
+  const { updated, createdMatches } = await prisma.$transaction(async (tx) => {
     const match = await tx.match.findUnique({
       where: { id: matchId },
       include: {
@@ -932,7 +933,7 @@ export async function adminUpdateScores(
         ? MatchStatus.DISPUTE
         : MatchStatus.PLAYED;
 
-    return await tx.match.update({
+    const updated = await tx.match.update({
       where: { id: matchId },
       data: {
         winnerId,
@@ -942,7 +943,13 @@ export async function adminUpdateScores(
         boSeries: targetBo,
       },
     });
+    const createdMatches =
+      nextStatus === MatchStatus.PLAYED ? await advancePlayoffFromMatch(tx, matchId) : [];
+    return { updated, createdMatches };
   });
+
+  await notifyNewPlayoffMatches(createdMatches);
+  return updated;
 }
 
 /**

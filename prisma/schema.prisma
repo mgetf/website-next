@@ -647,18 +647,20 @@ model Season {
   matchDeadline   DateTime? @map("match_deadline")
   info            String?   @map("info")
 
-  region              Region               @relation(fields: [regionId], references: [id])
-  format              Format               @relation(fields: [formatId], references: [id])
+  region                 Region                  @relation(fields: [regionId], references: [id])
+  format                 Format                  @relation(fields: [formatId], references: [id])
   playoffs               Playoff[]
   seasonDivisionPlayoffs SeasonDivisionPlayoff[]
   teams                  Team[]
-  matches             Match[]
-  teamsHistory        TeamHistory[]
-  paymentTrackers     PaymentTracker[]
-  activeSignupSeasons ActiveSignupSeason[]
-  itemPaymentOrders   ItemPaymentOrder[]
-  byeWeeks            ByeWeek[]
-  matchSetDrafts      MatchSetDraft[]
+  matches                Match[]
+  teamsHistory           TeamHistory[]
+  paymentTrackers        PaymentTracker[]
+  activeSignupSeasons    ActiveSignupSeason[]
+  itemPaymentOrders      ItemPaymentOrder[]
+  byeWeeks               ByeWeek[]
+  matchSetDrafts         MatchSetDraft[]
+  playoffSlots           PlayoffSlot[]
+  playoffPlacements      PlayoffPlacement[]
 
   @@map("seasons")
 }
@@ -683,6 +685,10 @@ model SeasonDivisionPlayoff {
   seasonId   Int           @map("season_id")
   divisionId Int           @map("division_id")
   format     PlayoffFormat
+  /// Arenas in each playoff match for this division: 3, 5, or 7.
+  series     Int
+  /// Games on each arena: 3, 5, or 7.
+  arenaGames Int           @map("arena_games")
 
   season   Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
@@ -690,6 +696,68 @@ model SeasonDivisionPlayoff {
   @@unique([seasonId, divisionId])
   @@index([divisionId])
   @@map("season_division_playoffs")
+}
+
+// One place in a division's playoff tree. Teams stay empty until someone advances into them.
+// divisionId is the division at generation time, not the team's later division.
+// section MAIN is a single-elim bracket. WINNERS, LOSERS, and GRAND_FINAL are double elim.
+// round is 1-based inside that section. position is the order inside the round.
+// team1 is side 1 and team2 is side 2. winnerNextSide and loserNextSide are 1 or 2.
+model PlayoffSlot {
+  id         Int            @id @default(autoincrement())
+  seasonId   Int            @map("season_id")
+  divisionId Int            @map("division_id")
+  format     PlayoffFormat
+  section    BracketSection
+  round      Int
+  position   Int
+
+  team1Id Int? @map("team1_id")
+  team2Id Int? @map("team2_id")
+
+  winnerNextSlotId Int? @map("winner_next_slot_id")
+  winnerNextSide   Int? @map("winner_next_side")
+  loserNextSlotId  Int? @map("loser_next_slot_id")
+  loserNextSide    Int? @map("loser_next_side")
+
+  matchId Int?    @unique @map("match_id")
+  isBye   Boolean @default(false) @map("is_bye")
+
+  season         Season        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  division       Division      @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  team1          Team?         @relation("PlayoffSlotTeam1", fields: [team1Id], references: [id], onDelete: Restrict)
+  team2          Team?         @relation("PlayoffSlotTeam2", fields: [team2Id], references: [id], onDelete: Restrict)
+  match          Match?        @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  winnerNextSlot PlayoffSlot?  @relation("PlayoffSlotWinnerProgression", fields: [winnerNextSlotId], references: [id], onDelete: SetNull)
+  winnerFedFrom  PlayoffSlot[] @relation("PlayoffSlotWinnerProgression")
+  loserNextSlot  PlayoffSlot?  @relation("PlayoffSlotLoserProgression", fields: [loserNextSlotId], references: [id], onDelete: SetNull)
+  loserFedFrom   PlayoffSlot[] @relation("PlayoffSlotLoserProgression")
+
+  @@unique([seasonId, divisionId, section, round, position])
+  @@index([seasonId, divisionId])
+  @@index([winnerNextSlotId])
+  @@index([loserNextSlotId])
+  @@map("playoff_slots")
+}
+
+// 1st, 2nd, and (double elimination only) 3rd for one division.
+// Written when that division's champion is decided. Single elimination has no 3rd.
+// The format is the one saved for the division, not the division's name.
+model PlayoffPlacement {
+  id         Int @id @default(autoincrement())
+  seasonId   Int @map("season_id")
+  divisionId Int @map("division_id")
+  teamId     Int @map("team_id")
+  place      Int
+
+  season   Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@unique([seasonId, divisionId, place])
+  @@unique([seasonId, divisionId, teamId])
+  @@index([teamId])
+  @@map("playoff_placements")
 }
 
 model Team {
@@ -712,22 +780,25 @@ model Team {
   joinPassword        String?    @map("join_password")
   createdAt           DateTime   @default(now()) @map("created_at")
 
-  division          Division?          @relation(fields: [divisionId], references: [id])
-  region            Region?            @relation(fields: [regionId], references: [id])
-  season            Season?            @relation(fields: [seasonId], references: [id])
-  format            Format             @relation(fields: [formatId], references: [id])
-  homeMatches       Match[]            @relation("HomeTeam")
-  awayMatches       Match[]            @relation("AwayTeam")
-  wonMatches        Match[]            @relation("WinnerTeam")
-  history           TeamHistory[]
-  nameHistory       TeamNameHistory[]
-  players           PlayerInTeam[]
-  pendingPlayers    PendingPlayer[]
-  deniedPlayers     DeniedPlayer[]
-  payments          Payment[]
-  mapBanActions     MapBanAction[]
-  itemPaymentOrders ItemPaymentOrder[]
-  byeWeeks          ByeWeek[]
+  division            Division?          @relation(fields: [divisionId], references: [id])
+  region              Region?            @relation(fields: [regionId], references: [id])
+  season              Season?            @relation(fields: [seasonId], references: [id])
+  format              Format             @relation(fields: [formatId], references: [id])
+  homeMatches         Match[]            @relation("HomeTeam")
+  awayMatches         Match[]            @relation("AwayTeam")
+  wonMatches          Match[]            @relation("WinnerTeam")
+  history             TeamHistory[]
+  nameHistory         TeamNameHistory[]
+  players             PlayerInTeam[]
+  pendingPlayers      PendingPlayer[]
+  deniedPlayers       DeniedPlayer[]
+  payments            Payment[]
+  mapBanActions       MapBanAction[]
+  itemPaymentOrders   ItemPaymentOrder[]
+  byeWeeks            ByeWeek[]
+  playoffSlotsAsTeam1 PlayoffSlot[]      @relation("PlayoffSlotTeam1")
+  playoffSlotsAsTeam2 PlayoffSlot[]      @relation("PlayoffSlotTeam2")
+  playoffPlacements   PlayoffPlacement[]
 
   @@map("teams")
 }
@@ -790,6 +861,7 @@ model Match {
   matchComms   MatchComm[]
   games        Game[]
   matchMapBans MatchMapBan[]
+  playoffSlot  PlayoffSlot?
 
   @@map("matches")
 }
@@ -865,13 +937,15 @@ model Division {
   formatId   Int    @map("format_id")
   sortOrder  Int    @default(0) @map("sort_order")
 
-  region           Region               @relation(fields: [regionId], references: [id])
-  format           Format               @relation(fields: [formatId], references: [id])
+  region                 Region                  @relation(fields: [regionId], references: [id])
+  format                 Format                  @relation(fields: [formatId], references: [id])
   teams                  Team[]
   seasonDivisionPlayoffs SeasonDivisionPlayoff[]
+  playoffSlots           PlayoffSlot[]
+  playoffPlacements      PlayoffPlacement[]
   staffAssignments       StaffAssignment[]
-  itemPayment      DivisionItemPayment?
-  matchSetDrafts   MatchSetDraft[]
+  itemPayment            DivisionItemPayment?
+  matchSetDrafts         MatchSetDraft[]
 
   @@unique([name, regionId, formatId])
   @@index([formatId])
@@ -1048,12 +1122,12 @@ model PlayerInTeam {
 }
 
 model Payment {
-  paymentId    String   @id @map("payment_id")
-  purchasedFor String   @map("purchased_for")
-  purchasedBy  String   @map("purchased_by")
-  amount       String
-  currency     String?
-  purchaseDate DateTime @map("purchase_date")
+  paymentId       String   @id @map("payment_id")
+  purchasedFor    String   @map("purchased_for")
+  purchasedBy     String   @map("purchased_by")
+  amount          String
+  currency        String?
+  purchaseDate    DateTime @map("purchase_date")
   description     String?
   teamId          Int?     @map("team_id")
   paypalCaptureId String?  @map("paypal_capture_id")
@@ -1267,10 +1341,10 @@ model BlogComment {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  post    BlogPost           @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author  User               @relation(fields: [authorId], references: [steamId])
-  parent  BlogComment?       @relation("BlogCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies BlogComment[]      @relation("BlogCommentReplies")
+  post    BlogPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User              @relation(fields: [authorId], references: [steamId])
+  parent  BlogComment?      @relation("BlogCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies BlogComment[]     @relation("BlogCommentReplies")
   likes   BlogCommentLike[]
 
   @@index([postId, parentId])

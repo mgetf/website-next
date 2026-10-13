@@ -15,6 +15,39 @@ export function formatPlayoffRound(playoffRound: number): string {
   return `Upper Round ${playoffRound}`;
 }
 
+export type PlayoffSlotSection = 'MAIN' | 'WINNERS' | 'LOSERS' | 'GRAND_FINAL';
+
+/**
+ * Label for a stored playoff slot, using the same names as the bracket columns.
+ * `roundsInSection` is how many rounds that section has, so the last one can be a final.
+ */
+export function formatPlayoffSlotLabel(
+  section: PlayoffSlotSection,
+  round: number,
+  roundsInSection: number,
+): string {
+  if (section === 'GRAND_FINAL') {
+    return round > 1 ? 'Grand Final Reset' : 'Grand Final';
+  }
+
+  const total = Math.max(roundsInSection, round, 1);
+  const fromEnd = total - round + 1;
+  if (section === 'WINNERS') {
+    if (fromEnd === 1) return 'Winners Final';
+    if (fromEnd === 2) return 'Winners Semifinal';
+    return `Winners Round ${round}`;
+  }
+  if (section === 'LOSERS') {
+    if (fromEnd === 1) return 'Losers Final';
+    if (fromEnd === 2) return 'Losers Semifinal';
+    return `Losers Round ${round}`;
+  }
+  if (fromEnd === 1) return 'Final';
+  if (fromEnd === 2) return 'Semifinals';
+  if (fromEnd === 3) return 'Quarterfinals';
+  return `Round ${round}`;
+}
+
 /**
  * Chronological sort key for signed playoff rounds:
  * Upper Round 1, Lower Round 1, Upper Round 2, Lower Round 2, ...

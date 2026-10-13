@@ -204,7 +204,7 @@
       {/snippet}
       {#if achievements.length > 0}
         <div class="divide-y divide-border-default/50">
-          {#each achievements as achievement (achievement.id)}
+          {#each achievements as achievement (`${achievement.id}:${achievement.name}`)}
             <div class="px-5 py-3">
               <p class="text-sm text-white">
                 <span class="font-bold {placementClass(achievement.placement)}"
@@ -212,7 +212,9 @@
                 >
                 <span class="ml-2">{achievement.name}</span>
               </p>
-              <p class="mt-0.5 text-xs text-text-muted">{formatDate(achievement.date)}</p>
+              {#if achievement.date}
+                <p class="mt-0.5 text-xs text-text-muted">{formatDate(achievement.date)}</p>
+              {/if}
             </div>
           {/each}
         </div>

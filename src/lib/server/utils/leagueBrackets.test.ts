@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { buildPlayoffBracket } from './playoffBracket';
 import {
   buildLeaguePlayoffDivisions,
+  buildLeagueSlotBracket,
   mapLeaguePlayoffMatch,
   type LeaguePlayoffMatchInput,
   type LeaguePlayoffSideInput,
+  type LeaguePlayoffSlotInput,
 } from './leagueBrackets';
 
 const froyo: LeaguePlayoffSideInput = {
@@ -196,30 +199,38 @@ describe('buildLeaguePlayoffDivisions', () => {
       away: banny,
     });
 
-    const divisions = buildLeaguePlayoffDivisions([...premierMatches, unplaced, invite], false);
+    const divisions = buildLeaguePlayoffDivisions([...premierMatches, unplaced, invite]);
     expect(divisions.map((division) => division.divisionId)).toEqual([9, 8]);
     expect(divisions[0]?.divisionName).toBe('Invite');
     expect(divisions[1]?.divisionName).toBe('Premier');
   });
 
-  it('uses the double-elim builder when doubleElim is true', () => {
-    const [premier] = buildLeaguePlayoffDivisions(premierMatches, true);
-    expect(premier?.bracket.format).toBe('double_elim');
-    if (premier?.bracket.format !== 'double_elim') return;
-    expect(premier.bracket.rounds.length).toBeGreaterThan(0);
-    expect(premier.bracket.loserRounds?.length).toBeGreaterThan(0);
-    expect(premier.bracket.grandFinal?.matches[0]?.href).toBe('/matches/4');
-    expect(premier.bracket.grandFinal?.matches[0]?.label).toBe('Grand Final');
+  it('lists old rounds without advancement edges', () => {
+    const [premier] = buildLeaguePlayoffDivisions(premierMatches);
+    expect(premier?.bracket.format).toBe('card');
+    if (premier?.bracket.format !== 'card') return;
+    expect(premier.bracket.rounds.map((round) => round.label)).toEqual([
+      'Upper Round 1',
+      'Lower Round 1',
+      'Upper Round 2',
+      'Grand Final',
+    ]);
+    expect(premier.bracket.rounds[3]?.matches[0]?.href).toBe('/matches/4');
+    for (const round of premier.bracket.rounds) {
+      for (const bracketMatch of round.matches) {
+        expect(bracketMatch.winnerNextMatchId).toBeUndefined();
+        expect(bracketMatch.loserNextMatchId).toBeUndefined();
+      }
+    }
   });
 
-  it('uses the single-elim builder when doubleElim is false', () => {
+  it('keeps upper-round matches in the round list', () => {
     const upperOnly = premierMatches.filter(
       (row) => row.playoffRound != null && row.playoffRound > 0,
     );
-    const [premier] = buildLeaguePlayoffDivisions(upperOnly, false);
-    expect(premier?.bracket.format).toBe('single_elim');
-    if (premier?.bracket.format !== 'single_elim') return;
-    expect(premier.bracket.loserRounds).toBeUndefined();
+    const [premier] = buildLeaguePlayoffDivisions(upperOnly);
+    expect(premier?.bracket.format).toBe('card');
+    if (premier?.bracket.format !== 'card') return;
     const hrefs = premier.bracket.rounds.flatMap((round) =>
       round.matches.map((bracketMatch) => bracketMatch.href),
     );
@@ -227,8 +238,8 @@ describe('buildLeaguePlayoffDivisions', () => {
     expect(hrefs).toContain('/matches/3');
   });
 
-  it('marks a mixed played/unplayed tree as in progress', () => {
-    const [premier] = buildLeaguePlayoffDivisions(premierMatches, true);
+  it('marks a mixed played/unplayed list as in progress', () => {
+    const [premier] = buildLeaguePlayoffDivisions(premierMatches);
     expect(premier?.bracket.status).toBe('in_progress');
   });
 
@@ -266,16 +277,95 @@ describe('buildLeaguePlayoffDivisions', () => {
       }),
     ];
 
-    const [premier] = buildLeaguePlayoffDivisions(
-      [...premierMatches, extraUpper, extraUpperB, ...extraSemis],
-      true,
-    );
-    expect(premier?.bracket.format).toBe('double_elim');
-    if (premier?.bracket.format !== 'double_elim') return;
+    const [premier] = buildLeaguePlayoffDivisions([
+      ...premierMatches,
+      extraUpper,
+      extraUpperB,
+      ...extraSemis,
+    ]);
+    expect(premier?.bracket.format).toBe('card');
+    if (premier?.bracket.format !== 'card') return;
 
-    for (const round of [...premier.bracket.rounds, ...(premier.bracket.loserRounds ?? [])]) {
+    for (const round of premier.bracket.rounds) {
       const ids = round.matches.map((bracketMatch) => String(bracketMatch.id));
       expect(new Set(ids).size).toBe(ids.length);
     }
+  });
+});
+
+function teamSide(id: number): LeaguePlayoffSideInput {
+  return {
+    id,
+    name: `Seed ${id}`,
+    avatar: null,
+    divisionId: 1,
+    divisionName: 'Lab',
+    isIndividual: true,
+  };
+}
+
+describe('buildLeagueSlotBracket', () => {
+  function slotsFromDrafts(format: 'SINGLE_ELIM' | 'DOUBLE_ELIM', teamIds: number[]) {
+    const drafts = buildPlayoffBracket(
+      format,
+      teamIds.map((id) => ({ id })),
+    );
+    const idByKey = new Map(drafts.map((draft, index) => [draft.key, index + 1]));
+    return drafts.map((draft): LeaguePlayoffSlotInput => {
+      return {
+        id: idByKey.get(draft.key) ?? 0,
+        divisionId: 1,
+        divisionName: 'Lab',
+        format,
+        section: draft.section,
+        round: draft.round,
+        position: draft.position,
+        isBye: draft.isBye,
+        winnerNextSlotId: draft.winnerNextKey ? (idByKey.get(draft.winnerNextKey) ?? null) : null,
+        winnerNextSide: draft.winnerNextSide,
+        loserNextSlotId: draft.loserNextKey ? (idByKey.get(draft.loserNextKey) ?? null) : null,
+        team1: draft.team1Id ? teamSide(draft.team1Id) : null,
+        team2: draft.team2Id ? teamSide(draft.team2Id) : null,
+        match:
+          !draft.isBye && draft.team1Id != null && draft.team2Id != null
+            ? {
+                id: 500 + (idByKey.get(draft.key) ?? 0),
+                status: 'UNPLAYED',
+                boSeries: 3,
+                winnerId: null,
+                winnerScore: null,
+                loserScore: null,
+                homeTeamId: draft.team1Id,
+              }
+            : null,
+      };
+    });
+  }
+
+  it('draws a single-elim tree from slot edges, including byes and empty later slots', () => {
+    const division = buildLeagueSlotBracket(slotsFromDrafts('SINGLE_ELIM', [1, 2, 3, 4, 5, 6]));
+    expect(division?.bracket.format).toBe('single_elim');
+    if (division?.bracket.format !== 'single_elim') return;
+
+    const matches = division.bracket.rounds.flatMap((round) => round.matches);
+    expect(matches.some((bracketMatch) => bracketMatch.isBye)).toBe(true);
+    expect(matches.some((bracketMatch) => bracketMatch.side1.label === 'TBD')).toBe(true);
+    expect(matches.some((bracketMatch) => bracketMatch.winnerNextMatchId != null)).toBe(true);
+    const linked = matches.find((bracketMatch) => bracketMatch.href);
+    expect(linked?.href).toMatch(/^\/matches\//);
+  });
+
+  it('points the winners and losers finals at the grand final slot', () => {
+    const division = buildLeagueSlotBracket(slotsFromDrafts('DOUBLE_ELIM', [1, 2, 3, 4]));
+    expect(division?.bracket.format).toBe('double_elim');
+    if (division?.bracket.format !== 'double_elim') return;
+
+    const grandFinalId = division.bracket.grandFinal?.matches[0]?.id;
+    expect(grandFinalId).toBeDefined();
+    const winnersFinal = division.bracket.rounds.at(-1)?.matches[0];
+    const losersFinal = division.bracket.loserRounds?.at(-1)?.matches[0];
+    expect(winnersFinal?.winnerNextMatchId).toBe(grandFinalId);
+    expect(losersFinal?.winnerNextMatchId).toBe(grandFinalId);
+    expect(losersFinal?.loserNextMatchId).toBeUndefined();
   });
 });

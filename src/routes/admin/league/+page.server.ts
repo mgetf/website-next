@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isHttpError, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError, formError } from '#lib/server/utils/forms.js';
 import {
@@ -49,9 +49,14 @@ import {
 } from '#lib/server/services/mapBanPools.js';
 import {
   getPlayoffBySeason,
-  createPlayoff,
-  updatePlayoffBySeason,
+  listSeasonDivisionPlayoffs,
+  parseDivisionPlayoffChoices,
+  saveSeasonDivisionPlayoffs,
 } from '#lib/server/services/playoffs.js';
+import {
+  generateDivisionPlayoffBracket,
+  listGeneratedPlayoffDivisions,
+} from '#lib/server/services/playoffSlots.js';
 import {
   getFormats,
   createFormat,
@@ -149,20 +154,16 @@ const removeMapFromPoolSchema = z.object({
   arenaId: z.coerce.number().int().positive(),
 });
 
-const managePlayoffSchema = z
-  .object({
-    seasonId: z.coerce.number().int().positive(),
-    format: z.enum(['tournament', 'rounds']),
-    numRounds: z.coerce.number().int().positive().optional().catch(undefined),
-    doubleElim: z.string().optional().default('0'),
-  })
-  .refine(
-    (data) => data.format !== 'rounds' || (data.numRounds !== undefined && data.numRounds >= 1),
-    {
-      message: 'Number of rounds is required for rounds format and must be >= 1',
-      path: ['numRounds'],
-    },
-  );
+const managePlayoffSchema = z.object({
+  seasonId: z.coerce.number().int().positive(),
+  divisionFormats: z.string().min(2, 'Division playoff choices are required'),
+});
+
+const generatePlayoffSchema = z.object({
+  seasonId: z.coerce.number().int().positive(),
+  divisionId: z.coerce.number().int().positive(),
+  mapBanPoolId: z.coerce.number().int().positive(),
+});
 
 const boolFromCheckbox = z.preprocess(
   (v) => v === 'true' || v === 'on' || v === true || v === '1',
@@ -209,6 +210,21 @@ export const load: PageServerLoad = async ({ locals }) => {
   // Fetch steam items for division item payment config
   const steamItems = await getSteamItems();
 
+  const divisionPlayoffRows = await listSeasonDivisionPlayoffs();
+  const generatedPlayoffRows = await listGeneratedPlayoffDivisions();
+  const divisionPlayoffsBySeason = new Map<number, typeof divisionPlayoffRows>();
+  for (const row of divisionPlayoffRows) {
+    const existing = divisionPlayoffsBySeason.get(row.seasonId) ?? [];
+    existing.push(row);
+    divisionPlayoffsBySeason.set(row.seasonId, existing);
+  }
+  const generatedDivisionsBySeason = new Map<number, number[]>();
+  for (const row of generatedPlayoffRows) {
+    const existing = generatedDivisionsBySeason.get(row.seasonId) ?? [];
+    existing.push(row.divisionId);
+    generatedDivisionsBySeason.set(row.seasonId, existing);
+  }
+
   // Build a set of the latest season id per format+region combination
   const latestByFormatRegion = new Map<string, number>();
   for (const season of seasons) {
@@ -238,6 +254,14 @@ export const load: PageServerLoad = async ({ locals }) => {
               isTournament: playoff.isTournament,
             }
           : null,
+        divisionPlayoffs: (divisionPlayoffsBySeason.get(season.id) ?? []).map((row) => ({
+          divisionId: row.divisionId,
+          divisionName: row.divisionName,
+          format: row.format,
+          series: row.series,
+          arenaGames: row.arenaGames,
+        })),
+        generatedDivisionIds: generatedDivisionsBySeason.get(season.id) ?? [],
       };
     }),
   );
@@ -1050,61 +1074,76 @@ export const actions: Actions = {
     const formData = await request.formData();
     const validation = validateForm(formData, managePlayoffSchema);
     if (!validation.success) return validationError(validation.errors);
-    const { seasonId, format, numRounds, doubleElim: doubleElimStr } = validation.data;
-    const isTournament = format === 'tournament';
-    const doubleElim = doubleElimStr === '1' ? 1 : 0;
+    const { seasonId, divisionFormats } = validation.data;
+    const choices = parseDivisionPlayoffChoices(divisionFormats);
+    if (!choices) return formError('Invalid playoff choices');
 
     try {
-      // Check if playoff already exists for this season
-      const existingPlayoff = await getPlayoffBySeason(seasonId);
-
-      if (existingPlayoff) {
-        await updatePlayoffBySeason(seasonId, {
-          numRounds: isTournament ? undefined : (numRounds ?? undefined),
-          doubleElim,
-          isTournament,
-        });
-        await logAudit({
-          actorId: locals.user?.steamId,
-          actorRole: locals.user?.permissionLevel,
-          category: AuditCategory.LEAGUE_CONFIG,
-          action: AuditAction.PLAYOFF_UPDATED,
-          targetType: 'Season',
-          targetId: String(seasonId),
-          metadata: { isTournament, numRounds, doubleElim },
-          ipAddress: getClientAddress(),
-        });
-        return {
-          success: true,
-          message: 'Playoff configuration updated successfully!',
-        };
-      } else {
-        await createPlayoff({
-          seasonId,
-          numRounds: isTournament ? undefined : (numRounds ?? undefined),
-          doubleElim,
-          isTournament,
-        });
-        await logAudit({
-          actorId: locals.user?.steamId,
-          actorRole: locals.user?.permissionLevel,
-          category: AuditCategory.LEAGUE_CONFIG,
-          action: AuditAction.PLAYOFF_UPDATED,
-          targetType: 'Season',
-          targetId: String(seasonId),
-          metadata: { isTournament, numRounds, doubleElim, created: true },
-          ipAddress: getClientAddress(),
-        });
-        return {
-          success: true,
-          message: 'Playoff configuration created successfully!',
-        };
-      }
+      await saveSeasonDivisionPlayoffs(seasonId, choices);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.PLAYOFF_UPDATED,
+        targetType: 'Season',
+        targetId: String(seasonId),
+        metadata: { divisionPlayoffs: choices },
+        ipAddress: getClientAddress(),
+      });
+      return {
+        success: true,
+        message: 'Playoff choices saved',
+      };
     } catch (error) {
       console.error('Error managing playoff:', error);
       return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to manage playoff configuration',
+        error: getErrorMessage(error, 'Failed to manage playoff configuration'),
       });
+    }
+  },
+
+  generatePlayoff: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, generatePlayoffSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { seasonId, divisionId, mapBanPoolId } = validation.data;
+
+    try {
+      const generated = await generateDivisionPlayoffBracket(seasonId, divisionId, mapBanPoolId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.PLAYOFF_BRACKET_GENERATED,
+        targetType: 'Division',
+        targetId: String(divisionId),
+        metadata: {
+          seasonId,
+          mapBanPoolId,
+          format: generated.format,
+          teamCount: generated.teamCount,
+          slotCount: generated.slotCount,
+          matchCount: generated.matchCount,
+        },
+        ipAddress: getClientAddress(),
+      });
+      return {
+        success: true,
+        message: `${generated.divisionName} bracket created: ${generated.teamCount} teams, ${generated.matchCount} matches`,
+      };
+    } catch (error) {
+      console.error('Error generating playoff bracket:', error);
+      if (isHttpError(error)) {
+        const body = error.body;
+        const message =
+          typeof body === 'object' && body && 'message' in body && typeof body.message === 'string'
+            ? body.message
+            : 'Failed to generate the playoff bracket';
+        return formError(message, error.status);
+      }
+      return formError('Failed to generate the playoff bracket', 500);
     }
   },
 

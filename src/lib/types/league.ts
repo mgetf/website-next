@@ -46,6 +46,7 @@ export interface LeagueMatchSide {
 
 /** Serializable match row for the public league schedule/results list. */
 export interface LeagueDivisionMatch {
+  kind: 'match';
   id: number;
   weekNo: number;
   weekLabel: string;
@@ -57,10 +58,28 @@ export interface LeagueDivisionMatch {
   awayScore: number | null;
 }
 
+/** A team with no opponent that week. Shown in the same list as matches. */
+export interface LeagueDivisionBye {
+  kind: 'bye';
+  id: number;
+  weekNo: number;
+  weekLabel: string;
+  href: string;
+  team: LeagueMatchSide;
+}
+
+export type LeagueScheduleRow = LeagueDivisionMatch | LeagueDivisionBye;
+
 export interface LeagueMatchWeekGroup {
   weekNo: number;
   weekLabel: string;
-  matches: LeagueDivisionMatch[];
+  matches: LeagueScheduleRow[];
+}
+
+export interface LeaguePlayoffPlacement {
+  place: number;
+  label: string;
+  href: string;
 }
 
 /** One division's playoff tree on `/leagues/[format]`. */
@@ -68,4 +87,5 @@ export interface LeaguePlayoffDivision {
   divisionId: number;
   divisionName: string;
   bracket: BracketData;
+  placements: LeaguePlayoffPlacement[];
 }

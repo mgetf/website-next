@@ -7,6 +7,7 @@
 import { prisma } from '#lib/server/db.js';
 import { TeamStatus } from '#prisma/client.js';
 import { getCurrentSignupSeasonIds } from './signupSeasons';
+import { listPlayoffAchievementsForTeams } from './playoffPlacements';
 import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
 import type { NavUserTeam } from '#lib/types/user.js';
 import type { ProfileMatch } from '#lib/types/match.js';
@@ -571,7 +572,6 @@ export async function getPlayerProfile(steamId: string) {
   const teamHistory = transformTeamHistory(playerTeams);
   const tournamentResults = transformTournamentPlacements(tournaments);
   const fightNights = transformFightNightMatchups(fightNightMatchups, steamId);
-  const achievements = buildAchievements(tournamentResults);
 
   const current1v1Entry = player1v1Entries.find((e) => e.team.status !== 'DEAD');
   const entries1v1Base = player1v1Entries.map((entry) => ({
@@ -598,7 +598,18 @@ export async function getPlayerProfile(steamId: string) {
     ...teamHistory.map((t) => t.teamId),
     ...entries1v1Base.map((e) => e.id),
   ];
-  const matchesMap = await getMatchesByTeamIds(allTeamIds);
+  const [matchesMap, leagueAchievements] = await Promise.all([
+    getMatchesByTeamIds(allTeamIds),
+    listPlayoffAchievementsForTeams(allTeamIds),
+  ]);
+  const achievements = [
+    ...buildAchievements(tournamentResults),
+    ...leagueAchievements.map((row) => ({
+      placement: row.placement,
+      event: row.name,
+      date: null,
+    })),
+  ];
 
   // Attach matches to each team (grouped by season, since a team ID can be
   // re-registered into a new season) and entry

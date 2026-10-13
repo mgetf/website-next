@@ -13,7 +13,7 @@
   import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
   import { getFormatThemeClasses } from '#lib/constants/formats.js';
   import type { BracketData } from '#lib/types/bracket.js';
-  import type { LeagueDivisionMatch } from '#lib/types/league.js';
+  import type { LeaguePlayoffPlacement, LeagueScheduleRow } from '#lib/types/league.js';
   import { getRegionAbbr as abbreviateRegion } from '#lib/utils/region.js';
   import { flagForRegion } from '#lib/utils/regions.js';
   import {
@@ -29,7 +29,7 @@
     { key: 'record', label: 'Record' },
     { key: 'points', label: 'Avg Points' },
   ];
-  const emptyDivisionMatches: LeagueDivisionMatch[] = [];
+  const emptyDivisionMatches: LeagueScheduleRow[] = [];
 
   let activeTab = $state<'standings' | 'info'>('standings');
   let isEditing = $state(false);
@@ -73,8 +73,11 @@
         players?: Array<{ steamId: string; name: string; avatar: string | null }>;
       }>;
     }>;
-    matchesByDivision: Record<number, LeagueDivisionMatch[]>;
-    playoffsByDivision: Record<number, { bracket: BracketData }>;
+    matchesByDivision: Record<number, LeagueScheduleRow[]>;
+    playoffsByDivision: Record<
+      number,
+      { bracket: BracketData; placements: LeaguePlayoffPlacement[] }
+    >;
     staffByDivision: Array<{
       division: { id: number; name: string };
       staff: Array<{
@@ -598,6 +601,7 @@
                       {#if playoff}
                         <DivisionPlayoffBracket
                           bracket={playoff.bracket}
+                          placements={playoff.placements}
                           isIndividual={data.format.isIndividual}
                         />
                       {/if}

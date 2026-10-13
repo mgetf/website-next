@@ -228,7 +228,10 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     teamsByDivision: teamsByDivision.filter((d) => d.teams.length > 0),
     matchesByDivision,
     playoffsByDivision: Object.fromEntries(
-      playoffDivisions.map((division) => [division.divisionId, { bracket: division.bracket }]),
+      playoffDivisions.map((division) => [
+        division.divisionId,
+        { bracket: division.bracket, placements: division.placements },
+      ]),
     ),
     staffByDivision,
     deadlines: {

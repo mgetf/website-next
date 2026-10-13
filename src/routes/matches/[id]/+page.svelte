@@ -16,6 +16,7 @@
   import MarkdownEditor from '#lib/components/markdown/MarkdownEditor.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
   import { formatPlayoffRound } from '#lib/utils/playoffs.js';
+  import { standardTimezoneOptions } from '#lib/utils/timezones.js';
   import Trophy from '~icons/lucide/trophy';
   import Calendar from '~icons/lucide/calendar';
   import CircleCheck from '~icons/lucide/circle-check';
@@ -38,6 +39,8 @@
   let isSubmittingMessage = $state(false);
   let isUploadingDemo = $state(false);
   let isReportingDemo = $state(false);
+
+  const standardTimezones = standardTimezoneOptions();
 
   // Admin controls
   const TIMEZONES = [
@@ -546,6 +549,8 @@
           Match #{match.id}
           {#if data.weekLabel}
             <span class="text-text-body">- Week {data.weekLabel}</span>
+          {:else if data.playoffLabel}
+            <span class="text-text-body">- {data.playoffLabel}</span>
           {:else if match.playoffRound}
             <span class="text-text-body">- {formatPlayoffRound(match.playoffRound)}</span>
           {/if}
@@ -1400,7 +1405,7 @@
               label="Timezone"
               name="proposedTimezone"
               bind:value={proposedTimezone}
-              options={TIMEZONES}
+              options={standardTimezones}
               required
             />
             <Button type="submit" variant="primary" size="sm">Send Request</Button>

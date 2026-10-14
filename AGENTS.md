@@ -48,7 +48,7 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 - Auth guards: `requireAuth()`, `requireAdmin()`, `requireNotBanned()`, `requireTeamAdmin()` from `#lib/server/auth/permissions.js`
 - Admin routes protected at layout level (`/admin/+layout.server.ts`)
 - Every protected route/action must call auth guards as its first operation
-- `/api/v1/*` uses API key auth; `/api/*` uses session auth
+- `/api/v1/*` service routes use API key auth. League reads (`formats`, `regions`, `seasons`, `teams`, `matches`, `players`) are anonymous and share `publicReadRateLimiter`. Other `/api/*` routes use session auth.
 
 ### Mutations
 

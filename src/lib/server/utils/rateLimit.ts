@@ -1,8 +1,7 @@
 /**
  * Rate Limiting Utility
- * In-memory rate limiting for sensitive endpoints, using a sliding window
- * approach. Limits are tracked per Node process — this reduces abuse but is
- * not a global quota across multiple replicas/instances.
+ * In-memory rate limiting, using a fixed window. Limits are tracked per Node
+ * process — this reduces abuse but is not a global quota across replicas.
  */
 
 import { formError } from './forms';
@@ -145,13 +144,74 @@ export const passwordRateLimiter = new RateLimiter({
 });
 
 /**
- * Rate limiter for general API requests
- * 100 requests per minute per API key (or IP for non-key callers)
+ * Rate limiter for keyed /api/v1 service routes.
+ * 100 requests per minute per API key.
  */
 export const apiRateLimiter = new RateLimiter({
   maxRequests: 100,
   windowMs: 60 * 1000, // 1 minute
 });
+
+/**
+ * Anonymous league reads (formats, regions, seasons, teams, matches, players).
+ * 100 requests per minute per client address. The address comes from
+ * SvelteKit's getClientAddress(), which honors ADDRESS_HEADER (production
+ * image sets CF-Connecting-IP). Headers follow the IETF RateLimit fields:
+ * RateLimit-Policy and RateLimit on every response, Retry-After on 429.
+ */
+export const PUBLIC_READ_POLICY = {
+  name: 'public-read',
+  quota: 100,
+  windowSeconds: 60,
+} as const;
+
+export const publicReadRateLimiter = new RateLimiter({
+  maxRequests: PUBLIC_READ_POLICY.quota,
+  windowMs: PUBLIC_READ_POLICY.windowSeconds * 1000,
+});
+
+type RateLimitPolicy = {
+  name: string;
+  quota: number;
+  windowSeconds: number;
+};
+
+function rateLimitField(policy: RateLimitPolicy, remaining: number, resetSeconds: number): string {
+  return `"${policy.name}";r=${remaining};t=${resetSeconds}`;
+}
+
+function rateLimitPolicyField(policy: RateLimitPolicy): string {
+  return `"${policy.name}";q=${policy.quota};w=${policy.windowSeconds}`;
+}
+
+/**
+ * Consume one request from a fixed-window limiter and build the standard headers.
+ * The 429 body stays `{ error }`, matching the public API envelope.
+ */
+export function enforceRateLimit(
+  limiter: RateLimiter,
+  key: string,
+  policy: RateLimitPolicy,
+): { headers: Headers; response: Response | null } {
+  const result = limiter.check(key);
+  const resetSeconds = Math.max(0, Math.ceil(result.resetIn / 1000));
+  const headers = new Headers();
+  headers.set('RateLimit-Policy', rateLimitPolicyField(policy));
+  headers.set('RateLimit', rateLimitField(policy, result.remaining, resetSeconds));
+
+  if (result.allowed) return { headers, response: null };
+
+  const retryAfter = String(Math.max(1, resetSeconds));
+  headers.set('Retry-After', retryAfter);
+  headers.set('Content-Type', 'application/json');
+  return {
+    headers,
+    response: new Response(
+      JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+      { status: 429, headers },
+    ),
+  };
+}
 
 /**
  * Rate limiter for admin actions

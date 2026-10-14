@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RateLimiter, checkRateLimit, getClientIp } from './rateLimit';
+import { enforceRateLimit, RateLimiter, checkRateLimit, getClientIp } from './rateLimit';
 
 describe('RateLimiter', () => {
   beforeEach(() => {
@@ -65,6 +65,48 @@ describe('getClientIp', () => {
       getClientIp(new Request('https://mge.tf', { headers: { 'x-real-ip': '9.9.9.9' } })),
     ).toBe('9.9.9.9');
     expect(getClientIp(new Request('https://mge.tf'))).toBe('unknown');
+  });
+});
+
+describe('enforceRateLimit', () => {
+  const policy = { name: 'public-read', quota: 2, windowSeconds: 60 };
+
+  it('stamps the IETF quota headers and counts the request', () => {
+    const limiter = new RateLimiter({
+      maxRequests: 2,
+      windowMs: 60_000,
+      cleanupIntervalMs: 60_000,
+    });
+    const first = enforceRateLimit(limiter, '203.0.113.5', policy);
+
+    expect(first.response).toBeNull();
+    expect(first.headers.get('RateLimit-Policy')).toBe('"public-read";q=2;w=60');
+    expect(first.headers.get('RateLimit')).toBe('"public-read";r=1;t=60');
+    expect(first.headers.get('Retry-After')).toBeNull();
+
+    limiter.destroy();
+  });
+
+  it('returns 429 with Retry-After once the window is spent', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 1,
+      windowMs: 60_000,
+      cleanupIntervalMs: 60_000,
+    });
+    enforceRateLimit(limiter, '203.0.113.6', policy);
+
+    const blocked = enforceRateLimit(limiter, '203.0.113.6', policy);
+    expect(blocked.response?.status).toBe(429);
+    expect(blocked.response?.headers.get('Retry-After')).toBe('60');
+    expect(blocked.headers.get('RateLimit')).toBe('"public-read";r=0;t=60');
+    await expect(blocked.response?.json()).resolves.toEqual({
+      error: 'Too many requests. Please try again later.',
+    });
+
+    const other = enforceRateLimit(limiter, '203.0.113.7', policy);
+    expect(other.response).toBeNull();
+
+    limiter.destroy();
   });
 });
 

@@ -39,7 +39,7 @@ export function validateMatchSetDraftTeams(
   pairings: MatchSetDraftPairingInput[],
   byeTeamIds: number[],
 ) {
-  if (pairings.length === 0) {
+  if (pairings.length === 0 && byeTeamIds.length !== 1) {
     throw new Error('At least one match pairing is required');
   }
 

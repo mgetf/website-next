@@ -384,6 +384,13 @@ export async function publishMatchSetDraft(
       badRequest('Playoff ID and round are required to publish this draft');
     }
     for (const pairing of pairings) {
+      await assertEligibleMatchTeams(
+        draft.regionId,
+        draft.divisionId,
+        draft.seasonId,
+        pairing.homeTeamId,
+        pairing.awayTeamId,
+      );
       await createPlayoffMatch({
         seasonId: draft.seasonId,
         seasonNo: draft.seasonNo,

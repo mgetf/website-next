@@ -16,7 +16,12 @@ import { createNotificationForRoster } from './notifications';
 import { advancePlayoffFromMatch, notifyNewPlayoffMatches } from './playoffSlots';
 import { formatPlayoffRound } from '#lib/utils/playoffs.js';
 import { countPairMeetings } from '#lib/utils/singleMatch.js';
-import type { SingleMatchBoard } from '#lib/types/matchSetDraft.js';
+import {
+  matchSetOmissionReason,
+  placeEligibleTeams,
+  type MatchSetRules,
+} from '#lib/utils/matchEligibility.js';
+import type { MatchSetOmission, SingleMatchBoard } from '#lib/types/matchSetDraft.js';
 
 /**
  * Sort teams by standings
@@ -48,6 +53,8 @@ export function sortTeamsByStandings(teams: Team[]): Team[] {
  * Returns array of teams paired in order [team1, team2, team3, team4, ...]
  */
 export async function pairTeamsForMatches(teams: Team[], seasonId: number): Promise<Team[]> {
+  if (teams.length < 2) return [];
+
   const sortedTeams = sortTeamsByStandings(teams);
   const finalTeams: Team[] = [];
 
@@ -225,42 +232,19 @@ export async function createMatchSet(
     badRequest('Playoff matches require manual team selection. Use createPlayoffMatch instead.');
   }
 
-  // Get season settings for payment requirement and format (per-season setting)
-  const season = await prisma.season.findUnique({
-    where: { id: seasonId },
-    select: { paymentRequired: true, formatId: true },
-  });
-  const paymentRequired = season?.paymentRequired ?? false;
+  const rules = await loadMatchSetRules(divisionId, seasonId);
+  const teams = await getEligibleTeams(regionId, divisionId, seasonId);
 
-  // Build conditions for team selection
-  const conditions: any = {
-    regionId,
-    divisionId,
-    seasonId,
-    formatId: season?.formatId,
-    status: TeamStatus.READY,
-  };
-
-  if (paymentRequired) {
-    conditions.paymentStatus = { in: [1, 2] }; // PAID or EXEMPT
-  }
-
-  // Get eligible teams
-  const teams = await prisma.team.findMany({
-    where: conditions,
-  });
-
-  if (teams.length < 2) {
+  if (teams.length === 0) {
     badRequest('Not enough eligible teams for match creation');
   }
 
-  const seasonFormatId = season?.formatId;
+  const seasonFormatId = rules.seasonFormatId;
   const eligibleTeamIds = new Set(teams.map((t) => t.id));
 
-  let matchPairs: { homeTeam: Team; awayTeam: Team }[];
+  let orderedTeams: Team[];
 
   if (manualPairings && manualPairings.length > 0) {
-    // Validate each pairing against eligible teams
     for (const { homeTeamId, awayTeamId } of manualPairings) {
       if (!eligibleTeamIds.has(homeTeamId)) {
         badRequest(`Team ${homeTeamId} is not eligible for this match set`);
@@ -274,32 +258,34 @@ export async function createMatchSet(
     }
 
     const teamsById = new Map(teams.map((t) => [t.id, t]));
-    matchPairs = manualPairings.map(({ homeTeamId, awayTeamId }) => ({
-      homeTeam: teamsById.get(homeTeamId)!,
-      awayTeam: teamsById.get(awayTeamId)!,
-    }));
+    orderedTeams = manualPairings.flatMap(({ homeTeamId, awayTeamId }) => [
+      teamsById.get(homeTeamId)!,
+      teamsById.get(awayTeamId)!,
+    ]);
   } else {
-    // Auto-pair using standings-based algorithm
-    const pairedTeams = await pairTeamsForMatches(teams, seasonId);
-
-    if (pairedTeams.length === 0) {
-      badRequest('No valid team pairings found');
-    }
-
-    matchPairs = [];
-    for (let i = 0; i < pairedTeams.length - 1; i += 2) {
-      matchPairs.push({ homeTeam: pairedTeams[i], awayTeam: pairedTeams[i + 1] });
-    }
+    orderedTeams = await pairTeamsForMatches(teams, seasonId);
   }
 
-  // Identify teams that were not paired — they receive a bye week
-  const pairedTeamIds = new Set(matchPairs.flatMap((p) => [p.homeTeam.id, p.awayTeam.id]));
-  const byeTeams = teams.filter((t) => !pairedTeamIds.has(t.id));
+  // Eligible teams the algorithm or the draft left out are paired together.
+  // One entrant remains a bye only when the eligible field is odd.
+  const placed = placeEligibleTeams(teams, orderedTeams);
+  const matchPairs: { homeTeam: Team; awayTeam: Team }[] = [];
+  for (let i = 0; i < placed.paired.length - 1; i += 2) {
+    matchPairs.push({ homeTeam: placed.paired[i], awayTeam: placed.paired[i + 1] });
+  }
+  const byeTeams = placed.bye ? [placed.bye] : [];
+
+  if (matchPairs.length === 0 && byeTeams.length === 0) {
+    badRequest('No valid team pairings found');
+  }
 
   // Create matches
   const matches = [];
   for (const { homeTeam, awayTeam } of matchPairs) {
-    if (homeTeam.formatId !== seasonFormatId || awayTeam.formatId !== seasonFormatId) {
+    if (
+      seasonFormatId != null &&
+      (homeTeam.formatId !== seasonFormatId || awayTeam.formatId !== seasonFormatId)
+    ) {
       badRequest(
         `Format mismatch: teams must match the season's format. ` +
           `Season formatId=${seasonFormatId}, home formatId=${homeTeam.formatId}, away formatId=${awayTeam.formatId}`,
@@ -480,6 +466,13 @@ export async function assertEligibleMatchTeams(
   const teams = await getEligibleTeams(regionId, divisionId, seasonId);
   const eligibleIds = new Set(teams.map((team) => team.id));
   if (!eligibleIds.has(homeTeamId) || !eligibleIds.has(awayTeamId)) {
+    const omissions = await listMatchSetOmissions(regionId, divisionId, seasonId);
+    const blocked = omissions.filter(
+      (omission) => omission.id === homeTeamId || omission.id === awayTeamId,
+    );
+    if (blocked.length > 0) {
+      badRequest(blocked.map((omission) => `${omission.name}: ${omission.reason}`).join('. '));
+    }
     badRequest('Both teams must be ready in this division for the current season');
   }
 }
@@ -596,38 +589,78 @@ export async function getSingleMatchBoard(params: {
   };
 }
 
+async function loadMatchSetRules(divisionId: number, seasonId: number): Promise<MatchSetRules> {
+  const [season, division] = await Promise.all([
+    prisma.season.findUnique({
+      where: { id: seasonId },
+      select: { paymentRequired: true, formatId: true },
+    }),
+    prisma.division.findUnique({
+      where: { id: divisionId },
+      select: { signupCost: true },
+    }),
+  ]);
+
+  if (!division) notFound('Division not found');
+
+  return {
+    paymentRequired: season?.paymentRequired ?? false,
+    signupCost: division.signupCost,
+    seasonFormatId: season?.formatId ?? null,
+  };
+}
+
 /**
- * Get teams eligible for match creation
- * Filters by region, division, season, and READY status.
+ * Active entrants in this division who will not receive a match, and why.
+ * Dead entrants are ignored. A free division never produces an unpaid reason.
+ */
+export async function listMatchSetOmissions(
+  regionId: number,
+  divisionId: number,
+  seasonId: number,
+): Promise<MatchSetOmission[]> {
+  const rules = await loadMatchSetRules(divisionId, seasonId);
+  const teams = await prisma.team.findMany({
+    where: {
+      regionId,
+      divisionId,
+      seasonId,
+      status: { not: TeamStatus.DEAD },
+    },
+    select: { id: true, name: true, status: true, paymentStatus: true, formatId: true },
+    orderBy: { name: 'asc' },
+  });
+
+  return teams.flatMap((team) => {
+    const reason = matchSetOmissionReason(team, rules);
+    return reason ? [{ id: team.id, name: team.name, reason }] : [];
+  });
+}
+
+/**
+ * Get teams eligible for match creation.
+ * Ready entrants in a free division are included even when their payment status is unpaid.
+ * Payment is required only when the season requires it and the division signup cost is above zero.
  */
 export async function getEligibleTeams(regionId: number, divisionId: number, seasonId: number) {
-  // Get season settings for payment requirement and format (per-season setting)
-  const season = await prisma.season.findUnique({
-    where: { id: seasonId },
-    select: { paymentRequired: true, formatId: true },
-  });
-  const paymentRequired = season?.paymentRequired ?? false;
+  const rules = await loadMatchSetRules(divisionId, seasonId);
 
-  const conditions: any = {
-    regionId,
-    divisionId,
-    seasonId,
-    formatId: season?.formatId,
-    status: TeamStatus.READY,
-  };
-
-  if (paymentRequired) {
-    conditions.paymentStatus = { in: [1, 2] }; // PAID or EXEMPT
-  }
-
-  return await prisma.team.findMany({
-    where: conditions,
+  const candidates = await prisma.team.findMany({
+    where: {
+      regionId,
+      divisionId,
+      seasonId,
+      formatId: rules.seasonFormatId ?? undefined,
+      status: TeamStatus.READY,
+    },
     include: {
       division: true,
       region: true,
     },
     orderBy: [{ wins: 'desc' }, { losses: 'asc' }],
   });
+
+  return candidates.filter((team) => matchSetOmissionReason(team, rules) === null);
 }
 
 /**

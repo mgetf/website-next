@@ -2,6 +2,7 @@
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import type { ActionData, PageData } from './$types';
+  import MatchSetOmissions from '#lib/components/admin/MatchSetOmissions.svelte';
   import Badge from '#lib/components/ui/Badge.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import Card from '#lib/components/ui/Card.svelte';
@@ -137,6 +138,8 @@
         </p>
       </div>
     {/if}
+
+    <MatchSetOmissions omissions={data.omissions} />
 
     {#if draft.byeTeams.length > 0}
       <div class="mt-4 p-3 rounded-lg bg-warning-500/10 border border-warning-500/30">

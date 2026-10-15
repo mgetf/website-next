@@ -41,6 +41,12 @@ export interface SingleMatchBoardTeam {
   onBye: boolean;
 }
 
+export interface MatchSetOmission {
+  id: number;
+  name: string;
+  reason: string;
+}
+
 export interface SingleMatchMeeting {
   teamAId: number;
   teamBId: number;

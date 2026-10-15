@@ -7,6 +7,7 @@ import {
   getMatchSetDraftDetail,
   publishMatchSetDraft,
 } from '#lib/server/services/matchSetDrafts.js';
+import { listMatchSetOmissions } from '#lib/server/services/adminMatches.js';
 import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 import { formError } from '#lib/server/utils/forms.js';
 
@@ -19,10 +20,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   }
 
   const draft = await getMatchSetDraftDetail(draftId);
+  const omissions =
+    draft.status === 'DRAFT'
+      ? await listMatchSetOmissions(draft.regionId, draft.divisionId, draft.seasonId)
+      : [];
 
   return {
     isStrictAdmin: isStrictAdmin(locals.user),
     draft,
+    omissions,
   };
 };
 

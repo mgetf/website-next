@@ -2,7 +2,9 @@
   import type { PageData, ActionData } from './$types';
   import { enhance, type SubmitFunction } from '$app/forms';
   import { dndzone } from 'svelte-dnd-action';
+  import MatchSetOmissions from '#lib/components/admin/MatchSetOmissions.svelte';
   import Button from '#lib/components/ui/Button.svelte';
+  import type { MatchSetOmission } from '#lib/types/matchSetDraft.js';
   import Card from '#lib/components/ui/Card.svelte';
   import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
   import { filterDivisionsByRegionAndFormat } from '#lib/utils/leagueScope.js';
@@ -138,6 +140,7 @@
   });
 
   let previewTeams = $state<DndTeam[]>([]);
+  let omissions = $state<MatchSetOmission[]>([]);
 
   function buildDndItems(preview: {
     matchups?: Array<{ home?: DndTeam; away?: DndTeam }>;
@@ -164,8 +167,10 @@
           isPlayoff?: boolean;
           matchups?: unknown[];
           byeTeam?: DndTeam | null;
+          omissions?: MatchSetOmission[];
         };
         previewTeams = preview.teams || [];
+        omissions = preview.omissions ?? [];
         weekLabel = preview.weekLabel || null;
         existingMatchSetsCount = preview.existingCount || 0;
         showPreview = true;
@@ -236,6 +241,7 @@
       dndItems = [];
       originalDndItems = [];
       playoffSelections = [];
+      omissions = [];
       weekLabel = null;
       existingMatchSetsCount = 0;
     }
@@ -629,8 +635,10 @@
         <div class="text-center py-8">
           <p class="text-text-body">No eligible teams found for this configuration.</p>
           <p class="text-sm text-text-muted mt-2">
-            Teams must have status READY and be in the selected division/region.
+            Ready entrants in a free division are included even if they have not paid. Anyone left
+            out is listed below with the reason.
           </p>
+          <MatchSetOmissions {omissions} />
         </div>
       {:else if isPlayoff}
         <!-- Playoff Match Selection -->
@@ -665,6 +673,8 @@
             <span class="font-semibold text-white">{playoffSelections.length} matches</span> in this draft.
             Select teams for each matchup:
           </p>
+
+          <MatchSetOmissions {omissions} />
 
           <!-- Manual Team Selection for Playoffs -->
           <div class="space-y-4">
@@ -777,6 +787,8 @@
             </p>
           {/if}
 
+          <MatchSetOmissions {omissions} />
+
           <!-- Create form — serialises current pairing order as hidden inputs -->
           <form method="POST" action="?/saveDraft" use:enhance={handleCreateEnhance}>
             <input type="hidden" name="regionId" value={selectedRegionId} />
@@ -796,7 +808,7 @@
               <input type="hidden" name="byeTeamIds" value={previewByeTeam.id} />
             {/if}
 
-            {@render draftActions(isCreating || previewPairs.length === 0)}
+            {@render draftActions(isCreating || (previewPairs.length === 0 && !previewByeTeam))}
           </form>
         </div>
       {/if}

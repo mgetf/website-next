@@ -48,7 +48,7 @@ Prisma Client (src/lib/server/db.ts)     ← Singleton connection
 - Auth guards: `requireAuth()`, `requireAdmin()`, `requireNotBanned()`, `requireTeamAdmin()` from `#lib/server/auth/permissions.js`
 - Admin routes protected at layout level (`/admin/+layout.server.ts`)
 - Every protected route/action must call auth guards as its first operation
-- `/api/v1/*` service routes use API key auth. League reads (`formats`, `regions`, `seasons`, `teams`, `matches`, `players`) are anonymous and share `publicReadRateLimiter`. Other `/api/*` routes use session auth.
+- `/api/v1/*` service routes use API key auth. League reads (`formats`, `regions`, `seasons`, `teams`, `matches`, `players`) are anonymous and share `publicReadRateLimiter`. Contract and follow-ups: [`docs/public-league-api.md`](docs/public-league-api.md). Other `/api/*` routes use session auth.
 
 ### Mutations
 
@@ -109,6 +109,7 @@ src/
 │   ├── components/     # Svelte components (charts/, icons/, layout/, markdown/, ui/)
 │   ├── constants/      # Client-safe constants (format IDs, etc.)
 │   ├── server/
+│   │   ├── api/        # Anonymous league-read gate and query parsers
 │   │   ├── auth/       # Auth helpers (steam, discord, permissions, apiKey)
 │   │   ├── constants/  # Server-side constants (re-exports from #lib/constants/)
 │   │   ├── services/   # Business logic (one file per domain)

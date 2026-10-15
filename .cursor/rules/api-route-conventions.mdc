@@ -18,7 +18,7 @@ Do NOT create API routes for things that should be form actions.
 ## Auth Patterns by Route Type
 
 - `/api/v1/*` service routes — API key auth via `requireApiKey(request)` or `requireRateLimitedApiKey(request)` from `#lib/server/auth/apiKey`
-- `/api/v1` league reads (`formats`, `regions`, `seasons`, `teams`, `matches`, `players`) — anonymous. `publicGet` applies `publicReadRateLimiter` from `#lib/server/utils/rateLimit`. Do not put an API key back on these routes.
+- `/api/v1` league reads (`formats`, `regions`, `seasons`, `teams`, `matches`, `players`) — anonymous. `publicGet` applies `publicReadRateLimiter` from `#lib/server/utils/rateLimit`. Do not put an API key back on these routes. Contract: `docs/public-league-api.md`. Their success body is `{ data, page }` or the resource object, not `{ success: true, data }`.
 - `/api/*` (non-v1) — Session auth via `locals.user`
 - Form actions — Session auth via `locals.user` with `requireAuth()`/`requireAdmin()`
 

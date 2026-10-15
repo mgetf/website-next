@@ -10,8 +10,11 @@ import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/aut
 import { getErrorMessage } from '#lib/server/utils/errors.js';
 import {
   getEligibleTeams,
+  listMatchSetOmissions,
+  pairTeamsForMatches,
   calculateWeekLabel as calculateWeekLabelService,
 } from '#lib/server/services/adminMatches.js';
+import { placeEligibleTeams } from '#lib/utils/matchEligibility.js';
 import { getSeasonById } from '#lib/server/services/seasons.js';
 import { getRegions } from '#lib/server/services/regions.js';
 import { getDivisionScope, getDivisions } from '#lib/server/services/divisions.js';
@@ -131,9 +134,12 @@ async function buildDraftInput(
   }
 
   if (homeTeamIds.length === 0 || awayTeamIds.length === 0) {
-    return { error: formError('Please select teams for all matchups') };
-  }
-  if (homeTeamIds.length !== awayTeamIds.length) {
+    const byeOnly =
+      !isPlayoff && homeTeamIds.length === 0 && awayTeamIds.length === 0 && byeTeamIds.length === 1;
+    if (!byeOnly) {
+      return { error: formError('Please select teams for all matchups') };
+    }
+  } else if (homeTeamIds.length !== awayTeamIds.length) {
     return { error: formError('Home and away team selections must match') };
   }
 
@@ -245,13 +251,17 @@ export const actions: Actions = {
     const { seasonId } = resolved;
 
     try {
-      const teams = await getEligibleTeams(regionId, divisionId, seasonId);
+      const [teams, omissions] = await Promise.all([
+        getEligibleTeams(regionId, divisionId, seasonId),
+        listMatchSetOmissions(regionId, divisionId, seasonId),
+      ]);
 
       if (teams.length === 0) {
         return {
           preview: {
             teams: [],
             matchups: [],
+            omissions,
             weekLabel: null,
             existingCount: 0,
             isPlayoff,
@@ -289,6 +299,7 @@ export const actions: Actions = {
           preview: {
             teams: teamsWithSeeds,
             matchups: emptyMatchups,
+            omissions,
             weekLabel: null,
             existingCount: 0,
             isPlayoff: true,
@@ -298,32 +309,22 @@ export const actions: Actions = {
           success: true,
         };
       } else {
-        // Regular season logic
-        // Generate matchups using the pairing algorithm
-        const { pairTeamsForMatches } = await import('#lib/server/services/adminMatches.js');
         const pairedTeams = await pairTeamsForMatches(teams, seasonId);
+        const placed = placeEligibleTeams(teamsWithSeeds, pairedTeams);
 
-        // Convert paired teams array into matchup objects
         const matchups = [];
-        for (let i = 0; i < pairedTeams.length - 1; i += 2) {
-          const homeTeam = pairedTeams[i];
-          const awayTeam = pairedTeams[i + 1];
-
-          // Find seeds for these teams
-          const homeTeamWithSeed = teamsWithSeeds.find((t) => t.id === homeTeam.id);
-          const awayTeamWithSeed = teamsWithSeeds.find((t) => t.id === awayTeam.id);
-
+        for (let i = 0; i < placed.paired.length - 1; i += 2) {
+          const homeTeam = placed.paired[i];
+          const awayTeam = placed.paired[i + 1];
           matchups.push({
-            home: homeTeamWithSeed,
-            away: awayTeamWithSeed,
+            home: teamsWithSeeds.find((team) => team.id === homeTeam.id),
+            away: teamsWithSeeds.find((team) => team.id === awayTeam.id),
           });
         }
 
-        // Check if there's a bye (odd number of teams)
-        const byeTeam =
-          pairedTeams.length < teams.length
-            ? teamsWithSeeds.find((t) => !pairedTeams.some((pt) => pt.id === t.id))
-            : null;
+        const byeTeam = placed.bye
+          ? teamsWithSeeds.find((team) => team.id === placed.bye?.id)
+          : null;
 
         // Calculate week label if not playoff and week number provided
         let weekLabel = null;
@@ -345,6 +346,7 @@ export const actions: Actions = {
             teams: teamsWithSeeds,
             matchups,
             byeTeam,
+            omissions,
             weekLabel,
             existingCount,
             isPlayoff: false,

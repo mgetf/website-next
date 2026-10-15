@@ -71,4 +71,8 @@ describe('validateMatchSetDraftTeams', () => {
   it('accepts a valid set with a bye', () => {
     expect(() => validateMatchSetDraftTeams([{ homeTeamId: 1, awayTeamId: 2 }], [3])).not.toThrow();
   });
+
+  it('accepts a bye when that is the only eligible entrant', () => {
+    expect(() => validateMatchSetDraftTeams([], [3])).not.toThrow();
+  });
 });

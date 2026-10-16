@@ -71,9 +71,22 @@ export async function requestRefund(input: RefundRequest): Promise<{ message: st
   return requestItemRefund(input, quote);
 }
 
+const ITEM_REFUND_WATCH_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function listPendingItemRefunds() {
+  const watchSince = new Date(Date.now() - ITEM_REFUND_WATCH_MS);
   const rows = await prisma.paymentRefund.findMany({
-    where: { method: 'ITEMS', status: 'PENDING' },
+    where: {
+      method: 'ITEMS',
+      OR: [
+        { status: 'PENDING' },
+        {
+          status: 'COMPLETED',
+          tradeOfferId: { not: null },
+          completedAt: { gte: watchSince },
+        },
+      ],
+    },
     include: {
       player: { select: { steamUsername: true, tradeOfferUrl: true } },
     },
@@ -83,18 +96,23 @@ export async function listPendingItemRefunds() {
   return rows
     .filter(
       (row) =>
-        row.player.tradeOfferUrl && row.itemAppId && row.itemMarketHashName && row.itemQuantity,
+        row.itemAppId &&
+        row.itemMarketHashName &&
+        row.itemQuantity &&
+        (row.tradeOfferId || row.player.tradeOfferUrl),
     )
     .map((row) => ({
       id: row.id,
+      status: row.status,
       playerSteamId: row.playerSteamId,
       playerName: row.player.steamUsername,
-      tradeOfferUrl: row.player.tradeOfferUrl as string,
+      tradeOfferUrl: row.player.tradeOfferUrl ?? '',
       itemAppId: row.itemAppId as number,
       itemMarketHashName: row.itemMarketHashName as string,
       itemName: row.itemName ?? row.itemMarketHashName,
       itemQuantity: row.itemQuantity as number,
       tradeOfferId: row.tradeOfferId,
+      reason: row.reason,
     }));
 }
 
@@ -157,12 +175,25 @@ export async function confirmItemRefund(refundId: number, tradeOfferId: string):
 export async function failItemRefund(refundId: number, errorMessage: string): Promise<void> {
   const refund = await prisma.paymentRefund.findUnique({ where: { id: refundId } });
   if (!refund || refund.method !== 'ITEMS') notFound('Refund not found');
-  if (refund.status !== 'PENDING') return;
-  if (refund.tradeOfferId) return;
+  if (refund.status === 'FAILED') return;
 
-  await prisma.paymentRefund.update({
-    where: { id: refundId },
-    data: { status: 'FAILED', errorMessage: errorMessage.slice(0, 500) },
+  const wasCompleted = refund.status === 'COMPLETED';
+
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentRefund.update({
+      where: { id: refundId },
+      data: {
+        status: 'FAILED',
+        errorMessage: errorMessage.slice(0, 500),
+        completedAt: null,
+      },
+    });
+    if (wasCompleted && refund.itemOrderNumber) {
+      await tx.itemPaymentOrder.updateMany({
+        where: { orderNumber: refund.itemOrderNumber, status: 'REFUNDED' },
+        data: { status: 'COMPLETED' },
+      });
+    }
   });
 
   await logAudit({
@@ -174,9 +205,28 @@ export async function failItemRefund(refundId: number, errorMessage: string): Pr
     metadata: {
       itemOrderNumber: refund.itemOrderNumber,
       playerSteamId: refund.playerSteamId,
+      tradeOfferId: refund.tradeOfferId,
+      reverted: wasCompleted,
       error: errorMessage.slice(0, 300),
     },
   });
+}
+
+export async function updateItemRefundFromOffer(
+  tradeOfferId: string,
+  outcome: 'accepted' | 'failed',
+  errorMessage?: string,
+): Promise<void> {
+  const refund = await prisma.paymentRefund.findFirst({
+    where: { method: 'ITEMS', tradeOfferId },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!refund) notFound('Refund not found');
+  if (outcome === 'accepted') {
+    await confirmItemRefund(refund.id, tradeOfferId);
+    return;
+  }
+  await failItemRefund(refund.id, errorMessage ?? 'Steam cancelled the refund trade.');
 }
 
 async function quotePayPal(profileSteamId: string, paymentId: string): Promise<RefundQuote> {
@@ -482,7 +532,7 @@ async function requestItemRefund(
   const label =
     quote.itemQuantity && quote.itemName ? `${quote.itemQuantity}x ${quote.itemName}` : 'the items';
   return {
-    message: `Refund queued. The Steam bot will offer ${label}. Roster changes wait until that trade is sent.`,
+    message: `Refund queued. The Steam bot will offer ${label}. Roster changes wait until the player accepts that trade.`,
   };
 }
 

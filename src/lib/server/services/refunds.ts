@@ -1,6 +1,6 @@
 import { Prisma } from '#prisma/client.js';
 import { prisma } from '#lib/server/db.js';
-import { badRequest, notFound } from '#lib/server/utils/errors.js';
+import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import { AuditAction, AuditCategory, logAudit } from './auditLog.js';
 import { syncTeamPaymentStatus } from './payments.js';
 import { getPayPalCapture, isPayPalTestMode, refundPayPalCapture } from './paypal.js';
@@ -71,21 +71,11 @@ export async function requestRefund(input: RefundRequest): Promise<{ message: st
   return requestItemRefund(input, quote);
 }
 
-const ITEM_REFUND_WATCH_MS = 7 * 24 * 60 * 60 * 1000;
-
 export async function listPendingItemRefunds() {
-  const watchSince = new Date(Date.now() - ITEM_REFUND_WATCH_MS);
   const rows = await prisma.paymentRefund.findMany({
     where: {
       method: 'ITEMS',
-      OR: [
-        { status: 'PENDING' },
-        {
-          status: 'COMPLETED',
-          tradeOfferId: { not: null },
-          completedAt: { gte: watchSince },
-        },
-      ],
+      status: 'PENDING',
     },
     include: {
       player: { select: { steamUsername: true, tradeOfferUrl: true } },
@@ -112,8 +102,61 @@ export async function listPendingItemRefunds() {
       itemName: row.itemName ?? row.itemMarketHashName,
       itemQuantity: row.itemQuantity as number,
       tradeOfferId: row.tradeOfferId,
+      reservedAssetIds: row.reservedAssetIds,
       reason: row.reason,
     }));
+}
+
+const ASSET_ID = /^\d{1,30}$/;
+const REFUND_ASSET_LOCK = 7482941;
+
+function sameAssetIds(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  const a = [...left].sort();
+  const b = [...right].sort();
+  return a.every((id, index) => id === b[index]);
+}
+
+export async function reserveItemRefundAssets(
+  refundId: number,
+  assetIds: string[],
+): Promise<string[]> {
+  const ids = assetIds.map((id) => id.trim());
+  if (ids.length === 0) badRequest('Choose at least one item');
+  if (ids.some((id) => !ASSET_ID.test(id))) badRequest('Invalid Steam asset id');
+  if (new Set(ids).size !== ids.length) badRequest('Duplicate Steam asset id');
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(CAST(${REFUND_ASSET_LOCK} AS bigint))`;
+    const refund = await tx.paymentRefund.findUnique({ where: { id: refundId } });
+    if (!refund || refund.method !== 'ITEMS') notFound('Refund not found');
+    if (refund.status === 'FAILED') badRequest('That refund already failed');
+    if (refund.reservedAssetIds.length > 0) {
+      if (sameAssetIds(refund.reservedAssetIds, ids)) return refund.reservedAssetIds;
+      conflict('This refund already has reserved keys');
+    }
+    if (refund.status !== 'PENDING') badRequest('That refund is not waiting to be sent');
+    if (!refund.itemQuantity || ids.length !== refund.itemQuantity) {
+      badRequest('Reserved item count does not match this refund');
+    }
+
+    const holders = await tx.paymentRefund.findMany({
+      where: {
+        method: 'ITEMS',
+        status: 'PENDING',
+        id: { not: refundId },
+        reservedAssetIds: { hasSome: ids },
+      },
+      select: { id: true },
+    });
+    if (holders.length > 0) conflict('Those keys are already reserved for another refund');
+
+    await tx.paymentRefund.update({
+      where: { id: refundId },
+      data: { reservedAssetIds: ids },
+    });
+    return ids;
+  });
 }
 
 export async function recordItemRefundOffer(refundId: number, tradeOfferId: string): Promise<void> {
@@ -144,6 +187,7 @@ export async function confirmItemRefund(refundId: number, tradeOfferId: string):
         tradeOfferId,
         completedAt: new Date(),
         errorMessage: null,
+        reservedAssetIds: [],
       },
     });
     if (refund.itemOrderNumber) {
@@ -186,6 +230,7 @@ export async function failItemRefund(refundId: number, errorMessage: string): Pr
         status: 'FAILED',
         errorMessage: errorMessage.slice(0, 500),
         completedAt: null,
+        reservedAssetIds: [],
       },
     });
     if (wasCompleted && refund.itemOrderNumber) {

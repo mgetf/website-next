@@ -1158,6 +1158,7 @@ model PaymentRefund {
   paypalCaptureId    String?             @map("paypal_capture_id")
   paypalRefundId     String?             @map("paypal_refund_id")
   tradeOfferId       String?             @map("trade_offer_id")
+  reservedAssetIds   String[]            @default([]) @map("reserved_asset_ids")
   markUnpaid         Boolean             @default(false) @map("mark_unpaid")
   removeFromTeam     Boolean             @default(false) @map("remove_from_team")
   targetSteamIds     String[]            @default([]) @map("target_steam_ids")

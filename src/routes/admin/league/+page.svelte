@@ -18,6 +18,11 @@
   import DivisionCatalogList from '#lib/components/admin/DivisionCatalogList.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
   import { FORMAT_THEME_KEYS } from '#lib/constants/formats.js';
+  import Trophy from '~icons/lucide/trophy';
+  import Globe from '~icons/lucide/globe';
+  import Layers from '~icons/lucide/layers';
+  import Map from '~icons/lucide/map';
+  import Gamepad2 from '~icons/lucide/gamepad-2';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -558,43 +563,53 @@
     <div class="p-1 flex gap-1">
       <button
         onclick={() => setTab('seasons')}
-        class="flex-1 px-4 py-2 rounded-md transition-colors {activeTab === 'seasons'
+        class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
+        'seasons'
           ? 'bg-primary-600 text-white font-medium'
           : 'text-text-body hover:text-white hover:bg-surface-input'}"
       >
-        🏆 Seasons
+        <Trophy class="size-4 shrink-0" />
+        Seasons
       </button>
       <button
         onclick={() => setTab('regions')}
-        class="flex-1 px-4 py-2 rounded-md transition-colors {activeTab === 'regions'
+        class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
+        'regions'
           ? 'bg-primary-600 text-white font-medium'
           : 'text-text-body hover:text-white hover:bg-surface-input'}"
       >
-        🌍 Regions
+        <Globe class="size-4 shrink-0" />
+        Regions
       </button>
       <button
         onclick={() => setTab('divisions')}
-        class="flex-1 px-4 py-2 rounded-md transition-colors {activeTab === 'divisions'
+        class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
+        'divisions'
           ? 'bg-primary-600 text-white font-medium'
           : 'text-text-body hover:text-white hover:bg-surface-input'}"
       >
-        📊 Divisions
+        <Layers class="size-4 shrink-0" />
+        Divisions
       </button>
       <button
         onclick={() => setTab('arenas')}
-        class="flex-1 px-4 py-2 rounded-md transition-colors {activeTab === 'arenas'
+        class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
+        'arenas'
           ? 'bg-primary-600 text-white font-medium'
           : 'text-text-body hover:text-white hover:bg-surface-input'}"
       >
-        🗺️ Arenas & Maps
+        <Map class="size-4 shrink-0" />
+        Arenas & Maps
       </button>
       <button
         onclick={() => setTab('formats')}
-        class="flex-1 px-4 py-2 rounded-md transition-colors {activeTab === 'formats'
+        class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
+        'formats'
           ? 'bg-primary-600 text-white font-medium'
           : 'text-text-body hover:text-white hover:bg-surface-input'}"
       >
-        🎮 Formats
+        <Gamepad2 class="size-4 shrink-0" />
+        Formats
       </button>
     </div>
   </Card>

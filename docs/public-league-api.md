@@ -122,10 +122,19 @@ An optional key that raises the quota was discussed and skipped. Add it only whe
 | `src/lib/server/api/publicLeagueQuery.ts`                            | Hand-rolled query parsers and those two error classes.                             |
 | `src/lib/server/services/publicLeague.ts`                            | All Prisma for this slice. Plain objects out.                                      |
 | `src/lib/server/utils/rateLimit.ts`                                  | `PUBLIC_READ_POLICY`, `publicReadRateLimiter`, `enforceRateLimit`.                 |
+| `tools/mcp/`                                                         | Local stdio MCP. Hand-rolled JSON-RPC in `mcp.ts`. Public reads send no key.       |
 
 `publicGet` and `publicLeagueQuery` are new. They are not copied from an existing helper. Existing v1 reads (the users route) inline the key check and `Response.json({ error })`. Form actions validate with Zod and `validateForm()`, which reads `FormData`, not `URLSearchParams`. Page filters read `searchParams.get` inline. The parsers here exist so twelve routes do not repeat that. A future agent may move them onto Zod if a shared GET schema helper appears. Do not do that as a drive-by rewrite.
 
-Tests: `publicLeagueQuery.test.ts`, `publicGet.test.ts`, and `enforceRateLimit` in `rateLimit.test.ts`.
+Tests: `publicLeagueQuery.test.ts`, `publicGet.test.ts`, and `enforceRateLimit` in `rateLimit.test.ts`. The MCP client is covered by `tools/mcp/api.test.ts` and `tools/mcp/mcp.test.ts`.
+
+### Local MCP
+
+`tools/mcp` is a stdio MCP server that calls this HTTP API. The dispatcher is hand-rolled JSON-RPC in `mcp.ts`: `initialize`, `ping`, `tools/list`, `tools/call`, and a no-body ack for `notifications/*`. There is no MCP SDK. Cursor launches it from `.cursor/mcp.json` as `mge-league`. `MGE_API_BASE` is the origin, default `https://mge.tf`. `http://127.0.0.1:5173` talks to a local dev server. `dev.mge.tf` still returns 403 for non-staff, and the tool result says so.
+
+The server sends no cookie and no `Authorization` header. It refuses a base URL that contains credentials, a path, or a non-http scheme, and it refuses any request path outside `/api/v1/`. Agents with this server enabled should use it for league reads instead of scripts against the production database. The process does not read the app `.env` or `.env.production`. Set `MGE_API_BASE` in `.cursor/mcp.json` `env`, which is already how Cursor starts the process.
+
+`bun run mcp:league` starts the same process. stdout is the protocol stream. Logs go to stderr.
 
 ## Not built
 
@@ -145,3 +154,17 @@ Do not start these unless asked. The order below is the one already agreed, not 
 3. Call it from a thin `+server.ts` via `publicGet(getClientAddress, ...)`.
 4. Leave join passwords, payments, Discord, and drafts out of the select.
 5. Update this file's route table in the same change.
+6. Add the matching read-only tool in `tools/mcp/mcp.ts`: one entry in `TOOLS` and one arm in `callTool`. The MCP server is a client of this HTTP API. It must not import Prisma or `#lib/server`.
+
+## How to add a keyed method
+
+Public reads stay anonymous. A route that returns Discord, payments, or staff data, or that changes anything, uses the existing Bearer `mge_` key via `requireRateLimitedApiKey`. Keys are not scoped yet: any active key can call any keyed route. Do not register an MCP tool for a route just because the route exists. Payments, refunds, Discord roles, and log upload stay off the agent until a scoped key can name them.
+
+1. Implement the operation in a service. The form action and the HTTP route both call that service. Do not add a second Prisma path for the MCP.
+2. Put the route under `/api/v1`. Call `requireRateLimitedApiKey` before any work. Missing resources and bad input use `{ "error": "..." }`. A rejected key still comes back as SvelteKit's `{ "message" }`. The MCP client accepts either field.
+3. Add the tool in `tools/mcp/mcp.ts` (`TOOLS` plus a `callTool` arm). The path is fixed in that arm. Tool arguments must not include a URL, an API key, a cookie, or a database URL.
+4. Public tools never send `Authorization`. A keyed tool sends the Bearer key from `MGE_API_KEY` in the MCP process environment. Do not read the app `.env` or `.env.production`. Do not commit the key and do not put it in `.cursor/mcp.json`.
+5. When the route changes data, update the `initialize` instructions in `mcp.ts` so they no longer say the server cannot change that data.
+6. Update this file's route table in the same change.
+
+Add a scope catalog before giving an agent a key that can also call payments, refunds, or Discord role routes. Empty scopes on existing keys would stay unrestricted so current bots keep working. A key created for the agent would list only the capabilities its tools use. That catalog is not built.

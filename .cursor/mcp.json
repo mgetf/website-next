@@ -3,6 +3,13 @@
     "knip": {
       "command": "bunx",
       "args": ["@knip/mcp"]
+    },
+    "mge-league": {
+      "command": "bun",
+      "args": ["tools/mcp/index.ts"],
+      "env": {
+        "MGE_API_BASE": "https://mge.tf"
+      }
     }
   }
 }

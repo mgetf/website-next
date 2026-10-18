@@ -87,9 +87,14 @@ bun run test            # Vitest unit tests
 bun run generate        # Regenerate Prisma client
 bun run migrate         # Run migrations (dev)
 bun run migrate:prod    # Run migrations (production)
+bun run mcp:league      # Local read-only MCP for the public league API
 ```
 
 After any code change, run `bun run format`, `bun run check`, `bun run boundary-check`, `bun run knip`, and `bun run test` before considering the work done. If Knip flags something intentionally kept for later, tag it with `@lintignore` in its JSDoc rather than ignoring the warning.
+
+## League reads for agents
+
+League questions (formats, regions, seasons, divisions, standings, placements, teams, matches, players) go through the `mge-league` MCP server in `tools/mcp`. It calls the anonymous public API. Do not write a one-off script against the production database or `.env.production` for those reads. Public tools send no API key. A future keyed route is a tool in `tools/mcp/mcp.ts` and uses `MGE_API_KEY` from the MCP process, never from the chat. Payments, Discord, staff, and writes stay off that server until a tool is added for that route. Contract: [`docs/public-league-api.md`](docs/public-league-api.md).
 
 ## Branching Model
 

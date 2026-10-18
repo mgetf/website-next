@@ -18,7 +18,7 @@ export default defineConfig({
     ],
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tools/mcp/**/*.test.ts'],
     environment: 'node',
     setupFiles: ['src/vitest.setup.ts'],
   },

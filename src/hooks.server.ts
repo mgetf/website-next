@@ -16,7 +16,12 @@ import {
 } from '#lib/server/utils/environment.js';
 import { isAdmin } from '#lib/server/auth/permissions.js';
 import { validateEnvironment } from '#lib/server/utils/env.js';
-import { getSessionVersion, getSessionFields } from '#lib/server/services/users.js';
+import {
+  getSessionVersion,
+  getSessionFields,
+  getActivePunishmentNotice,
+} from '#lib/server/services/users.js';
+import { setPunishmentNoticeCookie } from '#lib/server/utils/punishmentNotice.js';
 import {
   getCachedSessionVersion,
   setCachedSessionVersion,
@@ -42,6 +47,10 @@ export const handle: Handle = async ({ event, resolve }) => {
       invalidateCachedSessionVersion(user.steamId);
       const fresh = await getSessionFields(user.steamId);
       if (!fresh || fresh.banStatus === 'BANNED' || fresh.banStatus === 'SUSPENDED') {
+        if (fresh) {
+          const notice = await getActivePunishmentNotice(user.steamId);
+          if (notice) setPunishmentNoticeCookie(event.cookies, notice);
+        }
         clearSession(event.cookies);
         user = null;
       } else {

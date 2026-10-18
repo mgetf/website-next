@@ -4,6 +4,7 @@
   import type { LayoutData } from './$types';
   import Navigation from '#lib/components/layout/Navigation.svelte';
   import AnnouncementBanner from '#lib/components/layout/AnnouncementBanner.svelte';
+  import PunishmentNoticeCard from '#lib/components/profile/PunishmentNoticeCard.svelte';
   import LoadingBar from '#lib/components/layout/LoadingBar.svelte';
   import DevGate from '#lib/components/layout/DevGate.svelte';
   import ToastContainer from '#lib/components/ui/ToastContainer.svelte';
@@ -129,6 +130,10 @@
             Development Environment — Changes here are not live
           </span>
         </div>
+      {/if}
+
+      {#if data.punishmentNotice}
+        <PunishmentNoticeCard notice={data.punishmentNotice} variant="banner" />
       {/if}
 
       <div class="flex flex-col flex-grow overflow-hidden w-full mx-auto">

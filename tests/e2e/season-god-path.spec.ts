@@ -565,9 +565,9 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   // --- Ban / clear on invitee ---
   await admin.page.goto(`/users/${E2E_USERS.homeInvitee.steamId}`);
   await admin.page.getByText('Status:').click();
-  await selectControlled(admin.page, '#punish-severity', { value: 'SUSPENDED' });
-  await admin.page.locator('#punish-duration').fill('7');
-  await admin.page.locator('#punish-reason').fill('E2E suspension test');
+  await selectControlled(admin.page, '#staff-punish-severity', { value: 'SUSPENDED' });
+  await admin.page.locator('#staff-tools-panel input[name="duration"]').fill('7');
+  await admin.page.locator('#staff-punish-reason').fill('E2E suspension test');
   await Promise.all([
     admin.page.waitForLoadState('networkidle'),
     admin.page.getByRole('button', { name: 'Apply Punishment' }).click(),
@@ -576,7 +576,6 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
 
   await admin.page.goto(`/users/${E2E_USERS.homeInvitee.steamId}`);
   await admin.page.getByText('Status:').click();
-  await selectControlled(admin.page, '#punish-severity', { value: 'NONE' });
   await Promise.all([
     admin.page.waitForLoadState('networkidle'),
     admin.page.getByRole('button', { name: 'Clear Punishment' }).click(),

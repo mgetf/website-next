@@ -17,6 +17,8 @@
   import DiscordIcon from '#lib/components/icons/DiscordIcon.svelte';
   import { getFormatThemeClasses } from '#lib/constants/formats.js';
   import { staffListChips } from '#lib/utils/staffDisplay.js';
+  import PunishmentNoticeCard from '#lib/components/profile/PunishmentNoticeCard.svelte';
+  import { displayPunishmentReason } from '#lib/utils/punishment.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -268,9 +270,19 @@
           {permissionNames[user.permissionLevel]}
         </Badge>
       {:else if col.key === 'status'}
-        <Badge color={getBanStatusBadgeColor(user.banStatus)}>
-          {banStatusNames[user.banStatus]}
-        </Badge>
+        <div class="min-w-0">
+          <Badge color={getBanStatusBadgeColor(user.banStatus)}>
+            {banStatusNames[user.banStatus]}
+          </Badge>
+          {#if user.banStatus !== 'NONE'}
+            <p
+              class="mt-1 max-w-[180px] truncate text-xs text-text-muted"
+              title={displayPunishmentReason(user.activePunishment?.reason)}
+            >
+              {displayPunishmentReason(user.activePunishment?.reason)}
+            </p>
+          {/if}
+        </div>
       {:else if col.key === 'actions'}
         <div class="flex items-center justify-end gap-1">
           <Button variant="primary" size="sm" href="/users/{user.steamId}">View</Button>
@@ -331,19 +343,6 @@
           {/if}
         </div>
       </div>
-
-      <FormSelect
-        label="Ban Status"
-        name="banStatus"
-        bind:value={editingUser.banStatus}
-        options={[
-          { value: 'NONE', label: 'None (Active)' },
-          { value: 'WARNING', label: 'Warning' },
-          { value: 'SUSPENDED', label: 'Suspended' },
-          { value: 'BANNED', label: 'Banned' },
-        ]}
-        hint="Use the Punish button to add a ban with a reason. This field is for quick status changes."
-      />
 
       <FormSelect
         label="Name Override"
@@ -502,6 +501,16 @@
       </div>
     </div>
 
+    {#if banningUser.activePunishment}
+      <div class="mb-6">
+        <PunishmentNoticeCard notice={banningUser.activePunishment} />
+      </div>
+    {:else if banningUser.banStatus !== 'NONE'}
+      <p class="mb-6 text-sm text-text-muted">
+        Current status: {banStatusNames[banningUser.banStatus]}.
+      </p>
+    {/if}
+
     {#if isStaffPermission(banningUser.permissionLevel)}
       <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-6">
         <p class="text-warning-400 text-sm">
@@ -544,8 +553,8 @@
           label="Duration (days)"
           name="duration"
           type="number"
-          placeholder="Leave empty for permanent"
-          hint="Leave empty for permanent punishment"
+          placeholder="Leave empty if there is no end date"
+          hint="Shown to staff and the player. The punishment does not lift on this date."
         />
 
         <div class="mb-6">
@@ -560,6 +569,7 @@
             placeholder="Explain why this user is being punished..."
             class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
           ></textarea>
+          <p class="mt-1 text-xs text-text-muted">The player will be able to read this reason.</p>
         </div>
 
         <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-6">
@@ -570,10 +580,37 @@
 
         <div class="flex gap-3 justify-end">
           <Button type="button" variant="secondary" onclick={closeBanModal}>Cancel</Button>
+          {#if banningUser.banStatus !== 'NONE' && data.isStrictAdmin}
+            <Button
+              type="submit"
+              form="form-clear-punishment"
+              variant="success"
+              disabled={isSubmitting}
+            >
+              Clear Punishment
+            </Button>
+          {/if}
           <Button type="submit" variant="danger" disabled={isSubmitting}>
             {isSubmitting ? 'Processing...' : 'Apply Punishment'}
           </Button>
         </div>
+      </form>
+      <form
+        id="form-clear-punishment"
+        method="POST"
+        action="?/clearPunishment"
+        use:enhance={() => {
+          isSubmitting = true;
+          return async ({ update, result }) => {
+            await update();
+            isSubmitting = false;
+            if (result.type === 'success') {
+              closeBanModal();
+            }
+          };
+        }}
+      >
+        <input type="hidden" name="steamId" value={banningUser.steamId} />
       </form>
     {/if}
   </Dialog>

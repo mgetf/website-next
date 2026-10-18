@@ -32,6 +32,8 @@ import {
 } from './staff';
 import { buildUnregisteredPlayerProfile } from '#lib/utils/unregisteredProfile.js';
 import { isSafeUrl } from '#lib/utils/safeUrl.js';
+import type { PunishmentHistoryEntry, PunishmentNotice } from '#lib/types/punishment.js';
+import { mapPunishmentRecord, toPunishmentNotice } from '#lib/utils/punishment.js';
 import {
   mapStaffAssignmentForDisplay,
   replaceStaffAssignments,
@@ -705,6 +707,19 @@ export async function getUsers(options: {
       staffAssignments: {
         include: staffAssignmentInclude,
       },
+      punishmentsReceived: {
+        where: { status: 1 },
+        orderBy: [{ startDateTime: 'desc' }, { id: 'desc' }],
+        take: 1,
+        select: {
+          id: true,
+          severity: true,
+          reason: true,
+          startDateTime: true,
+          duration: true,
+          status: true,
+        },
+      },
     },
     orderBy: [{ steamUsername: 'asc' }, { steamId: 'asc' }],
     skip: (page - 1) * pageSize,
@@ -746,14 +761,13 @@ export async function countUsers(options: {
 }
 
 /**
- * Update user's permission level, ban status, and staff assignment
- * Admin only operation
+ * Update user's permission level, name lock, and staff assignment.
+ * Ban status changes go through banUser / clearPunishment.
  */
 export async function updateUser(
   steamId: string,
   data: {
     permissionLevel?: string;
-    banStatus?: string;
     nameOverride?: number;
     staffAssignments?: StaffAssignmentPair[];
   },
@@ -766,20 +780,10 @@ export async function updateUser(
     throw new Error('User not found');
   }
 
-  const punishing =
-    data.banStatus === 'WARNING' || data.banStatus === 'SUSPENDED' || data.banStatus === 'BANNED';
-  if (punishing && data.banStatus !== user.banStatus && isStaffRole(user.permissionLevel)) {
-    badRequest(STAFF_PUNISH_BLOCKED_MESSAGE);
-  }
-
   const updateData: any = {};
 
   if (data.permissionLevel !== undefined) {
     updateData.permissionLevel = data.permissionLevel;
-  }
-
-  if (data.banStatus !== undefined) {
-    updateData.banStatus = data.banStatus;
   }
 
   if (data.nameOverride !== undefined) {
@@ -788,8 +792,7 @@ export async function updateUser(
 
   const permissionChanged =
     data.permissionLevel !== undefined && data.permissionLevel !== user.permissionLevel;
-  const banChanged = data.banStatus !== undefined && data.banStatus !== user.banStatus;
-  if (permissionChanged || banChanged) {
+  if (permissionChanged) {
     updateData.sessionVersion = { increment: 1 };
   }
 
@@ -802,7 +805,7 @@ export async function updateUser(
     await replaceStaffAssignments(steamId, data.staffAssignments);
   }
 
-  if (permissionChanged || banChanged) {
+  if (permissionChanged) {
     invalidateCachedSessionVersion(steamId);
   }
 
@@ -853,6 +856,11 @@ export async function banUser(
     badRequest(STAFF_PUNISH_BLOCKED_MESSAGE);
   }
 
+  await prisma.punishment.updateMany({
+    where: { playerSteamId: steamId, status: 1 },
+    data: { status: 0 },
+  });
+
   await prisma.user.update({
     where: { steamId },
     data: {
@@ -863,7 +871,6 @@ export async function banUser(
 
   invalidateCachedSessionVersion(steamId);
 
-  // Create punishment record
   return await prisma.punishment.create({
     data: {
       playerSteamId: steamId,
@@ -875,6 +882,64 @@ export async function banUser(
       status: 1, // Active
     },
   });
+}
+
+const activePunishmentInclude = {
+  where: { status: 1 },
+  orderBy: [{ startDateTime: 'desc' as const }, { id: 'desc' as const }],
+  take: 1,
+  include: {
+    punisher: { select: { steamId: true, steamUsername: true } },
+  },
+};
+
+export async function listPlayerPunishments(steamId: string): Promise<PunishmentHistoryEntry[]> {
+  const rows = await prisma.punishment.findMany({
+    where: { playerSteamId: steamId },
+    include: {
+      punisher: { select: { steamId: true, steamUsername: true } },
+    },
+    orderBy: [{ startDateTime: 'desc' }, { id: 'desc' }],
+  });
+  return rows.map((row) =>
+    mapPunishmentRecord({
+      id: row.id,
+      severity: row.severity,
+      reason: row.reason,
+      startDateTime: row.startDateTime,
+      duration: row.duration,
+      status: row.status,
+      punishedBy: row.punishedBy,
+      punisher: row.punisher,
+    }),
+  );
+}
+
+export async function getActivePunishmentNotice(steamId: string): Promise<PunishmentNotice | null> {
+  const user = await prisma.user.findUnique({
+    where: { steamId },
+    select: {
+      banStatus: true,
+      punishmentsReceived: activePunishmentInclude,
+    },
+  });
+  if (!user) return null;
+  const row = user.punishmentsReceived[0];
+  return toPunishmentNotice(
+    user.banStatus,
+    row
+      ? {
+          id: row.id,
+          severity: row.severity,
+          reason: row.reason,
+          startDateTime: row.startDateTime,
+          duration: row.duration,
+          status: row.status,
+          punishedBy: row.punishedBy,
+          punisher: row.punisher,
+        }
+      : null,
+  );
 }
 
 /**

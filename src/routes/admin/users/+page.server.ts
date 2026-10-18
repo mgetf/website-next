@@ -1,10 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import {
-  requireAdmin,
-  requireStrictAdmin,
-  requireCanModerateUser,
-  isStrictAdmin,
-} from '#lib/server/auth/permissions.js';
+import { requireAdmin, requireStrictAdmin, isStrictAdmin } from '#lib/server/auth/permissions.js';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { formError, validateForm, validationError } from '#lib/server/utils/forms.js';
@@ -22,6 +17,7 @@ import {
   lockUserAvatar,
   unlockUserAvatar,
 } from '#lib/server/services/users.js';
+import { toPunishmentNotice } from '#lib/utils/punishment.js';
 import { getFormatsForFilter } from '#lib/server/services/formats.js';
 import { mapStaffAssignmentForDisplay } from '#lib/server/services/staffAssignments.js';
 import { getErrorMessage } from '#lib/server/utils/errors.js';
@@ -33,7 +29,6 @@ const steamIdSchema = z.object({
 
 const updateUserSchema = z.object({
   steamId: z.string().min(1, 'Invalid user ID'),
-  banStatus: z.enum(['', 'NONE', 'WARNING', 'SUSPENDED', 'BANNED']).optional().default(''),
   nameOverride: z.string().optional().default(''),
 });
 
@@ -100,6 +95,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       discordLinked: !!user.discord,
       discordUsername: user.discord?.discordUsername,
       staffAssignments: user.staffAssignments.map(mapStaffAssignmentForDisplay),
+      activePunishment: toPunishmentNotice(user.banStatus, user.punishmentsReceived[0] ?? null),
     })),
     formats: formats.map((f) => ({
       id: f.id,
@@ -121,28 +117,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-  updateUser: async ({ request, locals, getClientAddress }) => {
+  updateUser: async ({ request, locals }) => {
     requireAdmin(locals.user);
 
     const formData = await request.formData();
     const validation = validateForm(formData, updateUserSchema);
     if (!validation.success) return validationError(validation.errors);
 
-    const { steamId, banStatus, nameOverride } = validation.data;
-
-    // Ban status changes (including clearing via NONE) require the same
-    // staff-protection rules as the dedicated ban/clear actions.
-    if (banStatus) {
-      const targetUser = await getUserBySteamId(steamId);
-      requireCanModerateUser(locals.user, targetUser?.permissionLevel ?? 'GUEST');
-      if (banStatus === 'NONE') {
-        requireStrictAdmin(locals.user);
-      }
-    }
+    const { steamId, nameOverride } = validation.data;
 
     try {
       await updateUser(steamId, {
-        banStatus: banStatus || undefined,
         nameOverride: nameOverride ? parseInt(nameOverride) : undefined,
       });
 

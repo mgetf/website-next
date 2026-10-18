@@ -10,6 +10,7 @@
   import OverviewPanel from '#lib/components/profile/OverviewPanel.svelte';
   import PaymentHistoryPanel from '#lib/components/profile/PaymentHistoryPanel.svelte';
   import ProfilingPanel from '#lib/components/profile/ProfilingPanel.svelte';
+  import PunishmentNoticeCard from '#lib/components/profile/PunishmentNoticeCard.svelte';
   import StaffToolsPanel from '#lib/components/profile/StaffToolsPanel.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
@@ -26,6 +27,7 @@
     ProfileTeamSeasonMatches,
   } from '#lib/types/profile.js';
   import type { InvestigateResult } from '#lib/types/investigation.js';
+  import type { PunishmentHistoryEntry, PunishmentNotice } from '#lib/types/punishment.js';
   import type { ProfilingSnapshot } from '#lib/types/profiling.js';
   import { discordLinkNotice } from '#lib/utils/discordLinkError.js';
   import { parseProfileTab, profileExternalLinks } from '#lib/utils/profile.js';
@@ -70,6 +72,9 @@
     };
     isOwnProfile: boolean;
     isAdmin: boolean;
+    isStrictAdmin: boolean;
+    punishments: PunishmentHistoryEntry[];
+    ownPunishment: PunishmentNotice | null;
     currentTeams: TeamWithMatches[];
     teamHistory: TeamWithMatches[];
     tournaments: Array<{
@@ -381,6 +386,11 @@
       </div>
     {/if}
   </div>
+  {#if isOwnProfile && data.ownPunishment}
+    <div class="mx-auto max-w-6xl px-4 pb-6 sm:px-6">
+      <PunishmentNoticeCard notice={data.ownPunishment} />
+    </div>
+  {/if}
 </header>
 
 <div class="border-b border-border-default bg-surface-page">
@@ -682,7 +692,12 @@
 />
 
 {#if isAdmin && isRegistered}
-  <StaffToolsPanel bind:open={staffOpen} {player} />
+  <StaffToolsPanel
+    bind:open={staffOpen}
+    {player}
+    punishments={data.punishments}
+    isStrictAdmin={data.isStrictAdmin}
+  />
 {/if}
 
 <!-- 1v1 Withdrawal Confirmation Modal -->

@@ -6,6 +6,14 @@
   import FormInput from '#lib/components/ui/form/FormInput.svelte';
   import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
+  import type { PunishmentHistoryEntry, PunishmentNotice } from '#lib/types/punishment.js';
+  import {
+    displayPunishmentReason,
+    formatPunishmentEndCopy,
+    punishmentStatusLabel,
+    toPunishmentNotice,
+  } from '#lib/utils/punishment.js';
+  import PunishmentNoticeCard from './PunishmentNoticeCard.svelte';
   import X from '~icons/lucide/x';
 
   interface StaffToolsPlayer {
@@ -23,23 +31,23 @@
   let {
     open = $bindable(false),
     player,
+    punishments = [],
+    isStrictAdmin = false,
   }: {
     open: boolean;
     player: StaffToolsPlayer;
+    punishments?: PunishmentHistoryEntry[];
+    isStrictAdmin?: boolean;
   } = $props();
 
   const isStaffPlayer = $derived(
     player.permissionLevel === 'MODERATOR' || player.permissionLevel === 'ADMIN',
   );
-  const currentBanLabel = $derived(
-    player.banStatus === 'WARNING'
-      ? 'Warning'
-      : player.banStatus === 'SUSPENDED'
-        ? 'Suspended'
-        : player.banStatus === 'BANNED'
-          ? 'Banned'
-          : 'Clean',
+  const currentBanLabel = $derived(punishmentStatusLabel(player.banStatus));
+  const activeNotice = $derived<PunishmentNotice | null>(
+    toPunishmentNotice(player.banStatus, punishments.find((row) => row.active) ?? null),
   );
+  const hasActivePunishment = $derived(player.banStatus !== 'NONE');
 
   let editNameValue = $state('');
   let editAvatarValue = $state('');
@@ -300,6 +308,41 @@
         </div>
       {/if}
 
+      {#if activeNotice}
+        <PunishmentNoticeCard notice={activeNotice} />
+      {:else}
+        <p class="text-xs text-text-muted">Current status: {currentBanLabel}</p>
+      {/if}
+
+      {#if punishments.length > 0}
+        <div>
+          <p class="mb-2 text-sm font-medium text-text-label">Punishment history</p>
+          <ul class="max-h-48 space-y-2 overflow-y-auto">
+            {#each punishments as row (row.id)}
+              <li class="rounded-lg border border-border-default bg-surface-input p-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-medium text-white"
+                    >{punishmentStatusLabel(row.status ?? '')}</span
+                  >
+                  {#if row.active}
+                    <span class="text-[10px] font-semibold uppercase text-danger-400">Active</span>
+                  {:else}
+                    <span class="text-[10px] uppercase text-text-muted">Inactive</span>
+                  {/if}
+                </div>
+                <p class="mt-1 text-xs text-text-label">{displayPunishmentReason(row.reason)}</p>
+                <p class="mt-0.5 text-[11px] text-text-muted">
+                  {formatPunishmentEndCopy(row.endsAt)}
+                </p>
+                {#if row.punishedByName}
+                  <p class="mt-0.5 text-[11px] text-text-muted">By {row.punishedByName}</p>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
+
       <form
         id="form-punish"
         method="POST"
@@ -328,24 +371,23 @@
           id="staff-punish-severity"
           required
           bind:value={punishSeverity}
-          placeholder="Select status..."
-          hint="Current status: {currentBanLabel}"
+          placeholder="Select punishment..."
+          hint="The player will be able to read the reason."
           options={[
-            { value: 'NONE', label: 'None (clear)' },
             { value: 'WARNING', label: 'Warning', disabled: isStaffPlayer },
             { value: 'SUSPENDED', label: 'Suspended', disabled: isStaffPlayer },
             { value: 'BANNED', label: 'Banned', disabled: isStaffPlayer },
           ]}
         />
 
-        {#if punishSeverity && punishSeverity !== 'NONE'}
+        {#if punishSeverity}
           <FormInput
             label="Duration (days)"
             name="duration"
             type="number"
             bind:value={punishDuration}
-            placeholder="Leave empty for permanent"
-            hint="Leave empty for permanent punishment."
+            placeholder="Leave empty if there is no end date"
+            hint="Shown to staff and the player. The punishment does not lift on this date."
           />
 
           <div class="mb-6">
@@ -361,36 +403,55 @@
               placeholder="Explain why this user is being punished..."
               class="w-full resize-none rounded-lg border border-border-input bg-surface-input px-4 py-3 text-white placeholder-text-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
             ></textarea>
-          </div>
-        {/if}
-
-        {#if punishSeverity === 'NONE'}
-          <div class="rounded-lg border border-success-500/30 bg-success-500/10 p-3">
-            <p class="text-xs text-success-400">
-              This will clear the user's punishment status and deactivate all active records.
-            </p>
-          </div>
-        {:else if punishSeverity}
-          <div class="rounded-lg border border-danger-500/30 bg-danger-500/10 p-3">
-            <p class="text-xs text-danger-400">
-              This will create a punishment record and update the user's ban status.
-            </p>
+            <p class="mt-1 text-xs text-text-muted">The player will be able to read this reason.</p>
           </div>
         {/if}
       </form>
-      <div class="-mt-4">
+      <form
+        id="form-clear-punishment"
+        method="POST"
+        action="?/punishUser"
+        use:enhance={() => {
+          submitting = true;
+          return async ({ update, result }) => {
+            await update();
+            submitting = false;
+            if (result.type === 'success') {
+              toast.success(
+                (result.data as { message?: string } | undefined)?.message || 'Punishment cleared',
+              );
+              punishSeverity = '';
+              punishDuration = '';
+              punishReason = '';
+            } else if (result.type === 'failure') {
+              toast.error(actionError(result, 'Failed to clear punishment'));
+            }
+          };
+        }}
+      >
+        <input type="hidden" name="severity" value="NONE" />
+      </form>
+      <div class="-mt-4 flex gap-2">
         <Button
           type="submit"
           form="form-punish"
-          variant={punishSeverity === 'NONE' ? 'success' : 'danger'}
+          variant="danger"
           size="sm"
-          disabled={submitting ||
-            !punishSeverity ||
-            (isStaffPlayer && punishSeverity !== 'NONE') ||
-            (punishSeverity !== 'NONE' && !punishReason.trim())}
+          disabled={submitting || !punishSeverity || isStaffPlayer || !punishReason.trim()}
         >
-          {punishSeverity === 'NONE' ? 'Clear' : 'Apply'}
+          Apply Punishment
         </Button>
+        {#if hasActivePunishment && isStrictAdmin}
+          <Button
+            type="submit"
+            form="form-clear-punishment"
+            variant="success"
+            size="sm"
+            disabled={submitting}
+          >
+            Clear Punishment
+          </Button>
+        {/if}
       </div>
 
       <div class="border-t border-border-default pt-4">

@@ -8,7 +8,8 @@ import type { RequestHandler } from './$types';
 import { createSteamAuth } from '#lib/server/auth/steam.js';
 import { setSession, getAndClearRedirectUrl } from '#lib/server/session.js';
 import { getPermissionLevel } from '#lib/server/auth/permissions.js';
-import { findOrCreateSteamUser } from '#lib/server/services/users.js';
+import { findOrCreateSteamUser, getActivePunishmentNotice } from '#lib/server/services/users.js';
+import { setPunishmentNoticeCookie } from '#lib/server/utils/punishmentNotice.js';
 import { BanStatus, UserRole } from '#lib/types/user.js';
 import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 import { authRateLimiter, checkRateLimit } from '#lib/server/utils/rateLimit.js';
@@ -30,6 +31,8 @@ export const GET: RequestHandler = async ({ cookies, request, getClientAddress }
 
     // Suspended/banned accounts must not receive a usable session
     if (banStatus === BanStatus.BANNED || banStatus === BanStatus.SUSPENDED) {
+      const notice = await getActivePunishmentNotice(steamUser.steamid);
+      if (notice) setPunishmentNoticeCookie(cookies, notice);
       await logAudit({
         actorId: steamUser.steamid,
         actorRole: permissionLevel,
@@ -40,7 +43,7 @@ export const GET: RequestHandler = async ({ cookies, request, getClientAddress }
         metadata: { isNewUser, steamUsername: username, rejected: true, banStatus },
         ipAddress: getClientAddress(),
       });
-      throw redirect(302, '/?error=banned');
+      throw redirect(302, '/');
     }
 
     const sessionUser = {

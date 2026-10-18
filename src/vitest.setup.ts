@@ -45,6 +45,7 @@ vi.mock('#lib/server/db.js', () => ({
       upsert: vi.fn(),
     },
     punishment: {
+      findMany: vi.fn(),
       create: vi.fn(),
       updateMany: vi.fn(),
     },

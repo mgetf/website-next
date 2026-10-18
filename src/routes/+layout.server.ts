@@ -5,20 +5,33 @@
 
 import type { LayoutServerLoad } from './$types';
 import { hasAnySignupsOpen } from '#lib/server/services/settings.js';
-import { getUserActiveTeams, isSignedUpForAllOpenFormats } from '#lib/server/services/users.js';
+import {
+  getUserActiveTeams,
+  isSignedUpForAllOpenFormats,
+  getActivePunishmentNotice,
+} from '#lib/server/services/users.js';
 import { getNotificationsForDropdown } from '#lib/server/services/notifications.js';
 import { getVisibleAnnouncements } from '#lib/server/services/announcements.js';
 import { getSiteSettings } from '#lib/server/services/siteSettings.js';
 import { getLeagueNav } from '#lib/server/services/seasons.js';
 import { getOpenSignupFormats } from '#lib/server/services/signupSeasons.js';
 import { isRealtimeNotificationsEnabled } from '#lib/server/utils/env.js';
+import { getPunishmentNoticeCookie } from '#lib/server/utils/punishmentNotice.js';
 import { EMPTY_LEAGUE_NAV } from '#lib/types/league.js';
+import { BanStatus } from '#lib/types/user.js';
+import type { PunishmentNotice } from '#lib/types/punishment.js';
 
-export const load: LayoutServerLoad = async ({ locals }) => {
+export const load: LayoutServerLoad = async ({ locals, cookies }) => {
+  let punishmentNotice: PunishmentNotice | null = getPunishmentNoticeCookie(cookies);
+  if (!punishmentNotice && locals.user?.banStatus === BanStatus.WARNING) {
+    punishmentNotice = await getActivePunishmentNotice(locals.user.steamId);
+  }
+
   // If site is dev-gated (staging mode, non-admin user), return minimal data
   if (locals.devGated) {
     return {
       user: locals.user || null,
+      punishmentNotice,
       devGated: true,
       appEnvironment: locals.appEnvironment,
       realtimeEnabled: isRealtimeNotificationsEnabled(),
@@ -77,6 +90,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
   return {
     user: locals.user || null,
+    punishmentNotice,
     devGated: false,
     appEnvironment: locals.appEnvironment,
     realtimeEnabled: isRealtimeNotificationsEnabled(),

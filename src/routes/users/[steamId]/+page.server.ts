@@ -13,6 +13,8 @@ import {
   banUser,
   clearPunishment,
   getTradeOfferUrl,
+  listPlayerPunishments,
+  getActivePunishmentNotice,
   setTradeOfferUrl,
 } from '#lib/server/services/users.js';
 import {
@@ -34,6 +36,7 @@ import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
 import { getFormatsForFilter } from '#lib/server/services/formats.js';
 import {
   isAdmin,
+  isStrictAdmin,
   requireAuth,
   requireCanModerateUser,
   requireStrictAdmin,
@@ -82,6 +85,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const isOwnProfile = locals.user?.steamId === steamId;
     const isUserAdmin = isAdmin(locals.user);
+    const isUserStrictAdmin = isStrictAdmin(locals.user);
     const signupSuccess = url.searchParams.get('signup');
     const canViewPayments = isOwnProfile || isUserAdmin;
     const activeTab = parseProfileTab(url.searchParams.get('tab'), {
@@ -186,6 +190,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         : `${resolvedProfile.player.name}'s player profile on MGE.tf`
       : `${resolvedProfile.player.name} has played on MGE.tf servers but is not registered on the website.`;
 
+    const [classRatingsWithRanks, punishments, ownPunishment] = await Promise.all([
+      withClasseloRanks(classRatings),
+      isUserAdmin ? listPlayerPunishments(steamId) : Promise.resolve([]),
+      isOwnProfile ? getActivePunishmentNotice(steamId) : Promise.resolve(null),
+    ]);
+
     return {
       seo: buildPageSeo(url.origin, {
         title: `${resolvedProfile.player.name} | MGE.tf`,
@@ -197,7 +207,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       }),
       ...resolvedProfile,
       ratings,
-      classRatings: await withClasseloRanks(classRatings),
+      classRatings: classRatingsWithRanks,
       platformRegions,
       formats: formats.map((format) => ({
         code: format.code,
@@ -206,6 +216,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       })),
       isOwnProfile,
       isAdmin: isUserAdmin,
+      isStrictAdmin: isUserStrictAdmin,
+      punishments,
+      ownPunishment,
       signupSuccess,
       divisions1v1,
       payments,
@@ -532,11 +545,17 @@ export const actions: Actions = {
 
     const { steamId } = params;
     const formData = await request.formData();
-    const severity = formData.get('severity')?.toString();
+    const validation = validateForm(
+      formData,
+      z.object({
+        severity: z.enum(['NONE', 'WARNING', 'SUSPENDED', 'BANNED']),
+        reason: z.string().optional().default(''),
+        duration: z.string().optional().default(''),
+      }),
+    );
+    if (!validation.success) return validationError(validation.errors);
 
-    if (!severity || !['NONE', 'WARNING', 'SUSPENDED', 'BANNED'].includes(severity)) {
-      return fail(400, { error: 'Invalid severity' });
-    }
+    const { severity, reason, duration: durationStr } = validation.data;
 
     try {
       const targetUser = await getUserBySteamId(steamId);
@@ -547,7 +566,6 @@ export const actions: Actions = {
       requireCanModerateUser(locals.user, targetUser.permissionLevel);
 
       if (severity === 'NONE') {
-        // Clearing punishments is head-admin only (matches /admin/users)
         requireStrictAdmin(locals.user);
         await clearPunishment(steamId, locals.user.steamId);
 
@@ -564,21 +582,13 @@ export const actions: Actions = {
         return { success: true, message: 'Punishment cleared' };
       }
 
-      const reason = formData.get('reason')?.toString() || '';
-      const durationStr = formData.get('duration')?.toString();
-      const duration = durationStr ? parseInt(durationStr) : undefined;
-
       if (!reason.trim()) {
         return fail(400, { error: 'Reason is required' });
       }
 
-      await banUser(
-        steamId,
-        locals.user.steamId,
-        severity as 'WARNING' | 'SUSPENDED' | 'BANNED',
-        reason,
-        duration,
-      );
+      const duration = durationStr ? parseInt(durationStr) : undefined;
+
+      await banUser(steamId, locals.user.steamId, severity, reason, duration);
 
       await logAudit({
         actorId: locals.user.steamId,

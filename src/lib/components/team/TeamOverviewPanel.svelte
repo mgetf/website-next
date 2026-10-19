@@ -11,6 +11,7 @@
     TeamRosterPlayer,
     TeamSeasonMatches,
   } from '#lib/types/team.js';
+  import { classIcon } from '#lib/utils/classIcons.js';
   import { formatDate, placementClass, resultClass } from '#lib/utils/profile.js';
   import Trophy from '~icons/lucide/trophy';
 
@@ -183,6 +184,20 @@
                     {/if}
                   </div>
                   <p class="mt-0.5 text-xs text-text-muted">Joined {formatDate(player.joinedAt)}</p>
+                  {#if player.restrictedClasses.length > 0}
+                    <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-warning-400">
+                      <span>Cannot play</span>
+                      {#each player.restrictedClasses as tfClass (tfClass.id)}
+                        {@const icon = classIcon(tfClass.name)}
+                        <span class="inline-flex items-center gap-1 font-medium">
+                          {#if icon}
+                            <img src={icon} alt="" class="size-3.5" />
+                          {/if}
+                          {tfClass.label}
+                        </span>
+                      {/each}
+                    </p>
+                  {/if}
                 </div>
               </a>
               {#if canLeave && player.steamId === currentUserSteamId}

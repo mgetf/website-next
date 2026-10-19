@@ -7,6 +7,12 @@ export type TeamAchievement = {
   placement: string;
 };
 
+export type TeamClassRestriction = {
+  id: number;
+  name: string;
+  label: string;
+};
+
 export type TeamRosterPlayer = {
   steamId: string;
   name: string;
@@ -16,6 +22,7 @@ export type TeamRosterPlayer = {
   paymentStatus: number;
   isLeader: boolean;
   permissionLevel: number;
+  restrictedClasses: TeamClassRestriction[];
 };
 
 export type TeamPastPlayer = {

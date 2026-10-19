@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import ClassRestrictionNotice from '#lib/components/team/ClassRestrictionNotice.svelte';
   import TeamAdminPanel from '#lib/components/team/TeamAdminPanel.svelte';
   import TeamManagementPanel from '#lib/components/team/TeamManagementPanel.svelte';
   import TeamOverviewPanel from '#lib/components/team/TeamOverviewPanel.svelte';
@@ -297,6 +298,8 @@
   </div>
 </header>
 
+<ClassRestrictionNotice players={currentRoster} />
+
 <div class="border-b border-border-default bg-surface-page">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
     <div class="flex gap-1" role="tablist" aria-label="Team sections">
@@ -434,6 +437,7 @@
         divisionId={team.divisionId}
         divisions={data.divisions}
         isFreeDivision={data.isFreeDivision}
+        players={currentRoster}
         {unpaidPlayers}
         {paidPlayers}
         busy={submittingAction !== null}

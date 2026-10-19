@@ -1,10 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { TF_CLASSES_DISPLAY_ORDER } from '#lib/constants/tfClasses.js';
   import Badge from '#lib/components/ui/Badge.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import Card from '#lib/components/ui/Card.svelte';
   import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
   import type { TeamAdminDivision, TeamRosterPlayer } from '#lib/types/team.js';
+  import { classIcon } from '#lib/utils/classIcons.js';
 
   const DEFAULT_AVATAR = '/default-avatar.png';
 
@@ -13,6 +15,7 @@
     divisionId,
     divisions,
     isFreeDivision,
+    players,
     unpaidPlayers,
     paidPlayers,
     busy,
@@ -23,6 +26,7 @@
     divisionId: number | null;
     divisions: TeamAdminDivision[];
     isFreeDivision: boolean;
+    players: TeamRosterPlayer[];
     unpaidPlayers: TeamRosterPlayer[];
     paidPlayers: TeamRosterPlayer[];
     busy: boolean;
@@ -32,11 +36,34 @@
 
   let adminStatus = $state('');
   let adminDivisionId = $state('');
+  let selectedSteamId = $state('');
+  let selectedClassIds = $state<number[]>([]);
+
+  const playerOptions = $derived(
+    players.map((player) => ({ value: player.steamId, label: player.name })),
+  );
+  const restrictedPlayers = $derived(
+    players.filter((player) => player.restrictedClasses.length > 0),
+  );
 
   $effect(() => {
     adminStatus = teamStatus;
     adminDivisionId = divisionId != null ? String(divisionId) : 'none';
   });
+
+  function selectPlayer(steamId: string) {
+    selectedSteamId = steamId;
+    const player = players.find((entry) => entry.steamId === steamId);
+    selectedClassIds = player?.restrictedClasses.map((tfClass) => tfClass.id) ?? [];
+  }
+
+  function toggleClass(id: number, event: Event) {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+    selectedClassIds = input.checked
+      ? [...selectedClassIds, id]
+      : selectedClassIds.filter((current) => current !== id);
+  }
 </script>
 
 <Card padding="md">
@@ -82,6 +109,83 @@
     {:else}
       <p class="text-sm text-text-muted">No divisions available for this team's region.</p>
     {/if}
+
+    <hr class="border-border-default" />
+
+    <div>
+      <h3 class="mb-2 text-lg font-bold text-white">Class restrictions</h3>
+      <p class="mb-4 text-sm text-text-body">
+        Choose the classes a player cannot play. The restriction shows on this team's page.
+      </p>
+
+      {#if restrictedPlayers.length > 0}
+        <ul class="mb-4 space-y-2">
+          {#each restrictedPlayers as player (player.steamId)}
+            <li class="flex flex-wrap items-center gap-2 text-sm text-text-label">
+              <span class="font-medium text-white">{player.name}</span>
+              <span class="text-text-muted">cannot play</span>
+              {#each player.restrictedClasses as tfClass (tfClass.id)}
+                {@const icon = classIcon(tfClass.name)}
+                <Badge color="yellow">
+                  {#if icon}
+                    <img src={icon} alt="" class="mr-1 size-4" />
+                  {/if}
+                  {tfClass.label}
+                </Badge>
+              {/each}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="mb-4 text-sm text-text-muted">No class restrictions on this roster.</p>
+      {/if}
+
+      {#if players.length === 0}
+        <p class="text-sm text-text-muted">No active players to restrict.</p>
+      {:else}
+        <form method="POST" action="?/setClassRestriction" use:enhance class="max-w-lg">
+          <FormSelect
+            label="Player"
+            name="playerSteamId"
+            bind:value={selectedSteamId}
+            onChange={selectPlayer}
+            options={playerOptions}
+            placeholder="Select a player"
+            required
+            disabled={busy}
+          />
+          <fieldset class="mb-6" disabled={!selectedSteamId || busy}>
+            <legend class="mb-2 block text-sm font-medium text-text-label">
+              Classes they cannot play
+            </legend>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {#each TF_CLASSES_DISPLAY_ORDER as tfClass (tfClass.id)}
+                {@const icon = classIcon(tfClass.name)}
+                <label
+                  class="flex items-center gap-2 rounded-lg border border-border-input bg-surface-input px-3 py-2 text-sm text-text-label"
+                >
+                  <input
+                    type="checkbox"
+                    name="classIds"
+                    value={tfClass.id}
+                    checked={selectedClassIds.includes(tfClass.id)}
+                    onchange={(event) => toggleClass(tfClass.id, event)}
+                  />
+                  {#if icon}
+                    <img src={icon} alt="" class="size-5" />
+                  {/if}
+                  {tfClass.label}
+                </label>
+              {/each}
+            </div>
+            <p class="mt-2 text-xs text-text-muted">
+              Save with none checked to clear the restriction.
+            </p>
+          </fieldset>
+          <Button type="submit" disabled={busy || !selectedSteamId}>Save restriction</Button>
+        </form>
+      {/if}
+    </div>
 
     {#if !isFreeDivision && (unpaidPlayers.length > 0 || paidPlayers.length > 0)}
       <hr class="border-border-default" />

@@ -1111,8 +1111,10 @@ model PlayerInTeam {
   active          Int       @default(1)
   permissionLevel Int       @default(0) @map("permission_level")
   paymentStatus   Int       @default(0) @map("payment_status")
-  startedAt       DateTime  @default(now()) @map("started_at")
-  leftAt          DateTime? @map("left_at")
+  startedAt          DateTime  @default(now()) @map("started_at")
+  leftAt             DateTime? @map("left_at")
+  /// TF2 class ids this player is not allowed to play. Empty means no restriction.
+  restrictedClassIds Int[]     @default([]) @map("restricted_class_ids")
 
   player User @relation(fields: [playerSteamId], references: [steamId])
   team   Team @relation(fields: [teamId], references: [id])

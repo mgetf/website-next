@@ -5,6 +5,7 @@
 
 import { prisma } from '#lib/server/db.js';
 import type { Prisma } from '#prisma/client.js';
+import { hasInvalidClassId, orderedRestrictedClassIds } from '#lib/utils/classRestriction.js';
 import { notFound, badRequest } from '#lib/server/utils/errors.js';
 import { uploadToR2, saveTempFile, deleteTempFile, validateUploadedFile } from '../utils/r2Upload';
 import path from 'path';
@@ -601,4 +602,46 @@ export async function hardDeleteTeam(
   });
 
   return { teamName: team.name, deletedMatches: matchCount };
+}
+
+/**
+ * Replace the classes an active roster player is not allowed to play.
+ * An empty list clears the restriction.
+ */
+export async function setPlayerClassRestriction(
+  teamId: number,
+  playerSteamId: string,
+  classIds: number[],
+): Promise<{ previousClassIds: number[]; classIds: number[] }> {
+  if (hasInvalidClassId(classIds)) {
+    badRequest('Choose a valid class');
+  }
+
+  const membership = await prisma.playerInTeam.findUnique({
+    where: {
+      playerSteamId_teamId: {
+        playerSteamId,
+        teamId,
+      },
+    },
+    select: { active: true, restrictedClassIds: true },
+  });
+
+  if (!membership || membership.active !== 1) {
+    badRequest('That player is not on this team');
+  }
+
+  const next = orderedRestrictedClassIds(classIds);
+
+  await prisma.playerInTeam.update({
+    where: {
+      playerSteamId_teamId: {
+        playerSteamId,
+        teamId,
+      },
+    },
+    data: { restrictedClassIds: next },
+  });
+
+  return { previousClassIds: membership.restrictedClassIds, classIds: next };
 }

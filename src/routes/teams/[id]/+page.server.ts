@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail, isHttpError, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError, formError } from '#lib/server/utils/forms.js';
 import {
@@ -13,6 +13,7 @@ import {
 import {
   isAdmin,
   isTeamAdmin,
+  requireAdmin,
   requireAuth,
   requireTeamAdmin,
 } from '#lib/server/auth/permissions.js';
@@ -27,6 +28,7 @@ import {
   demotePlayer,
   invitePlayerBySteamId,
   disbandTeam,
+  setPlayerClassRestriction,
 } from '#lib/server/services/teamManagement.js';
 import { markPlayerAsPaidManually, unmarkPlayerAsPaid } from '#lib/server/services/payments.js';
 import { generateJoinToken } from '#lib/server/services/teamSignup.js';
@@ -34,6 +36,8 @@ import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '#lib/server/ser
 import { calculateWeekLabel, uniqueMatchArenas } from '#lib/server/utils/matchHelpers.js';
 import { compareMatchHistoryOrder, formatPlayoffRound } from '#lib/utils/playoffs.js';
 import { FORMAT_1V1 } from '#lib/server/constants/formats.js';
+import { isValidTfClassId } from '#lib/constants/tfClasses.js';
+import { restrictedClassesFromIds } from '#lib/utils/classRestriction.js';
 import {
   getPendingStatusForTeam,
   hasAnyPendingRequest,
@@ -70,6 +74,14 @@ const updatePasswordSchema = z.object({
 
 const invitePlayerSchema = z.object({
   steamId: z.string().min(1, 'Steam ID is required'),
+});
+
+const setClassRestrictionSchema = z.object({
+  playerSteamId: z.string().min(1, 'Choose a player'),
+  classIds: z
+    .array(z.coerce.number().int())
+    .default([])
+    .refine((ids) => ids.every((id) => isValidTfClassId(id)), 'Choose a valid class'),
 });
 
 type MatchHistoryDraft = TeamMatchRow & {
@@ -139,6 +151,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       paymentStatus: p.paymentStatus,
       isLeader: p.permissionLevel >= 1, // ADMIN (1) or STATUS (2)
       permissionLevel: p.permissionLevel,
+      restrictedClasses: restrictedClassesFromIds(p.restrictedClassIds),
     }));
 
   const pastRoster = team.players
@@ -602,6 +615,47 @@ export const actions: Actions = {
       return fail('status' in (err as any) ? (err as any).status : 500, {
         error: getErrorMessage(err, 'Failed to mark player as unpaid'),
       });
+    }
+  },
+
+  setClassRestriction: async ({ request, params, locals, getClientAddress }) => {
+    requireAdmin(locals.user);
+
+    const teamId = parseInt(params.id);
+    const formData = await request.formData();
+    const validation = validateForm(formData, setClassRestrictionSchema, ['classIds']);
+    if (!validation.success) return validationError(validation.errors);
+
+    const { playerSteamId, classIds } = validation.data;
+
+    try {
+      const result = await setPlayerClassRestriction(teamId, playerSteamId, classIds);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action: AuditAction.PLAYER_CLASS_RESTRICTION_CHANGED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: {
+          playerSteamId,
+          classIds: result.classIds.join(','),
+          previousClassIds: result.previousClassIds.join(','),
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      return {
+        success: true,
+        message:
+          result.classIds.length === 0 ? 'Class restriction removed' : 'Class restriction saved',
+      };
+    } catch (err) {
+      return formError(
+        getErrorMessage(err, 'Failed to save class restriction'),
+        isHttpError(err) ? err.status : 500,
+      );
     }
   },
 

@@ -1,16 +1,17 @@
 /**
  * Staff assignment service.
- * Display-only scope of staff to a format + division (region is implied by the division).
+ * Scope of staff to a region, with optional format and division.
+ * Null format = every format in that region. Null division = every division of the chosen format.
  */
 
 import { prisma } from '#lib/server/db.js';
 import { badRequest } from '#lib/server/utils/errors.js';
-import type { StaffAssignmentDisplay } from '#lib/types/staff.js';
+import type { StaffAssignmentDisplay, StaffAssignmentScope } from '#lib/types/staff.js';
+import { collapseStaffAssignments } from '#lib/utils/staffScope.js';
 
-export type StaffAssignmentPair = {
-  formatId: number;
-  divisionId: number;
-};
+export type StaffAssignmentPair = StaffAssignmentScope;
+
+export { collapseStaffAssignments, serializeStaffAssignmentToken } from '#lib/utils/staffScope.js';
 
 export type LeagueStaffMember = {
   steamId: string;
@@ -20,106 +21,111 @@ export type LeagueStaffMember = {
 };
 
 export type LeagueStaffByDivision = {
-  division: { id: number; name: string };
+  division: { id: number | null; name: string };
   staff: LeagueStaffMember[];
 };
 
 export type LeagueStaffAssignment = {
-  formatId: number;
+  formatId: number | null;
   regionId: number;
-  divisionId: number;
+  divisionId: number | null;
   user: {
     steamId: string;
     steamUsername: string;
     steamAvatar: string | null;
     permissionLevel: string;
   };
-  division: { id: number; name: string; sortOrder: number };
+  division: { id: number; name: string; sortOrder: number } | null;
 };
 
-const STAFF_ASSIGNMENT_TOKEN = /^(\d+):(\d+)$/;
+const STAFF_ASSIGNMENT_TOKEN = /^(\d+)(?::(\d+))?(?::(\d+))?$/;
+const REGION_WIDE_SORT = -1;
 
 export const staffAssignmentInclude = {
+  region: { select: { id: true, name: true } },
   format: { select: { id: true, name: true } },
-  division: {
-    select: {
-      id: true,
-      name: true,
-      regionId: true,
-      region: { select: { id: true, name: true } },
-    },
-  },
+  division: { select: { id: true, name: true } },
 } as const;
 
 type StaffAssignmentWithRelations = {
-  formatId: number;
-  divisionId: number;
-  format: { id: number; name: string };
-  division: {
-    id: number;
-    name: string;
-    regionId: number;
-    region: { id: number; name: string };
-  };
+  regionId: number;
+  formatId: number | null;
+  divisionId: number | null;
+  region: { id: number; name: string };
+  format: { id: number; name: string } | null;
+  division: { id: number; name: string } | null;
 };
+
+function parsePositiveInt(value: string | undefined): number | null {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return null;
+  return parsed;
+}
 
 function parseStaffAssignmentToken(token: string): StaffAssignmentPair | null {
   const match = STAFF_ASSIGNMENT_TOKEN.exec(token);
   if (!match) return null;
-  const formatId = Number(match[1]);
-  const divisionId = Number(match[2]);
-  if (
-    !Number.isInteger(formatId) ||
-    !Number.isInteger(divisionId) ||
-    formatId < 1 ||
-    divisionId < 1
-  ) {
-    return null;
-  }
-  return { formatId, divisionId };
+  const regionId = parsePositiveInt(match[1]);
+  const formatId = parsePositiveInt(match[2]);
+  const divisionId = parsePositiveInt(match[3]);
+  if (regionId == null) return null;
+  if (match[3] != null && formatId == null) return null;
+  if (divisionId != null && formatId == null) return null;
+  return { regionId, formatId, divisionId };
 }
 
 export function parseStaffAssignmentTokens(tokens: string[]): StaffAssignmentPair[] {
-  const seen = new Set<string>();
   const pairs: StaffAssignmentPair[] = [];
   for (const token of tokens) {
     if (token === '') continue;
     const parsed = parseStaffAssignmentToken(token);
     if (!parsed) badRequest('Invalid staff assignment');
-    const key = `${parsed.formatId}:${parsed.divisionId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
     pairs.push(parsed);
   }
-  return pairs;
+  return collapseStaffAssignments(pairs);
 }
 
-function filterAssignmentsForLeague<T extends { formatId: number; regionId: number }>(
+function filterAssignmentsForLeague<T extends { formatId: number | null; regionId: number }>(
   assignments: T[],
   formatId: number,
   regionId: number,
 ): T[] {
   return assignments.filter(
-    (assignment) => assignment.formatId === formatId && assignment.regionId === regionId,
+    (assignment) =>
+      assignment.regionId === regionId &&
+      (assignment.formatId == null || assignment.formatId === formatId),
   );
 }
 
-function groupStaffByDivision(assignments: LeagueStaffAssignment[]): LeagueStaffByDivision[] {
-  const map = new Map<number, LeagueStaffByDivision & { sortOrder: number }>();
+function groupStaffByDivision(
+  assignments: LeagueStaffAssignment[],
+  regionName: string,
+): LeagueStaffByDivision[] {
+  const map = new Map<number | 'region', LeagueStaffByDivision & { sortOrder: number }>();
 
   for (const assignment of assignments) {
-    if (!map.has(assignment.divisionId)) {
-      map.set(assignment.divisionId, {
-        division: {
-          id: assignment.division.id,
-          name: assignment.division.name,
-        },
-        sortOrder: assignment.division.sortOrder,
+    const regionWide = assignment.divisionId == null;
+    const key = regionWide ? 'region' : assignment.divisionId;
+    if (key !== 'region' && key == null) continue;
+
+    if (!map.has(key)) {
+      map.set(key, {
+        division: regionWide
+          ? { id: null, name: regionName }
+          : {
+              id: assignment.division!.id,
+              name: assignment.division!.name,
+            },
+        sortOrder: regionWide ? REGION_WIDE_SORT : assignment.division!.sortOrder,
         staff: [],
       });
     }
 
-    map.get(assignment.divisionId)!.staff.push({
+    const group = map.get(key)!;
+    if (group.staff.some((member) => member.steamId === assignment.user.steamId)) continue;
+
+    group.staff.push({
       steamId: assignment.user.steamId,
       name: assignment.user.steamUsername,
       avatar: assignment.user.steamAvatar,
@@ -137,7 +143,7 @@ function groupStaffByDivision(assignments: LeagueStaffAssignment[]): LeagueStaff
   }
 
   return Array.from(map.values())
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.division.id - b.division.id)
+    .sort((a, b) => a.sortOrder - b.sortOrder || (a.division.id ?? 0) - (b.division.id ?? 0))
     .map((group) => ({ division: group.division, staff: group.staff }));
 }
 
@@ -145,20 +151,24 @@ export function staffForLeagueFromAssignments(
   assignments: LeagueStaffAssignment[],
   formatId: number,
   regionId: number,
+  regionName: string,
 ): LeagueStaffByDivision[] {
-  return groupStaffByDivision(filterAssignmentsForLeague(assignments, formatId, regionId));
+  return groupStaffByDivision(
+    filterAssignmentsForLeague(assignments, formatId, regionId),
+    regionName,
+  );
 }
 
 export function mapStaffAssignmentForDisplay(
   assignment: StaffAssignmentWithRelations,
 ): StaffAssignmentDisplay {
   return {
+    regionId: assignment.regionId,
+    regionName: assignment.region.name,
     formatId: assignment.formatId,
-    formatName: assignment.format.name,
+    formatName: assignment.format?.name ?? null,
     divisionId: assignment.divisionId,
-    divisionName: assignment.division.name,
-    regionId: assignment.division.regionId,
-    regionName: assignment.division.region.name,
+    divisionName: assignment.division?.name ?? null,
   };
 }
 
@@ -178,47 +188,80 @@ export async function getRegionIdsByFormat(): Promise<Record<number, number[]>> 
 }
 
 export async function replaceStaffAssignments(userId: string, assignments: StaffAssignmentPair[]) {
-  if (assignments.length > 0) {
-    const formatIds = [...new Set(assignments.map((assignment) => assignment.formatId))];
-    const divisionIds = [...new Set(assignments.map((assignment) => assignment.divisionId))];
+  const collapsed = collapseStaffAssignments(assignments);
 
-    const [formats, divisions, seasonPairs] = await Promise.all([
-      prisma.format.findMany({ where: { id: { in: formatIds } }, select: { id: true } }),
-      prisma.division.findMany({
-        where: { id: { in: divisionIds } },
-        select: { id: true, regionId: true, formatId: true },
-      }),
-      prisma.season.findMany({
-        where: { formatId: { in: formatIds } },
-        select: { formatId: true, regionId: true },
-        distinct: ['formatId', 'regionId'],
-      }),
+  if (collapsed.length > 0) {
+    const regionIds = [...new Set(collapsed.map((assignment) => assignment.regionId))];
+    const formatIds = [
+      ...new Set(
+        collapsed.map((assignment) => assignment.formatId).filter((id): id is number => id != null),
+      ),
+    ];
+    const divisionIds = [
+      ...new Set(
+        collapsed
+          .map((assignment) => assignment.divisionId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+
+    const [regions, formats, divisions, seasonPairs] = await Promise.all([
+      prisma.region.findMany({ where: { id: { in: regionIds } }, select: { id: true } }),
+      formatIds.length > 0
+        ? prisma.format.findMany({ where: { id: { in: formatIds } }, select: { id: true } })
+        : Promise.resolve([]),
+      divisionIds.length > 0
+        ? prisma.division.findMany({
+            where: { id: { in: divisionIds } },
+            select: { id: true, regionId: true, formatId: true },
+          })
+        : Promise.resolve([]),
+      formatIds.length > 0
+        ? prisma.season.findMany({
+            where: { formatId: { in: formatIds } },
+            select: { formatId: true, regionId: true },
+            distinct: ['formatId', 'regionId'],
+          })
+        : Promise.resolve([]),
     ]);
 
+    const regionSet = new Set(regions.map((region) => region.id));
     const formatSet = new Set(formats.map((format) => format.id));
     const divisionById = new Map(divisions.map((division) => [division.id, division]));
     const seasonSet = new Set(seasonPairs.map((season) => `${season.formatId}:${season.regionId}`));
 
-    for (const assignment of assignments) {
-      if (!formatSet.has(assignment.formatId)) badRequest('Format not found');
-      const division = divisionById.get(assignment.divisionId);
-      if (!division) badRequest('Division not found');
-      if (division.formatId !== assignment.formatId) {
-        badRequest('Division does not belong to that format');
+    for (const assignment of collapsed) {
+      if (!regionSet.has(assignment.regionId)) badRequest('Region not found');
+      if (assignment.divisionId != null && assignment.formatId == null) {
+        badRequest('Division requires a format');
       }
-      if (!seasonSet.has(`${assignment.formatId}:${division.regionId}`)) {
-        badRequest('That format is not available in the selected region');
+      if (assignment.formatId != null) {
+        if (!formatSet.has(assignment.formatId)) badRequest('Format not found');
+        if (!seasonSet.has(`${assignment.formatId}:${assignment.regionId}`)) {
+          badRequest('That format is not available in the selected region');
+        }
+      }
+      if (assignment.divisionId != null) {
+        const division = divisionById.get(assignment.divisionId);
+        if (!division) badRequest('Division not found');
+        if (division.regionId !== assignment.regionId) {
+          badRequest('Division does not belong to that region');
+        }
+        if (division.formatId !== assignment.formatId) {
+          badRequest('Division does not belong to that format');
+        }
       }
     }
   }
 
   await prisma.$transaction([
     prisma.staffAssignment.deleteMany({ where: { userId } }),
-    ...(assignments.length > 0
+    ...(collapsed.length > 0
       ? [
           prisma.staffAssignment.createMany({
-            data: assignments.map((assignment) => ({
+            data: collapsed.map((assignment) => ({
               userId,
+              regionId: assignment.regionId,
               formatId: assignment.formatId,
               divisionId: assignment.divisionId,
             })),
@@ -232,24 +275,29 @@ export async function getStaffForLeague(
   formatId: number,
   regionId: number,
 ): Promise<LeagueStaffByDivision[]> {
-  const rows = await prisma.staffAssignment.findMany({
-    where: {
-      formatId,
-      division: { regionId },
-      user: { permissionLevel: { in: ['MODERATOR', 'ADMIN'] } },
-    },
-    include: {
-      user: {
-        select: {
-          steamId: true,
-          steamUsername: true,
-          steamAvatar: true,
-          permissionLevel: true,
-        },
+  const [region, rows] = await Promise.all([
+    prisma.region.findUnique({ where: { id: regionId }, select: { name: true } }),
+    prisma.staffAssignment.findMany({
+      where: {
+        regionId,
+        OR: [{ formatId }, { formatId: null }],
+        user: { permissionLevel: { in: ['MODERATOR', 'ADMIN'] } },
       },
-      division: { select: { id: true, name: true, sortOrder: true } },
-    },
-  });
+      include: {
+        user: {
+          select: {
+            steamId: true,
+            steamUsername: true,
+            steamAvatar: true,
+            permissionLevel: true,
+          },
+        },
+        division: { select: { id: true, name: true, sortOrder: true } },
+      },
+    }),
+  ]);
+
+  if (!region) return [];
 
   return staffForLeagueFromAssignments(
     rows.map((row) => ({
@@ -261,5 +309,6 @@ export async function getStaffForLeague(
     })),
     formatId,
     regionId,
+    region.name,
   );
 }

@@ -68,7 +68,11 @@
       punishmentCount: number;
       nameOverride: number;
       avatarOverride: number;
-      staffAssignments: { formatName: string; divisionName: string; regionName: string }[];
+      staffAssignments: {
+        formatName: string | null;
+        divisionName: string | null;
+        regionName: string;
+      }[];
     };
     isOwnProfile: boolean;
     isAdmin: boolean;

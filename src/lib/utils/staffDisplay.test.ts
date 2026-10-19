@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { FORMAT_1V1, FORMAT_2V2 } from '#lib/constants/formats.js';
 import type { StaffAssignmentDisplay } from '#lib/types/staff.js';
 import {
-  groupStaffByFormatAndRegion,
+  ALL_DIVISIONS_LABEL,
+  ALL_FORMATS_LABEL,
+  groupStaffByRegionAndFormat,
   groupStaffRosterByRegion,
   staffListChips,
 } from './staffDisplay';
@@ -116,11 +118,46 @@ describe('staffListChips', () => {
       },
     ]);
   });
+
+  it('labels region-wide and format-wide assignments without inventing divisions', () => {
+    const chips = staffListChips([
+      assignment({
+        formatId: null,
+        formatName: null,
+        divisionId: null,
+        divisionName: null,
+        regionName: 'South America',
+      }),
+      assignment({
+        formatId: FORMAT_2V2,
+        formatName: '2v2',
+        divisionId: null,
+        divisionName: null,
+        regionId: 2,
+        regionName: 'EU',
+      }),
+    ]);
+
+    expect(chips).toEqual([
+      {
+        formatId: null,
+        formatName: ALL_FORMATS_LABEL,
+        coverage: 'South America',
+        title: 'South America: all formats',
+      },
+      {
+        formatId: FORMAT_2V2,
+        formatName: '2v2',
+        coverage: `EU ${ALL_DIVISIONS_LABEL}`,
+        title: `EU: ${ALL_DIVISIONS_LABEL}`,
+      },
+    ]);
+  });
 });
 
-describe('groupStaffByFormatAndRegion', () => {
-  it('nests divisions under format then region', () => {
-    const grouped = groupStaffByFormatAndRegion([
+describe('groupStaffByRegionAndFormat', () => {
+  it('nests formats under region with optional division chips', () => {
+    const grouped = groupStaffByRegionAndFormat([
       assignment({
         formatId: FORMAT_2V2,
         formatName: '2v2',
@@ -143,15 +180,23 @@ describe('groupStaffByFormatAndRegion', () => {
         divisionName: 'PREMIER',
         regionName: 'EU',
       }),
+      assignment({
+        formatId: null,
+        formatName: null,
+        divisionId: null,
+        divisionName: null,
+        regionName: 'EU',
+      }),
     ]);
 
-    expect(grouped).toHaveLength(1);
-    expect(grouped[0].formatName).toBe('2v2');
-    expect(grouped[0].regions.map((region) => region.regionName)).toEqual(['EU', 'NA']);
-    expect(grouped[0].regions[0].chips.map((chip) => chip.divisionName)).toEqual([
-      'OPEN',
-      'PREMIER',
+    expect(grouped.map((group) => group.regionName)).toEqual(['EU', 'NA']);
+    expect(grouped[0].formats.map((format) => format.formatName)).toEqual([
+      '2v2',
+      ALL_FORMATS_LABEL,
     ]);
+    expect(grouped[0].formats[0].chips.map((chip) => chip.label)).toEqual(['OPEN', 'PREMIER']);
+    expect(grouped[0].formats[1].chips.map((chip) => chip.label)).toEqual([ALL_FORMATS_LABEL]);
+    expect(grouped[1].formats[0].chips.map((chip) => chip.label)).toEqual(['NEWCOMER']);
   });
 });
 

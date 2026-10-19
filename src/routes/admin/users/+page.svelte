@@ -29,8 +29,11 @@
   let discordIdInput = $state('');
   let lastFormResult: ActionData = null;
 
-  function formatTheme(formatId: number) {
-    const themeKey = data.formats.find((format) => format.id === formatId)?.themeKey;
+  function formatTheme(formatId: number | null) {
+    const themeKey =
+      formatId == null
+        ? undefined
+        : data.formats.find((format) => format.id === formatId)?.themeKey;
     return getFormatThemeClasses(themeKey);
   }
 
@@ -235,14 +238,16 @@
               {@const chips = staffListChips(user.staffAssignments)}
               {#if chips.length > 0}
                 <div class="flex flex-wrap gap-1 mt-0.5">
-                  {#each chips as chip (chip.formatId)}
+                  {#each chips as chip (chip.formatId ?? 'all')}
                     {@const theme = formatTheme(chip.formatId)}
                     <span
                       class="inline-flex items-center gap-1 rounded-md border bg-surface-input px-1.5 py-0.5 text-[11px] leading-4 {theme.border500_30}"
                       title={chip.title}
                     >
                       <span class="font-semibold {theme.text400}">{chip.formatName}</span>
-                      <span class="text-text-label">{chip.coverage}</span>
+                      {#if chip.coverage}
+                        <span class="text-text-label">{chip.coverage}</span>
+                      {/if}
                     </span>
                   {/each}
                 </div>

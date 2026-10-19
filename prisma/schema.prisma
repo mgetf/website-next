@@ -958,14 +958,18 @@ model Division {
 model StaffAssignment {
   id         Int    @id @default(autoincrement())
   userId     String @map("user_id")
-  formatId   Int    @map("format_id")
-  divisionId Int    @map("division_id")
+  regionId   Int    @map("region_id")
+  formatId   Int?   @map("format_id")
+  divisionId Int?   @map("division_id")
 
-  user     User     @relation(fields: [userId], references: [steamId], onDelete: Cascade)
-  format   Format   @relation(fields: [formatId], references: [id], onDelete: Restrict)
-  division Division @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  user     User      @relation(fields: [userId], references: [steamId], onDelete: Cascade)
+  region   Region    @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  format   Format?   @relation(fields: [formatId], references: [id], onDelete: Restrict)
+  division Division? @relation(fields: [divisionId], references: [id], onDelete: Restrict)
 
-  @@unique([userId, formatId, divisionId])
+  // NULLS NOT DISTINCT is set in the migration so two "whole region" rows cannot coexist.
+  @@unique([userId, regionId, formatId, divisionId])
+  @@index([regionId])
   @@index([formatId])
   @@index([divisionId])
   @@map("staff_assignments")
@@ -1034,6 +1038,7 @@ model Region {
   teams                  Team[]
   divisions              Division[]
   activeSignupSeasons    ActiveSignupSeason[]
+  staffAssignments       StaffAssignment[]
   staffDiscordRules      StaffDiscordRule[]
   staffSourcebansServers StaffSourcebansServer[]
   matchSetDrafts         MatchSetDraft[]

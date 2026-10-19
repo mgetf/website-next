@@ -1,10 +1,13 @@
-export interface StaffAssignmentDisplay {
-  formatId: number;
-  formatName: string;
-  divisionId: number;
-  divisionName: string;
+export interface StaffAssignmentScope {
   regionId: number;
+  formatId: number | null;
+  divisionId: number | null;
+}
+
+export interface StaffAssignmentDisplay extends StaffAssignmentScope {
   regionName: string;
+  formatName: string | null;
+  divisionName: string | null;
 }
 
 export type StaffSyncStatusDisplay = 'OK' | 'PENDING' | 'ERROR' | 'SKIPPED';

@@ -1,40 +1,54 @@
 import type { StaffAssignmentDisplay } from '#lib/types/staff.js';
 import { getRegionAbbr, sortRegionsByAbbr } from '#lib/utils/region.js';
 
+export const ALL_FORMATS_LABEL = 'All formats';
+export const ALL_DIVISIONS_LABEL = 'All divisions';
+
 type StaffDisplayItem = Pick<
   StaffAssignmentDisplay,
-  'formatId' | 'formatName' | 'divisionId' | 'divisionName' | 'regionName'
-> & { regionId?: number };
+  'formatId' | 'formatName' | 'divisionId' | 'divisionName' | 'regionName' | 'regionId'
+>;
 
 type StaffListChip = {
-  formatId: number;
+  formatId: number | null;
   formatName: string;
   coverage: string;
   title: string;
 };
 
-type StaffDivisionChip = {
-  formatId: number;
-  divisionId: number;
-  divisionName: string;
-};
-
-type StaffRegionGroup = {
-  regionName: string;
-  chips: StaffDivisionChip[];
+type StaffScopeChip = {
+  regionId: number;
+  formatId: number | null;
+  divisionId: number | null;
+  label: string;
 };
 
 type StaffFormatGroup = {
-  formatId: number;
+  formatId: number | null;
   formatName: string;
-  regions: StaffRegionGroup[];
+  chips: StaffScopeChip[];
+};
+
+type StaffRegionGroup = {
+  regionId: number;
+  regionName: string;
+  formats: StaffFormatGroup[];
 };
 
 type FormatSummaryAcc = {
-  formatId: number;
+  formatId: number | null;
   formatName: string;
   regions: Map<string, string[]>;
 };
+
+function formatLabel(assignment: StaffDisplayItem): string {
+  return assignment.formatName ?? ALL_FORMATS_LABEL;
+}
+
+function divisionLabel(assignment: StaffDisplayItem): string | null {
+  if (assignment.formatId == null) return null;
+  return assignment.divisionName ?? ALL_DIVISIONS_LABEL;
+}
 
 function coverageLabel(regions: Map<string, string[]>, omitRegion: boolean): string {
   const regionNames = [...regions.keys()];
@@ -55,20 +69,22 @@ export function staffListChips(
       ? assignments
       : assignments.filter((assignment) => assignment.regionId === options.regionId);
   const omitRegion = options?.regionId != null;
-  const map = new Map<number, FormatSummaryAcc>();
+  const map = new Map<number | 'all', FormatSummaryAcc>();
 
   for (const assignment of scoped) {
-    let existing = map.get(assignment.formatId);
+    const key = assignment.formatId ?? 'all';
+    let existing = map.get(key);
     if (!existing) {
       existing = {
         formatId: assignment.formatId,
-        formatName: assignment.formatName,
+        formatName: formatLabel(assignment),
         regions: new Map(),
       };
-      map.set(assignment.formatId, existing);
+      map.set(key, existing);
     }
     const divisions = existing.regions.get(assignment.regionName) ?? [];
-    divisions.push(assignment.divisionName);
+    const division = divisionLabel(assignment);
+    if (division) divisions.push(division);
     existing.regions.set(assignment.regionName, divisions);
   }
 
@@ -77,7 +93,11 @@ export function staffListChips(
     formatName: entry.formatName,
     coverage: coverageLabel(entry.regions, omitRegion),
     title: [...entry.regions.entries()]
-      .map(([region, divisions]) => `${region}: ${divisions.join(', ')}`)
+      .map(([region, divisions]) =>
+        divisions.length > 0
+          ? `${region}: ${divisions.join(', ')}`
+          : `${region}: ${ALL_FORMATS_LABEL.toLowerCase()}`,
+      )
       .join(' · '),
   }));
 }
@@ -121,34 +141,44 @@ export function groupStaffRosterByRegion<T extends StaffRosterGroupable>(
   return groups;
 }
 
-export function groupStaffByFormatAndRegion(assignments: StaffDisplayItem[]): StaffFormatGroup[] {
-  const formatOrder: number[] = [];
-  const formatNames = new Map<number, string>();
-  const regionsByFormat = new Map<number, Map<string, StaffDivisionChip[]>>();
+export function groupStaffByRegionAndFormat(assignments: StaffDisplayItem[]): StaffRegionGroup[] {
+  const regionOrder: number[] = [];
+  const regionNames = new Map<number, string>();
+  const formatsByRegion = new Map<number, Map<number | 'all', StaffFormatGroup>>();
 
   for (const assignment of assignments) {
-    if (!regionsByFormat.has(assignment.formatId)) {
-      formatOrder.push(assignment.formatId);
-      formatNames.set(assignment.formatId, assignment.formatName);
-      regionsByFormat.set(assignment.formatId, new Map());
+    if (!formatsByRegion.has(assignment.regionId)) {
+      regionOrder.push(assignment.regionId);
+      regionNames.set(assignment.regionId, assignment.regionName);
+      formatsByRegion.set(assignment.regionId, new Map());
     }
 
-    const regions = regionsByFormat.get(assignment.formatId)!;
-    const chips = regions.get(assignment.regionName) ?? [];
-    chips.push({
+    const formats = formatsByRegion.get(assignment.regionId)!;
+    const formatKey = assignment.formatId ?? 'all';
+    let formatGroup = formats.get(formatKey);
+    if (!formatGroup) {
+      formatGroup = {
+        formatId: assignment.formatId,
+        formatName: formatLabel(assignment),
+        chips: [],
+      };
+      formats.set(formatKey, formatGroup);
+    }
+
+    formatGroup.chips.push({
+      regionId: assignment.regionId,
       formatId: assignment.formatId,
       divisionId: assignment.divisionId,
-      divisionName: assignment.divisionName,
+      label:
+        assignment.formatId == null
+          ? ALL_FORMATS_LABEL
+          : (assignment.divisionName ?? ALL_DIVISIONS_LABEL),
     });
-    regions.set(assignment.regionName, chips);
   }
 
-  return formatOrder.map((formatId) => ({
-    formatId,
-    formatName: formatNames.get(formatId) ?? 'Unknown',
-    regions: [...(regionsByFormat.get(formatId)?.entries() ?? [])].map(([regionName, chips]) => ({
-      regionName,
-      chips,
-    })),
+  return regionOrder.map((regionId) => ({
+    regionId,
+    regionName: regionNames.get(regionId) ?? 'Unknown',
+    formats: [...(formatsByRegion.get(regionId)?.values() ?? [])],
   }));
 }

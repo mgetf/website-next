@@ -20,9 +20,11 @@
   import { getRegionAbbr } from '#lib/utils/region.js';
   import { flagForRegion } from '#lib/utils/regions.js';
   import { groupStaffRosterByRegion, staffListChips } from '#lib/utils/staffDisplay.js';
+  import { serializeStaffAssignmentToken } from '#lib/utils/staffScope.js';
   import type {
     OrphanManagedDiscordMember,
     StaffAssignmentDisplay,
+    StaffAssignmentScope,
     StaffSyncStatusDisplay,
   } from '#lib/types/staff.js';
 
@@ -40,7 +42,7 @@
   let searchInput = $state('');
   let designating: DesignateTarget | null = $state(null);
   let designatePermission = $state('MODERATOR');
-  let selectedStaffAssignments: { formatId: number; divisionId: number }[] = $state([]);
+  let selectedStaffAssignments: StaffAssignmentScope[] = $state([]);
   let demoting: DesignateTarget | null = $state(null);
   let syncingAll = $state(false);
   let stripping: OrphanManagedDiscordMember | null = $state(null);
@@ -88,8 +90,11 @@
     ADMIN: 'Admin',
   };
 
-  function formatTheme(formatId: number) {
-    const themeKey = data.formats.find((format) => format.id === formatId)?.themeKey;
+  function formatTheme(formatId: number | null) {
+    const themeKey =
+      formatId == null
+        ? undefined
+        : data.formats.find((format) => format.id === formatId)?.themeKey;
     return getFormatThemeClasses(themeKey);
   }
 
@@ -133,6 +138,7 @@
         ? user.permissionLevel
         : 'MODERATOR';
     selectedStaffAssignments = user.staffAssignments.map((assignment) => ({
+      regionId: assignment.regionId,
       formatId: assignment.formatId,
       divisionId: assignment.divisionId,
     }));
@@ -348,14 +354,16 @@
                 </a>
                 {#if chips.length > 0}
                   <div class="mt-1 flex flex-wrap gap-1">
-                    {#each chips as chip (chip.formatId)}
+                    {#each chips as chip (chip.formatId ?? 'all')}
                       {@const theme = formatTheme(chip.formatId)}
                       <span
                         class="inline-flex items-center gap-1 rounded-md border bg-surface-input px-1.5 py-0 text-[11px] leading-4 {theme.border500_30} shrink-0 whitespace-nowrap"
                         title={chip.title}
                       >
                         <span class="font-medium {theme.text400}">{chip.formatName}</span>
-                        <span class="text-text-muted">{chip.coverage}</span>
+                        {#if chip.coverage}
+                          <span class="text-text-muted">{chip.coverage}</span>
+                        {/if}
                       </span>
                     {/each}
                   </div>
@@ -464,11 +472,11 @@
       }}
     >
       <input type="hidden" name="steamId" value={designating.steamId} />
-      {#each selectedStaffAssignments as assignment (`${assignment.formatId}:${assignment.divisionId}`)}
+      {#each selectedStaffAssignments as assignment (serializeStaffAssignmentToken(assignment))}
         <input
           type="hidden"
           name="staffAssignments"
-          value="{assignment.formatId}:{assignment.divisionId}"
+          value={serializeStaffAssignmentToken(assignment)}
         />
       {/each}
 

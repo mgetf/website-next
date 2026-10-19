@@ -1,11 +1,18 @@
 <script lang="ts">
+  import Button from '#lib/components/ui/Button.svelte';
   import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
   import { getFormatThemeClasses } from '#lib/constants/formats.js';
+  import type { StaffAssignmentScope } from '#lib/types/staff.js';
   import {
     filterDivisionsByRegionAndFormat,
-    filterRegionsByFormat,
+    filterFormatsByRegion,
   } from '#lib/utils/leagueScope.js';
-  import { groupStaffByFormatAndRegion } from '#lib/utils/staffDisplay.js';
+  import {
+    ALL_DIVISIONS_LABEL,
+    ALL_FORMATS_LABEL,
+    groupStaffByRegionAndFormat,
+  } from '#lib/utils/staffDisplay.js';
+  import { collapseStaffAssignments } from '#lib/utils/staffScope.js';
 
   type FormatOption = { id: number; name: string; themeKey: string };
   type RegionOption = { id: number; name: string };
@@ -24,39 +31,32 @@
     divisions,
     regionIdsByFormat,
   }: {
-    assignments: { formatId: number; divisionId: number }[];
+    assignments: StaffAssignmentScope[];
     formats: FormatOption[];
     regions: RegionOption[];
     divisions: DivisionOption[];
     regionIdsByFormat: Record<number, number[]>;
   } = $props();
 
-  let addFormatId = $state('');
   let addRegionId = $state('');
+  let addFormatId = $state('');
   let addDivisionId = $state('');
 
-  const addFilteredRegions = $derived(
-    addFormatId ? filterRegionsByFormat(regions, addFormatId, regionIdsByFormat) : [],
+  const addFilteredFormats = $derived(
+    addRegionId ? filterFormatsByRegion(formats, addRegionId, regionIdsByFormat) : [],
   );
 
   const addFilteredDivisions = $derived(
-    addFormatId && addRegionId
-      ? filterDivisionsByRegionAndFormat(divisions, addRegionId, addFormatId).filter(
-          (division) =>
-            !assignments.some(
-              (assignment) =>
-                assignment.formatId === Number(addFormatId) &&
-                assignment.divisionId === division.id,
-            ),
-        )
+    addRegionId && addFormatId
+      ? filterDivisionsByRegionAndFormat(divisions, addRegionId, addFormatId)
       : [],
   );
 
-  const formatOptions = $derived(
-    formats.map((format) => ({ value: String(format.id), label: format.name })),
-  );
   const regionOptions = $derived(
-    addFilteredRegions.map((region) => ({ value: String(region.id), label: region.name })),
+    regions.map((region) => ({ value: String(region.id), label: region.name })),
+  );
+  const formatOptions = $derived(
+    addFilteredFormats.map((format) => ({ value: String(format.id), label: format.name })),
   );
   const divisionOptions = $derived(
     addFilteredDivisions.map((division) => ({ value: String(division.id), label: division.name })),
@@ -64,61 +64,81 @@
 
   const selectedAssignmentsInfo = $derived(
     assignments.map((assignment) => {
-      const format = formats.find((item) => item.id === assignment.formatId);
-      const division = divisions.find((item) => item.id === assignment.divisionId);
+      const region = regions.find((item) => item.id === assignment.regionId);
+      const format =
+        assignment.formatId != null
+          ? formats.find((item) => item.id === assignment.formatId)
+          : null;
+      const division =
+        assignment.divisionId != null
+          ? divisions.find((item) => item.id === assignment.divisionId)
+          : null;
       return {
+        regionId: assignment.regionId,
+        regionName: region?.name ?? 'Unknown',
         formatId: assignment.formatId,
+        formatName: format?.name ?? null,
         divisionId: assignment.divisionId,
-        formatName: format?.name ?? 'Unknown',
-        regionName: division?.regionName ?? 'Unknown',
-        divisionName: division?.name ?? 'Unknown',
+        divisionName: division?.name ?? null,
       };
     }),
   );
 
-  const selectedGrouped = $derived(groupStaffByFormatAndRegion(selectedAssignmentsInfo));
+  const selectedGrouped = $derived(groupStaffByRegionAndFormat(selectedAssignmentsInfo));
 
-  function formatTheme(formatId: number) {
-    const themeKey = formats.find((format) => format.id === formatId)?.themeKey;
+  function formatTheme(formatId: number | null) {
+    const themeKey =
+      formatId == null ? undefined : formats.find((format) => format.id === formatId)?.themeKey;
     return getFormatThemeClasses(themeKey);
   }
 
-  const regionPlaceholder = $derived(
-    !addFormatId
-      ? 'Pick a format first'
-      : addFilteredRegions.length === 0
-        ? 'No regions for this format'
-        : 'Select region...',
+  const formatPlaceholder = $derived(
+    !addRegionId
+      ? 'Pick a region first'
+      : addFilteredFormats.length === 0
+        ? 'No formats for this region'
+        : ALL_FORMATS_LABEL,
   );
 
   const divisionPlaceholder = $derived(
-    !addRegionId
-      ? 'Pick a region first'
+    !addFormatId
+      ? ALL_DIVISIONS_LABEL
       : addFilteredDivisions.length === 0
-        ? 'No divisions left'
-        : 'Select division...',
+        ? 'No divisions'
+        : ALL_DIVISIONS_LABEL,
   );
 
-  function addStaffAssignment(formatId: number, divisionId: number) {
-    if (
-      !assignments.some(
-        (assignment) => assignment.formatId === formatId && assignment.divisionId === divisionId,
-      )
-    ) {
-      assignments = [...assignments, { formatId, divisionId }];
-    }
-    addRegionId = '';
+  function addStaffAssignment() {
+    if (!addRegionId) return;
+    assignments = collapseStaffAssignments([
+      ...assignments,
+      {
+        regionId: Number(addRegionId),
+        formatId: addFormatId ? Number(addFormatId) : null,
+        divisionId: addDivisionId ? Number(addDivisionId) : null,
+      },
+    ]);
+    addFormatId = '';
     addDivisionId = '';
   }
 
-  function removeStaffAssignment(formatId: number, divisionId: number) {
+  function removeStaffAssignment(
+    regionId: number,
+    formatId: number | null,
+    divisionId: number | null,
+  ) {
     assignments = assignments.filter(
-      (assignment) => !(assignment.formatId === formatId && assignment.divisionId === divisionId),
+      (assignment) =>
+        !(
+          assignment.regionId === regionId &&
+          assignment.formatId === formatId &&
+          assignment.divisionId === divisionId
+        ),
     );
   }
 
-  function removeFormatAssignments(formatId: number) {
-    assignments = assignments.filter((assignment) => assignment.formatId !== formatId);
+  function removeRegionAssignments(regionId: number) {
+    assignments = assignments.filter((assignment) => assignment.regionId !== regionId);
   }
 </script>
 
@@ -126,38 +146,39 @@
 
 {#if selectedGrouped.length > 0}
   <div class="mb-3 space-y-3 rounded-lg border border-border-default bg-surface-input/50 p-3">
-    {#each selectedGrouped as formatGroup (formatGroup.formatId)}
-      {@const theme = formatTheme(formatGroup.formatId)}
+    {#each selectedGrouped as regionGroup (regionGroup.regionId)}
       <div>
         <div class="mb-1.5 flex items-center justify-between gap-2">
-          <p class="text-xs font-semibold uppercase tracking-wide {theme.text400}">
-            {formatGroup.formatName}
+          <p class="text-xs font-semibold uppercase tracking-wide text-text-label">
+            {regionGroup.regionName}
           </p>
           <button
             type="button"
-            onclick={() => removeFormatAssignments(formatGroup.formatId)}
+            onclick={() => removeRegionAssignments(regionGroup.regionId)}
             class="text-[11px] font-medium text-text-muted hover:text-danger-400 transition-colors"
           >
             Clear
           </button>
         </div>
         <div class="space-y-1.5">
-          {#each formatGroup.regions as regionGroup (regionGroup.regionName)}
+          {#each regionGroup.formats as formatGroup (`${regionGroup.regionId}:${formatGroup.formatId ?? 'all'}`)}
+            {@const theme = formatTheme(formatGroup.formatId)}
             <div class="grid grid-cols-[2.75rem_1fr] items-start gap-x-2">
-              <span class="pt-0.5 text-[11px] font-medium text-text-label">
-                {regionGroup.regionName}
+              <span class="pt-0.5 text-[11px] font-medium {theme.text400}">
+                {formatGroup.formatId == null ? 'All' : formatGroup.formatName}
               </span>
               <div class="flex flex-wrap gap-1">
-                {#each regionGroup.chips as chip (`${chip.formatId}:${chip.divisionId}`)}
+                {#each formatGroup.chips as chip (`${chip.regionId}:${chip.formatId ?? ''}:${chip.divisionId ?? ''}`)}
                   <span
                     class="inline-flex items-center gap-0.5 rounded-full border border-border-input bg-surface-input py-0.5 pl-2 pr-0.5 text-xs text-white"
                   >
-                    {chip.divisionName}
+                    {chip.label}
                     <button
                       type="button"
-                      onclick={() => removeStaffAssignment(chip.formatId, chip.divisionId)}
+                      onclick={() =>
+                        removeStaffAssignment(chip.regionId, chip.formatId, chip.divisionId)}
                       class="rounded-full px-1 text-text-muted hover:text-danger-400 transition-colors"
-                      aria-label="Remove {formatGroup.formatName} {regionGroup.regionName} {chip.divisionName}"
+                      aria-label="Remove {regionGroup.regionName} {chip.label}"
                     >
                       ×
                     </button>
@@ -171,28 +192,28 @@
     {/each}
   </div>
 {:else}
-  <p class="text-sm text-text-muted mb-3">No divisions assigned.</p>
+  <p class="text-sm text-text-muted mb-3">No regions assigned.</p>
 {/if}
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 [&>div]:mb-0">
-  <FormSelect
-    label="Format"
-    name="addStaffFormat"
-    bind:value={addFormatId}
-    options={formatOptions}
-    placeholder="Select format..."
-    onChange={() => {
-      addRegionId = '';
-      addDivisionId = '';
-    }}
-  />
   <FormSelect
     label="Region"
     name="addStaffRegion"
     bind:value={addRegionId}
     options={regionOptions}
-    placeholder={regionPlaceholder}
-    disabled={!addFormatId || addFilteredRegions.length === 0}
+    placeholder="Select region..."
+    onChange={() => {
+      addFormatId = '';
+      addDivisionId = '';
+    }}
+  />
+  <FormSelect
+    label="Format"
+    name="addStaffFormat"
+    bind:value={addFormatId}
+    options={formatOptions}
+    placeholder={formatPlaceholder}
+    disabled={!addRegionId || addFilteredFormats.length === 0}
     onChange={() => {
       addDivisionId = '';
     }}
@@ -203,14 +224,21 @@
     bind:value={addDivisionId}
     options={divisionOptions}
     placeholder={divisionPlaceholder}
-    disabled={!addRegionId || addFilteredDivisions.length === 0}
-    onChange={(value) => {
-      if (value && addFormatId) {
-        addStaffAssignment(Number(addFormatId), Number(value));
-      }
-    }}
+    disabled={!addFormatId || addFilteredDivisions.length === 0}
   />
 </div>
+<div class="mt-3">
+  <Button
+    type="button"
+    variant="secondary"
+    size="sm"
+    disabled={!addRegionId}
+    onclick={addStaffAssignment}
+  >
+    Add
+  </Button>
+</div>
 <p class="mt-2 text-sm text-text-muted">
-  Format/region/division scope for league pages, Discord rules, and SourceBans servers.
+  Region is required. Format and division are optional; leave them as All to cover every league in
+  that region.
 </p>

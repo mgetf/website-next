@@ -85,6 +85,15 @@ describe('resolveDiscordRoleIds', () => {
     expect(roles).toContain('na-1v1-admin');
     expect(roles).toContain('na-staff');
   });
+
+  it('matches format-scoped rules when the assignment has no format', () => {
+    const roles = resolveDiscordRoleIds(
+      UserRole.MODERATOR,
+      [{ formatId: null, regionId: 3 }],
+      snapshot,
+    );
+    expect(roles.sort()).toEqual(['1v1-mod', 'mod', 'na-staff', 'staff']);
+  });
 });
 
 describe('catalogDiscordRoleIds', () => {

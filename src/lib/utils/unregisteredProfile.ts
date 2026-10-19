@@ -15,7 +15,11 @@ export function buildUnregisteredPlayerProfile(
       punishmentCount: 0,
       nameOverride: 0,
       avatarOverride: 0,
-      staffAssignments: [] as { formatName: string; divisionName: string; regionName: string }[],
+      staffAssignments: [] as {
+        formatName: string | null;
+        divisionName: string | null;
+        regionName: string;
+      }[],
     },
     currentTeams: [],
     teamHistory: [],

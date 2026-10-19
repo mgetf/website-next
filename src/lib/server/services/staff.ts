@@ -38,7 +38,7 @@ export const STAFF_ROLES = [UserRole.MODERATOR, UserRole.ADMIN] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export type AssignmentScope = {
-  formatId: number;
+  formatId: number | null;
   regionId: number;
 };
 
@@ -175,7 +175,9 @@ export function resolveDiscordRoleIds(
     if (scoped) {
       const matches = assignments.some(
         (assignment) =>
-          (rule.formatId == null || assignment.formatId === rule.formatId) &&
+          (rule.formatId == null ||
+            assignment.formatId == null ||
+            assignment.formatId === rule.formatId) &&
           (rule.regionId == null || assignment.regionId === rule.regionId),
       );
       if (!matches) continue;
@@ -276,11 +278,11 @@ async function loadMappingSnapshot(): Promise<StaffMappingSnapshot> {
 }
 
 function scopesFromAssignments(
-  assignments: Array<{ formatId: number; division: { regionId: number } }>,
+  assignments: Array<{ formatId: number | null; regionId: number }>,
 ): AssignmentScope[] {
   return assignments.map((assignment) => ({
     formatId: assignment.formatId,
-    regionId: assignment.division.regionId,
+    regionId: assignment.regionId,
   }));
 }
 
@@ -411,7 +413,7 @@ async function syncStaffUserUnlocked(
     where: { steamId },
     include: {
       discord: true,
-      staffAssignments: { include: { division: { select: { regionId: true } } } },
+      staffAssignments: { select: { formatId: true, regionId: true } },
     },
   });
   if (!user) notFound('User not found');
@@ -595,7 +597,7 @@ export async function getDesiredDiscordRoleIdsByDiscordId(discordId: string): Pr
           staffAssignments: {
             select: {
               formatId: true,
-              division: { select: { regionId: true } },
+              regionId: true,
             },
           },
         },
@@ -609,7 +611,7 @@ export async function getDesiredDiscordRoleIdsByDiscordId(discordId: string): Pr
   const snapshot = await loadMappingSnapshot();
   const scopes: AssignmentScope[] = player.staffAssignments.map((row) => ({
     formatId: row.formatId,
-    regionId: row.division.regionId,
+    regionId: row.regionId,
   }));
   return resolveDiscordRoleIds(player.permissionLevel, scopes, snapshot);
 }

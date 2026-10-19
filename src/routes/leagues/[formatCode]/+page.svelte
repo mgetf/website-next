@@ -79,7 +79,7 @@
       { bracket: BracketData; placements: LeaguePlayoffPlacement[] }
     >;
     staffByDivision: Array<{
-      division: { id: number; name: string };
+      division: { id: number | null; name: string };
       staff: Array<{
         steamId: string;
         name: string;
@@ -246,7 +246,7 @@
       <div class="flex flex-col items-center gap-2">
         <span class="text-sm font-medium text-text-body">Region</span>
         <div class="flex flex-wrap items-center justify-center gap-2">
-          {#each regionsWithSeasons as region}
+          {#each regionsWithSeasons as region (region.id)}
             <LeagueRegionSeasonMenu
               abbr={getRegionAbbr(region.id)}
               flagCode={regionFlagCode(region.id)}
@@ -630,7 +630,7 @@
                   <p class="text-text-muted text-sm">No staff members found.</p>
                 </div>
               {:else}
-                {#each data.staffByDivision as divisionStaff}
+                {#each data.staffByDivision as divisionStaff (divisionStaff.division.id ?? 'region')}
                   <div class="border-b border-border-default/50 last:border-0">
                     <!-- Division Header -->
                     <div class="px-4 py-2 bg-surface-page/50">
@@ -649,7 +649,7 @@
 
                     <!-- Staff Members -->
                     <div class="px-4 py-2 space-y-2">
-                      {#each divisionStaff.staff as member}
+                      {#each divisionStaff.staff as member (member.steamId)}
                         <a
                           href="/users/{member.steamId}"
                           class="flex items-center justify-between py-2 hover:bg-surface-input/30 rounded px-2 -mx-2 transition-colors group"

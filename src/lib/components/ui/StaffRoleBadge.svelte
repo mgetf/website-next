@@ -1,17 +1,18 @@
 <script lang="ts">
   import Tooltip from '#lib/components/ui/Tooltip.svelte';
+  import { ALL_DIVISIONS_LABEL, ALL_FORMATS_LABEL } from '#lib/utils/staffDisplay.js';
 
   type StaffRole = 'ADMIN' | 'MODERATOR';
 
   type StaffAssignment = {
-    formatName: string;
-    divisionName: string;
+    formatName: string | null;
+    divisionName: string | null;
     regionName: string;
   };
 
-  type FormatGroup = {
-    formatName: string;
-    regions: { regionName: string; divisions: string[] }[];
+  type RegionGroup = {
+    regionName: string;
+    formats: { formatName: string; divisions: string[] }[];
   };
 
   let {
@@ -26,41 +27,44 @@
   const label = $derived(isAdmin ? 'Admin' : 'Moderator');
   const groups = $derived(groupAssignments(assignments));
 
-  function groupAssignments(items: StaffAssignment[]): FormatGroup[] {
-    const formats: FormatGroup[] = [];
+  function groupAssignments(items: StaffAssignment[]): RegionGroup[] {
+    const regions: RegionGroup[] = [];
     for (const item of items) {
-      let format = formats.find((row) => row.formatName === item.formatName);
-      if (!format) {
-        format = { formatName: item.formatName, regions: [] };
-        formats.push(format);
-      }
-      let region = format.regions.find((row) => row.regionName === item.regionName);
+      let region = regions.find((row) => row.regionName === item.regionName);
       if (!region) {
-        region = { regionName: item.regionName, divisions: [] };
-        format.regions.push(region);
+        region = { regionName: item.regionName, formats: [] };
+        regions.push(region);
       }
-      if (!region.divisions.includes(item.divisionName)) {
-        region.divisions.push(item.divisionName);
+      const formatName = item.formatName ?? ALL_FORMATS_LABEL;
+      let format = region.formats.find((row) => row.formatName === formatName);
+      if (!format) {
+        format = { formatName, divisions: [] };
+        region.formats.push(format);
+      }
+      if (item.formatName == null) continue;
+      const divisionName = item.divisionName ?? ALL_DIVISIONS_LABEL;
+      if (!format.divisions.includes(divisionName)) {
+        format.divisions.push(divisionName);
       }
     }
-    return formats;
+    return regions;
   }
 </script>
 
 <Tooltip>
   {#snippet content()}
     {#if groups.length === 0}
-      <p class="mt-1.5 text-xs text-text-body">No divisions assigned</p>
+      <p class="mt-1.5 text-xs text-text-body">No regions assigned</p>
     {:else}
       <div class="mt-2 space-y-2">
-        {#each groups as group (group.formatName)}
+        {#each groups as group (group.regionName)}
           <div>
-            <p class="text-xs font-semibold text-white">{group.formatName}</p>
-            {#each group.regions as region (`${group.formatName}-${region.regionName}`)}
+            <p class="text-xs font-semibold text-white">{group.regionName}</p>
+            {#each group.formats as format (`${group.regionName}-${format.formatName}`)}
               <p class="text-xs text-text-body">
-                {region.regionName}<span class="text-text-muted">
-                  · {region.divisions.join(', ')}</span
-                >
+                {format.formatName}{#if format.divisions.length > 0}<span class="text-text-muted">
+                    · {format.divisions.join(', ')}</span
+                  >{/if}
               </p>
             {/each}
           </div>
@@ -69,7 +73,7 @@
     {/if}
   {/snippet}
   <span
-    aria-label="{label}. Hover for assigned divisions"
+    aria-label="{label}. Hover for assigned regions"
     class="inline-flex cursor-help items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold {isAdmin
       ? 'border-staff-admin/40 bg-staff-admin/20 text-staff-admin shadow-[0_0_10px_rgba(169,201,255,0.25)]'
       : 'border-staff-moderator/40 bg-staff-moderator/20 text-staff-moderator shadow-[0_0_10px_rgba(155,89,182,0.3)]'}"

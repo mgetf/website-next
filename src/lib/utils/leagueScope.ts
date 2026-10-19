@@ -16,6 +16,20 @@ export function filterRegionsByFormat(
 }
 
 /**
+ * Formats available in a region. Empty regionId returns nothing so callers
+ * disable the format dropdown until a region is chosen.
+ */
+export function filterFormatsByRegion(
+  formats: ScopeOption[],
+  regionId: string,
+  regionIdsByFormat: Record<number, number[]>,
+): ScopeOption[] {
+  if (!regionId) return [];
+  const region = Number(regionId);
+  return formats.filter((format) => (regionIdsByFormat[format.id] ?? []).includes(region));
+}
+
+/**
  * Divisions in a region, optionally narrowed to a format.
  * Empty regionId returns nothing so callers disable the
  * division dropdown instead of listing every region's Invite/Premier mixed together.

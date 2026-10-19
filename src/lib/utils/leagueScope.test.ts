@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterDivisionsByRegion,
   filterDivisionsByRegionAndFormat,
+  filterFormatsByRegion,
   filterRegionsByFormat,
   isRegionAllowedForFormat,
   regionIdsByFormatFromSeasons,
@@ -11,6 +12,11 @@ const regions = [
   { id: 1, name: 'NA' },
   { id: 2, name: 'EU' },
   { id: 3, name: 'AU' },
+];
+
+const formats = [
+  { id: 1, name: '1v1' },
+  { id: 2, name: '2v2' },
 ];
 
 const divisions = [
@@ -43,6 +49,24 @@ describe('filterRegionsByFormat', () => {
 
   it('returns no regions when the format has no seasons', () => {
     expect(filterRegionsByFormat(regions, '99', regionIdsByFormat)).toEqual([]);
+  });
+});
+
+describe('filterFormatsByRegion', () => {
+  it('returns nothing until a region is selected', () => {
+    expect(filterFormatsByRegion(formats, '', regionIdsByFormat)).toEqual([]);
+  });
+
+  it('keeps only formats that have a season in the selected region', () => {
+    expect(
+      filterFormatsByRegion(formats, '1', regionIdsByFormat).map((format) => format.id),
+    ).toEqual([1, 2]);
+    expect(
+      filterFormatsByRegion(formats, '2', regionIdsByFormat).map((format) => format.id),
+    ).toEqual([1]);
+    expect(
+      filterFormatsByRegion(formats, '3', regionIdsByFormat).map((format) => format.id),
+    ).toEqual([2]);
   });
 });
 

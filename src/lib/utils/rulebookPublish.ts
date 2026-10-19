@@ -7,6 +7,17 @@ export function nextRulebookVersion(currentVersion: number): number {
   return currentVersion + 1;
 }
 
+/** Bell copy and destination for a newly published rulebook revision. */
+export function rulebookRevisionNotice(
+  version: number,
+  message: string,
+): { url: string; message: string } {
+  return {
+    url: `/rulebook/history/${version}`,
+    message: `Rulebook revision ${version}: ${message.trim()}`,
+  };
+}
+
 export function validateRulebookPublish(input: {
   content: string;
   message: string;

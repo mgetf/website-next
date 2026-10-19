@@ -33,7 +33,8 @@ import {
 import { fail, isHttpError } from '@sveltejs/kit';
 import { z } from 'zod';
 import { validateForm, validationError, formError, formSuccess } from '#lib/server/utils/forms.js';
-import { RULEBOOK_MESSAGE_MIN_LENGTH } from '#lib/utils/rulebookPublish.js';
+import { RULEBOOK_MESSAGE_MIN_LENGTH, rulebookRevisionNotice } from '#lib/utils/rulebookPublish.js';
+import { createNotificationForAllUsers } from '#lib/server/services/notifications.js';
 import { getErrorMessage } from '#lib/server/utils/errors.js';
 import { UserRole } from '#lib/types/user.js';
 import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
@@ -215,7 +216,25 @@ export const actions: Actions = {
         metadata: { version: result.version, message },
         ipAddress: getClientAddress(),
       });
-      return formSuccess(undefined, `Rulebook published as revision ${result.version}`);
+      const notice = rulebookRevisionNotice(result.version, message);
+      try {
+        const notified = await createNotificationForAllUsers(
+          'RULEBOOK',
+          notice.url,
+          notice.message,
+          locals.user.steamId,
+        );
+        return formSuccess(
+          undefined,
+          `Rulebook published as revision ${result.version}. Notified ${notified} users`,
+        );
+      } catch (notifyErr) {
+        console.error('Rulebook published but notification failed:', notifyErr);
+        return formSuccess(
+          undefined,
+          `Rulebook published as revision ${result.version}, but the notification could not be sent`,
+        );
+      }
     } catch (err) {
       if (isHttpError(err)) {
         return formError(err.body.message, err.status);

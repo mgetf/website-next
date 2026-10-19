@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   nextRulebookVersion,
   RULEBOOK_MESSAGE_MIN_LENGTH,
+  rulebookRevisionNotice,
   validateRulebookPublish,
 } from './rulebookPublish';
 
@@ -17,6 +18,15 @@ describe('nextRulebookVersion', () => {
   it('increments from the current published version', () => {
     expect(nextRulebookVersion(0)).toBe(1);
     expect(nextRulebookVersion(3)).toBe(4);
+  });
+});
+
+describe('rulebookRevisionNotice', () => {
+  it('points at the published revision and keeps the change message', () => {
+    expect(rulebookRevisionNotice(4, '  Clarify forfeit timing  ')).toEqual({
+      url: '/rulebook/history/4',
+      message: 'Rulebook revision 4: Clarify forfeit timing',
+    });
   });
 });
 

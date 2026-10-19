@@ -9,6 +9,7 @@
   import CalendarOff from '~icons/lucide/calendar-off';
   import Mail from '~icons/lucide/mail';
   import Shield from '~icons/lucide/shield';
+  import BookOpen from '~icons/lucide/book-open';
   import Bell from '~icons/lucide/bell';
   import ComputerNotifications from '#lib/components/layout/ComputerNotifications.svelte';
 
@@ -81,6 +82,8 @@
         return Mail;
       case 'ADMIN_ACTION':
         return Shield;
+      case 'RULEBOOK':
+        return BookOpen;
       default:
         return Bell;
     }
@@ -100,6 +103,8 @@
         return 'Team invitation';
       case 'ADMIN_ACTION':
         return 'Admin action';
+      case 'RULEBOOK':
+        return 'Rulebook updated';
       default:
         return 'New notification';
     }

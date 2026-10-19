@@ -731,7 +731,7 @@
             bind:value={publishMessage}
             required
             maxlength={500}
-            hint={`At least ${RULEBOOK_MESSAGE_MIN_LENGTH} characters. Players will see this in the public history.`}
+            hint={`At least ${RULEBOOK_MESSAGE_MIN_LENGTH} characters. This is posted in the public history and sent to every user.`}
           />
 
           <div class="flex gap-3 justify-end">

@@ -62,6 +62,10 @@ describe('buildBrowserPushPayload', () => {
   it('uses a generic title for an unknown type', () => {
     expect(browserPushTitle('SOMETHING_ELSE')).toBe('mge.tf');
   });
+
+  it('names a rulebook revision', () => {
+    expect(browserPushTitle('RULEBOOK')).toBe('Rulebook update');
+  });
 });
 
 describe('isStalePushStatus', () => {

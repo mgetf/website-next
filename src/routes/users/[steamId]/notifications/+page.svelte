@@ -10,6 +10,7 @@
   import Swords from '~icons/lucide/swords';
   import CalendarOff from '~icons/lucide/calendar-off';
   import Mail from '~icons/lucide/mail';
+  import BookOpen from '~icons/lucide/book-open';
   import Bell from '~icons/lucide/bell';
 
   let { data }: { data: PageData } = $props();
@@ -28,6 +29,8 @@
         return CalendarOff;
       case 'PLAYER_INVITE':
         return Mail;
+      case 'RULEBOOK':
+        return BookOpen;
       default:
         return Bell;
     }
@@ -45,6 +48,8 @@
         return 'Bye week scheduled';
       case 'PLAYER_INVITE':
         return 'Team invitation';
+      case 'RULEBOOK':
+        return 'Rulebook updated';
       default:
         return 'New notification';
     }

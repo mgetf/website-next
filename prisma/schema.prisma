@@ -89,6 +89,7 @@ enum NotificationType {
   PLAYER_INVITE // 3
   ADMIN_ACTION // 4
   BYE_WEEK // 5
+  RULEBOOK // 6
 }
 
 enum MapBanActionType {

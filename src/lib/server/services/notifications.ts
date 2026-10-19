@@ -8,7 +8,7 @@ import { prisma } from '#lib/server/db.js';
 import type { NotificationType } from '#prisma/client.js';
 import { notificationHub, buildNotifyPayload } from '#lib/server/realtime/notificationHub.js';
 import type { NotificationPayload } from '#lib/server/realtime/notificationHub.js';
-import { deliverBrowserPush } from '#lib/server/services/browserPush.js';
+import { deliverBrowserPush, deliverBrowserPushBatch } from '#lib/server/services/browserPush.js';
 
 const actorSelect = {
   steamId: true,
@@ -20,7 +20,10 @@ const actorSelect = {
  * Emit a pg_notify for a fully-enriched notification row.
  * Wrapped in try/catch so a notify failure never breaks the mutation.
  */
-async function emitNotify(notification: NotificationPayload): Promise<void> {
+async function emitNotify(
+  notification: NotificationPayload,
+  options?: { push?: boolean },
+): Promise<void> {
   try {
     const payload = buildNotifyPayload(notification);
     await prisma.$executeRawUnsafe(`SELECT pg_notify('notifications', $1)`, payload);
@@ -31,6 +34,8 @@ async function emitNotify(notification: NotificationPayload): Promise<void> {
     );
   }
 
+  if (options?.push === false) return;
+
   void deliverBrowserPush({
     id: notification.id,
     userSteamId: notification.userSteamId,
@@ -38,6 +43,27 @@ async function emitNotify(notification: NotificationPayload): Promise<void> {
     url: notification.url,
     message: notification.message,
   });
+}
+
+const INSERT_CHUNK = 500;
+const NOTIFY_CONCURRENCY = 20;
+
+async function runPool<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  let next = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const current = next;
+      next += 1;
+      const item = items[current];
+      if (item !== undefined) await worker(item);
+    }
+  });
+  await Promise.all(runners);
 }
 
 /**
@@ -399,6 +425,90 @@ export async function createNotificationForUser(
     isRead: notification.isRead,
     createdAt: notification.createdAt.toISOString(),
   });
+}
+
+/**
+ * One bell row per account, except the person who triggered it.
+ * Used for site-wide notices such as a new rulebook revision.
+ * Returns how many accounts were notified.
+ */
+export async function createNotificationForAllUsers(
+  type: NotificationType,
+  url: string,
+  message: string,
+  actorSteamId?: string,
+): Promise<number> {
+  const users = await prisma.user.findMany({
+    where: actorSteamId ? { steamId: { not: actorSteamId } } : undefined,
+    select: { steamId: true },
+  });
+  if (users.length === 0) return 0;
+
+  const actor = actorSteamId
+    ? await prisma.user.findUnique({
+        where: { steamId: actorSteamId },
+        select: actorSelect,
+      })
+    : null;
+
+  const created: NotificationPayload[] = [];
+
+  for (let offset = 0; offset < users.length; offset += INSERT_CHUNK) {
+    const chunk = users.slice(offset, offset + INSERT_CHUNK);
+    const rows = await prisma.notification.createManyAndReturn({
+      data: chunk.map((user) => ({
+        userSteamId: user.steamId,
+        type,
+        url,
+        message,
+        actorSteamId: actorSteamId || null,
+        isRead: false,
+      })),
+    });
+
+    for (const row of rows) {
+      if (!row.userSteamId) continue;
+      created.push({
+        id: row.id,
+        userSteamId: row.userSteamId,
+        type: row.type,
+        url: row.url,
+        message: row.message,
+        actorSteamId: row.actorSteamId,
+        actor: actor
+          ? {
+              steamId: actor.steamId,
+              steamUsername: actor.steamUsername,
+              steamAvatar: actor.steamAvatar,
+            }
+          : null,
+        isRead: row.isRead,
+        createdAt: row.createdAt.toISOString(),
+      });
+    }
+  }
+
+  try {
+    await runPool(created, NOTIFY_CONCURRENCY, (notification) =>
+      emitNotify(notification, { push: false }),
+    );
+    await deliverBrowserPushBatch(
+      created.map((notification) => ({
+        id: notification.id,
+        userSteamId: notification.userSteamId,
+        type: notification.type,
+        url: notification.url,
+        message: notification.message,
+      })),
+    );
+  } catch (err) {
+    console.error(
+      '[notifications] saved the global notice, but live delivery failed:',
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  return created.length;
 }
 
 /**

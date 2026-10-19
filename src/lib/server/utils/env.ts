@@ -23,6 +23,11 @@
  *   DISCORD_VERIFICATION_LOG_CHANNEL_ID  Channel for link/unlink role-sync notices
  *   MGE_PLATFORM_URL              Platform API origin (ratings / leaderboard / investigate)
  *   MGE_PLATFORM_ADMIN_SECRET     Bearer token matching platform ADMIN_SECRET (investigate, chat)
+ *
+ * Browser push (optional — the bell still works when these are empty):
+ *   VAPID_PUBLIC_KEY    Web Push application server public key
+ *   VAPID_PRIVATE_KEY   Web Push application server private key
+ *   VAPID_SUBJECT       mailto: or https:// contact. Defaults to mailto:notifications@mge.tf
  */
 
 /**
@@ -51,6 +56,8 @@ const RECOMMENDED_VARS = [
   'MGE_PLATFORM_ADMIN_SECRET',
   'PARSER_URL',
   'REALTIME_NOTIFICATIONS_ENABLED',
+  'VAPID_PUBLIC_KEY',
+  'VAPID_PRIVATE_KEY',
   'SOURCEBANS_API_URL',
   'SOURCEBANS_API_TOKEN',
   'DISCORD_BOT_TOKEN',
@@ -179,6 +186,30 @@ export function getParserUrl(): string {
  */
 export function isRealtimeNotificationsEnabled(): boolean {
   return getOptionalEnv('REALTIME_NOTIFICATIONS_ENABLED', 'true') !== 'false';
+}
+
+export function getVapidPublicKey(): string {
+  return getOptionalEnv('VAPID_PUBLIC_KEY').trim();
+}
+
+export function getVapidPrivateKey(): string {
+  return getOptionalEnv('VAPID_PRIVATE_KEY').trim();
+}
+
+const DEFAULT_VAPID_SUBJECT = 'mailto:notifications@mge.tf';
+
+/**
+ * Contact URL required by the Web Push protocol.
+ * Browsers reject a subject that is not mailto: or https://.
+ */
+export function normalizeVapidSubject(raw: string): string {
+  const subject = raw.trim();
+  if (subject.startsWith('mailto:') || subject.startsWith('https://')) return subject;
+  return DEFAULT_VAPID_SUBJECT;
+}
+
+export function getVapidSubject(): string {
+  return normalizeVapidSubject(getOptionalEnv('VAPID_SUBJECT', DEFAULT_VAPID_SUBJECT));
 }
 
 export function getSourcebansApiUrl(): string {

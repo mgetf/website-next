@@ -8,6 +8,7 @@ import { prisma } from '#lib/server/db.js';
 import type { NotificationType } from '#prisma/client.js';
 import { notificationHub, buildNotifyPayload } from '#lib/server/realtime/notificationHub.js';
 import type { NotificationPayload } from '#lib/server/realtime/notificationHub.js';
+import { deliverBrowserPush } from '#lib/server/services/browserPush.js';
 
 const actorSelect = {
   steamId: true,
@@ -29,6 +30,14 @@ async function emitNotify(notification: NotificationPayload): Promise<void> {
       err instanceof Error ? err.message : err,
     );
   }
+
+  void deliverBrowserPush({
+    id: notification.id,
+    userSteamId: notification.userSteamId,
+    type: notification.type,
+    url: notification.url,
+    message: notification.message,
+  });
 }
 
 /**

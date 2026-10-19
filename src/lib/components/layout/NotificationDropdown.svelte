@@ -10,6 +10,7 @@
   import Mail from '~icons/lucide/mail';
   import Shield from '~icons/lucide/shield';
   import Bell from '~icons/lucide/bell';
+  import ComputerNotifications from '#lib/components/layout/ComputerNotifications.svelte';
 
   type Props = {
     notifications: Notification[];
@@ -172,6 +173,10 @@
           <span class="text-xs text-text-muted">{notificationState.unreadCount} unread</span>
         {/if}
       </div>
+
+      {#key userSteamId}
+        <ComputerNotifications />
+      {/key}
 
       {#if notificationState.dropdownNotifications.length > 0}
         <div class="max-h-96 overflow-y-auto">

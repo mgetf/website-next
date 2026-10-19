@@ -524,6 +524,7 @@ model User {
   mapBanActions              MapBanAction[]
   notificationsReceived      Notification[]     @relation("NotificationRecipient")
   notificationsTriggered     Notification[]     @relation("NotificationActor")
+  pushSubscriptions          PushSubscription[]
   auditLogs                  AuditLog[]
   apiKeys                    ApiKey[]
   eventMatchPlayers          EventMatchPlayer[]
@@ -1278,6 +1279,22 @@ model Notification {
   @@index([userSteamId, createdAt])
   @@index([userSteamId, isRead, createdAt])
   @@map("notifications")
+}
+
+// One row per browser that opted into operating-system notifications.
+model PushSubscription {
+  id          Int      @id @default(autoincrement())
+  userSteamId String   @map("user_steam_id")
+  endpoint    String   @unique
+  p256dh      String
+  auth        String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userSteamId], references: [steamId], onDelete: Cascade)
+
+  @@index([userSteamId])
+  @@map("push_subscriptions")
 }
 
 // Audit Logging

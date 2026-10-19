@@ -57,4 +57,17 @@ export const variables = defineEnvVars({
     description: 'Public site origin used for Steam OpenID, PayPal returns, and CSRF',
     schema: optional,
   },
+  VAPID_PUBLIC_KEY: {
+    description: 'Web Push VAPID public key. Computer notifications stay off when this is empty.',
+    schema: optional,
+  },
+  VAPID_PRIVATE_KEY: {
+    description: 'Web Push VAPID private key. Pair with VAPID_PUBLIC_KEY.',
+    schema: optional,
+  },
+  VAPID_SUBJECT: {
+    description:
+      'Web Push contact URL (mailto: or https://). Defaults to mailto:notifications@mge.tf',
+    schema: optional,
+  },
 });

@@ -12,6 +12,7 @@
   import Card from '#lib/components/ui/Card.svelte';
   import Badge from '#lib/components/ui/Badge.svelte';
   import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
+  import StaffShield from '#lib/components/ui/StaffShield.svelte';
   import MarkdownRenderer from '#lib/components/markdown/MarkdownRenderer.svelte';
   import MarkdownEditor from '#lib/components/markdown/MarkdownEditor.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
@@ -1416,7 +1417,7 @@
 
     <!-- Messages -->
     <div class="space-y-3">
-      {#each userComms as comm, index}
+      {#each userComms as comm, index (comm.id)}
         <div class="p-4 bg-surface-input rounded-lg">
           <div class="flex items-start space-x-3">
             <div class="flex-shrink-0">
@@ -1439,6 +1440,9 @@
                 >
                   {comm.user?.steamUsername || 'Unknown'}
                 </a>
+                {#if comm.user && (comm.user.permissionLevel === 'ADMIN' || comm.user.permissionLevel === 'MODERATOR')}
+                  <StaffShield role={comm.user.permissionLevel} />
+                {/if}
                 {#if comm.createdAt}
                   <span class="text-xs text-text-body">
                     {new Date(comm.createdAt).toLocaleString()}

@@ -172,16 +172,17 @@
       sideOffset={8}
     >
       <!-- Header -->
-      <div class="px-4 py-2 border-b border-border-default flex justify-between items-center">
+      <div class="px-4 py-2 border-b border-border-default flex justify-between items-center gap-2">
         <span class="text-sm font-medium text-white">Notifications</span>
-        {#if notificationState.unreadCount > 0}
-          <span class="text-xs text-text-muted">{notificationState.unreadCount} unread</span>
-        {/if}
+        <div class="flex items-center gap-2">
+          {#if notificationState.unreadCount > 0}
+            <span class="text-xs text-text-muted">{notificationState.unreadCount} unread</span>
+          {/if}
+          {#key userSteamId}
+            <ComputerNotifications />
+          {/key}
+        </div>
       </div>
-
-      {#key userSteamId}
-        <ComputerNotifications />
-      {/key}
 
       {#if notificationState.dropdownNotifications.length > 0}
         <div class="max-h-96 overflow-y-auto">

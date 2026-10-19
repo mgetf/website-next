@@ -104,11 +104,12 @@ export async function syncBrowserPush(): Promise<BrowserPushStatus> {
   return 'on';
 }
 
-export async function enableBrowserPush(): Promise<void> {
+export async function enableBrowserPush(onPromptSettled?: () => void): Promise<void> {
   const key = await publicKey();
   if (!key) throw new Error('Computer notifications are not configured');
 
   const permission = await Notification.requestPermission();
+  onPromptSettled?.();
   if (permission !== 'granted') {
     throw new Error(
       permission === 'denied'

@@ -8,6 +8,7 @@
   import LoadingBar from '#lib/components/layout/LoadingBar.svelte';
   import DevGate from '#lib/components/layout/DevGate.svelte';
   import ToastContainer from '#lib/components/ui/ToastContainer.svelte';
+  import NotificationPermissionCue from '#lib/components/layout/NotificationPermissionCue.svelte';
   import { identifyUser } from '#lib/utils/posthog.js';
   import {
     DEFAULT_SEO_DESCRIPTION,
@@ -89,6 +90,7 @@
 
 <!-- Global Toast Notifications -->
 <ToastContainer />
+<NotificationPermissionCue />
 
 <Tooltip.Provider delayDuration={200}>
   <!-- Dev/Staging Gate: Show restricted access page for non-admins -->

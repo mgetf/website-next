@@ -801,13 +801,51 @@ export interface ChangeTeamDivisionResult {
   notifiedPlayerSteamIds: string[];
 }
 
+export function divisionMoveRefundNotice(input: {
+  oldDivisionName: string;
+  newDivisionName: string;
+  paidWithItems: boolean;
+  steamId: string;
+  teamId: number;
+}): { url: string; message: string } {
+  const moved = `Your division was changed from ${input.oldDivisionName} to ${input.newDivisionName}.`;
+  if (input.paidWithItems) {
+    return {
+      url: `/users/${input.steamId}?tab=payments`,
+      message: `${moved} Since you paid with items for ${input.oldDivisionName}, you may be entitled to a refund. Open the Payments tab on your profile and set your Steam trade offer link so an admin can process it.`,
+    };
+  }
+
+  return {
+    url: `/teams/${input.teamId}`,
+    message: `${moved} Since you already paid for ${input.oldDivisionName}, you may be entitled to a refund. Please contact an admin to discuss your options (PayPal refund, TF2 keys, or site credit for future signups).`,
+  };
+}
+
+/** Players who sent an item payment for this team. Item refunds use their trade link. */
+async function playersPaidWithItems(teamId: number, steamIds: string[]): Promise<Set<string>> {
+  if (steamIds.length === 0) return new Set();
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      teamId,
+      currency: 'ITEMS',
+      purchasedBy: { in: steamIds },
+    },
+    select: { purchasedBy: true },
+  });
+
+  return new Set(payments.map((payment) => payment.purchasedBy));
+}
+
 /**
  * Change a team's division with payment status side-effects.
  * Pass `null` to unplace the team.
  *
  * Free → Paid:  resets paymentStatus to 0 for all active players and the team.
- * Paid → Free:  marks all active players and the team as paid (1), and sends
- *               a refund-eligibility notification to any players who had already paid.
+ * Paid → Free:  marks all active players and the team as exempt (2), and notifies
+ *               players who had already paid. Item payers are sent to the Payments
+ *               tab to set a trade link so an admin can process the refund.
  * Same tier:    no payment changes.
  * Unplaced is treated as free for payment side-effects.
  */
@@ -897,17 +935,23 @@ export async function changeTeamDivision(
   });
 
   // Send notifications outside the transaction (non-critical)
-  const teamUrl = `/teams/${teamId}`;
   const oldDivName = oldDiv?.name ?? 'Unknown';
   const newDivName = newDivision?.name ?? 'Unplaced';
-  const refundMessage = `Your division was changed from ${oldDivName} to ${newDivName}. Since you already paid for ${oldDivName}, you may be entitled to a refund. Please contact an admin to discuss your options (PayPal refund, TF2 keys, or site credit for future signups).`;
+  const itemPayers = await playersPaidWithItems(teamId, notifiedPlayerSteamIds);
 
   for (const steamId of notifiedPlayerSteamIds) {
+    const notice = divisionMoveRefundNotice({
+      oldDivisionName: oldDivName,
+      newDivisionName: newDivName,
+      paidWithItems: itemPayers.has(steamId),
+      steamId,
+      teamId,
+    });
     await createNotificationForUser(
       steamId,
       NotificationType.ADMIN_ACTION,
-      teamUrl,
-      refundMessage,
+      notice.url,
+      notice.message,
       adminSteamId,
     );
   }

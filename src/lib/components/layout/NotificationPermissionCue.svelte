@@ -11,7 +11,7 @@
     in:fade={{ duration: 180 }}
   >
     <div
-      class="absolute top-[7.75rem] left-[14.5rem] flex w-44 flex-col items-center gap-1.5 text-center"
+      class="absolute top-[10.75rem] left-[14.5rem] flex w-44 flex-col items-center gap-1.5 text-center"
     >
       <svg
         class="permission-arrow h-16 w-10 text-white drop-shadow-md"

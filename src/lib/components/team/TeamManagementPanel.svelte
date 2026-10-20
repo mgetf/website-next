@@ -317,7 +317,7 @@
       {/each}
     </div>
 
-    <div class="p-6">
+    <div class="p-4 sm:p-6">
       {#if section === 'info'}
         <div class="space-y-8">
           <form method="POST" action="?/updateInfo" use:enhance>
@@ -415,12 +415,14 @@
         {:else}
           <div class="space-y-3">
             {#each management.players as player (player.steamId)}
-              <div class="flex items-center justify-between gap-3 rounded-lg bg-surface-input p-4">
+              <div
+                class="flex flex-col gap-3 rounded-lg bg-surface-input p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
+              >
                 <div class="flex min-w-0 items-center gap-3">
                   <img
                     src={player.avatar || DEFAULT_AVATAR}
                     alt=""
-                    class="size-12 rounded-lg object-cover"
+                    class="size-10 shrink-0 rounded-lg object-cover sm:size-12"
                   />
                   <div class="min-w-0">
                     <p class="truncate font-semibold text-text-heading">{player.name}</p>

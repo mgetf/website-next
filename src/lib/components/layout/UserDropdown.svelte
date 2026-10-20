@@ -1,5 +1,6 @@
 <script lang="ts">
   import { DropdownMenu } from 'bits-ui';
+  import { MediaQuery } from 'svelte/reactivity';
   import type { NavUserTeam, SessionUser } from '#lib/types/user.js';
   import { UserRole } from '#lib/types/user.js';
   import ChevronDown from '~icons/lucide/chevron-down';
@@ -17,9 +18,18 @@
   let { user, userTeams = [] }: Props = $props();
 
   let open = $state(false);
+  let teamsOpen = $state(false);
+  const inlineTeams = new MediaQuery('(max-width: 767px)');
+
+  function handleOpenChange(next: boolean) {
+    open = next;
+    if (!next) teamsOpen = false;
+  }
 
   const itemClass =
     'flex cursor-pointer select-none items-center gap-3 rounded-md px-4 py-2.5 text-sm text-text-label outline-none data-highlighted:bg-surface-input/50 data-highlighted:text-text-heading';
+  const nestedItemClass =
+    'flex cursor-pointer select-none items-center gap-3 rounded-md py-2.5 pr-4 pl-12 text-sm text-text-label outline-none data-highlighted:bg-surface-input/50 data-highlighted:text-text-heading';
   const contentClass =
     'z-50 w-64 rounded-lg border border-border-default bg-surface-card p-0 shadow-xl outline-none';
 
@@ -46,7 +56,7 @@
   });
 </script>
 
-<DropdownMenu.Root bind:open>
+<DropdownMenu.Root bind:open onOpenChange={handleOpenChange}>
   <DropdownMenu.Trigger
     class="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-input/50 rounded-lg transition-all"
     aria-label="User menu"
@@ -101,43 +111,44 @@
         </DropdownMenu.Item>
 
         {#if userTeams.length > 0}
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger class="{itemClass} justify-between">
+          {#if inlineTeams.current}
+            <DropdownMenu.Item
+              class="{itemClass} justify-between"
+              closeOnSelect={false}
+              aria-expanded={teamsOpen}
+              onSelect={() => (teamsOpen = !teamsOpen)}
+            >
               <span class="flex items-center gap-3">
                 <Users class="size-5 shrink-0" />
                 <span>My Teams</span>
               </span>
-              <ChevronRight class="size-4 shrink-0 text-text-muted" />
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.SubContent class="{contentClass} w-56 py-1" sideOffset={6}>
+              <ChevronDown
+                class="size-4 shrink-0 text-text-muted transition-transform {teamsOpen
+                  ? 'rotate-180'
+                  : ''}"
+              />
+            </DropdownMenu.Item>
+            {#if teamsOpen}
               {#each userTeams as team (team.id)}
-                <DropdownMenu.Item class={itemClass}>
-                  {#snippet child({ props })}
-                    <a href="/teams/{team.id}" {...props}>
-                      {#if team.avatar}
-                        <img
-                          src={team.avatar}
-                          alt=""
-                          class="w-8 h-8 rounded-md object-cover shrink-0"
-                        />
-                      {:else}
-                        <span
-                          class="w-8 h-8 rounded-md bg-surface-hover text-text-body flex items-center justify-center text-sm font-bold shrink-0"
-                        >
-                          {team.name.charAt(0).toUpperCase()}
-                        </span>
-                      {/if}
-                      <span class="min-w-0">
-                        <span class="block truncate text-text-heading">{team.name}</span>
-                        <span class="block truncate text-xs text-text-muted">{team.formatName}</span
-                        >
-                      </span>
-                    </a>
-                  {/snippet}
-                </DropdownMenu.Item>
+                {@render teamItem(team, true)}
               {/each}
-            </DropdownMenu.SubContent>
-          </DropdownMenu.Sub>
+            {/if}
+          {:else}
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger class="{itemClass} justify-between">
+                <span class="flex items-center gap-3">
+                  <Users class="size-5 shrink-0" />
+                  <span>My Teams</span>
+                </span>
+                <ChevronRight class="size-4 shrink-0 text-text-muted" />
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.SubContent class="{contentClass} w-56 py-1" sideOffset={6}>
+                {#each userTeams as team (team.id)}
+                  {@render teamItem(team, false)}
+                {/each}
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Sub>
+          {/if}
         {/if}
 
         {#if isAdminUser}
@@ -169,3 +180,25 @@
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
+
+{#snippet teamItem(team: NavUserTeam, nested: boolean)}
+  <DropdownMenu.Item class={nested ? nestedItemClass : itemClass}>
+    {#snippet child({ props })}
+      <a href="/teams/{team.id}" {...props}>
+        {#if team.avatar}
+          <img src={team.avatar} alt="" class="size-8 shrink-0 rounded-md object-cover" />
+        {:else}
+          <span
+            class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-hover text-sm font-bold text-text-body"
+          >
+            {team.name.charAt(0).toUpperCase()}
+          </span>
+        {/if}
+        <span class="min-w-0">
+          <span class="block truncate text-text-heading">{team.name}</span>
+          <span class="block truncate text-xs text-text-muted">{team.formatName}</span>
+        </span>
+      </a>
+    {/snippet}
+  </DropdownMenu.Item>
+{/snippet}

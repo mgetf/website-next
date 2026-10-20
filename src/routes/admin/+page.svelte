@@ -9,6 +9,7 @@
   import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
   import Card from '#lib/components/ui/Card.svelte';
   import FormError from '#lib/components/ui/form/FormError.svelte';
+  import SeasonScope from '#lib/components/ui/SeasonScope.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
   import CircleCheck from '~icons/lucide/circle-check';
   import ClipboardList from '~icons/lucide/clipboard-list';
@@ -17,8 +18,7 @@
 
   const matchColumns = [
     { key: 'match', label: 'Match' },
-    { key: 'division', label: 'Division' },
-    { key: 'season', label: 'Season' },
+    { key: 'scope', label: 'Season' },
     { key: 'action', label: 'Action', align: 'right' as const },
   ];
 
@@ -96,7 +96,7 @@
   });
 </script>
 
-<div class="max-w-7xl mx-auto space-y-6">
+<div class="mx-auto min-w-0 max-w-7xl space-y-6">
   <!-- Header -->
   <div class="mb-8">
     <h1 class="text-3xl font-bold text-text-heading mb-2">Dashboard</h1>
@@ -115,16 +115,17 @@
           ? 'border-warning-500/50'
           : 'border-border-default'}"
     >
-      <div class="p-5 flex items-center justify-between gap-4">
-        <div class="flex items-center gap-4">
+      <div class="flex flex-col gap-4 p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
           <div
-            class="w-12 h-12 rounded-lg flex items-center justify-center {info?.status === 'red'
+            class="flex size-12 shrink-0 items-center justify-center rounded-lg {info?.status ===
+            'red'
               ? 'bg-danger-500/20 text-danger-ink'
               : info?.status === 'yellow'
                 ? 'bg-warning-500/20 text-warning-ink'
                 : 'bg-success-500/20 text-success-ink'}"
           >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="size-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -133,8 +134,8 @@
               />
             </svg>
           </div>
-          <div>
-            <h2 class="text-xl font-bold text-text-heading">
+          <div class="min-w-0">
+            <h2 class="text-lg font-bold text-text-heading sm:text-xl">
               {#if currentMatchWeek}
                 Create Week {currentMatchWeek} Matches
               {:else}
@@ -150,7 +151,9 @@
                     : 'text-text-body'}"
               >
                 <span class="font-medium">{info.timeText}</span>
-                <span class="text-text-muted ml-1">• {info.formattedDate}</span>
+                <span class="mt-0.5 block text-text-muted md:mt-0 md:ml-1 md:inline"
+                  >· {info.formattedDate}</span
+                >
               </p>
             {:else}
               <p class="text-sm text-text-body">No deadline set</p>
@@ -161,7 +164,7 @@
           variant="primary"
           href="/admin/matches/create"
           size="lg"
-          class="flex items-center gap-2"
+          class="flex w-full items-center justify-center gap-2 md:w-auto"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -177,12 +180,12 @@
     </div>
   {:else}
     <Card padding="none" class="overflow-hidden shadow-lg">
-      <div class="p-5 flex items-center justify-between gap-4">
-        <div class="flex items-center gap-4">
+      <div class="flex flex-col gap-4 p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
           <div
-            class="w-12 h-12 rounded-lg bg-info-500/20 flex items-center justify-center text-info-ink"
+            class="flex size-12 shrink-0 items-center justify-center rounded-lg bg-info-500/20 text-info-ink"
           >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="size-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -191,10 +194,10 @@
               />
             </svg>
           </div>
-          <div>
-            <h2 class="text-xl font-bold text-text-heading">Create Matches</h2>
+          <div class="min-w-0">
+            <h2 class="text-lg font-bold text-text-heading sm:text-xl">Create Matches</h2>
             <p class="text-sm text-text-muted">
-              No deadline configured • Set one in Global Settings
+              No deadline configured · Set one in Global Settings
             </p>
           </div>
         </div>
@@ -202,7 +205,7 @@
           variant="primary"
           href="/admin/matches/create"
           size="lg"
-          class="flex items-center gap-2"
+          class="flex w-full items-center justify-center gap-2 md:w-auto"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -220,10 +223,12 @@
 
   <!-- Pending Players - Inline Quick Actions -->
   <Card padding="none" class="overflow-hidden shadow-lg">
-    <div class="p-5 border-b border-border-default flex items-center justify-between">
-      <div class="flex items-center gap-3">
+    <div
+      class="flex flex-col gap-3 border-b border-border-default p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+    >
+      <div class="flex min-w-0 items-center gap-3">
         <div
-          class="w-10 h-10 rounded-lg bg-warning-500/20 flex items-center justify-center text-warning-ink"
+          class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-warning-500/20 text-warning-ink"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -234,18 +239,18 @@
             />
           </svg>
         </div>
-        <div>
-          <h2 class="text-xl font-bold text-text-heading">Pending Players</h2>
+        <div class="min-w-0">
+          <h2 class="text-lg font-bold text-text-heading sm:text-xl">Pending Players</h2>
           <p class="text-sm text-text-body">
             {pendingApprovals.length} item{pendingApprovals.length !== 1 ? 's' : ''} waiting for approval
           </p>
         </div>
       </div>
       {#if pendingApprovals.length > 5}
-        <a
-          href="/admin/pending-players"
-          class="text-sm text-info-ink hover:text-primary-300 font-medium transition"
-        >
+      <a
+        href="/admin/pending-players"
+        class="shrink-0 text-sm font-medium text-info-ink transition hover:text-primary-300"
+      >
           View all →
         </a>
       {/if}
@@ -262,9 +267,10 @@
         </div>
       {:else}
         {#each pendingApprovals.slice(0, 5) as item (item.key)}
-          <div class="p-4 hover:bg-surface-input/50 transition-colors">
-            <div class="flex items-center justify-between gap-4">
-              <div class="flex items-center gap-3 min-w-0 flex-1">
+          <div
+            class="flex flex-col gap-3 p-4 transition-colors hover:bg-surface-input/50 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="flex min-w-0 items-center gap-3">
                 {#if item.playerSteamId}
                   <a href="/users/{item.playerSteamId}" class="flex-shrink-0">
                     <img
@@ -280,12 +286,12 @@
                     {#if item.playerSteamId}
                       <a
                         href="/users/{item.playerSteamId}"
-                        class="text-text-heading font-semibold hover:text-primary-ink transition-colors truncate"
+                        class="font-semibold break-words text-text-heading transition-colors hover:text-primary-ink"
                       >
                         {item.playerUsername}
                       </a>
                     {:else}
-                      <span class="text-text-heading font-semibold truncate"
+                      <span class="font-semibold break-words text-text-heading"
                         >{item.playerUsername}</span
                       >
                     {/if}
@@ -293,7 +299,7 @@
                       <span class="text-text-muted">→</span>
                       <a
                         href="/teams/{item.teamId}"
-                        class="text-primary-ink hover:text-primary-300 font-medium transition-colors truncate"
+                        class="font-medium break-words text-primary-ink transition-colors hover:text-primary-300"
                       >
                         {item.teamName}
                       </a>
@@ -301,7 +307,7 @@
                       <span class="text-text-muted">·</span>
                       <a
                         href="/teams/{item.teamId}"
-                        class="text-primary-ink hover:text-primary-300 font-medium transition-colors truncate"
+                        class="font-medium break-words text-primary-ink transition-colors hover:text-primary-300"
                       >
                         {item.teamName}
                       </a>
@@ -324,7 +330,7 @@
                 </div>
               </div>
 
-              <div class="flex items-center gap-2 flex-shrink-0">
+              <div class="flex flex-wrap items-center gap-2">
                 {#if decliningKey === item.key}
                   <form
                     method="POST"
@@ -338,7 +344,7 @@
                         declineReasons[item.key] = '';
                       };
                     }}
-                    class="flex items-center gap-2"
+                    class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center"
                   >
                     <input type="hidden" name="kind" value={item.kind} />
                     <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
@@ -349,19 +355,21 @@
                       bind:value={declineReasons[item.key]}
                       placeholder="Reason..."
                       required
-                      class="px-3 py-1.5 bg-surface-input border border-border-input rounded-md text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
+                      class="w-full rounded-md border border-border-input bg-surface-input px-3 py-1.5 text-sm text-text-heading focus:ring-2 focus:ring-primary-500 focus:outline-none sm:w-40"
                     />
-                    <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
-                      Confirm
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onclick={() => (decliningKey = null)}
-                    >
-                      Cancel
-                    </Button>
+                    <div class="flex gap-2">
+                      <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
+                        Confirm
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onclick={() => (decliningKey = null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </form>
                 {:else}
                   <form
@@ -389,7 +397,6 @@
                 {/if}
               </div>
             </div>
-          </div>
         {/each}
       {/if}
     </div>
@@ -397,10 +404,12 @@
 
   <!-- Recent Unplayed Matches -->
   <Card padding="none" class="overflow-hidden shadow-lg">
-    <div class="p-5 border-b border-border-default flex items-center justify-between">
-      <div class="flex items-center gap-3">
+    <div
+      class="flex flex-col gap-3 border-b border-border-default p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+    >
+      <div class="flex min-w-0 items-center gap-3">
         <div
-          class="w-10 h-10 rounded-lg bg-info-500/20 flex items-center justify-center text-info-ink"
+          class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-info-500/20 text-info-ink"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -411,14 +420,14 @@
             />
           </svg>
         </div>
-        <div>
-          <h2 class="text-xl font-bold text-text-heading">Upcoming Matches</h2>
+        <div class="min-w-0">
+          <h2 class="text-lg font-bold text-text-heading sm:text-xl">Upcoming Matches</h2>
           <p class="text-sm text-text-body">Recent unplayed matches requiring attention</p>
         </div>
       </div>
       <a
         href="/admin/matches"
-        class="text-sm text-info-ink hover:text-primary-300 font-medium transition"
+        class="shrink-0 text-sm font-medium text-info-ink transition hover:text-primary-300"
       >
         Manage matches →
       </a>
@@ -437,46 +446,68 @@
         </p>
       </div>
     {:else}
-      <DataTable data={recentMatches} columns={matchColumns} emptyMessage="No unplayed matches">
-        {#snippet cell(match, col)}
-          {#if col.key === 'match'}
-            <div class="flex items-center gap-2">
-              <span class="text-text-heading font-medium">{match.homeTeam.name}</span>
-              <span class="text-text-muted text-sm">vs</span>
-              <span class="text-text-heading font-medium">{match.awayTeam.name}</span>
-            </div>
-          {:else if col.key === 'division'}
-            <span class="text-sm text-text-label">{match.homeTeam.division?.name || '-'}</span>
-          {:else if col.key === 'season'}
-            <span class="text-sm text-text-body">
-              {match.season.region.name} S{match.season.seasonNum}
-            </span>
-          {:else if col.key === 'action'}
-            <a
-              href="/matches/{match.id}"
-              class="text-info-ink hover:text-primary-300 text-sm font-medium"
-            >
-              View
-            </a>
-          {/if}
-        {/snippet}
-      </DataTable>
+      <div class="divide-y divide-border-default lg:hidden">
+        {#each recentMatches as match (match.id)}
+          <a href="/matches/{match.id}" class="block p-4 transition-colors hover:bg-surface-input/50">
+            <p class="font-medium break-words text-text-heading">
+              {match.homeTeam.name}
+              <span class="text-sm text-text-muted">vs</span>
+              {match.awayTeam.name}
+            </p>
+            <p class="mt-1">
+              <SeasonScope
+                region={match.season.region.name}
+                seasonNum={match.season.seasonNum}
+                division={match.homeTeam.division?.name}
+                class="text-sm"
+              />
+            </p>
+          </a>
+        {/each}
+      </div>
+      <div class="hidden lg:block">
+        <DataTable data={recentMatches} columns={matchColumns} emptyMessage="No unplayed matches">
+          {#snippet cell(match, col)}
+            {#if col.key === 'match'}
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span class="font-medium text-text-heading">{match.homeTeam.name}</span>
+                <span class="text-sm text-text-muted">vs</span>
+                <span class="font-medium text-text-heading">{match.awayTeam.name}</span>
+              </div>
+            {:else if col.key === 'scope'}
+              <SeasonScope
+                region={match.season.region.name}
+                seasonNum={match.season.seasonNum}
+                division={match.homeTeam.division?.name}
+                class="text-sm"
+              />
+            {:else if col.key === 'action'}
+              <a
+                href="/matches/{match.id}"
+                class="text-sm font-medium text-info-ink hover:text-primary-300"
+              >
+                View
+              </a>
+            {/if}
+          {/snippet}
+        </DataTable>
+      </div>
     {/if}
   </Card>
 
   <!-- Quick Alerts -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <!-- Disputed Matches -->
     <a
       href="/admin/disputes"
       class="bg-surface-card border border-border-default rounded-lg p-5 hover:bg-surface-input/70 transition group"
     >
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-3">
           <div
-            class="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-ink group-hover:bg-primary-500/30 transition"
+            class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-500/20 text-primary-ink transition group-hover:bg-primary-500/30"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -485,7 +516,7 @@
               />
             </svg>
           </div>
-          <div>
+          <div class="min-w-0">
             <div class="text-2xl font-bold text-primary-ink">
               {analytics.keyMetrics.disputedMatches}
             </div>
@@ -493,7 +524,7 @@
           </div>
         </div>
         <svg
-          class="w-5 h-5 text-text-muted group-hover:text-primary-ink transition"
+          class="size-5 shrink-0 text-text-muted transition group-hover:text-primary-ink"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -508,12 +539,12 @@
       href="/admin/demos"
       class="bg-surface-card border border-border-default rounded-lg p-5 hover:bg-surface-input/70 transition group"
     >
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-3">
           <div
-            class="w-10 h-10 rounded-lg bg-danger-500/20 flex items-center justify-center text-danger-ink group-hover:bg-danger-500/30 transition"
+            class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-danger-500/20 text-danger-ink transition group-hover:bg-danger-500/30"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -522,7 +553,7 @@
               />
             </svg>
           </div>
-          <div>
+          <div class="min-w-0">
             <div class="text-2xl font-bold text-danger-ink">
               {analytics.keyMetrics.openDemoReports}
             </div>
@@ -530,7 +561,7 @@
           </div>
         </div>
         <svg
-          class="w-5 h-5 text-text-muted group-hover:text-danger-ink transition"
+          class="size-5 shrink-0 text-text-muted transition group-hover:text-danger-ink"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -549,30 +580,30 @@
     </div>
 
     <!-- Key Metrics Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-        <div class="text-3xl font-bold text-info-ink mb-1">
+    <div class="mb-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+      <div class="rounded-lg border border-border-input bg-surface-input/50 p-3 sm:p-4">
+        <div class="mb-1 text-2xl font-bold text-info-ink sm:text-3xl">
           {analytics.totalPlayers}
         </div>
         <div class="text-xs text-text-body">Active Players</div>
       </div>
 
-      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-        <div class="text-3xl font-bold text-info-ink mb-1">
+      <div class="rounded-lg border border-border-input bg-surface-input/50 p-3 sm:p-4">
+        <div class="mb-1 text-2xl font-bold text-info-ink sm:text-3xl">
           {analytics.totalTeams}
         </div>
         <div class="text-xs text-text-body">Active Teams</div>
       </div>
 
-      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-        <div class="text-3xl font-bold text-success-ink mb-1">
+      <div class="rounded-lg border border-border-input bg-surface-input/50 p-3 sm:p-4">
+        <div class="mb-1 text-2xl font-bold text-success-ink sm:text-3xl">
           {analytics.paymentStatus.paymentRate}%
         </div>
         <div class="text-xs text-text-body">Payment Rate</div>
       </div>
 
-      <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-        <div class="text-3xl font-bold text-info-ink mb-1">
+      <div class="rounded-lg border border-border-input bg-surface-input/50 p-3 sm:p-4">
+        <div class="mb-1 text-2xl font-bold text-info-ink sm:text-3xl">
           {analytics.activeSeasonCount}
         </div>
         <div class="text-xs text-text-body">Active Seasons</div>
@@ -580,8 +611,8 @@
     </div>
 
     <!-- Charts Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card padding="none" class="p-5">
+    <div class="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
+      <Card padding="none" class="min-w-0 p-4 sm:p-5">
         <h3 class="text-lg font-semibold text-text-heading mb-4">Players Per Division</h3>
 
         {#if analytics.playersPerDivision.length > 0}
@@ -609,7 +640,7 @@
         {/if}
       </Card>
 
-      <Card padding="none" class="p-5">
+      <Card padding="none" class="min-w-0 p-4 sm:p-5">
         <h3 class="text-lg font-semibold text-text-heading mb-4">Teams Per Region</h3>
 
         {#if analytics.teamsPerRegion.length > 0}
@@ -640,10 +671,10 @@
 
     <!-- Payment Status -->
     {#if analytics.paymentStatus.totalInPaidDivisions > 0}
-      <Card padding="none" class="p-5 mt-6">
+      <Card padding="none" class="mt-6 min-w-0 p-4 sm:p-5">
         <h3 class="text-lg font-semibold text-text-heading mb-4">Payment Status</h3>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
           <div class="flex items-center justify-center">
             <DoughnutChart
               labels={['Paid', 'Unpaid', 'Free Tier']}

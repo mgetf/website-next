@@ -34,6 +34,7 @@
   import { steamId32FromSteamId64 } from '#lib/utils/steamid.js';
   import Settings from '~icons/lucide/settings';
   import Shield from '~icons/lucide/shield';
+  import X from '~icons/lucide/x';
 
   interface TeamWithMatches {
     teamId: number;
@@ -304,19 +305,23 @@
         {#if isRegistered}
           {#if player.discordLinked}
             <span
-              class="inline-flex items-center gap-1.5 rounded-lg bg-info-500/20 px-2.5 py-1.5 text-xs text-info-ink"
+              class="relative inline-flex items-center gap-1.5 rounded-lg bg-info-500/20 py-1.5 pl-2.5 text-xs text-info-ink {isOwnProfile
+                ? 'pr-5'
+                : 'pr-2.5'}"
             >
               <DiscordIcon size={14} />
               {player.discordUsername}
+              {#if isOwnProfile}
+                <button
+                  type="button"
+                  class="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border border-border-default bg-surface-card text-text-muted transition-colors hover:border-danger-500 hover:bg-danger-600 hover:text-white"
+                  aria-label="Unlink Discord"
+                  onclick={() => (showUnlinkDiscord = true)}
+                >
+                  <X class="size-3" />
+                </button>
+              {/if}
             </span>
-            {#if isOwnProfile}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onclick={() => (showUnlinkDiscord = true)}>Unlink</Button
-              >
-            {/if}
           {:else if isOwnProfile}
             <Button
               href={resolve('auth/discord/login')}
@@ -401,7 +406,11 @@
 
 <div class="border-b border-border-default bg-surface-page">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <div class="flex min-w-0 gap-1" role="tablist" aria-label="Profile sections">
+    <div
+      class="-mx-4 flex gap-1 overflow-x-auto overscroll-x-contain px-4 sm:-mx-6 sm:px-6"
+      role="tablist"
+      aria-label="Profile sections"
+    >
       {#each tabs as item (item.id)}
         <a
           href={tabHref(item.id)}
@@ -411,7 +420,7 @@
           aria-controls="panel-{item.id}"
           data-sveltekit-reset="false"
           aria-label={item.staff ? `${item.label}, staff only` : undefined}
-          class="inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors {item.id ===
+          class="inline-flex shrink-0 items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors {item.id ===
           firstStaffTab
             ? 'ml-auto'
             : ''} {tab === item.id

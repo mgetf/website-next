@@ -196,7 +196,7 @@
   </a>
 {/snippet}
 
-<div class="min-h-screen bg-surface-page text-text-label flex">
+<div class="flex min-h-screen w-full min-w-0 bg-surface-page text-text-label">
   <!-- Sidebar -->
   <aside
     class="hidden lg:block w-64 bg-surface-card border-r border-border-default h-screen sticky top-0 overflow-y-auto"
@@ -234,7 +234,7 @@
   {/if}
 
   <!-- Main Content -->
-  <main class="flex-1 p-6 lg:p-8">
+  <main class="min-w-0 flex-1 p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8">
     {@render children()}
   </main>
 </div>

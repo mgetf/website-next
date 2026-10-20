@@ -384,7 +384,7 @@
       </label>
       {#if !selected.canRemoveFromTeam}
         <p class="text-xs text-text-muted">
-          The team owner cannot be removed. The refund can still go through.
+          The team leader cannot be removed. The refund can still go through.
         </p>
       {/if}
 

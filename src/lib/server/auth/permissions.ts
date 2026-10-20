@@ -57,7 +57,7 @@ export function canModerateUser(
 }
 
 /**
- * Check if user is an admin/owner of a specific team
+ * Check if user is a leader or co-leader of a specific team
  */
 export async function isTeamAdmin(user: SessionUser | null, teamId: number): Promise<boolean> {
   if (!user) return false;
@@ -75,7 +75,7 @@ export async function isTeamAdmin(user: SessionUser | null, teamId: number): Pro
     },
   });
 
-  // Permission level ADMIN (1) or STATUS (2) means admin/owner (not just MEMBER which is 0)
+  // Permission level 1 (co-leader) or 2 (leader), not a regular member (0)
   return (
     membership?.active === 1 &&
     (membership.permissionLevel === 1 || membership.permissionLevel === 2)
@@ -145,14 +145,14 @@ export function requireCanModerateUser(
 }
 
 /**
- * Require user to be team admin or global admin
- * Throws 401 if not authenticated, 403 if not team admin
+ * Require user to be a team leader, co-leader, or site admin
+ * Throws 401 if not authenticated, 403 otherwise
  */
 export async function requireTeamAdmin(user: SessionUser | null, teamId: number): Promise<void> {
   requireAuth(user);
   const isTeamAdminUser = await isTeamAdmin(user, teamId);
   if (!isTeamAdminUser) {
-    forbidden('You must be a team admin or global admin to perform this action');
+    forbidden('You must be a team leader, co-leader, or site admin to perform this action');
   }
 }
 

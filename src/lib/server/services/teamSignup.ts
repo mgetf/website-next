@@ -284,7 +284,7 @@ export async function createTeam(data: TeamCreationData): Promise<number> {
     },
   });
 
-  // Add owner as player with permissionLevel = 2 (Owner)
+  // Add the creator as a player with permissionLevel = 2 (Leader)
   await prisma.playerInTeam.create({
     data: {
       playerSteamId: data.ownerSteamId,
@@ -320,7 +320,7 @@ export async function reregisterTeam(data: TeamReregistrationData): Promise<void
   });
 
   if (!ownership || ownership.permissionLevel !== 2) {
-    forbidden('You must be the team owner to re-register');
+    forbidden('You must be the team leader to re-register');
   }
 
   if (ownership.team.formatId !== data.formatId) {

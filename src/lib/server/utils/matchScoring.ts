@@ -59,7 +59,7 @@ export function canUserManageMatch(
 }
 
 /**
- * Active team admin/owner (permissionLevel >= 1), or the sole 1v1 member.
+ * Active team leader or co-leader (permissionLevel >= 1), or the sole 1v1 member.
  * For 1v1 the sole active member is treated as manager even with a stale
  * permission level (e.g. left over from a prior disband/leave).
  */

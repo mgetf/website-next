@@ -717,6 +717,6 @@ function emptyQuote(
 function refundMessage(currency: string, net: number, notes: RosterNotes): string {
   const symbol = currency === 'EUR' ? '€' : '$';
   const parts = [`PayPal refunded ${symbol}${money(net)} ${currency}.`];
-  if (notes.skippedOwners.length > 0) parts.push('The team owner stayed on the roster.');
+  if (notes.skippedOwners.length > 0) parts.push('The team leader stayed on the roster.');
   return parts.join(' ');
 }

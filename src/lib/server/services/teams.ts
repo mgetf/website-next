@@ -748,7 +748,7 @@ export async function adminSetTeamStatus(id: number, status: TeamStatus) {
 
 /**
  * Toggle a team from UNREADY to PENDING.
- * Requires the caller to be a team admin (permissionLevel >= 1),
+ * Requires the caller to be a team leader or co-leader (permissionLevel >= 1),
  * at least the format's minimum active players, and — on paid divisions —
  * enough of those players to be paid (capped to current roster size).
  */
@@ -769,7 +769,7 @@ export async function toggleTeamReady(teamId: number, userSteamId: string) {
 
   const caller = team.players.find((p) => p.playerSteamId === userSteamId);
   if (!caller || caller.permissionLevel < 1) {
-    forbidden('Only team admins can toggle ready');
+    forbidden('Only team leaders and co-leaders can toggle ready');
   }
 
   if (team.status !== TeamStatus.UNREADY) {

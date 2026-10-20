@@ -263,7 +263,7 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
         },
         data: {
           active: 1,
-          permissionLevel: 2, // Owner
+          permissionLevel: 2, // Leader
           paymentStatus: reactivationPaymentStatus,
           leftAt: null,
           startedAt: new Date(),
@@ -299,12 +299,12 @@ export async function signup1v1(data: Signup1v1Data): Promise<number> {
     },
   });
 
-  // Add player as sole owner (permissionLevel = 2)
+  // Add the player as the sole leader (permissionLevel = 2)
   await prisma.playerInTeam.create({
     data: {
       playerSteamId: data.ownerSteamId,
       teamId: team.id,
-      permissionLevel: 2, // Owner
+      permissionLevel: 2, // Leader
       paymentStatus: playerPaymentStatus,
       active: 1,
     },
@@ -387,7 +387,7 @@ export async function withdraw1v1Entry(
     badRequest('This 1v1 entry has already been withdrawn');
   }
 
-  // If not admin, verify the requesting user is the owner
+  // If not site staff, verify the requesting user is the leader
   if (!isAdmin) {
     const isOwner = team.players.some(
       (p) => p.playerSteamId === requestingSteamId && p.permissionLevel === 2,

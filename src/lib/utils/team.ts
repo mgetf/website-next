@@ -6,7 +6,7 @@ export function parseTeamTab(raw: string | null, canManage: boolean): TeamPageTa
 }
 
 export function teamRoleName(level: number): string {
-  if (level === 2) return 'Owner';
-  if (level === 1) return 'Admin';
+  if (level === 2) return 'Leader';
+  if (level === 1) return 'Co-leader';
   return 'Member';
 }

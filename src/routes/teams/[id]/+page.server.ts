@@ -149,7 +149,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       joinedAt: p.startedAt,
       isPaid: p.paymentStatus !== 0,
       paymentStatus: p.paymentStatus,
-      isLeader: p.permissionLevel >= 1, // ADMIN (1) or STATUS (2)
+      isLeader: p.permissionLevel >= 1, // co-leader (1) or leader (2)
       permissionLevel: p.permissionLevel,
       restrictedClasses: restrictedClassesFromIds(p.restrictedClassIds),
     }));
@@ -425,7 +425,7 @@ export const actions: Actions = {
     const isTeamAdminUser = await isTeamAdmin(locals.user, teamId);
 
     if (!isGlobalAdmin && !isTeamAdminUser) {
-      return fail(403, { error: 'You must be a team admin or global admin' });
+      return fail(403, { error: 'You must be a team leader, co-leader, or site admin' });
     }
 
     const formData = await request.formData();
@@ -985,7 +985,7 @@ export const actions: Actions = {
     const isGlobalAdmin = isAdmin(locals.user);
 
     if (!isOwner && !isGlobalAdmin) {
-      return formError('Only the team owner or an admin can disband the team', 403);
+      return formError('Only the team leader or a site admin can disband the team', 403);
     }
 
     const before = await getTeamAuditSnapshot(teamId);

@@ -260,7 +260,7 @@ export async function uploadTeamAvatar(teamId: number, file: File): Promise<stri
  * Remove player from team
  */
 export async function removePlayer(teamId: number, playerSteamId: string): Promise<void> {
-  // Check player is not owner
+  // Check player is not the leader
   const player = await prisma.playerInTeam.findUnique({
     where: {
       playerSteamId_teamId: {
@@ -275,7 +275,7 @@ export async function removePlayer(teamId: number, playerSteamId: string): Promi
   }
 
   if (player.permissionLevel === 2) {
-    badRequest('Cannot remove team owner');
+    badRequest('Cannot remove the team leader');
   }
 
   // Set player as inactive
@@ -322,7 +322,7 @@ export async function promotePlayer(teamId: number, playerSteamId: string): Prom
     notFound('Player not found in team');
   }
 
-  // Can only promote from 0 to 1 (Member to Admin)
+  // Can only promote from 0 to 1 (Member to Co-leader)
   if (player.permissionLevel >= 1) {
     badRequest('Player already has maximum promotion level');
   }
@@ -357,13 +357,13 @@ export async function demotePlayer(teamId: number, playerSteamId: string): Promi
     notFound('Player not found in team');
   }
 
-  // Can only demote from 1 to 0 (Admin to Member)
+  // Can only demote from 1 to 0 (Co-leader to Member)
   if (player.permissionLevel <= 0) {
     badRequest('Player already has minimum permission level');
   }
 
   if (player.permissionLevel === 2) {
-    badRequest('Cannot demote team owner');
+    badRequest('Cannot demote the team leader');
   }
 
   await prisma.playerInTeam.update({

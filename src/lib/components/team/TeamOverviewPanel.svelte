@@ -13,6 +13,7 @@
   } from '#lib/types/team.js';
   import { classIcon } from '#lib/utils/classIcons.js';
   import { formatDate, placementClass, resultClass } from '#lib/utils/profile.js';
+  import { teamRoleName } from '#lib/utils/team.js';
   import Trophy from '~icons/lucide/trophy';
 
   const DEFAULT_AVATAR = '/default-avatar.png';
@@ -175,9 +176,7 @@
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="truncate text-sm font-semibold text-white">{player.name}</span>
                     {#if player.isLeader}
-                      <Badge color="yellow"
-                        >{player.permissionLevel === 2 ? 'Owner' : 'Admin'}</Badge
-                      >
+                      <Badge color="yellow">{teamRoleName(player.permissionLevel)}</Badge>
                     {/if}
                     {#if showPaymentBadges && !player.isPaid}
                       <Badge color="red">Unpaid</Badge>

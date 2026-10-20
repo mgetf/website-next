@@ -5,6 +5,7 @@
   import Button from '#lib/components/ui/Button.svelte';
   import Card from '#lib/components/ui/Card.svelte';
   import FormatBadge from '#lib/components/ui/FormatBadge.svelte';
+  import { teamRoleName } from '#lib/utils/team.js';
   import CircleX from '~icons/lucide/circle-x';
   import Lock from '~icons/lucide/lock';
   import TriangleAlert from '~icons/lucide/triangle-alert';
@@ -113,7 +114,7 @@
             <div class="mb-8">
               <h3 class="text-lg font-semibold text-white mb-3">Current Roster</h3>
               <div class="space-y-2">
-                {#each data.activePlayers as player}
+                {#each data.activePlayers as player (player.playerSteamId)}
                   <div class="flex items-center gap-3 p-3 bg-surface-input rounded-lg">
                     <img
                       src={player.player.steamAvatar}
@@ -123,11 +124,7 @@
                     <div>
                       <div class="font-medium text-white">{player.player.steamUsername}</div>
                       <div class="text-xs text-text-body">
-                        {player.permissionLevel === 2
-                          ? 'Owner'
-                          : player.permissionLevel === 1
-                            ? 'Admin'
-                            : 'Member'}
+                        {teamRoleName(player.permissionLevel)}
                       </div>
                     </div>
                   </div>

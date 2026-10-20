@@ -352,7 +352,7 @@ export async function createNotificationForRoster(
 }
 
 /**
- * Create notifications for team owners/admins only (permissionLevel >= 1)
+ * Create notifications for team leaders and co-leaders only (permissionLevel >= 1)
  * Used for score submissions, disputes, etc.
  */
 export async function createNotificationForTeamOwners(
@@ -366,7 +366,7 @@ export async function createNotificationForTeamOwners(
     where: {
       teamId: { in: teamIds },
       active: 1,
-      permissionLevel: { gte: 1 }, // 1 = Admin, 2 = Owner
+      permissionLevel: { gte: 1 }, // 1 = Co-leader, 2 = Leader
     },
     select: {
       playerSteamId: true,

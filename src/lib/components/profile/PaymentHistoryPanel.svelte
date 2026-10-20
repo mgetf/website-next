@@ -9,9 +9,11 @@
   import Dialog from '#lib/components/ui/Dialog.svelte';
   import FormInput from '#lib/components/ui/form/FormInput.svelte';
   import SeasonScope from '#lib/components/ui/SeasonScope.svelte';
-  import Tooltip from '#lib/components/ui/Tooltip.svelte';
   import type { ProfilePaymentEntry } from '#lib/types/profile.js';
   import { toast } from '#lib/state/toast.svelte.js';
+  import FileText from '~icons/lucide/file-text';
+  import Receipt from '~icons/lucide/receipt';
+  import Undo2 from '~icons/lucide/undo-2';
 
   interface RefundQuoteView {
     gross: number | null;
@@ -26,6 +28,7 @@
   let {
     steamId,
     entries,
+    covered = [],
     total,
     currentPage,
     totalPages,
@@ -36,6 +39,7 @@
   }: {
     steamId: string;
     entries: ProfilePaymentEntry[];
+    covered?: ProfilePaymentEntry[];
     total: number;
     currentPage: number;
     totalPages: number;
@@ -59,12 +63,22 @@
     { key: 'date', label: 'Date', width: '9.5rem' },
     { key: 'method', label: 'Method', width: '8rem' },
     { key: 'amount', label: 'Amount', width: '8rem' },
-    { key: 'team', label: 'Team' },
-    { key: 'status', label: 'Status', width: '9.5rem' },
-    ...(isAdmin
-      ? [{ key: 'actions', label: 'Actions', align: 'right' as const, width: '6.5rem' }]
-      : []),
+    { key: 'covered', label: 'For', width: '8rem' },
+    { key: 'team', label: 'Team', width: '13rem' },
+    { key: 'status', label: 'Status', width: '8.5rem' },
+    { key: 'actions', label: 'Actions', align: 'right' as const, width: '22rem' },
   ]);
+
+  const coveredColumns = $derived<Column[]>([
+    { key: 'date', label: 'Date', width: '9.5rem' },
+    { key: 'payer', label: 'Paid by' },
+    { key: 'amount', label: 'Amount', width: '8rem' },
+    { key: 'team', label: 'Team', width: '13rem' },
+    { key: 'status', label: 'Status', width: '8.5rem' },
+    { key: 'actions', label: 'Actions', align: 'right' as const, width: '22rem' },
+  ]);
+
+  const iconBtnClass = 'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap';
 
   const profilePath = $derived(resolve('/users/[steamId]', { steamId }));
   const canSubmit = $derived(
@@ -207,6 +221,56 @@
     </p>
   {/if}
 
+  {#snippet paymentActions(entry: ProfilePaymentEntry, includeGroupReceipt: boolean)}
+    <div class="flex flex-nowrap justify-end gap-2">
+      {#if entry.invoiceNumber}
+        <Button
+          href="/invoices/{entry.invoiceNumber}"
+          variant="secondary"
+          size="sm"
+          class={iconBtnClass}
+        >
+          <FileText class="size-3.5" />
+          Invoice
+        </Button>
+      {/if}
+      {#if includeGroupReceipt && entry.groupInvoiceNumber && entry.groupInvoiceNumber !== entry.invoiceNumber}
+        <Button
+          href="/invoices/{entry.groupInvoiceNumber}"
+          variant="secondary"
+          size="sm"
+          class={iconBtnClass}
+        >
+          <Receipt class="size-3.5" />
+          Receipt
+        </Button>
+      {/if}
+      {#if entry.creditNoteNumber}
+        <Button
+          href="/invoices/{entry.creditNoteNumber}"
+          variant="secondary"
+          size="sm"
+          class={iconBtnClass}
+        >
+          <FileText class="size-3.5" />
+          Credit note
+        </Button>
+      {/if}
+      {#if isAdmin && entry.refundable}
+        <Button
+          type="button"
+          variant="danger"
+          size="sm"
+          class={iconBtnClass}
+          onclick={() => openRefund(entry)}
+        >
+          <Undo2 class="size-3.5" />
+          Refund
+        </Button>
+      {/if}
+    </div>
+  {/snippet}
+
   <DataTable
     data={entries}
     {columns}
@@ -267,7 +331,6 @@
               seasonNum={entry.seasonNum}
               division={entry.division}
               formatName={entry.formatName}
-              formatIconUrl={entry.formatIconUrl}
               class="text-xs"
             />
           </div>
@@ -279,35 +342,55 @@
           {statusLabel(entry.status)}
         </Badge>
       {:else if col.key === 'actions'}
-        <div class="flex justify-end">
-          {#if entry.refundable}
-            <Button type="button" variant="secondary" size="sm" onclick={() => openRefund(entry)}>
-              Refund
-            </Button>
-          {:else if entry.refundBlockReason}
-            <Tooltip>
-              {#snippet content()}
-                <p class="max-w-xs text-xs font-medium text-text-heading">
-                  {entry.refundBlockReason}
-                </p>
-              {/snippet}
-              <span class="inline-flex cursor-not-allowed">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled
-                  class="pointer-events-none"
-                >
-                  Refund
-                </Button>
-              </span>
-            </Tooltip>
-          {/if}
-        </div>
+        {@render paymentActions(entry, true)}
+      {:else if col.key === 'covered'}
+        <span class="text-sm text-text-body">{entry.coveredName ?? '—'}</span>
       {/if}
     {/snippet}
   </DataTable>
+
+  {#if covered.length > 0}
+    <h3 class="mt-4 text-sm font-semibold text-text-heading">Participations covered</h3>
+    <p class="text-sm text-text-body">
+      Signup fees someone else paid for this player. The receipt lives on the payer&apos;s profile.
+    </p>
+    <DataTable data={covered} columns={coveredColumns} emptyMessage="No covered participations">
+      {#snippet cell(entry, col)}
+        {#if col.key === 'date'}
+          <span class="block text-text-body">{formatDay(entry.date)}</span>
+          <span class="block text-xs text-text-muted">{formatTime(entry.date)}</span>
+        {:else if col.key === 'payer'}
+          {#if entry.payerHistoryHref}
+            <a
+              href={entry.payerHistoryHref}
+              class="text-sm text-primary-ink hover:text-primary-300"
+            >
+              {entry.payerName ?? 'View payment'}
+            </a>
+          {:else}
+            <span class="text-sm text-text-body">{entry.payerName ?? '—'}</span>
+          {/if}
+        {:else if col.key === 'amount'}
+          <span class="font-medium whitespace-nowrap text-text-heading">{entry.amountLabel}</span>
+        {:else if col.key === 'team'}
+          {#if entry.teamId}
+            <a
+              href={resolve('/teams/[id]', { id: String(entry.teamId) })}
+              class="text-primary-ink hover:text-primary-300"
+            >
+              {entry.teamName}
+            </a>
+          {:else}
+            <span class="text-text-muted">-</span>
+          {/if}
+        {:else if col.key === 'status'}
+          <Badge color={statusColor(entry.status)}>{statusLabel(entry.status)}</Badge>
+        {:else if col.key === 'actions'}
+          {@render paymentActions(entry, false)}
+        {/if}
+      {/snippet}
+    </DataTable>
+  {/if}
 </div>
 
 <Dialog {open} title="Refund payment" onClose={closeRefund}>
@@ -374,17 +457,12 @@
         <input type="checkbox" name="markUnpaid" value="1" bind:checked={markUnpaid} />
         Mark them unpaid on this team
       </label>
-      <label class="flex items-center gap-2 text-sm text-text-body">
-        <input
-          type="checkbox"
-          name="removeFromTeam"
-          value="1"
-          bind:checked={removeFromTeam}
-          disabled={!selected.canRemoveFromTeam}
-        />
-        Remove them from the team
-      </label>
-      {#if !selected.canRemoveFromTeam}
+      {#if selected.canRemoveFromTeam}
+        <label class="flex items-center gap-2 text-sm text-text-body">
+          <input type="checkbox" name="removeFromTeam" value="1" bind:checked={removeFromTeam} />
+          Remove them from the team
+        </label>
+      {:else}
         <p class="text-xs text-text-muted">
           The team leader cannot be removed. The refund can still go through.
         </p>

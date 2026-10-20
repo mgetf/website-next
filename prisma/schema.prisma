@@ -155,6 +155,17 @@ enum PaymentRefundStatus {
   FAILED
 }
 
+enum InvoiceKind {
+  LINE
+  GROUP
+  CREDIT_NOTE
+}
+
+enum InvoiceStatus {
+  ISSUED
+  REFUNDED
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Steam Item Catalog
 // ═══════════════════════════════════════════════════════════════════
@@ -203,6 +214,7 @@ model ItemPaymentOrder {
   status             ItemPaymentStatus @default(PENDING)
   tradeOfferId       String?           @map("trade_offer_id")
   checkoutTeams      String?           @map("checkout_teams")
+  checkoutGroupId    String?           @map("checkout_group_id")
   createdAt          DateTime          @default(now()) @map("created_at")
   completedAt        DateTime?         @map("completed_at")
   expiresAt          DateTime          @map("expires_at")
@@ -212,6 +224,7 @@ model ItemPaymentOrder {
   season Season @relation(fields: [seasonId], references: [id], onDelete: Restrict)
 
   @@index([playerSteamId, status])
+  @@index([checkoutGroupId])
   @@map("item_payment_orders")
 }
 
@@ -518,6 +531,12 @@ model User {
   paymentsMadeFor            Payment[]          @relation("PaymentFor")
   paymentsMadeBy             Payment[]          @relation("PaymentBy")
   paymentTrackers            PaymentTracker[]
+  cart                       Cart?
+  cartLinesCovered           CartLine[]         @relation("CartLinePlayer")
+  cartReservationsHeld       CartReservation[]  @relation("CartReservationPayer")
+  cartReservationsCovered    CartReservation[]  @relation("CartReservationPlayer")
+  invoicesPaid               Invoice[]          @relation("InvoicePayer")
+  invoicesCovered            Invoice[]          @relation("InvoiceCovered")
   demosAsPlayer              Demo[]             @relation("DemoPlayer")
   demosSubmitted             Demo[]             @relation("DemoSubmitter")
   demoReportsSubmitted       DemoReport[]       @relation("DemoReporter")
@@ -797,6 +816,9 @@ model Team {
   payments            Payment[]
   mapBanActions       MapBanAction[]
   itemPaymentOrders   ItemPaymentOrder[]
+  cartLines           CartLine[]
+  cartReservations    CartReservation[]
+  invoices            Invoice[]
   byeWeeks            ByeWeek[]
   playoffSlotsAsTeam1 PlayoffSlot[]      @relation("PlayoffSlotTeam1")
   playoffSlotsAsTeam2 PlayoffSlot[]      @relation("PlayoffSlotTeam2")
@@ -1141,11 +1163,87 @@ model Payment {
   teamId          Int?     @map("team_id")
   paypalCaptureId String?  @map("paypal_capture_id")
 
-  forUser User  @relation("PaymentFor", fields: [purchasedFor], references: [steamId])
-  byUser  User  @relation("PaymentBy", fields: [purchasedBy], references: [steamId])
-  team    Team? @relation(fields: [teamId], references: [id])
+  forUser  User      @relation("PaymentFor", fields: [purchasedFor], references: [steamId])
+  byUser   User      @relation("PaymentBy", fields: [purchasedBy], references: [steamId])
+  team     Team?     @relation(fields: [teamId], references: [id])
+  invoices Invoice[]
 
+  @@index([purchasedFor])
+  @@index([paypalCaptureId])
   @@map("payments")
+}
+
+model Cart {
+  id        Int      @id @default(autoincrement())
+  steamId   String   @unique @map("steam_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User       @relation(fields: [steamId], references: [steamId])
+  lines CartLine[]
+
+  @@map("carts")
+}
+
+model CartLine {
+  id            Int      @id @default(autoincrement())
+  cartId        Int      @map("cart_id")
+  teamId        Int      @map("team_id")
+  playerSteamId String   @map("player_steam_id")
+  addedAt       DateTime @default(now()) @map("added_at")
+
+  cart   Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player User @relation("CartLinePlayer", fields: [playerSteamId], references: [steamId])
+
+  @@unique([cartId, teamId, playerSteamId])
+  @@index([playerSteamId, teamId])
+  @@map("cart_lines")
+}
+
+model CartReservation {
+  id            Int      @id @default(autoincrement())
+  payerSteamId  String   @map("payer_steam_id")
+  teamId        Int      @map("team_id")
+  playerSteamId String   @map("player_steam_id")
+  expiresAt     DateTime @map("expires_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  payer  User @relation("CartReservationPayer", fields: [payerSteamId], references: [steamId])
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player User @relation("CartReservationPlayer", fields: [playerSteamId], references: [steamId])
+
+  @@unique([teamId, playerSteamId])
+  @@index([payerSteamId])
+  @@index([expiresAt])
+  @@map("cart_reservations")
+}
+
+model Invoice {
+  id                 Int           @id @default(autoincrement())
+  number             String        @unique
+  kind               InvoiceKind
+  status             InvoiceStatus @default(ISSUED)
+  paymentId          String?       @map("payment_id")
+  groupKey           String?       @map("group_key")
+  creditForNumber    String?       @map("credit_for_number")
+  payerSteamId       String        @map("payer_steam_id")
+  coveredSteamId     String?       @map("covered_steam_id")
+  teamId             Int?          @map("team_id")
+  snapshot           Json
+  issuedAt           DateTime      @default(now()) @map("issued_at")
+  refundedAt         DateTime?     @map("refunded_at")
+
+  payment Payment? @relation(fields: [paymentId], references: [paymentId])
+  payer   User     @relation("InvoicePayer", fields: [payerSteamId], references: [steamId])
+  covered User?    @relation("InvoiceCovered", fields: [coveredSteamId], references: [steamId])
+  team    Team?    @relation(fields: [teamId], references: [id])
+
+  @@index([payerSteamId])
+  @@index([coveredSteamId])
+  @@index([groupKey])
+  @@index([paymentId])
+  @@map("invoices")
 }
 
 model PaymentRefund {

@@ -20,6 +20,7 @@ import { getPunishmentNoticeCookie } from '#lib/server/utils/punishmentNotice.js
 import { EMPTY_LEAGUE_NAV } from '#lib/types/league.js';
 import { BanStatus } from '#lib/types/user.js';
 import type { PunishmentNotice } from '#lib/types/punishment.js';
+import { getCartCount } from '#lib/server/services/cart.js';
 
 export const load: LayoutServerLoad = async ({ locals, cookies }) => {
   let punishmentNotice: PunishmentNotice | null = getPunishmentNoticeCookie(cookies);
@@ -42,6 +43,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
       signupClosed: true,
       isInTeam: false,
       userTeams: [],
+      cartCount: 0,
       leagueNav: EMPTY_LEAGUE_NAV,
       siteSettings: {
         siteTitle: 'MGE.tf Dev',
@@ -69,17 +71,20 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
   let userTeams: Awaited<ReturnType<typeof getUserActiveTeams>> = [];
   let notifications: Awaited<ReturnType<typeof getNotificationsForDropdown>> = [];
   let notificationCount = 0;
+  let cartCount = 0;
 
   if (locals.user) {
-    const [activeTeams, signedUpForAllOpen] = await Promise.all([
+    const [activeTeams, signedUpForAllOpen, cartItems] = await Promise.all([
       getUserActiveTeams(locals.user.steamId),
       isSignedUpForAllOpenFormats(
         locals.user.steamId,
         openSignupFormats.map((f) => f.id),
       ),
+      getCartCount(locals.user.steamId),
     ]);
     userTeams = activeTeams;
     isInTeam = signedUpForAllOpen;
+    cartCount = cartItems;
 
     notifications = await getNotificationsForDropdown(locals.user.steamId);
     notificationCount = notifications.filter((n) => !n.isRead).length;
@@ -100,6 +105,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
     signupClosed,
     isInTeam,
     userTeams,
+    cartCount,
     leagueNav,
     siteSettings: {
       siteTitle: siteSettings.siteTitle,

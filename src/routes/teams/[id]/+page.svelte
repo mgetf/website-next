@@ -377,9 +377,18 @@
         </div>
       </div>
       {#if data.currentUserSteamId}
-        <Button variant="warning" href="/checkout/{data.currentUserSteamId}">
-          {!currentUserIsPaid ? 'Pay Signup Fee' : 'View Checkout'}
-        </Button>
+        {#if !currentUserIsPaid}
+          <form method="POST" action="/checkout?/add">
+            <input type="hidden" name="teamId" value={team.id} />
+            <input type="hidden" name="playerSteamId" value={data.currentUserSteamId} />
+            <Button type="submit" variant="warning">Pay Signup Fee</Button>
+          </form>
+        {:else}
+          <form method="POST" action="/checkout?/addTeam">
+            <input type="hidden" name="teamId" value={team.id} />
+            <Button type="submit" variant="warning">Add unpaid to cart</Button>
+          </form>
+        {/if}
       {/if}
     </div>
   {/if}
@@ -403,6 +412,7 @@
         {paymentStepComplete}
         {currentUserIsPaid}
         currentUserSteamId={data.currentUserSteamId}
+        teamId={team.id}
         {unpaidPlayers}
         {canToggleReady}
         management={data.management}
@@ -448,6 +458,9 @@
         maxRosterSize={team.maxRosterSize}
         showPaymentBadges={(data.isOnTeam || canManage) && !data.isFreeDivision}
         currentUserSteamId={data.currentUserSteamId}
+        teamId={team.id}
+        canAddToCart={Boolean(data.currentUserSteamId) && !data.isFreeDivision}
+        cartPlayerIds={data.cartPlayerIds}
         canLeave={data.isOnTeam && !data.isOwner && !data.rosterLocked}
         onLeaveTeam={() => (showLeaveDialog = true)}
       />

@@ -32,6 +32,7 @@ import {
   setPlayerClassRestriction,
 } from '#lib/server/services/teamManagement.js';
 import { markPlayerAsPaidManually, unmarkPlayerAsPaid } from '#lib/server/services/payments.js';
+import { getCartPlayerIdsForTeam } from '#lib/server/services/cart.js';
 import { generateJoinToken } from '#lib/server/services/teamSignup.js';
 import { isSeasonCurrentlyActive, getEffectiveRosterLock } from '#lib/server/services/settings.js';
 import { calculateWeekLabel, uniqueMatchArenas } from '#lib/server/utils/matchHelpers.js';
@@ -418,6 +419,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     paidPlayerCount: currentRoster.filter((p) => p.isPaid).length,
     requiredPaidPlayers: team.format.requiredPaidPlayers,
     isFreeDivision: !team.division || team.division.signupCost === 0,
+    cartPlayerIds: currentUserSteamId
+      ? await getCartPlayerIdsForTeam(currentUserSteamId, teamId)
+      : [],
   };
 };
 

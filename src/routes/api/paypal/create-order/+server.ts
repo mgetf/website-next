@@ -1,8 +1,9 @@
 import type { RequestHandler } from './$types';
 import { createPayPalOrder, isPayPalTestModeMisconfigured } from '#lib/server/services/paypal.js';
-import { resolvePayPalCheckoutQuote } from '#lib/server/services/payments.js';
+import { sumQuotedAmount } from '#lib/server/services/payments.js';
+import { reserveCartLines } from '#lib/server/services/cart.js';
 import { logError } from '#lib/server/utils/logger.js';
-import { requireAuth, isAdmin, requireNotBanned } from '#lib/server/auth/permissions.js';
+import { requireAuth, requireNotBanned } from '#lib/server/auth/permissions.js';
 import { getOptionalEnv } from '#lib/server/utils/env.js';
 import { paymentRateLimiter, checkRateLimit } from '#lib/server/utils/rateLimit.js';
 import { getErrorMessage } from '#lib/server/utils/errors.js';
@@ -23,54 +24,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     const body = await request.json();
-    const { currency: _ignoredCurrency, steamId, teams, teamId, paidForSteamIds } = body;
+    const lineIds = Array.isArray(body.lineIds)
+      ? body.lineIds
+          .map((id: unknown) => Number(id))
+          .filter((id: number) => Number.isInteger(id) && id > 0)
+      : [];
 
-    if (!steamId) {
-      return Response.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    // Normalise to teams array; fall back to legacy single-team shape
-    const teamsArray: { teamId: number; paidForSteamIds: string[] }[] =
-      Array.isArray(teams) && teams.length > 0
-        ? teams
-        : teamId
-          ? [{ teamId, paidForSteamIds: Array.isArray(paidForSteamIds) ? paidForSteamIds : [] }]
-          : [];
-
-    if (teamsArray.length === 0) {
-      return Response.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    if (locals.user.steamId !== steamId && !isAdmin(locals.user)) {
-      return Response.json(
-        { error: 'Unauthorized: Cannot create payment for another user' },
-        { status: 403 },
-      );
-    }
-
-    // Server-compute the charge — never trust client amount/currency
-    const quote = await resolvePayPalCheckoutQuote(teamsArray);
+    const quoted = await reserveCartLines(locals.user.steamId, lineIds);
+    const amount = sumQuotedAmount(quoted);
+    const currency = quoted[0]!.currency;
+    const steamId = locals.user.steamId;
 
     const baseUrl = getOptionalEnv('PUBLIC_URL', 'http://localhost:5173');
-    const firstTeamId = quote.teams[0]!.teamId;
-    const customId = quote.teams.length > 1 ? `${steamId}|multi` : `${steamId}|${firstTeamId}`;
+    const firstTeamId = quoted[0]!.teamId;
 
     const result = await createPayPalOrder({
-      amount: quote.amount,
-      currency: quote.currency,
+      amount,
+      currency,
       steamId,
       teamId: firstTeamId,
-      customId,
-      returnUrl: `${baseUrl}/checkout/${steamId}`,
-      cancelUrl: `${baseUrl}/checkout/${steamId}`,
+      customId: `${steamId}|cart`,
+      returnUrl: `${baseUrl}/checkout`,
+      cancelUrl: `${baseUrl}/checkout`,
     });
 
     if (!result.success) {
       await logError('PayPal create-order failed', {
         steamId,
-        firstTeamId,
-        amount: quote.amount,
-        currency: quote.currency,
+        amount,
+        currency,
         error: result.error || 'Unknown error',
       });
 
@@ -82,10 +64,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     return Response.json({
       ...result.order,
-      // Echo server quote so the client can assert before capture
-      expectedAmount: quote.amount,
-      expectedCurrency: quote.currency,
-      resolvedTeams: quote.teams,
+      expectedAmount: amount,
+      expectedCurrency: currency,
     });
   } catch (err) {
     const message = getErrorMessage(err, 'Internal server error');

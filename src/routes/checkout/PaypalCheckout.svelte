@@ -1,20 +1,17 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import type { CheckoutTeamSelection } from '#lib/types/checkout.js';
 
   let {
     paypalClientId,
     currency,
     totalAmount,
-    steamId,
-    teams,
+    lineIds,
     isTestMode,
   }: {
     paypalClientId: string;
     currency: string;
     totalAmount: number;
-    steamId: string;
-    teams: CheckoutTeamSelection[];
+    lineIds: number[];
     isTestMode: boolean;
   } = $props();
 
@@ -75,7 +72,7 @@
       const createResponse = await fetch('/api/paypal/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: totalAmount, currency, steamId, teams }),
+        body: JSON.stringify({ lineIds, amount: totalAmount, currency }),
       });
 
       const order = await createResponse.json();
@@ -86,18 +83,12 @@
       const captureResponse = await fetch('/api/paypal/capture-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderID: order.id,
-          steamId,
-          teams,
-          amount: totalAmount,
-          currency,
-        }),
+        body: JSON.stringify({ orderID: order.id }),
       });
 
       const result = await captureResponse.json();
       if (result.success) {
-        window.location.href = `/checkout/${steamId}?payment=success`;
+        window.location.href = '/checkout?payment=success';
       } else {
         errorMessage = result.error || 'Test payment failed.';
         isProcessing = false;
@@ -135,12 +126,7 @@
               const response = await fetch('/api/paypal/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  amount: totalAmount,
-                  currency,
-                  steamId,
-                  teams,
-                }),
+                body: JSON.stringify({ lineIds, amount: totalAmount, currency }),
               });
               const order = await response.json();
               if (!response.ok || order.error) {
@@ -162,17 +148,11 @@
               const response = await fetch('/api/paypal/capture-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderID: paypalData.orderID,
-                  steamId,
-                  teams,
-                  amount: totalAmount,
-                  currency,
-                }),
+                body: JSON.stringify({ orderID: paypalData.orderID }),
               });
               const result = await response.json();
               if (result.success) {
-                window.location.href = `/checkout/${steamId}?payment=success`;
+                window.location.href = '/checkout?payment=success';
               } else {
                 errorMessage = result.error || 'Payment failed. Please contact support.';
                 isProcessing = false;
@@ -206,36 +186,36 @@
 </script>
 
 {#if errorMessage}
-  <div class="mb-4 p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg">
+  <div class="mb-4 rounded-lg border border-danger-500/50 bg-danger-500/20 p-4">
     <p class="text-danger-ink">{errorMessage}</p>
   </div>
 {/if}
 
 {#if isProcessing}
-  <div class="text-center py-8">
+  <div class="py-8 text-center">
     <div
-      class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"
+      class="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-t-2 border-b-2 border-primary-500"
     ></div>
     <p class="text-text-body">Processing payment...</p>
   </div>
 {:else if isTestMode}
   <div class="space-y-4">
-    <div class="p-4 bg-warning-500/10 border border-warning-500/30 rounded-lg">
-      <p class="text-warning-ink text-sm font-medium">
+    <div class="rounded-lg border border-warning-500/30 bg-warning-500/10 p-4">
+      <p class="text-sm font-medium text-warning-ink">
         TEST MODE - No real payment will be processed
       </p>
     </div>
     <button
       onclick={processTestPayment}
-      class="w-full py-4 bg-warning-500 hover:bg-warning-400 text-black font-bold rounded-lg transition-colors text-lg"
+      class="w-full rounded-lg bg-warning-500 py-4 text-lg font-bold text-black transition-colors hover:bg-warning-400"
     >
       Complete Test Payment
     </button>
   </div>
 {:else if !paypalLoaded}
-  <div class="text-center py-8">
+  <div class="py-8 text-center">
     <div
-      class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"
+      class="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-t-2 border-b-2 border-primary-500"
     ></div>
     <p class="text-text-body">Loading payment options...</p>
   </div>
@@ -244,17 +224,17 @@
 {/if}
 
 {#if isTestMode}
-  <div class="mt-6 p-4 bg-info-500/10 border border-info-500/30 rounded-lg">
-    <p class="text-info-ink text-sm">
+  <div class="mt-6 rounded-lg border border-info-500/30 bg-info-500/10 p-4">
+    <p class="text-sm text-info-ink">
       <strong>Test Mode:</strong> This is a simulated payment for development. No real charges will be
       made.
     </p>
   </div>
 {:else}
-  <div class="mt-6 p-4 bg-info-500/10 border border-info-500/30 rounded-lg">
-    <p class="text-info-ink text-sm">
+  <div class="mt-6 rounded-lg border border-info-500/30 bg-info-500/10 p-4">
+    <p class="text-sm text-info-ink">
       <strong>Note:</strong> Payment is processed securely through PayPal. Once payment is confirmed,
-      your team registration will be activated.
+      each selected participation will be marked paid.
     </p>
   </div>
 {/if}

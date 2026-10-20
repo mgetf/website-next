@@ -31,6 +31,7 @@
     paymentStepComplete,
     currentUserIsPaid,
     currentUserSteamId,
+    teamId,
     unpaidPlayers,
     canToggleReady,
     management,
@@ -55,6 +56,7 @@
     paymentStepComplete: boolean;
     currentUserIsPaid: boolean;
     currentUserSteamId: string | null;
+    teamId: number;
     unpaidPlayers: TeamRosterPlayer[];
     canToggleReady: boolean;
     management: TeamManagementData;
@@ -221,17 +223,28 @@
                     </div>
                   {/each}
                   {#if currentUserSteamId}
-                    <Button variant="warning" href="/checkout/{currentUserSteamId}"
-                      >Go to checkout</Button
-                    >
+                    {#if !currentUserIsPaid}
+                      <form method="POST" action="/checkout?/add">
+                        <input type="hidden" name="teamId" value={teamId} />
+                        <input type="hidden" name="playerSteamId" value={currentUserSteamId} />
+                        <Button type="submit" variant="warning">Pay signup fee</Button>
+                      </form>
+                    {:else}
+                      <form method="POST" action="/checkout?/addTeam">
+                        <input type="hidden" name="teamId" value={teamId} />
+                        <Button type="submit" variant="warning">Add unpaid to cart</Button>
+                      </form>
+                    {/if}
                   {/if}
                 </div>
               {:else if !currentUserIsPaid && currentUserSteamId}
                 <div class="ml-10">
                   <p class="mb-2 text-sm text-text-body">Minimum met, but you haven't paid yet.</p>
-                  <Button variant="warning" href="/checkout/{currentUserSteamId}"
-                    >Pay signup fee</Button
-                  >
+                  <form method="POST" action="/checkout?/add">
+                    <input type="hidden" name="teamId" value={teamId} />
+                    <input type="hidden" name="playerSteamId" value={currentUserSteamId} />
+                    <Button type="submit" variant="warning">Pay signup fee</Button>
+                  </form>
                 </div>
               {/if}
             </div>

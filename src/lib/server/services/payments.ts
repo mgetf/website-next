@@ -9,13 +9,18 @@ import { notFound, badRequest } from '#lib/server/utils/errors.js';
 import {
   itemAmountLabel,
   moneyAmountLabel,
-  isItemLedgerCoveredByOrder,
   parseRecordedItemPayment,
 } from '#lib/utils/paymentAmount.js';
 import { hasMetPaidPlayerRequirement } from '#lib/utils/rosterPayments.js';
 import type { Prisma } from '#prisma/client.js';
 import { requireFormatById } from './formats';
-import type { CheckoutParticipation } from '#lib/types/checkout.js';
+import type { CheckoutItemPaymentConfig } from '#lib/types/checkout.js';
+import type { QuotedParticipation } from '#lib/types/cart.js';
+import {
+  getInvoiceNumbersForPayments,
+  issueInvoicesForRecordedPayments,
+  type RecordedPaymentForInvoice,
+} from './invoices.js';
 
 type TeamPaymentDb = Pick<Prisma.TransactionClient, 'playerInTeam' | 'team'>;
 
@@ -60,22 +65,24 @@ export interface UnpaidPlayer {
   totalCost: number;
 }
 
-export type CheckoutTeamSelection = {
-  teamId: number;
-  paidForSteamIds: string[];
-};
-
-export type ResolvedCheckoutQuote = {
-  amount: number;
-  currency: string;
-  teams: CheckoutTeamSelection[];
-};
-
 /**
  * Compare money amounts in cents to avoid float drift.
  */
 export function paypalAmountsMatch(expected: number, actual: number): boolean {
   return Math.round(expected * 100) === Math.round(actual * 100);
+}
+
+export function leagueFeeForLine(options: {
+  playerSteamId: string;
+  seasonId: number;
+  trackerAmount: number;
+  seenFirst: Set<string>;
+  leagueFees: number;
+}): number {
+  const key = `${options.playerSteamId}:${options.seasonId}`;
+  if (options.trackerAmount > 0 || options.seenFirst.has(key)) return 0;
+  options.seenFirst.add(key);
+  return options.leagueFees;
 }
 
 /**
@@ -106,110 +113,6 @@ export function sumSelectedCheckoutAmount(
 }
 
 /**
- * Server-side PayPal quote. Never trust client-supplied amounts.
- * Validates every selected player is an active unpaid member and returns
- * the exact amount + currency that must be charged / captured.
- */
-export async function resolvePayPalCheckoutQuote(
-  teams: CheckoutTeamSelection[],
-): Promise<ResolvedCheckoutQuote> {
-  if (!Array.isArray(teams) || teams.length === 0) {
-    badRequest('At least one team is required');
-  }
-
-  const teamIds = teams.map((t) => t.teamId);
-  const teamRecords = await prisma.team.findMany({
-    where: { id: { in: teamIds } },
-    include: {
-      division: true,
-      region: true,
-    },
-  });
-  const teamMap = new Map(teamRecords.map((t) => [t.id, t]));
-
-  const selectionDetails: { paidForSteamIds: string[]; unpaidPlayers: UnpaidPlayer[] }[] = [];
-  const normalizedTeams: CheckoutTeamSelection[] = [];
-  let currency: string | null = null;
-
-  for (const selection of teams) {
-    const team = teamMap.get(selection.teamId);
-    if (!team?.seasonId) {
-      badRequest('Team or season not found');
-    }
-
-    const teamCurrency = team.region?.currencyCode ?? 'USD';
-    if (currency === null) {
-      currency = teamCurrency;
-    } else if (currency !== teamCurrency) {
-      badRequest('Cannot checkout teams with different currencies in one payment');
-    }
-
-    const unpaidPlayers = await getTeamUnpaidPlayers(team.id, team.seasonId);
-    const requestedIds =
-      selection.paidForSteamIds.length > 0
-        ? [...new Set(selection.paidForSteamIds)]
-        : unpaidPlayers.map((p) => p.steamId);
-
-    selectionDetails.push({ paidForSteamIds: requestedIds, unpaidPlayers });
-    normalizedTeams.push({ teamId: team.id, paidForSteamIds: requestedIds });
-  }
-
-  const amount = sumSelectedCheckoutAmount(selectionDetails);
-
-  if (amount <= 0) {
-    badRequest('Payment amount must be greater than zero');
-  }
-
-  return {
-    amount,
-    currency: currency ?? 'USD',
-    teams: normalizedTeams,
-  };
-}
-
-/**
- * Load all unpaid active players in a team with their individual costs.
- * Used by the checkout page to allow paying for teammates.
- */
-export async function getTeamUnpaidPlayers(
-  teamId: number,
-  seasonId: number,
-): Promise<UnpaidPlayer[]> {
-  const unpaidPlayersInTeam = await prisma.playerInTeam.findMany({
-    where: { teamId, active: 1, paymentStatus: 0 },
-    include: {
-      player: { select: { steamId: true, steamUsername: true, steamAvatar: true } },
-      team: { include: { division: true } },
-    },
-  });
-
-  if (unpaidPlayersInTeam.length === 0) return [];
-
-  const signupCost = unpaidPlayersInTeam[0]?.team.division?.signupCost ?? 0;
-  const leagueFees = await getLeagueFees();
-
-  const steamIds = unpaidPlayersInTeam.map((p) => p.playerSteamId);
-  const paymentTrackers = await prisma.paymentTracker.findMany({
-    where: { playerSteamId: { in: steamIds }, seasonId },
-  });
-  const trackerMap = new Map(paymentTrackers.map((pt) => [pt.playerSteamId, pt.amount]));
-
-  return unpaidPlayersInTeam.map((p) => {
-    const existingAmount = trackerMap.get(p.playerSteamId) ?? 0;
-    const isFirstPayment = existingAmount === 0;
-    const playerLeagueFees = isFirstPayment ? leagueFees : 0;
-    return {
-      steamId: p.player.steamId,
-      name: p.player.steamUsername,
-      avatar: p.player.steamAvatar,
-      signupCost,
-      leagueFees: playerLeagueFees,
-      totalCost: signupCost + playerLeagueFees,
-    };
-  });
-}
-
-/**
  * Get existing payment for a season
  */
 export async function getExistingPayment(steamId: string, seasonId: number) {
@@ -229,6 +132,147 @@ export async function getExistingPayment(steamId: string, seasonId: number) {
 export async function getLeagueFees(): Promise<number> {
   const global = await prisma.global.findFirst();
   return global?.leagueFees ?? 0;
+}
+
+const quoteTeamInclude = {
+  division: {
+    include: {
+      itemPayment: { include: { steamItem: true } },
+    },
+  },
+  region: true,
+  season: true,
+  format: true,
+} as const;
+
+function itemConfigFromDivision(
+  division: {
+    itemPayment: {
+      itemQuantity: number;
+      steamItem: { name: string; appId: number };
+    } | null;
+  } | null,
+): CheckoutItemPaymentConfig | null {
+  if (!division?.itemPayment) return null;
+  return {
+    itemName: division.itemPayment.steamItem.name,
+    itemQuantity: division.itemPayment.itemQuantity,
+    itemAppId: division.itemPayment.steamItem.appId,
+  };
+}
+
+/**
+ * Live price for unpaid active roster spots. Dropped (or rejected) when the
+ * player is not an unpaid member of a paid division.
+ */
+export async function quoteParticipationLines(
+  lines: { teamId: number; playerSteamId: string }[],
+  options?: { skipInvalid?: boolean },
+): Promise<QuotedParticipation[]> {
+  if (lines.length === 0) return [];
+
+  const skipInvalid = options?.skipInvalid ?? false;
+  const teamIds = [...new Set(lines.map((line) => line.teamId))];
+  const steamIds = [...new Set(lines.map((line) => line.playerSteamId))];
+
+  const [teams, memberships, users, leagueFees] = await Promise.all([
+    prisma.team.findMany({
+      where: { id: { in: teamIds } },
+      include: quoteTeamInclude,
+    }),
+    prisma.playerInTeam.findMany({
+      where: {
+        teamId: { in: teamIds },
+        playerSteamId: { in: steamIds },
+        active: 1,
+        paymentStatus: 0,
+      },
+    }),
+    prisma.user.findMany({
+      where: { steamId: { in: steamIds } },
+      select: { steamId: true, steamUsername: true, steamAvatar: true },
+    }),
+    getLeagueFees(),
+  ]);
+
+  const teamMap = new Map(teams.map((team) => [team.id, team]));
+  const memberSet = new Set(memberships.map((row) => `${row.teamId}:${row.playerSteamId}`));
+  const userMap = new Map(users.map((user) => [user.steamId, user]));
+
+  const seasonIds = [
+    ...new Set(teams.map((team) => team.seasonId).filter((id): id is number => id != null)),
+  ];
+  const trackers =
+    seasonIds.length === 0
+      ? []
+      : await prisma.paymentTracker.findMany({
+          where: { playerSteamId: { in: steamIds }, seasonId: { in: seasonIds } },
+        });
+  const trackerMap = new Map(
+    trackers.map((row) => [`${row.playerSteamId}:${row.seasonId}`, row.amount]),
+  );
+
+  const seenFirst = new Set<string>();
+  const quoted: QuotedParticipation[] = [];
+
+  for (const line of lines) {
+    const team = teamMap.get(line.teamId);
+    const division = team?.division;
+    const user = userMap.get(line.playerSteamId);
+    const payable =
+      team &&
+      division &&
+      team.seasonId &&
+      division.signupCost > 0 &&
+      memberSet.has(`${line.teamId}:${line.playerSteamId}`) &&
+      user;
+
+    if (!payable) {
+      if (skipInvalid) continue;
+      badRequest('One or more selected players are not unpaid members of a paid division');
+    }
+
+    const seasonId = team.seasonId!;
+    const signupCost = division.signupCost;
+    const fees = leagueFeeForLine({
+      playerSteamId: line.playerSteamId,
+      seasonId,
+      trackerAmount: trackerMap.get(`${line.playerSteamId}:${seasonId}`) ?? 0,
+      seenFirst,
+      leagueFees,
+    });
+
+    quoted.push({
+      teamId: team.id,
+      playerSteamId: line.playerSteamId,
+      playerName: user.steamUsername,
+      playerAvatar: user.steamAvatar,
+      teamName: team.name,
+      teamAvatar: team.avatar,
+      formatName: team.format.name,
+      formatThemeKey: team.format.themeKey,
+      formatIconUrl: team.format.iconUrl,
+      isIndividual: team.format.isIndividual,
+      divisionName: division.name,
+      regionName: team.region?.name ?? null,
+      seasonNum: team.season?.seasonNum ?? null,
+      seasonId,
+      signupCost,
+      leagueFees: fees,
+      totalCost: signupCost + fees,
+      currency: team.region?.currencyCode ?? 'USD',
+      currencySymbol: team.region?.currencySymbol ?? '$',
+      itemPaymentConfig: itemConfigFromDivision(division),
+    });
+  }
+
+  return quoted;
+}
+
+export function sumQuotedAmount(lines: { totalCost: number }[]): number {
+  const total = lines.reduce((sum, line) => sum + line.totalCost, 0);
+  if (total <= 0) badRequest('Payment amount must be greater than zero');
+  return total;
 }
 
 /**
@@ -262,32 +306,21 @@ export async function markPlayerAsPaidManually(
     badRequest('Team has no associated season');
   }
 
-  const seasonId = playerInTeam.team.seasonId;
   const signupCost = playerInTeam.team.division?.signupCost ?? 0;
-  const paymentId = `manual-${Date.now()}-${steamId}`;
+
+  if (signupCost > 0) {
+    const quoted = await quoteParticipationLines([{ teamId, playerSteamId: steamId }]);
+    await recordQuotedSignupPayments({
+      payerSteamId: adminSteamId,
+      lines: quoted,
+      currency: 'MANUAL',
+      method: 'manual',
+      groupKey: `manual-${Date.now()}-${steamId}`,
+    });
+    return;
+  }
 
   await prisma.$transaction(async (tx) => {
-    if (signupCost > 0) {
-      await tx.paymentTracker.upsert({
-        where: { playerSteamId_seasonId: { playerSteamId: steamId, seasonId } },
-        create: { playerSteamId: steamId, seasonId, amount: signupCost },
-        update: { amount: { increment: signupCost } },
-      });
-
-      await tx.payment.create({
-        data: {
-          paymentId,
-          purchasedFor: steamId,
-          purchasedBy: adminSteamId,
-          amount: signupCost.toString(),
-          currency: 'MANUAL',
-          purchaseDate: new Date(),
-          description: `Manual payment - Team #${teamId}`,
-          teamId,
-        },
-      });
-    }
-
     await tx.playerInTeam.update({
       where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
       data: { paymentStatus: 1 },
@@ -369,68 +402,130 @@ export async function unmarkPlayerAsPaid(steamId: string, teamId: number): Promi
   });
 }
 
-/**
- * Record a completed PayPal capture: creates payment records and updates player/team payment status.
- * Supports paying for multiple players in a single capture.
- */
-export async function recordPayPalCapture(options: {
-  payerSteamId: string;
-  paidForSteamIds: string[];
-  teamId: number;
-  captureId: string;
-  amount: number;
-  currency: string;
-}): Promise<void> {
-  const { payerSteamId, paidForSteamIds, teamId, captureId, amount, currency } = options;
-
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    include: { division: true, format: true },
-  });
-
-  if (!team?.seasonId) {
-    notFound('Team or season not found');
+function signupDescription(line: QuotedParticipation): string {
+  if (line.itemOrderNumber && line.itemPaymentConfig) {
+    return `Item payment - ${line.itemPaymentConfig.itemQuantity}x ${line.itemPaymentConfig.itemName} (Order ${line.itemOrderNumber})`;
   }
+  const scope = line.isIndividual
+    ? [line.regionName, line.formatName].filter(Boolean).join(' ')
+    : line.teamName;
+  return `League signup — ${line.playerName} (${scope})`;
+}
 
-  const seasonId = team.seasonId;
-  const signupCost = team.division?.signupCost ?? 0;
+export async function recordQuotedSignupPayments(options: {
+  payerSteamId: string;
+  lines: QuotedParticipation[];
+  currency: string;
+  method: 'paypal' | 'items' | 'manual';
+  groupKey: string;
+  captureId?: string;
+  tradeOfferId?: string;
+  itemName?: string | null;
+}): Promise<void> {
+  const { payerSteamId, lines, currency, method, groupKey } = options;
+  if (lines.length === 0) return;
+
+  const payer = await prisma.user.findUnique({
+    where: { steamId: payerSteamId },
+    select: { steamUsername: true },
+  });
+  const payerName = payer?.steamUsername ?? payerSteamId;
+
+  const teamIds = [...new Set(lines.map((line) => line.teamId))];
+  const teamRecords = await prisma.team.findMany({
+    where: { id: { in: teamIds } },
+    include: { format: true },
+  });
+  const teamMap = new Map(teamRecords.map((team) => [team.id, team]));
 
   await prisma.$transaction(async (tx) => {
-    for (let i = 0; i < paidForSteamIds.length; i++) {
-      const targetSteamId = paidForSteamIds[i]!;
+    const invoiceRows: RecordedPaymentForInvoice[] = [];
+    const touchedTeams = new Set<number>();
 
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
       const pit = await tx.playerInTeam.findUnique({
-        where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId } },
+        where: {
+          playerSteamId_teamId: { playerSteamId: line.playerSteamId, teamId: line.teamId },
+        },
       });
       if (!pit || pit.paymentStatus !== 0) continue;
 
+      const paymentId =
+        method === 'paypal'
+          ? `${options.captureId}-${i}`
+          : method === 'items'
+            ? `${options.tradeOfferId}-${i}`
+            : `manual-${Date.now()}-${line.playerSteamId}`;
+
       await tx.paymentTracker.upsert({
-        where: { playerSteamId_seasonId: { playerSteamId: targetSteamId, seasonId } },
-        create: { playerSteamId: targetSteamId, seasonId, amount: signupCost },
-        update: { amount: { increment: signupCost } },
+        where: {
+          playerSteamId_seasonId: { playerSteamId: line.playerSteamId, seasonId: line.seasonId },
+        },
+        create: {
+          playerSteamId: line.playerSteamId,
+          seasonId: line.seasonId,
+          amount: line.signupCost,
+        },
+        update: { amount: { increment: line.signupCost } },
       });
+
+      const amount = method === 'paypal' ? line.totalCost.toFixed(2) : line.signupCost.toString();
 
       await tx.payment.create({
         data: {
-          paymentId: `${captureId}-${i}`,
-          paypalCaptureId: captureId,
-          purchasedFor: targetSteamId,
+          paymentId,
+          paypalCaptureId: options.captureId ?? null,
+          purchasedFor: line.playerSteamId,
           purchasedBy: payerSteamId,
-          amount: signupCost.toString(),
+          amount,
           currency,
           purchaseDate: new Date(),
-          description: `Team signup payment - Team #${teamId}`,
-          teamId,
+          description: signupDescription(line),
+          teamId: line.teamId,
         },
       });
 
       await tx.playerInTeam.update({
-        where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId } },
+        where: {
+          playerSteamId_teamId: { playerSteamId: line.playerSteamId, teamId: line.teamId },
+        },
         data: { paymentStatus: 1 },
       });
+
+      invoiceRows.push({
+        paymentId,
+        purchasedBy: payerSteamId,
+        purchasedByName: payerName,
+        purchasedFor: line.playerSteamId,
+        purchasedForName: line.playerName,
+        teamId: line.teamId,
+        teamName: line.teamName,
+        formatName: line.formatName,
+        regionName: line.regionName,
+        seasonNum: line.seasonNum,
+        divisionName: line.divisionName,
+        signupCost: line.signupCost,
+        leagueFees: line.leagueFees,
+        total: method === 'paypal' ? line.totalCost : line.signupCost,
+        currency,
+        method,
+        externalId: options.captureId ?? options.tradeOfferId ?? paymentId,
+        itemName: options.itemName ?? line.itemPaymentConfig?.itemName ?? null,
+        itemQuantity: line.itemPaymentConfig ? line.itemPaymentConfig.itemQuantity : null,
+        internalNote:
+          method === 'manual' ? 'Recorded by staff. This is not a player purchase.' : null,
+      });
+      touchedTeams.add(line.teamId);
     }
 
-    await syncTeamPaymentStatus(tx, teamId, team.format.requiredPaidPlayers);
+    for (const teamId of touchedTeams) {
+      const team = teamMap.get(teamId);
+      if (!team) continue;
+      await syncTeamPaymentStatus(tx, teamId, team.format.requiredPaidPlayers);
+    }
+
+    await issueInvoicesForRecordedPayments(tx, invoiceRows, groupKey);
   });
 }
 
@@ -454,6 +549,14 @@ export interface PaymentHistoryEntry {
   refundable: boolean;
   refundBlockReason: string | null;
   canRemoveFromTeam: boolean;
+  coveredSteamId: string;
+  coveredName: string | null;
+  payerSteamId: string;
+  payerName: string | null;
+  invoiceNumber: string | null;
+  groupInvoiceNumber: string | null;
+  creditNoteNumber: string | null;
+  payerHistoryHref: string | null;
 }
 
 const historyTeamSelect = {
@@ -518,9 +621,26 @@ export async function getUserPaymentHistory(
   const iconByName = new Map(steamItems.map((item) => [item.name, item.iconUrl]));
   const iconByHash = new Map(steamItems.map((item) => [item.marketHashName, item.iconUrl]));
 
-  const itemOrderNumbers = new Set(itemOrders.map((order) => order.orderNumber));
-  const itemTradeOfferIds = new Set(
-    itemOrders.flatMap((order) => (order.tradeOfferId ? [order.tradeOfferId] : [])),
+  const coveredIds = [...new Set(payments.map((payment) => payment.purchasedFor))];
+  const namedUsers = coveredIds.length
+    ? await prisma.user.findMany({
+        where: { steamId: { in: coveredIds } },
+        select: { steamId: true, steamUsername: true },
+      })
+    : [];
+  const nameBySteamId = new Map(namedUsers.map((user) => [user.steamId, user.steamUsername]));
+
+  const groupKeys = [
+    ...new Set(
+      [
+        ...payments.map((payment) => payment.paypalCaptureId),
+        ...itemOrders.map((order) => order.checkoutGroupId),
+      ].filter((key): key is string => Boolean(key)),
+    ),
+  ];
+  const invoiceNumbers = await getInvoiceNumbersForPayments(
+    payments.map((payment) => payment.paymentId),
+    groupKeys,
   );
 
   const refundByPayment = new Map(
@@ -564,22 +684,21 @@ export async function getUserPaymentHistory(
   const hasTradeOfferUrl = Boolean(account?.tradeOfferUrl);
 
   for (const p of payments) {
-    if (isItemLedgerCoveredByOrder(p, itemOrderNumbers, itemTradeOfferIds)) continue;
-
     let method: PaymentHistoryEntry['method'] = 'paypal';
     if (p.currency === 'ITEMS') method = 'items';
     else if (p.currency === 'MANUAL') method = 'manual';
 
-    const openRefund = refundByPayment.get(p.paymentId);
+    const recordedItem = method === 'items' ? parseRecordedItemPayment(p.description ?? '') : null;
+    const openRefund =
+      method === 'items' && recordedItem
+        ? refundByOrder.get(recordedItem.orderNumber)
+        : refundByPayment.get(p.paymentId);
     let status: PaymentHistoryEntry['status'] = 'completed';
-    let refundable = method === 'paypal';
+    let refundable = method === 'paypal' || (method === 'items' && Boolean(recordedItem));
     let refundBlockReason: string | null = null;
     if (method === 'manual') {
       refundable = false;
       refundBlockReason = 'Manual payments are not refunded automatically.';
-    } else if (method === 'items') {
-      refundable = false;
-      refundBlockReason = 'Refund the Steam item order instead.';
     } else if (openRefund === 'COMPLETED') {
       status = 'refunded';
       refundable = false;
@@ -588,14 +707,17 @@ export async function getUserPaymentHistory(
       status = 'refund_pending';
       refundable = false;
       refundBlockReason = 'A refund is already in progress.';
-    } else if (Date.now() - p.purchaseDate.getTime() > refundWindowMs) {
+    } else if (method === 'paypal' && Date.now() - p.purchaseDate.getTime() > refundWindowMs) {
       refundable = false;
       refundBlockReason = 'PayPal only allows refunds within 180 days of the payment.';
+    } else if (method === 'items' && !hasTradeOfferUrl) {
+      refundable = false;
+      refundBlockReason = 'This player has not saved a Steam trade offer link.';
     }
 
-    const recordedItem = method === 'items' ? parseRecordedItemPayment(p.description ?? '') : null;
+    const groupKey = p.paypalCaptureId ?? invoiceNumbers.groupKeyByPayment.get(p.paymentId) ?? null;
     entries.push({
-      id: p.paymentId,
+      id: recordedItem?.orderNumber ?? p.paymentId,
       date: p.purchaseDate,
       method,
       description: p.description ?? '',
@@ -616,12 +738,20 @@ export async function getUserPaymentHistory(
       refundable,
       refundBlockReason,
       canRemoveFromTeam: p.teamId ? removable.has(`${p.teamId}:${p.purchasedFor}`) : false,
+      coveredSteamId: p.purchasedFor,
+      coveredName: nameBySteamId.get(p.purchasedFor) ?? null,
+      payerSteamId: p.purchasedBy,
+      payerName: null,
+      invoiceNumber: invoiceNumbers.lineByPayment.get(p.paymentId) ?? null,
+      groupInvoiceNumber: groupKey ? (invoiceNumbers.groupByKey.get(groupKey) ?? null) : null,
+      creditNoteNumber: invoiceNumbers.creditByPayment.get(p.paymentId) ?? null,
+      payerHistoryHref: null,
     });
   }
 
   for (const o of itemOrders) {
+    if (o.status === 'COMPLETED') continue;
     const statusMap: Record<string, PaymentHistoryEntry['status']> = {
-      COMPLETED: 'completed',
       PENDING: 'pending',
       EXPIRED: 'expired',
       CANCELLED: 'cancelled',
@@ -629,29 +759,22 @@ export async function getUserPaymentHistory(
     };
     const openRefund = refundByOrder.get(o.orderNumber);
     let status = statusMap[o.status] ?? 'pending';
-    let refundable = o.status === 'COMPLETED';
-    let refundBlockReason: string | null = null;
+    let refundable = false;
+    let refundBlockReason: string | null = 'Only a completed item payment can be refunded.';
     if (o.status === 'REFUNDED' || openRefund === 'COMPLETED') {
       status = 'refunded';
-      refundable = false;
       refundBlockReason = 'Already refunded.';
     } else if (openRefund === 'PENDING') {
       status = 'refund_pending';
-      refundable = false;
       refundBlockReason = 'A refund is already in progress.';
-    } else if (o.status !== 'COMPLETED') {
-      refundable = false;
-      refundBlockReason = 'Only a completed item payment can be refunded.';
-    } else if (!hasTradeOfferUrl) {
-      refundable = false;
-      refundBlockReason = 'This player has not saved a Steam trade offer link.';
     }
 
     const targets = o.paidForSteamIds.length > 0 ? o.paidForSteamIds : [o.playerSteamId];
     const iconFromHash = iconByHash.get(o.itemMarketHashName);
+    const coveredSteamId = targets[0] ?? o.playerSteamId;
     entries.push({
       id: o.orderNumber,
-      date: o.status === 'COMPLETED' && o.completedAt ? o.completedAt : o.createdAt,
+      date: o.createdAt,
       method: 'items',
       description: `${o.itemsRequired}x ${o.itemName}`,
       amount: `${o.itemsRequired}`,
@@ -663,6 +786,16 @@ export async function getUserPaymentHistory(
       refundable,
       refundBlockReason,
       canRemoveFromTeam: targets.some((target) => removable.has(`${o.teamId}:${target}`)),
+      coveredSteamId,
+      coveredName: nameBySteamId.get(coveredSteamId) ?? null,
+      payerSteamId: o.playerSteamId,
+      payerName: null,
+      invoiceNumber: null,
+      groupInvoiceNumber: o.checkoutGroupId
+        ? (invoiceNumbers.groupByKey.get(o.checkoutGroupId) ?? null)
+        : null,
+      creditNoteNumber: null,
+      payerHistoryHref: null,
     });
   }
 
@@ -675,154 +808,123 @@ export async function getUserPaymentHistory(
   return { entries: paginated, total };
 }
 
-/**
- * Load checkout participations for a user's active teams.
- * A team is included when someone on the roster still owes a signup fee,
- * including when this user already paid and is covering a teammate.
- * Individual formats stay limited to the user's own unpaid fee.
- */
-export async function getAllUnpaidParticipations(
-  steamId: string,
-): Promise<CheckoutParticipation[]> {
-  const playerInTeams = await prisma.playerInTeam.findMany({
-    where: {
-      playerSteamId: steamId,
-      active: 1,
-      team: {
-        division: { signupCost: { gt: 0 } },
-        players: { some: { active: 1, paymentStatus: 0 } },
-      },
-    },
+export async function getCoveredPaymentHistory(steamId: string): Promise<PaymentHistoryEntry[]> {
+  const payments = await prisma.payment.findMany({
+    where: { purchasedFor: steamId, purchasedBy: { not: steamId } },
     include: {
-      team: {
-        include: {
-          division: {
-            include: {
-              itemPayment: { include: { steamItem: true } },
-            },
-          },
-          region: true,
-          season: true,
-          format: true,
-        },
-      },
+      team: { select: historyTeamSelect },
+      byUser: { select: { steamId: true, steamUsername: true } },
     },
+    orderBy: { purchaseDate: 'desc' },
   });
+  if (payments.length === 0) return [];
 
-  const result: CheckoutParticipation[] = [];
-
-  for (const pit of playerInTeams) {
-    const team = pit.team;
-    const division = team.division;
-    const region = team.region;
-    const season = team.season;
-
-    if (!division || !team.seasonId) continue;
-    if (team.format.isIndividual && pit.paymentStatus !== 0) continue;
-
-    const unpaidPlayers = await getTeamUnpaidPlayers(team.id, team.seasonId);
-    if (unpaidPlayers.length === 0) continue;
-
-    result.push({
-      teamId: team.id,
-      teamName: team.name,
-      teamAvatar: team.avatar,
-      formatName: team.format.name,
-      formatThemeKey: team.format.themeKey,
-      formatIconUrl: team.format.iconUrl,
-      formatId: team.formatId,
-      isIndividual: team.format.isIndividual,
-      divisionName: division.name,
-      divisionId: division.id,
-      regionName: region?.name ?? null,
-      seasonNum: season?.seasonNum ?? null,
-      seasonId: team.seasonId,
-      signupCost: division.signupCost,
-      currency: region?.currencyCode ?? 'USD',
-      currencySymbol: region?.currencySymbol ?? '$',
-      unpaidPlayers,
-      itemPaymentConfig: division.itemPayment
-        ? {
-            itemName: division.itemPayment.steamItem.name,
-            itemQuantity: division.itemPayment.itemQuantity,
-            itemAppId: division.itemPayment.steamItem.appId,
-          }
-        : null,
-    });
-  }
-
-  return result;
-}
-
-/**
- * Record completed PayPal captures for multiple teams in a single transaction.
- * League fee is charged once per season and is tracked via PaymentTracker;
- * we simply record the signupCost increment per player (matching single-team behaviour).
- */
-export async function recordMultiTeamPayPalCapture(options: {
-  payerSteamId: string;
-  teams: { teamId: number; paidForSteamIds: string[] }[];
-  captureId: string;
-  currency: string;
-}): Promise<void> {
-  const { payerSteamId, teams, captureId, currency } = options;
-
-  const teamRecords = await prisma.team.findMany({
-    where: { id: { in: teams.map((t) => t.teamId) } },
-    include: { division: true, format: true },
+  const refunds = await prisma.paymentRefund.findMany({
+    where: {
+      paymentId: { in: payments.map((payment) => payment.paymentId) },
+      status: { in: ['PENDING', 'COMPLETED'] },
+    },
+    select: { paymentId: true, status: true },
   });
+  const refundByPayment = new Map(
+    refunds.filter((row) => row.paymentId).map((row) => [row.paymentId as string, row.status]),
+  );
+  const groupKeys = [
+    ...new Set(
+      payments
+        .map((payment) => payment.paypalCaptureId)
+        .filter((key): key is string => Boolean(key)),
+    ),
+  ];
+  const invoiceNumbers = await getInvoiceNumbersForPayments(
+    payments.map((payment) => payment.paymentId),
+    groupKeys,
+  );
 
-  const teamMap = new Map(teamRecords.map((t) => [t.id, t]));
+  const rosterKeys = payments
+    .filter((payment) => payment.teamId)
+    .map((payment) => `${payment.teamId}:${payment.purchasedFor}`);
+  const roster = rosterKeys.length
+    ? await prisma.playerInTeam.findMany({
+        where: {
+          active: 1,
+          OR: rosterKeys.map((key) => {
+            const [teamId, playerSteamId] = key.split(':');
+            return { teamId: Number(teamId), playerSteamId };
+          }),
+        },
+        select: { teamId: true, playerSteamId: true, permissionLevel: true },
+      })
+    : [];
+  const removable = new Set(
+    roster
+      .filter((row) => row.permissionLevel !== 2)
+      .map((row) => `${row.teamId}:${row.playerSteamId}`),
+  );
 
-  await prisma.$transaction(async (tx) => {
-    let paymentIndex = 0;
+  const steamItems = await prisma.steamItem.findMany({
+    select: { name: true, iconUrl: true },
+  });
+  const iconByName = new Map(steamItems.map((item) => [item.name, item.iconUrl]));
 
-    for (const { teamId, paidForSteamIds } of teams) {
-      const team = teamMap.get(teamId);
-      if (!team?.seasonId) continue;
+  return payments.map((p) => {
+    let method: PaymentHistoryEntry['method'] = 'paypal';
+    if (p.currency === 'ITEMS') method = 'items';
+    else if (p.currency === 'MANUAL') method = 'manual';
 
-      const seasonId = team.seasonId;
-      const signupCost = team.division?.signupCost ?? 0;
-
-      for (const targetSteamId of paidForSteamIds) {
-        const pit = await tx.playerInTeam.findUnique({
-          where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId } },
-        });
-        if (!pit || pit.paymentStatus !== 0) {
-          paymentIndex++;
-          continue;
-        }
-
-        await tx.paymentTracker.upsert({
-          where: { playerSteamId_seasonId: { playerSteamId: targetSteamId, seasonId } },
-          create: { playerSteamId: targetSteamId, seasonId, amount: signupCost },
-          update: { amount: { increment: signupCost } },
-        });
-
-        await tx.payment.create({
-          data: {
-            paymentId: `${captureId}-${paymentIndex}`,
-            paypalCaptureId: captureId,
-            purchasedFor: targetSteamId,
-            purchasedBy: payerSteamId,
-            amount: signupCost.toString(),
-            currency,
-            purchaseDate: new Date(),
-            description: `Team signup payment - Team #${teamId}`,
-            teamId,
-          },
-        });
-
-        await tx.playerInTeam.update({
-          where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId } },
-          data: { paymentStatus: 1 },
-        });
-
-        paymentIndex++;
-      }
-
-      await syncTeamPaymentStatus(tx, teamId, team.format.requiredPaidPlayers);
+    const recordedItem = method === 'items' ? parseRecordedItemPayment(p.description ?? '') : null;
+    const openRefund = refundByPayment.get(p.paymentId);
+    let status: PaymentHistoryEntry['status'] = 'completed';
+    let refundable = method === 'paypal';
+    let refundBlockReason: string | null = null;
+    if (method === 'manual') {
+      refundable = false;
+      refundBlockReason = 'Manual payments are not refunded automatically.';
+    } else if (method === 'items') {
+      refundable = Boolean(recordedItem) && !openRefund;
+      refundBlockReason = recordedItem ? null : 'This item payment cannot be refunded from here.';
+    } else if (openRefund === 'COMPLETED') {
+      status = 'refunded';
+      refundable = false;
+      refundBlockReason = 'Already refunded.';
+    } else if (openRefund === 'PENDING') {
+      status = 'refund_pending';
+      refundable = false;
+      refundBlockReason = 'A refund is already in progress.';
     }
+
+    const groupKey = p.paypalCaptureId ?? invoiceNumbers.groupKeyByPayment.get(p.paymentId) ?? null;
+    return {
+      id: recordedItem?.orderNumber ?? p.paymentId,
+      date: p.purchaseDate,
+      method,
+      description: p.description ?? '',
+      amount: p.amount,
+      amountLabel:
+        method === 'manual'
+          ? 'Manual'
+          : method === 'items'
+            ? recordedItem
+              ? itemAmountLabel(recordedItem.name, recordedItem.quantity)
+              : (p.description ?? 'Items')
+            : moneyAmountLabel(p.amount, p.currency ?? 'USD'),
+      iconUrl:
+        method === 'items' && recordedItem ? (iconByName.get(recordedItem.name) ?? null) : null,
+      currency: p.currency ?? 'USD',
+      ...historyTeamScope(p.team),
+      status,
+      refundable,
+      refundBlockReason,
+      canRemoveFromTeam: p.teamId ? removable.has(`${p.teamId}:${p.purchasedFor}`) : false,
+      coveredSteamId: p.purchasedFor,
+      coveredName: null,
+      payerSteamId: p.purchasedBy,
+      payerName: p.byUser.steamUsername,
+      invoiceNumber: invoiceNumbers.lineByPayment.get(p.paymentId) ?? null,
+      groupInvoiceNumber: groupKey ? (invoiceNumbers.groupByKey.get(groupKey) ?? null) : null,
+      creditNoteNumber: invoiceNumbers.creditByPayment.get(p.paymentId) ?? null,
+      payerHistoryHref: `/users/${p.purchasedBy}?tab=payments`,
+    };
   });
 }
 

@@ -247,10 +247,10 @@
         </div>
       </div>
       {#if pendingApprovals.length > 5}
-      <a
-        href="/admin/pending-players"
-        class="shrink-0 text-sm font-medium text-info-ink transition hover:text-primary-300"
-      >
+        <a
+          href="/admin/pending-players"
+          class="shrink-0 text-sm font-medium text-info-ink transition hover:text-primary-300"
+        >
           View all →
         </a>
       {/if}
@@ -271,132 +271,132 @@
             class="flex flex-col gap-3 p-4 transition-colors hover:bg-surface-input/50 sm:flex-row sm:items-center sm:justify-between"
           >
             <div class="flex min-w-0 items-center gap-3">
-                {#if item.playerSteamId}
-                  <a href="/users/{item.playerSteamId}" class="flex-shrink-0">
-                    <img
-                      src={item.playerAvatar || '/default-avatar.png'}
-                      alt={item.playerUsername}
-                      class="w-10 h-10 rounded-lg hover:opacity-80 transition-opacity"
-                    />
-                  </a>
-                {/if}
+              {#if item.playerSteamId}
+                <a href="/users/{item.playerSteamId}" class="flex-shrink-0">
+                  <img
+                    src={item.playerAvatar || '/default-avatar.png'}
+                    alt={item.playerUsername}
+                    class="w-10 h-10 rounded-lg hover:opacity-80 transition-opacity"
+                  />
+                </a>
+              {/if}
 
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    {#if item.playerSteamId}
-                      <a
-                        href="/users/{item.playerSteamId}"
-                        class="font-semibold break-words text-text-heading transition-colors hover:text-primary-ink"
-                      >
-                        {item.playerUsername}
-                      </a>
-                    {:else}
-                      <span class="font-semibold break-words text-text-heading"
-                        >{item.playerUsername}</span
-                      >
-                    {/if}
-                    {#if item.kind === 'JOIN_REQUEST'}
-                      <span class="text-text-muted">→</span>
-                      <a
-                        href="/teams/{item.teamId}"
-                        class="font-medium break-words text-primary-ink transition-colors hover:text-primary-300"
-                      >
-                        {item.teamName}
-                      </a>
-                    {:else if !item.isIndividual}
-                      <span class="text-text-muted">·</span>
-                      <a
-                        href="/teams/{item.teamId}"
-                        class="font-medium break-words text-primary-ink transition-colors hover:text-primary-300"
-                      >
-                        {item.teamName}
-                      </a>
-                    {/if}
-                    <FormatBadge
-                      name={item.formatName}
-                      themeKey={item.formatThemeKey}
-                      iconUrl={item.formatIconUrl}
-                    />
-                    <Badge color="yellow">
-                      {item.kind === 'ENTRY_READY' ? 'Ready-up' : 'Join'}
-                    </Badge>
-                  </div>
-                  <div class="text-xs text-text-muted mt-0.5">
-                    {item.divisionName || 'No Division'}
-                    {#if item.regionName}
-                      · {item.regionName}
-                    {/if}
-                  </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  {#if item.playerSteamId}
+                    <a
+                      href="/users/{item.playerSteamId}"
+                      class="font-semibold break-words text-text-heading transition-colors hover:text-primary-ink"
+                    >
+                      {item.playerUsername}
+                    </a>
+                  {:else}
+                    <span class="font-semibold break-words text-text-heading"
+                      >{item.playerUsername}</span
+                    >
+                  {/if}
+                  {#if item.kind === 'JOIN_REQUEST'}
+                    <span class="text-text-muted">→</span>
+                    <a
+                      href="/teams/{item.teamId}"
+                      class="font-medium break-words text-primary-ink transition-colors hover:text-primary-300"
+                    >
+                      {item.teamName}
+                    </a>
+                  {:else if !item.isIndividual}
+                    <span class="text-text-muted">·</span>
+                    <a
+                      href="/teams/{item.teamId}"
+                      class="font-medium break-words text-primary-ink transition-colors hover:text-primary-300"
+                    >
+                      {item.teamName}
+                    </a>
+                  {/if}
+                  <FormatBadge
+                    name={item.formatName}
+                    themeKey={item.formatThemeKey}
+                    iconUrl={item.formatIconUrl}
+                  />
+                  <Badge color="yellow">
+                    {item.kind === 'ENTRY_READY' ? 'Ready-up' : 'Join'}
+                  </Badge>
+                </div>
+                <div class="text-xs text-text-muted mt-0.5">
+                  {item.divisionName || 'No Division'}
+                  {#if item.regionName}
+                    · {item.regionName}
+                  {/if}
                 </div>
               </div>
-
-              <div class="flex flex-wrap items-center gap-2">
-                {#if decliningKey === item.key}
-                  <form
-                    method="POST"
-                    action="?/decline"
-                    use:enhance={() => {
-                      isSubmitting = true;
-                      return async ({ update }) => {
-                        await update();
-                        isSubmitting = false;
-                        decliningKey = null;
-                        declineReasons[item.key] = '';
-                      };
-                    }}
-                    class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center"
-                  >
-                    <input type="hidden" name="kind" value={item.kind} />
-                    <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
-                    <input type="hidden" name="teamId" value={item.teamId} />
-                    <input
-                      type="text"
-                      name="reason"
-                      bind:value={declineReasons[item.key]}
-                      placeholder="Reason..."
-                      required
-                      class="w-full rounded-md border border-border-input bg-surface-input px-3 py-1.5 text-sm text-text-heading focus:ring-2 focus:ring-primary-500 focus:outline-none sm:w-40"
-                    />
-                    <div class="flex gap-2">
-                      <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
-                        Confirm
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onclick={() => (decliningKey = null)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                {:else}
-                  <form
-                    method="POST"
-                    action="?/approve"
-                    use:enhance={() => {
-                      isSubmitting = true;
-                      return async ({ update }) => {
-                        await update();
-                        isSubmitting = false;
-                      };
-                    }}
-                  >
-                    <input type="hidden" name="kind" value={item.kind} />
-                    <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
-                    <input type="hidden" name="teamId" value={item.teamId} />
-                    <Button type="submit" variant="success" size="sm" disabled={isSubmitting}>
-                      ✓ Approve
-                    </Button>
-                  </form>
-
-                  <Button variant="danger" size="sm" onclick={() => (decliningKey = item.key)}>
-                    ✗ Decline
-                  </Button>
-                {/if}
-              </div>
             </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              {#if decliningKey === item.key}
+                <form
+                  method="POST"
+                  action="?/decline"
+                  use:enhance={() => {
+                    isSubmitting = true;
+                    return async ({ update }) => {
+                      await update();
+                      isSubmitting = false;
+                      decliningKey = null;
+                      declineReasons[item.key] = '';
+                    };
+                  }}
+                  class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center"
+                >
+                  <input type="hidden" name="kind" value={item.kind} />
+                  <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
+                  <input type="hidden" name="teamId" value={item.teamId} />
+                  <input
+                    type="text"
+                    name="reason"
+                    bind:value={declineReasons[item.key]}
+                    placeholder="Reason..."
+                    required
+                    class="w-full rounded-md border border-border-input bg-surface-input px-3 py-1.5 text-sm text-text-heading focus:ring-2 focus:ring-primary-500 focus:outline-none sm:w-40"
+                  />
+                  <div class="flex gap-2">
+                    <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
+                      Confirm
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onclick={() => (decliningKey = null)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              {:else}
+                <form
+                  method="POST"
+                  action="?/approve"
+                  use:enhance={() => {
+                    isSubmitting = true;
+                    return async ({ update }) => {
+                      await update();
+                      isSubmitting = false;
+                    };
+                  }}
+                >
+                  <input type="hidden" name="kind" value={item.kind} />
+                  <input type="hidden" name="playerSteamId" value={item.playerSteamId} />
+                  <input type="hidden" name="teamId" value={item.teamId} />
+                  <Button type="submit" variant="success" size="sm" disabled={isSubmitting}>
+                    ✓ Approve
+                  </Button>
+                </form>
+
+                <Button variant="danger" size="sm" onclick={() => (decliningKey = item.key)}>
+                  ✗ Decline
+                </Button>
+              {/if}
+            </div>
+          </div>
         {/each}
       {/if}
     </div>
@@ -448,7 +448,10 @@
     {:else}
       <div class="divide-y divide-border-default lg:hidden">
         {#each recentMatches as match (match.id)}
-          <a href="/matches/{match.id}" class="block p-4 transition-colors hover:bg-surface-input/50">
+          <a
+            href="/matches/{match.id}"
+            class="block p-4 transition-colors hover:bg-surface-input/50"
+          >
             <p class="font-medium break-words text-text-heading">
               {match.homeTeam.name}
               <span class="text-sm text-text-muted">vs</span>

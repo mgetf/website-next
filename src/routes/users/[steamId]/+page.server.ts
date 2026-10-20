@@ -24,6 +24,7 @@ import {
 } from '#lib/server/services/signup1v1.js';
 import { TeamStatus } from '#prisma/client.js';
 import {
+  getCoveredPaymentHistory,
   getUserPaymentHistory,
   markPlayerAsPaidManually,
   unmarkPlayerAsPaid,
@@ -106,32 +107,45 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       const pageParam = url.searchParams.get('page');
       const currentPage = Math.max(1, parseInt(pageParam ?? '', 10) || 1);
       const limit = 20;
-      const history = await getUserPaymentHistory(steamId, currentPage, limit);
+      const [history, covered] = await Promise.all([
+        getUserPaymentHistory(steamId, currentPage, limit),
+        getCoveredPaymentHistory(steamId),
+      ]);
       const storedTradeOfferUrl = await getTradeOfferUrl(steamId);
       hasTradeOfferUrl = Boolean(storedTradeOfferUrl);
       tradeOfferUrl = isOwnProfile ? storedTradeOfferUrl : null;
+      const toEntry = (entry: (typeof history.entries)[number]) => ({
+        id: entry.id,
+        date: entry.date.toISOString(),
+        method: entry.method,
+        description: entry.description,
+        amount: entry.amount,
+        amountLabel: entry.amountLabel,
+        iconUrl: entry.iconUrl,
+        currency: entry.currency,
+        teamId: entry.teamId,
+        teamName: entry.teamName,
+        regionName: entry.regionName,
+        seasonNum: entry.seasonNum,
+        division: entry.division,
+        formatName: entry.formatName,
+        formatIconUrl: entry.formatIconUrl,
+        status: entry.status,
+        refundable: entry.refundable,
+        refundBlockReason: entry.refundBlockReason,
+        canRemoveFromTeam: entry.canRemoveFromTeam,
+        coveredSteamId: entry.coveredSteamId,
+        coveredName: entry.coveredName,
+        payerSteamId: entry.payerSteamId,
+        payerName: entry.payerName,
+        invoiceNumber: entry.invoiceNumber,
+        groupInvoiceNumber: entry.groupInvoiceNumber,
+        creditNoteNumber: entry.creditNoteNumber,
+        payerHistoryHref: entry.payerHistoryHref,
+      });
       payments = {
-        entries: history.entries.map((entry) => ({
-          id: entry.id,
-          date: entry.date.toISOString(),
-          method: entry.method,
-          description: entry.description,
-          amount: entry.amount,
-          amountLabel: entry.amountLabel,
-          iconUrl: entry.iconUrl,
-          currency: entry.currency,
-          teamId: entry.teamId,
-          teamName: entry.teamName,
-          regionName: entry.regionName,
-          seasonNum: entry.seasonNum,
-          division: entry.division,
-          formatName: entry.formatName,
-          formatIconUrl: entry.formatIconUrl,
-          status: entry.status,
-          refundable: entry.refundable,
-          refundBlockReason: entry.refundBlockReason,
-          canRemoveFromTeam: entry.canRemoveFromTeam,
-        })),
+        entries: history.entries.map(toEntry),
+        covered: covered.map(toEntry),
         total: history.total,
         currentPage,
         totalPages: Math.ceil(history.total / limit),

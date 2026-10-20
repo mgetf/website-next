@@ -22,19 +22,25 @@
   } = $props();
 
   const flagCode = $derived(region ? flagForRegion(getRegionAbbr(region)) : '');
-  const hasContent = $derived(!!flagCode || seasonNum != null || !!division || !!formatIconUrl);
+  const hasContent = $derived(
+    !!flagCode || seasonNum != null || !!division || !!formatIconUrl || !!formatName,
+  );
 </script>
 
 {#if hasContent}
-  <span class="inline-flex items-center gap-2 font-semibold text-text-heading {className}">
+  <span
+    class="inline-flex items-center gap-2 whitespace-nowrap font-semibold text-text-heading {className}"
+  >
     {#if flagCode}
       <FlagIcon code={flagCode} class="h-4 w-6 rounded" />
     {/if}
     {#if formatIconUrl}
       <FormatIcon name={formatName || 'Format'} src={formatIconUrl} size="sm" />
+    {:else if formatName}
+      <span>{formatName}</span>
     {/if}
     {#if seasonNum != null}
-      <span>
+      <span class="whitespace-nowrap">
         Season {seasonNum}
         {#if division}
           <span class="font-normal text-text-muted"> - {sentenceCase(division)}</span>

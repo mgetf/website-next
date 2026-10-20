@@ -267,7 +267,7 @@
 </svelte:head>
 
 <header class="border-b border-border-default bg-surface-page/80">
-  <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 sm:px-6 lg:flex-row lg:items-center">
+  <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:px-6 lg:flex-row lg:items-center">
     <img
       src={player.avatar || '/default-avatar.png'}
       alt=""
@@ -398,14 +398,14 @@
     {/if}
   </div>
   {#if isOwnProfile && data.ownPunishment}
-    <div class="mx-auto max-w-6xl px-4 pb-6 sm:px-6">
+    <div class="mx-auto max-w-7xl px-4 pb-6 sm:px-6">
       <PunishmentNoticeCard notice={data.ownPunishment} />
     </div>
   {/if}
 </header>
 
 <div class="border-b border-border-default bg-surface-page">
-  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
     <div
       class="-mx-4 flex gap-1 overflow-x-auto overscroll-x-contain px-4 sm:-mx-6 sm:px-6"
       role="tablist"
@@ -437,7 +437,7 @@
   </div>
 </div>
 
-<div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
   {#if tab === 'overview'}
     <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
       <OverviewPanel
@@ -484,6 +484,7 @@
       <PaymentHistoryPanel
         steamId={player.steamId}
         entries={data.payments?.entries ?? []}
+        covered={data.payments?.covered ?? []}
         total={data.payments?.total ?? 0}
         currentPage={data.payments?.currentPage ?? 1}
         totalPages={data.payments?.totalPages ?? 0}

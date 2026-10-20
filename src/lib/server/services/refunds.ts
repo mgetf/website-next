@@ -1,5 +1,6 @@
 import { Prisma } from '#prisma/client.js';
 import { prisma } from '#lib/server/db.js';
+import { issueCreditNoteForPayment } from './invoices.js';
 import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import { AuditAction, AuditCategory, logAudit } from './auditLog.js';
 import { syncTeamPaymentStatus } from './payments.js';
@@ -199,6 +200,21 @@ export async function confirmItemRefund(refundId: number, tradeOfferId: string):
     return applyRosterEffects(tx, refund);
   });
 
+  if (refund.itemOrderNumber) {
+    const payment = await prisma.payment.findFirst({
+      where: { description: { contains: `(Order ${refund.itemOrderNumber})` } },
+      select: { paymentId: true },
+    });
+    if (payment) {
+      await issueCreditNoteForPayment({
+        paymentId: payment.paymentId,
+        net: 0,
+        fee: 0,
+        refundId: `item-${refundId}`,
+      });
+    }
+  }
+
   await logAudit({
     actorId: refund.actorSteamId,
     category: AuditCategory.PAYMENT,
@@ -276,7 +292,10 @@ export async function updateItemRefundFromOffer(
 
 async function quotePayPal(profileSteamId: string, paymentId: string): Promise<RefundQuote> {
   const payment = await prisma.payment.findFirst({
-    where: { paymentId, purchasedBy: profileSteamId },
+    where: {
+      paymentId,
+      OR: [{ purchasedBy: profileSteamId }, { purchasedFor: profileSteamId }],
+    },
     include: { team: { select: { name: true } } },
   });
   if (!payment) notFound('Payment not found');
@@ -285,7 +304,7 @@ async function quotePayPal(profileSteamId: string, paymentId: string): Promise<R
   }
 
   const user = await prisma.user.findUnique({
-    where: { steamId: profileSteamId },
+    where: { steamId: payment.purchasedBy },
     select: { tradeOfferUrl: true },
   });
   const blockReason = await paypalBlockReason(payment.paymentId, payment.purchaseDate);
@@ -343,13 +362,16 @@ async function quotePayPal(profileSteamId: string, paymentId: string): Promise<R
 
 async function quoteItems(profileSteamId: string, orderNumber: string): Promise<RefundQuote> {
   const order = await prisma.itemPaymentOrder.findFirst({
-    where: { orderNumber, playerSteamId: profileSteamId },
+    where: {
+      orderNumber,
+      OR: [{ playerSteamId: profileSteamId }, { paidForSteamIds: { has: profileSteamId } }],
+    },
     include: { team: { select: { name: true } } },
   });
   if (!order) notFound('Item payment not found');
 
   const user = await prisma.user.findUnique({
-    where: { steamId: profileSteamId },
+    where: { steamId: order.playerSteamId },
     select: { tradeOfferUrl: true },
   });
   const targets = order.paidForSteamIds.length > 0 ? order.paidForSteamIds : [order.playerSteamId];
@@ -383,7 +405,10 @@ async function requestPayPalRefund(
   quote: RefundQuote,
 ): Promise<{ message: string }> {
   const payment = await prisma.payment.findFirst({
-    where: { paymentId: input.sourceId, purchasedBy: input.profileSteamId },
+    where: {
+      paymentId: input.sourceId,
+      OR: [{ purchasedBy: input.profileSteamId }, { purchasedFor: input.profileSteamId }],
+    },
   });
   if (
     !payment ||
@@ -403,7 +428,7 @@ async function requestPayPalRefund(
       data: {
         method: 'PAYPAL',
         status: 'PENDING',
-        playerSteamId: input.profileSteamId,
+        playerSteamId: payment.purchasedBy,
         teamId: payment.teamId,
         paymentId: payment.paymentId,
         grossAmount: money(quote.gross),
@@ -520,6 +545,13 @@ async function requestPayPalRefund(
     ipAddress: input.ipAddress,
   });
 
+  await issueCreditNoteForPayment({
+    paymentId: payment.paymentId,
+    net: quote.net,
+    fee: quote.fee,
+    refundId: paypal.refundId,
+  });
+
   return { message: refundMessage(quote.currency, quote.net, notes) };
 }
 
@@ -528,7 +560,13 @@ async function requestItemRefund(
   quote: RefundQuote,
 ): Promise<{ message: string }> {
   const order = await prisma.itemPaymentOrder.findFirst({
-    where: { orderNumber: input.sourceId, playerSteamId: input.profileSteamId },
+    where: {
+      orderNumber: input.sourceId,
+      OR: [
+        { playerSteamId: input.profileSteamId },
+        { paidForSteamIds: { has: input.profileSteamId } },
+      ],
+    },
   });
   if (!order) badRequest('That payment cannot be refunded.');
   const targets = order.paidForSteamIds.length > 0 ? order.paidForSteamIds : [order.playerSteamId];
@@ -538,7 +576,7 @@ async function requestItemRefund(
       data: {
         method: 'ITEMS',
         status: 'PENDING',
-        playerSteamId: input.profileSteamId,
+        playerSteamId: order.playerSteamId,
         teamId: order.teamId,
         itemOrderNumber: order.orderNumber,
         itemName: order.itemName,

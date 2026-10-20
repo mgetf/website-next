@@ -10,6 +10,7 @@ import { formAcknowledgedSignupScope } from '#lib/utils/signupAck.js';
 import { getSignupFeeSummary } from '#lib/server/services/signupFees.js';
 import { getVisibleDivisions } from '#lib/server/services/divisions.js';
 import { checkPaymentRequired } from '#lib/server/services/payments.js';
+import { addToCart } from '#lib/server/services/cart.js';
 import { formAcknowledgedFreeDivision } from '#lib/server/services/signupDivision.js';
 import { getTeamAuditSnapshot } from '#lib/server/services/teams.js';
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
@@ -202,7 +203,8 @@ export const actions: Actions = {
       });
 
       if (paymentInfo.required && !paymentInfo.alreadyPaid) {
-        throw redirect(303, `/checkout/${locals.user.steamId}`);
+        await addToCart(locals.user.steamId, teamId, locals.user.steamId);
+        throw redirect(303, '/checkout');
       }
 
       throw redirect(303, `/teams/${teamId}?signup=created`);

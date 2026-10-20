@@ -22,10 +22,19 @@ export interface ProfilePaymentEntry {
   refundable: boolean;
   refundBlockReason: string | null;
   canRemoveFromTeam: boolean;
+  coveredSteamId: string;
+  coveredName: string | null;
+  payerSteamId: string;
+  payerName: string | null;
+  invoiceNumber: string | null;
+  groupInvoiceNumber: string | null;
+  creditNoteNumber: string | null;
+  payerHistoryHref: string | null;
 }
 
 export interface ProfilePaymentHistory {
   entries: ProfilePaymentEntry[];
+  covered: ProfilePaymentEntry[];
   total: number;
   currentPage: number;
   totalPages: number;

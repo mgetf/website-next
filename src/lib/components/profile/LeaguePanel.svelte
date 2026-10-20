@@ -143,7 +143,11 @@
                 {#if !entry.isPaid}
                   <div class="ml-10 space-y-3">
                     <p class="text-sm text-text-body">Pay the fee to unlock ready-up.</p>
-                    <Button variant="warning" href="/checkout/{steamId}">Go to checkout</Button>
+                    <form method="POST" action="/checkout?/add">
+                      <input type="hidden" name="teamId" value={entry.id} />
+                      <input type="hidden" name="playerSteamId" value={steamId} />
+                      <Button type="submit" variant="warning">Add to cart</Button>
+                    </form>
                   </div>
                 {/if}
               </div>

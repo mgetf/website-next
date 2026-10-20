@@ -2,17 +2,16 @@
   import { enhance } from '$app/forms';
   import { toast } from '#lib/state/toast.svelte.js';
   import Button from '#lib/components/ui/Button.svelte';
-  import type { CheckoutTeamSelection } from '#lib/types/checkout.js';
 
   let {
-    teams,
+    lineIds,
     itemName,
     totalItemsRequired,
     botTradeOfferUrl,
     botProfile,
     pendingItemOrder,
   }: {
-    teams: CheckoutTeamSelection[];
+    lineIds: number[];
     itemName: string;
     totalItemsRequired: number;
     botTradeOfferUrl: string | null;
@@ -69,7 +68,7 @@
         const data = await res.json();
         if (data.status === 'COMPLETED') {
           stopPolling();
-          window.location.href = `/checkout/${teams[0]?.teamId}?payment=success`;
+          window.location.href = '/checkout?payment=success';
         } else if (data.status === 'EXPIRED' || data.status === 'CANCELLED') {
           stopPolling();
           order = null;
@@ -101,18 +100,17 @@
 </script>
 
 {#if !order}
-  <!-- Pre-order: show bot info and create button -->
   <div class="space-y-4">
     {#if botProfile}
-      <div class="flex items-center gap-3 p-4 bg-surface-input rounded-lg">
-        <img src={botProfile.avatar} alt={botProfile.name} class="w-10 h-10 rounded-full" />
+      <div class="flex items-center gap-3 rounded-lg bg-surface-input p-4">
+        <img src={botProfile.avatar} alt={botProfile.name} class="h-10 w-10 rounded-full" />
         <div>
-          <p class="text-text-body text-xs">Items will be sent to</p>
+          <p class="text-xs text-text-body">Items will be sent to</p>
           <a
             href={botProfile.profileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            class="text-primary-ink hover:text-primary-300 font-medium text-sm"
+            class="text-sm font-medium text-primary-ink hover:text-primary-300"
           >
             {botProfile.name}
           </a>
@@ -120,7 +118,7 @@
       </div>
     {/if}
 
-    <p class="text-text-body text-sm">
+    <p class="text-sm text-text-body">
       Create an order to get started. You'll have 30 minutes to send the required items via Steam
       trade offer.
     </p>
@@ -150,7 +148,7 @@
         };
       }}
     >
-      <input type="hidden" name="teams" value={JSON.stringify(teams)} />
+      <input type="hidden" name="lineIds" value={JSON.stringify(lineIds)} />
       <Button
         type="submit"
         variant="primary"
@@ -162,16 +160,15 @@
     </form>
   </div>
 {:else}
-  <!-- Active order: show trade link, countdown, polling -->
   <div class="space-y-4">
-    <div class="bg-surface-input rounded-lg p-6">
-      <div class="flex items-center justify-between mb-5">
+    <div class="rounded-lg bg-surface-input p-6">
+      <div class="mb-5 flex items-center justify-between">
         <div>
-          <p class="text-text-body text-xs uppercase tracking-wider">Order</p>
-          <p class="text-text-heading font-bold text-lg">{order.orderNumber}</p>
+          <p class="text-xs tracking-wider text-text-body uppercase">Order</p>
+          <p class="text-lg font-bold text-text-heading">{order.orderNumber}</p>
         </div>
         <div
-          class="px-3 py-1.5 rounded-full text-sm font-medium {isExpired
+          class="rounded-full px-3 py-1.5 text-sm font-medium {isExpired
             ? 'bg-danger-500/20 text-danger-ink'
             : 'bg-warning-500/20 text-warning-ink'}"
         >
@@ -186,7 +183,7 @@
             variant="success"
             target="_blank"
             rel="noopener noreferrer"
-            class="w-full py-3 font-bold text-center"
+            class="w-full py-3 text-center font-bold"
           >
             Open Trade Offer Link
           </Button>
@@ -194,30 +191,30 @@
       {/if}
 
       {#if botProfile}
-        <div class="flex items-center gap-3 p-3 bg-surface-card rounded-lg mb-4">
-          <img src={botProfile.avatar} alt={botProfile.name} class="w-8 h-8 rounded-full" />
+        <div class="mb-4 flex items-center gap-3 rounded-lg bg-surface-card p-3">
+          <img src={botProfile.avatar} alt={botProfile.name} class="h-8 w-8 rounded-full" />
           <a
             href={botProfile.profileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            class="text-primary-ink hover:text-primary-300 text-sm font-medium"
+            class="text-sm font-medium text-primary-ink hover:text-primary-300"
           >
             {botProfile.name}
           </a>
         </div>
       {/if}
 
-      <div class="p-3 bg-info-500/10 border border-info-500/30 rounded-lg">
-        <p class="text-info-ink text-sm">
+      <div class="rounded-lg border border-info-500/30 bg-info-500/10 p-3">
+        <p class="text-sm text-info-ink">
           Send exactly <strong>{order.itemsRequired}x {order.itemName}</strong> to the bot via the trade
           offer link above. This page updates automatically once the trade is accepted.
         </p>
       </div>
 
       {#if !isExpired}
-        <div class="mt-4 flex items-center gap-2 text-text-body text-sm">
+        <div class="mt-4 flex items-center gap-2 text-sm text-text-body">
           <div
-            class="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-500"
+            class="h-4 w-4 animate-spin rounded-full border-t-2 border-b-2 border-primary-500"
           ></div>
           Waiting for trade offer...
         </div>

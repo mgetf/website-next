@@ -148,6 +148,7 @@
             signupClosed={data.signupClosed}
             isInTeam={data.isInTeam}
             userTeams={data.userTeams}
+            cartCount={data.cartCount}
             realtimeEnabled={data.realtimeEnabled}
             leagueNav={data.leagueNav}
           />

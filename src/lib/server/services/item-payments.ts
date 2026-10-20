@@ -1,7 +1,12 @@
 import { prisma } from '#lib/server/db.js';
 import { notFound, badRequest } from '#lib/server/utils/errors.js';
 import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
-import { syncTeamPaymentStatus } from '#lib/server/services/payments.js';
+import {
+  quoteParticipationLines,
+  recordQuotedSignupPayments,
+} from '#lib/server/services/payments.js';
+import { finalizePaidCartLines } from '#lib/server/services/cart.js';
+import type { QuotedParticipation } from '#lib/types/cart.js';
 import type { CheckoutTeamSelection } from '#lib/types/checkout.js';
 import { leaguePageHref } from '#lib/utils/leagueNav.js';
 import { getRegionAbbr } from '#lib/utils/region.js';
@@ -39,98 +44,6 @@ export async function expireOverdueOrders(): Promise<number> {
   return overdueOrders.length;
 }
 
-export async function createItemPaymentOrder(
-  steamId: string,
-  teamId: number,
-  paidForSteamIds: string[],
-) {
-  const playerInTeam = await prisma.playerInTeam.findUnique({
-    where: { playerSteamId_teamId: { playerSteamId: steamId, teamId } },
-    include: {
-      team: {
-        include: {
-          division: {
-            include: {
-              itemPayment: { include: { steamItem: true } },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!playerInTeam?.team) {
-    notFound('Team not found');
-  }
-
-  const division = playerInTeam.team.division;
-  if (!division?.itemPayment) {
-    badRequest('This division does not accept item payments');
-  }
-
-  if (!playerInTeam.team.seasonId) {
-    badRequest('Team has no associated season');
-  }
-
-  const existingOrder = await prisma.itemPaymentOrder.findFirst({
-    where: {
-      playerSteamId: steamId,
-      teamId,
-      status: 'PENDING',
-      expiresAt: { gt: new Date() },
-    },
-  });
-
-  if (existingOrder) {
-    badRequest('You already have a pending item payment order for this team');
-  }
-
-  const targets = paidForSteamIds.length > 0 ? paidForSteamIds : [steamId];
-  const uniqueTargets = [...new Set(targets)];
-
-  const rosterMembers = await prisma.playerInTeam.findMany({
-    where: {
-      teamId,
-      active: 1,
-      playerSteamId: { in: uniqueTargets },
-    },
-    select: { playerSteamId: true },
-  });
-
-  if (rosterMembers.length !== uniqueTargets.length) {
-    badRequest('One or more selected players are not active members of this team');
-  }
-
-  const { steamItem } = division.itemPayment;
-  const itemQuantityPerPlayer = division.itemPayment.itemQuantity;
-  const totalItemsRequired = itemQuantityPerPlayer * uniqueTargets.length;
-  const expiresAt = new Date(Date.now() + ITEM_ORDER_EXPIRY_MS);
-
-  const order = await prisma.$transaction(async (tx) => {
-    const created = await tx.itemPaymentOrder.create({
-      data: {
-        orderNumber: 'IP-TEMP',
-        playerSteamId: steamId,
-        teamId,
-        seasonId: playerInTeam.team.seasonId!,
-        itemName: steamItem.name,
-        itemAppId: steamItem.appId,
-        itemMarketHashName: steamItem.marketHashName,
-        itemsRequired: totalItemsRequired,
-        paidForSteamIds: uniqueTargets,
-        expiresAt,
-      },
-    });
-
-    return await tx.itemPaymentOrder.update({
-      where: { id: created.id },
-      data: { orderNumber: `IP-${created.id.toString().padStart(5, '0')}` },
-    });
-  });
-
-  return order;
-}
-
 /**
  * Find any pending item payment order for a user (used by multi-team checkout).
  */
@@ -146,10 +59,19 @@ export async function getPendingOrderForUser(steamId: string) {
 
   if (!order) return null;
 
+  let itemsRequired = order.itemsRequired;
+  if (order.checkoutGroupId) {
+    const group = await prisma.itemPaymentOrder.findMany({
+      where: { checkoutGroupId: order.checkoutGroupId, status: 'PENDING' },
+      select: { itemsRequired: true },
+    });
+    itemsRequired = group.reduce((sum, row) => sum + row.itemsRequired, 0);
+  }
+
   return {
     orderNumber: order.orderNumber,
     itemName: order.itemName,
-    itemsRequired: order.itemsRequired,
+    itemsRequired,
     expiresAt: order.expiresAt.toISOString(),
     checkoutTeams: order.checkoutTeams
       ? (JSON.parse(order.checkoutTeams) as CheckoutTeamSelection[])
@@ -157,144 +79,89 @@ export async function getPendingOrderForUser(steamId: string) {
   };
 }
 
-/**
- * Create a single item payment order covering multiple teams.
- * All teams must share the same item type and app ID.
- */
-export async function createMultiTeamItemOrder(steamId: string, teams: CheckoutTeamSelection[]) {
-  if (teams.length === 0) {
-    badRequest('No teams provided');
+export async function createCartItemOrders(payerSteamId: string, lines: QuotedParticipation[]) {
+  if (lines.length === 0) badRequest('No cart items provided');
+
+  const configs = lines.map((line) => line.itemPaymentConfig);
+  if (configs.some((config) => !config)) {
+    badRequest('One or more selected items cannot be paid with Steam items');
+  }
+  const reference = configs[0]!;
+  if (
+    configs.some(
+      (config) =>
+        config!.itemName !== reference.itemName || config!.itemAppId !== reference.itemAppId,
+    )
+  ) {
+    badRequest('All selected items must use the same Steam item');
   }
 
-  const firstTeam = teams[0]!;
-
-  const teamRecords = await prisma.playerInTeam.findMany({
+  const existing = await prisma.itemPaymentOrder.findFirst({
     where: {
-      playerSteamId: steamId,
-      teamId: { in: teams.map((t) => t.teamId) },
-      active: 1,
-    },
-    include: {
-      team: {
-        include: {
-          division: {
-            include: { itemPayment: { include: { steamItem: true } } },
-          },
-        },
-      },
-    },
-  });
-
-  if (teamRecords.length !== teams.length) {
-    badRequest('One or more teams not found or you are not an active member');
-  }
-
-  for (const record of teamRecords) {
-    if (!record.team.division?.itemPayment) {
-      badRequest(`Division for team "${record.team.name}" does not accept item payments`);
-    }
-    if (!record.team.seasonId) {
-      badRequest(`Team "${record.team.name}" has no associated season`);
-    }
-  }
-
-  const firstRecord = teamRecords.find((r) => r.teamId === firstTeam.teamId)!;
-  const referenceItem = firstRecord.team.division!.itemPayment!.steamItem;
-
-  for (const record of teamRecords) {
-    const item = record.team.division!.itemPayment!.steamItem;
-    if (item.appId !== referenceItem.appId || item.name !== referenceItem.name) {
-      badRequest('All selected teams must use the same item type for item payments');
-    }
-  }
-
-  const existingOrder = await prisma.itemPaymentOrder.findFirst({
-    where: {
-      playerSteamId: steamId,
+      playerSteamId: payerSteamId,
       status: 'PENDING',
       expiresAt: { gt: new Date() },
     },
   });
+  if (existing) badRequest('You already have a pending item payment order');
 
-  if (existingOrder) {
-    badRequest('You already have a pending item payment order');
-  }
-
-  const allPaidForIds = [
-    ...new Set(
-      teams.flatMap((t) => (t.paidForSteamIds.length > 0 ? t.paidForSteamIds : [steamId])),
-    ),
-  ];
-
-  const rosterAcrossTeams = await prisma.playerInTeam.findMany({
-    where: {
-      teamId: { in: teams.map((t) => t.teamId) },
-      active: 1,
-      playerSteamId: { in: allPaidForIds },
+  const firstTeam = await prisma.team.findUnique({
+    where: { id: lines[0]!.teamId },
+    include: {
+      division: { include: { itemPayment: { include: { steamItem: true } } } },
     },
-    select: { teamId: true, playerSteamId: true },
   });
-
-  const rosterByTeam = new Map<number, Set<string>>();
-  for (const row of rosterAcrossTeams) {
-    const set = rosterByTeam.get(row.teamId) ?? new Set<string>();
-    set.add(row.playerSteamId);
-    rosterByTeam.set(row.teamId, set);
-  }
-
-  for (const teamSel of teams) {
-    const targets =
-      teamSel.paidForSteamIds.length > 0 ? [...new Set(teamSel.paidForSteamIds)] : [steamId];
-    const roster = rosterByTeam.get(teamSel.teamId) ?? new Set();
-    if (targets.some((id) => !roster.has(id))) {
-      badRequest('One or more selected players are not active members of the selected team(s)');
-    }
-  }
-
-  let totalItemsRequired = 0;
-  for (const teamSel of teams) {
-    const record = teamRecords.find((r) => r.teamId === teamSel.teamId)!;
-    const itemQuantity = record.team.division!.itemPayment!.itemQuantity;
-    const targets =
-      teamSel.paidForSteamIds.length > 0 ? [...new Set(teamSel.paidForSteamIds)] : [steamId];
-    totalItemsRequired += itemQuantity * targets.length;
-  }
+  const steamItem = firstTeam?.division?.itemPayment?.steamItem;
+  if (!steamItem) badRequest('This division does not accept item payments');
 
   const expiresAt = new Date(Date.now() + ITEM_ORDER_EXPIRY_MS);
+  const checkoutGroupId = crypto.randomUUID();
   const checkoutTeamsJson = JSON.stringify(
-    teams.map((t) => ({
-      teamId: t.teamId,
-      paidForSteamIds: t.paidForSteamIds.length > 0 ? [...new Set(t.paidForSteamIds)] : [steamId],
+    lines.map((line) => ({
+      teamId: line.teamId,
+      paidForSteamIds: [line.playerSteamId],
     })),
   );
 
-  const firstTargets =
-    firstTeam.paidForSteamIds.length > 0 ? [...new Set(firstTeam.paidForSteamIds)] : [steamId];
-
-  const order = await prisma.$transaction(async (tx) => {
-    const created = await tx.itemPaymentOrder.create({
-      data: {
-        orderNumber: 'IP-TEMP',
-        playerSteamId: steamId,
-        teamId: firstTeam.teamId,
-        seasonId: firstRecord.team.seasonId!,
-        itemName: referenceItem.name,
-        itemAppId: referenceItem.appId,
-        itemMarketHashName: referenceItem.marketHashName,
-        itemsRequired: totalItemsRequired,
-        paidForSteamIds: firstTargets,
-        checkoutTeams: checkoutTeamsJson,
-        expiresAt,
-      },
-    });
-
-    return await tx.itemPaymentOrder.update({
-      where: { id: created.id },
-      data: { orderNumber: `IP-${created.id.toString().padStart(5, '0')}` },
-    });
+  const created = await prisma.$transaction(async (tx) => {
+    const orders = [];
+    for (const line of lines) {
+      const config = line.itemPaymentConfig!;
+      const row = await tx.itemPaymentOrder.create({
+        data: {
+          orderNumber: 'IP-TEMP',
+          playerSteamId: payerSteamId,
+          teamId: line.teamId,
+          seasonId: line.seasonId,
+          itemName: steamItem.name,
+          itemAppId: steamItem.appId,
+          itemMarketHashName: steamItem.marketHashName,
+          itemsRequired: config.itemQuantity,
+          paidForSteamIds: [line.playerSteamId],
+          checkoutTeams: checkoutTeamsJson,
+          checkoutGroupId,
+          expiresAt,
+        },
+      });
+      const numbered = await tx.itemPaymentOrder.update({
+        where: { id: row.id },
+        data: { orderNumber: `IP-${row.id.toString().padStart(5, '0')}` },
+      });
+      orders.push(numbered);
+    }
+    return orders;
   });
 
-  return order;
+  return {
+    checkoutGroupId,
+    orders: created,
+    itemName: steamItem.name,
+    itemsRequired: lines.reduce(
+      (sum, line) => sum + (line.itemPaymentConfig?.itemQuantity ?? 0),
+      0,
+    ),
+    expiresAt,
+  };
 }
 
 export async function cancelItemPaymentOrder(orderNumber: string, steamId: string) {
@@ -308,6 +175,14 @@ export async function cancelItemPaymentOrder(orderNumber: string, steamId: strin
 
   if (!order) {
     notFound('Pending order not found');
+  }
+
+  if (order.checkoutGroupId) {
+    await prisma.itemPaymentOrder.updateMany({
+      where: { checkoutGroupId: order.checkoutGroupId, status: 'PENDING' },
+      data: { status: 'CANCELLED' },
+    });
+    return order;
   }
 
   return await prisma.itemPaymentOrder.update({
@@ -535,12 +410,21 @@ export async function getPendingOrderBySteamId(steamId: string) {
     names,
   });
 
+  let itemsRequired = order.itemsRequired;
+  if (order.checkoutGroupId) {
+    const group = await prisma.itemPaymentOrder.findMany({
+      where: { checkoutGroupId: order.checkoutGroupId, status: 'PENDING' },
+      select: { itemsRequired: true },
+    });
+    itemsRequired = group.reduce((sum, row) => sum + row.itemsRequired, 0);
+  }
+
   return {
     orderNumber: order.orderNumber,
     itemAppId: order.itemAppId,
     itemMarketHashName: order.itemMarketHashName,
     itemName: order.itemName,
-    itemsRequired: order.itemsRequired,
+    itemsRequired,
     teamId: order.teamId,
     expiresAt: order.expiresAt.toISOString(),
     payer: display.payer,
@@ -575,151 +459,52 @@ export async function confirmItemPayment(data: {
     badRequest('Sender Steam ID does not match order');
   }
 
-  const description = `Item payment - ${order.itemsRequired}x ${order.itemName} (Order ${order.orderNumber})`;
+  const groupOrders = order.checkoutGroupId
+    ? await prisma.itemPaymentOrder.findMany({
+        where: { checkoutGroupId: order.checkoutGroupId, status: 'PENDING' },
+      })
+    : [order];
 
-  if (order.checkoutTeams) {
-    const checkoutTeams = JSON.parse(order.checkoutTeams) as CheckoutTeamSelection[];
-
-    const teamIds = checkoutTeams.map((t) => t.teamId);
-    const teamRecords = await prisma.team.findMany({
-      where: { id: { in: teamIds } },
-      include: { division: true, format: true },
-    });
-    const teamMap = new Map(teamRecords.map((t) => [t.id, t]));
-
-    await prisma.$transaction(async (tx) => {
-      await tx.itemPaymentOrder.update({
-        where: { id: order.id },
-        data: {
-          status: 'COMPLETED',
-          tradeOfferId: data.tradeOfferId,
-          itemsReceived: data.itemsReceived,
-          completedAt: new Date(),
-        },
-      });
-
-      let paymentIndex = 0;
-
-      for (const teamSel of checkoutTeams) {
-        const team = teamMap.get(teamSel.teamId);
-        if (!team?.seasonId) continue;
-
-        const signupCost = team.division?.signupCost ?? 0;
-        const seasonId = team.seasonId;
-        const targets =
-          teamSel.paidForSteamIds.length > 0 ? teamSel.paidForSteamIds : [order.playerSteamId];
-
-        for (const targetSteamId of targets) {
-          const pit = await tx.playerInTeam.findUnique({
-            where: {
-              playerSteamId_teamId: { playerSteamId: targetSteamId, teamId: teamSel.teamId },
-            },
-          });
-          if (!pit || pit.paymentStatus !== 0) {
-            paymentIndex++;
-            continue;
-          }
-
-          await tx.paymentTracker.upsert({
-            where: { playerSteamId_seasonId: { playerSteamId: targetSteamId, seasonId } },
-            create: { playerSteamId: targetSteamId, seasonId, amount: signupCost },
-            update: { amount: { increment: signupCost } },
-          });
-
-          await tx.payment.create({
-            data: {
-              paymentId: `${data.tradeOfferId}-${paymentIndex}`,
-              purchasedFor: targetSteamId,
-              purchasedBy: order.playerSteamId,
-              amount: signupCost.toString(),
-              currency: 'ITEMS',
-              purchaseDate: new Date(),
-              description,
-              teamId: teamSel.teamId,
-            },
-          });
-
-          await tx.playerInTeam.update({
-            where: {
-              playerSteamId_teamId: { playerSteamId: targetSteamId, teamId: teamSel.teamId },
-            },
-            data: { paymentStatus: 1 },
-          });
-
-          paymentIndex++;
-        }
-
-        await syncTeamPaymentStatus(tx, teamSel.teamId, team.format.requiredPaidPlayers);
-      }
-    });
-
-    return;
-  }
-
-  const team = await prisma.team.findUnique({
-    where: { id: order.teamId },
-    include: { division: true, format: true },
+  const quoted = await quoteParticipationLines(
+    groupOrders.map((row) => ({
+      teamId: row.teamId,
+      playerSteamId: row.paidForSteamIds[0] ?? row.playerSteamId,
+    })),
+    { skipInvalid: true },
+  );
+  const withOrders = quoted.map((line) => {
+    const match = groupOrders.find(
+      (row) =>
+        row.teamId === line.teamId &&
+        (row.paidForSteamIds[0] ?? row.playerSteamId) === line.playerSteamId,
+    );
+    return { ...line, itemOrderNumber: match?.orderNumber };
   });
 
-  if (!team) {
-    notFound('Team not found');
-  }
-
-  const signupCost = team.division?.signupCost ?? 0;
-  const seasonId = order.seasonId;
-
-  const targets = order.paidForSteamIds.length > 0 ? order.paidForSteamIds : [order.playerSteamId];
-
-  await prisma.$transaction(async (tx) => {
-    await tx.itemPaymentOrder.update({
-      where: { id: order.id },
-      data: {
-        status: 'COMPLETED',
-        tradeOfferId: data.tradeOfferId,
-        itemsReceived: data.itemsReceived,
-        completedAt: new Date(),
-      },
-    });
-
-    for (let i = 0; i < targets.length; i++) {
-      const targetSteamId = targets[i]!;
-
-      const pit = await tx.playerInTeam.findUnique({
-        where: { playerSteamId_teamId: { playerSteamId: targetSteamId, teamId: order.teamId } },
-      });
-      if (!pit || pit.paymentStatus !== 0) continue;
-
-      await tx.paymentTracker.upsert({
-        where: {
-          playerSteamId_seasonId: { playerSteamId: targetSteamId, seasonId },
-        },
-        create: { playerSteamId: targetSteamId, seasonId, amount: signupCost },
-        update: { amount: { increment: signupCost } },
-      });
-
-      await tx.payment.create({
-        data: {
-          paymentId: `${data.tradeOfferId}-${i}`,
-          purchasedFor: targetSteamId,
-          purchasedBy: order.playerSteamId,
-          amount: signupCost.toString(),
-          currency: 'ITEMS',
-          purchaseDate: new Date(),
-          description,
-          teamId: order.teamId,
-        },
-      });
-
-      await tx.playerInTeam.update({
-        where: {
-          playerSteamId_teamId: { playerSteamId: targetSteamId, teamId: order.teamId },
-        },
-        data: { paymentStatus: 1 },
-      });
-    }
-
-    await syncTeamPaymentStatus(tx, order.teamId, team.format.requiredPaidPlayers);
+  await prisma.itemPaymentOrder.updateMany({
+    where: { id: { in: groupOrders.map((row) => row.id) } },
+    data: {
+      status: 'COMPLETED',
+      tradeOfferId: data.tradeOfferId,
+      itemsReceived: data.itemsReceived,
+      completedAt: new Date(),
+    },
   });
+
+  await recordQuotedSignupPayments({
+    payerSteamId: order.playerSteamId,
+    lines: withOrders,
+    currency: 'ITEMS',
+    method: 'items',
+    groupKey: order.checkoutGroupId ?? data.tradeOfferId,
+    tradeOfferId: data.tradeOfferId,
+    itemName: order.itemName,
+  });
+
+  await finalizePaidCartLines(
+    order.playerSteamId,
+    withOrders.map((line) => ({ teamId: line.teamId, playerSteamId: line.playerSteamId })),
+  );
 }
 
 export async function getItemPaymentOrders(options: {

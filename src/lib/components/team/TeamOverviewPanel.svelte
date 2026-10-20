@@ -37,6 +37,9 @@
     showPaymentBadges,
     currentUserSteamId,
     canLeave,
+    teamId,
+    canAddToCart = false,
+    cartPlayerIds = [],
     onLeaveTeam,
   }: {
     teamName: string;
@@ -49,8 +52,16 @@
     showPaymentBadges: boolean;
     currentUserSteamId: string | null;
     canLeave: boolean;
+    teamId: number;
+    canAddToCart?: boolean;
+    cartPlayerIds?: string[];
     onLeaveTeam: () => void;
   } = $props();
+
+  const cartIds = $derived(new Set(cartPlayerIds));
+  const unpaidNotInCart = $derived(
+    currentRoster.filter((player) => !player.isPaid && !cartIds.has(player.steamId)),
+  );
 
   let selectedSeasonId = $state('');
   const selectedSeason = $derived(
@@ -150,13 +161,19 @@
   <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
     <Card padding="none" class="overflow-hidden">
       {#snippet header()}
-        <div class="px-5 py-3">
+        <div class="flex items-center justify-between gap-3 px-5 py-3">
           <h2 class="text-sm font-semibold text-text-heading">
             Current roster
             <span class="ml-1 font-normal text-text-muted"
               >({currentRoster.length}/{maxRosterSize})</span
             >
           </h2>
+          {#if canAddToCart && unpaidNotInCart.length > 0}
+            <form method="POST" action="/checkout?/addTeam">
+              <input type="hidden" name="teamId" value={teamId} />
+              <Button type="submit" variant="secondary" size="sm">Add unpaid to cart</Button>
+            </form>
+          {/if}
         </div>
       {/snippet}
       {#if currentRoster.length > 0}
@@ -180,7 +197,7 @@
                     {#if player.isLeader}
                       <Badge color="yellow">{teamRoleName(player.permissionLevel)}</Badge>
                     {/if}
-                    {#if showPaymentBadges && !player.isPaid}
+                    {#if (showPaymentBadges || canAddToCart) && !player.isPaid}
                       <Badge color="red">Unpaid</Badge>
                     {/if}
                   </div>
@@ -201,9 +218,22 @@
                   {/if}
                 </div>
               </a>
-              {#if canLeave && player.steamId === currentUserSteamId}
-                <Button variant="danger" size="sm" onclick={onLeaveTeam}>Leave</Button>
-              {/if}
+              <div class="flex shrink-0 items-center gap-2">
+                {#if canAddToCart && !player.isPaid}
+                  {#if cartIds.has(player.steamId)}
+                    <Button href="/checkout" variant="ghost" size="sm">In cart</Button>
+                  {:else}
+                    <form method="POST" action="/checkout?/add">
+                      <input type="hidden" name="teamId" value={teamId} />
+                      <input type="hidden" name="playerSteamId" value={player.steamId} />
+                      <Button type="submit" variant="secondary" size="sm">Add to cart</Button>
+                    </form>
+                  {/if}
+                {/if}
+                {#if canLeave && player.steamId === currentUserSteamId}
+                  <Button variant="danger" size="sm" onclick={onLeaveTeam}>Leave</Button>
+                {/if}
+              </div>
             </div>
           {/each}
         </div>

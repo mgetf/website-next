@@ -456,9 +456,11 @@
             {/if}
             <div class="flex flex-wrap gap-2">
               {#if isOwn && !active1v1.isPaid && active1v1.signupCost > 0}
-                <Button variant="warning" size="sm" href="/checkout/{steamId}"
-                  >Go to checkout</Button
-                >
+                <form method="POST" action="/checkout?/add">
+                  <input type="hidden" name="teamId" value={active1v1.id} />
+                  <input type="hidden" name="playerSteamId" value={steamId} />
+                  <Button type="submit" variant="warning" size="sm">Add to cart</Button>
+                </form>
               {/if}
             </div>
           </div>

@@ -37,6 +37,30 @@ describe('paypal refund math', () => {
     );
   });
 
+  it('refunds a line that includes the league fee as part of gross', () => {
+    const captureGross = 26;
+    const captureFee = 1.19;
+    const first = allocatePayPalFee({
+      rowGross: 13,
+      captureGross,
+      captureFee,
+      alreadyAllocatedFee: 0,
+      isLastRow: false,
+    });
+    const second = allocatePayPalFee({
+      rowGross: 13,
+      captureGross,
+      captureFee,
+      alreadyAllocatedFee: first,
+      isLastRow: true,
+    });
+    expect(roundMoney(first + second)).toBe(captureFee);
+    expect(netAfterFee(13, first)).toBeGreaterThan(0);
+    expect(roundMoney(netAfterFee(13, first) + netAfterFee(13, second))).toBe(
+      roundMoney(26 - captureFee),
+    );
+  });
+
   it('does not charge a fee when PayPal charged none', () => {
     expect(
       allocatePayPalFee({

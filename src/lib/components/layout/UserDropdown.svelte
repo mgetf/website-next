@@ -9,13 +9,15 @@
   import Users from '~icons/lucide/users';
   import Settings from '~icons/lucide/settings';
   import LogOut from '~icons/lucide/log-out';
+  import ShoppingCart from '~icons/lucide/shopping-cart';
 
   type Props = {
     user: SessionUser;
     userTeams?: NavUserTeam[];
+    cartCount?: number;
   };
 
-  let { user, userTeams = [] }: Props = $props();
+  let { user, userTeams = [], cartCount = 0 }: Props = $props();
 
   let open = $state(false);
   let teamsOpen = $state(false);
@@ -106,6 +108,22 @@
             <a href="/users/{user.steamId}" {...props}>
               <User class="size-5 shrink-0" />
               <span>My Profile</span>
+            </a>
+          {/snippet}
+        </DropdownMenu.Item>
+
+        <DropdownMenu.Item class={itemClass}>
+          {#snippet child({ props })}
+            <a href="/checkout" {...props}>
+              <ShoppingCart class="size-5 shrink-0" />
+              <span>Cart</span>
+              {#if cartCount > 0}
+                <span
+                  class="ml-auto rounded-full bg-primary-600 px-2 py-0.5 text-xs font-semibold text-white"
+                >
+                  {cartCount}
+                </span>
+              {/if}
             </a>
           {/snippet}
         </DropdownMenu.Item>

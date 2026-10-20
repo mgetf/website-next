@@ -22,6 +22,7 @@
     signupClosed?: boolean;
     isInTeam?: boolean;
     userTeams?: NavUserTeam[];
+    cartCount?: number;
     realtimeEnabled?: boolean;
     leagueNav?: LeagueNav;
   };
@@ -38,6 +39,7 @@
     signupClosed = true,
     isInTeam = false,
     userTeams = [],
+    cartCount = 0,
     realtimeEnabled = true,
     leagueNav = EMPTY_LEAGUE_NAV,
   }: Props = $props();
@@ -231,7 +233,7 @@
             </a>
           {:else}
             <div class="flex items-center gap-3">
-              <UserDropdown {user} {userTeams} />
+              <UserDropdown {user} {userTeams} {cartCount} />
 
               <NotificationDropdown {notifications} userSteamId={user.steamId} {realtimeEnabled} />
             </div>
@@ -374,6 +376,25 @@
         </div>
 
         {#if user}
+          <a
+            href="/checkout"
+            class={[
+              'flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg',
+              isActive('/checkout')
+                ? 'text-text-heading bg-surface-input'
+                : 'text-text-label hover:text-text-heading hover:bg-surface-input',
+            ]}
+            onclick={closeMobileMenu}
+          >
+            <span>Cart</span>
+            {#if cartCount > 0}
+              <span
+                class="rounded-full bg-primary-600 px-2 py-0.5 text-xs font-semibold text-white"
+              >
+                {cartCount}
+              </span>
+            {/if}
+          </a>
           <form method="POST" action="/auth/logout">
             <button
               type="submit"

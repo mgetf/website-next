@@ -41,9 +41,11 @@
       ]} max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-border-default bg-surface-card p-6 outline-none"
     >
       <div class="mb-4 flex items-center justify-between">
-        <BitsDialog.Title level={3} class="text-xl font-bold text-white">{title}</BitsDialog.Title>
+        <BitsDialog.Title level={3} class="text-xl font-bold text-text-heading"
+          >{title}</BitsDialog.Title
+        >
         <BitsDialog.Close
-          class="text-text-body transition-colors hover:text-white"
+          class="text-text-body transition-colors hover:text-text-heading"
           aria-label="Close dialog"
         >
           <X class="size-5" />

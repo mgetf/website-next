@@ -14,13 +14,13 @@
     running: {
       dot: 'bg-success-500',
       label: 'Running',
-      text: 'text-success-400',
+      text: 'text-success-ink',
       pulse: false,
     },
     restarting: {
       dot: 'bg-warning-500',
       label: 'Restarting',
-      text: 'text-warning-400',
+      text: 'text-warning-ink',
       pulse: true,
     },
     stopped: {
@@ -32,13 +32,13 @@
     missing: {
       dot: 'bg-danger-500',
       label: 'Missing',
-      text: 'text-danger-400',
+      text: 'text-danger-ink',
       pulse: false,
     },
     unknown: {
       dot: 'bg-danger-500',
       label: 'Unknown',
-      text: 'text-danger-400',
+      text: 'text-danger-ink',
       pulse: false,
     },
   };

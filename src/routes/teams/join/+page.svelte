@@ -22,7 +22,7 @@
         <div class="mb-4 flex justify-center text-text-muted">
           <CircleX class="size-16" />
         </div>
-        <h2 class="text-2xl font-bold text-white mb-4">Invalid Invitation</h2>
+        <h2 class="text-2xl font-bold text-text-heading mb-4">Invalid Invitation</h2>
         <p class="text-text-body text-lg mb-6">
           {data.error || 'This invitation link is invalid or has expired.'}
         </p>
@@ -33,7 +33,7 @@
         <div class="mb-4 flex justify-center text-text-muted">
           <Lock class="size-16" />
         </div>
-        <h2 class="text-2xl font-bold text-white mb-4">Rosters Locked</h2>
+        <h2 class="text-2xl font-bold text-text-heading mb-4">Rosters Locked</h2>
         <p class="text-text-body text-lg mb-6">
           Team rosters are currently locked. You cannot join teams at this time.
         </p>
@@ -41,10 +41,10 @@
       </Card>
     {:else if !data.canJoin}
       <Card padding="lg" class="text-center">
-        <div class="mb-4 flex justify-center text-warning-400">
+        <div class="mb-4 flex justify-center text-warning-ink">
           <TriangleAlert class="size-16" />
         </div>
-        <h2 class="text-2xl font-bold text-white mb-4">Cannot Join Team</h2>
+        <h2 class="text-2xl font-bold text-text-heading mb-4">Cannot Join Team</h2>
         <p class="text-text-body text-lg mb-6">
           {data.error || 'You cannot join this team at this time.'}
         </p>
@@ -72,7 +72,7 @@
               <span class="text-4xl text-text-body">{data.team.name.charAt(0)}</span>
             </div>
           {/if}
-          <h1 class="text-3xl font-bold text-white mb-2">{data.team.name}</h1>
+          <h1 class="text-3xl font-bold text-text-heading mb-2">{data.team.name}</h1>
           {#if data.team.format}
             <div class="mb-2 flex justify-center">
               <FormatBadge
@@ -90,21 +90,21 @@
           <div class="grid grid-cols-2 gap-4 mb-8">
             <div class="bg-surface-input rounded-lg p-4 text-center">
               <div class="text-sm text-text-body mb-1">Division</div>
-              <div class="font-semibold text-white">{data.team.division?.name || 'N/A'}</div>
+              <div class="font-semibold text-text-heading">{data.team.division?.name || 'N/A'}</div>
             </div>
             <div class="bg-surface-input rounded-lg p-4 text-center">
               <div class="text-sm text-text-body mb-1">Region</div>
-              <div class="font-semibold text-white">{data.team.region?.name || 'N/A'}</div>
+              <div class="font-semibold text-text-heading">{data.team.region?.name || 'N/A'}</div>
             </div>
             <div class="bg-surface-input rounded-lg p-4 text-center">
               <div class="text-sm text-text-body mb-1">Season</div>
-              <div class="font-semibold text-white">
+              <div class="font-semibold text-text-heading">
                 {data.team.season ? `Season ${data.team.season.seasonNum}` : 'N/A'}
               </div>
             </div>
             <div class="bg-surface-input rounded-lg p-4 text-center">
               <div class="text-sm text-text-body mb-1">Roster</div>
-              <div class="font-semibold text-white">
+              <div class="font-semibold text-text-heading">
                 {data.activePlayers.length}/{data.team.format.maxRosterSize} Players
               </div>
             </div>
@@ -112,7 +112,7 @@
 
           {#if data.activePlayers.length > 0}
             <div class="mb-8">
-              <h3 class="text-lg font-semibold text-white mb-3">Current Roster</h3>
+              <h3 class="text-lg font-semibold text-text-heading mb-3">Current Roster</h3>
               <div class="space-y-2">
                 {#each data.activePlayers as player (player.playerSteamId)}
                   <div class="flex items-center gap-3 p-3 bg-surface-input rounded-lg">
@@ -122,7 +122,7 @@
                       class="w-10 h-10 rounded-full"
                     />
                     <div>
-                      <div class="font-medium text-white">{player.player.steamUsername}</div>
+                      <div class="font-medium text-text-heading">{player.player.steamUsername}</div>
                       <div class="text-xs text-text-body">
                         {teamRoleName(player.permissionLevel)}
                       </div>

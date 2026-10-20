@@ -36,9 +36,9 @@
 
   const scoreClasses = $derived(
     isWinner
-      ? 'text-success-400 font-bold text-sm tabular-nums'
+      ? 'text-success-ink font-bold text-sm tabular-nums'
       : isLoser
-        ? 'text-danger-400 text-sm tabular-nums'
+        ? 'text-danger-ink text-sm tabular-nums'
         : 'text-text-muted text-sm tabular-nums',
   );
 

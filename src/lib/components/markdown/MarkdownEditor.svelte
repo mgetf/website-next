@@ -175,7 +175,9 @@
         {disabled}
         class={[
           'rounded px-3 py-1 text-xs font-semibold transition-all',
-          mode === 'live' ? 'bg-surface-hover text-white' : 'text-text-body hover:text-white',
+          mode === 'live'
+            ? 'bg-surface-hover text-text-heading'
+            : 'text-text-body hover:text-text-heading',
         ]}
         onclick={() => setMode('live')}
       >
@@ -190,7 +192,9 @@
         {disabled}
         class={[
           'rounded px-3 py-1 text-xs font-semibold transition-all',
-          mode === 'raw' ? 'bg-surface-hover text-white' : 'text-text-body hover:text-white',
+          mode === 'raw'
+            ? 'bg-surface-hover text-text-heading'
+            : 'text-text-body hover:text-text-heading',
         ]}
         onclick={() => setMode('raw')}
       >
@@ -228,7 +232,7 @@
       {disabled}
       {required}
       rows={rows ?? (compact ? 4 : 12)}
-      class="editor-raw w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-relaxed text-white outline-none placeholder-text-muted focus:ring-0 disabled:cursor-not-allowed"
+      class="editor-raw w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-relaxed text-text-heading outline-none placeholder-text-muted focus:ring-0 disabled:cursor-not-allowed"
     ></textarea>
   {/if}
 </div>
@@ -245,16 +249,16 @@
 
   .editor-live :global(.milkdown) {
     --crepe-color-background: transparent;
-    --crepe-color-on-background: var(--color-white);
+    --crepe-color-on-background: var(--color-text-heading);
     --crepe-color-surface: var(--color-surface-card);
     --crepe-color-surface-low: var(--color-surface-page);
-    --crepe-color-on-surface: var(--color-white);
+    --crepe-color-on-surface: var(--color-text-heading);
     --crepe-color-on-surface-variant: var(--color-text-body);
     --crepe-color-outline: var(--color-text-label);
     --crepe-color-primary: var(--color-primary-500);
     --crepe-color-secondary: var(--color-surface-hover);
-    --crepe-color-on-secondary: var(--color-white);
-    --crepe-color-inverse: var(--color-white);
+    --crepe-color-on-secondary: var(--color-text-heading);
+    --crepe-color-inverse: var(--color-text-heading);
     --crepe-color-on-inverse: var(--color-surface-page);
     --crepe-color-inline-code: var(--color-primary-400);
     --crepe-color-error: var(--color-danger-400);
@@ -272,7 +276,7 @@
     padding: 0.75rem 1rem;
     min-height: var(--editor-min-height);
     outline: none;
-    color: var(--color-white);
+    color: var(--color-text-heading);
   }
 
   .editor-live :global(.milkdown .ProseMirror p) {

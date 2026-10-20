@@ -25,7 +25,7 @@
 
 {#if variant === 'banner'}
   <div class="border-b border-danger-500/40 bg-danger-600/15 px-4 py-2.5 text-center">
-    <p class="text-sm text-danger-400">
+    <p class="text-sm text-danger-ink">
       <span class="font-semibold">Your account is {label}.</span>
       {reason}
       <span class="text-text-muted"> {endCopy}</span>

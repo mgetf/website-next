@@ -70,11 +70,11 @@
     maxlength={MAX_LENGTH}
     required
     {placeholder}
-    class="w-full resize-none rounded-lg border border-border-input bg-surface-input px-4 py-3 text-white placeholder-text-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+    class="w-full resize-none rounded-lg border border-border-input bg-surface-input px-4 py-3 text-text-heading placeholder-text-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
   ></textarea>
 
   {#if errorMessage}
-    <p class="text-sm text-danger-400">{errorMessage}</p>
+    <p class="text-sm text-danger-ink">{errorMessage}</p>
   {/if}
 
   <div class="flex items-center justify-between gap-2">

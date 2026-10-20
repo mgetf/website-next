@@ -107,7 +107,7 @@
 <Card padding="none" class="overflow-hidden">
   {#snippet header()}
     <div class="flex items-center justify-between gap-2 px-4 py-3">
-      <h2 class="text-base font-semibold text-white sm:text-lg">Chat</h2>
+      <h2 class="text-base font-semibold text-text-heading sm:text-lg">Chat</h2>
       <div class="flex items-center gap-2">
         <Button
           type="button"
@@ -136,7 +136,7 @@
       {#if status === 'loading' && !page}
         <p class="text-xs text-text-muted">Loading chat.</p>
       {:else if status === 'error' || !page}
-        <p class="text-xs text-danger-400">Could not load chat.</p>
+        <p class="text-xs text-danger-ink">Could not load chat.</p>
       {:else if page.messages.length === 0}
         <p class="text-xs text-text-body">No chat.</p>
       {:else}
@@ -161,7 +161,7 @@
                     {formatTime(row.ts)}
                   </time>
                   <p class="min-w-0 break-words text-text-label">
-                    <span class="font-medium text-white">{speaker(row)}:</span>
+                    <span class="font-medium text-text-heading">{speaker(row)}:</span>
                     {row.message}
                   </p>
                 </li>

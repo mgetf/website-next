@@ -98,7 +98,7 @@
 <Card padding="sm">
   {#snippet header()}
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h3 class="text-sm font-semibold text-white">Activity</h3>
+      <h3 class="text-sm font-semibold text-text-heading">Activity</h3>
       <p class="text-xs text-text-muted">
         Hours in {timeZoneLabel} · last on a server {lastSeen}
       </p>
@@ -111,15 +111,15 @@
     <div class="mb-4 grid grid-cols-3 gap-3">
       <div>
         <p class="text-xs text-text-muted">Busiest day</p>
-        <p class="text-sm font-medium text-white">{peakWeekdayLabel ?? '—'}</p>
+        <p class="text-sm font-medium text-text-heading">{peakWeekdayLabel ?? '—'}</p>
       </div>
       <div>
         <p class="text-xs text-text-muted">Usually on</p>
-        <p class="text-sm font-medium text-white">{typicalLabel ?? '—'}</p>
+        <p class="text-sm font-medium text-text-heading">{typicalLabel ?? '—'}</p>
       </div>
       <div>
         <p class="text-xs text-text-muted">Typical session</p>
-        <p class="text-sm font-medium text-white">{sessionLabel ?? '—'}</p>
+        <p class="text-sm font-medium text-text-heading">{sessionLabel ?? '—'}</p>
       </div>
     </div>
     <div class="overflow-x-auto">
@@ -158,7 +158,7 @@
     </div>
     {#if shownHover}
       <p class="mt-2 text-xs text-text-muted">
-        <span class="font-medium text-white"
+        <span class="font-medium text-text-heading"
           >{WEEKDAY_FULL[shownHover.weekday]} {padHour(shownHover.hour)}</span
         >
         · {shownHover.count} game{shownHover.count === 1 ? '' : 's'}

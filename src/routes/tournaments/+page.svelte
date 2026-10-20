@@ -74,7 +74,7 @@
 <div>
   <PageHero maxWidth="max-w-7xl" border>
     <div>
-      <h1 class="text-5xl font-black text-white mb-2">Tournaments</h1>
+      <h1 class="text-5xl font-black text-text-heading mb-2">Tournaments</h1>
       <p class="text-xl text-text-body">
         Browse all historic MGE.tf tournaments and competitive events
       </p>
@@ -94,7 +94,7 @@
           Cups
           <span
             class="ml-2 py-0.5 px-2 rounded-full text-xs {activeTab === 'cups'
-              ? 'bg-primary-600/20 text-primary-400'
+              ? 'bg-primary-600/20 text-primary-ink'
               : 'bg-surface-input text-text-muted'}"
           >
             {cups.length}
@@ -111,7 +111,7 @@
           World Championships
           <span
             class="ml-2 py-0.5 px-2 rounded-full text-xs {activeTab === 'championships'
-              ? 'bg-primary-600/20 text-primary-400'
+              ? 'bg-primary-600/20 text-primary-ink'
               : 'bg-surface-input text-text-muted'}"
           >
             {championships.length}
@@ -128,7 +128,7 @@
           Fight Nights
           <span
             class="ml-2 py-0.5 px-2 rounded-full text-xs {activeTab === 'fightnights'
-              ? 'bg-primary-600/20 text-primary-400'
+              ? 'bg-primary-600/20 text-primary-ink'
               : 'bg-surface-input text-text-muted'}"
           >
             {fightNights.length}
@@ -160,7 +160,7 @@
               {/if}
               <div class="flex-1">
                 <div
-                  class="text-sm font-semibold text-white group-hover:text-primary-400 transition-colors"
+                  class="text-sm font-semibold text-text-heading group-hover:text-primary-ink transition-colors"
                 >
                   {event.name}
                 </div>
@@ -194,13 +194,13 @@
                   class="w-8 h-8 rounded-full"
                 />
                 <span
-                  class="text-sm text-white font-semibold group-hover/winner:text-primary-400 transition-colors"
+                  class="text-sm text-text-heading font-semibold group-hover/winner:text-primary-ink transition-colors"
                 >
                   {winner.user.steamUsername}
                 </span>
               </a>
             {:else if winner}
-              <span class="text-sm font-semibold text-white">{winner.displayName}</span>
+              <span class="text-sm font-semibold text-text-heading">{winner.displayName}</span>
             {:else}
               <span class="text-sm text-text-muted">—</span>
             {/if}
@@ -209,7 +209,7 @@
               {#if event.stageCount > 0}
                 <a
                   href={resolve('/tournaments/[id]', { id: String(event.id) })}
-                  class="text-sm text-primary-400 hover:text-primary-300 transition-colors"
+                  class="text-sm text-primary-ink hover:text-primary-300 transition-colors"
                 >
                   View Bracket →
                 </a>
@@ -259,7 +259,7 @@
               {/if}
               <div>
                 <div
-                  class="text-sm font-semibold text-white group-hover:text-primary-400 transition-colors"
+                  class="text-sm font-semibold text-text-heading group-hover:text-primary-ink transition-colors"
                 >
                   {event.name}
                 </div>
@@ -304,15 +304,15 @@
                   class="w-8 h-8 rounded-full"
                 />
                 <span
-                  class="text-sm text-white font-semibold group-hover/winner:text-primary-400 transition-colors"
+                  class="text-sm text-text-heading font-semibold group-hover/winner:text-primary-ink transition-colors"
                 >
                   {winner.user.steamUsername}
                 </span>
               </a>
             {:else if winner}
-              <span class="text-sm font-semibold text-white">{winner.displayName}</span>
+              <span class="text-sm font-semibold text-text-heading">{winner.displayName}</span>
             {:else if event.status === 'REGISTRATION'}
-              <span class="text-sm text-primary-400">Open</span>
+              <span class="text-sm text-primary-ink">Open</span>
             {:else}
               <span class="text-sm text-text-muted">TBD</span>
             {/if}
@@ -348,7 +348,7 @@
               {/if}
               <div>
                 <div
-                  class="text-sm font-semibold text-white group-hover:text-primary-400 transition-colors"
+                  class="text-sm font-semibold text-text-heading group-hover:text-primary-ink transition-colors"
                 >
                   {event.name}
                 </div>

@@ -11,4 +11,3 @@
 
   const restricted = $derived(players.filter((player) => player.restrictedClasses.length > 0));
 </script>
-

@@ -19,7 +19,7 @@
   let open = $state(false);
 
   const itemClass =
-    'flex cursor-pointer select-none items-center gap-3 rounded-md px-4 py-2.5 text-sm text-text-label outline-none data-highlighted:bg-surface-input/50 data-highlighted:text-white';
+    'flex cursor-pointer select-none items-center gap-3 rounded-md px-4 py-2.5 text-sm text-text-label outline-none data-highlighted:bg-surface-input/50 data-highlighted:text-text-heading';
   const contentClass =
     'z-50 w-64 rounded-lg border border-border-default bg-surface-card p-0 shadow-xl outline-none';
 
@@ -37,9 +37,9 @@
   const roleBadge = $derived.by(() => {
     switch (user.permissionLevel) {
       case UserRole.ADMIN:
-        return { label: 'Admin', classes: 'text-purple-400' };
+        return { label: 'Admin', classes: 'text-theme-purple-ink' };
       case UserRole.MODERATOR:
-        return { label: 'Mod', classes: 'text-blue-400' };
+        return { label: 'Mod', classes: 'text-info-ink' };
       default:
         return null;
     }
@@ -52,7 +52,7 @@
     aria-label="User menu"
   >
     <img
-      class="h-8 w-8 rounded-full ring-2 ring-zinc-700"
+      class="h-8 w-8 rounded-full ring-2 ring-border-input"
       src={user.steamAvatar}
       alt="User Avatar"
     />
@@ -69,19 +69,19 @@
       <div class="px-4 py-3 border-b border-border-default bg-surface-input/50 rounded-t-lg">
         <div class="flex items-center gap-3">
           <img
-            class="h-12 w-12 rounded-full ring-2 ring-zinc-700"
+            class="h-12 w-12 rounded-full ring-2 ring-border-input"
             src={user.steamAvatar}
             alt="User Avatar"
           />
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-white truncate">
+            <p class="text-sm font-semibold text-text-heading truncate">
               {user.steamUsername}
             </p>
             <p
               class="text-xs capitalize {user.permissionLevel === UserRole.ADMIN
-                ? 'text-purple-400'
+                ? 'text-theme-purple-ink'
                 : user.permissionLevel === UserRole.MODERATOR
-                  ? 'text-blue-400'
+                  ? 'text-info-ink'
                   : 'text-text-body'}"
             >
               {user.permissionLevel.toLowerCase()}
@@ -128,7 +128,7 @@
                         </span>
                       {/if}
                       <span class="min-w-0">
-                        <span class="block truncate text-white">{team.name}</span>
+                        <span class="block truncate text-text-heading">{team.name}</span>
                         <span class="block truncate text-xs text-text-muted">{team.formatName}</span
                         >
                       </span>
@@ -141,7 +141,9 @@
         {/if}
 
         {#if isAdminUser}
-          <DropdownMenu.Item class="{itemClass} text-purple-400 data-highlighted:text-purple-300">
+          <DropdownMenu.Item
+            class="{itemClass} text-theme-purple-ink data-highlighted:text-purple-300"
+          >
             {#snippet child({ props })}
               <a href="/admin" {...props}>
                 <Settings class="size-5 shrink-0" />
@@ -154,7 +156,7 @@
         <DropdownMenu.Separator class="my-2 h-px bg-border-default" />
 
         <form method="POST" action="/auth/logout">
-          <DropdownMenu.Item class="{itemClass} text-danger-400 data-highlighted:text-danger-300">
+          <DropdownMenu.Item class="{itemClass} text-danger-ink data-highlighted:text-danger-300">
             {#snippet child({ props })}
               <button type="submit" {...props}>
                 <LogOut class="size-5 shrink-0" />

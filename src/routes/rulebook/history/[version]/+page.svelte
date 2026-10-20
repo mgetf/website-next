@@ -18,7 +18,7 @@
   <PageHero maxWidth="max-w-7xl" border>
     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 class="text-5xl font-black text-white mb-2">Revision {revision.version}</h1>
+        <h1 class="text-5xl font-black text-text-heading mb-2">Revision {revision.version}</h1>
         <p class="text-xl text-text-body">{revision.message}</p>
         <p class="mt-2 text-sm text-text-muted">
           {formatDateTime(revision.publishedAt)}
@@ -26,7 +26,7 @@
             by
             <a
               href="/users/{revision.publishedBySteamId}"
-              class="text-primary-400 hover:text-primary-300"
+              class="text-primary-ink hover:text-primary-300"
             >
               {revision.publishedByName}
             </a>

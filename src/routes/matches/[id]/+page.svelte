@@ -546,7 +546,7 @@
   <Card class="shadow-md mb-6">
     <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
       <div class="flex items-center gap-3 flex-wrap">
-        <h1 class="text-3xl font-bold text-white">
+        <h1 class="text-3xl font-bold text-text-heading">
           Match #{match.id}
           {#if data.weekLabel}
             <span class="text-text-body">- Week {data.weekLabel}</span>
@@ -584,7 +584,9 @@
             class="w-16 h-16 rounded-full object-cover"
           />
           <div>
-            <div class="font-semibold text-lg text-white">{match.homePlayer.steamUsername}</div>
+            <div class="font-semibold text-lg text-text-heading">
+              {match.homePlayer.steamUsername}
+            </div>
             <div class="text-sm text-text-body">
               {match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
             </div>
@@ -602,7 +604,7 @@
             class="w-16 h-16 rounded-full object-cover"
           />
           <div>
-            <div class="font-semibold text-lg text-white">{match.homeTeam.name}</div>
+            <div class="font-semibold text-lg text-text-heading">{match.homeTeam.name}</div>
             <div class="text-sm text-text-body">
               {match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
             </div>
@@ -613,7 +615,7 @@
       <!-- Score -->
       <div class="text-center">
         {#if isPlayed || isDisputed}
-          <div class="text-4xl font-bold text-white">
+          <div class="text-4xl font-bold text-text-heading">
             {match.winnerId === match.homeTeamId ? match.winnerScore : match.loserScore}
             <span class="text-text-body">-</span>
             {match.winnerId === match.awayTeamId ? match.winnerScore : match.loserScore}
@@ -636,7 +638,9 @@
           class="flex items-center space-x-4 hover:bg-surface-input p-4 rounded-lg transition justify-end"
         >
           <div class="text-right">
-            <div class="font-semibold text-lg text-white">{match.awayPlayer.steamUsername}</div>
+            <div class="font-semibold text-lg text-text-heading">
+              {match.awayPlayer.steamUsername}
+            </div>
             <div class="text-sm text-text-body">
               {match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
             </div>
@@ -654,7 +658,7 @@
           class="flex items-center space-x-4 hover:bg-surface-input p-4 rounded-lg transition justify-end"
         >
           <div class="text-right">
-            <div class="font-semibold text-lg text-white">{match.awayTeam.name}</div>
+            <div class="font-semibold text-lg text-text-heading">{match.awayTeam.name}</div>
             <div class="text-sm text-text-body">
               {match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
             </div>
@@ -676,11 +680,11 @@
           <div
             class="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center flex-shrink-0"
           >
-            <Trophy class="size-5 text-primary-400" />
+            <Trophy class="size-5 text-primary-ink" />
           </div>
           <div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
             <p class="text-xs text-text-body uppercase tracking-wide leading-none mb-1">Season</p>
-            <p class="text-white font-semibold leading-tight">
+            <p class="text-text-heading font-semibold leading-tight">
               {match.season.region.name} S{match.seasonNo}
             </p>
           </div>
@@ -693,14 +697,14 @@
           <div
             class="w-10 h-10 rounded-full bg-info-500/20 flex items-center justify-center flex-shrink-0"
           >
-            <Calendar class="size-5 text-info-400" />
+            <Calendar class="size-5 text-info-ink" />
           </div>
           <div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
             <p class="text-xs text-text-body uppercase tracking-wide leading-none mb-1">
               Scheduled
             </p>
             {#if match.matchDateTime && match.matchDateTime !== null}
-              <p class="text-white font-semibold leading-tight">
+              <p class="text-text-heading font-semibold leading-tight">
                 {new Date(match.matchDateTime).toLocaleString('en-US', {
                   month: 'short',
                   day: 'numeric',
@@ -729,7 +733,7 @@
             <div
               class="w-10 h-10 rounded-full bg-success-500/20 flex items-center justify-center flex-shrink-0"
             >
-              <CircleCheck class="size-5 text-success-400" />
+              <CircleCheck class="size-5 text-success-ink" />
             </div>
             <div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
               <p class="text-xs text-text-body uppercase tracking-wide leading-none mb-1">
@@ -737,7 +741,7 @@
               </p>
               <a
                 href="/users/{match.submittedBy}"
-                class="text-white font-semibold hover:text-primary-400 transition-colors leading-tight"
+                class="text-text-heading font-semibold hover:text-primary-ink transition-colors leading-tight"
               >
                 {match.submitter?.steamUsername}
               </a>
@@ -763,13 +767,13 @@
             <div
               class="w-10 h-10 rounded-full bg-warning-500/20 flex items-center justify-center flex-shrink-0"
             >
-              <TriangleAlert class="size-5 text-warning-400" />
+              <TriangleAlert class="size-5 text-warning-ink" />
             </div>
             <div class="flex-1 min-h-[2.5rem] flex flex-col justify-center">
               <p class="text-xs text-text-body uppercase tracking-wide leading-none mb-1">
                 Submitted By
               </p>
-              <p class="text-warning-400 font-semibold leading-tight">Awaiting match completion</p>
+              <p class="text-warning-ink font-semibold leading-tight">Awaiting match completion</p>
             </div>
           </div>
         </div>
@@ -792,7 +796,7 @@
                   <Map class="size-5 text-text-muted" />
                 </div>
               {/if}
-              <span class="text-white font-medium">{arena.name}</span>
+              <span class="text-text-heading font-medium">{arena.name}</span>
             </div>
           {/each}
         </div>
@@ -829,7 +833,7 @@
   <!-- Score Submission Form -->
   {#if canSubmitScores}
     <Card class="shadow-md mb-6">
-      <h2 class="text-2xl font-bold text-white mb-4">Submit Match Scores</h2>
+      <h2 class="text-2xl font-bold text-text-heading mb-4">Submit Match Scores</h2>
 
       <form
         method="POST"
@@ -862,9 +866,9 @@
               class="w-10 h-10 rounded-full object-cover flex-shrink-0"
             />
             <div>
-              <p class="font-semibold text-white">{getHomeName()}</p>
+              <p class="font-semibold text-text-heading">{getHomeName()}</p>
               {#if data.permissions.isHomeManager}
-                <p class="text-xs text-info-400 font-medium">You</p>
+                <p class="text-xs text-info-ink font-medium">You</p>
               {:else}
                 <p class="text-xs text-text-muted">Home</p>
               {/if}
@@ -873,9 +877,9 @@
           <div></div>
           <div class="flex items-center gap-3 justify-end">
             <div class="text-right">
-              <p class="font-semibold text-white">{getAwayName()}</p>
+              <p class="font-semibold text-text-heading">{getAwayName()}</p>
               {#if data.permissions.isAwayManager}
-                <p class="text-xs text-info-400 font-medium">You</p>
+                <p class="text-xs text-info-ink font-medium">You</p>
               {:else}
                 <p class="text-xs text-text-muted">Away</p>
               {/if}
@@ -916,7 +920,7 @@
                     <p class="text-xs text-text-muted uppercase tracking-wide">
                       Arena {group.arenaIndex + 1}
                     </p>
-                    <p class="font-semibold text-white truncate">
+                    <p class="font-semibold text-text-heading truncate">
                       {group.arena?.name ?? 'To be determined'}
                     </p>
                   </div>
@@ -965,7 +969,7 @@
                                 gameScores[slotIndex].home = val === '' ? null : parseInt(val);
                               }
                             }}
-                            class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                            class="w-full bg-surface-input border border-border-input text-text-heading rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
                           />
                         </div>
                         <div class="text-center text-text-body font-semibold">VS</div>
@@ -986,7 +990,7 @@
                                 gameScores[slotIndex].away = val === '' ? null : parseInt(val);
                               }
                             }}
-                            class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                            class="w-full bg-surface-input border border-border-input text-text-heading rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
                           />
                         </div>
                       </div>
@@ -1004,7 +1008,7 @@
           {#if playoffProgress().decided}
             {@const progress = playoffProgress()}
             <div class="mt-4 p-3 bg-success-500/20 border border-success-500/30 rounded-lg">
-              <p class="text-success-400 text-sm">
+              <p class="text-success-ink text-sm">
                 &#10003; Match decided: <strong
                   >{progress.homeArenas >= arenaWinsNeeded ? getHomeName() : getAwayName()}</strong
                 >
@@ -1023,7 +1027,7 @@
               {@const isMatchDecidedBefore = decidedAt !== null && i > decidedAt}
               <div class="border border-border-input rounded-lg p-4 {disabled ? 'opacity-50' : ''}">
                 <div class="flex items-center justify-between mb-3">
-                  <h3 class="font-semibold text-white">Game {i + 1}</h3>
+                  <h3 class="font-semibold text-text-heading">Game {i + 1}</h3>
                   {#if disabled}
                     <span class="text-xs text-text-muted bg-surface-input px-2 py-1 rounded">
                       {isMatchDecidedBefore
@@ -1049,7 +1053,7 @@
                           gameScores[i].home = val === '' ? null : parseInt(val);
                         }
                       }}
-                      class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                      class="w-full bg-surface-input border border-border-input text-text-heading rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
                     />
                   </div>
                   <div class="text-center text-text-body font-semibold">VS</div>
@@ -1069,7 +1073,7 @@
                           gameScores[i].away = val === '' ? null : parseInt(val);
                         }
                       }}
-                      class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
+                      class="w-full bg-surface-input border border-border-input text-text-heading rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-surface-card disabled:text-text-muted"
                     />
                   </div>
                 </div>
@@ -1106,7 +1110,7 @@
           {#if matchDecided()}
             {@const wins = gamesWonByTeam()}
             <div class="mt-4 p-3 bg-success-500/20 border border-success-500/30 rounded-lg">
-              <p class="text-success-400 text-sm">
+              <p class="text-success-ink text-sm">
                 &#10003; Match decided: <strong
                   >{wins.home >= gamesToWin ? getHomeName() : getAwayName()}</strong
                 >
@@ -1127,7 +1131,7 @@
   <!-- Game Results (if played) -->
   {#if (isPlayed || isDisputed) && match.games.some((g) => g.homeTeamScore !== null)}
     <Card class="shadow-md mb-6">
-      <h2 class="text-2xl font-bold text-white mb-4">Game Results</h2>
+      <h2 class="text-2xl font-bold text-text-heading mb-4">Game Results</h2>
 
       <DataTable data={playedGames} columns={gameResultsColumns}>
         {#snippet cell(game, col)}
@@ -1138,7 +1142,7 @@
           {:else if col.key === 'homeScore'}
             <span
               class={(game.homeTeamScore ?? 0) > (game.awayTeamScore ?? 0)
-                ? 'font-bold text-success-400'
+                ? 'font-bold text-success-ink'
                 : ''}
             >
               {game.homeTeamScore}
@@ -1146,7 +1150,7 @@
           {:else if col.key === 'awayScore'}
             <span
               class={(game.awayTeamScore ?? 0) > (game.homeTeamScore ?? 0)
-                ? 'font-bold text-success-400'
+                ? 'font-bold text-success-ink'
                 : ''}
             >
               {game.awayTeamScore}
@@ -1167,8 +1171,8 @@
         <div class="mt-4 p-4 bg-warning-500/20 border border-warning-500/30 rounded-lg">
           <div class="flex items-center justify-between">
             <div>
-              <p class="font-semibold text-warning-400">Dispute Period</p>
-              <p class="text-sm text-warning-400">
+              <p class="font-semibold text-warning-ink">Dispute Period</p>
+              <p class="text-sm text-warning-ink">
                 Time remaining: <span class="font-mono">{data.disputeTimeRemaining}</span>
               </p>
             </div>
@@ -1188,7 +1192,7 @@
   <!-- Dispute Form -->
   {#if showDisputeForm}
     <Card class="shadow-md mb-6">
-      <h2 class="text-2xl font-bold text-white mb-4">File Match Dispute</h2>
+      <h2 class="text-2xl font-bold text-text-heading mb-4">File Match Dispute</h2>
       <form method="POST" action="?/dispute" use:enhance>
         <div class="mb-4">
           <label for="disputeReason" class="block text-sm font-medium text-text-label mb-2"
@@ -1200,7 +1204,7 @@
             rows="4"
             required
             placeholder="Explain why you are disputing this match..."
-            class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            class="w-full bg-surface-input border border-border-input text-text-heading rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           ></textarea>
         </div>
         <div class="flex space-x-3">
@@ -1221,7 +1225,7 @@
   <!-- Map Ban/Pick Interface -->
   {#if mapBanActive && data.mapBanStatus}
     <Card class="shadow-md mb-6">
-      <h2 class="text-2xl font-bold text-white mb-4">Map Ban/Pick Phase</h2>
+      <h2 class="text-2xl font-bold text-text-heading mb-4">Map Ban/Pick Phase</h2>
 
       <div class="mb-6">
         <div class="text-sm text-text-label mb-2">
@@ -1237,7 +1241,7 @@
       <!-- Available Maps -->
       {#if isUserTurn}
         <div class="mb-6">
-          <h3 class="font-semibold text-white mb-3">Available Maps</h3>
+          <h3 class="font-semibold text-text-heading mb-3">Available Maps</h3>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {#each data.mapBanStatus.availableArenas as mapInPool}
               <button
@@ -1274,7 +1278,7 @@
 
       <!-- Ban/Pick History -->
       <div class="mt-6">
-        <h3 class="font-semibold text-white mb-3">Action History</h3>
+        <h3 class="font-semibold text-text-heading mb-3">Action History</h3>
         <div class="space-y-2">
           {#each data.mapBanStatus.matchMapBan.actions as action}
             <div class="flex items-center space-x-3 p-3 bg-surface-input rounded-lg">
@@ -1299,19 +1303,19 @@
 
   <!-- Match Communications -->
   <Card class="shadow-md mb-6">
-    <h2 class="text-2xl font-bold text-white mb-4">Match Communications</h2>
+    <h2 class="text-2xl font-bold text-text-heading mb-4">Match Communications</h2>
 
     <!-- Pending Reschedule Alert -->
     {#if data.pendingReschedule && data.canReschedule && data.permissions.canManage}
       <div class="mb-6 p-4 bg-info-500/20 border border-info-500/30 rounded-lg">
         <div class="flex items-center justify-between">
           <div>
-            <p class="font-semibold text-info-400">Reschedule Request Pending</p>
-            <p class="text-sm text-info-400">
+            <p class="font-semibold text-info-ink">Reschedule Request Pending</p>
+            <p class="text-sm text-info-ink">
               Proposed: {getPendingRescheduleDisplay()}
             </p>
             {#if data.rescheduleTimeRemaining}
-              <p class="text-xs text-info-400 mt-1">
+              <p class="text-xs text-info-ink mt-1">
                 Time to respond: <span class="font-mono">{data.rescheduleTimeRemaining}</span>
               </p>
             {/if}
@@ -1436,7 +1440,7 @@
               <div class="flex items-center space-x-2">
                 <a
                   href="/users/{comm.owner}"
-                  class="font-semibold text-white hover:text-primary-400"
+                  class="font-semibold text-text-heading hover:text-primary-ink"
                 >
                   {comm.user?.steamUsername || 'Unknown'}
                 </a>
@@ -1486,7 +1490,7 @@
   <!-- Demos Section -->
   <Card class="shadow-md">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-2xl font-bold text-white">Match Demos</h2>
+      <h2 class="text-2xl font-bold text-text-heading">Match Demos</h2>
       {#if data.canUploadDemo}
         <Button type="button" variant="primary" size="sm" onclick={openDemoUploadModal}>
           Upload Demo
@@ -1510,20 +1514,20 @@
                     <div>
                       <a
                         href="/users/{demo.playerSteamId}"
-                        class="font-semibold text-white hover:text-primary-400"
+                        class="font-semibold text-text-heading hover:text-primary-ink"
                       >
                         {demo.player.steamUsername}
                       </a>
                       <span class="text-text-body text-sm">'s Demo</span>
                     </div>
                   {:else}
-                    <div class="font-semibold text-white">Demo File</div>
+                    <div class="font-semibold text-text-heading">Demo File</div>
                   {/if}
                 </div>
                 <div class="text-sm text-text-label mb-1">
                   Submitted by <a
                     href="/users/{demo.submittedBy}"
-                    class="text-info-400 hover:underline"
+                    class="text-info-ink hover:underline"
                   >
                     {demo.submitter?.steamUsername}
                   </a>
@@ -1603,7 +1607,7 @@
         type="datetime-local"
         name="matchDateTime"
         bind:value={editMatchDateTime}
-        class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+        class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
       />
     </div>
     <FormSelect
@@ -1777,7 +1781,7 @@
         </div>
       {/if}
       <div>
-        <p class="font-semibold text-white">{pendingMapAction?.name}</p>
+        <p class="font-semibold text-text-heading">{pendingMapAction?.name}</p>
         <p class="text-xs text-text-body uppercase">{pendingMapAction?.actionType}</p>
       </div>
     </div>
@@ -1841,7 +1845,7 @@
       <div class="space-y-4 mb-4">
         {#each adminScoreArenas() as group (group.arenaIndex)}
           <div class="border border-border-input rounded-lg p-3">
-            <p class="text-sm font-semibold text-white mb-2">
+            <p class="text-sm font-semibold text-text-heading mb-2">
               Arena {group.arenaIndex + 1}{group.arena ? ` — ${group.arena.name}` : ''}
             </p>
             <div class="space-y-2">
@@ -1859,7 +1863,7 @@
                         min="0"
                         bind:value={editScores[slotIndex].home}
                         placeholder="0"
-                        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
                       />
                     </div>
                     <p class="text-text-muted text-center text-sm">Game {gameInArena + 1}</p>
@@ -1874,7 +1878,7 @@
                         min="0"
                         bind:value={editScores[slotIndex].away}
                         placeholder="0"
-                        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -1899,7 +1903,7 @@
                 min="0"
                 bind:value={entry.home}
                 placeholder="0"
-                class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
               />
             </div>
             <p class="text-text-muted text-center text-sm">Game {i + 1}</p>
@@ -1914,7 +1918,7 @@
                 min="0"
                 bind:value={entry.away}
                 placeholder="0"
-                class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
               />
             </div>
           </div>
@@ -1971,7 +1975,7 @@
           ></div>
         </div>
 
-        <p class="text-white font-medium mb-2">Uploading Demo...</p>
+        <p class="text-text-heading font-medium mb-2">Uploading Demo...</p>
         <p class="text-text-body text-sm mb-4">{demoUploadProgress}</p>
 
         {#if selectedDemoFile}
@@ -2043,11 +2047,11 @@
           accept=".dem"
           required
           onchange={handleDemoFileSelect}
-          class="w-full text-sm text-white
+          class="w-full text-sm text-text-heading
 					   file:mr-4 file:py-2 file:px-4
 					   file:rounded file:border-0
 					   file:text-sm file:font-semibold
-					   file:bg-surface-hover file:text-white
+					   file:bg-surface-hover file:text-text-heading
 					   hover:file:bg-surface-input
 					   cursor-pointer"
         />
@@ -2055,7 +2059,7 @@
         {#if selectedDemoFile}
           <div class="mt-2 p-2 bg-surface-hover/50 rounded flex items-center gap-2">
             <svg
-              class="w-5 h-5 text-success-400"
+              class="w-5 h-5 text-success-ink"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -2067,7 +2071,7 @@
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span class="text-white text-sm">{selectedDemoFile.name}</span>
+            <span class="text-text-heading text-sm">{selectedDemoFile.name}</span>
             <span class="text-text-muted text-xs">({formatFileSize(selectedDemoFile.size)})</span>
           </div>
         {:else}
@@ -2083,7 +2087,7 @@
           id="demoDescription"
           name="description"
           rows="3"
-          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
+          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
           placeholder="Add any notes about this demo..."></textarea>
       </div>
 
@@ -2091,7 +2095,7 @@
         <div class="mb-4 p-4 bg-danger-500/10 border border-danger-500/30 rounded-lg">
           <div class="flex items-start gap-3">
             <svg
-              class="w-5 h-5 text-danger-400 shrink-0 mt-0.5"
+              class="w-5 h-5 text-danger-ink shrink-0 mt-0.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -2104,9 +2108,9 @@
               />
             </svg>
             <div>
-              <p class="text-danger-400 font-medium text-sm">Upload Failed</p>
-              <p class="text-danger-400/80 text-sm mt-1">{demoUploadError}</p>
-              <p class="text-danger-400/60 text-xs mt-2">
+              <p class="text-danger-ink font-medium text-sm">Upload Failed</p>
+              <p class="text-danger-ink/80 text-sm mt-1">{demoUploadError}</p>
+              <p class="text-danger-ink/60 text-xs mt-2">
                 If this persists, try a smaller file or contact support.
               </p>
             </div>
@@ -2139,7 +2143,7 @@
     <div class="mb-4">
       <p class="text-text-label mb-2">
         Reporting demo for:
-        <span class="font-bold text-white">
+        <span class="font-bold text-text-heading">
           {selectedDemoForReport.player?.steamUsername || 'Unknown Player'}
         </span>
       </p>
@@ -2174,7 +2178,7 @@
           rows="4"
           required
           maxlength="1000"
-          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
+          class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
           placeholder="Describe the suspicious behavior (max 1000 characters)..."></textarea>
       </div>
 

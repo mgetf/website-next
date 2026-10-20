@@ -103,11 +103,11 @@
   {#snippet children()}
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
-        <h1 class="text-5xl font-black text-white mb-2">Servers</h1>
+        <h1 class="text-5xl font-black text-text-heading mb-2">Servers</h1>
         <p class="text-xl text-text-body">
           {data.count}
           {data.count !== 1 ? 'servers' : 'server'} &nbsp;·&nbsp;
-          <span class="text-white font-semibold">{totalActivePlayers}</span>
+          <span class="text-text-heading font-semibold">{totalActivePlayers}</span>
           {totalActivePlayers !== 1 ? 'players' : 'player'} online
         </p>
       </div>
@@ -128,7 +128,7 @@
   <!-- Error banner -->
   {#if fetchError}
     <div
-      class="mb-6 px-4 py-3 rounded-lg bg-danger-500/10 border border-danger-500/30 text-danger-400 text-sm"
+      class="mb-6 px-4 py-3 rounded-lg bg-danger-500/10 border border-danger-500/30 text-danger-ink text-sm"
       role="alert"
     >
       <span class="font-semibold">Warning: </span>{fetchError}
@@ -161,7 +161,7 @@
     class="mt-14 rounded-xl border border-border-default bg-surface-card px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-6"
   >
     <div>
-      <p class="text-white font-semibold text-lg mb-1">Experiencing performance issues?</p>
+      <p class="text-text-heading font-semibold text-lg mb-1">Experiencing performance issues?</p>
       <p class="text-text-body text-sm">
         If any of our servers feel laggy or broken, let us know and we'll look into it.
       </p>

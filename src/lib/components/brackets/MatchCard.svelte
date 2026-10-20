@@ -135,7 +135,7 @@
 
       {#if isLive}
         <span
-          class="bracket-meta-text flex shrink-0 items-center gap-1 font-medium text-primary-400"
+          class="bracket-meta-text flex shrink-0 items-center gap-1 font-medium text-primary-ink"
         >
           <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-400"></span>
           LIVE
@@ -220,7 +220,7 @@
         <div class="game-row">
           <span
             class="flex-1 text-right tabular-nums {s1Wins
-              ? 'font-semibold text-success-400'
+              ? 'font-semibold text-success-ink'
               : 'text-text-muted'}"
           >
             {game.side1Score}
@@ -228,7 +228,7 @@
           <span class="game-num">G{game.gameNumber}</span>
           <span
             class="flex-1 tabular-nums {s2Wins
-              ? 'font-semibold text-success-400'
+              ? 'font-semibold text-success-ink'
               : 'text-text-muted'}"
           >
             {game.side2Score}

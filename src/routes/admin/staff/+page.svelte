@@ -153,7 +153,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <h1 class="text-3xl font-bold text-white mb-2">Staff</h1>
+      <h1 class="text-3xl font-bold text-text-heading mb-2">Staff</h1>
       <p class="text-text-body">
         Designate site roles, league scope, in-game admin, and Discord roles from one place.
       </p>
@@ -170,7 +170,7 @@
     <section class="space-y-2">
       <div class="flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 class="text-sm font-semibold text-white">Unmanaged Discord roles</h3>
+          <h3 class="text-sm font-semibold text-text-heading">Unmanaged Discord roles</h3>
           <p class="text-xs text-text-muted">
             Members who hold hub-managed roles but are not designated staff on this site.
             {#if data.orphanDiscord.fetchedAt}
@@ -212,7 +212,7 @@
 
       {#if data.orphanDiscord.error}
         <Card>
-          <p class="text-sm text-danger-400">{data.orphanDiscord.error}</p>
+          <p class="text-sm text-danger-ink">{data.orphanDiscord.error}</p>
         </Card>
       {/if}
       {#if !data.orphanDiscord.fetchedAt && !data.orphanDiscord.error}
@@ -233,7 +233,7 @@
           {#snippet cell(row, col)}
             {#if col.key === 'discord'}
               <div class="min-w-0">
-                <p class="text-white text-sm font-medium truncate">{row.displayName}</p>
+                <p class="text-text-heading text-sm font-medium truncate">{row.displayName}</p>
                 <p class="text-xs text-text-muted font-mono truncate" title={row.discordId}>
                   {row.username} · {row.discordId}
                 </p>
@@ -248,7 +248,7 @@
               {#if row.linkedSteamId}
                 <a
                   href="/users/{row.linkedSteamId}"
-                  class="text-sm text-white hover:text-primary-400 truncate"
+                  class="text-sm text-text-heading hover:text-primary-ink truncate"
                 >
                   {row.linkedSteamUsername ?? row.linkedSteamId}
                 </a>
@@ -289,7 +289,7 @@
   {#if data.search}
     <Card>
       {#snippet header()}
-        <h3 class="text-lg font-semibold text-white">Search results</h3>
+        <h3 class="text-lg font-semibold text-text-heading">Search results</h3>
       {/snippet}
       {#if data.searchResults.length === 0}
         <p class="text-text-muted text-sm">No users matched “{data.search}”.</p>
@@ -302,7 +302,7 @@
                   <img src={user.steamAvatar} alt="" class="w-6 h-6 rounded" />
                 {/if}
                 <div class="min-w-0">
-                  <p class="text-white text-sm font-medium truncate">{user.steamUsername}</p>
+                  <p class="text-text-heading text-sm font-medium truncate">{user.steamUsername}</p>
                   <p class="text-xs text-text-muted font-mono truncate">{user.steamId}</p>
                 </div>
                 <Badge color={permissionBadge(user.permissionLevel)}>
@@ -326,7 +326,7 @@
         {#if flagCode}
           <FlagIcon code={flagCode} class="h-7 w-10 rounded-sm" />
         {/if}
-        <h2 class="text-2xl font-bold text-white">{group.regionName}</h2>
+        <h2 class="text-2xl font-bold text-text-heading">{group.regionName}</h2>
         <span class="text-base text-text-muted">{group.members.length}</span>
       </div>
       <DataTable data={group.members} {columns}>
@@ -348,7 +348,7 @@
               <div class="min-w-0 flex-1">
                 <a
                   href="/users/{row.steamId}"
-                  class="text-white text-sm font-medium hover:text-primary-400 truncate block"
+                  class="text-text-heading text-sm font-medium hover:text-primary-ink truncate block"
                 >
                   {row.steamUsername}
                 </a>
@@ -454,7 +454,7 @@
         <img src={designating.steamAvatar} alt="" class="w-10 h-10 rounded" />
       {/if}
       <div>
-        <p class="text-white font-medium">{designating.steamUsername}</p>
+        <p class="text-text-heading font-medium">{designating.steamUsername}</p>
         <p class="text-sm text-text-body font-mono">{designating.steamId}</p>
       </div>
     </div>

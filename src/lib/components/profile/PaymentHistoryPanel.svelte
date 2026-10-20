@@ -195,7 +195,7 @@
           href="http://steamcommunity.com/my/tradeoffers/privacy#footer_spacer"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-primary-400 hover:text-primary-300 hover:underline"
+          class="text-primary-ink hover:text-primary-300 hover:underline"
         >
           Get my trade link
         </a>
@@ -225,7 +225,7 @@
         <span class="block text-text-body">{formatDay(entry.date)}</span>
         <span class="block text-xs text-text-muted">{formatTime(entry.date)}</span>
       {:else if col.key === 'method'}
-        <span class="inline-flex items-center gap-2 whitespace-nowrap text-white">
+        <span class="inline-flex items-center gap-2 whitespace-nowrap text-text-heading">
           {#if entry.method === 'paypal'}
             <img src="/paypal.svg" alt="" class="h-4 w-4 shrink-0 object-contain" />
             PayPal
@@ -248,7 +248,7 @@
             {:else if entry.iconUrl}
               <img src={entry.iconUrl} alt="" class="h-6 w-6 shrink-0 object-contain" />
             {/if}
-            <span class="font-medium whitespace-nowrap text-white">{entry.amountLabel}</span>
+            <span class="font-medium whitespace-nowrap text-text-heading">{entry.amountLabel}</span>
           </div>
           <p class="truncate font-mono text-xs text-text-muted" title={entry.id}>{entry.id}</p>
         </div>
@@ -257,7 +257,7 @@
           <div class="flex min-w-0 flex-col gap-px leading-tight">
             <a
               href={resolve('/teams/[id]', { id: String(entry.teamId) })}
-              class="truncate text-primary-400 transition-colors hover:text-primary-300"
+              class="truncate text-primary-ink transition-colors hover:text-primary-300"
               title={entry.teamName ?? ''}
             >
               {entry.teamName}
@@ -287,7 +287,9 @@
           {:else if entry.refundBlockReason}
             <Tooltip>
               {#snippet content()}
-                <p class="max-w-xs text-xs font-medium text-white">{entry.refundBlockReason}</p>
+                <p class="max-w-xs text-xs font-medium text-text-heading">
+                  {entry.refundBlockReason}
+                </p>
               {/snippet}
               <span class="inline-flex cursor-not-allowed">
                 <Button
@@ -337,9 +339,9 @@
       {#if quoting}
         <p class="text-sm text-text-muted">Checking what can be returned…</p>
       {:else if quoteError}
-        <p class="text-sm text-danger-400">{quoteError}</p>
+        <p class="text-sm text-danger-ink">{quoteError}</p>
       {:else if quote?.blockReason}
-        <p class="text-sm text-danger-400">{quote.blockReason}</p>
+        <p class="text-sm text-danger-ink">{quote.blockReason}</p>
       {:else if selected.method === 'paypal' && quote}
         <p class="text-sm text-text-body">
           Charged {money(quote.gross, quote.currency)}. PayPal keeps {money(
@@ -364,7 +366,7 @@
           minlength="3"
           maxlength="500"
           rows="3"
-          class="w-full rounded-lg border border-border-input bg-surface-input px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          class="w-full rounded-lg border border-border-input bg-surface-input px-3 py-2 text-text-heading focus:outline-none focus:ring-2 focus:ring-primary-500"
         ></textarea>
       </label>
 

@@ -28,11 +28,11 @@
     <div class="mb-8">
       <a
         href="/signup"
-        class="inline-flex items-center text-text-body hover:text-white mb-4 transition-colors"
+        class="inline-flex items-center text-text-body hover:text-text-heading mb-4 transition-colors"
       >
         ← Back to Signup Options
       </a>
-      <h1 class="mb-2 flex items-center gap-3 text-4xl font-bold text-white">
+      <h1 class="mb-2 flex items-center gap-3 text-4xl font-bold text-text-heading">
         <FormatIcon name={data.format.name} src={data.format.iconUrl} size="lg" />
         Re-register Existing {data.format.name} Team
       </h1>
@@ -46,7 +46,7 @@
 
     {#if data.previousSeasonNonOwnedTeams.length > 0}
       <div class="mb-6 p-4 bg-warning-500/10 border border-warning-500/30 rounded-lg">
-        <p class="text-warning-400 text-sm font-semibold mb-1">
+        <p class="text-warning-ink text-sm font-semibold mb-1">
           Heads up: you will leave your previous team
         </p>
         <p class="text-warning-300/80 text-sm">
@@ -75,7 +75,7 @@
       <!-- Unavailable Message -->
       <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">🚫</div>
-        <h2 class="text-2xl font-bold text-white mb-4">
+        <h2 class="text-2xl font-bold text-text-heading mb-4">
           {data.format.name} Team Re-registration Unavailable
         </h2>
         <p class="text-text-body text-lg mb-6">
@@ -134,7 +134,7 @@
                       </div>
                     {/if}
                     <div>
-                      <div class="font-semibold text-white">{team.name}</div>
+                      <div class="font-semibold text-text-heading">{team.name}</div>
                       <div class="text-sm text-text-body">
                         {#if team.division}
                           {team.division.name}
@@ -174,7 +174,7 @@
               />
               <span class="text-sm text-text-label">
                 I have read and agree to the
-                <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-400">
+                <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-ink">
                   Terms and Conditions
                 </a>
               </span>

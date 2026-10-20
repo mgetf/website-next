@@ -8,7 +8,7 @@
 </script>
 
 <Card padding="none" class="p-12 text-center">
-  <h2 class="text-2xl font-bold text-white mb-4">Login to participate</h2>
+  <h2 class="text-2xl font-bold text-text-heading mb-4">Login to participate</h2>
   <p class="text-text-body text-lg mb-6">Sign in with Steam to continue signing up.</p>
   <Button {href} variant="primary" size="lg">Login to participate!</Button>
 </Card>

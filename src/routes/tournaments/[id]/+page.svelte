@@ -130,7 +130,7 @@
               <Badge color="green">${event.prizepool}</Badge>
             {/if}
           </div>
-          <h1 class="text-4xl font-black text-white mb-1">{event.name}</h1>
+          <h1 class="text-4xl font-black text-text-heading mb-1">{event.name}</h1>
           <div class="flex flex-wrap items-center gap-4 text-text-body text-sm">
             <span>{formatDate(event.startedAt)}</span>
             {#if event.participantCount > 0}
@@ -152,7 +152,7 @@
     <!-- Placements -->
     {#if event.placements.length > 0}
       <Card>
-        <h2 class="text-lg font-bold text-white mb-4">Results</h2>
+        <h2 class="text-lg font-bold text-text-heading mb-4">Results</h2>
         <div class="flex flex-wrap gap-6">
           {#each event.placements.slice(0, 3) as placement, i (placement.id)}
             <div class="flex items-center gap-3">
@@ -168,13 +168,13 @@
                     class="w-10 h-10 rounded-full"
                   />
                   <span
-                    class="text-white font-semibold group-hover:text-primary-400 transition-colors"
+                    class="text-text-heading font-semibold group-hover:text-primary-ink transition-colors"
                   >
                     {placement.user.steamUsername}
                   </span>
                 </a>
               {:else}
-                <span class="font-semibold text-white">{placement.displayName}</span>
+                <span class="font-semibold text-text-heading">{placement.displayName}</span>
               {/if}
             </div>
           {/each}
@@ -253,7 +253,7 @@
           {/each}
         {:else}
           <section aria-label={brackets[0].stageName}>
-            <h2 class="text-lg font-bold text-white mb-4">{brackets[0].stageName}</h2>
+            <h2 class="text-lg font-bold text-text-heading mb-4">{brackets[0].stageName}</h2>
             {#if bracketHasContent(brackets[0].data)}
               <BracketRenderer data={brackets[0].data} />
             {:else}
@@ -269,7 +269,7 @@
     <!-- Participants -->
     {#if event.participants.length > 0}
       <Card>
-        <h2 class="text-lg font-bold text-white mb-4">
+        <h2 class="text-lg font-bold text-text-heading mb-4">
           Participants ({event.participants.length})
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -286,7 +286,7 @@
                 />
                 <div class="min-w-0">
                   <div
-                    class="text-sm text-white font-medium truncate group-hover:text-primary-400 transition-colors"
+                    class="text-sm text-text-heading font-medium truncate group-hover:text-primary-ink transition-colors"
                   >
                     {participant.user.steamUsername}
                   </div>
@@ -301,7 +301,7 @@
             {:else}
               <div class="flex items-center gap-2 p-2 rounded-lg">
                 <div class="min-w-0">
-                  <div class="text-sm text-white font-medium truncate">
+                  <div class="text-sm text-text-heading font-medium truncate">
                     {participant.displayName}
                   </div>
                   {#if participant.seed}

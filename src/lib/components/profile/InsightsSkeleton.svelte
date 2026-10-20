@@ -16,7 +16,7 @@
     {#snippet header()}
       <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
         <div>
-          <h3 class="text-sm font-semibold text-white">Rating over time</h3>
+          <h3 class="text-sm font-semibold text-text-heading">Rating over time</h3>
           <Skeleton class="mt-1 h-3 w-36" />
         </div>
         {#if regionPicker}
@@ -32,7 +32,7 @@
   <Card padding="sm">
     {#snippet header()}
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 class="text-sm font-semibold text-white">Activity</h3>
+        <h3 class="text-sm font-semibold text-text-heading">Activity</h3>
         <Skeleton class="h-3 w-48" />
       </div>
     {/snippet}
@@ -68,7 +68,7 @@
   <div class="grid gap-3 md:grid-cols-2">
     {#each ['Most-played arenas', 'Classes played'] as title (title)}
       <Card padding="sm">
-        <h3 class="mb-3 text-sm font-semibold text-white">{title}</h3>
+        <h3 class="mb-3 text-sm font-semibold text-text-heading">{title}</h3>
         <ul class="flex flex-col gap-3">
           {#each barRows as width (width)}
             <li class="flex flex-col gap-1">
@@ -86,7 +86,7 @@
 
   <div class="grid gap-3 md:grid-cols-2">
     <Card padding="sm">
-      <h3 class="mb-3 text-sm font-semibold text-white">Top foes</h3>
+      <h3 class="mb-3 text-sm font-semibold text-text-heading">Top foes</h3>
       <ul class="flex flex-col gap-3">
         {#each barRows as width (width)}
           <li class="flex items-center gap-3">
@@ -98,7 +98,7 @@
       </ul>
     </Card>
     <Card padding="sm">
-      <h3 class="mb-3 text-sm font-semibold text-white">Rivals</h3>
+      <h3 class="mb-3 text-sm font-semibold text-text-heading">Rivals</h3>
       <ul class="flex flex-col gap-3">
         {#each ['Nemesis', 'Most dominated', 'Most dueled'] as label (label)}
           <li class="flex items-center gap-3">
@@ -116,7 +116,7 @@
 
   {#each ['Recent duels', 'Recent double duels'] as title (title)}
     <div>
-      <h3 class="mb-3 text-sm font-semibold text-white">{title}</h3>
+      <h3 class="mb-3 text-sm font-semibold text-text-heading">{title}</h3>
       <Card padding="none">
         <div class="divide-y divide-border-default">
           {#each tableRows as row (row)}

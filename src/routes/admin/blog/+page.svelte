@@ -40,7 +40,7 @@
 <div class="mx-auto max-w-7xl space-y-6">
   <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <h1 class="text-3xl font-bold text-white mb-2">Blog</h1>
+      <h1 class="text-3xl font-bold text-text-heading mb-2">Blog</h1>
       <p class="text-text-body">Write, publish, and manage blog posts</p>
     </div>
     <Button href="/admin/blog/new" variant="primary">New Post</Button>
@@ -49,7 +49,10 @@
   <DataTable data={data.posts} {columns} emptyMessage="No blog posts yet">
     {#snippet cell(row, col)}
       {#if col.key === 'title'}
-        <a href="/admin/blog/{row.id}/edit" class="font-semibold text-white hover:text-primary-400">
+        <a
+          href="/admin/blog/{row.id}/edit"
+          class="font-semibold text-text-heading hover:text-primary-ink"
+        >
           {row.title}
         </a>
       {:else if col.key === 'status'}
@@ -105,7 +108,7 @@
   onCancel={() => (deletingPost = null)}
 >
   {#snippet preview()}
-    <p class="font-medium text-white">{deletingPost?.title}</p>
+    <p class="font-medium text-text-heading">{deletingPost?.title}</p>
   {/snippet}
 </ConfirmDialog>
 

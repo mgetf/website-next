@@ -68,7 +68,7 @@
 
 <div class="mx-auto max-w-7xl space-y-8">
   <header>
-    <h1 class="text-3xl font-bold text-white mb-2">Tournament Editor</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Tournament Editor</h1>
     <p class="text-text-body">
       Create drafts, review validation issues, and publish tournament brackets.
     </p>
@@ -78,7 +78,7 @@
 
   <div class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
     <Card>
-      <h2 class="mb-5 text-xl font-semibold text-white">New draft</h2>
+      <h2 class="mb-5 text-xl font-semibold text-text-heading">New draft</h2>
       <form
         method="POST"
         action="?/create"
@@ -112,7 +112,7 @@
     </Card>
 
     <Card>
-      <h2 class="text-xl font-semibold text-white">Historical tournaments</h2>
+      <h2 class="text-xl font-semibold text-text-heading">Historical tournaments</h2>
       <p class="my-4 text-sm text-text-body">
         Create editable drafts for published tournaments that do not have one yet.
       </p>
@@ -137,7 +137,9 @@
   <section aria-labelledby="tournament-list-heading">
     <div class="mb-4 flex items-end justify-between gap-4">
       <div>
-        <h2 id="tournament-list-heading" class="text-xl font-semibold text-white">Tournaments</h2>
+        <h2 id="tournament-list-heading" class="text-xl font-semibold text-text-heading">
+          Tournaments
+        </h2>
         <p class="mt-1 text-sm text-text-muted">{data.tournaments.length} total records</p>
       </div>
     </div>
@@ -153,7 +155,7 @@
       {#snippet cell(tournament, column)}
         {#if column.key === 'name'}
           <div>
-            <p class="font-semibold text-white">{tournament.name}</p>
+            <p class="font-semibold text-text-heading">{tournament.name}</p>
             <p class="mt-1 text-xs text-text-muted">
               {typeLabel(tournament.type)} · {formatDate(tournament.startedAt)}
             </p>

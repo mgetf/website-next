@@ -268,7 +268,7 @@
           href="https://github.com/mgetf/MGEMod"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-primary-400 hover:text-primary-300 underline">mgetf/MGEMod</a
+          class="text-primary-ink hover:text-primary-300 underline">mgetf/MGEMod</a
         >. They do not work with any other known version of MGEMod.
       </p>
     </div>
@@ -295,7 +295,7 @@
 
     <div class="flex flex-col items-end gap-2">
       {#if errorMessage}
-        <p class="text-danger-400 text-sm">{errorMessage}</p>
+        <p class="text-danger-ink text-sm">{errorMessage}</p>
       {/if}
       <Button
         variant="primary"
@@ -357,7 +357,7 @@
           class="w-4 h-4 rounded border-border-input bg-surface-input accent-primary-600 cursor-pointer"
         />
       {:else if col.key === 'name'}
-        <p class="font-mono font-semibold text-white">{row.name}</p>
+        <p class="font-mono font-semibold text-text-heading">{row.name}</p>
         {#if row.description}
           <p class="text-text-muted text-xs mt-0.5 line-clamp-1">{row.description}</p>
         {/if}
@@ -376,7 +376,7 @@
             title={sel && fileSel.bsp ? 'Exclude .bsp' : 'Include .bsp'}
             class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border transition-colors
               {sel && fileSel.bsp
-              ? 'bg-primary-600/20 border-primary-500 text-primary-400'
+              ? 'bg-primary-600/20 border-primary-500 text-primary-ink'
               : 'bg-surface-input border-border-input text-text-muted'}"
           >
             .bsp
@@ -387,7 +387,7 @@
             title={sel && fileSel.cfg ? 'Exclude .cfg' : 'Include .cfg'}
             class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border transition-colors
               {sel && fileSel.cfg
-              ? 'bg-primary-600/20 border-primary-500 text-primary-400'
+              ? 'bg-primary-600/20 border-primary-500 text-primary-ink'
               : 'bg-surface-input border-border-input text-text-muted'}"
           >
             .cfg
@@ -428,7 +428,7 @@
         </div>
         <div class="flex gap-3 items-center">
           {#if errorMessage}
-            <p class="text-danger-400 text-sm">{errorMessage}</p>
+            <p class="text-danger-ink text-sm">{errorMessage}</p>
           {/if}
           {#if !downloading}
             <button

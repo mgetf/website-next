@@ -151,12 +151,12 @@
     </Card>
   {:else if result && result.kind === 'error'}
     <Card padding="sm">
-      <p class="text-danger-400 text-sm">{result.message}</p>
+      <p class="text-danger-ink text-sm">{result.message}</p>
     </Card>
   {:else if result && result.kind === 'blocked-ip'}
     <Card padding="sm">
       <p class="text-text-body text-sm">
-        <span class="font-medium text-white">{result.ip}</span>
+        <span class="font-medium text-text-heading">{result.ip}</span>
         is a {result.reason === 'sdr' ? 'Valve SDR relay' : 'private'} address, not a player IP. Account
         lists are not shown for this range.
       </p>
@@ -165,7 +165,7 @@
     <Card padding="sm">
       <p class="text-text-body text-sm">
         No whois records for
-        <span class="font-medium text-white">{result.steamId}</span>.
+        <span class="font-medium text-text-heading">{result.steamId}</span>.
       </p>
     </Card>
     {#if profiling}
@@ -176,7 +176,7 @@
     <div class="space-y-4 sm:space-y-6">
       <Card padding="sm">
         {#snippet header()}
-          <h2 class="text-base sm:text-lg font-semibold text-white">IP {ipResult.ip}</h2>
+          <h2 class="text-base sm:text-lg font-semibold text-text-heading">IP {ipResult.ip}</h2>
         {/snippet}
         <p class="text-text-body mb-4 text-sm">
           {ipResult.accounts.length} account(s) seen on this address.
@@ -190,7 +190,7 @@
           {#snippet cell(row: IpAccount, col)}
             {#if col.key === 'account'}
               <a
-                class="inline-flex items-center gap-2 text-primary-400 hover:underline min-w-0"
+                class="inline-flex items-center gap-2 text-primary-ink hover:underline min-w-0"
                 href={accountHref(row.steamId, row.steam64)}
               >
                 <img
@@ -216,7 +216,7 @@
       </Card>
       <Card padding="sm">
         {#snippet header()}
-          <h2 class="text-base sm:text-lg font-semibold text-white">Recent events</h2>
+          <h2 class="text-base sm:text-lg font-semibold text-text-heading">Recent events</h2>
         {/snippet}
         <DataTable data={ipResult.events} columns={eventColumns} dense emptyMessage="No events">
           {#snippet cell(row: InvestigateEvent, col)}
@@ -234,7 +234,7 @@
               {row.name ?? 'Unknown'}
             {:else if col.key === 'ip'}
               {#if row.ip && row.ipKind === 'usable'}
-                <a class="text-primary-400 hover:underline whitespace-nowrap" href={ipHref(row.ip)}
+                <a class="text-primary-ink hover:underline whitespace-nowrap" href={ipHref(row.ip)}
                   >{row.ip}</a
                 >
               {:else}
@@ -272,7 +272,7 @@
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 min-w-0">
-                  <h2 class="text-base sm:text-lg font-semibold text-white truncate">
+                  <h2 class="text-base sm:text-lg font-semibold text-text-heading truncate">
                     {steam.permName ?? steam.knownNames[0] ?? steam.steamId}
                   </h2>
                   {#if steam.steam64}
@@ -319,19 +319,19 @@
           <dl class="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div>
               <dt class="text-text-muted">Sessions</dt>
-              <dd class="text-white">{steam.sessionCount}</dd>
+              <dd class="text-text-heading">{steam.sessionCount}</dd>
             </div>
             <div>
               <dt class="text-text-muted">Playtime</dt>
-              <dd class="text-white">{formatHours(steam.totalSeconds)}</dd>
+              <dd class="text-text-heading">{formatHours(steam.totalSeconds)}</dd>
             </div>
             <div>
               <dt class="text-text-muted">First seen</dt>
-              <dd class="text-white">{formatWhen(steam.firstSeen)}</dd>
+              <dd class="text-text-heading">{formatWhen(steam.firstSeen)}</dd>
             </div>
             <div>
               <dt class="text-text-muted">Last seen</dt>
-              <dd class="text-white">{formatWhen(steam.lastSeen)}</dd>
+              <dd class="text-text-heading">{formatWhen(steam.lastSeen)}</dd>
             </div>
           </dl>
           {#if steam.knownNames.length > 0}
@@ -362,13 +362,13 @@
 
         <Card padding="sm">
           {#snippet header()}
-            <h2 class="text-base sm:text-lg font-semibold text-white">Alt network</h2>
+            <h2 class="text-base sm:text-lg font-semibold text-text-heading">Alt network</h2>
           {/snippet}
           {#if steam.linkedMain}
             {@const main = steam.linkedMain}
             <p class="text-text-muted text-xs mb-2">Confirmed main</p>
             <a
-              class="inline-flex items-center gap-2 text-primary-400 hover:underline min-w-0"
+              class="inline-flex items-center gap-2 text-primary-ink hover:underline min-w-0"
               href={accountHref(main.mainSteamId ?? main.steamId, main.mainSteam64 ?? main.steam64)}
             >
               <img
@@ -390,7 +390,7 @@
               {#each steam.linkedAlts as link (link.region + link.steamId)}
                 <li>
                   <a
-                    class="inline-flex items-center gap-2 text-primary-400 hover:underline min-w-0"
+                    class="inline-flex items-center gap-2 text-primary-ink hover:underline min-w-0"
                     href={accountHref(link.steamId, link.steam64)}
                   >
                     <img
@@ -410,7 +410,7 @@
             </ul>
           {/if}
           {#if steam.noUsableIps}
-            <p class="text-warning-400 text-sm mt-4">
+            <p class="text-warning-ink text-sm mt-4">
               No usable client IPs. This player only has SDR or private addresses, so alt candidates
               were not scored.
             </p>
@@ -432,7 +432,7 @@
                     <div class="min-w-0 flex-1">
                       <div class="flex flex-wrap items-center gap-2">
                         <a
-                          class="text-white hover:text-primary-400 truncate"
+                          class="text-text-heading hover:text-primary-ink truncate"
                           href={accountHref(candidate.steamId, candidate.steam64)}
                         >
                           {candidate.knownNames[0] ?? candidate.steamId}
@@ -458,7 +458,7 @@
         <Card padding="none" class="min-w-0 overflow-hidden">
           {#snippet header()}
             <div class="px-4 py-3">
-              <h2 class="text-base font-semibold text-white sm:text-lg">
+              <h2 class="text-base font-semibold text-text-heading sm:text-lg">
                 Recent events ({steam.eventCount})
               </h2>
             </div>
@@ -488,7 +488,7 @@
               {:else if col.key === 'ip'}
                 {#if row.ip && row.ipKind === 'usable'}
                   <a
-                    class="block truncate text-primary-400 hover:underline"
+                    class="block truncate text-primary-ink hover:underline"
                     title={row.ip}
                     href={ipHref(row.ip)}>{row.ip}</a
                   >

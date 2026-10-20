@@ -82,7 +82,7 @@
 
 <div class="max-w-7xl mx-auto space-y-8">
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Maps</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Maps</h1>
     <p class="text-text-body">
       Catalog of MGE maps for players. Each entry stores a name plus the public URLs for the .bsp
       and .cfg. Downloads zip those files on demand.
@@ -91,7 +91,7 @@
 
   <Card>
     {#if editingMapId === null}
-      <h3 class="text-lg font-semibold text-white mb-4">Add map</h3>
+      <h3 class="text-lg font-semibold text-text-heading mb-4">Add map</h3>
       <form
         method="POST"
         action="?/create"
@@ -138,7 +138,7 @@
             name="description"
             rows="2"
             placeholder="Short description of the arena…"
-            class="w-full rounded-lg border border-border-input bg-surface-input px-3 py-2 text-sm text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            class="w-full rounded-lg border border-border-input bg-surface-input px-3 py-2 text-sm text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
           ></textarea>
         </div>
         <div class="flex justify-end">
@@ -146,7 +146,7 @@
         </div>
       </form>
     {:else}
-      <h3 class="text-lg font-semibold text-white mb-4">Edit {editName}</h3>
+      <h3 class="text-lg font-semibold text-text-heading mb-4">Edit {editName}</h3>
       <form method="POST" action="?/update" use:enhance class="space-y-0">
         <input type="hidden" name="mapId" value={editingMapId} />
         <FormInput
@@ -181,7 +181,7 @@
             name="description"
             rows="2"
             bind:value={editDescription}
-            class="w-full rounded-lg border border-border-input bg-surface-input px-3 py-2 text-sm text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            class="w-full rounded-lg border border-border-input bg-surface-input px-3 py-2 text-sm text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
           ></textarea>
         </div>
         <div class="flex justify-end gap-2">
@@ -192,7 +192,7 @@
     {/if}
   </Card>
 
-  <h3 class="text-lg font-semibold text-white mb-3">
+  <h3 class="text-lg font-semibold text-text-heading mb-3">
     Catalog
     <Badge color="zinc" size="md">{data.maps.length}</Badge>
   </h3>
@@ -200,7 +200,7 @@
   <DataTable data={data.maps} columns={mapColumns} emptyMessage="No maps listed yet." compact>
     {#snippet cell(row: MapRow, col: Column)}
       {#if col.key === 'name'}
-        <span class="font-mono font-semibold text-white text-sm">{row.name}</span>
+        <span class="font-mono font-semibold text-text-heading text-sm">{row.name}</span>
         {#if row.description}
           <p class="text-text-muted text-xs mt-0.5 line-clamp-1">{row.description}</p>
         {/if}
@@ -209,7 +209,7 @@
           href={row.bspUrl}
           target="_blank"
           rel="noopener noreferrer"
-          class="text-xs text-primary-400 hover:text-primary-300 truncate max-w-[12rem] block"
+          class="text-xs text-primary-ink hover:text-primary-300 truncate max-w-[12rem] block"
           title={row.bspUrl}>{hostOf(row.bspUrl)}</a
         >
       {:else if col.key === 'cfgUrl'}
@@ -217,7 +217,7 @@
           href={row.cfgUrl}
           target="_blank"
           rel="noopener noreferrer"
-          class="text-xs text-primary-400 hover:text-primary-300 truncate max-w-[12rem] block"
+          class="text-xs text-primary-ink hover:text-primary-300 truncate max-w-[12rem] block"
           title={row.cfgUrl}>{hostOf(row.cfgUrl)}</a
         >
       {:else if col.key === 'uploader'}

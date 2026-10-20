@@ -23,8 +23,8 @@
   const scoreDetails = $derived(remainingScoreLabels(snapshot));
   const valueClass = $derived(
     compact
-      ? 'text-xl font-bold tabular-nums text-white'
-      : 'text-3xl font-bold tabular-nums text-white',
+      ? 'text-xl font-bold tabular-nums text-text-heading'
+      : 'text-3xl font-bold tabular-nums text-text-heading',
   );
   const labelClass = $derived(compact ? 'text-[11px] text-text-muted' : 'text-xs text-text-muted');
 </script>
@@ -32,7 +32,7 @@
 {#snippet stat(label: string, value: string)}
   <div>
     <p class={labelClass}>{label}</p>
-    <p class="font-semibold tabular-nums text-white">{value}</p>
+    <p class="font-semibold tabular-nums text-text-heading">{value}</p>
   </div>
 {/snippet}
 
@@ -48,7 +48,7 @@
       {@render stat('Games', formatProfilingCount(snapshot.gameCount))}
     </div>
     {#if snapshot.profilePublic === false}
-      <p class="mt-3 text-xs text-warning-400">Steam profile is private</p>
+      <p class="mt-3 text-xs text-warning-ink">Steam profile is private</p>
     {/if}
   </Card>
 

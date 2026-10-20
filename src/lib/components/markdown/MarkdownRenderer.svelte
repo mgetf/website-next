@@ -37,7 +37,7 @@
   .markdown-content :global(h1) {
     font-size: 2rem;
     font-weight: 800;
-    color: white;
+    color: var(--color-text-heading);
     margin-top: 2rem;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
@@ -47,7 +47,7 @@
   .markdown-content :global(h2) {
     font-size: 1.5rem;
     font-weight: 700;
-    color: white;
+    color: var(--color-text-heading);
     margin-top: 1.75rem;
     margin-bottom: 0.75rem;
   }
@@ -55,7 +55,7 @@
   .markdown-content :global(h3) {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-zinc-200);
+    color: var(--color-text-heading);
     margin-top: 1.5rem;
     margin-bottom: 0.5rem;
   }
@@ -63,27 +63,27 @@
   .markdown-content :global(h4) {
     font-size: 1.1rem;
     font-weight: 600;
-    color: var(--color-zinc-300);
+    color: var(--color-text-label);
     margin-top: 1.25rem;
     margin-bottom: 0.5rem;
   }
 
   .markdown-content :global(p) {
-    color: var(--color-zinc-400);
+    color: var(--color-text-body);
     line-height: 1.75;
     margin-bottom: 1rem;
   }
 
   .markdown-content :global(ul) {
     list-style-type: disc;
-    color: var(--color-zinc-400);
+    color: var(--color-text-body);
     margin-left: 1.5rem;
     margin-bottom: 1rem;
   }
 
   .markdown-content :global(ol) {
     list-style-type: decimal;
-    color: var(--color-zinc-400);
+    color: var(--color-text-body);
     margin-left: 1.5rem;
     margin-bottom: 1rem;
   }
@@ -94,22 +94,22 @@
   }
 
   .markdown-content :global(li)::marker {
-    color: var(--color-zinc-500);
+    color: var(--color-text-muted);
   }
 
   .markdown-content :global(a) {
-    color: var(--color-blue-400);
+    color: var(--color-info-ink);
     text-decoration: underline;
     transition: color 0.15s;
   }
 
   .markdown-content :global(a:hover) {
-    color: var(--color-blue-300);
+    color: var(--color-info-500);
   }
 
   .markdown-content :global(code) {
     background: var(--color-surface-input);
-    color: var(--color-zinc-100);
+    color: var(--color-text-heading);
     padding: 0.125rem 0.375rem;
     border-radius: 0.25rem;
     font-size: 0.875em;
@@ -133,7 +133,7 @@
     border-left: 4px solid var(--color-blue-500);
     padding-left: 1rem;
     margin-left: 0;
-    color: var(--color-zinc-400);
+    color: var(--color-text-body);
     font-style: italic;
     margin-bottom: 1rem;
   }
@@ -159,12 +159,12 @@
 
   .markdown-content :global(th) {
     background: var(--color-surface-input);
-    color: white;
+    color: var(--color-text-heading);
     font-weight: 600;
   }
 
   .markdown-content :global(td) {
-    color: var(--color-zinc-400);
+    color: var(--color-text-body);
   }
 
   .markdown-content :global(img) {

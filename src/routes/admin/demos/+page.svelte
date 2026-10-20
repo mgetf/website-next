@@ -43,7 +43,7 @@
       case 'CLEAR':
         return 'bg-danger-500 text-white';
       default:
-        return 'bg-gray-500 text-white';
+        return 'bg-gray-500 text-text-heading';
     }
   }
 </script>
@@ -51,7 +51,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Demo Reports</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Demo Reports</h1>
     <p class="text-text-body">Review and manage reported game demos</p>
   </div>
 
@@ -82,7 +82,7 @@
     {#if filteredReports.length === 0}
       <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">📹</div>
-        <h3 class="text-xl font-bold text-white mb-2">No Demo Reports</h3>
+        <h3 class="text-xl font-bold text-text-heading mb-2">No Demo Reports</h3>
         <p class="text-text-body">
           {data.demoReports.length === 0
             ? 'No demo reports have been submitted yet.'
@@ -94,11 +94,11 @@
         <Card padding="lg">
           <div class="flex items-start justify-between mb-4">
             <div class="space-y-2">
-              <h3 class="text-lg font-bold text-white">
+              <h3 class="text-lg font-bold text-text-heading">
                 Reported by:
                 <a
                   href="/users/{report.reporter?.steamId}"
-                  class="text-info-400 hover:text-blue-300 transition-colors"
+                  class="text-info-ink hover:text-blue-300 transition-colors"
                 >
                   {report.reporter?.steamUsername || 'Unknown User'}
                 </a>
@@ -119,7 +119,7 @@
               <h4 class="text-sm font-medium text-text-body mb-1">Player Reported:</h4>
               <a
                 href="/users/{report.demo.player?.steamId}"
-                class="text-info-400 hover:text-blue-300 transition-colors"
+                class="text-info-ink hover:text-blue-300 transition-colors"
               >
                 {report.demo.player?.steamUsername || 'Unknown Player'}
               </a>
@@ -127,20 +127,20 @@
 
             <div>
               <h4 class="text-sm font-medium text-text-body mb-1">Description:</h4>
-              <p class="text-white">{report.description || 'No description provided'}</p>
+              <p class="text-text-heading">{report.description || 'No description provided'}</p>
             </div>
 
             {#if report.adminComments}
               <div>
                 <h4 class="text-sm font-medium text-text-body mb-1">Admin Comments:</h4>
-                <p class="text-white">{report.adminComments}</p>
+                <p class="text-text-heading">{report.adminComments}</p>
               </div>
             {/if}
 
             {#if report.admin}
               <div>
                 <h4 class="text-sm font-medium text-text-body mb-1">Reviewed by:</h4>
-                <span class="text-white">{report.admin.steamUsername}</span>
+                <span class="text-text-heading">{report.admin.steamUsername}</span>
               </div>
             {/if}
           </div>
@@ -212,7 +212,7 @@
                   value={report.adminComments || ''}
                   rows="1"
                   placeholder="Leave a comment..."
-                  class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-md text-text-heading focus:outline-none focus:ring-2 focus:ring-primary-500"
                 ></textarea>
               </div>
             </div>

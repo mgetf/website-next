@@ -69,7 +69,7 @@
           <Button
             variant="ghost"
             type="button"
-            class="flex w-full items-center justify-start gap-2 text-danger-400"
+            class="flex w-full items-center justify-start gap-2 text-danger-ink"
             onclick={() => select('Sign out')}
           >
             <LogOut class="size-4 shrink-0" />

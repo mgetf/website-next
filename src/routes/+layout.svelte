@@ -109,7 +109,8 @@
         />
         <div
           class="absolute inset-0"
-          style="background: rgba(9, 9, 11, {data.siteSettings.backgroundOverlay})"
+          style="background: rgba(var(--background-overlay-rgb), {data.siteSettings
+            .backgroundOverlay})"
         ></div>
       </div>
     {/if}
@@ -126,7 +127,7 @@
       {#if data.appEnvironment === 'staging'}
         <div class="bg-warning-600 px-4 py-1.5 text-center relative z-20">
           <span
-            class="text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+            class="text-text-heading text-sm font-semibold inline-flex items-center justify-center gap-1.5"
           >
             <TriangleAlert class="size-4" />
             Development Environment — Changes here are not live
@@ -160,8 +161,8 @@
           <div
             id="main-content"
             class="flex-grow overflow-y-auto {data.siteSettings?.backgroundImagePath
-              ? 'bg-gradient-to-b from-zinc-950/50 via-zinc-900/30 to-zinc-950/50'
-              : 'bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950'}"
+              ? 'bg-gradient-to-b from-surface-page/50 via-surface-card/30 to-surface-page/50'
+              : 'bg-gradient-to-b from-surface-page via-surface-card to-surface-page'}"
           >
             {@render children()}
           </div>

@@ -42,10 +42,10 @@
 <div class="max-w-4xl mx-auto space-y-6">
   <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div>
-      <a href={resolve('/admin/matches')} class="text-sm text-text-muted hover:text-white"
+      <a href={resolve('/admin/matches')} class="text-sm text-text-muted hover:text-text-heading"
         >← Match Management</a
       >
-      <h1 class="text-3xl font-bold text-white mt-2 mb-2">
+      <h1 class="text-3xl font-bold text-text-heading mt-2 mb-2">
         {draft.kind === 'SINGLE' ? 'Match draft' : 'Match Set Draft'}
       </h1>
       <p class="text-text-body">
@@ -62,36 +62,36 @@
     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
       <div>
         <dt class="text-text-muted">Round</dt>
-        <dd class="text-white font-medium">{roundLabel}</dd>
+        <dd class="text-text-heading font-medium">{roundLabel}</dd>
       </div>
       <div>
         <dt class="text-text-muted">Best of</dt>
-        <dd class="text-white font-medium">{draft.boSeries}</dd>
+        <dd class="text-text-heading font-medium">{draft.boSeries}</dd>
       </div>
       <div>
         <dt class="text-text-muted">Created by</dt>
-        <dd class="text-white font-medium">{draft.createdByName}</dd>
+        <dd class="text-text-heading font-medium">{draft.createdByName}</dd>
       </div>
       <div>
         <dt class="text-text-muted">Saved</dt>
-        <dd class="text-white font-medium">{formatDateTime(draft.updatedAt)}</dd>
+        <dd class="text-text-heading font-medium">{formatDateTime(draft.updatedAt)}</dd>
       </div>
       {#if draft.arenaName}
         <div>
           <dt class="text-text-muted">Arena</dt>
-          <dd class="text-white font-medium">{draft.arenaName}</dd>
+          <dd class="text-text-heading font-medium">{draft.arenaName}</dd>
         </div>
       {/if}
       {#if draft.mapBanPoolName}
         <div>
           <dt class="text-text-muted">Map ban pool</dt>
-          <dd class="text-white font-medium">{draft.mapBanPoolName}</dd>
+          <dd class="text-text-heading font-medium">{draft.mapBanPoolName}</dd>
         </div>
       {/if}
       {#if draft.matchDateTime}
         <div>
           <dt class="text-text-muted">Default match time</dt>
-          <dd class="text-white font-medium">
+          <dd class="text-text-heading font-medium">
             {draft.matchDateTime}
             {#if draft.matchTimezone}
               ({draft.matchTimezone})
@@ -103,7 +103,7 @@
   </Card>
 
   <Card padding="lg">
-    <h2 class="text-xl font-bold text-white mb-4">
+    <h2 class="text-xl font-bold text-text-heading mb-4">
       {draft.pairings.length} match{draft.pairings.length === 1 ? '' : 'es'}
     </h2>
     <div class="space-y-3">
@@ -113,7 +113,7 @@
         >
           <div>
             <div class="text-xs text-text-muted mb-1">Match {i + 1} · Home</div>
-            <div class="text-white font-semibold">{pairing.home.name}</div>
+            <div class="text-text-heading font-semibold">{pairing.home.name}</div>
             <div class="text-xs text-text-body">
               #{pairing.home.seed} · {pairing.home.wins}W-{pairing.home.losses}L
             </div>
@@ -121,7 +121,7 @@
           <div class="text-text-muted text-sm font-medium text-center">vs</div>
           <div class="md:text-right">
             <div class="text-xs text-text-muted mb-1">Away</div>
-            <div class="text-white font-semibold">{pairing.away.name}</div>
+            <div class="text-text-heading font-semibold">{pairing.away.name}</div>
             <div class="text-xs text-text-body">
               #{pairing.away.seed} · {pairing.away.wins}W-{pairing.away.losses}L
             </div>

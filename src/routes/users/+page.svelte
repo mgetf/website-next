@@ -176,7 +176,7 @@
               class="w-8 h-8 rounded-full"
             />
             <span
-              class="text-sm font-medium text-white group-hover:text-primary-400 transition-colors"
+              class="text-sm font-medium text-text-heading group-hover:text-primary-ink transition-colors"
             >
               {user.steamUsername}
             </span>

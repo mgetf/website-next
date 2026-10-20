@@ -139,7 +139,7 @@
                     type="button"
                     title={col.headerTooltip}
                     onclick={() => onSort(col.key)}
-                    class="flex items-center gap-1 hover:text-white transition-colors {col.align ===
+                    class="flex items-center gap-1 hover:text-text-heading transition-colors {col.align ===
                     'right'
                       ? 'ml-auto'
                       : col.align === 'center'

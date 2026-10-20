@@ -37,7 +37,7 @@
 <div class="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center">
   <p class="text-8xl font-black text-primary-500 mb-2 tabular-nums">{page.status}</p>
 
-  <h1 class="text-3xl font-bold text-white mb-3">{config.title}</h1>
+  <h1 class="text-3xl font-bold text-text-heading mb-3">{config.title}</h1>
 
   <p class="text-lg text-text-body max-w-md mb-8">
     {config.description}

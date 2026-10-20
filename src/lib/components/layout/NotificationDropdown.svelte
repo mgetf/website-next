@@ -138,7 +138,7 @@
 
 <Popover.Root bind:open>
   <Popover.Trigger
-    class="relative p-2 text-text-body hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
+    class="relative p-2 text-text-body hover:text-text-heading hover:bg-surface-input/50 rounded-lg transition-all"
     aria-label="Notifications"
   >
     <svg
@@ -173,7 +173,7 @@
     >
       <!-- Header -->
       <div class="px-4 py-2 border-b border-border-default flex justify-between items-center gap-2">
-        <span class="text-sm font-medium text-white">Notifications</span>
+        <span class="text-sm font-medium text-text-heading">Notifications</span>
         <div class="flex items-center gap-2">
           {#if notificationState.unreadCount > 0}
             <span class="text-xs text-text-muted">{notificationState.unreadCount} unread</span>
@@ -226,10 +226,10 @@
                   <p
                     class="text-sm leading-snug {notification.isRead
                       ? 'text-text-body'
-                      : 'text-white font-medium'}"
+                      : 'text-text-heading font-medium'}"
                   >
                     {#if notification.actor?.steamUsername}
-                      <span class="text-blue-400">{notification.actor.steamUsername}</span>:
+                      <span class="text-info-ink">{notification.actor.steamUsername}</span>:
                     {/if}
                     {notification.message || getFallbackText(notification.type)}
                   </p>
@@ -246,7 +246,7 @@
                 {#if !notification.isRead}
                   <button
                     onclick={(e) => handleMarkOneRead(e, notification.id)}
-                    class="flex-shrink-0 p-1 text-text-muted hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    class="flex-shrink-0 p-1 text-text-muted hover:text-info-ink opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Mark as read"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,7 +269,7 @@
           {#if notificationState.unreadCount > 0}
             <button
               onclick={handleMarkAllRead}
-              class="flex-1 px-3 py-2 text-xs text-text-body hover:text-white hover:bg-surface-input/50 rounded transition-all"
+              class="flex-1 px-3 py-2 text-xs text-text-body hover:text-text-heading hover:bg-surface-input/50 rounded transition-all"
             >
               Mark all as read
             </button>
@@ -281,7 +281,7 @@
             onclick={() => {
               open = false;
             }}
-            class="flex-1 px-3 py-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-surface-input/50 rounded text-center transition-all"
+            class="flex-1 px-3 py-2 text-xs text-info-ink hover:text-blue-300 hover:bg-surface-input/50 rounded text-center transition-all"
           >
             See all notifications
           </a>

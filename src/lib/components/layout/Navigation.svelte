@@ -13,6 +13,7 @@
   import DiscordIcon from '#lib/components/icons/DiscordIcon.svelte';
   import NewChip from '#lib/components/ui/NewChip.svelte';
   import Button from '#lib/components/ui/Button.svelte';
+  import ThemeToggle from './ThemeToggle.svelte';
 
   type Props = {
     user: SessionUser | null;
@@ -109,14 +110,14 @@
 <div class="relative z-30">
   <nav
     {@attach navAttachment}
-    class="bg-zinc-950/90 backdrop-blur-md border-b border-border-default shadow-lg"
+    class="bg-surface-page/90 backdrop-blur-md border-b border-border-default shadow-lg"
   >
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16">
         <div class="flex items-center gap-6">
           <a href="/" class="flex items-center gap-2 group shrink-0">
             <img src="/mge_transparent_logo.png" alt="MGE Logo" class="h-8 w-auto" />
-            <span class="text-2xl font-bold text-white">MGE</span>
+            <span class="text-2xl font-bold text-text-heading">MGE</span>
           </a>
 
           <div class="hidden lg:flex items-center gap-0.5">
@@ -130,8 +131,8 @@
                 class={[
                   'relative px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap',
                   isActive(link.href)
-                    ? 'text-white bg-surface-input/50'
-                    : 'text-text-label hover:text-white hover:bg-surface-input/50',
+                    ? 'text-text-heading bg-surface-input/50'
+                    : 'text-text-label hover:text-text-heading hover:bg-surface-input/50',
                 ]}
               >
                 {link.label}
@@ -146,8 +147,8 @@
               class={[
                 'px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap',
                 isActive('/rulebook')
-                  ? 'text-white bg-surface-input/50'
-                  : 'text-text-label hover:text-white hover:bg-surface-input/50',
+                  ? 'text-text-heading bg-surface-input/50'
+                  : 'text-text-label hover:text-text-heading hover:bg-surface-input/50',
               ]}
             >
               Rules
@@ -156,7 +157,7 @@
             <div class="relative group">
               <button
                 type="button"
-                class="px-3 py-2 text-sm font-medium text-text-label hover:text-white hover:bg-surface-input/50 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap"
+                class="px-3 py-2 text-sm font-medium text-text-label hover:text-text-heading hover:bg-surface-input/50 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap"
               >
                 More
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,7 +175,7 @@
                 {#each moreItems as item, index (item.href)}
                   <a
                     href={item.href}
-                    class="block px-4 py-2 text-sm text-text-label hover:text-white hover:bg-surface-input {index ===
+                    class="block px-4 py-2 text-sm text-text-label hover:text-text-heading hover:bg-surface-input {index ===
                     0
                       ? 'rounded-t-lg'
                       : ''} {index === moreItems.length - 1 ? 'rounded-b-lg' : ''}"
@@ -188,6 +189,7 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <ThemeToggle />
           <div class="hidden lg:flex items-center gap-1">
             <a
               href="https://www.youtube.com/channel/UCtVU1Zc_KiIjDAsH0GGRqww"
@@ -238,7 +240,7 @@
           <button
             type="button"
             onclick={toggleMobileMenu}
-            class="lg:hidden p-2 text-text-body hover:text-white hover:bg-surface-input/50 rounded-lg transition-all"
+            class="lg:hidden p-2 text-text-body hover:text-text-heading hover:bg-surface-input/50 rounded-lg transition-all"
             aria-label="Toggle menu"
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-nav"
@@ -292,8 +294,8 @@
               class={[
                 'flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg',
                 isActive(link.href)
-                  ? 'text-white bg-surface-input'
-                  : 'text-text-label hover:text-white hover:bg-surface-input',
+                  ? 'text-text-heading bg-surface-input'
+                  : 'text-text-label hover:text-text-heading hover:bg-surface-input',
               ]}
               onclick={closeMobileMenu}
             >
@@ -313,8 +315,8 @@
             class={[
               'flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-lg',
               isActive('/rulebook')
-                ? 'text-white bg-surface-input'
-                : 'text-text-label hover:text-white hover:bg-surface-input',
+                ? 'text-text-heading bg-surface-input'
+                : 'text-text-label hover:text-text-heading hover:bg-surface-input',
             ]}
             onclick={closeMobileMenu}
           >
@@ -326,8 +328,8 @@
               class={[
                 'flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-lg',
                 isActive(item.href)
-                  ? 'text-white bg-surface-input'
-                  : 'text-text-label hover:text-white hover:bg-surface-input',
+                  ? 'text-text-heading bg-surface-input'
+                  : 'text-text-label hover:text-text-heading hover:bg-surface-input',
               ]}
               onclick={closeMobileMenu}
             >
@@ -375,7 +377,7 @@
           <form method="POST" action="/auth/logout">
             <button
               type="submit"
-              class="w-full text-left px-3 py-2.5 text-sm font-medium text-danger-400 hover:text-danger-300 hover:bg-surface-input rounded-lg"
+              class="w-full text-left px-3 py-2.5 text-sm font-medium text-danger-ink hover:text-danger-700 hover:bg-surface-input rounded-lg"
             >
               Sign Out
             </button>

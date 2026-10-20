@@ -213,7 +213,7 @@
 <div class="space-y-4">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h3 class="text-lg font-semibold text-white">Matches</h3>
+      <h3 class="text-lg font-semibold text-text-heading">Matches</h3>
       <p class="mt-1 text-xs text-text-muted">
         Focus a match and use Alt+Arrow keys to move it, or Alt+S to swap sides.
       </p>
@@ -232,7 +232,7 @@
         <div>
           <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p class="font-semibold text-white">{match.label || `Match ${index + 1}`}</p>
+              <p class="font-semibold text-text-heading">{match.label || `Match ${index + 1}`}</p>
               <p class="text-xs text-text-muted">Order {match.orderNum}</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -363,7 +363,7 @@
                 label: candidate.label || `Match ${candidate.orderNum + 1}`,
               }))}
             <div class="mb-5 border-t border-border-default pt-5">
-              <h4 class="mb-4 font-medium text-white">Elimination progression</h4>
+              <h4 class="mb-4 font-medium text-text-heading">Elimination progression</h4>
               <div class="grid gap-x-4 md:grid-cols-2 xl:grid-cols-3">
                 <FormSelect
                   label="Bracket section"
@@ -421,7 +421,7 @@
 
           <div class="border-t border-border-default pt-5">
             <div class="mb-4 flex items-center justify-between gap-3">
-              <h4 class="font-medium text-white">Games</h4>
+              <h4 class="font-medium text-text-heading">Games</h4>
               <Button
                 type="button"
                 size="sm"

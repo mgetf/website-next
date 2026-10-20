@@ -15,7 +15,7 @@
 <article class="mx-auto max-w-4xl px-6 py-10">
   <a
     href="/blog"
-    class="mb-6 inline-flex text-sm font-medium text-text-label transition-colors hover:text-white"
+    class="mb-6 inline-flex text-sm font-medium text-text-label transition-colors hover:text-text-heading"
   >
     ← Back to Blog
   </a>
@@ -52,7 +52,7 @@
         </div>
       {/if}
 
-      <h1 class="mb-4 text-4xl font-black text-white md:text-5xl">{post.title}</h1>
+      <h1 class="mb-4 text-4xl font-black text-text-heading md:text-5xl">{post.title}</h1>
 
       <div
         class="mb-8 flex items-center gap-3 border-b border-border-default pb-6 text-sm text-text-body"
@@ -60,7 +60,7 @@
         {#if post.author}
           <a
             href="/users/{post.author.steamId}"
-            class="flex items-center gap-2 transition-colors hover:text-white"
+            class="flex items-center gap-2 transition-colors hover:text-text-heading"
           >
             <img
               src={post.author.avatar || '/default-avatar.png'}

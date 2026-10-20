@@ -74,7 +74,7 @@
 
 <Card padding="md">
   {#snippet header()}
-    <h2 class="text-sm font-semibold text-white">Admin controls</h2>
+    <h2 class="text-sm font-semibold text-text-heading">Admin controls</h2>
   {/snippet}
 
   <div class="space-y-8">
@@ -119,7 +119,7 @@
     <hr class="border-border-default" />
 
     <div>
-      <h3 class="mb-2 text-lg font-bold text-white">Class restrictions</h3>
+      <h3 class="mb-2 text-lg font-bold text-text-heading">Class restrictions</h3>
       <p class="mb-4 text-sm text-text-body">
         Choose the classes a player cannot play. The restriction shows on this team's page.
       </p>
@@ -128,7 +128,7 @@
         <ul class="mb-4 space-y-2">
           {#each restrictedPlayers as player (player.steamId)}
             <li class="flex flex-wrap items-center gap-2 text-sm text-text-label">
-              <span class="font-medium text-white">{player.name}</span>
+              <span class="font-medium text-text-heading">{player.name}</span>
               <span class="text-text-muted">cannot play</span>
               {#each player.restrictedClasses as tfClass (tfClass.id)}
                 {@const icon = classIcon(tfClass.name)}
@@ -198,7 +198,7 @@
       <div class="space-y-8">
         {#if unpaidPlayers.length > 0}
           <div>
-            <h3 class="mb-4 text-lg font-bold text-white">Mark Player as Paid</h3>
+            <h3 class="mb-4 text-lg font-bold text-text-heading">Mark Player as Paid</h3>
             <div class="space-y-2">
               {#each unpaidPlayers as player (player.steamId)}
                 <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
@@ -208,7 +208,7 @@
                       alt=""
                       class="size-8 rounded object-cover"
                     />
-                    <span class="font-medium text-white">{player.name}</span>
+                    <span class="font-medium text-text-heading">{player.name}</span>
                     <Badge color="red">Unpaid</Badge>
                   </div>
                   <Button
@@ -227,7 +227,7 @@
 
         {#if paidPlayers.length > 0}
           <div>
-            <h3 class="mb-4 text-lg font-bold text-white">Mark Player as Unpaid</h3>
+            <h3 class="mb-4 text-lg font-bold text-text-heading">Mark Player as Unpaid</h3>
             <div class="space-y-2">
               {#each paidPlayers as player (player.steamId)}
                 <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
@@ -237,7 +237,7 @@
                       alt=""
                       class="size-8 rounded object-cover"
                     />
-                    <span class="font-medium text-white">{player.name}</span>
+                    <span class="font-medium text-text-heading">{player.name}</span>
                     <Badge color="green">Paid</Badge>
                   </div>
                   <Button

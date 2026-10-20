@@ -46,7 +46,7 @@
   };
 
   const triggerClass = $derived(
-    `flex w-full items-center justify-between ${sizeClasses[size]} bg-surface-input border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+    `flex w-full items-center justify-between ${sizeClasses[size]} bg-surface-input border rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
       error ? 'border-danger-500' : 'border-border-input'
     } ${className}`.trim(),
   );
@@ -54,7 +54,7 @@
   const contentClass =
     'z-50 max-h-72 w-[var(--bits-select-anchor-width)] min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-lg border border-border-default bg-surface-card p-1 shadow-xl outline-none';
   const itemClass =
-    'flex cursor-pointer select-none items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-text-label outline-none data-highlighted:bg-surface-input data-highlighted:text-white data-disabled:cursor-not-allowed data-disabled:opacity-50';
+    'flex cursor-pointer select-none items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-text-label outline-none data-highlighted:bg-surface-input data-highlighted:text-text-heading data-disabled:cursor-not-allowed data-disabled:opacity-50';
 
   const selectedItems = $derived(
     value.map((v) => items.find((item) => item.value === v)).filter((item) => item != null),
@@ -125,7 +125,7 @@
                 <span class="truncate">{item.label}</span>
               </span>
               {#if selected}
-                <Check class="size-4 shrink-0 text-primary-400" />
+                <Check class="size-4 shrink-0 text-primary-ink" />
               {/if}
             {/snippet}
           </Select.Item>

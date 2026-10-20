@@ -266,7 +266,7 @@
 <Card>
   <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 class="text-xl font-semibold text-white">Participants</h2>
+      <h2 class="text-xl font-semibold text-text-heading">Participants</h2>
       <p class="mt-1 text-sm text-text-muted">
         Use Alt+Arrow Up or Alt+Arrow Down to reorder a focused participant.
       </p>
@@ -316,7 +316,7 @@
       {#if searchLoading}
         <p class="text-sm text-text-body" aria-live="polite">Searching site users...</p>
       {:else if searchError}
-        <p class="text-sm text-danger-400" aria-live="polite">{searchError}</p>
+        <p class="text-sm text-danger-ink" aria-live="polite">{searchError}</p>
       {:else if searchResults.length === 0}
         <p class="text-sm text-text-muted" aria-live="polite">
           No available matching site users found.
@@ -324,7 +324,7 @@
       {/if}
 
       {#if exactSearchUserDuplicate}
-        <p class="mt-3 text-sm text-danger-400" aria-live="polite">
+        <p class="mt-3 text-sm text-danger-ink" aria-live="polite">
           {exactSearchUserDuplicate}
         </p>
       {/if}
@@ -345,7 +345,7 @@
       {/if}
 
       {#if addError}
-        <p class="mt-3 text-sm text-danger-400" aria-live="polite">{addError}</p>
+        <p class="mt-3 text-sm text-danger-ink" aria-live="polite">{addError}</p>
       {/if}
     </div>
   {/if}
@@ -368,7 +368,7 @@
                 {index + 1}
               </span>
               <div class="min-w-0">
-                <p class="truncate font-medium text-white">{participant.displayName}</p>
+                <p class="truncate font-medium text-text-heading">{participant.displayName}</p>
                 {#if participant.steamId}
                   <p class="truncate text-xs text-text-muted">Steam ID: {participant.steamId}</p>
                 {:else}

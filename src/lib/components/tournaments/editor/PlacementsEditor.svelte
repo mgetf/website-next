@@ -53,7 +53,7 @@
 <Card>
   <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 class="text-xl font-semibold text-white">Placements</h2>
+      <h2 class="text-xl font-semibold text-text-heading">Placements</h2>
       <p class="mt-1 text-sm text-text-muted">Assign final positions to participants.</p>
     </div>
     <Badge color="zinc">{draft.placements.length}</Badge>

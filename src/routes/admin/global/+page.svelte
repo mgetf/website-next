@@ -96,7 +96,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Global Configuration</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Global Configuration</h1>
     <p class="text-text-body">Manage announcements, seasons, standings, and payments</p>
   </div>
 
@@ -108,8 +108,8 @@
           type="button"
           onclick={() => (activeTab = tab.id)}
           class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab === tab.id
-            ? 'border-primary-500 text-primary-400'
-            : 'border-transparent text-text-body hover:text-white'}"
+            ? 'border-primary-500 text-primary-ink'
+            : 'border-transparent text-text-body hover:text-text-heading'}"
         >
           {tab.label}
         </button>
@@ -121,7 +121,7 @@
   {#if activeTab === 'announcements'}
     <Card padding="none" class="p-6 space-y-6">
       <div class="border-b border-border-default pb-4">
-        <h3 class="text-2xl font-bold text-white mb-2">Global Announcements</h3>
+        <h3 class="text-2xl font-bold text-text-heading mb-2">Global Announcements</h3>
         <p class="text-text-body">Manage homepage announcement banners</p>
       </div>
 
@@ -149,7 +149,7 @@
               rows="3"
               maxlength="500"
               required
-              class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Enter announcement text (max 500 characters)..."></textarea>
           </div>
           <Button type="submit" variant="primary" disabled={isSubmitting}>
@@ -171,7 +171,7 @@
               <div class="flex flex-col space-y-3">
                 <!-- Announcement Content -->
                 <div class="flex items-start justify-between gap-4">
-                  <p class="text-white flex-1">{announcement.content}</p>
+                  <p class="text-text-heading flex-1">{announcement.content}</p>
                   <div class="flex items-center gap-2 flex-shrink-0">
                     <!-- Toggle Visibility -->
                     <form
@@ -245,7 +245,7 @@
                       rows="3"
                       maxlength="500"
                       required
-                      class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-text-heading focus:outline-none focus:ring-2 focus:ring-primary-500"
                       value={announcement.content}></textarea>
                     <div class="flex gap-2">
                       <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
@@ -274,16 +274,16 @@
   {#if activeTab === 'seasons'}
     <Card padding="none" class="p-6 space-y-6">
       <div class="border-b border-border-default pb-4">
-        <h3 class="text-2xl font-bold text-white mb-2">Seasons</h3>
+        <h3 class="text-2xl font-bold text-text-heading mb-2">Seasons</h3>
         <p class="text-text-body">Registration fee and which season new signups join</p>
       </div>
 
       {#if data.globalSettings}
         <!-- League Fees -->
         <div class="bg-surface-input/50 border border-border-input rounded-lg p-4 max-w-md">
-          <h4 class="text-lg font-bold text-white mb-3">
+          <h4 class="text-lg font-bold text-text-heading mb-3">
             League Fees:
-            <span class="text-white">${data.globalSettings.leagueFees ?? 0}</span>
+            <span class="text-text-heading">${data.globalSettings.leagueFees ?? 0}</span>
           </h4>
           <p class="text-sm text-text-body mb-4">Default registration fee amount</p>
           {#if data.isStrictAdmin}
@@ -306,7 +306,7 @@
                 step="1"
                 value={data.globalSettings.leagueFees ?? 0}
                 required
-                class="flex-1 px-3 py-2 bg-surface-card border border-border-input rounded-md text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="flex-1 px-3 py-2 bg-surface-card border border-border-input rounded-md text-text-heading focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <Button type="submit" variant="primary" disabled={isSubmitting}>
                 {isSubmitting ? 'Updating...' : 'Update'}
@@ -318,12 +318,12 @@
         <!-- Season Assignments and Per-Season Settings -->
         {#if data.isStrictAdmin}
           <div class="bg-surface-input/50 border border-border-input rounded-lg p-6 mt-6">
-            <h4 class="text-xl font-bold text-white mb-4">Signup Season Assignments</h4>
+            <h4 class="text-xl font-bold text-text-heading mb-4">Signup Season Assignments</h4>
             <p class="text-sm text-text-body mb-4">
               Assign which season new teams will be registered to for each region
             </p>
             <div class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-3 mb-6">
-              <p class="text-warning-400 text-sm">
+              <p class="text-warning-ink text-sm">
                 <strong>⚠️ Warning:</strong> Changing season assignments affects which season new signups
                 go to. This effectively "ends" signups for the previous season in that region/format.
               </p>
@@ -345,8 +345,8 @@
                       onclick={() => (selectedFormatId = format.id)}
                       class="px-6 py-3 font-medium transition-colors relative {selectedFormatId ===
                       format.id
-                        ? 'text-primary-400 border-b-2 border-orange-400 -mb-px'
-                        : 'text-text-body hover:text-white'}"
+                        ? 'text-primary-ink border-b-2 border-orange-400 -mb-px'
+                        : 'text-text-body hover:text-text-heading'}"
                     >
                       {format.code}
                       <span class="ml-1 text-xs text-text-muted">({regionsForFormat.length})</span>
@@ -402,7 +402,7 @@
                       <div class="bg-surface-card/50 rounded-lg p-4 space-y-3">
                         <!-- Region Header with Season Select -->
                         <div class="flex items-center gap-4">
-                          <div class="w-24 text-white font-medium">{region.name}</div>
+                          <div class="w-24 text-text-heading font-medium">{region.name}</div>
                           <div class="flex-1">
                             <SelectMenu
                               id={fieldName}
@@ -428,7 +428,7 @@
                             />
                           </div>
                           {#if currentSeasonId}
-                            <div class="text-success-400 text-sm">Active</div>
+                            <div class="text-success-ink text-sm">Active</div>
                           {:else}
                             <div class="text-text-muted text-sm">Inactive</div>
                           {/if}
@@ -519,7 +519,7 @@
             onCancel={() => (showSeasonAssignmentWarning = false)}
           >
             {#snippet preview()}
-              <p class="text-warning-400 text-sm">
+              <p class="text-warning-ink text-sm">
                 This action will change which season new team signups are registered to. Teams that
                 haven't completed signup for the previous season will need to re-register for the
                 new season.
@@ -539,7 +539,7 @@
   {#if activeTab === 'standings' && data.isStrictAdmin}
     <Card padding="none" class="p-6 space-y-6">
       <div class="border-b border-border-default pb-4">
-        <h3 class="text-2xl font-bold text-white mb-2">League Standings Visibility</h3>
+        <h3 class="text-2xl font-bold text-text-heading mb-2">League Standings Visibility</h3>
         <p class="text-text-body">
           Choose which team statuses are shown in the public league standings pages
         </p>
@@ -579,7 +579,7 @@
                 ></span>
                 <div>
                   <span
-                    class="text-sm font-medium text-text-label group-hover:text-white transition-colors"
+                    class="text-sm font-medium text-text-label group-hover:text-text-heading transition-colors"
                     >{statusOption.label}</span
                   >
                   <p class="text-xs text-text-muted">{statusOption.description}</p>
@@ -599,7 +599,7 @@
   {#if activeTab === 'payments' && data.isStrictAdmin}
     <Card padding="none" class="p-6 space-y-6">
       <div class="border-b border-border-default pb-4">
-        <h3 class="text-2xl font-bold text-white mb-2">Steam Bot Settings</h3>
+        <h3 class="text-2xl font-bold text-text-heading mb-2">Steam Bot Settings</h3>
         <p class="text-text-body">Configure the Steam trading bot for item payments</p>
       </div>
 
@@ -639,7 +639,7 @@
     <!-- Section 4: Steam Items Catalog -->
     <Card padding="none" class="p-6 space-y-6">
       <div class="border-b border-border-default pb-4">
-        <h3 class="text-2xl font-bold text-white mb-2">Steam Items Catalog</h3>
+        <h3 class="text-2xl font-bold text-text-heading mb-2">Steam Items Catalog</h3>
         <p class="text-text-body">Manage accepted Steam items for division payments</p>
       </div>
 
@@ -668,7 +668,7 @@
                 type="text"
                 required
                 placeholder="Item Name"
-                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -680,7 +680,7 @@
                 required
                 min="1"
                 placeholder="App ID (e.g. 440)"
-                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -691,7 +691,7 @@
                 type="text"
                 required
                 placeholder="Market Hash Name"
-                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+                class="w-full px-3 py-2 bg-surface-card border border-border-input rounded-md text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <Button type="submit" variant="primary" disabled={isSubmitting}>Add</Button>
@@ -705,7 +705,7 @@
               name="icon"
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp"
-              class="block w-full text-sm text-text-body file:mr-3 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+              class="block w-full text-sm text-text-body file:mr-3 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-text-heading"
             />
           </div>
         </form>
@@ -734,7 +734,7 @@
                   </div>
                 {/if}
                 <div class="min-w-0">
-                  <p class="text-white text-sm font-medium">{item.name}</p>
+                  <p class="text-text-heading text-sm font-medium">{item.name}</p>
                   <p class="text-text-muted text-xs truncate">
                     {item.marketHashName} (App {item.appId})
                   </p>
@@ -765,7 +765,7 @@
                     name="icon"
                     type="file"
                     accept="image/jpeg,image/png,image/gif,image/webp"
-                    class="block max-w-52 text-xs text-text-body file:mr-2 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
+                    class="block max-w-52 text-xs text-text-body file:mr-2 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-text-heading"
                     onchange={(event) => {
                       const input = event.currentTarget;
                       if (input.files && input.files.length > 0) {

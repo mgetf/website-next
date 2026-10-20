@@ -16,7 +16,7 @@
 
 <Card>
   <div class="mb-4">
-    <h2 class="text-xl font-semibold text-white">Live bracket preview</h2>
+    <h2 class="text-xl font-semibold text-text-heading">Live bracket preview</h2>
     <p class="mt-1 text-sm text-text-muted">Changes appear here before the draft is saved.</p>
   </div>
 

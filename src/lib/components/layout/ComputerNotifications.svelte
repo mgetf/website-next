@@ -84,7 +84,7 @@
       aria-label={label}
       onclick={toggle}
     >
-      <Bell class="size-4 {status === 'on' ? 'text-success-400' : 'text-text-muted'}" />
+      <Bell class="size-4 {status === 'on' ? 'text-success-ink' : 'text-text-muted'}" />
     </Button>
   </Tooltip>
 {/if}

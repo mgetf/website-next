@@ -40,13 +40,13 @@
 <div class="min-h-[calc(100vh-4rem)] px-4 py-12">
   <div class="max-w-4xl mx-auto">
     <div class="mb-8">
-      <h1 class="text-4xl font-bold text-white mb-2">Team Invitations</h1>
+      <h1 class="text-4xl font-bold text-text-heading mb-2">Team Invitations</h1>
       <p class="text-text-body">View and manage your pending team invitations and join requests</p>
     </div>
 
     {#if data.rosterLocked}
       <div class="mb-6 p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg">
-        <p class="text-warning-400 text-sm flex items-start gap-2">
+        <p class="text-warning-ink text-sm flex items-start gap-2">
           <Lock class="size-4 shrink-0 mt-0.5" />
           <span>Rosters are currently locked. You cannot accept invitations at this time.</span>
         </p>
@@ -58,7 +58,7 @@
         <div class="mb-4 flex justify-center text-text-muted">
           <Inbox class="size-16" />
         </div>
-        <h2 class="text-2xl font-bold text-white mb-4">No Pending Invitations</h2>
+        <h2 class="text-2xl font-bold text-text-heading mb-4">No Pending Invitations</h2>
         <p class="text-text-body text-lg">
           You don't have any pending team invitations or join requests.
         </p>
@@ -85,7 +85,9 @@
                 {/if}
 
                 <div class="flex-1 min-w-0">
-                  <h3 class="text-xl font-bold text-white mb-1 truncate">{invitation.team.name}</h3>
+                  <h3 class="text-xl font-bold text-text-heading mb-1 truncate">
+                    {invitation.team.name}
+                  </h3>
                   <div class="flex flex-wrap items-center gap-2 text-sm text-text-body">
                     {#if invitation.team.format}
                       <FormatBadge
@@ -141,7 +143,7 @@
                 {:else}
                   <!-- status=1: awaiting admin approval -->
                   <span
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warning-500/15 border border-warning-500/30 rounded-lg text-warning-400 text-sm font-medium"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warning-500/15 border border-warning-500/30 rounded-lg text-warning-ink text-sm font-medium"
                   >
                     <span class="w-1.5 h-1.5 rounded-full bg-warning-400 animate-pulse"></span>
                     Pending admin approval
@@ -159,7 +161,7 @@
             <div class="px-6 pb-4 border-t border-border-default/50 pt-3">
               <a
                 href="/teams/{invitation.teamId}"
-                class="text-sm text-primary-500 hover:text-primary-400 transition-colors"
+                class="text-sm text-primary-500 hover:text-primary-ink transition-colors"
               >
                 View Team Page →
               </a>

@@ -329,13 +329,13 @@
 {#if data.filters.search}
   <div class="max-w-7xl mx-auto px-6 -mt-2 pb-2">
     <p class="text-xs text-text-muted">
-      Showing results for "<span class="text-white">{data.filters.search}</span>"
+      Showing results for "<span class="text-text-heading">{data.filters.search}</span>"
     </p>
   </div>
 {/if}
 
 <div class="max-w-7xl mx-auto px-6 pb-16">
-  <h2 class="mb-6 flex items-center gap-3 text-5xl font-black text-white">
+  <h2 class="mb-6 flex items-center gap-3 text-5xl font-black text-text-heading">
     {#if selectedClassInfo}
       {#if selectedClassIcon}
         <img src={selectedClassIcon} alt="" class="size-12 shrink-0" />
@@ -396,9 +396,9 @@
           {/if}
           <a
             href={resolve('/users/[steamId]', { steamId: row.steamId64 })}
-            class="font-medium truncate transition-colors hover:text-primary-400 {row.isRegistered &&
+            class="font-medium truncate transition-colors hover:text-primary-ink {row.isRegistered &&
             row.name
-              ? 'text-white'
+              ? 'text-text-heading'
               : 'text-text-label'}"
           >
             {row.name ?? 'Unknown Player'}
@@ -406,7 +406,7 @@
         </div>
       {:else if col.key === 'elo'}
         <span
-          class="font-black tabular-nums text-primary-400"
+          class="font-black tabular-nums text-primary-ink"
           title={row.provisional ? PROVISIONAL_RATING_TITLE : undefined}
         >
           {ratingValue(row.elo)}{#if row.provisional}<span class="text-text-muted">?</span>{/if}
@@ -414,7 +414,7 @@
       {:else if col.key === 'rd'}
         <span class="tabular-nums text-text-muted text-sm">{formatRd(row.rd)}</span>
       {:else if col.key === 'games'}
-        <span class="tabular-nums text-white text-sm">
+        <span class="tabular-nums text-text-heading text-sm">
           {#if row.wins != null || row.losses != null}
             {(row.wins ?? 0) + (row.losses ?? 0)}
           {:else}
@@ -422,9 +422,9 @@
           {/if}
         </span>
       {:else if col.key === 'wins'}
-        <span class="tabular-nums text-success-400 text-sm">{row.wins ?? '—'}</span>
+        <span class="tabular-nums text-success-ink text-sm">{row.wins ?? '—'}</span>
       {:else if col.key === 'losses'}
-        <span class="tabular-nums text-danger-400 text-sm">{row.losses ?? '—'}</span>
+        <span class="tabular-nums text-danger-ink text-sm">{row.losses ?? '—'}</span>
       {:else if col.key === 'winrate'}
         <span class="tabular-nums text-text-body text-sm">{winRate(row.wins, row.losses)}</span>
       {:else if col.key === 'lastActive'}

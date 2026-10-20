@@ -107,7 +107,7 @@
     <div>
       <Button href="/admin/tournaments" variant="ghost" size="sm">← Tournament editor</Button>
       <div class="mt-3 mb-2 flex flex-wrap items-center gap-3">
-        <h1 class="text-3xl font-bold text-white">
+        <h1 class="text-3xl font-bold text-text-heading">
           {editor.draft.name || 'Untitled tournament'}
         </h1>
         <Badge color={data.draft.eventId ? 'green' : 'yellow'}>

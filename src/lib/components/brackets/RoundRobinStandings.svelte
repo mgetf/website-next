@@ -52,12 +52,12 @@
         {#if row.standing.steamId}
           <a
             href="/users/{row.standing.steamId}"
-            class="truncate text-sm font-semibold text-white transition-colors hover:text-primary-400"
+            class="truncate text-sm font-semibold text-text-heading transition-colors hover:text-primary-ink"
           >
             {row.standing.label}
           </a>
         {:else}
-          <span class="truncate text-sm font-semibold text-white">{row.standing.label}</span>
+          <span class="truncate text-sm font-semibold text-text-heading">{row.standing.label}</span>
         {/if}
         {#if row.standing.isEliminated}
           <Badge color="red" size="sm">Out</Badge>
@@ -66,7 +66,7 @@
     {:else if column.key === 'played'}
       <span class="text-sm tabular-nums text-text-body">{row.standing.played}</span>
     {:else if column.key === 'wins'}
-      <span class="text-sm tabular-nums text-success-400">{row.standing.wins}</span>
+      <span class="text-sm tabular-nums text-success-ink">{row.standing.wins}</span>
     {:else if column.key === 'losses'}
       <span class="text-sm tabular-nums text-text-body">{row.standing.losses}</span>
     {:else if column.key === 'draws'}
@@ -74,15 +74,15 @@
     {:else if column.key === 'difference'}
       <span
         class="text-sm tabular-nums {row.gameDifference > 0
-          ? 'text-success-400'
+          ? 'text-success-ink'
           : row.gameDifference < 0
-            ? 'text-danger-400'
+            ? 'text-danger-ink'
             : 'text-text-body'}"
       >
         {row.gameDifference > 0 ? '+' : ''}{row.gameDifference}
       </span>
     {:else if column.key === 'points'}
-      <span class="text-sm font-bold tabular-nums text-white">{row.standing.points}</span>
+      <span class="text-sm font-bold tabular-nums text-text-heading">{row.standing.points}</span>
     {/if}
   {/snippet}
 </DataTable>

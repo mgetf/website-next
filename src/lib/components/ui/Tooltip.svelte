@@ -25,7 +25,7 @@
       sideOffset={8}
       class={content
         ? 'z-50 max-w-xs rounded-lg border border-border-default bg-surface-card px-3 py-2.5 text-left shadow-lg'
-        : 'z-50 rounded border border-border-default bg-surface-hover px-2.5 py-1.5 text-xs font-medium text-white shadow-lg'}
+        : 'z-50 rounded border border-border-default bg-surface-hover px-2.5 py-1.5 text-xs font-medium text-text-heading shadow-lg'}
     >
       {#if content}
         {@render content()}

@@ -155,7 +155,7 @@
           <button
             type="button"
             onclick={() => removeRegionAssignments(regionGroup.regionId)}
-            class="text-[11px] font-medium text-text-muted hover:text-danger-400 transition-colors"
+            class="text-[11px] font-medium text-text-muted hover:text-danger-ink transition-colors"
           >
             Clear
           </button>
@@ -170,14 +170,14 @@
               <div class="flex flex-wrap gap-1">
                 {#each formatGroup.chips as chip (`${chip.regionId}:${chip.formatId ?? ''}:${chip.divisionId ?? ''}`)}
                   <span
-                    class="inline-flex items-center gap-0.5 rounded-full border border-border-input bg-surface-input py-0.5 pl-2 pr-0.5 text-xs text-white"
+                    class="inline-flex items-center gap-0.5 rounded-full border border-border-input bg-surface-input py-0.5 pl-2 pr-0.5 text-xs text-text-heading"
                   >
                     {chip.label}
                     <button
                       type="button"
                       onclick={() =>
                         removeStaffAssignment(chip.regionId, chip.formatId, chip.divisionId)}
-                      class="rounded-full px-1 text-text-muted hover:text-danger-400 transition-colors"
+                      class="rounded-full px-1 text-text-muted hover:text-danger-ink transition-colors"
                       aria-label="Remove {regionGroup.regionName} {chip.label}"
                     >
                       ×

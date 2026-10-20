@@ -209,7 +209,7 @@
 <div class="min-h-[calc(100vh-4rem)] px-4 py-12">
   <div class="max-w-2xl mx-auto">
     <div class="mb-8 text-center">
-      <h1 class="text-4xl font-bold text-white mb-2">Complete Payment</h1>
+      <h1 class="text-4xl font-bold text-text-heading mb-2">Complete Payment</h1>
       <p class="text-text-muted">Select your pending registration(s) and complete payment</p>
     </div>
 
@@ -233,7 +233,7 @@
               />
             </svg>
           </div>
-          <h2 class="text-xl font-bold text-white mb-2">No pending payments</h2>
+          <h2 class="text-xl font-bold text-text-heading mb-2">No pending payments</h2>
           <p class="text-text-muted mb-6">
             You don't have any outstanding signup fees at the moment.
           </p>
@@ -250,7 +250,7 @@
 
           {#if hasCurrencyMismatch}
             <div class="mb-3 p-3 bg-warning-500/10 border border-warning-500/30 rounded-lg">
-              <p class="text-warning-400 text-sm">
+              <p class="text-warning-ink text-sm">
                 Some registrations use different currencies and cannot be combined in one payment.
                 Select registrations in the same currency.
               </p>
@@ -288,7 +288,7 @@
                   </div>
                 {/if}
                 <div class="flex-1 min-w-0">
-                  <p class="text-white font-medium text-sm truncate">{p.teamName}</p>
+                  <p class="text-text-heading font-medium text-sm truncate">{p.teamName}</p>
                   <p class="text-text-muted text-xs mt-0.5">
                     <FormatBadge
                       name={p.formatName}
@@ -305,7 +305,7 @@
                     {/if}
                   </p>
                 </div>
-                <span class="text-white text-sm font-semibold whitespace-nowrap">
+                <span class="text-text-heading text-sm font-semibold whitespace-nowrap">
                   {p.currencySymbol}{(p.signupCost * p.unpaidPlayers.length).toFixed(2)}+
                 </span>
               </label>
@@ -347,7 +347,7 @@
                     </div>
                   {/if}
                   <div class="min-w-0">
-                    <p class="text-white font-bold">{p.teamName}</p>
+                    <p class="text-text-heading font-bold">{p.teamName}</p>
                     <p class="text-sm text-text-body mt-0.5">
                       <FormatBadge
                         name={p.formatName}
@@ -399,14 +399,14 @@
                       </div>
                     {/if}
                     <div class="flex-1 min-w-0">
-                      <p class="text-white font-medium text-sm truncate">
+                      <p class="text-text-heading font-medium text-sm truncate">
                         {player.name}
                         {#if player.steamId === data.steamId}
                           <span class="text-text-muted text-xs">(you)</span>
                         {/if}
                       </p>
                     </div>
-                    <span class="text-white font-semibold text-sm whitespace-nowrap">
+                    <span class="text-text-heading font-semibold text-sm whitespace-nowrap">
                       {p.currencySymbol}{player.totalCost.toFixed(2)}
                     </span>
                   </label>
@@ -442,7 +442,7 @@
                 <a
                   href="/rulebook"
                   target="_blank"
-                  class="text-primary-400 hover:text-primary-300 underline"
+                  class="text-primary-ink hover:text-primary-300 underline"
                 >
                   league rulebook
                 </a>
@@ -501,7 +501,7 @@
                 >
                   <img src="/paypal.svg" alt="PayPal" class="h-8 w-8 shrink-0" />
                   <div>
-                    <p class="text-white font-semibold">PayPal</p>
+                    <p class="text-text-heading font-semibold">PayPal</p>
                     <p class="text-text-muted text-xs mt-0.5">Pay with PayPal or card</p>
                   </div>
                 </button>
@@ -518,7 +518,7 @@
                     class="h-8 w-8 shrink-0 brightness-0 invert"
                   />
                   <div>
-                    <p class="text-white font-semibold">Steam Items</p>
+                    <p class="text-text-heading font-semibold">Steam Items</p>
                     <p class="text-text-muted text-xs mt-0.5">Pay with {itemName}</p>
                   </div>
                 </button>
@@ -529,7 +529,7 @@
           <div class="p-6">
             {#if !allAgreementsChecked}
               <!-- Summary shown before agreement, payment gated -->
-              <h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>
+              <h3 class="text-lg font-semibold text-text-heading mb-4">Payment Summary</h3>
               <div class="bg-surface-input rounded-lg p-5 mb-4">
                 {#each selectedParticipations as p (p.teamId)}
                   {@const selectedPlayersInTeam = p.unpaidPlayers.filter((pl) =>
@@ -550,7 +550,7 @@
                           {/if}
                           <span class="text-text-muted text-xs ml-1">signup fee</span>
                         </span>
-                        <span class="text-white text-sm"
+                        <span class="text-text-heading text-sm"
                           >{p.currencySymbol}{player.signupCost.toFixed(2)}</span
                         >
                       </div>
@@ -570,8 +570,8 @@
                 <div
                   class="border-t border-border-input pt-3 mt-3 flex justify-between items-center"
                 >
-                  <span class="text-white font-bold">Total Due</span>
-                  <span class="text-xl font-bold text-white">
+                  <span class="text-text-heading font-bold">Total Due</span>
+                  <span class="text-xl font-bold text-text-heading">
                     {currencySymbol}{totalPaypalAmount.toFixed(2)}
                   </span>
                 </div>
@@ -581,7 +581,7 @@
               </p>
             {:else if selectedMethod === 'items' && hasItemPayment}
               <!-- Item payment summary -->
-              <h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>
+              <h3 class="text-lg font-semibold text-text-heading mb-4">Payment Summary</h3>
               <div class="bg-surface-input rounded-lg p-5 mb-6">
                 {#each selectedParticipations as p (p.teamId)}
                   {@const selectedPlayersInTeam = p.unpaidPlayers.filter((pl) =>
@@ -601,7 +601,7 @@
                             <span class="text-text-muted text-xs">(you)</span>
                           {/if}
                         </span>
-                        <span class="text-white text-sm font-semibold">
+                        <span class="text-text-heading text-sm font-semibold">
                           {p.itemPaymentConfig.itemQuantity}x {p.itemPaymentConfig.itemName}
                         </span>
                       </div>
@@ -611,8 +611,8 @@
                 <div
                   class="border-t border-border-input pt-3 mt-3 flex justify-between items-center"
                 >
-                  <span class="text-white font-bold">Total Due</span>
-                  <span class="text-xl font-bold text-white">
+                  <span class="text-text-heading font-bold">Total Due</span>
+                  <span class="text-xl font-bold text-text-heading">
                     {totalItemsRequired}x {itemName}
                   </span>
                 </div>
@@ -635,7 +635,7 @@
               />
             {:else}
               <!-- PayPal summary -->
-              <h3 class="text-lg font-semibold text-white mb-4">Payment Summary</h3>
+              <h3 class="text-lg font-semibold text-text-heading mb-4">Payment Summary</h3>
               <div class="bg-surface-input rounded-lg p-5 mb-6">
                 {#each selectedParticipations as p (p.teamId)}
                   {@const selectedPlayersInTeam = p.unpaidPlayers.filter((pl) =>
@@ -656,7 +656,7 @@
                           {/if}
                           <span class="text-text-muted text-xs ml-1">signup fee</span>
                         </span>
-                        <span class="text-white text-sm"
+                        <span class="text-text-heading text-sm"
                           >{p.currencySymbol}{player.signupCost.toFixed(2)}</span
                         >
                       </div>
@@ -677,8 +677,8 @@
                   <div
                     class="border-t border-border-input pt-3 mt-3 flex justify-between items-center"
                   >
-                    <span class="text-white font-bold">Total Due</span>
-                    <span class="text-xl font-bold text-white">
+                    <span class="text-text-heading font-bold">Total Due</span>
+                    <span class="text-xl font-bold text-text-heading">
                       {currencySymbol}{totalPaypalAmount.toFixed(2)}
                     </span>
                   </div>
@@ -686,8 +686,8 @@
                   <div
                     class="border-t border-border-input pt-3 mt-1 flex justify-between items-center"
                   >
-                    <span class="text-white font-bold">Total Due</span>
-                    <span class="text-xl font-bold text-white">
+                    <span class="text-text-heading font-bold">Total Due</span>
+                    <span class="text-xl font-bold text-text-heading">
                       {currencySymbol}{totalPaypalAmount.toFixed(2)}
                     </span>
                   </div>
@@ -717,14 +717,14 @@
         <div class="text-center mt-6">
           <a
             href="/teams/{selectedParticipations[0].teamId}"
-            class="text-text-muted hover:text-white transition-colors"
+            class="text-text-muted hover:text-text-heading transition-colors"
           >
             &larr; Back to Team Page
           </a>
         </div>
       {:else}
         <div class="text-center mt-6">
-          <a href="/" class="text-text-muted hover:text-white transition-colors">
+          <a href="/" class="text-text-muted hover:text-text-heading transition-colors">
             &larr; Back to Home
           </a>
         </div>

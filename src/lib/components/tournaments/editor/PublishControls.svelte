@@ -51,7 +51,7 @@
 <Card>
   <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 class="text-xl font-semibold text-white">Save and publish</h2>
+      <h2 class="text-xl font-semibold text-text-heading">Save and publish</h2>
       <p class="mt-1 text-sm text-text-muted">Current draft revision: {revision}</p>
     </div>
     {#if publishedRevision}
@@ -96,7 +96,7 @@
       maxlength="500"
       bind:value={summary}
       placeholder="Describe the published changes"
-      class="w-full rounded-lg border border-border-input bg-surface-input px-4 py-3 text-white placeholder-text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
+      class="w-full rounded-lg border border-border-input bg-surface-input px-4 py-3 text-text-heading placeholder-text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
     ></textarea>
   </div>
 
@@ -128,13 +128,13 @@
     Publish tournament
   </Button>
   {#if blocking}
-    <p class="mt-2 text-xs text-danger-400">Resolve all validation errors before publishing.</p>
+    <p class="mt-2 text-xs text-danger-ink">Resolve all validation errors before publishing.</p>
   {/if}
 </Card>
 
 <Card>
   <div class="mb-4 flex items-center justify-between gap-3">
-    <h2 class="text-xl font-semibold text-white">Published revisions</h2>
+    <h2 class="text-xl font-semibold text-text-heading">Published revisions</h2>
     <Badge color="zinc">{revisions.length}</Badge>
   </div>
 
@@ -148,7 +148,7 @@
         >
           <div>
             <div class="flex items-center gap-2">
-              <p class="font-medium text-white">Revision {item.revision}</p>
+              <p class="font-medium text-text-heading">Revision {item.revision}</p>
               <Badge color="green">Published</Badge>
             </div>
             <p class="mt-1 text-xs text-text-muted">

@@ -33,14 +33,14 @@
 
   const compactClass = $derived(
     liked
-      ? 'inline-flex items-center gap-1 text-xs font-medium text-primary-400 transition-colors'
-      : 'inline-flex items-center gap-1 text-xs font-medium text-text-muted transition-colors hover:text-white',
+      ? 'inline-flex items-center gap-1 text-xs font-medium text-primary-ink transition-colors'
+      : 'inline-flex items-center gap-1 text-xs font-medium text-text-muted transition-colors hover:text-text-heading',
   );
 </script>
 
 {#snippet heart()}
   <svg
-    class="shrink-0 {iconSize} {liked ? 'text-primary-400' : ''}"
+    class="shrink-0 {iconSize} {liked ? 'text-primary-ink' : ''}"
     fill={liked ? 'currentColor' : 'none'}
     stroke="currentColor"
     viewBox="0 0 24 24"
@@ -121,7 +121,7 @@
         type="submit"
         variant="ghost"
         size="sm"
-        class="inline-flex items-center gap-1.5{liked ? ' text-primary-400' : ''}"
+        class="inline-flex items-center gap-1.5{liked ? ' text-primary-ink' : ''}"
         aria-pressed={liked}
         aria-label={label}
         disabled={pending}

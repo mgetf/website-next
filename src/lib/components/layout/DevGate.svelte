@@ -29,14 +29,14 @@
         ></span>
         <span class="relative inline-flex rounded-full h-3 w-3 bg-warning-500"></span>
       </span>
-      <span class="text-warning-400 font-medium text-sm uppercase tracking-wide"
+      <span class="text-warning-ink font-medium text-sm uppercase tracking-wide"
         >Development Environment</span
       >
     </div>
 
     <!-- Logo / Title -->
     <div class="space-y-4">
-      <h1 class="text-4xl font-bold text-white">MGE.tf Dev</h1>
+      <h1 class="text-4xl font-bold text-text-heading">MGE.tf Dev</h1>
       <p class="text-text-body text-lg">This is the development/staging version of MGE.tf</p>
     </div>
 
@@ -51,13 +51,13 @@
             class="w-12 h-12 rounded-full border-2 border-border-input"
           />
           <div class="text-left">
-            <p class="text-white font-medium">{user.steamUsername}</p>
+            <p class="text-text-heading font-medium">{user.steamUsername}</p>
             <p class="text-text-muted text-sm">Logged in via Steam</p>
           </div>
         </div>
 
         <div class="border-t border-border-default pt-4">
-          <div class="flex items-center justify-center gap-2 text-danger-400">
+          <div class="flex items-center justify-center gap-2 text-danger-ink">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="h-5 w-5"

@@ -99,7 +99,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Header -->
   <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Dashboard</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Dashboard</h1>
     <p class="text-text-body">Manage your division's day-to-day operations</p>
   </div>
 
@@ -119,10 +119,10 @@
         <div class="flex items-center gap-4">
           <div
             class="w-12 h-12 rounded-lg flex items-center justify-center {info?.status === 'red'
-              ? 'bg-danger-500/20 text-danger-400'
+              ? 'bg-danger-500/20 text-danger-ink'
               : info?.status === 'yellow'
-                ? 'bg-warning-500/20 text-warning-400'
-                : 'bg-success-500/20 text-success-400'}"
+                ? 'bg-warning-500/20 text-warning-ink'
+                : 'bg-success-500/20 text-success-ink'}"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -134,7 +134,7 @@
             </svg>
           </div>
           <div>
-            <h2 class="text-xl font-bold text-white">
+            <h2 class="text-xl font-bold text-text-heading">
               {#if currentMatchWeek}
                 Create Week {currentMatchWeek} Matches
               {:else}
@@ -144,9 +144,9 @@
             {#if info}
               <p
                 class="text-sm {info.status === 'red'
-                  ? 'text-danger-400'
+                  ? 'text-danger-ink'
                   : info.status === 'yellow'
-                    ? 'text-warning-400'
+                    ? 'text-warning-ink'
                     : 'text-text-body'}"
               >
                 <span class="font-medium">{info.timeText}</span>
@@ -180,7 +180,7 @@
       <div class="p-5 flex items-center justify-between gap-4">
         <div class="flex items-center gap-4">
           <div
-            class="w-12 h-12 rounded-lg bg-info-500/20 flex items-center justify-center text-info-400"
+            class="w-12 h-12 rounded-lg bg-info-500/20 flex items-center justify-center text-info-ink"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -192,7 +192,7 @@
             </svg>
           </div>
           <div>
-            <h2 class="text-xl font-bold text-white">Create Matches</h2>
+            <h2 class="text-xl font-bold text-text-heading">Create Matches</h2>
             <p class="text-sm text-text-muted">
               No deadline configured • Set one in Global Settings
             </p>
@@ -223,7 +223,7 @@
     <div class="p-5 border-b border-border-default flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div
-          class="w-10 h-10 rounded-lg bg-warning-500/20 flex items-center justify-center text-warning-400"
+          class="w-10 h-10 rounded-lg bg-warning-500/20 flex items-center justify-center text-warning-ink"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -235,7 +235,7 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-bold text-white">Pending Players</h2>
+          <h2 class="text-xl font-bold text-text-heading">Pending Players</h2>
           <p class="text-sm text-text-body">
             {pendingApprovals.length} item{pendingApprovals.length !== 1 ? 's' : ''} waiting for approval
           </p>
@@ -244,7 +244,7 @@
       {#if pendingApprovals.length > 5}
         <a
           href="/admin/pending-players"
-          class="text-sm text-info-400 hover:text-primary-300 font-medium transition"
+          class="text-sm text-info-ink hover:text-primary-300 font-medium transition"
         >
           View all →
         </a>
@@ -254,7 +254,7 @@
     <div class="divide-y divide-border-default">
       {#if pendingApprovals.length === 0}
         <div class="py-12 text-center">
-          <div class="mb-4 flex justify-center text-success-400">
+          <div class="mb-4 flex justify-center text-success-ink">
             <CircleCheck class="size-12" />
           </div>
           <p class="text-text-body font-medium">All caught up!</p>
@@ -280,18 +280,20 @@
                     {#if item.playerSteamId}
                       <a
                         href="/users/{item.playerSteamId}"
-                        class="text-white font-semibold hover:text-primary-400 transition-colors truncate"
+                        class="text-text-heading font-semibold hover:text-primary-ink transition-colors truncate"
                       >
                         {item.playerUsername}
                       </a>
                     {:else}
-                      <span class="text-white font-semibold truncate">{item.playerUsername}</span>
+                      <span class="text-text-heading font-semibold truncate"
+                        >{item.playerUsername}</span
+                      >
                     {/if}
                     {#if item.kind === 'JOIN_REQUEST'}
                       <span class="text-text-muted">→</span>
                       <a
                         href="/teams/{item.teamId}"
-                        class="text-primary-400 hover:text-primary-300 font-medium transition-colors truncate"
+                        class="text-primary-ink hover:text-primary-300 font-medium transition-colors truncate"
                       >
                         {item.teamName}
                       </a>
@@ -299,7 +301,7 @@
                       <span class="text-text-muted">·</span>
                       <a
                         href="/teams/{item.teamId}"
-                        class="text-primary-400 hover:text-primary-300 font-medium transition-colors truncate"
+                        class="text-primary-ink hover:text-primary-300 font-medium transition-colors truncate"
                       >
                         {item.teamName}
                       </a>
@@ -347,7 +349,7 @@
                       bind:value={declineReasons[item.key]}
                       placeholder="Reason..."
                       required
-                      class="px-3 py-1.5 bg-surface-input border border-border-input rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
+                      class="px-3 py-1.5 bg-surface-input border border-border-input rounded-md text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
                     />
                     <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
                       Confirm
@@ -398,7 +400,7 @@
     <div class="p-5 border-b border-border-default flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div
-          class="w-10 h-10 rounded-lg bg-info-500/20 flex items-center justify-center text-info-400"
+          class="w-10 h-10 rounded-lg bg-info-500/20 flex items-center justify-center text-info-ink"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -410,13 +412,13 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-bold text-white">Upcoming Matches</h2>
+          <h2 class="text-xl font-bold text-text-heading">Upcoming Matches</h2>
           <p class="text-sm text-text-body">Recent unplayed matches requiring attention</p>
         </div>
       </div>
       <a
         href="/admin/matches"
-        class="text-sm text-info-400 hover:text-primary-300 font-medium transition"
+        class="text-sm text-info-ink hover:text-primary-300 font-medium transition"
       >
         Manage matches →
       </a>
@@ -429,7 +431,7 @@
         </div>
         <p class="text-text-body font-medium">No unplayed matches</p>
         <p class="text-text-muted text-sm mt-1">
-          <a href="/admin/matches/create" class="text-info-400 hover:text-primary-300"
+          <a href="/admin/matches/create" class="text-info-ink hover:text-primary-300"
             >Create new matches</a
           > to get started
         </p>
@@ -439,9 +441,9 @@
         {#snippet cell(match, col)}
           {#if col.key === 'match'}
             <div class="flex items-center gap-2">
-              <span class="text-white font-medium">{match.homeTeam.name}</span>
+              <span class="text-text-heading font-medium">{match.homeTeam.name}</span>
               <span class="text-text-muted text-sm">vs</span>
-              <span class="text-white font-medium">{match.awayTeam.name}</span>
+              <span class="text-text-heading font-medium">{match.awayTeam.name}</span>
             </div>
           {:else if col.key === 'division'}
             <span class="text-sm text-text-label">{match.homeTeam.division?.name || '-'}</span>
@@ -452,7 +454,7 @@
           {:else if col.key === 'action'}
             <a
               href="/matches/{match.id}"
-              class="text-info-400 hover:text-primary-300 text-sm font-medium"
+              class="text-info-ink hover:text-primary-300 text-sm font-medium"
             >
               View
             </a>
@@ -472,7 +474,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div
-            class="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-400 group-hover:bg-primary-500/30 transition"
+            class="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-ink group-hover:bg-primary-500/30 transition"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -484,14 +486,14 @@
             </svg>
           </div>
           <div>
-            <div class="text-2xl font-bold text-primary-400">
+            <div class="text-2xl font-bold text-primary-ink">
               {analytics.keyMetrics.disputedMatches}
             </div>
             <div class="text-sm text-text-body">Disputed Matches</div>
           </div>
         </div>
         <svg
-          class="w-5 h-5 text-text-muted group-hover:text-primary-400 transition"
+          class="w-5 h-5 text-text-muted group-hover:text-primary-ink transition"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -509,7 +511,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div
-            class="w-10 h-10 rounded-lg bg-danger-500/20 flex items-center justify-center text-danger-400 group-hover:bg-danger-500/30 transition"
+            class="w-10 h-10 rounded-lg bg-danger-500/20 flex items-center justify-center text-danger-ink group-hover:bg-danger-500/30 transition"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -521,14 +523,14 @@
             </svg>
           </div>
           <div>
-            <div class="text-2xl font-bold text-danger-400">
+            <div class="text-2xl font-bold text-danger-ink">
               {analytics.keyMetrics.openDemoReports}
             </div>
             <div class="text-sm text-text-body">Open Demo Reports</div>
           </div>
         </div>
         <svg
-          class="w-5 h-5 text-text-muted group-hover:text-danger-400 transition"
+          class="w-5 h-5 text-text-muted group-hover:text-danger-ink transition"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -542,35 +544,35 @@
   <!-- Analytics Section -->
   <div class="pt-6 border-t border-border-default">
     <div class="mb-6">
-      <h2 class="text-xl font-bold text-white">League Overview</h2>
+      <h2 class="text-xl font-bold text-text-heading">League Overview</h2>
       <p class="text-sm text-text-muted">Statistics from active seasons</p>
     </div>
 
     <!-- Key Metrics Cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-        <div class="text-3xl font-bold text-info-400 mb-1">
+        <div class="text-3xl font-bold text-info-ink mb-1">
           {analytics.totalPlayers}
         </div>
         <div class="text-xs text-text-body">Active Players</div>
       </div>
 
       <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-        <div class="text-3xl font-bold text-info-400 mb-1">
+        <div class="text-3xl font-bold text-info-ink mb-1">
           {analytics.totalTeams}
         </div>
         <div class="text-xs text-text-body">Active Teams</div>
       </div>
 
       <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-        <div class="text-3xl font-bold text-success-400 mb-1">
+        <div class="text-3xl font-bold text-success-ink mb-1">
           {analytics.paymentStatus.paymentRate}%
         </div>
         <div class="text-xs text-text-body">Payment Rate</div>
       </div>
 
       <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-        <div class="text-3xl font-bold text-info-400 mb-1">
+        <div class="text-3xl font-bold text-info-ink mb-1">
           {analytics.activeSeasonCount}
         </div>
         <div class="text-xs text-text-body">Active Seasons</div>
@@ -580,7 +582,7 @@
     <!-- Charts Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card padding="none" class="p-5">
-        <h3 class="text-lg font-semibold text-white mb-4">Players Per Division</h3>
+        <h3 class="text-lg font-semibold text-text-heading mb-4">Players Per Division</h3>
 
         {#if analytics.playersPerDivision.length > 0}
           <div class="mb-4">
@@ -608,7 +610,7 @@
       </Card>
 
       <Card padding="none" class="p-5">
-        <h3 class="text-lg font-semibold text-white mb-4">Teams Per Region</h3>
+        <h3 class="text-lg font-semibold text-text-heading mb-4">Teams Per Region</h3>
 
         {#if analytics.teamsPerRegion.length > 0}
           <div class="mb-4">
@@ -639,7 +641,7 @@
     <!-- Payment Status -->
     {#if analytics.paymentStatus.totalInPaidDivisions > 0}
       <Card padding="none" class="p-5 mt-6">
-        <h3 class="text-lg font-semibold text-white mb-4">Payment Status</h3>
+        <h3 class="text-lg font-semibold text-text-heading mb-4">Payment Status</h3>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="flex items-center justify-center">
@@ -655,21 +657,21 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div class="bg-surface-input/50 border border-border-input rounded-lg p-3">
-              <div class="text-xl font-bold text-success-400 mb-0.5">
+              <div class="text-xl font-bold text-success-ink mb-0.5">
                 {analytics.paymentStatus.paid}
               </div>
               <div class="text-xs text-text-body">Paid Players</div>
             </div>
 
             <div class="bg-surface-input/50 border border-border-input rounded-lg p-3">
-              <div class="text-xl font-bold text-danger-400 mb-0.5">
+              <div class="text-xl font-bold text-danger-ink mb-0.5">
                 {analytics.paymentStatus.unpaid}
               </div>
               <div class="text-xs text-text-body">Unpaid Players</div>
             </div>
 
             <div class="bg-surface-input/50 border border-border-input rounded-lg p-3">
-              <div class="text-xl font-bold text-info-400 mb-0.5">
+              <div class="text-xl font-bold text-info-ink mb-0.5">
                 {analytics.paymentStatus.freeTier}
               </div>
               <div class="text-xs text-text-body">Free Tier</div>

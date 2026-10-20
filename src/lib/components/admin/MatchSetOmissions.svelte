@@ -10,7 +10,7 @@
     <ul class="space-y-2">
       {#each omissions as entry (entry.id)}
         <li class="text-sm text-text-body">
-          <span class="font-medium text-white">{entry.name}</span>
+          <span class="font-medium text-text-heading">{entry.name}</span>
           — {entry.reason}
         </li>
       {/each}

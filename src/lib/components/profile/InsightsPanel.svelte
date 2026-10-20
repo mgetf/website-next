@@ -244,7 +244,7 @@
 
 <div class="flex flex-col gap-3" aria-busy={awaitingStats}>
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <h2 class="text-sm font-semibold text-white">Server stats</h2>
+    <h2 class="text-sm font-semibold text-text-heading">Server stats</h2>
     <div
       class="flex overflow-hidden rounded-lg border border-border-input"
       role="group"
@@ -278,7 +278,7 @@
             type="button"
             class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {region ===
             option.region
-              ? 'border-primary-500 bg-primary-500/15 text-white'
+              ? 'border-primary-500 bg-primary-500/15 text-text-heading'
               : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
             aria-pressed={region === option.region}
             onclick={() => (pickedRegion = option.region)}
@@ -294,7 +294,7 @@
   {#if !region}
     <p class="text-sm text-text-muted">No server region to load stats from.</p>
   {:else if loadError}
-    <p class="text-sm text-danger-400">{loadError}</p>
+    <p class="text-sm text-danger-ink">{loadError}</p>
   {:else if awaitingStats}
     <p class="sr-only">Loading server stats</p>
     <InsightsSkeleton {regionPicker} />
@@ -303,10 +303,10 @@
       {#snippet header()}
         <div class="flex flex-nowrap items-center justify-between gap-3 px-5 py-3">
           <div class="shrink-0">
-            <h3 class="text-sm font-semibold text-white">Rating over time</h3>
+            <h3 class="text-sm font-semibold text-text-heading">Rating over time</h3>
             {#if peak}
               <p class="text-xs text-text-muted">
-                Peak <span class="font-medium text-success-400">{peak.value}</span>
+                Peak <span class="font-medium text-success-ink">{peak.value}</span>
                 · {peak.label}
               </p>
             {/if}
@@ -374,7 +374,7 @@
 
     <div class="grid gap-3 md:grid-cols-2">
       <Card padding="sm">
-        <h3 class="mb-3 text-sm font-semibold text-white">Most-played arenas</h3>
+        <h3 class="mb-3 text-sm font-semibold text-text-heading">Most-played arenas</h3>
         {#if arenas.length === 0}
           <p class="text-sm text-text-muted">No games in this window.</p>
         {:else}
@@ -382,7 +382,7 @@
             {#each arenas as row (row.name)}
               <li class="flex flex-col gap-1">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="font-medium text-white">{row.name}</span>
+                  <span class="font-medium text-text-heading">{row.name}</span>
                   <span class="text-text-muted">{row.matches} games</span>
                 </div>
                 <div class="flex h-1.5 overflow-hidden rounded-full bg-surface-input">
@@ -402,7 +402,7 @@
       </Card>
 
       <Card padding="sm">
-        <h3 class="mb-3 text-sm font-semibold text-white">Classes played</h3>
+        <h3 class="mb-3 text-sm font-semibold text-text-heading">Classes played</h3>
         {#if classes.length === 0}
           <p class="text-sm text-text-muted">No class data in this window.</p>
         {:else}
@@ -412,7 +412,7 @@
               {@const standing = classStanding(row.classId)}
               <li class="flex flex-col gap-1">
                 <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
-                  <span class="flex min-w-0 items-center gap-2 font-medium text-white">
+                  <span class="flex min-w-0 items-center gap-2 font-medium text-text-heading">
                     {#if icon}
                       <img src={icon} alt="" class="size-5 shrink-0" />
                     {/if}
@@ -445,7 +445,7 @@
 
     <div class="grid gap-3 md:grid-cols-2">
       <Card padding="sm">
-        <h3 class="mb-3 text-sm font-semibold text-white">Top foes</h3>
+        <h3 class="mb-3 text-sm font-semibold text-text-heading">Top foes</h3>
         {#if foes.length === 0}
           <p class="text-sm text-text-muted">No opponents in this window.</p>
         {:else}
@@ -456,18 +456,18 @@
                 {#if foe.steam64}
                   <a
                     href={resolve('/users/[steamId]', { steamId: foe.steam64 })}
-                    class="min-w-0 flex-1 truncate text-sm font-medium text-white hover:text-primary-400"
+                    class="min-w-0 flex-1 truncate text-sm font-medium text-text-heading hover:text-primary-ink"
                     >{foe.name}</a
                   >
                 {:else}
-                  <span class="min-w-0 flex-1 truncate text-sm font-medium text-white"
+                  <span class="min-w-0 flex-1 truncate text-sm font-medium text-text-heading"
                     >{foe.name}</span
                   >
                 {/if}
                 <span class="shrink-0 text-xs text-text-muted">
-                  <span class="text-success-400">{foe.wins}W</span>
+                  <span class="text-success-ink">{foe.wins}W</span>
                   ·
-                  <span class="text-danger-400">{foe.losses}L</span>
+                  <span class="text-danger-ink">{foe.losses}L</span>
                 </span>
               </li>
             {/each}
@@ -476,7 +476,7 @@
       </Card>
 
       <Card padding="sm">
-        <h3 class="mb-3 text-sm font-semibold text-white">Rivals</h3>
+        <h3 class="mb-3 text-sm font-semibold text-text-heading">Rivals</h3>
         {#if !rivals?.nemesis && !rivals?.dominated && !rivals?.frequent}
           <p class="text-sm text-text-muted">No rivals in this window.</p>
         {:else}
@@ -486,15 +486,17 @@
                 <img src={rivals.nemesis.avatar} alt="" class="size-10 shrink-0 rounded-full" />
                 <div class="min-w-0 flex-1">
                   <p class="text-xs text-text-muted">Nemesis</p>
-                  <p class="truncate text-sm font-medium text-white">{rivals.nemesis.name}</p>
+                  <p class="truncate text-sm font-medium text-text-heading">
+                    {rivals.nemesis.name}
+                  </p>
                   <p class="text-xs text-text-muted">
-                    <span class="text-success-400">{rivals.nemesis.wins}W</span>
+                    <span class="text-success-ink">{rivals.nemesis.wins}W</span>
                     ·
-                    <span class="text-danger-400">{rivals.nemesis.losses}L</span>
+                    <span class="text-danger-ink">{rivals.nemesis.losses}L</span>
                     · last {formatRelativeTime(rivals.nemesis.lastAt)}
                   </p>
                 </div>
-                <span class="shrink-0 text-xs text-danger-400">{rivals.nemesis.losses} losses</span>
+                <span class="shrink-0 text-xs text-danger-ink">{rivals.nemesis.losses} losses</span>
               </li>
             {/if}
             {#if rivals.dominated}
@@ -502,15 +504,17 @@
                 <img src={rivals.dominated.avatar} alt="" class="size-10 shrink-0 rounded-full" />
                 <div class="min-w-0 flex-1">
                   <p class="text-xs text-text-muted">Most dominated</p>
-                  <p class="truncate text-sm font-medium text-white">{rivals.dominated.name}</p>
+                  <p class="truncate text-sm font-medium text-text-heading">
+                    {rivals.dominated.name}
+                  </p>
                   <p class="text-xs text-text-muted">
-                    <span class="text-success-400">{rivals.dominated.wins}W</span>
+                    <span class="text-success-ink">{rivals.dominated.wins}W</span>
                     ·
-                    <span class="text-danger-400">{rivals.dominated.losses}L</span>
+                    <span class="text-danger-ink">{rivals.dominated.losses}L</span>
                     · last {formatRelativeTime(rivals.dominated.lastAt)}
                   </p>
                 </div>
-                <span class="shrink-0 text-xs text-success-400">{rivals.dominated.wins} wins</span>
+                <span class="shrink-0 text-xs text-success-ink">{rivals.dominated.wins} wins</span>
               </li>
             {/if}
             {#if rivals.frequent}
@@ -518,11 +522,13 @@
                 <img src={rivals.frequent.avatar} alt="" class="size-10 shrink-0 rounded-full" />
                 <div class="min-w-0 flex-1">
                   <p class="text-xs text-text-muted">Most dueled</p>
-                  <p class="truncate text-sm font-medium text-white">{rivals.frequent.name}</p>
+                  <p class="truncate text-sm font-medium text-text-heading">
+                    {rivals.frequent.name}
+                  </p>
                   <p class="text-xs text-text-muted">
-                    <span class="text-success-400">{rivals.frequent.wins}W</span>
+                    <span class="text-success-ink">{rivals.frequent.wins}W</span>
                     ·
-                    <span class="text-danger-400">{rivals.frequent.losses}L</span>
+                    <span class="text-danger-ink">{rivals.frequent.losses}L</span>
                     · last {formatRelativeTime(rivals.frequent.lastAt)}
                   </p>
                 </div>
@@ -546,7 +552,7 @@
     {/snippet}
 
     <div>
-      <h3 class="mb-3 text-sm font-semibold text-white">Recent duels</h3>
+      <h3 class="mb-3 text-sm font-semibold text-text-heading">Recent duels</h3>
       <DataTable
         data={stats?.recentDuels ?? []}
         columns={duelColumns}
@@ -560,13 +566,13 @@
             {#if row.opponentSteam64}
               <a
                 href={resolve('/users/[steamId]', { steamId: row.opponentSteam64 })}
-                class="inline-flex items-center gap-2 text-sm font-medium text-white hover:text-primary-400"
+                class="inline-flex items-center gap-2 text-sm font-medium text-text-heading hover:text-primary-ink"
               >
                 <img src={row.opponentAvatar} alt="" class="size-5 rounded-full" />
                 {row.opponentName}
               </a>
             {:else}
-              <span class="text-sm font-medium text-white">{row.opponentName}</span>
+              <span class="text-sm font-medium text-text-heading">{row.opponentName}</span>
             {/if}
           {:else if col.key === 'result'}
             <span class="font-semibold {resultClass(row.result)}">{row.result}</span>
@@ -586,7 +592,7 @@
     </div>
 
     <div>
-      <h3 class="mb-3 text-sm font-semibold text-white">Recent double duels</h3>
+      <h3 class="mb-3 text-sm font-semibold text-text-heading">Recent double duels</h3>
       <DataTable
         data={stats?.recentDoubles ?? []}
         columns={doubleColumns}
@@ -597,7 +603,7 @@
           {#if col.key === 'when'}
             <span class="text-sm text-text-muted">{formatRelativeTime(row.at)}</span>
           {:else if col.key === 'partner'}
-            <span class="text-sm font-medium text-white">{row.partnerName}</span>
+            <span class="text-sm font-medium text-text-heading">{row.partnerName}</span>
           {:else if col.key === 'opponents'}
             <span class="text-sm text-text-body"
               >{row.opponents.map((o) => o.name).join(' + ')}</span

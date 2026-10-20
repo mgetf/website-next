@@ -55,7 +55,7 @@
   {#if !entry}
     <Card>
       <div class="py-6 text-center">
-        <h2 class="text-lg font-semibold text-white">No active 1v1 entry</h2>
+        <h2 class="text-lg font-semibold text-text-heading">No active 1v1 entry</h2>
         <p class="mt-2 text-sm text-text-body">
           Signup and ready-up live here. Team-league roster work stays on the team page.
         </p>
@@ -71,7 +71,7 @@
       {#snippet header()}
         <div class="flex items-center justify-between px-5 py-3">
           <div>
-            <h2 class="text-sm font-semibold text-white">Current entry</h2>
+            <h2 class="text-sm font-semibold text-text-heading">Current entry</h2>
             <p class="mt-1 text-sm">
               <SeasonScope
                 region={entry.region}
@@ -86,25 +86,25 @@
       <div class="grid grid-cols-2 gap-4 px-5 py-4 sm:grid-cols-4">
         <div>
           <p class="text-xs text-text-muted">Record</p>
-          <p class="mt-1 font-mono text-lg text-white">{entry.wins}–{entry.losses}</p>
+          <p class="mt-1 font-mono text-lg text-text-heading">{entry.wins}–{entry.losses}</p>
         </div>
         <div>
           <p class="text-xs text-text-muted">Win rate</p>
-          <p class="mt-1 text-lg text-white">{winPct(entry.wins, entry.losses)}%</p>
+          <p class="mt-1 text-lg text-text-heading">{winPct(entry.wins, entry.losses)}%</p>
         </div>
         <div>
           <p class="text-xs text-text-muted">Payment</p>
           <p
             class="mt-1 text-lg {entry.isPaid || entry.signupCost === 0
-              ? 'text-success-400'
-              : 'text-warning-400'}"
+              ? 'text-success-ink'
+              : 'text-warning-ink'}"
           >
             {entry.signupCost === 0 ? 'Free' : entry.isPaid ? 'Paid' : `$${entry.signupCost} due`}
           </p>
         </div>
         <div>
           <p class="text-xs text-text-muted">Status</p>
-          <p class="mt-1 text-lg text-white">{statusLabel(entry.status)}</p>
+          <p class="mt-1 text-lg text-text-heading">{statusLabel(entry.status)}</p>
         </div>
       </div>
     </Card>
@@ -112,7 +112,7 @@
     {#if isOwn}
       <Card>
         {#snippet header()}
-          <h2 class="text-sm font-semibold text-white">Your actions</h2>
+          <h2 class="text-sm font-semibold text-text-heading">Your actions</h2>
         {/snippet}
 
         {#if entry.status === 'UNREADY'}
@@ -125,17 +125,17 @@
               >
                 <div class="mb-2 flex items-center gap-3">
                   <span
-                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white {entry.isPaid
+                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-text-heading {entry.isPaid
                       ? 'bg-success-600'
                       : 'bg-warning-600'}"
                   >
                     1
                   </span>
-                  <h3 class="text-base font-bold text-white">Pay signup fee</h3>
+                  <h3 class="text-base font-bold text-text-heading">Pay signup fee</h3>
                   <span
                     class="ml-auto text-sm font-medium {entry.isPaid
-                      ? 'text-success-400'
-                      : 'text-warning-400'}"
+                      ? 'text-success-ink'
+                      : 'text-warning-ink'}"
                   >
                     {entry.isPaid ? 'Paid' : 'Unpaid'}
                   </span>
@@ -156,13 +156,15 @@
             >
               <div class="mb-2 flex items-center gap-3">
                 <span
-                  class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white {canReady
+                  class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-text-heading {canReady
                     ? 'bg-primary-600'
                     : 'bg-surface-input'}"
                 >
                   {entry.signupCost > 0 ? '2' : '1'}
                 </span>
-                <h3 class="text-base font-bold {canReady ? 'text-white' : 'text-text-muted'}">
+                <h3
+                  class="text-base font-bold {canReady ? 'text-text-heading' : 'text-text-muted'}"
+                >
                   Ready up
                 </h3>
               </div>
@@ -182,7 +184,7 @@
           <div class="rounded-lg border border-warning-500/30 bg-warning-500/5 p-4">
             <div class="flex items-center gap-2">
               <span class="size-2 animate-pulse rounded-full bg-warning-400"></span>
-              <span class="font-semibold text-warning-400">Pending staff approval</span>
+              <span class="font-semibold text-warning-ink">Pending staff approval</span>
             </div>
             <p class="mt-2 text-sm text-text-body">
               The entry is marked ready and waiting for review. You can still withdraw.
@@ -211,7 +213,7 @@
       <Card class="border-warning-500/40">
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h2 class="text-sm font-semibold text-white">League controls</h2>
+            <h2 class="text-sm font-semibold text-text-heading">League controls</h2>
             <Badge color="yellow">Staff only</Badge>
           </div>
         {/snippet}
@@ -269,7 +271,7 @@
 
         {#if needsPayment}
           <div class="border-t border-border-default pt-4">
-            <h3 class="mb-3 text-sm font-semibold text-white">Mark as paid</h3>
+            <h3 class="mb-3 text-sm font-semibold text-text-heading">Mark as paid</h3>
             <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
               <Badge color="red">Unpaid</Badge>
               <Button variant="success" size="sm" onclick={onMarkPaid}>Mark as paid</Button>
@@ -277,7 +279,7 @@
           </div>
         {:else if canUnmarkPaid}
           <div class="border-t border-border-default pt-4">
-            <h3 class="mb-3 text-sm font-semibold text-white">Mark as unpaid</h3>
+            <h3 class="mb-3 text-sm font-semibold text-text-heading">Mark as unpaid</h3>
             <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
               <Badge color="green">Paid</Badge>
               <Button variant="danger" size="sm" onclick={onUnmarkPaid}>Mark as unpaid</Button>

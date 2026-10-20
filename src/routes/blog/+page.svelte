@@ -22,7 +22,7 @@
 <div class="mx-auto max-w-7xl px-6 py-10">
   {#if data.posts.length === 0}
     <Card class="py-10 text-center">
-      <p class="mb-1 text-lg text-white">No posts yet</p>
+      <p class="mb-1 text-lg text-text-heading">No posts yet</p>
       <p class="text-sm text-text-body">
         Check back soon for news and updates from the MGE.tf team.
       </p>
@@ -50,7 +50,7 @@
             </div>
             <div class="p-5">
               <h2
-                class="text-lg font-bold text-white transition-colors group-hover:text-primary-400"
+                class="text-lg font-bold text-text-heading transition-colors group-hover:text-primary-ink"
               >
                 {post.title}
               </h2>

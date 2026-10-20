@@ -21,7 +21,7 @@
   <PageHero maxWidth="max-w-7xl" border>
     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 class="text-5xl font-black text-white mb-2">Rulebook history</h1>
+        <h1 class="text-5xl font-black text-text-heading mb-2">Rulebook history</h1>
         <p class="text-xl text-text-body">Every published change to the league rules</p>
       </div>
       <Button variant="secondary" size="sm" href="/rulebook">Back to rulebook</Button>
@@ -37,14 +37,14 @@
     >
       {#snippet cell(row, col)}
         {#if col.key === 'version'}
-          <span class="font-semibold text-white">v{row.version}</span>
+          <span class="font-semibold text-text-heading">v{row.version}</span>
         {:else if col.key === 'publishedAt'}
           <span class="text-text-body">{formatDateTime(row.publishedAt)}</span>
         {:else if col.key === 'author'}
           {#if row.publishedBySteamId && row.publishedByName}
             <a
               href="/users/{row.publishedBySteamId}"
-              class="text-primary-400 hover:text-primary-300"
+              class="text-primary-ink hover:text-primary-300"
               onclick={(event) => event.stopPropagation()}
             >
               {row.publishedByName}

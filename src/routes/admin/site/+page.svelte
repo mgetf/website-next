@@ -140,7 +140,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Header -->
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Site Management</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Site Management</h1>
     <p class="text-text-body">Manage site content and settings</p>
   </div>
 
@@ -151,8 +151,8 @@
         <button
           onclick={() => (activeTab = tab.id)}
           class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab === tab.id
-            ? 'border-primary-500 text-primary-400'
-            : 'border-transparent text-text-body hover:text-white'}"
+            ? 'border-primary-500 text-primary-ink'
+            : 'border-transparent text-text-body hover:text-text-heading'}"
         >
           {tab.label}
         </button>
@@ -177,7 +177,7 @@
                 id="siteTitle"
                 name="siteTitle"
                 bind:value={siteTitle}
-                class="w-full max-w-md bg-surface-input border border-border-input rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                class="w-full max-w-md bg-surface-input border border-border-input rounded-lg px-4 py-2 text-text-heading focus:ring-2 focus:ring-primary-500 focus:outline-none"
                 placeholder="MGE.tf"
               />
               <p class="text-xs text-text-muted mt-1">Appears in browser tab and site header</p>
@@ -193,7 +193,7 @@
 
         <!-- Background Image -->
         <div class="border-t border-border-default pt-8">
-          <h3 class="text-lg font-semibold text-white mb-1">Background Image</h3>
+          <h3 class="text-lg font-semibold text-text-heading mb-1">Background Image</h3>
           <p class="text-sm text-text-body mb-6">
             Upload a site-wide background image and tune its appearance. Changes take effect
             immediately for all visitors.
@@ -201,7 +201,7 @@
 
           {#if !data.isR2Available}
             <div
-              class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-4 text-warning-400 text-sm"
+              class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-4 text-warning-ink text-sm"
             >
               File storage (R2) is not configured. Background image upload is disabled.
             </div>
@@ -221,12 +221,12 @@
                   />
                   <div
                     class="absolute inset-0"
-                    style="background: rgba(9, 9, 11, {bgOverlay})"
+                    style="background: rgba(var(--background-overlay-rgb), {bgOverlay})"
                   ></div>
                   <div
                     class="absolute inset-0 flex items-center justify-center pointer-events-none"
                   >
-                    <p class="text-white text-sm font-medium opacity-60 select-none">
+                    <p class="text-text-heading text-sm font-medium opacity-60 select-none">
                       Site content appears here
                     </p>
                   </div>
@@ -264,7 +264,7 @@
 										file:mr-4 file:py-2 file:px-4
 										file:rounded-lg file:border-0
 										file:text-sm file:font-medium
-										file:bg-surface-input file:text-white
+										file:bg-surface-input file:text-text-heading
 										hover:file:bg-surface-hover
 										file:cursor-pointer cursor-pointer"
                   />
@@ -397,7 +397,7 @@
 
         <!-- Favicon Upload -->
         <div class="border-t border-border-default pt-8">
-          <h3 class="text-lg font-semibold text-white mb-4">Favicon</h3>
+          <h3 class="text-lg font-semibold text-text-heading mb-4">Favicon</h3>
 
           {#if data.settings.faviconPath}
             <div class="flex items-center gap-4 mb-4">
@@ -412,7 +412,7 @@
 
           {#if !data.isR2Available}
             <div
-              class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-4 text-warning-400 text-sm"
+              class="bg-warning-500/10 border border-warning-500/30 rounded-lg p-4 text-warning-ink text-sm"
             >
               File storage (R2) is not configured. Favicon upload is disabled.
             </div>
@@ -437,7 +437,7 @@
 										file:mr-4 file:py-2 file:px-4
 										file:rounded-lg file:border-0
 										file:text-sm file:font-medium
-										file:bg-surface-input file:text-white
+										file:bg-surface-input file:text-text-heading
 										hover:file:bg-surface-hover
 										file:cursor-pointer cursor-pointer"
                   />
@@ -470,7 +470,7 @@
               name="subtitle"
               bind:value={homepageSubtitle}
               disabled={!data.isHeadAdmin}
-              class="w-full max-w-lg bg-surface-input border border-border-input rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full max-w-lg bg-surface-input border border-border-input rounded-lg px-4 py-2 text-text-heading focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="The Premier MGE League"
             />
             <p class="text-xs text-text-muted mt-1">
@@ -504,7 +504,7 @@
       <!-- API Keys -->
       <div class="space-y-8">
         <div>
-          <h3 class="text-lg font-semibold text-white mb-1">API Keys</h3>
+          <h3 class="text-lg font-semibold text-text-heading mb-1">API Keys</h3>
           <p class="text-sm text-text-body">
             Service-to-service keys used by external integrations (e.g. the Discord verification
             bot). The full key is shown only once at creation — treat it like a password.
@@ -514,7 +514,7 @@
         <!-- Newly created key banner -->
         {#if createdKey}
           <div class="bg-success-500/10 border border-success-500/30 rounded-lg p-4 space-y-2">
-            <p class="text-success-400 text-sm font-medium">
+            <p class="text-success-ink text-sm font-medium">
               API key created. Copy it now — it will not be shown again.
             </p>
             <div class="flex items-center gap-3">
@@ -527,7 +527,7 @@
                 onclick={() => {
                   navigator.clipboard.writeText(createdKey!);
                 }}
-                class="shrink-0 bg-surface-hover hover:bg-surface-input text-white text-sm px-3 py-2 rounded-lg transition"
+                class="shrink-0 bg-surface-hover hover:bg-surface-input text-text-heading text-sm px-3 py-2 rounded-lg transition"
               >
                 Copy
               </button>
@@ -555,7 +555,7 @@
                 name="name"
                 bind:value={newKeyName}
                 placeholder="e.g. Discord Verification Bot"
-                class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-2 text-text-heading focus:ring-2 focus:ring-primary-500 focus:outline-none"
               />
             </div>
             <Button
@@ -588,7 +588,7 @@
               <tbody class="divide-y divide-border-default">
                 {#each data.apiKeys as apiKey (apiKey.id)}
                   <tr class="text-text-label">
-                    <td class="py-3 pr-4 font-medium text-white">{apiKey.name}</td>
+                    <td class="py-3 pr-4 font-medium text-text-heading">{apiKey.name}</td>
                     <td class="py-3 pr-4">
                       <code class="font-mono text-xs text-text-body">{apiKey.keyPreview}</code>
                     </td>
@@ -649,7 +649,7 @@
       <div class="space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-semibold text-white">Rulebook Editor</h3>
+            <h3 class="text-lg font-semibold text-text-heading">Rulebook Editor</h3>
             <p class="text-sm text-text-body">Edit the official rulebook using Markdown</p>
           </div>
           <div class="flex items-center gap-3">
@@ -758,7 +758,7 @@
       >
         <div class="space-y-4">
           <div>
-            <h3 class="text-lg font-semibold text-white">Match Created Message</h3>
+            <h3 class="text-lg font-semibold text-text-heading">Match Created Message</h3>
             <p class="text-sm text-text-body">
               This message is posted as a system comment whenever a new match is created. Supports
               Markdown.

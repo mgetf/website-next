@@ -146,8 +146,8 @@
       'relative flex items-center gap-3 rounded-lg transition-all',
       nested ? 'px-3 py-2 text-sm' : 'px-4 py-3',
       isActive(item.path)
-        ? 'bg-primary-500/20 text-primary-400 font-medium'
-        : 'text-text-label hover:bg-surface-input hover:text-white',
+        ? 'bg-primary-500/20 text-primary-ink font-medium'
+        : 'text-text-label hover:bg-surface-input hover:text-text-heading',
     ]}
   >
     <item.icon class="{nested ? 'size-4' : 'size-5'} shrink-0" />
@@ -159,7 +159,10 @@
   {@const childActive = group.items.some((item) => isActive(item.path))}
   <div>
     <div
-      class={['flex items-center gap-3 px-4 py-3', childActive ? 'text-white' : 'text-text-label']}
+      class={[
+        'flex items-center gap-3 px-4 py-3',
+        childActive ? 'text-text-heading' : 'text-text-label',
+      ]}
     >
       <group.icon class="size-5 shrink-0" />
       <span>{group.name}</span>
@@ -186,7 +189,7 @@
     onclick={() => {
       if (closeMobile) mobileMenuOpen = false;
     }}
-    class="flex items-center gap-3 px-4 py-3 mb-4 bg-surface-input hover:bg-surface-hover rounded-lg transition-all text-text-label hover:text-white"
+    class="flex items-center gap-3 px-4 py-3 mb-4 bg-surface-input hover:bg-surface-hover rounded-lg transition-all text-text-label hover:text-text-heading"
   >
     <ArrowLeft class="size-5 shrink-0" />
     <span>Back to Site</span>
@@ -210,7 +213,7 @@
     aria-label="Toggle menu"
     class="lg:hidden fixed bottom-6 right-6 z-50 p-4! rounded-full! shadow-lg"
   >
-    <Menu class="size-6 text-white" />
+    <Menu class="size-6 text-text-heading" />
   </Button>
 
   <!-- Mobile Sidebar -->

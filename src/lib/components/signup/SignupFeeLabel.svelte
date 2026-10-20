@@ -26,9 +26,9 @@
 {#snippet itemDisplay(item: SignupFeeItem)}
   {#if item.iconUrl}
     <img src={item.iconUrl} alt="" class="h-4 w-4 shrink-0 object-contain" />
-    <span class="text-xs font-semibold text-white">{item.quantityLabel}</span>
+    <span class="text-xs font-semibold text-text-heading">{item.quantityLabel}</span>
   {:else}
-    <span class="text-xs font-semibold text-white">{item.quantityLabel}× {item.name}</span>
+    <span class="text-xs font-semibold text-text-heading">{item.quantityLabel}× {item.name}</span>
   {/if}
 {/snippet}
 
@@ -58,13 +58,13 @@
         {#if region.flagCode}
           <FlagIcon code={region.flagCode} class="h-3.5 w-[1.15rem] rounded-sm" />
         {:else}
-          <span class="text-xs font-semibold tracking-wide text-white">{region.abbr}</span>
+          <span class="text-xs font-semibold tracking-wide text-text-heading">{region.abbr}</span>
         {/if}
         {#if region.kind === 'free'}
-          <span class="text-xs font-semibold text-success-400">Free</span>
+          <span class="text-xs font-semibold text-success-ink">Free</span>
         {:else}
           {#if region.moneyLabel}
-            <span class="text-xs font-semibold text-white">{region.moneyLabel}</span>
+            <span class="text-xs font-semibold text-text-heading">{region.moneyLabel}</span>
           {/if}
           {#each region.items as item, index (item.name)}
             {#if region.moneyLabel || index > 0}

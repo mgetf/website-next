@@ -9,6 +9,7 @@
     Tooltip,
     Legend,
   } from 'chart.js';
+  import { theme, themeChartColors } from '#lib/state/theme.svelte.js';
 
   Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -25,10 +26,33 @@
   let canvasElement: HTMLCanvasElement;
   let chart: Chart | null = null;
 
+  function paint(instance: Chart) {
+    const colors = themeChartColors();
+    const dataset = instance.data.datasets[0];
+    if (dataset) {
+      dataset.backgroundColor = colors.info;
+      dataset.borderColor = colors.info;
+    }
+    const tooltip = instance.options.plugins?.tooltip;
+    if (tooltip) {
+      tooltip.backgroundColor = colors.surfacePage;
+      tooltip.titleColor = colors.textHeading;
+      tooltip.bodyColor = colors.textHeading;
+      tooltip.borderColor = colors.borderDefault;
+    }
+    const y = instance.options.scales?.y;
+    if (y?.ticks) y.ticks.color = colors.textBody;
+    if (y?.grid) y.grid.color = colors.borderDefault;
+    const x = instance.options.scales?.x;
+    if (x?.ticks) x.ticks.color = colors.textBody;
+    if (x?.grid) x.grid.color = colors.borderDefault;
+  }
+
   onMount(() => {
     const ctx = canvasElement.getContext('2d');
     if (!ctx) return;
 
+    const colors = themeChartColors();
     chart = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -37,8 +61,8 @@
           {
             label: title,
             data,
-            backgroundColor: 'rgba(59, 130, 246, 0.8)', // info-500
-            borderColor: 'rgba(59, 130, 246, 1)', // info-500
+            backgroundColor: colors.info,
+            borderColor: colors.info,
             borderWidth: 1,
           },
         ],
@@ -51,10 +75,10 @@
             display: false,
           },
           tooltip: {
-            backgroundColor: 'rgba(9, 9, 11, 0.95)', // surface-page
-            titleColor: '#fff',
-            bodyColor: '#fff',
-            borderColor: 'rgba(39, 39, 42, 0.8)', // border-default
+            backgroundColor: colors.surfacePage,
+            titleColor: colors.textHeading,
+            bodyColor: colors.textHeading,
+            borderColor: colors.borderDefault,
             borderWidth: 1,
           },
         },
@@ -62,19 +86,19 @@
           y: {
             beginAtZero: true,
             ticks: {
-              color: '#a1a1aa', // zinc-400 (text-body approximate)
+              color: colors.textBody,
               precision: 0,
             },
             grid: {
-              color: 'rgba(39, 39, 42, 0.3)', // border-default
+              color: colors.borderDefault,
             },
           },
           x: {
             ticks: {
-              color: '#a1a1aa', // zinc-400 (text-body approximate)
+              color: colors.textBody,
             },
             grid: {
-              color: 'rgba(39, 39, 42, 0.3)', // border-default
+              color: colors.borderDefault,
             },
           },
         },
@@ -87,11 +111,12 @@
   });
 
   $effect(() => {
-    if (chart) {
-      chart.data.labels = labels;
-      chart.data.datasets[0].data = data;
-      chart.update();
-    }
+    theme.current;
+    if (!chart) return;
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+    paint(chart);
+    chart.update();
   });
 </script>
 

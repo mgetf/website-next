@@ -32,7 +32,7 @@
             <span class="text-3xl text-text-body">{data.team.name.charAt(0)}</span>
           </div>
         {/if}
-        <h1 class="text-2xl font-bold text-white mb-2">{data.team.name}</h1>
+        <h1 class="text-2xl font-bold text-text-heading mb-2">{data.team.name}</h1>
         <div class="flex flex-wrap items-center justify-center gap-2">
           {#if data.team.format}
             <FormatBadge

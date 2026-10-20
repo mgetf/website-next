@@ -59,7 +59,7 @@
       <div class="mt-2 space-y-2">
         {#each groups as group (group.regionName)}
           <div>
-            <p class="text-xs font-semibold text-white">{group.regionName}</p>
+            <p class="text-xs font-semibold text-text-heading">{group.regionName}</p>
             {#each group.formats as format (`${group.regionName}-${format.formatName}`)}
               <p class="text-xs text-text-body">
                 {format.formatName}{#if format.divisions.length > 0}<span class="text-text-muted">
@@ -75,8 +75,8 @@
   <span
     aria-label="{label}. Hover for assigned regions"
     class="inline-flex cursor-help items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold {isAdmin
-      ? 'border-staff-admin/40 bg-staff-admin/20 text-staff-admin shadow-[0_0_10px_rgba(169,201,255,0.25)]'
-      : 'border-staff-moderator/40 bg-staff-moderator/20 text-staff-moderator shadow-[0_0_10px_rgba(155,89,182,0.3)]'}"
+      ? 'border-staff-admin/40 bg-staff-admin/20 text-staff-admin shadow-[0_0_10px_color-mix(in_oklab,var(--color-staff-admin)_25%,transparent)]'
+      : 'border-staff-moderator/40 bg-staff-moderator/20 text-staff-moderator shadow-[0_0_10px_color-mix(in_oklab,var(--color-staff-moderator)_30%,transparent)]'}"
   >
     <svg class="size-3 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path

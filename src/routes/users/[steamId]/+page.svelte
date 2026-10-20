@@ -235,15 +235,15 @@
     if (status === 'WARNING')
       return {
         label: 'Warning',
-        classes: 'bg-warning-500/20 text-warning-400 border-warning-500/30',
+        classes: 'bg-warning-500/20 text-warning-ink border-warning-500/30',
       };
     if (status === 'SUSPENDED')
       return {
         label: 'Suspended',
-        classes: 'bg-primary-500/20 text-primary-400 border-primary-500/30',
+        classes: 'bg-primary-500/20 text-primary-ink border-primary-500/30',
       };
     if (status === 'BANNED')
-      return { label: 'Banned', classes: 'bg-danger-500/20 text-danger-400 border-danger-500/30' };
+      return { label: 'Banned', classes: 'bg-danger-500/20 text-danger-ink border-danger-500/30' };
     return null;
   }
 
@@ -275,7 +275,9 @@
 
     <div class="min-w-0 flex-1">
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h1 class="text-3xl font-black tracking-tight text-white sm:text-4xl">{player.name}</h1>
+        <h1 class="text-3xl font-black tracking-tight text-text-heading sm:text-4xl">
+          {player.name}
+        </h1>
         {#if staffMedalRole}
           <StaffRoleBadge role={staffMedalRole} assignments={player.staffAssignments} />
         {/if}
@@ -302,7 +304,7 @@
         {#if isRegistered}
           {#if player.discordLinked}
             <span
-              class="inline-flex items-center gap-1.5 rounded-lg bg-info-500/20 px-2.5 py-1.5 text-xs text-info-400"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-info-500/20 px-2.5 py-1.5 text-xs text-info-ink"
             >
               <DiscordIcon size={14} />
               {player.discordUsername}
@@ -345,7 +347,7 @@
             onclick={() => (staffOpen = true)}
           >
             <span class="text-text-muted">Name:</span>
-            <span class={player.nameOverride === 1 ? 'text-primary-400' : 'text-text-body'}>
+            <span class={player.nameOverride === 1 ? 'text-primary-ink' : 'text-text-body'}>
               {player.nameOverride === 1 ? 'Locked' : 'Auto'}</span
             >
           </button>
@@ -355,7 +357,7 @@
             onclick={() => (staffOpen = true)}
           >
             <span class="text-text-muted">Avatar:</span>
-            <span class={player.avatarOverride === 1 ? 'text-primary-400' : 'text-text-body'}>
+            <span class={player.avatarOverride === 1 ? 'text-primary-ink' : 'text-text-body'}>
               {player.avatarOverride === 1 ? 'Locked' : 'Auto'}</span
             >
           </button>
@@ -367,13 +369,13 @@
             <span class="text-text-muted">Status:</span>
             {#if getBanBadge(player.banStatus)}
               {@const badge = getBanBadge(player.banStatus)!}
-              <span class="text-warning-400"
+              <span class="text-warning-ink"
                 >{badge.label}{player.punishmentCount > 1
                   ? ` (${player.punishmentCount})`
                   : ''}</span
               >
             {:else}
-              <span class="text-success-400"
+              <span class="text-success-ink"
                 >Clean{player.punishmentCount > 0 ? ` (${player.punishmentCount})` : ''}</span
               >
             {/if}
@@ -413,7 +415,7 @@
           firstStaffTab
             ? 'ml-auto'
             : ''} {tab === item.id
-            ? 'border-primary-500 text-white'
+            ? 'border-primary-500 text-text-heading'
             : 'border-transparent text-text-muted hover:text-text-label'}"
         >
           {#if item.staff}
@@ -718,19 +720,19 @@
     <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
       <div class="flex justify-between text-sm">
         <span class="text-text-body">Division:</span>
-        <span class="text-white">{withdrawingEntry.division}</span>
+        <span class="text-text-heading">{withdrawingEntry.division}</span>
       </div>
       <div class="flex justify-between text-sm mt-1">
         <span class="text-text-body">Region:</span>
-        <span class="text-white">{withdrawingEntry.region}</span>
+        <span class="text-text-heading">{withdrawingEntry.region}</span>
       </div>
       <div class="flex justify-between text-sm mt-1">
         <span class="text-text-body">Season:</span>
-        <span class="text-white">S{withdrawingEntry.seasonNum}</span>
+        <span class="text-text-heading">S{withdrawingEntry.seasonNum}</span>
       </div>
       <div class="flex justify-between text-sm mt-1">
         <span class="text-text-body">Record:</span>
-        <span class="text-white">{withdrawingEntry.wins}-{withdrawingEntry.losses}</span>
+        <span class="text-text-heading">{withdrawingEntry.wins}-{withdrawingEntry.losses}</span>
       </div>
     </div>
   {/if}

@@ -112,7 +112,7 @@
             href={botProfile.profileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            class="text-primary-400 hover:text-primary-300 font-medium text-sm"
+            class="text-primary-ink hover:text-primary-300 font-medium text-sm"
           >
             {botProfile.name}
           </a>
@@ -168,12 +168,12 @@
       <div class="flex items-center justify-between mb-5">
         <div>
           <p class="text-text-body text-xs uppercase tracking-wider">Order</p>
-          <p class="text-white font-bold text-lg">{order.orderNumber}</p>
+          <p class="text-text-heading font-bold text-lg">{order.orderNumber}</p>
         </div>
         <div
           class="px-3 py-1.5 rounded-full text-sm font-medium {isExpired
-            ? 'bg-danger-500/20 text-danger-400'
-            : 'bg-warning-500/20 text-warning-400'}"
+            ? 'bg-danger-500/20 text-danger-ink'
+            : 'bg-warning-500/20 text-warning-ink'}"
         >
           {isExpired ? 'Expired' : timeLeft}
         </div>
@@ -200,7 +200,7 @@
             href={botProfile.profileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            class="text-primary-400 hover:text-primary-300 text-sm font-medium"
+            class="text-primary-ink hover:text-primary-300 text-sm font-medium"
           >
             {botProfile.name}
           </a>
@@ -208,7 +208,7 @@
       {/if}
 
       <div class="p-3 bg-info-500/10 border border-info-500/30 rounded-lg">
-        <p class="text-info-400 text-sm">
+        <p class="text-info-ink text-sm">
           Send exactly <strong>{order.itemsRequired}x {order.itemName}</strong> to the bot via the trade
           offer link above. This page updates automatically once the trade is accepted.
         </p>

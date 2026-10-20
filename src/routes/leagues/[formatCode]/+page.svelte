@@ -233,7 +233,7 @@
   <!-- Hero Header -->
   <PageHero maxWidth="max-w-7xl" class="pt-12 pb-6 text-center">
     <h1
-      class="mb-8 flex items-center justify-center gap-4 text-6xl font-black text-white drop-shadow-2xl"
+      class="mb-8 flex items-center justify-center gap-4 text-6xl font-black text-text-heading drop-shadow-2xl"
     >
       <FormatIcon name={data.format.name} src={data.format.iconUrl} size="xl" />
       {data.format.name} League
@@ -265,16 +265,16 @@
           onclick={() => (activeTab = 'standings')}
           class="px-5 py-2 rounded-md text-sm font-semibold transition-all {activeTab ===
           'standings'
-            ? 'bg-surface-hover text-white shadow-sm'
-            : 'text-text-body hover:text-white hover:bg-surface-input/50'}"
+            ? 'bg-surface-hover text-text-heading shadow-sm'
+            : 'text-text-body hover:text-text-heading hover:bg-surface-input/50'}"
         >
           Standings
         </button>
         <button
           onclick={() => (activeTab = 'info')}
           class="px-5 py-2 rounded-md text-sm font-semibold transition-all {activeTab === 'info'
-            ? 'bg-surface-hover text-white shadow-sm'
-            : 'text-text-body hover:text-white hover:bg-surface-input/50'}"
+            ? 'bg-surface-hover text-text-heading shadow-sm'
+            : 'text-text-body hover:text-text-heading hover:bg-surface-input/50'}"
         >
           Season Info
         </button>
@@ -463,7 +463,7 @@
                       class="group flex w-full items-center justify-between gap-4 text-left"
                     >
                       <span
-                        class="flex min-w-0 items-center gap-3 text-3xl font-black text-white uppercase tracking-wide"
+                        class="flex min-w-0 items-center gap-3 text-3xl font-black text-text-heading uppercase tracking-wide"
                       >
                         {#if selectedRegionFlagCode}
                           <FlagIcon
@@ -481,14 +481,14 @@
                         {/if}
                       </span>
                       <ChevronDown
-                        class="size-5 shrink-0 text-text-muted transition-transform group-hover:text-white {expanded
+                        class="size-5 shrink-0 text-text-muted transition-transform group-hover:text-text-heading {expanded
                           ? 'rotate-180'
                           : ''}"
                       />
                     </button>
                   {:else}
                     <span
-                      class="flex items-center gap-3 text-4xl font-black text-white uppercase tracking-wide"
+                      class="flex items-center gap-3 text-4xl font-black text-text-heading uppercase tracking-wide"
                     >
                       {#if selectedRegionFlagCode}
                         <FlagIcon
@@ -533,7 +533,7 @@
                               href="/users/{team.playerId}"
                               class="flex items-center gap-2 min-w-0 text-sm font-medium hover:{themeClasses.hoverText400} transition-colors {team.isWithdrawn
                                 ? 'text-text-body'
-                                : 'text-white'}"
+                                : 'text-text-heading'}"
                             >
                               <img
                                 src={team.playerAvatar ||
@@ -556,7 +556,7 @@
                               href="/teams/{team.id}"
                               class="flex items-center gap-2 min-w-0 text-sm font-medium hover:{themeClasses.hoverText400} transition-colors {team.isWithdrawn
                                 ? 'text-text-body'
-                                : 'text-white'}"
+                                : 'text-text-heading'}"
                             >
                               <img
                                 src={team.avatar ||
@@ -587,7 +587,8 @@
                           <span
                             class="{team.isWithdrawn
                               ? 'text-text-body'
-                              : 'text-white'} text-sm font-medium">{team.points.toFixed(1)}</span
+                              : 'text-text-heading'} text-sm font-medium"
+                            >{team.points.toFixed(1)}</span
                           >
                         {/if}
                       {/snippet}
@@ -620,7 +621,7 @@
           >
             <!-- Staff Header -->
             <div class="px-4 py-3 border-b border-border-default">
-              <h3 class="text-lg font-bold text-white">Staff List</h3>
+              <h3 class="text-lg font-bold text-text-heading">Staff List</h3>
             </div>
 
             <!-- Staff List Content -->
@@ -661,7 +662,7 @@
                               class="w-7 h-7 rounded"
                             />
                             <span
-                              class="text-sm text-white group-hover:text-primary-400 transition-colors"
+                              class="text-sm text-text-heading group-hover:text-primary-ink transition-colors"
                             >
                               {member.name}
                             </span>

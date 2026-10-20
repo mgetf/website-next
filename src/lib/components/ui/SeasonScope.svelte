@@ -26,7 +26,7 @@
 </script>
 
 {#if hasContent}
-  <span class="inline-flex items-center gap-2 font-semibold text-white {className}">
+  <span class="inline-flex items-center gap-2 font-semibold text-text-heading {className}">
     {#if flagCode}
       <FlagIcon code={flagCode} class="h-4 w-6 rounded" />
     {/if}

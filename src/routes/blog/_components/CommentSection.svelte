@@ -20,7 +20,7 @@
 </script>
 
 <Card padding="lg">
-  <h2 class="text-xl font-bold text-white">
+  <h2 class="text-xl font-bold text-text-heading">
     {commentCount}
     {commentCount === 1 ? 'Comment' : 'Comments'}
   </h2>
@@ -32,7 +32,7 @@
       <div
         class="rounded-lg border border-border-default bg-surface-input p-4 text-sm text-text-body"
       >
-        <a href="/auth/login" class="font-semibold text-primary-400 hover:text-primary-300">
+        <a href="/auth/login" class="font-semibold text-primary-ink hover:text-primary-300">
           Log in with your MGE.tf account
         </a>
         to join the discussion.

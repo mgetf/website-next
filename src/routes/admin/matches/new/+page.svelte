@@ -334,7 +334,7 @@
       {side === 'home' ? 'Home' : 'Away'}
     </div>
     {#if team}
-      <div class="mt-1 font-semibold text-white">{team.name}</div>
+      <div class="mt-1 font-semibold text-text-heading">{team.name}</div>
       <div class="text-xs text-text-body">{teamRecord(team)}</div>
     {:else}
       <div class="mt-1 text-text-body">Choose {side} team</div>
@@ -344,10 +344,10 @@
 
 <div class="mx-auto max-w-6xl space-y-6">
   <div>
-    <a href={resolve('/admin/matches')} class="text-sm text-text-muted hover:text-white"
+    <a href={resolve('/admin/matches')} class="text-sm text-text-muted hover:text-text-heading"
       >← Match Management</a
     >
-    <h1 class="mt-2 mb-2 text-3xl font-bold text-white">
+    <h1 class="mt-2 mb-2 text-3xl font-bold text-text-heading">
       {data.draft ? 'Edit match' : 'New match'}
     </h1>
     <p class="text-text-body">
@@ -430,10 +430,10 @@
           {#if currentSeason}
             <p class="-mt-2 mb-4 text-sm text-text-body">
               Current season:
-              <span class="font-semibold text-white">Season {currentSeason.seasonNum}</span>
+              <span class="font-semibold text-text-heading">Season {currentSeason.seasonNum}</span>
             </p>
           {:else}
-            <p class="-mt-2 mb-4 text-sm text-warning-400">
+            <p class="-mt-2 mb-4 text-sm text-warning-ink">
               No current season for this format and region. Set the active season in Global
               settings.
             </p>
@@ -533,7 +533,7 @@
                     onclick={() => pickTeam(team)}
                   >
                     <span>
-                      <span class="block font-semibold text-white">{team.name}</span>
+                      <span class="block font-semibold text-text-heading">{team.name}</span>
                       <span class="block text-xs text-text-body">{teamRecord(team)}</span>
                     </span>
                     <span class="flex shrink-0 gap-1">
@@ -564,7 +564,7 @@
       </Card>
 
       <Card padding="lg" class="lg:sticky lg:top-4">
-        <h2 class="mb-1 text-lg font-bold text-white">
+        <h2 class="mb-1 text-lg font-bold text-text-heading">
           {homeTeam && awayTeam ? `${homeTeam.name} vs ${awayTeam.name}` : 'Match details'}
         </h2>
         <p class="mb-4 text-sm text-text-body">

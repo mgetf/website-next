@@ -191,7 +191,7 @@
       {#if match.opponentId}
         <a
           href={resolve('/teams/[id]', { id: String(match.opponentId) })}
-          class="inline-flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-primary-400"
+          class="inline-flex items-center gap-2 text-sm font-medium text-text-heading transition-colors hover:text-primary-ink"
         >
           <img
             src={match.opponentAvatar || DEFAULT_AVATAR}
@@ -208,7 +208,7 @@
     {:else}
       <a
         href={resolve('/matches/[id]', { id: String(match.matchId) })}
-        class="inline-flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-primary-400"
+        class="inline-flex items-center gap-2 text-sm font-medium text-text-heading transition-colors hover:text-primary-ink"
       >
         <img
           src={match.opponentAvatar || DEFAULT_AVATAR}
@@ -238,7 +238,7 @@
           {#if match.matchId}
             <a
               href={resolve('/matches/[id]', { id: String(match.matchId) })}
-              class="text-sm font-medium text-primary-400 transition-colors hover:text-primary-300"
+              class="text-sm font-medium text-primary-ink transition-colors hover:text-primary-300"
             >
               {match.week}
             </a>
@@ -280,7 +280,7 @@
 
   <div class="space-y-3">
     <div class="flex items-center justify-between gap-3">
-      <h2 class="text-sm font-semibold text-white">Server rating</h2>
+      <h2 class="text-sm font-semibold text-text-heading">Server rating</h2>
       {#if shownRatings.length > 0}
         <Button variant="primary" size="sm" href="/logs?player={steamId}">Logs</Button>
       {/if}
@@ -303,7 +303,7 @@
             <div>
               <p class="text-sm font-medium text-text-label">{rating.region.toUpperCase()}</p>
               <p
-                class="text-3xl font-black tabular-nums text-white"
+                class="text-3xl font-black tabular-nums text-text-heading"
                 title={rating.provisional ? PROVISIONAL_RATING_TITLE : undefined}
               >
                 {ratingValue(rating.elo)}{#if rating.provisional}<span class="text-text-muted"
@@ -317,9 +317,9 @@
             <div>
               <p class="text-xs text-text-muted">Record</p>
               <p class="mt-1 text-sm">
-                <span class="text-success-400">{rating.wins ?? 0}W</span>
+                <span class="text-success-ink">{rating.wins ?? 0}W</span>
                 <span class="mx-0.5 text-text-muted">/</span>
-                <span class="text-danger-400">{rating.losses ?? 0}L</span>
+                <span class="text-danger-ink">{rating.losses ?? 0}L</span>
                 {#if games > 0}
                   <span class="ml-2 text-text-muted"
                     >{winPct(rating.wins ?? 0, rating.losses ?? 0)}%</span
@@ -356,7 +356,7 @@
                     >
                   </div>
                   <p
-                    class="mt-2 text-2xl font-black tabular-nums text-white"
+                    class="mt-2 text-2xl font-black tabular-nums text-text-heading"
                     title={rating.provisional ? PROVISIONAL_RATING_TITLE : undefined}
                   >
                     {ratingValue(rating.elo)}{#if rating.provisional}<span class="text-text-muted"
@@ -366,9 +366,9 @@
                 </div>
                 <div class="text-right">
                   <p class="text-xs">
-                    <span class="text-success-400">{rating.wins ?? 0}W</span>
+                    <span class="text-success-ink">{rating.wins ?? 0}W</span>
                     <span class="mx-0.5 text-text-muted">/</span>
-                    <span class="text-danger-400">{rating.losses ?? 0}L</span>
+                    <span class="text-danger-ink">{rating.losses ?? 0}L</span>
                   </p>
                   <p class="mt-1 text-xs text-text-muted">{formatDate(rating.lastPlayed)}</p>
                 </div>
@@ -381,7 +381,7 @@
                 >
               </div>
               <p
-                class="mt-2 text-2xl font-black tabular-nums text-white"
+                class="mt-2 text-2xl font-black tabular-nums text-text-heading"
                 title={rating.provisional ? PROVISIONAL_RATING_TITLE : undefined}
               >
                 {ratingValue(rating.elo)}{#if rating.provisional}<span class="text-text-muted"
@@ -389,9 +389,9 @@
                   >{/if}
               </p>
               <p class="mt-1 text-xs text-text-muted">
-                <span class="text-success-400">{rating.wins ?? 0}W</span>
+                <span class="text-success-ink">{rating.wins ?? 0}W</span>
                 <span class="mx-0.5">/</span>
-                <span class="text-danger-400">{rating.losses ?? 0}L</span>
+                <span class="text-danger-ink">{rating.losses ?? 0}L</span>
               </p>
             {/if}
           </Card>
@@ -405,12 +405,12 @@
       class="flex items-start gap-3 rounded-xl border border-dashed border-border-input bg-surface-card px-4 py-3.5"
     >
       <div
-        class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-500/10 text-primary-400"
+        class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-500/10 text-primary-ink"
       >
         <UserPlus class="size-5" />
       </div>
       <div class="min-w-0">
-        <p class="text-sm font-semibold text-white">Not registered on MGE.tf</p>
+        <p class="text-sm font-semibold text-text-heading">Not registered on MGE.tf</p>
         <p class="mt-0.5 text-sm text-text-label">
           This Steam account has no site profile. Server ratings and stats still come from play on
           MGE.tf game servers.
@@ -423,7 +423,7 @@
         {#snippet header()}
           <div class="flex items-center justify-between px-5 py-3">
             <div>
-              <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+              <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-text-heading">
                 <FormatIcon name="1v1" src={icon1v1} size="sm" />
                 1v1 league
               </h2>
@@ -442,7 +442,7 @@
                     division={active1v1.division}
                   />
                 </p>
-                <p class="mt-1 font-mono text-sm text-format-1v1-400">
+                <p class="mt-1 font-mono text-sm text-format-1v1-ink">
                   {active1v1.wins}–{active1v1.losses}
                   <span class="ml-2 font-sans text-xs text-text-muted"
                     >{winPct(active1v1.wins, active1v1.losses)}% WR</span
@@ -452,7 +452,7 @@
               <Badge color={statusColor(active1v1.status)}>{statusLabel(active1v1.status)}</Badge>
             </div>
             {#if isOwn && !active1v1.isPaid && active1v1.signupCost > 0}
-              <p class="text-sm text-warning-400">Signup fee still unpaid — ready-up is locked.</p>
+              <p class="text-sm text-warning-ink">Signup fee still unpaid — ready-up is locked.</p>
             {/if}
             <div class="flex flex-wrap gap-2">
               {#if isOwn && !active1v1.isPaid && active1v1.signupCost > 0}
@@ -479,7 +479,7 @@
         {#snippet header()}
           <div class="flex items-center justify-between px-5 py-3">
             <div>
-              <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+              <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-text-heading">
                 <FormatIcon name="2v2" src={icon2v2} size="sm" />
                 Team leagues
               </h2>
@@ -508,7 +508,7 @@
                 <div class="min-w-0">
                   <a
                     href={resolve('/teams/[id]', { id: String(currentTeam.teamId) })}
-                    class="inline-flex items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
+                    class="inline-flex items-center gap-1.5 font-semibold text-text-heading transition-colors hover:text-primary-ink"
                   >
                     {#if currentTeam.formatIconUrl}
                       <Tooltip text={currentTeam.formatName}>
@@ -528,7 +528,7 @@
                       division={currentTeam.division}
                     />
                   </p>
-                  <p class="mt-1 font-mono text-sm text-success-400">
+                  <p class="mt-1 font-mono text-sm text-success-ink">
                     {currentTeam.wins}–{currentTeam.losses}
                     <span class="ml-2 font-sans text-xs text-text-muted"
                       >{winPct(currentTeam.wins, currentTeam.losses)}% WR</span
@@ -554,7 +554,7 @@
                   <div class="flex items-start justify-between gap-2">
                     <a
                       href={resolve('/teams/[id]', { id: String(team.teamId) })}
-                      class="inline-flex items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
+                      class="inline-flex items-center gap-1.5 font-semibold text-text-heading transition-colors hover:text-primary-ink"
                     >
                       {#if team.formatIconUrl}
                         <Tooltip text={team.formatName}>
@@ -572,7 +572,7 @@
                       division={team.division}
                     />
                   </p>
-                  <p class="mt-1 font-mono text-sm text-success-400">
+                  <p class="mt-1 font-mono text-sm text-success-ink">
                     {team.wins}–{team.losses}
                     <span class="ml-2 font-sans text-xs text-text-muted"
                       >{winPct(team.wins, team.losses)}% WR</span
@@ -590,7 +590,7 @@
       <Card padding="none" class="overflow-hidden">
         {#snippet header()}
           <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-text-heading">
               <FormatIcon name="1v1" src={icon1v1} size="sm" />
               1v1 history
             </h2>
@@ -601,7 +601,7 @@
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selected1v1SeasonId ===
                     String(entry.id)
-                      ? 'border-primary-500 bg-primary-500/15 text-white'
+                      ? 'border-primary-500 bg-primary-500/15 text-text-heading'
                       : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
                     aria-pressed={selected1v1SeasonId === String(entry.id)}
                     onclick={() => (selected1v1SeasonId = String(entry.id))}
@@ -641,7 +641,7 @@
       <Card padding="none" class="overflow-hidden">
         {#snippet header()}
           <div class="px-5 py-3">
-            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+            <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-text-heading">
               <FormatIcon name="1v1" src={icon1v1} size="sm" />
               1v1 history
             </h2>
@@ -654,7 +654,7 @@
     <Card padding="none" class="overflow-hidden">
       {#snippet header()}
         <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-          <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+          <h2 class="inline-flex items-center gap-1.5 text-sm font-semibold text-text-heading">
             <FormatIcon name="2v2" src={icon2v2} size="sm" />
             Team history
           </h2>
@@ -665,7 +665,7 @@
                   type="button"
                   class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {historyFormat ===
                   format.code
-                    ? 'border-primary-500 bg-primary-500/15 text-white'
+                    ? 'border-primary-500 bg-primary-500/15 text-text-heading'
                     : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
                   aria-pressed={historyFormat === format.code}
                   onclick={() => (pickedFormat = format.code)}
@@ -694,7 +694,7 @@
                 type="button"
                 class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedHistoryTeamId ===
                 String(team.teamId)
-                  ? 'border-primary-500 bg-primary-500/15 text-white'
+                  ? 'border-primary-500 bg-primary-500/15 text-text-heading'
                   : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
                 aria-pressed={selectedHistoryTeamId === String(team.teamId)}
                 onclick={() => (selectedHistoryTeamId = String(team.teamId))}
@@ -715,7 +715,7 @@
               <div class="min-w-0">
                 <a
                   href={resolve('/teams/[id]', { id: String(selectedHistoryTeam.teamId) })}
-                  class="inline-flex min-w-0 items-center gap-1.5 font-semibold text-white transition-colors hover:text-primary-400"
+                  class="inline-flex min-w-0 items-center gap-1.5 font-semibold text-text-heading transition-colors hover:text-primary-ink"
                 >
                   {#if selectedHistoryTeam.formatIconUrl}
                     <Tooltip text={selectedHistoryTeam.formatName}>
@@ -735,7 +735,7 @@
                     division={selectedHistoryTeam.division}
                   />
                 </p>
-                <p class="mt-1 font-mono text-sm text-success-400">
+                <p class="mt-1 font-mono text-sm text-success-ink">
                   {selectedHistoryTeam.wins}–{selectedHistoryTeam.losses}
                   <span class="ml-2 font-sans text-xs text-text-muted"
                     >{winPct(selectedHistoryTeam.wins, selectedHistoryTeam.losses)}% WR</span
@@ -759,7 +759,7 @@
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedTeamSeasonId ===
                     String(seasonData.seasonId)
-                      ? 'border-primary-500 bg-primary-500/15 text-white'
+                      ? 'border-primary-500 bg-primary-500/15 text-text-heading'
                       : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
                     aria-pressed={selectedTeamSeasonId === String(seasonData.seasonId)}
                     onclick={() => (selectedTeamSeasonId = String(seasonData.seasonId))}
@@ -790,14 +790,14 @@
       <Card padding="none" class="overflow-hidden">
         {#snippet header()}
           <div class="px-5 py-3">
-            <h2 class="text-sm font-semibold text-white">Achievements</h2>
+            <h2 class="text-sm font-semibold text-text-heading">Achievements</h2>
           </div>
         {/snippet}
         {#if achievements.length > 0}
           <div class="divide-y divide-border-default/50">
             {#each achievements as achievement (achievement.event)}
               <div class="px-5 py-3">
-                <p class="text-sm text-white">
+                <p class="text-sm text-text-heading">
                   <span class="font-bold {placementClass(achievement.placement)}"
                     >{achievement.placement}</span
                   >
@@ -817,7 +817,7 @@
       <Card padding="none" class="overflow-hidden">
         {#snippet header()}
           <div class="px-5 py-3">
-            <h2 class="text-sm font-semibold text-white">Tournaments</h2>
+            <h2 class="text-sm font-semibold text-text-heading">Tournaments</h2>
           </div>
         {/snippet}
         {#if tournaments.length > 0}
@@ -825,7 +825,7 @@
             {#each tournaments as t (t.id)}
               <div class="flex items-center justify-between gap-3 px-5 py-3">
                 <div class="min-w-0">
-                  <p class="truncate text-sm text-white">{t.name}</p>
+                  <p class="truncate text-sm text-text-heading">{t.name}</p>
                   <p class="text-xs text-text-muted">{formatDate(t.date)}</p>
                 </div>
                 <span class="text-xs font-bold whitespace-nowrap {placementClass(t.placement)}"
@@ -842,7 +842,7 @@
       <Card padding="none" class="overflow-hidden">
         {#snippet header()}
           <div class="px-5 py-3">
-            <h2 class="text-sm font-semibold text-white">Fight nights</h2>
+            <h2 class="text-sm font-semibold text-text-heading">Fight nights</h2>
           </div>
         {/snippet}
         {#if fightNights.length > 0}
@@ -850,7 +850,7 @@
             {#each fightNights as fn (fn.id)}
               <div class="flex items-center justify-between gap-3 px-5 py-3">
                 <div class="min-w-0">
-                  <p class="text-sm text-white">{fn.fightNightName}</p>
+                  <p class="text-sm text-text-heading">{fn.fightNightName}</p>
                   <p class="text-xs text-text-muted">vs {fn.opponent}</p>
                 </div>
                 <span class="font-mono text-xs font-bold {resultClass(fn.result)}"

@@ -207,7 +207,7 @@
 
 {#if errorMessage}
   <div class="mb-4 p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg">
-    <p class="text-danger-400">{errorMessage}</p>
+    <p class="text-danger-ink">{errorMessage}</p>
   </div>
 {/if}
 
@@ -221,7 +221,7 @@
 {:else if isTestMode}
   <div class="space-y-4">
     <div class="p-4 bg-warning-500/10 border border-warning-500/30 rounded-lg">
-      <p class="text-warning-400 text-sm font-medium">
+      <p class="text-warning-ink text-sm font-medium">
         TEST MODE - No real payment will be processed
       </p>
     </div>
@@ -245,14 +245,14 @@
 
 {#if isTestMode}
   <div class="mt-6 p-4 bg-info-500/10 border border-info-500/30 rounded-lg">
-    <p class="text-info-400 text-sm">
+    <p class="text-info-ink text-sm">
       <strong>Test Mode:</strong> This is a simulated payment for development. No real charges will be
       made.
     </p>
   </div>
 {:else}
   <div class="mt-6 p-4 bg-info-500/10 border border-info-500/30 rounded-lg">
-    <p class="text-info-400 text-sm">
+    <p class="text-info-ink text-sm">
       <strong>Note:</strong> Payment is processed securely through PayPal. Once payment is confirmed,
       your team registration will be activated.
     </p>

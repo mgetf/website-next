@@ -195,7 +195,7 @@
     <div class="min-w-0 flex-1">
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1
-          class="flex items-center gap-2 text-3xl font-black tracking-tight text-white sm:text-4xl"
+          class="flex items-center gap-2 text-3xl font-black tracking-tight text-text-heading sm:text-4xl"
         >
           {#if team.formatIconUrl}
             <Tooltip text={team.formatName}>
@@ -231,7 +231,7 @@
 
       {#if data.isAuthenticated && !data.isOnTeam && !data.canManageTeam && team.status !== 'DEAD'}
         {#if data.pendingStatus === 0}
-          <p class="text-sm text-success-400">You have been invited to join this team</p>
+          <p class="text-sm text-success-ink">You have been invited to join this team</p>
           <div class="flex flex-wrap gap-2 lg:justify-end">
             <form
               method="POST"
@@ -265,7 +265,7 @@
         {:else if data.pendingStatus === 1}
           <div class="flex flex-wrap items-center gap-2 lg:justify-end">
             <span
-              class="inline-flex items-center gap-1.5 rounded-lg border border-warning-500/30 bg-warning-500/15 px-3 py-1.5 text-sm font-medium text-warning-400"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-warning-500/30 bg-warning-500/15 px-3 py-1.5 text-sm font-medium text-warning-ink"
             >
               <span class="size-1.5 animate-pulse rounded-full bg-warning-400"></span>
               Pending admin approval
@@ -286,7 +286,7 @@
             </form>
           </div>
         {:else if data.hasPendingRequestElsewhere}
-          <p class="text-sm text-warning-400">
+          <p class="text-sm text-warning-ink">
             You have a pending join request for another team. Resolve it before joining here.
           </p>
         {:else if !data.isSeasonActive}
@@ -316,7 +316,7 @@
           data-sveltekit-reset="false"
           class="inline-flex items-center border-b-2 px-4 py-3 text-sm font-medium transition-colors {tab ===
           item.id
-            ? 'border-primary-500 text-white'
+            ? 'border-primary-500 text-text-heading'
             : 'border-transparent text-text-muted hover:text-text-label'}"
         >
           {item.label}
@@ -331,9 +331,9 @@
     <div
       class="mb-6 flex items-start gap-3 rounded-lg border border-warning-500/30 bg-warning-500/5 p-5"
     >
-      <TriangleAlert class="mt-0.5 size-6 shrink-0 text-warning-400" />
+      <TriangleAlert class="mt-0.5 size-6 shrink-0 text-warning-ink" />
       <div>
-        <h3 class="text-lg font-bold text-white">Roster incomplete</h3>
+        <h3 class="text-lg font-bold text-text-heading">Roster incomplete</h3>
         <p class="mt-1 text-sm text-text-body">
           This team needs at least {team.minRosterSize} active players to ready up ({currentRoster.length}/{team.minRosterSize}).
         </p>
@@ -346,30 +346,30 @@
       class="mb-6 flex flex-col items-start gap-4 rounded-lg border border-warning-500/30 bg-warning-500/5 p-5 sm:flex-row sm:items-center"
     >
       <div class="flex flex-1 items-start gap-3">
-        <TriangleAlert class="mt-0.5 size-6 shrink-0 text-warning-400" />
+        <TriangleAlert class="mt-0.5 size-6 shrink-0 text-warning-ink" />
         <div>
           {#if !currentUserIsPaid && paymentStepComplete && rosterStepComplete}
-            <h3 class="text-lg font-bold text-white">Signup fee unpaid</h3>
+            <h3 class="text-lg font-bold text-text-heading">Signup fee unpaid</h3>
             <p class="mt-1 text-sm text-text-body">
               You haven't paid your signup fee yet. The team can ready up, but your payment is still
               required.
             </p>
           {:else if !currentUserIsPaid}
-            <h3 class="text-lg font-bold text-white">Payment required</h3>
+            <h3 class="text-lg font-bold text-text-heading">Payment required</h3>
             <p class="mt-1 text-sm text-text-body">
               You need to pay your signup fee before the team can ready up.
-              <span class="font-medium text-warning-400">
+              <span class="font-medium text-warning-ink">
                 ({data.paidPlayerCount}/{playersNeededToPay} paid)
               </span>
             </p>
           {:else}
-            <h3 class="text-lg font-bold text-white">Payment required</h3>
+            <h3 class="text-lg font-bold text-text-heading">Payment required</h3>
             <p class="mt-1 text-sm text-text-body">
               {unpaidPlayers.length} teammate{unpaidPlayers.length !== 1 ? 's' : ''} still need{unpaidPlayers.length ===
               1
                 ? 's'
                 : ''} to pay before the team can ready up.
-              <span class="font-medium text-warning-400">
+              <span class="font-medium text-warning-ink">
                 ({data.paidPlayerCount}/{playersNeededToPay} paid)
               </span>
             </p>

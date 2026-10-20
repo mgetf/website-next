@@ -25,8 +25,8 @@
     const base =
       'flex flex-col items-center justify-center gap-0.5 rounded-lg border px-2 py-2 text-center transition-colors min-w-[4.25rem]';
     return active
-      ? `${base} ${theme.bg500_20} ${theme.border500_30} text-white`
-      : `${base} border-border-default text-text-label hover:bg-surface-hover hover:text-white`;
+      ? `${base} ${theme.bg500_20} ${theme.border500_30} text-text-heading`
+      : `${base} border-border-default text-text-label hover:bg-surface-hover hover:text-text-heading`;
   }
 </script>
 
@@ -43,7 +43,7 @@
         </p>
         <a
           href={format.href}
-          class="text-[11px] font-medium text-text-muted hover:text-white transition-colors"
+          class="text-[11px] font-medium text-text-muted hover:text-text-heading transition-colors"
           onclick={onNavigate}
         >
           All seasons

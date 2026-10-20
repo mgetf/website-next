@@ -273,7 +273,7 @@
   <div class="flex items-center justify-between gap-4">
     <a
       href="/logs"
-      class="text-sm text-text-muted hover:text-white transition-colors inline-flex items-center gap-1"
+      class="text-sm text-text-muted hover:text-text-heading transition-colors inline-flex items-center gap-1"
     >
       ← Back to Logs
     </a>
@@ -328,7 +328,7 @@
                   {#if link}
                     <a
                       href={link}
-                      class="font-bold text-white leading-tight whitespace-nowrap hover:text-primary-400 transition-colors {nameFontClass(
+                      class="font-bold text-text-heading leading-tight whitespace-nowrap hover:text-primary-ink transition-colors {nameFontClass(
                         player.name,
                       )}"
                       style={teamShadow(leftTeam, 'name', 'bold')}
@@ -337,7 +337,7 @@
                     </a>
                   {:else}
                     <span
-                      class="font-bold text-white leading-tight whitespace-nowrap {nameFontClass(
+                      class="font-bold text-text-heading leading-tight whitespace-nowrap {nameFontClass(
                         player.name,
                       )}"
                       style={teamShadow(leftTeam, 'name', 'bold')}
@@ -349,7 +349,7 @@
               {/each}
             </div>
             {#if winnerEloDelta !== null}
-              <div class="text-success-400 font-bold text-sm tabular-nums">
+              <div class="text-success-ink font-bold text-sm tabular-nums">
                 {formatRatingDelta(winnerEloDelta)} Rating
               </div>
             {/if}
@@ -363,7 +363,7 @@
           <!-- Center: tight scoreline — the focal point of the page -->
           <div class="flex items-center gap-2 sm:gap-4 md:gap-6">
             <span
-              class="text-6xl sm:text-7xl md:text-9xl font-black text-white tabular-nums leading-none tracking-tighter"
+              class="text-6xl sm:text-7xl md:text-9xl font-black text-text-heading tabular-nums leading-none tracking-tighter"
               style={teamShadow(leftTeam, 'score', 'bold')}
             >
               {leftScore}
@@ -374,7 +374,7 @@
             >
             <span
               class="text-6xl sm:text-7xl md:text-9xl font-black tabular-nums leading-none tracking-tighter {log.aborted
-                ? 'text-white'
+                ? 'text-text-heading'
                 : 'text-text-label'}"
               style={teamShadow(rightTeam, 'score', log.aborted ? 'bold' : 'muted')}
             >
@@ -392,8 +392,8 @@
                   {#if link}
                     <a
                       href={link}
-                      class="font-bold leading-tight whitespace-nowrap hover:text-primary-400 transition-colors {log.aborted
-                        ? 'text-white'
+                      class="font-bold leading-tight whitespace-nowrap hover:text-primary-ink transition-colors {log.aborted
+                        ? 'text-text-heading'
                         : 'text-text-label'} {nameFontClass(player.name)}"
                       style={teamShadow(rightTeam, 'name', log.aborted ? 'bold' : 'muted')}
                     >
@@ -402,7 +402,7 @@
                   {:else}
                     <span
                       class="font-bold leading-tight whitespace-nowrap {log.aborted
-                        ? 'text-white'
+                        ? 'text-text-heading'
                         : 'text-text-label'} {nameFontClass(player.name)}"
                       style={teamShadow(rightTeam, 'name', log.aborted ? 'bold' : 'muted')}
                     >
@@ -421,7 +421,7 @@
               {/each}
             </div>
             {#if loserEloDelta !== null}
-              <div class="font-bold text-sm tabular-nums text-danger-400/70">
+              <div class="font-bold text-sm tabular-nums text-danger-ink/70">
                 {formatRatingDelta(loserEloDelta)} Rating
               </div>
             {/if}
@@ -437,7 +437,7 @@
         {/if}
       {:else if log.aborted}
         <div class="text-center py-6">
-          <div class="text-4xl font-bold text-danger-400 mb-2">Match Aborted</div>
+          <div class="text-4xl font-bold text-danger-ink mb-2">Match Aborted</div>
           <div class="text-text-muted text-sm">No final result recorded.</div>
         </div>
       {/if}
@@ -460,7 +460,9 @@
             {label}
           </div>
           <div class="flex items-baseline justify-center gap-3 sm:gap-4">
-            <span class="font-bold text-white tabular-nums text-base md:text-lg whitespace-nowrap">
+            <span
+              class="font-bold text-text-heading tabular-nums text-base md:text-lg whitespace-nowrap"
+            >
               {winnerDisplay}
             </span>
             <span class="text-text-muted text-sm select-none" aria-hidden="true">—</span>
@@ -524,17 +526,18 @@
               {@const link = playerLink(player.steamId)}
               <div class="flex items-center gap-2">
                 {#if player.won}
-                  <span class="text-warning-400 text-xs" aria-label="Winner">★</span>
+                  <span class="text-warning-ink text-xs" aria-label="Winner">★</span>
                 {/if}
                 {#if link}
                   <a
                     href={link}
-                    class="text-xs font-bold hover:text-primary-400 transition-colors {player.won
-                      ? 'text-white'
+                    class="text-xs font-bold hover:text-primary-ink transition-colors {player.won
+                      ? 'text-text-heading'
                       : 'text-text-label'}">{player.name}</a
                   >
                 {:else}
-                  <span class="text-xs font-bold {player.won ? 'text-white' : 'text-text-label'}"
+                  <span
+                    class="text-xs font-bold {player.won ? 'text-text-heading' : 'text-text-label'}"
                     >{player.name}</span
                   >
                 {/if}
@@ -635,7 +638,7 @@
                   ? 'bg-danger-500'
                   : seg.team === 'Blue'
                     ? 'bg-info-500'
-                    : 'bg-zinc-600'}"
+                    : 'bg-surface-hover'}"
                 title="{formatTimestamp(
                   seg.timestamp,
                 )} — {seg.attacker} → {seg.victim} ({formatWeaponName(seg.weapon)})"
@@ -683,7 +686,9 @@
             class="text-text-muted text-sm transition-transform group-open:rotate-90"
             aria-hidden="true">▶</span
           >
-          <span class="text-sm font-semibold text-white uppercase tracking-wider">Kill Events</span>
+          <span class="text-sm font-semibold text-text-heading uppercase tracking-wider"
+            >Kill Events</span
+          >
           <span class="text-xs text-text-muted font-mono">({killEvents.length})</span>
         </div>
         <span class="text-xs text-text-muted">Detailed log</span>
@@ -713,7 +718,7 @@
               {#if playerLink(event.attackerSteamId)}
                 <a
                   href={playerLink(event.attackerSteamId)}
-                  class="text-text-label hover:text-primary-400 transition-colors"
+                  class="text-text-label hover:text-primary-ink transition-colors"
                   >{getPlayerName(event.attackerSteamId)}</a
                 >
               {:else}
@@ -723,7 +728,7 @@
               {#if playerLink(event.victimSteamId)}
                 <a
                   href={playerLink(event.victimSteamId)}
-                  class="text-text-label hover:text-primary-400 transition-colors"
+                  class="text-text-label hover:text-primary-ink transition-colors"
                   >{getPlayerName(event.victimSteamId)}</a
                 >
               {:else}
@@ -762,7 +767,9 @@
             class="text-text-muted text-sm transition-transform group-open:rotate-90"
             aria-hidden="true">▶</span
           >
-          <span class="text-sm font-semibold text-white uppercase tracking-wider">Chat Log</span>
+          <span class="text-sm font-semibold text-text-heading uppercase tracking-wider"
+            >Chat Log</span
+          >
           <span class="text-xs text-text-muted font-mono">({log.parsedData.chat.length})</span>
         </div>
       </summary>
@@ -776,7 +783,7 @@
               {#if playerLink(msg.steamId)}
                 <a
                   href={playerLink(msg.steamId)}
-                  class="text-text-label font-medium shrink-0 hover:text-primary-400 transition-colors"
+                  class="text-text-label font-medium shrink-0 hover:text-primary-ink transition-colors"
                   >{getPlayerName(msg.steamId)}</a
                 >
               {:else}

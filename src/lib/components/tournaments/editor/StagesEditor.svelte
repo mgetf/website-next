@@ -106,7 +106,7 @@
 <Card>
   <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 class="text-xl font-semibold text-white">Stages and matches</h2>
+      <h2 class="text-xl font-semibold text-text-heading">Stages and matches</h2>
       <p class="mt-1 text-sm text-text-muted">
         Use Alt+Arrow Up or Alt+Arrow Down to reorder a focused stage.
       </p>
@@ -128,7 +128,9 @@
           <div>
             <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 class="font-semibold text-white">{stage.name || `Stage ${index + 1}`}</h3>
+                <h3 class="font-semibold text-text-heading">
+                  {stage.name || `Stage ${index + 1}`}
+                </h3>
                 <p class="text-xs text-text-muted">Order {stage.orderNum}</p>
               </div>
               <div class="flex flex-wrap gap-2">

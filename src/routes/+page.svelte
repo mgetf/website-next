@@ -82,7 +82,7 @@
     <div class="max-w-4xl mx-auto">
       <h1 class="flex items-center justify-center gap-4 mb-6">
         <img src="/mge_transparent_logo.png" alt="MGE Logo" class="h-24 w-auto" />
-        <span class="text-7xl font-black text-white drop-shadow-2xl">MGE</span>
+        <span class="text-7xl font-black text-text-heading drop-shadow-2xl">MGE</span>
       </h1>
       <p class="text-xl text-text-label max-w-2xl mx-auto leading-relaxed font-medium">
         {siteContent.subtitle}
@@ -95,8 +95,8 @@
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mb-10 sm:mb-14">
       <!-- Section header -->
       <div class="mb-5 sm:mb-6 text-center">
-        <h2 class="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight mb-1">
-          MGE <span class="text-primary-400">Rating</span> Rankings
+        <h2 class="text-2xl sm:text-4xl font-black text-text-heading uppercase tracking-tight mb-1">
+          MGE <span class="text-primary-ink">Rating</span> Rankings
         </h2>
         <p class="text-text-muted text-sm">Live standings from all active regions</p>
       </div>
@@ -120,12 +120,12 @@
             >
               <div class="flex items-center gap-2">
                 <FlagIcon code={fc} class="w-6 h-4 rounded-sm" />
-                <span class="text-sm font-bold uppercase tracking-widest text-white">
+                <span class="text-sm font-bold uppercase tracking-widest text-text-heading">
                   {regionData.region.toUpperCase()}
                 </span>
               </div>
               <span
-                class="text-[10px] font-bold uppercase tracking-widest text-primary-400 bg-primary-500/10 border border-primary-500/20 rounded-full px-2 py-0.5"
+                class="text-[10px] font-bold uppercase tracking-widest text-primary-ink bg-primary-500/10 border border-primary-500/20 rounded-full px-2 py-0.5"
               >
                 Live
               </span>
@@ -185,8 +185,8 @@
                   <div class="flex-1 min-w-0">
                     <a
                       href="/users/{entry.steamId64}"
-                      class="block truncate hover:text-primary-400 transition-colors {isFirst
-                        ? 'font-semibold text-white text-base'
+                      class="block truncate hover:text-primary-ink transition-colors {isFirst
+                        ? 'font-semibold text-text-heading text-base'
                         : isMedal
                           ? 'font-semibold text-text-label text-sm'
                           : 'font-medium text-text-muted text-xs'}"
@@ -196,7 +196,7 @@
                   </div>
                   <span
                     class="tabular-nums shrink-0 {isFirst
-                      ? 'font-black text-primary-400 text-xl'
+                      ? 'font-black text-primary-ink text-xl'
                       : isMedal
                         ? 'font-black text-primary-500 text-base'
                         : 'font-semibold text-primary-600 text-sm'}"
@@ -213,7 +213,7 @@
             <div class="px-4 sm:px-5 pb-3 sm:pb-4">
               <a
                 href="/leaderboard?region={regionData.region}"
-                class="inline-flex items-center min-h-10 text-xs text-text-muted hover:text-primary-400 transition-colors font-medium"
+                class="inline-flex items-center min-h-10 text-xs text-text-muted hover:text-primary-ink transition-colors font-medium"
               >
                 View full leaderboard →
               </a>
@@ -231,7 +231,7 @@
       {#if leaderboard2v2.length > 0}
         <div>
           <div class="mb-3 flex items-center gap-3">
-            <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-format-2v2-400/70">
+            <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-format-2v2-ink/70">
               2v2 League
             </h2>
             <div class="flex-1 h-px bg-format-2v2-500/20"></div>
@@ -260,7 +260,7 @@
                   </div>
                   {#if region.signupsOpen}
                     <div class="mb-3">
-                      <span class="text-format-2v2-400 text-sm font-bold block">Signups Open!</span>
+                      <span class="text-format-2v2-ink text-sm font-bold block">Signups Open!</span>
                       <p class="text-xs text-text-muted mt-1">
                         {region.signupCount} signed up this season
                       </p>
@@ -283,7 +283,7 @@
                                 <div class="w-5 h-5 rounded bg-surface-input shrink-0"></div>
                               {/if}
                               <div class="min-w-0">
-                                <span class="text-white font-medium text-sm truncate block"
+                                <span class="text-text-heading font-medium text-sm truncate block"
                                   >{team.name}</span
                                 >
                                 {#if team.record}
@@ -301,7 +301,7 @@
                     {/if}
                     <a
                       href={signupHref}
-                      class="text-xs text-text-muted hover:text-format-2v2-400 transition-colors"
+                      class="text-xs text-text-muted hover:text-format-2v2-ink transition-colors"
                     >
                       Register your team →
                     </a>
@@ -325,7 +325,9 @@
                             {:else}
                               <div class="w-5 h-5 rounded bg-surface-input shrink-0"></div>
                             {/if}
-                            <span class="text-white font-medium text-sm truncate">{team.name}</span>
+                            <span class="text-text-heading font-medium text-sm truncate"
+                              >{team.name}</span
+                            >
                           </div>
                           <span class="text-xs text-text-body tabular-nums shrink-0 ml-2"
                             >{team.record}</span
@@ -347,7 +349,7 @@
       {#if leaderboard1v1.length > 0}
         <div>
           <div class="mb-3 flex items-center gap-3">
-            <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-format-1v1-400/70">
+            <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-format-1v1-ink/70">
               1v1 League
             </h2>
             <div class="flex-1 h-px bg-format-1v1-500/20"></div>
@@ -376,7 +378,7 @@
                   </div>
                   {#if region.signupsOpen}
                     <div class="mb-3">
-                      <span class="text-format-1v1-400 text-sm font-bold block">Signups Open!</span>
+                      <span class="text-format-1v1-ink text-sm font-bold block">Signups Open!</span>
                       <p class="text-xs text-text-muted mt-1">
                         {region.signupCount} signed up this season
                       </p>
@@ -397,7 +399,8 @@
                             {:else}
                               <div class="w-5 h-5 rounded bg-surface-input shrink-0"></div>
                             {/if}
-                            <span class="text-white font-medium text-sm truncate">{entry.name}</span
+                            <span class="text-text-heading font-medium text-sm truncate"
+                              >{entry.name}</span
                             >
                           </a>
                         {/each}
@@ -407,7 +410,7 @@
                     {/if}
                     <a
                       href={signupHref}
-                      class="text-xs text-text-muted hover:text-format-1v1-400 transition-colors"
+                      class="text-xs text-text-muted hover:text-format-1v1-ink transition-colors"
                     >
                       Sign up now →
                     </a>
@@ -429,7 +432,8 @@
                                 class="w-5 h-5 rounded-full shrink-0"
                               />
                             {/if}
-                            <span class="text-white font-medium text-sm truncate">{entry.name}</span
+                            <span class="text-text-heading font-medium text-sm truncate"
+                              >{entry.name}</span
                             >
                           </div>
                           <span class="text-xs text-text-body tabular-nums shrink-0 ml-2"
@@ -460,12 +464,14 @@
           >
             <div class="h-1.5 w-full bg-format-2v2-400"></div>
             <div class="bg-surface-card p-8 flex flex-col flex-grow">
-              <p class="text-format-2v2-400 text-sm font-bold tracking-widest uppercase mb-6">
+              <p class="text-format-2v2-ink text-sm font-bold tracking-widest uppercase mb-6">
                 2v2 League
               </p>
               <div class="flex-grow flex flex-col justify-center mb-8">
-                <p class="text-5xl font-black text-white uppercase leading-none mb-2">Signups</p>
-                <p class="text-5xl font-black text-format-2v2-400 uppercase leading-none mb-6">
+                <p class="text-5xl font-black text-text-heading uppercase leading-none mb-2">
+                  Signups
+                </p>
+                <p class="text-5xl font-black text-format-2v2-ink uppercase leading-none mb-6">
                   Are Open.
                 </p>
                 <p class="text-text-body text-base leading-relaxed">
@@ -474,7 +480,7 @@
               </div>
               <a
                 href={signupHref}
-                class="block w-full py-5 px-6 bg-format-2v2-500 hover:bg-format-2v2-400 text-white font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-format-2v2-500/40 hover:shadow-format-2v2-400/60"
+                class="block w-full py-5 px-6 bg-format-2v2-500 hover:bg-format-2v2-400 text-text-heading font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-format-2v2-500/40 hover:shadow-format-2v2-400/60"
               >
                 Register Your Team →
               </a>
@@ -487,12 +493,14 @@
           >
             <div class="h-1.5 w-full bg-format-1v1-400"></div>
             <div class="bg-surface-card p-8 flex flex-col flex-grow">
-              <p class="text-format-1v1-400 text-sm font-bold tracking-widest uppercase mb-6">
+              <p class="text-format-1v1-ink text-sm font-bold tracking-widest uppercase mb-6">
                 1v1 League
               </p>
               <div class="flex-grow flex flex-col justify-center mb-8">
-                <p class="text-5xl font-black text-white uppercase leading-none mb-2">Signups</p>
-                <p class="text-5xl font-black text-format-1v1-400 uppercase leading-none mb-6">
+                <p class="text-5xl font-black text-text-heading uppercase leading-none mb-2">
+                  Signups
+                </p>
+                <p class="text-5xl font-black text-format-1v1-ink uppercase leading-none mb-6">
                   Are Open.
                 </p>
                 <p class="text-text-body text-base leading-relaxed">
@@ -501,7 +509,7 @@
               </div>
               <a
                 href={signupHref}
-                class="block w-full py-5 px-6 bg-format-1v1-600 hover:bg-format-1v1-500 text-white font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-format-1v1-500/40 hover:shadow-format-1v1-500/60"
+                class="block w-full py-5 px-6 bg-format-1v1-600 hover:bg-format-1v1-500 text-text-heading font-black text-xl rounded-xl text-center transition-all shadow-lg shadow-format-1v1-500/40 hover:shadow-format-1v1-500/60"
               >
                 Sign Up Now →
               </a>

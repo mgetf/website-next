@@ -22,15 +22,15 @@ export function statusColor(status: string): 'green' | 'yellow' | 'zinc' | 'red'
 }
 
 export function resultClass(result: string): string {
-  if (result === 'W') return 'text-success-400';
-  if (result === 'L') return 'text-danger-400';
+  if (result === 'W') return 'text-success-ink';
+  if (result === 'L') return 'text-danger-ink';
   return 'text-text-body';
 }
 
 export function placementClass(placement: string): string {
-  if (placement.includes('1st')) return 'text-warning-400';
+  if (placement.includes('1st')) return 'text-warning-ink';
   if (placement.includes('2nd')) return 'text-text-label';
-  if (placement.includes('3rd')) return 'text-primary-400';
+  if (placement.includes('3rd')) return 'text-primary-ink';
   return 'text-text-body';
 }
 

@@ -43,9 +43,9 @@
     'https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg';
 
   function sideClass(match: LeagueDivisionMatch, side: 'home' | 'away'): string {
-    if (match.homeScore == null || match.awayScore == null) return 'text-white';
-    if (isLeagueMatchSideWinner(match, side)) return 'text-white font-semibold';
-    if (match.homeScore === match.awayScore) return 'text-white';
+    if (match.homeScore == null || match.awayScore == null) return 'text-text-heading';
+    if (isLeagueMatchSideWinner(match, side)) return 'text-text-heading font-semibold';
+    if (match.homeScore === match.awayScore) return 'text-text-heading';
     return 'text-text-muted';
   }
 
@@ -57,8 +57,8 @@
 
   function pillClass(selected: boolean): string {
     return selected
-      ? 'bg-surface-hover text-white'
-      : 'text-text-muted hover:text-white hover:bg-surface-input/50';
+      ? 'bg-surface-hover text-text-heading'
+      : 'text-text-muted hover:text-text-heading hover:bg-surface-input/50';
   }
 </script>
 
@@ -131,7 +131,7 @@
                     : ''}"
                 >
                   <span class="flex min-w-0 items-center justify-end gap-1.5">
-                    <span class="truncate text-xs text-white">{row.team.name}</span>
+                    <span class="truncate text-xs text-text-heading">{row.team.name}</span>
                     <img
                       src={row.team.avatar || defaultAvatar}
                       alt=""
@@ -164,7 +164,7 @@
 
                   <span
                     class="text-center text-xs {score
-                      ? 'tabular-nums font-semibold text-white'
+                      ? 'tabular-nums font-semibold text-text-heading'
                       : 'font-medium text-text-muted'}"
                   >
                     {score ?? 'vs'}

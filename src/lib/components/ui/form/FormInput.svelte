@@ -36,7 +36,7 @@
   } = $props();
 
   const inputClasses = $derived(
-    `w-full bg-surface-input border rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+    `w-full bg-surface-input border rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
       compact ? 'px-3 py-1.5 text-sm' : 'px-4 py-3'
     } ${error ? 'border-danger-500' : 'border-border-input'} ${className}`,
   );
@@ -76,6 +76,6 @@
     <p class="text-xs text-text-muted mt-1">{hint}</p>
   {/if}
   {#if error}
-    <p class="text-xs text-danger-400 mt-1">{error}</p>
+    <p class="text-xs text-danger-ink mt-1">{error}</p>
   {/if}
 </div>

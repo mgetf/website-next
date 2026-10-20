@@ -123,7 +123,7 @@
 <div class="space-y-6">
   {#if rosterLocked}
     <div class="rounded-lg border border-warning-500/30 bg-warning-500/10 p-3">
-      <p class="flex items-start gap-2 text-sm text-warning-400">
+      <p class="flex items-start gap-2 text-sm text-warning-ink">
         <Lock class="mt-0.5 size-4 shrink-0" />
         <span>
           <strong>Rosters are locked.</strong>
@@ -140,7 +140,7 @@
   {#if teamStatus === 'UNREADY' || teamStatus === 'PENDING'}
     <Card padding="md">
       {#snippet header()}
-        <h2 class="text-sm font-semibold text-white">Season ready-up</h2>
+        <h2 class="text-sm font-semibold text-text-heading">Season ready-up</h2>
       {/snippet}
 
       {#if teamStatus === 'UNREADY'}
@@ -152,7 +152,7 @@
           >
             <div class="mb-2 flex items-center gap-3">
               <span
-                class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white {rosterStepComplete
+                class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-text-heading {rosterStepComplete
                   ? 'bg-success-600'
                   : 'bg-warning-600'}"
               >
@@ -162,11 +162,11 @@
                   1
                 {/if}
               </span>
-              <h3 class="text-base font-bold text-white">Roster</h3>
+              <h3 class="text-base font-bold text-text-heading">Roster</h3>
               <span
                 class="ml-auto text-sm font-medium {rosterStepComplete
-                  ? 'text-success-400'
-                  : 'text-warning-400'}"
+                  ? 'text-success-ink'
+                  : 'text-warning-ink'}"
               >
                 {activePlayerCount}/{minRosterSize} players
               </span>
@@ -186,7 +186,7 @@
             >
               <div class="mb-2 flex items-center gap-3">
                 <span
-                  class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white {paymentStepComplete
+                  class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-text-heading {paymentStepComplete
                     ? 'bg-success-600'
                     : 'bg-warning-600'}"
                 >
@@ -196,11 +196,11 @@
                     2
                   {/if}
                 </span>
-                <h3 class="text-base font-bold text-white">Pay signup fees</h3>
+                <h3 class="text-base font-bold text-text-heading">Pay signup fees</h3>
                 <span
                   class="ml-auto text-sm font-medium {paymentStepComplete
-                    ? 'text-success-400'
-                    : 'text-warning-400'}"
+                    ? 'text-success-ink'
+                    : 'text-warning-ink'}"
                 >
                   {paidPlayerCount}/{playersNeededToPay} paid
                 </span>
@@ -217,7 +217,7 @@
                     <div class="flex items-center gap-2 text-sm">
                       <span class="size-1.5 rounded-full bg-danger-400"></span>
                       <span class="text-text-body">{player.name}</span>
-                      <span class="text-danger-400">— unpaid</span>
+                      <span class="text-danger-ink">— unpaid</span>
                     </div>
                   {/each}
                   {#if currentUserSteamId}
@@ -244,13 +244,17 @@
           >
             <div class="mb-2 flex items-center gap-3">
               <span
-                class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white {canToggleReady
+                class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-text-heading {canToggleReady
                   ? 'bg-primary-600'
                   : 'bg-surface-input'}"
               >
                 {isFreeDivision ? '2' : '3'}
               </span>
-              <h3 class="text-base font-bold {canToggleReady ? 'text-white' : 'text-text-muted'}">
+              <h3
+                class="text-base font-bold {canToggleReady
+                  ? 'text-text-heading'
+                  : 'text-text-muted'}"
+              >
                 Ready up
               </h3>
               {#if !canToggleReady}
@@ -281,7 +285,7 @@
         <div class="rounded-lg border border-warning-500/30 bg-warning-500/5 p-4">
           <div class="flex items-center gap-2">
             <span class="size-2 animate-pulse rounded-full bg-warning-400"></span>
-            <span class="font-semibold text-warning-400">Pending admin approval</span>
+            <span class="font-semibold text-warning-ink">Pending admin approval</span>
           </div>
           <p class="mt-2 text-sm text-text-body">
             Your team has been marked as ready and is awaiting admin review.
@@ -305,7 +309,7 @@
           onclick={() => (section = item.id)}
           class="inline-flex shrink-0 items-center border-b-2 px-4 py-3 text-sm font-medium transition-colors {section ===
           item.id
-            ? 'border-primary-500 text-white'
+            ? 'border-primary-500 text-text-heading'
             : 'border-transparent text-text-muted hover:text-text-label'}"
         >
           {item.label}
@@ -317,7 +321,7 @@
       {#if section === 'info'}
         <div class="space-y-8">
           <form method="POST" action="?/updateInfo" use:enhance>
-            <h3 class="mb-4 text-lg font-bold text-white">Team information</h3>
+            <h3 class="mb-4 text-lg font-bold text-text-heading">Team information</h3>
             <FormInput
               label="Team Name"
               name="name"
@@ -341,7 +345,7 @@
           <hr class="border-border-default" />
 
           <form method="POST" action="?/updateAvatar" enctype="multipart/form-data" use:enhance>
-            <h3 class="mb-4 text-lg font-bold text-white">Team avatar</h3>
+            <h3 class="mb-4 text-lg font-bold text-text-heading">Team avatar</h3>
             <div class="flex items-center gap-4">
               {#if avatarPreview}
                 <img
@@ -375,7 +379,7 @@
           <hr class="border-border-default" />
 
           <form method="POST" action="?/updatePassword" use:enhance>
-            <h3 class="mb-4 text-lg font-bold text-white">Join password</h3>
+            <h3 class="mb-4 text-lg font-bold text-text-heading">Join password</h3>
             <FormInput
               label="Join Password"
               name="joinPassword"
@@ -392,7 +396,7 @@
           {#if isOwner || isGlobalAdmin}
             <hr class="border-border-default" />
             <div>
-              <h3 class="mb-2 text-lg font-bold text-white">Danger zone</h3>
+              <h3 class="mb-2 text-lg font-bold text-text-heading">Danger zone</h3>
               <p class="mb-4 text-sm text-text-muted">
                 Disbanding marks the team as dead. This cannot be undone.
               </p>
@@ -419,7 +423,7 @@
                     class="size-12 rounded-lg object-cover"
                   />
                   <div class="min-w-0">
-                    <p class="truncate font-semibold text-white">{player.name}</p>
+                    <p class="truncate font-semibold text-text-heading">{player.name}</p>
                     <p class="text-sm text-text-body">{teamRoleName(player.permissionLevel)}</p>
                   </div>
                 </div>
@@ -477,7 +481,7 @@
       {:else if section === 'pending'}
         <div class="space-y-8">
           <div>
-            <h3 class="mb-4 text-lg font-bold text-white">Sent invitations</h3>
+            <h3 class="mb-4 text-lg font-bold text-text-heading">Sent invitations</h3>
             {#if management.sentInvites.length === 0}
               <p class="py-8 text-center text-sm text-text-muted">No pending invitations</p>
             {:else}
@@ -493,7 +497,7 @@
                         class="size-12 rounded-lg object-cover"
                       />
                       <div>
-                        <p class="font-semibold text-white">{invite.name}</p>
+                        <p class="font-semibold text-text-heading">{invite.name}</p>
                         <p class="text-sm text-text-body">Awaiting player response</p>
                       </div>
                     </div>
@@ -511,7 +515,7 @@
 
           {#if management.awaitingAdmin.length > 0}
             <div>
-              <h3 class="mb-4 text-lg font-bold text-white">Awaiting admin approval</h3>
+              <h3 class="mb-4 text-lg font-bold text-text-heading">Awaiting admin approval</h3>
               <div class="space-y-3">
                 {#each management.awaitingAdmin as invite (invite.steamId)}
                   <div
@@ -524,9 +528,9 @@
                         class="size-12 rounded-lg object-cover"
                       />
                       <div>
-                        <p class="font-semibold text-white">{invite.name}</p>
+                        <p class="font-semibold text-text-heading">{invite.name}</p>
                         <span
-                          class="mt-1 inline-flex items-center gap-1.5 rounded border border-warning-500/30 bg-warning-500/15 px-2 py-0.5 text-xs font-medium text-warning-400"
+                          class="mt-1 inline-flex items-center gap-1.5 rounded border border-warning-500/30 bg-warning-500/15 px-2 py-0.5 text-xs font-medium text-warning-ink"
                         >
                           <span class="size-1.5 animate-pulse rounded-full bg-warning-400"></span>
                           Pending admin approval
@@ -548,7 +552,7 @@
       {:else}
         <div class="space-y-8">
           <div>
-            <h3 class="mb-2 text-lg font-bold text-white">Share invite link</h3>
+            <h3 class="mb-2 text-lg font-bold text-text-heading">Share invite link</h3>
             <p class="mb-3 text-sm text-text-body">
               Share this link with players to invite them to your team. The link expires after 1
               hour.
@@ -576,7 +580,7 @@
               };
             }}
           >
-            <h3 class="mb-4 text-lg font-bold text-white">Invite by Steam ID</h3>
+            <h3 class="mb-4 text-lg font-bold text-text-heading">Invite by Steam ID</h3>
             <FormInput
               label="Steam ID (64-bit)"
               name="steamId"

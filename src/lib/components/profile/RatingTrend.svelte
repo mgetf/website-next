@@ -275,7 +275,7 @@
         style:left="{tooltipLeft}%"
         style:transform="translateX(-50%)"
       >
-        <p class="font-medium text-white">{shownHover.value}</p>
+        <p class="font-medium text-text-heading">{shownHover.value}</p>
         <p class="text-text-muted">{shownHover.label}</p>
       </div>
     {/if}

@@ -32,8 +32,8 @@
     class={[
       'px-3 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-1 whitespace-nowrap',
       leaguesActive || open
-        ? 'text-white bg-surface-input/50'
-        : 'text-text-label hover:text-white hover:bg-surface-input/50',
+        ? 'text-text-heading bg-surface-input/50'
+        : 'text-text-label hover:text-text-heading hover:bg-surface-input/50',
     ].join(' ')}
   >
     Leagues

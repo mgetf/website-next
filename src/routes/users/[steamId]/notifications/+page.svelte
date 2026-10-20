@@ -108,7 +108,7 @@
 <div class="max-w-3xl mx-auto px-4 py-8">
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-white">Notifications</h1>
+      <h1 class="text-2xl font-bold text-text-heading">Notifications</h1>
       <p class="text-sm text-text-body mt-1">
         {#if data.unreadCount > 0}
           {data.unreadCount} unread of {data.totalCount} total
@@ -123,7 +123,7 @@
         <button
           type="submit"
           disabled={isMarkingAllRead}
-          class="px-4 py-2 text-sm font-medium text-primary-400 hover:text-primary-300 hover:bg-surface-hover rounded-lg transition-all disabled:opacity-50"
+          class="px-4 py-2 text-sm font-medium text-primary-ink hover:text-primary-300 hover:bg-surface-hover rounded-lg transition-all disabled:opacity-50"
         >
           {isMarkingAllRead ? 'Marking...' : 'Mark all as read'}
         </button>
@@ -168,10 +168,10 @@
               <p
                 class="text-sm leading-snug {notification.isRead
                   ? 'text-text-body'
-                  : 'text-white font-medium'}"
+                  : 'text-text-heading font-medium'}"
               >
                 {#if notification.actor?.steamUsername}
-                  <span class="text-primary-400">{notification.actor.steamUsername}</span>:
+                  <span class="text-primary-ink">{notification.actor.steamUsername}</span>:
                 {/if}
                 {notification.message || getFallbackText(notification.type)}
               </p>
@@ -221,7 +221,7 @@
           />
         </svg>
       </div>
-      <h2 class="text-lg font-medium text-white mb-2">No notifications yet</h2>
+      <h2 class="text-lg font-medium text-text-heading mb-2">No notifications yet</h2>
       <p class="text-text-body text-sm">When you receive notifications, they'll appear here.</p>
     </Card>
   {/if}

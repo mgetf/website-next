@@ -252,7 +252,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Team Management</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Team Management</h1>
     <p class="text-text-body">View and manage all teams across all divisions</p>
   </div>
 
@@ -338,7 +338,7 @@
             </div>
           {/if}
           <div>
-            <a href="/teams/{team.id}" class="text-white font-medium hover:text-primary-400">
+            <a href="/teams/{team.id}" class="text-text-heading font-medium hover:text-primary-ink">
               {team.name}
             </a>
             <p class="text-sm text-text-body">{team.acronym}</p>
@@ -361,7 +361,7 @@
       {:else if col.key === 'region'}
         <span class="text-text-label">{team.region?.name || '—'}</span>
       {:else if col.key === 'record'}
-        <span class="text-white font-mono">{team.record}</span>
+        <span class="text-text-heading font-mono">{team.record}</span>
       {:else if col.key === 'status'}
         <Badge color={getStatusBadgeColor(team.status)}>
           {statusNames[team.status]}
@@ -580,7 +580,7 @@
           </div>
         {/if}
         <div>
-          <p class="text-white font-medium">{disbandingTeam.name}</p>
+          <p class="text-text-heading font-medium">{disbandingTeam.name}</p>
           <p class="text-text-body text-sm">
             {disbandingTeam.division?.name || 'No division'} · {disbandingTeam.region?.name ||
               'No region'}
@@ -644,7 +644,7 @@
           </div>
         {/if}
         <div>
-          <p class="text-white font-medium">{restoringTeam.name}</p>
+          <p class="text-text-heading font-medium">{restoringTeam.name}</p>
           <p class="text-text-body text-sm">
             {restoringTeam.division?.name || 'No division'} · {restoringTeam.region?.name ||
               'No region'}
@@ -706,7 +706,7 @@
             </div>
           {/if}
           <div>
-            <p class="text-white font-medium">{deletingTeam.name}</p>
+            <p class="text-text-heading font-medium">{deletingTeam.name}</p>
             <p class="text-text-body text-sm">
               {deletingTeam.division?.name || 'No division'} · {deletingTeam.region?.name ||
                 'No region'}
@@ -717,7 +717,7 @@
 
       {#if hasMatches}
         <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-4">
-          <p class="text-warning-400 text-sm font-medium mb-1">
+          <p class="text-warning-ink text-sm font-medium mb-1">
             {deletingTeam.matchCount} match{deletingTeam.matchCount !== 1 ? 'es' : ''} will also be deleted
           </p>
           <p class="text-warning-300 text-sm">
@@ -742,13 +742,15 @@
                   <td class="px-3 py-2 text-text-muted">{match.weekNo ?? '—'}</td>
                   <td class="px-3 py-2">
                     <span
-                      class={match.homeTeam === deletingTeam.name ? 'text-white font-medium' : ''}
-                      >{match.homeTeam}</span
+                      class={match.homeTeam === deletingTeam.name
+                        ? 'text-text-heading font-medium'
+                        : ''}>{match.homeTeam}</span
                     >
                     <span class="text-text-muted mx-1">vs</span>
                     <span
-                      class={match.awayTeam === deletingTeam.name ? 'text-white font-medium' : ''}
-                      >{match.awayTeam}</span
+                      class={match.awayTeam === deletingTeam.name
+                        ? 'text-text-heading font-medium'
+                        : ''}>{match.awayTeam}</span
                     >
                   </td>
                   <td class="px-3 py-2 font-mono">
@@ -767,7 +769,7 @@
       {/if}
 
       <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-4">
-        <p class="text-danger-400 text-sm font-medium mb-1">This action cannot be undone</p>
+        <p class="text-danger-ink text-sm font-medium mb-1">This action cannot be undone</p>
         <p class="text-danger-300 text-sm">
           This will permanently remove the team, all roster records, pending players, denied
           players, name history{hasMatches
@@ -777,14 +779,14 @@
       </div>
       <div>
         <label for="deleteTeamConfirm" class="block text-sm text-text-body mb-1">
-          Type <strong class="text-white">DELETE</strong> to confirm
+          Type <strong class="text-text-heading">DELETE</strong> to confirm
         </label>
         <input
           id="deleteTeamConfirm"
           type="text"
           bind:value={deleteConfirmText}
           placeholder="DELETE"
-          class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-danger-500/50"
+          class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-danger-500/50"
         />
       </div>
     </div>

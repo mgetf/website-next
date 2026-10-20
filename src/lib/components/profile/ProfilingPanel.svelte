@@ -9,7 +9,7 @@
 <div class="space-y-3">
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 class="text-lg font-semibold text-white">Profiling</h2>
+      <h2 class="text-lg font-semibold text-text-heading">Profiling</h2>
       <p class="text-sm text-text-body">
         Hard numbers from Steam, logs.tf, and mge.tf servers, in one place.
       </p>

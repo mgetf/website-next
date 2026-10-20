@@ -40,7 +40,7 @@ export type FormatThemeClasses = {
 
 const THEME_CLASS_MAP: Record<FormatThemeKey, FormatThemeClasses> = {
   blue: {
-    text400: 'text-theme-blue-400',
+    text400: 'text-theme-blue-ink',
     text300: 'text-theme-blue-300',
     bg400: 'bg-theme-blue-400',
     bg500: 'bg-theme-blue-500',
@@ -49,17 +49,17 @@ const THEME_CLASS_MAP: Record<FormatThemeKey, FormatThemeClasses> = {
     border500: 'border-theme-blue-500',
     border500_30: 'border-theme-blue-500/30',
     hoverBorder500: 'hover:border-theme-blue-500',
-    hoverText400: 'hover:text-theme-blue-400',
+    hoverText400: 'hover:text-theme-blue-ink',
     bg500_10: 'bg-theme-blue-500/10',
     bg500_20: 'bg-theme-blue-500/20',
     shadow500_25: 'shadow-theme-blue-500/25',
     shadow500_40: 'shadow-theme-blue-500/40',
     button:
       'bg-theme-blue-600 hover:bg-theme-blue-500 text-white disabled:bg-theme-blue-600/50 disabled:cursor-not-allowed',
-    badge: 'bg-theme-blue-500/20 text-theme-blue-400 border border-theme-blue-500/30',
+    badge: 'bg-theme-blue-500/20 text-theme-blue-ink border border-theme-blue-500/30',
   },
   purple: {
-    text400: 'text-theme-purple-400',
+    text400: 'text-theme-purple-ink',
     text300: 'text-theme-purple-300',
     bg400: 'bg-theme-purple-400',
     bg500: 'bg-theme-purple-500',
@@ -68,17 +68,17 @@ const THEME_CLASS_MAP: Record<FormatThemeKey, FormatThemeClasses> = {
     border500: 'border-theme-purple-500',
     border500_30: 'border-theme-purple-500/30',
     hoverBorder500: 'hover:border-theme-purple-500',
-    hoverText400: 'hover:text-theme-purple-400',
+    hoverText400: 'hover:text-theme-purple-ink',
     bg500_10: 'bg-theme-purple-500/10',
     bg500_20: 'bg-theme-purple-500/20',
     shadow500_25: 'shadow-theme-purple-500/25',
     shadow500_40: 'shadow-theme-purple-500/40',
     button:
       'bg-theme-purple-600 hover:bg-theme-purple-500 text-white disabled:bg-theme-purple-600/50 disabled:cursor-not-allowed',
-    badge: 'bg-theme-purple-500/20 text-theme-purple-400 border border-theme-purple-500/30',
+    badge: 'bg-theme-purple-500/20 text-theme-purple-ink border border-theme-purple-500/30',
   },
   primary: {
-    text400: 'text-primary-400',
+    text400: 'text-primary-ink',
     text300: 'text-primary-300',
     bg400: 'bg-primary-400',
     bg500: 'bg-primary-500',
@@ -87,17 +87,17 @@ const THEME_CLASS_MAP: Record<FormatThemeKey, FormatThemeClasses> = {
     border500: 'border-primary-500',
     border500_30: 'border-primary-500/30',
     hoverBorder500: 'hover:border-primary-500',
-    hoverText400: 'hover:text-primary-400',
+    hoverText400: 'hover:text-primary-ink',
     bg500_10: 'bg-primary-500/10',
     bg500_20: 'bg-primary-500/20',
     shadow500_25: 'shadow-primary-500/25',
     shadow500_40: 'shadow-primary-500/40',
     button:
       'bg-primary-600 hover:bg-primary-500 text-white disabled:bg-primary-600/50 disabled:cursor-not-allowed',
-    badge: 'bg-primary-500/20 text-primary-400 border border-primary-500/30',
+    badge: 'bg-primary-500/20 text-primary-ink border border-primary-500/30',
   },
   orange: {
-    text400: 'text-primary-400',
+    text400: 'text-primary-ink',
     text300: 'text-primary-300',
     bg400: 'bg-primary-400',
     bg500: 'bg-primary-500',
@@ -106,14 +106,14 @@ const THEME_CLASS_MAP: Record<FormatThemeKey, FormatThemeClasses> = {
     border500: 'border-primary-500',
     border500_30: 'border-primary-500/30',
     hoverBorder500: 'hover:border-primary-500',
-    hoverText400: 'hover:text-primary-400',
+    hoverText400: 'hover:text-primary-ink',
     bg500_10: 'bg-primary-500/10',
     bg500_20: 'bg-primary-500/20',
     shadow500_25: 'shadow-primary-500/25',
     shadow500_40: 'shadow-primary-500/40',
     button:
       'bg-primary-600 hover:bg-primary-500 text-white disabled:bg-primary-600/50 disabled:cursor-not-allowed',
-    badge: 'bg-primary-500/20 text-primary-400 border border-primary-500/30',
+    badge: 'bg-primary-500/20 text-primary-ink border border-primary-500/30',
   },
   zinc: {
     text400: 'text-text-body',
@@ -131,7 +131,7 @@ const THEME_CLASS_MAP: Record<FormatThemeKey, FormatThemeClasses> = {
     shadow500_25: 'shadow-black/25',
     shadow500_40: 'shadow-black/40',
     button:
-      'bg-surface-input hover:bg-surface-hover text-white border border-border-input disabled:opacity-50 disabled:cursor-not-allowed',
+      'bg-surface-input hover:bg-surface-hover text-text-heading border border-border-input disabled:opacity-50 disabled:cursor-not-allowed',
     badge: 'bg-surface-hover text-text-body border border-border-default',
   },
 };

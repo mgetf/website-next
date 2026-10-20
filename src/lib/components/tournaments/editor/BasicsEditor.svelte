@@ -31,7 +31,7 @@
 </script>
 
 <Card>
-  <h2 class="mb-5 text-xl font-semibold text-white">Event details</h2>
+  <h2 class="mb-5 text-xl font-semibold text-text-heading">Event details</h2>
 
   <div class="grid gap-x-4 md:grid-cols-2">
     <FormInput
@@ -109,7 +109,7 @@
       name="draft-description"
       rows="4"
       bind:value={draft.description}
-      class="w-full rounded-lg border border-border-input bg-surface-input px-4 py-3 text-white placeholder-text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
+      class="w-full rounded-lg border border-border-input bg-surface-input px-4 py-3 text-text-heading placeholder-text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
     ></textarea>
   </div>
 

@@ -47,7 +47,7 @@
   <!-- Region header -->
   <div class="flex items-center gap-3 mb-3 px-1">
     <FlagIcon code={flagCode} class="w-12 h-8 text-3xl" />
-    <h2 id="region-{regionSlug}" class="text-3xl font-bold text-white leading-tight">
+    <h2 id="region-{regionSlug}" class="text-3xl font-bold text-text-heading leading-tight">
       {regionName}
     </h2>
     <div class="ml-auto flex items-center gap-3 text-xs text-text-muted">

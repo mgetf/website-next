@@ -15,7 +15,7 @@
 
 <div class="mx-auto max-w-7xl space-y-4 sm:space-y-6">
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Investigate</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Investigate</h1>
     <p class="text-text-body">
       Search a Steam ID, profile URL, personaname, or IPv4 across mirrored whois logs. Alt matches
       ignore SDR relays and private IPs.

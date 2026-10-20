@@ -68,7 +68,7 @@
     title={copied ? 'Copied!' : 'Copy address'}
     class="flex items-center gap-1.5 font-mono text-[11px] px-2 py-1 rounded border transition-all
       {copied
-      ? 'bg-success-500/15 border-success-500/40 text-success-400'
+      ? 'bg-success-500/15 border-success-500/40 text-success-ink'
       : 'bg-surface-input border-border-input text-text-muted hover:text-text-label hover:border-border-default'}"
   >
     <span>{activeAddress}</span>

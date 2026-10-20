@@ -81,10 +81,10 @@
       maxlength="500"
       bind:value={excerpt}
       placeholder="A short summary shown on the blog list and social previews"
-      class="w-full rounded-lg border border-border-input bg-surface-input px-4 py-3 text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+      class="w-full rounded-lg border border-border-input bg-surface-input px-4 py-3 text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
     ></textarea>
     {#if errors.excerpt}
-      <p class="mt-1 text-xs text-danger-400">{errors.excerpt}</p>
+      <p class="mt-1 text-xs text-danger-ink">{errors.excerpt}</p>
     {:else}
       <p class="mt-1 text-xs text-text-muted">Optional. Up to 500 characters.</p>
     {/if}
@@ -105,7 +105,7 @@
       name="coverImage"
       accept="image/png,image/jpeg,image/gif,image/webp"
       onchange={onCoverSelected}
-      class="block w-full max-w-md cursor-pointer text-sm text-text-body file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-surface-input file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-surface-hover"
+      class="block w-full max-w-md cursor-pointer text-sm text-text-body file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-surface-input file:px-4 file:py-2 file:text-sm file:font-medium file:text-text-heading hover:file:bg-surface-hover"
     />
     <p class="mt-1 text-xs text-text-muted">PNG, JPG, GIF, or WebP. Max 5MB. Optional.</p>
   </div>
@@ -134,7 +134,7 @@
       uploadImage={uploadContentImage}
     />
     {#if errors.content}
-      <p class="mt-1 text-xs text-danger-400">{errors.content}</p>
+      <p class="mt-1 text-xs text-danger-ink">{errors.content}</p>
     {/if}
   </div>
 

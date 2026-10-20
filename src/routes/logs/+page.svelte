@@ -66,7 +66,7 @@
         Showing logs for
         <a
           href="/users/{filterPlayer.steamId}"
-          class="font-semibold text-white hover:text-primary-400 transition-colors"
+          class="font-semibold text-text-heading hover:text-primary-ink transition-colors"
         >
           {filterPlayer.name ?? filterPlayer.steamId}
         </a>
@@ -100,11 +100,11 @@
                 {/each}
               </div>
               <span
-                class="text-white text-sm font-bold truncate group-hover:text-primary-400 transition-colors"
+                class="text-text-heading text-sm font-bold truncate group-hover:text-primary-ink transition-colors"
               >
                 {log.preview.winner.names.join(' & ')}
               </span>
-              <span class="text-white font-black text-base tabular-nums shrink-0">
+              <span class="text-text-heading font-black text-base tabular-nums shrink-0">
                 {log.preview.winner.score}
               </span>
             </div>
@@ -114,13 +114,15 @@
             <div class="flex items-center gap-1.5 min-w-0 flex-1 justify-start">
               <span
                 class="font-black text-base tabular-nums shrink-0 {log.aborted
-                  ? 'text-white'
+                  ? 'text-text-heading'
                   : 'text-text-muted'}"
               >
                 {log.preview.loser.score}
               </span>
               <span
-                class="text-sm font-bold truncate {log.aborted ? 'text-white' : 'text-text-label'}"
+                class="text-sm font-bold truncate {log.aborted
+                  ? 'text-text-heading'
+                  : 'text-text-label'}"
               >
                 {log.preview.loser.names.join(' & ')}
               </span>
@@ -140,7 +142,7 @@
         {:else}
           <a
             href="/logs/{log.id}"
-            class="text-text-muted text-sm hover:text-white transition-colors italic"
+            class="text-text-muted text-sm hover:text-text-heading transition-colors italic"
           >
             {log.aborted ? 'Aborted match' : `Match #${log.mgeMatchId}`}
           </a>

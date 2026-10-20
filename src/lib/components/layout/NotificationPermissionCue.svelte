@@ -14,7 +14,7 @@
       class="absolute top-[10.75rem] left-[14.5rem] flex w-44 flex-col items-center gap-1.5 text-center"
     >
       <svg
-        class="permission-arrow h-16 w-10 text-white drop-shadow-md"
+        class="permission-arrow h-16 w-10 text-text-heading drop-shadow-md"
         viewBox="0 0 48 72"
         fill="none"
         aria-hidden="true"
@@ -28,8 +28,8 @@
           stroke-linejoin="round"
         />
       </svg>
-      <p class="text-sm font-medium text-white drop-shadow-md">Allow notifications</p>
-      <p class="text-xs text-white/80 drop-shadow-md">Your browser is asking up here.</p>
+      <p class="text-sm font-medium text-text-heading drop-shadow-md">Allow notifications</p>
+      <p class="text-xs text-text-heading/80 drop-shadow-md">Your browser is asking up here.</p>
     </div>
   </div>
 {/if}

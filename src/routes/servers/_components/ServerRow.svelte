@@ -16,11 +16,11 @@
 
   const playerColor = $derived(
     fillPct >= 100
-      ? 'text-danger-400'
+      ? 'text-danger-ink'
       : fillPct >= 80
-        ? 'text-warning-400'
+        ? 'text-warning-ink'
         : fillPct > 0
-          ? 'text-white'
+          ? 'text-text-heading'
           : 'text-text-muted',
   );
 </script>
@@ -34,7 +34,7 @@
   <!-- Display name + rated badge -->
   <div class="flex items-center gap-2 min-w-0">
     <span
-      class="font-semibold text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis"
+      class="font-semibold text-text-heading text-sm whitespace-nowrap overflow-hidden text-ellipsis"
       title={server.displayName}
     >
       {server.displayName}
@@ -84,7 +84,7 @@
     <div class="min-w-0">
       <div class="flex items-center gap-2">
         <span
-          class="font-semibold text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis"
+          class="font-semibold text-text-heading text-sm whitespace-nowrap overflow-hidden text-ellipsis"
           >{server.displayName}</span
         >
         {#if server.elo}

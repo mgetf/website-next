@@ -47,7 +47,7 @@
           {#if comment.author}
             <a
               href="/users/{comment.author.steamId}"
-              class="text-sm font-semibold text-white hover:text-primary-400"
+              class="text-sm font-semibold text-text-heading hover:text-primary-ink"
             >
               {comment.author.name}
             </a>
@@ -79,7 +79,7 @@
           {#if isLoggedIn && !comment.deleted}
             <button
               type="button"
-              class="text-xs font-medium text-text-muted transition-colors hover:text-white"
+              class="text-xs font-medium text-text-muted transition-colors hover:text-text-heading"
               onclick={() => (showReplyForm = !showReplyForm)}
             >
               Reply
@@ -88,7 +88,7 @@
           {#if comment.canDelete}
             <button
               type="button"
-              class="text-xs font-medium text-text-muted transition-colors hover:text-danger-400"
+              class="text-xs font-medium text-text-muted transition-colors hover:text-danger-ink"
               onclick={() => (showDeleteConfirm = true)}
             >
               Delete

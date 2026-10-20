@@ -62,7 +62,7 @@
         {#each placements as placement (placement.place)}
           <li>
             <span class="text-text-muted">{placeText(placement.place)}</span>
-            <a href={placement.href} class="ml-1 text-white hover:text-primary-400">
+            <a href={placement.href} class="ml-1 text-text-heading hover:text-primary-ink">
               {placement.label}
             </a>
           </li>

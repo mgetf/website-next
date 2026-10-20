@@ -554,7 +554,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">League Configuration</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">League Configuration</h1>
     <p class="text-text-body">Manage seasons, regions, divisions, and arenas</p>
   </div>
 
@@ -566,7 +566,7 @@
         class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
         'seasons'
           ? 'bg-primary-600 text-white font-medium'
-          : 'text-text-body hover:text-white hover:bg-surface-input'}"
+          : 'text-text-body hover:text-text-heading hover:bg-surface-input'}"
       >
         <Trophy class="size-4 shrink-0" />
         Seasons
@@ -576,7 +576,7 @@
         class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
         'regions'
           ? 'bg-primary-600 text-white font-medium'
-          : 'text-text-body hover:text-white hover:bg-surface-input'}"
+          : 'text-text-body hover:text-text-heading hover:bg-surface-input'}"
       >
         <Globe class="size-4 shrink-0" />
         Regions
@@ -586,7 +586,7 @@
         class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
         'divisions'
           ? 'bg-primary-600 text-white font-medium'
-          : 'text-text-body hover:text-white hover:bg-surface-input'}"
+          : 'text-text-body hover:text-text-heading hover:bg-surface-input'}"
       >
         <Layers class="size-4 shrink-0" />
         Divisions
@@ -596,7 +596,7 @@
         class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
         'arenas'
           ? 'bg-primary-600 text-white font-medium'
-          : 'text-text-body hover:text-white hover:bg-surface-input'}"
+          : 'text-text-body hover:text-text-heading hover:bg-surface-input'}"
       >
         <Map class="size-4 shrink-0" />
         Arenas & Maps
@@ -606,7 +606,7 @@
         class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
         'formats'
           ? 'bg-primary-600 text-white font-medium'
-          : 'text-text-body hover:text-white hover:bg-surface-input'}"
+          : 'text-text-body hover:text-text-heading hover:bg-surface-input'}"
       >
         <Gamepad2 class="size-4 shrink-0" />
         Formats
@@ -619,7 +619,7 @@
     <!-- SEASONS TAB -->
     <div>
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold text-white">Seasons</h3>
+        <h3 class="text-xl font-bold text-text-heading">Seasons</h3>
         {#if data.isStrictAdmin}
           <Button variant="primary" onclick={() => (showSeasonForm = !showSeasonForm)}
             >{showSeasonForm ? '✕ Cancel' : '+ Create Season'}</Button
@@ -629,11 +629,11 @@
 
       {#if showSeasonForm && data.isStrictAdmin}
         <Card padding="none" class="p-6 mb-6">
-          <h4 class="text-lg font-semibold text-white mb-4">Create New Season</h4>
+          <h4 class="text-lg font-semibold text-text-heading mb-4">Create New Season</h4>
 
           {#if form?.error}
             <div class="mb-4 p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg">
-              <p class="text-danger-400 text-sm">{form.error}</p>
+              <p class="text-danger-ink text-sm">{form.error}</p>
             </div>
           {/if}
 
@@ -663,7 +663,7 @@
                   placeholder="5"
                   required
                   min="1"
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                 />
               </div>
               <div>
@@ -703,7 +703,7 @@
                   placeholder="10"
                   required
                   min="1"
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                 />
               </div>
             </div>
@@ -737,8 +737,8 @@
               onclick={() => (selectedFormat = formatName)}
               class="relative px-5 py-2.5 text-sm font-medium transition-colors {selectedFormat ===
               formatName
-                ? 'text-primary-400'
-                : 'text-text-body hover:text-white'}"
+                ? 'text-primary-ink'
+                : 'text-text-body hover:text-text-heading'}"
             >
               <span class="inline-flex items-center gap-1.5">
                 <FormatIcon
@@ -750,7 +750,7 @@
               </span>
               <span
                 class="ml-1.5 text-xs {selectedFormat === formatName
-                  ? 'text-primary-400/70'
+                  ? 'text-primary-ink/70'
                   : 'text-text-muted'}">{count}</span
               >
               {#if selectedFormat === formatName}
@@ -769,7 +769,7 @@
                 <div
                   class="bg-surface-input/50 px-6 py-3 border-b border-border-default flex items-center gap-3"
                 >
-                  <h4 class="text-base font-semibold text-white">{regionName}</h4>
+                  <h4 class="text-base font-semibold text-text-heading">{regionName}</h4>
                   <span class="text-xs text-text-muted"
                     >{regionMap[regionName].length} season{regionMap[regionName].length !== 1
                       ? 's'
@@ -786,10 +786,12 @@
                         <div
                           class="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center"
                         >
-                          <span class="text-lg font-bold text-primary-400">{season.seasonNum}</span>
+                          <span class="text-lg font-bold text-primary-ink">{season.seasonNum}</span>
                         </div>
                         <div>
-                          <div class="font-semibold text-white">Season {season.seasonNum}</div>
+                          <div class="font-semibold text-text-heading">
+                            Season {season.seasonNum}
+                          </div>
                           <div class="text-xs text-text-muted">ID: {season.id}</div>
                         </div>
                       </div>
@@ -799,10 +801,10 @@
                         <span class="text-sm text-text-label">{season.status}</span>
                       </div>
                     {:else if col.key === 'teams'}
-                      <span class="text-sm font-medium text-white">{season.teams}</span>
+                      <span class="text-sm font-medium text-text-heading">{season.teams}</span>
                       <span class="text-xs text-text-muted ml-1">teams</span>
                     {:else if col.key === 'matches'}
-                      <span class="text-sm font-medium text-white">{season.matches}</span>
+                      <span class="text-sm font-medium text-text-heading">{season.matches}</span>
                       <span class="text-xs text-text-muted ml-1">matches</span>
                     {:else if col.key === 'playoffs'}
                       {#if season.divisionPlayoffs.length > 0}
@@ -869,7 +871,7 @@
     <!-- REGIONS TAB -->
     <div>
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold text-white">Regions</h3>
+        <h3 class="text-xl font-bold text-text-heading">Regions</h3>
         {#if data.isStrictAdmin}
           <Button variant="primary" onclick={() => (showRegionForm = !showRegionForm)}
             >{showRegionForm ? '✕ Cancel' : '+ Add Region'}</Button
@@ -879,7 +881,7 @@
 
       {#if showRegionForm && data.isStrictAdmin}
         <Card padding="none" class="p-6 mb-6">
-          <h4 class="text-lg font-semibold text-white mb-4">Create New Region</h4>
+          <h4 class="text-lg font-semibold text-text-heading mb-4">Create New Region</h4>
           <form
             method="POST"
             action="?/createRegion"
@@ -905,7 +907,7 @@
                   type="text"
                   placeholder="North America"
                   required
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                 />
               </div>
               <div class="flex items-end">
@@ -921,7 +923,7 @@
       <DataTable data={data.regions} columns={regionColumns}>
         {#snippet cell(region: any, col: any)}
           {#if col.key === 'region'}
-            <span class="font-semibold text-white">{region.name}</span>
+            <span class="font-semibold text-text-heading">{region.name}</span>
           {:else if col.key === 'currency'}
             <span class="px-2 py-1 rounded text-xs font-medium bg-surface-input text-text-label">
               {region.currencySymbol || '€'}
@@ -969,7 +971,7 @@
     <!-- DIVISIONS TAB -->
     <div>
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold text-white">Divisions</h3>
+        <h3 class="text-xl font-bold text-text-heading">Divisions</h3>
         {#if data.isStrictAdmin}
           <Button variant="primary" onclick={() => (showDivisionForm = !showDivisionForm)}
             >{showDivisionForm ? '✕ Cancel' : '+ Add Division'}</Button
@@ -979,7 +981,7 @@
 
       {#if showDivisionForm && data.isStrictAdmin}
         <Card padding="none" class="p-6 mb-6">
-          <h4 class="text-lg font-semibold text-white mb-4">Create Division</h4>
+          <h4 class="text-lg font-semibold text-text-heading mb-4">Create Division</h4>
           <form
             method="POST"
             action="?/createDivision"
@@ -1007,7 +1009,7 @@
                   type="text"
                   placeholder="Open"
                   required
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                 />
               </div>
               <div>
@@ -1025,7 +1027,7 @@
                     placeholder="0.00"
                     step="0.01"
                     min="0"
-                    class="w-full pl-8 pr-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    class="w-full pl-8 pr-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                   />
                 </div>
               </div>
@@ -1098,7 +1100,7 @@
                     type="number"
                     min="1"
                     placeholder="e.g. 3"
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                   />
                 </div>
               </div>
@@ -1133,8 +1135,8 @@
               onclick={() => (selectedDivisionFormatId = format.id)}
               class="relative px-5 py-2.5 text-sm font-medium transition-colors {selectedDivisionFormatId ===
               format.id
-                ? 'text-primary-400'
-                : 'text-text-body hover:text-white'}"
+                ? 'text-primary-ink'
+                : 'text-text-body hover:text-text-heading'}"
             >
               <span class="inline-flex items-center gap-1.5">
                 <FormatIcon name={format.name} src={format.iconUrl} size="sm" />
@@ -1142,7 +1144,7 @@
               </span>
               <span
                 class="ml-1.5 text-xs {selectedDivisionFormatId === format.id
-                  ? 'text-primary-400/70'
+                  ? 'text-primary-ink/70'
                   : 'text-text-muted'}">{count}</span
               >
               {#if selectedDivisionFormatId === format.id}
@@ -1211,7 +1213,7 @@
                   <div class="bg-surface-input/50 px-6 py-4 border-b border-border-default">
                     <div class="flex items-center justify-between gap-3">
                       <div>
-                        <h3 class="text-xl font-bold text-white">{regionName}</h3>
+                        <h3 class="text-xl font-bold text-text-heading">{regionName}</h3>
                         <p class="text-sm text-text-body mt-1">
                           {regionData.divisions.length} division{regionData.divisions.length !== 1
                             ? 's'
@@ -1288,7 +1290,7 @@
       <div>
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h3 class="text-xl font-bold text-white">Arenas</h3>
+            <h3 class="text-xl font-bold text-text-heading">Arenas</h3>
             <p class="text-sm text-text-body mt-1">Manage map arenas for matches</p>
           </div>
 
@@ -1299,7 +1301,7 @@
 
         {#if showArenaForm}
           <Card padding="none" class="p-6 mb-6">
-            <h4 class="text-lg font-semibold text-white mb-4">Create New Arena</h4>
+            <h4 class="text-lg font-semibold text-text-heading mb-4">Create New Arena</h4>
             <form
               method="POST"
               action="?/createArena"
@@ -1327,7 +1329,7 @@
                     type="text"
                     placeholder="Badlands"
                     required
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                   />
                 </div>
                 <div>
@@ -1345,7 +1347,7 @@
                     name="avatarFile"
                     type="file"
                     accept="image/jpeg,image/png,image/gif,image/webp"
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-primary-600 file:text-white hover:file:bg-primary-500"
+                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-primary-600 file:text-white hover:file:bg-primary-500"
                   />
                 </div>
                 <div>
@@ -1377,7 +1379,7 @@
                   name="avatarUrl"
                   type="text"
                   placeholder="https://example.com/arena.png"
-                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                  class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                 />
               </div>
               <div class="mt-4 flex justify-end gap-3">
@@ -1425,7 +1427,7 @@
                       <span class="text-lg text-text-muted">?</span>
                     {/if}
                   </div>
-                  <span class="text-sm font-medium text-white">{arena.name}</span>
+                  <span class="text-sm font-medium text-text-heading">{arena.name}</span>
                 </div>
               {:else if col.key === 'playoff'}
                 <Badge color={arena.playoffMap === 1 ? 'purple' : 'zinc'}>
@@ -1464,7 +1466,7 @@
       <div class="pt-8 border-t border-border-default">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h3 class="text-xl font-bold text-white">Map Ban Pools</h3>
+            <h3 class="text-xl font-bold text-text-heading">Map Ban Pools</h3>
             <p class="text-sm text-text-body mt-1">Manage map pools for ban/pick phase</p>
           </div>
 
@@ -1475,7 +1477,7 @@
 
         {#if showPoolForm}
           <Card padding="none" class="p-6 mb-6">
-            <h4 class="text-lg font-semibold text-white mb-4">Create New Map Ban Pool</h4>
+            <h4 class="text-lg font-semibold text-text-heading mb-4">Create New Map Ban Pool</h4>
             <form
               method="POST"
               action="?/createMapBanPool"
@@ -1501,7 +1503,7 @@
                     type="text"
                     placeholder="Season 5 Map Pool"
                     required
-                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:border-primary-500"
                   />
                 </div>
                 <div class="flex items-end gap-3">
@@ -1530,7 +1532,7 @@
                 <div class="flex items-start justify-between mb-4">
                   <div class="flex-1">
                     <div class="flex items-center gap-3">
-                      <h4 class="text-lg font-semibold text-white">{pool.name}</h4>
+                      <h4 class="text-lg font-semibold text-text-heading">{pool.name}</h4>
                       <Badge color={pool.isActive ? 'green' : 'zinc'}>
                         {pool.isActive ? 'Active' : 'Inactive'}
                       </Badge>
@@ -1599,7 +1601,7 @@
                           <input type="hidden" name="arenaId" value={map.id} />
                           <button
                             type="submit"
-                            class="text-danger-400 hover:text-danger-300 transition-colors"
+                            class="text-danger-ink hover:text-danger-300 transition-colors"
                           >
                             ×
                           </button>
@@ -1622,7 +1624,7 @@
     <!-- FORMATS TAB -->
     <div>
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold text-white">Formats</h3>
+        <h3 class="text-xl font-bold text-text-heading">Formats</h3>
         {#if data.isStrictAdmin}
           <Button variant="primary" onclick={() => (showFormatForm = !showFormatForm)}
             >{showFormatForm ? 'Cancel' : '+ Add Format'}</Button
@@ -1633,7 +1635,7 @@
       <!-- Create Format Form -->
       {#if showFormatForm && data.isStrictAdmin}
         <div class="bg-surface-input/50 border border-border-input rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-medium text-white mb-4">Create New Format</h4>
+          <h4 class="text-lg font-medium text-text-heading mb-4">Create New Format</h4>
           <form
             method="POST"
             action="?/createFormat"
@@ -1736,7 +1738,7 @@
                 name="icon"
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp"
-                class="block w-full text-sm text-text-body file:mr-3 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+                class="block w-full text-sm text-text-body file:mr-3 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-text-heading"
               />
               <p class="mt-1 text-xs text-text-muted">
                 Square PNG or WebP works best. Same storage as Steam item icons.
@@ -1773,7 +1775,7 @@
                 </div>
               {/if}
             {:else if col.key === 'name'}
-              <span class="text-white font-medium">{format.name}</span>
+              <span class="text-text-heading font-medium">{format.name}</span>
             {:else if col.key === 'code'}
               <span class="px-2 py-1 bg-surface-hover rounded text-text-label text-sm font-mono"
                 >{format.code}</span
@@ -1855,7 +1857,7 @@
           name="icon"
           type="file"
           accept="image/jpeg,image/png,image/gif,image/webp"
-          class="block w-full text-xs text-text-body file:mr-2 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
+          class="block w-full text-xs text-text-body file:mr-2 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-text-heading"
           onchange={(event) => {
             const input = event.currentTarget;
             if (input.files && input.files.length > 0) {
@@ -2177,7 +2179,7 @@
             value={editingDivision.signupCost}
             step="0.01"
             min="0"
-            class="w-full pl-8 pr-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full pl-8 pr-4 py-3 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
       </div>
@@ -2206,7 +2208,7 @@
               min="1"
               value={editingDivision.itemPayment?.itemQuantity ?? ''}
               placeholder="e.g. 3"
-              class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-text-heading focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -2316,7 +2318,7 @@
             {@const regionKeys = selectableCopyKeysForRegion(region.id)}
             <div class="rounded-lg border border-border-default bg-surface-input/50 p-3">
               <div class="flex items-center justify-between gap-3 mb-3">
-                <span class="font-medium text-white">{region.name}</span>
+                <span class="font-medium text-text-heading">{region.name}</span>
                 <label class="flex items-center gap-2 text-sm text-text-label shrink-0">
                   <input
                     type="checkbox"
@@ -2547,12 +2549,14 @@
   <Dialog open={true} title="Delete Arena" onClose={() => (deletingArena = null)}>
     <div class="mb-6">
       <p class="text-text-label mb-4">
-        Are you sure you want to delete <strong class="text-white">{deletingArena.name}</strong>?
+        Are you sure you want to delete <strong class="text-text-heading"
+          >{deletingArena.name}</strong
+        >?
       </p>
 
       {#if deletingArena.games > 0}
         <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-4">
-          <p class="text-warning-400 text-sm font-medium mb-2">Cannot Delete</p>
+          <p class="text-warning-ink text-sm font-medium mb-2">Cannot Delete</p>
           <p class="text-warning-300 text-sm">
             This arena has {deletingArena.games} game{deletingArena.games !== 1 ? 's' : ''} played on
             it. You cannot delete it until these are removed.
@@ -2560,12 +2564,12 @@
         </div>
       {:else}
         <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-4">
-          <p class="text-danger-400 text-sm">This action cannot be undone.</p>
+          <p class="text-danger-ink text-sm">This action cannot be undone.</p>
         </div>
         <div>
           <label for="arenaDeleteConfirm" class="block text-sm text-text-body mb-1">
             Type
-            <strong class="text-white">DELETE</strong>
+            <strong class="text-text-heading">DELETE</strong>
             to confirm
           </label>
 
@@ -2574,7 +2578,7 @@
             type="text"
             bind:value={deleteConfirmText}
             placeholder="DELETE"
-            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-danger-500"
+            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:border-danger-500"
           />
         </div>
       {/if}
@@ -2653,12 +2657,14 @@
   <Dialog open={true} title="Delete Map Ban Pool" onClose={() => (deletingPool = null)}>
     <div class="mb-6">
       <p class="text-text-label mb-4">
-        Are you sure you want to delete <strong class="text-white">{deletingPool.name}</strong>?
+        Are you sure you want to delete <strong class="text-text-heading"
+          >{deletingPool.name}</strong
+        >?
       </p>
 
       {#if deletingPool.matchesUsed > 0}
         <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg">
-          <p class="text-warning-400 text-sm font-medium mb-2">⚠️ Warning</p>
+          <p class="text-warning-ink text-sm font-medium mb-2">⚠️ Warning</p>
           <p class="text-warning-300 text-sm">
             This pool is used in {deletingPool.matchesUsed} match{deletingPool.matchesUsed !== 1
               ? 'es'
@@ -2667,7 +2673,7 @@
         </div>
       {:else}
         <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg">
-          <p class="text-danger-400 text-sm">
+          <p class="text-danger-ink text-sm">
             ⚠️ This action cannot be undone. All maps in this pool will be removed.
           </p>
         </div>
@@ -2820,7 +2826,7 @@
         <div class="mb-6 space-y-4">
           {#each playoffDivisions as division (division.id)}
             <section class="rounded-lg border border-border-default p-4">
-              <h3 class="mb-4 text-sm font-semibold text-white">{division.name}</h3>
+              <h3 class="mb-4 text-sm font-semibold text-text-heading">{division.name}</h3>
               <div class="grid grid-cols-1 gap-x-6 sm:grid-cols-3">
                 <FormSelect
                   label="Format"
@@ -2878,7 +2884,7 @@
 
     {#if showPlayoffModal.divisionPlayoffs.length > 0}
       <div class="mt-8 border-t border-border-default pt-6">
-        <h2 class="text-sm font-semibold text-white mb-2">Generate brackets</h2>
+        <h2 class="text-sm font-semibold text-text-heading mb-2">Generate brackets</h2>
         <p class="text-text-body text-sm mb-4">
           Uses the saved format, series, and arena length, and every team in that division that has
           not withdrawn. Matches are created where both teams are already known.
@@ -2905,7 +2911,7 @@
               {#if generatedDivisionIds.has(division.id)}
                 <p class="text-xs text-text-muted">Bracket ready</p>
               {:else if saved && (selected !== saved || selectedSeries !== savedSeries || selectedGames !== savedGames)}
-                <p class="text-xs text-warning-400">
+                <p class="text-xs text-warning-ink">
                   Save the format, series, and arena length before generating.
                 </p>
               {:else if !saved}
@@ -2967,14 +2973,14 @@
   <Dialog open={true} title="Delete Season" onClose={() => (deletingSeason = null)}>
     <div class="mb-6">
       <p class="text-text-label mb-4">
-        Are you sure you want to delete <strong class="text-white"
+        Are you sure you want to delete <strong class="text-text-heading"
           >Season {deletingSeason.seasonNum} ({deletingSeason.region})</strong
         >?
       </p>
 
       {#if deletingSeason.teams > 0 || deletingSeason.matches > 0}
         <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-4">
-          <p class="text-warning-400 text-sm font-medium mb-2">Cannot Delete</p>
+          <p class="text-warning-ink text-sm font-medium mb-2">Cannot Delete</p>
           <p class="text-warning-300 text-sm">
             This season has {[
               deletingSeason.teams > 0
@@ -2990,12 +2996,12 @@
         </div>
       {:else}
         <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-4">
-          <p class="text-danger-400 text-sm">This action cannot be undone.</p>
+          <p class="text-danger-ink text-sm">This action cannot be undone.</p>
         </div>
         <div>
           <label for="seasonDeleteConfirm" class="block text-sm text-text-body mb-1">
             Type
-            <strong class="text-white">DELETE</strong>
+            <strong class="text-text-heading">DELETE</strong>
             to confirm
           </label>
 
@@ -3004,7 +3010,7 @@
             type="text"
             bind:value={deleteConfirmText}
             placeholder="DELETE"
-            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-danger-500"
+            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:border-danger-500"
           />
         </div>
       {/if}
@@ -3052,12 +3058,14 @@
   <Dialog open={true} title="Delete Region" onClose={() => (deletingRegion = null)}>
     <div class="mb-6">
       <p class="text-text-label mb-4">
-        Are you sure you want to delete <strong class="text-white">{deletingRegion.name}</strong>?
+        Are you sure you want to delete <strong class="text-text-heading"
+          >{deletingRegion.name}</strong
+        >?
       </p>
 
       {#if deletingRegion.seasons > 0 || deletingRegion.teams > 0}
         <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-4">
-          <p class="text-warning-400 text-sm font-medium mb-2">Cannot Delete</p>
+          <p class="text-warning-ink text-sm font-medium mb-2">Cannot Delete</p>
           <p class="text-warning-300 text-sm">
             This region has {[
               deletingRegion.seasons > 0
@@ -3073,12 +3081,12 @@
         </div>
       {:else}
         <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-4">
-          <p class="text-danger-400 text-sm">This action cannot be undone.</p>
+          <p class="text-danger-ink text-sm">This action cannot be undone.</p>
         </div>
         <div>
           <label for="regionDeleteConfirm" class="block text-sm text-text-body mb-1">
             Type
-            <strong class="text-white">DELETE</strong>
+            <strong class="text-text-heading">DELETE</strong>
             to confirm
           </label>
 
@@ -3087,7 +3095,7 @@
             type="text"
             bind:value={deleteConfirmText}
             placeholder="DELETE"
-            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-danger-500"
+            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:border-danger-500"
           />
         </div>
       {/if}
@@ -3135,12 +3143,14 @@
   <Dialog open={true} title="Delete Division" onClose={() => (deletingDivision = null)}>
     <div class="mb-6">
       <p class="text-text-label mb-4">
-        Are you sure you want to delete <strong class="text-white">{deletingDivision.name}</strong>?
+        Are you sure you want to delete <strong class="text-text-heading"
+          >{deletingDivision.name}</strong
+        >?
       </p>
 
       {#if deletingDivision.teams > 0}
         <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-4">
-          <p class="text-warning-400 text-sm font-medium mb-2">Cannot Delete</p>
+          <p class="text-warning-ink text-sm font-medium mb-2">Cannot Delete</p>
           <p class="text-warning-300 text-sm">
             This division has {deletingDivision.teams} team{deletingDivision.teams !== 1 ? 's' : ''} assigned
             to it. You cannot delete it until these are removed.
@@ -3148,12 +3158,12 @@
         </div>
       {:else}
         <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-4">
-          <p class="text-danger-400 text-sm">This action cannot be undone.</p>
+          <p class="text-danger-ink text-sm">This action cannot be undone.</p>
         </div>
         <div>
           <label for="divisionDeleteConfirm" class="block text-sm text-text-body mb-1">
             Type
-            <strong class="text-white">DELETE</strong>
+            <strong class="text-text-heading">DELETE</strong>
             to confirm
           </label>
 
@@ -3162,7 +3172,7 @@
             type="text"
             bind:value={deleteConfirmText}
             placeholder="DELETE"
-            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-danger-500"
+            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:border-danger-500"
           />
         </div>
       {/if}
@@ -3208,13 +3218,15 @@
   <Dialog open={true} title="Delete Format" onClose={() => (deletingFormat = null)}>
     <div class="mb-6">
       <p class="text-text-label mb-4">
-        Are you sure you want to delete <strong class="text-white">{deletingFormat.name}</strong>
+        Are you sure you want to delete <strong class="text-text-heading"
+          >{deletingFormat.name}</strong
+        >
         (<span class="font-mono">{deletingFormat.code}</span>)?
       </p>
 
       {#if deletingFormat.seasons > 0 || deletingFormat.teams > 0 || deletingFormat.activeSignupSeasons > 0}
         <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-4">
-          <p class="text-warning-400 text-sm font-medium mb-2">Cannot Delete</p>
+          <p class="text-warning-ink text-sm font-medium mb-2">Cannot Delete</p>
           <p class="text-warning-300 text-sm">
             This format is used by
             {[
@@ -3232,12 +3244,12 @@
         </div>
       {:else}
         <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-4">
-          <p class="text-danger-400 text-sm">This action cannot be undone.</p>
+          <p class="text-danger-ink text-sm">This action cannot be undone.</p>
         </div>
         <div>
           <label for="formatDeleteConfirm" class="block text-sm text-text-body mb-1">
             Type
-            <strong class="text-white">DELETE</strong>
+            <strong class="text-text-heading">DELETE</strong>
             to confirm
           </label>
 
@@ -3246,7 +3258,7 @@
             type="text"
             bind:value={deleteConfirmText}
             placeholder="DELETE"
-            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-danger-500"
+            class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:border-danger-500"
           />
         </div>
       {/if}

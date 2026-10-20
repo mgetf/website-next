@@ -77,21 +77,21 @@
   function getCategoryColor(cat: string): string {
     switch (cat) {
       case 'AUTH':
-        return 'bg-info-500/20 text-info-400';
+        return 'bg-info-500/20 text-info-ink';
       case 'USER':
-        return 'bg-purple-500/20 text-purple-400';
+        return 'bg-purple-500/20 text-theme-purple-ink';
       case 'TEAM':
-        return 'bg-success-500/20 text-success-400';
+        return 'bg-success-500/20 text-success-ink';
       case 'ROSTER':
         return 'bg-teal-500/20 text-teal-400';
       case 'MATCH':
-        return 'bg-orange-500/20 text-primary-400';
+        return 'bg-orange-500/20 text-primary-ink';
       case 'MAP_BAN':
-        return 'bg-warning-500/20 text-warning-400';
+        return 'bg-warning-500/20 text-warning-ink';
       case 'SIGNUP':
         return 'bg-cyan-500/20 text-cyan-400';
       case 'PAYMENT':
-        return 'bg-success-500/20 text-success-400';
+        return 'bg-success-500/20 text-success-ink';
       case 'DEMO':
         return 'bg-pink-500/20 text-pink-400';
       case 'LEAGUE_CONFIG':
@@ -159,7 +159,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Header -->
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Audit Logs</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Audit Logs</h1>
     <p class="text-text-body">
       {data.pagination.totalCount.toLocaleString()} total entries recorded
     </p>
@@ -177,7 +177,7 @@
           class="flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors text-sm
 					{filterCategory === stat.category
             ? 'border-primary-500/50 bg-primary-500/10 text-primary-300'
-            : 'border-border-input bg-surface-card text-text-body hover:border-border-input hover:text-white'}"
+            : 'border-border-input bg-surface-card text-text-body hover:border-border-input hover:text-text-heading'}"
         >
           <span class="px-1.5 py-0.5 rounded text-xs font-medium {getCategoryColor(stat.category)}">
             {stat.category}
@@ -207,7 +207,7 @@
           type="text"
           bind:value={filterAction}
           placeholder="Action (e.g. USER_BANNED)"
-          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -218,7 +218,7 @@
           type="text"
           bind:value={filterActorId}
           placeholder="Actor Steam ID"
-          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -238,7 +238,7 @@
           type="text"
           bind:value={filterTargetId}
           placeholder="Target ID"
-          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -248,7 +248,7 @@
           id="f-from"
           type="date"
           bind:value={filterDateFrom}
-          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -258,7 +258,7 @@
           id="f-to"
           type="date"
           bind:value={filterDateTo}
-          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+          class="w-full px-4 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
         />
       </div>
 
@@ -301,7 +301,7 @@
             <a
               href="/users/{log.actorId}"
               onclick={(e) => e.stopPropagation()}
-              class="text-xs text-white hover:text-primary-400 transition-colors truncate"
+              class="text-xs text-text-heading hover:text-primary-ink transition-colors truncate"
             >
               {log.actorUsername ?? log.actorId}
             </a>
@@ -314,7 +314,7 @@
           {log.category}
         </span>
       {:else if col.key === 'action'}
-        <span class="font-mono text-xs text-white">{log.action}</span>
+        <span class="font-mono text-xs text-text-heading">{log.action}</span>
       {:else if col.key === 'target'}
         {#if log.targetType === 'User' && log.targetId}
           <div class="flex items-center gap-2 min-w-0">
@@ -324,7 +324,7 @@
             <a
               href="/users/{log.targetId}"
               onclick={(e) => e.stopPropagation()}
-              class="text-xs text-white hover:text-primary-400 transition-colors truncate"
+              class="text-xs text-text-heading hover:text-primary-ink transition-colors truncate"
             >
               {log.targetUsername ?? log.targetId}
             </a>

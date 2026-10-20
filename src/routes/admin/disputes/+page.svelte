@@ -40,7 +40,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Disputed Matches</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Disputed Matches</h1>
     <p class="text-text-body">Review and resolve match disputes</p>
   </div>
 
@@ -48,10 +48,10 @@
   <div class="space-y-4">
     {#if data.disputedMatches.length === 0}
       <Card padding="none" class="p-12 text-center">
-        <div class="mb-4 flex justify-center text-success-400">
+        <div class="mb-4 flex justify-center text-success-ink">
           <CircleCheck class="size-16" />
         </div>
-        <h3 class="text-xl font-bold text-white mb-2">No Disputed Matches</h3>
+        <h3 class="text-xl font-bold text-text-heading mb-2">No Disputed Matches</h3>
         <p class="text-text-body">All matches have been resolved</p>
       </Card>
     {:else}
@@ -61,13 +61,13 @@
             <div class="flex-1">
               <!-- Match Info -->
               <div class="flex items-center gap-3 mb-2">
-                <h3 class="text-lg font-bold text-white">
+                <h3 class="text-lg font-bold text-text-heading">
                   Match #{match.id}
                 </h3>
                 <span
                   class="px-2 py-1 text-xs font-medium rounded {getStatusColor(
                     match.status,
-                  )} text-white"
+                  )} text-text-heading"
                 >
                   {getStatusLabel(match.status)}
                 </span>
@@ -77,14 +77,14 @@
               <div class="flex items-center gap-3 mb-2">
                 <a
                   href="/teams/{match.homeTeam.id}"
-                  class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                  class="text-primary-ink hover:text-primary-300 font-medium transition-colors"
                 >
                   {match.homeTeam.name}
                 </a>
                 <span class="text-text-muted">vs</span>
                 <a
                   href="/teams/{match.awayTeam.id}"
-                  class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                  class="text-primary-ink hover:text-primary-300 font-medium transition-colors"
                 >
                   {match.awayTeam.name}
                 </a>

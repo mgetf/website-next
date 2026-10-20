@@ -61,7 +61,7 @@
   <Card>
     {#snippet header()}
       <div class="flex flex-wrap items-center gap-2">
-        <h2 class="text-lg font-semibold text-white">These stay ours</h2>
+        <h2 class="text-lg font-semibold text-text-heading">These stay ours</h2>
         <Badge color="zinc">no library needed</Badge>
       </div>
     {/snippet}
@@ -80,7 +80,7 @@
 
   <section class="space-y-4">
     <div>
-      <h2 class="text-lg font-semibold text-white">Select — shipping</h2>
+      <h2 class="text-lg font-semibold text-text-heading">Select — shipping</h2>
       <p class="text-sm text-text-body">
         <code class="text-text-label">FormSelect</code> and
         <code class="text-text-label">SelectFilter</code> share
@@ -92,7 +92,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">FormSelect</h3>
+            <h3 class="font-semibold text-text-heading">FormSelect</h3>
             <Badge color="orange">bits behind</Badge>
           </div>
         {/snippet}
@@ -108,7 +108,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">SelectFilter</h3>
+            <h3 class="font-semibold text-text-heading">SelectFilter</h3>
             <Badge color="orange">bits behind</Badge>
           </div>
         {/snippet}
@@ -120,7 +120,7 @@
 
   <section class="space-y-4">
     <div>
-      <h2 class="text-lg font-semibold text-white">Dialog — shipping</h2>
+      <h2 class="text-lg font-semibold text-text-heading">Dialog — shipping</h2>
       <p class="text-sm text-text-body">
         Same
         <code class="text-text-label">Dialog</code> /
@@ -132,7 +132,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Dialog</h3>
+            <h3 class="font-semibold text-text-heading">Dialog</h3>
             <Badge color="orange">bits behind</Badge>
           </div>
         {/snippet}
@@ -151,7 +151,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">ConfirmDialog</h3>
+            <h3 class="font-semibold text-text-heading">ConfirmDialog</h3>
             <Badge color="orange">uses Dialog</Badge>
           </div>
         {/snippet}
@@ -178,7 +178,7 @@
 
   <section class="space-y-4">
     <div>
-      <h2 class="text-lg font-semibold text-white">Tooltip — shipping</h2>
+      <h2 class="text-lg font-semibold text-text-heading">Tooltip — shipping</h2>
       <p class="text-sm text-text-body">
         Unstyled trigger wrapping children so Badge pills keep their look. Hover or Tab.
       </p>
@@ -193,7 +193,7 @@
 
   <section class="space-y-4">
     <div>
-      <h2 class="text-lg font-semibold text-white">Checkbox — not yet</h2>
+      <h2 class="text-lg font-semibold text-text-heading">Checkbox — not yet</h2>
       <p class="text-sm text-text-body">
         Native checkboxes follow the OS. Bits gives a custom box, focus ring, and mixed
         (indeterminate) state.
@@ -203,7 +203,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Current</h3>
+            <h3 class="font-semibold text-text-heading">Current</h3>
             <Badge color="zinc">native input</Badge>
           </div>
         {/snippet}
@@ -224,7 +224,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Bits UI</h3>
+            <h3 class="font-semibold text-text-heading">Bits UI</h3>
             <Badge color="zinc">later</Badge>
           </div>
         {/snippet}
@@ -251,7 +251,7 @@
 
   <section class="space-y-4">
     <div>
-      <h2 class="text-lg font-semibold text-white">Switch — not yet</h2>
+      <h2 class="text-lg font-semibold text-text-heading">Switch — not yet</h2>
       <p class="text-sm text-text-body">
         We do not have this primitive. The fallback is a checkbox.
       </p>
@@ -260,7 +260,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Current</h3>
+            <h3 class="font-semibold text-text-heading">Current</h3>
             <Badge color="zinc">no switch</Badge>
           </div>
         {/snippet}
@@ -280,7 +280,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Bits UI</h3>
+            <h3 class="font-semibold text-text-heading">Bits UI</h3>
             <Badge color="zinc">later</Badge>
           </div>
         {/snippet}
@@ -297,7 +297,7 @@
 
   <section class="space-y-4">
     <div>
-      <h2 class="text-lg font-semibold text-white">Dropdown menu — shipping</h2>
+      <h2 class="text-lg font-semibold text-text-heading">Dropdown menu — shipping</h2>
       <p class="text-sm text-text-body">
         Account uses Bits
         <code class="text-text-label">DropdownMenu</code>
@@ -310,7 +310,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Before</h3>
+            <h3 class="font-semibold text-text-heading">Before</h3>
             <Badge color="zinc">click-outside</Badge>
           </div>
         {/snippet}
@@ -322,7 +322,7 @@
       <Card>
         {#snippet header()}
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-white">Nav now</h3>
+            <h3 class="font-semibold text-text-heading">Nav now</h3>
             <Badge color="orange">bits behind</Badge>
           </div>
         {/snippet}

@@ -8,11 +8,11 @@
 
 <div class="space-y-3">
   <div class="flex flex-wrap items-center justify-between gap-2">
-    <h2 class="text-base font-semibold text-white">Profiling</h2>
+    <h2 class="text-base font-semibold text-text-heading">Profiling</h2>
     <div class="flex flex-wrap items-center gap-3">
       {#if steam64}
         <ProfilingRefresh steamId={steam64} cachedAt={snapshot.cachedAt} />
-        <a class="text-sm text-primary-400 hover:underline" href="/users/{steam64}?tab=profiling">
+        <a class="text-sm text-primary-ink hover:underline" href="/users/{steam64}?tab=profiling">
           Open full profile
         </a>
       {/if}

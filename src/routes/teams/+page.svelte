@@ -272,7 +272,7 @@
             {/if}
             <div>
               <div
-                class="text-sm font-medium text-white group-hover:text-primary-400 transition-colors"
+                class="text-sm font-medium text-text-heading group-hover:text-primary-ink transition-colors"
               >
                 {team.name}
               </div>
@@ -303,7 +303,7 @@
             <span class="text-sm text-text-muted">—</span>
           {/if}
         {:else if col.key === 'record'}
-          <div class="text-sm font-medium text-white whitespace-nowrap">
+          <div class="text-sm font-medium text-text-heading whitespace-nowrap">
             {team.wins}W - {team.losses}L
           </div>
         {:else if col.key === 'players'}

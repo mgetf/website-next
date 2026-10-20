@@ -42,7 +42,7 @@
 <div class="max-w-7xl mx-auto">
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-3xl font-bold text-white mb-2">Item Payment Orders</h1>
+      <h1 class="text-3xl font-bold text-text-heading mb-2">Item Payment Orders</h1>
       <p class="text-text-body">{data.total} total orders</p>
     </div>
   </div>
@@ -54,8 +54,8 @@
         href="?status={status}&page=1"
         class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {data.statusFilter ===
         status
-          ? 'bg-orange-500/20 text-primary-400 border border-orange-500/30'
-          : 'bg-surface-input text-text-body hover:text-white hover:bg-surface-hover border border-border-input'}"
+          ? 'bg-orange-500/20 text-primary-ink border border-orange-500/30'
+          : 'bg-surface-input text-text-body hover:text-text-heading hover:bg-surface-hover border border-border-input'}"
       >
         {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
       </a>
@@ -83,12 +83,12 @@
             {#each data.orders as order (order.id)}
               <tr class="hover:bg-surface-input/30 transition-colors">
                 <td class="px-4 py-3">
-                  <span class="text-white font-mono text-xs">{order.orderNumber}</span>
+                  <span class="text-text-heading font-mono text-xs">{order.orderNumber}</span>
                 </td>
                 <td class="px-4 py-3">
                   <a
                     href="/users/{order.playerSteamId}"
-                    class="text-primary-400 hover:text-primary-300 transition-colors text-xs"
+                    class="text-primary-ink hover:text-primary-300 transition-colors text-xs"
                   >
                     {order.playerName}
                   </a>
@@ -102,7 +102,7 @@
                     {/if}
                     <a
                       href="/teams/{order.teamId}"
-                      class="text-primary-400 hover:text-primary-300 transition-colors text-xs truncate"
+                      class="text-primary-ink hover:text-primary-300 transition-colors text-xs truncate"
                     >
                       {order.teamName}
                     </a>

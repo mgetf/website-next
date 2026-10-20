@@ -47,14 +47,14 @@
   const triggerClass = $derived(
     `inline-flex items-center gap-2 px-6 py-2 rounded font-medium transition-all ${
       selected
-        ? 'bg-surface-hover text-white border border-border-input'
+        ? 'bg-surface-hover text-text-heading border border-border-input'
         : 'bg-surface-card text-text-label hover:bg-surface-input border border-border-default'
     }`,
   );
   const contentClass =
     'z-50 min-w-52 max-h-72 overflow-y-auto rounded-lg border border-border-default bg-surface-card p-1 shadow-xl outline-none';
   const itemClass =
-    'flex cursor-pointer select-none items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-text-label outline-none data-highlighted:bg-surface-input data-highlighted:text-white';
+    'flex cursor-pointer select-none items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-text-label outline-none data-highlighted:bg-surface-input data-highlighted:text-text-heading';
   const headingClass =
     'px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-muted';
 
@@ -89,7 +89,7 @@
               {#snippet children({ checked })}
                 <span>{current.name}</span>
                 {#if checked}
-                  <Check class="size-4 shrink-0 text-primary-400" />
+                  <Check class="size-4 shrink-0 text-primary-ink" />
                 {/if}
               {/snippet}
             </DropdownMenu.RadioItem>
@@ -102,7 +102,7 @@
                 {#snippet children({ checked })}
                   <span>{season.name}</span>
                   {#if checked}
-                    <Check class="size-4 shrink-0 text-primary-400" />
+                    <Check class="size-4 shrink-0 text-primary-ink" />
                   {/if}
                 {/snippet}
               </DropdownMenu.RadioItem>
@@ -114,7 +114,7 @@
               {#snippet children({ checked })}
                 <span>{season.name}</span>
                 {#if checked}
-                  <Check class="size-4 shrink-0 text-primary-400" />
+                  <Check class="size-4 shrink-0 text-primary-ink" />
                 {/if}
               {/snippet}
             </DropdownMenu.RadioItem>

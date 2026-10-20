@@ -43,7 +43,7 @@
 
 {#snippet unavailableReason(reason: string | undefined)}
   {#if reason}
-    <p class="mt-4 flex items-start justify-center gap-1.5 text-sm text-warning-400">
+    <p class="mt-4 flex items-start justify-center gap-1.5 text-sm text-warning-ink">
       <TriangleAlert class="mt-0.5 size-4 shrink-0" />
       <span>{reason}</span>
     </p>
@@ -53,7 +53,7 @@
 <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
   <div class="max-w-5xl w-full">
     <div class="text-center mb-12">
-      <h1 class="text-4xl font-bold text-white mb-4">League Signups</h1>
+      <h1 class="text-4xl font-bold text-text-heading mb-4">League Signups</h1>
       <p class="text-text-body text-lg">Sign up for the upcoming season</p>
       <p class="text-text-body text-sm mt-3">
         Fill out signup once per format to play more than one.
@@ -65,7 +65,7 @@
         <div class="mb-4 flex justify-center">
           <Lock class="size-16 text-text-muted" />
         </div>
-        <h2 class="text-2xl font-bold text-white mb-4">Signups Are Closed</h2>
+        <h2 class="text-2xl font-bold text-text-heading mb-4">Signups Are Closed</h2>
         <p class="text-text-body text-lg">
           Signups are not currently open. Check back later or join our Discord for updates.
         </p>
@@ -97,7 +97,7 @@
                 >
                   <div class="text-center">
                     {@render cardIcon(Trophy, themeClasses.text400, formatSignup.format.iconUrl)}
-                    <h2 class="text-2xl font-bold text-white mb-3">
+                    <h2 class="text-2xl font-bold text-text-heading mb-3">
                       {formatSignup.format.name} League
                     </h2>
                     <p class="text-text-body mb-3">Sign up as an individual player</p>
@@ -111,7 +111,7 @@
                 <Card padding="lg" class="opacity-60 cursor-not-allowed">
                   <div class="text-center">
                     {@render cardIcon(Trophy, themeClasses.text400, formatSignup.format.iconUrl)}
-                    <h2 class="text-2xl font-bold text-white mb-3">
+                    <h2 class="text-2xl font-bold text-text-heading mb-3">
                       {formatSignup.format.name} League
                     </h2>
                     <p class="text-text-body mb-3">Sign up as an individual player</p>
@@ -136,8 +136,8 @@
                   class="group bg-surface-card border border-border-default hover:border-primary-600 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-primary-500/20"
                 >
                   <div class="text-center">
-                    {@render cardIcon(UserPlus, 'text-primary-400')}
-                    <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
+                    {@render cardIcon(UserPlus, 'text-primary-ink')}
+                    <h2 class="text-2xl font-bold text-text-heading mb-3">Create New Team</h2>
                     <p class="text-text-body mb-3">
                       Start fresh with a brand new {formatSignup.format.name} team
                     </p>
@@ -152,8 +152,8 @@
               {:else}
                 <Card padding="lg" class="opacity-60 cursor-not-allowed">
                   <div class="text-center">
-                    {@render cardIcon(UserPlus, 'text-primary-400')}
-                    <h2 class="text-2xl font-bold text-white mb-3">Create New Team</h2>
+                    {@render cardIcon(UserPlus, 'text-primary-ink')}
+                    <h2 class="text-2xl font-bold text-text-heading mb-3">Create New Team</h2>
                     <p class="text-text-body mb-3">
                       Start fresh with a brand new {formatSignup.format.name} team
                     </p>
@@ -177,7 +177,7 @@
                   >
                     <div class="text-center">
                       {@render cardIcon(RefreshCcw, themeClasses.text400)}
-                      <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
+                      <h2 class="text-2xl font-bold text-text-heading mb-3">Re-register Team</h2>
                       <p class="text-text-body mb-3">Sign up an existing team for the new season</p>
                       <SignupFeeLabel fee={formatSignup.fee} class="mb-4" />
                       <div class="inline-block px-4 py-2 rounded-lg {themeClasses.button}">
@@ -189,7 +189,7 @@
                   <Card padding="lg" class="opacity-60 cursor-not-allowed">
                     <div class="text-center">
                       {@render cardIcon(RefreshCcw, themeClasses.text400)}
-                      <h2 class="text-2xl font-bold text-white mb-3">Re-register Team</h2>
+                      <h2 class="text-2xl font-bold text-text-heading mb-3">Re-register Team</h2>
                       <p class="text-text-body mb-3">Sign up an existing team for the new season</p>
                       <SignupFeeLabel fee={formatSignup.fee} class="mb-4" />
                       <div
@@ -211,7 +211,7 @@
         <p>
           Need help? Check out our <a
             href="/rulebook"
-            class="text-primary-500 hover:text-primary-400">rulebook</a
+            class="text-primary-500 hover:text-primary-ink">rulebook</a
           > or join our Discord
         </p>
       </div>

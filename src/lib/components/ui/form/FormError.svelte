@@ -15,7 +15,7 @@
       ? 'bg-danger-500/20 border border-danger-500/50'
       : 'bg-success-500/20 border border-success-500/50',
   );
-  const textClasses = $derived(isError ? 'text-danger-400' : 'text-success-400');
+  const textClasses = $derived(isError ? 'text-danger-ink' : 'text-success-ink');
 </script>
 
 {#if hasMessage}

@@ -58,7 +58,7 @@
         <div
           class="relative bg-gradient-to-r from-danger-800/90 to-danger-600/80 rounded-lg px-4 py-3 pr-10 border border-danger-700/50"
         >
-          <p class="text-gray-100 text-center text-sm sm:text-base font-medium">
+          <p class="text-white text-center text-sm sm:text-base font-medium">
             {announcement.content}
           </p>
           <button

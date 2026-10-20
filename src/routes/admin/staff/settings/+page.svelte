@@ -214,7 +214,7 @@
 <div class="max-w-4xl mx-auto space-y-6">
   <div class="flex items-end justify-between gap-3">
     <div>
-      <h1 class="text-3xl font-bold text-white mb-2">Staff mappings</h1>
+      <h1 class="text-3xl font-bold text-text-heading mb-2">Staff mappings</h1>
       <p class="text-text-body">
         Map Moderator and Admin to SourceBans groups and Discord roles. Scoped rules add extra
         Discord roles from league assignments.
@@ -224,13 +224,13 @@
   </div>
 
   {#if !data.sourcebansConfigured}
-    <p class="text-sm text-warning-400">
+    <p class="text-sm text-warning-ink">
       SourceBans is not configured. Set SOURCEBANS_API_URL and SOURCEBANS_API_TOKEN to sync in-game
       admin.
     </p>
   {/if}
   {#if !data.discordConfigured}
-    <p class="text-sm text-warning-400">
+    <p class="text-sm text-warning-ink">
       Discord bot is not configured. Set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID to assign guild
       roles.
     </p>
@@ -273,7 +273,7 @@
 
     <Card>
       {#snippet header()}
-        <h3 class="text-lg font-semibold text-white">Moderator</h3>
+        <h3 class="text-lg font-semibold text-text-heading">Moderator</h3>
       {/snippet}
       <FormSelect
         label="SourceBans server group"
@@ -354,7 +354,7 @@
 
     <Card>
       {#snippet header()}
-        <h3 class="text-lg font-semibold text-white">Admin</h3>
+        <h3 class="text-lg font-semibold text-text-heading">Admin</h3>
       {/snippet}
       <FormSelect
         label="SourceBans server group"
@@ -426,7 +426,7 @@
 
     <Card>
       {#snippet header()}
-        <h3 class="text-lg font-semibold text-white">Discord rules</h3>
+        <h3 class="text-lg font-semibold text-text-heading">Discord rules</h3>
       {/snippet}
       <p class="text-sm text-text-muted mb-4">
         Extra roles granted when a staff member’s league assignments match. Empty filters mean
@@ -503,7 +503,7 @@
 
     <Card>
       {#snippet header()}
-        <h3 class="text-lg font-semibold text-white">SourceBans servers by region</h3>
+        <h3 class="text-lg font-semibold text-text-heading">SourceBans servers by region</h3>
       {/snippet}
       <p class="text-sm text-text-muted mb-4">
         If this list is empty, staff keep default SourceBans server access. Otherwise only servers

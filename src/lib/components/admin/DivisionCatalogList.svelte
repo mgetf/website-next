@@ -182,18 +182,18 @@
           <div
             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary-500/30 bg-primary-500/10"
           >
-            <span class="text-lg font-bold text-primary-400"
+            <span class="text-lg font-bold text-primary-ink"
               >{division.name.charAt(0).toUpperCase()}</span
             >
           </div>
           <div class="min-w-0">
-            <div class="truncate font-semibold text-white">{division.name}</div>
+            <div class="truncate font-semibold text-text-heading">{division.name}</div>
             <div class="text-xs text-text-muted">ID: {division.id}</div>
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           {#if division.signupCost > 0}
-            <span class="text-sm font-medium text-success-400"
+            <span class="text-sm font-medium text-success-ink"
               >{currencySymbol}{division.signupCost.toFixed(2)}</span
             >
           {:else}
@@ -209,7 +209,7 @@
           {division.hidden === 0 ? 'Visible' : 'Hidden'}
         </Badge>
         <div>
-          <span class="text-sm font-medium text-white">{division.teams}</span>
+          <span class="text-sm font-medium text-text-heading">{division.teams}</span>
           <span class="ml-1 text-xs text-text-muted">teams</span>
         </div>
         {#if canReorder}

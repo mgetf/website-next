@@ -208,7 +208,7 @@
   <!-- Page Header -->
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="text-3xl font-bold text-white mb-2">Match Management</h1>
+      <h1 class="text-3xl font-bold text-text-heading mb-2">Match Management</h1>
       <p class="text-text-body">View league matches, or schedule one match or a full week</p>
     </div>
     <div class="flex flex-col gap-2 sm:flex-row">
@@ -223,7 +223,7 @@
         class="bg-warning-500/10 px-6 py-4 border-b border-warning-500/30 flex items-center justify-between gap-4"
       >
         <div>
-          <h2 class="text-lg font-bold text-white">Pending drafts</h2>
+          <h2 class="text-lg font-bold text-text-heading">Pending drafts</h2>
           <p class="text-sm text-text-body">Saved match sets waiting for an admin to publish</p>
         </div>
         <Badge color="yellow">{data.pendingDrafts.length}</Badge>
@@ -242,7 +242,7 @@
         {#snippet cell(draft, col)}
           {#if col.key === 'scope'}
             <div>
-              <div class="font-semibold text-white">{draft.divisionName}</div>
+              <div class="font-semibold text-text-heading">{draft.divisionName}</div>
               <div class="text-xs text-text-muted">
                 {draft.formatName} · {draft.regionName} · Season {draft.seasonNo}
               </div>
@@ -263,7 +263,7 @@
               </span>
             </div>
           {:else if col.key === 'matches'}
-            <span class="text-white">{draft.matchCount}</span>
+            <span class="text-text-heading">{draft.matchCount}</span>
           {:else if col.key === 'author'}
             <span class="text-text-label">{draft.createdByName}</span>
           {:else if col.key === 'saved'}
@@ -356,7 +356,7 @@
       <Card padding="none" class="overflow-hidden">
         <!-- Division Header -->
         <div class="bg-surface-input px-6 py-4 border-b border-border-input">
-          <h3 class="text-xl font-bold text-white text-center">{division.name}</h3>
+          <h3 class="text-xl font-bold text-text-heading text-center">{division.name}</h3>
         </div>
 
         <!-- Match Table -->
@@ -365,7 +365,7 @@
             {#if col.key === 'match'}
               <a
                 href={resolve('/matches/[id]', { id: String(match.id) })}
-                class="text-info-400 hover:text-white hover:underline"
+                class="text-info-ink hover:text-text-heading hover:underline"
               >
                 {getMatchTitle(match)}
               </a>
@@ -407,7 +407,7 @@
             {:else if col.key === 'home'}
               <a
                 href={resolve('/teams/[id]', { id: String(match.homeTeam.id) })}
-                class="text-primary-400 hover:text-primary-300 hover:underline {getWinnerClass(
+                class="text-primary-ink hover:text-primary-300 hover:underline {getWinnerClass(
                   match,
                   match.homeTeamId,
                 )}"
@@ -415,11 +415,11 @@
                 {match.homeTeam.name}
               </a>
             {:else if col.key === 'score'}
-              <span class="text-white font-semibold">{getScoreDisplay(match)}</span>
+              <span class="text-text-heading font-semibold">{getScoreDisplay(match)}</span>
             {:else if col.key === 'away'}
               <a
                 href={resolve('/teams/[id]', { id: String(match.awayTeam.id) })}
-                class="text-primary-400 hover:text-primary-300 hover:underline {getWinnerClass(
+                class="text-primary-ink hover:text-primary-300 hover:underline {getWinnerClass(
                   match,
                   match.awayTeamId,
                 )}"

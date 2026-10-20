@@ -129,7 +129,7 @@
   <Card padding="sm" class="max-h-full overflow-y-auto shadow-lg">
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0">
-        <h2 class="truncate text-sm font-semibold text-white">{name}</h2>
+        <h2 class="truncate text-sm font-semibold text-text-heading">{name}</h2>
         <p class="truncate font-mono text-[10px] text-text-muted">{steamId}</p>
       </div>
       <Button href="/users/{steamId}?tab=profiling" variant="ghost" size="sm">Profile</Button>
@@ -138,7 +138,7 @@
     {#if status === 'loading'}
       <p class="mt-3 text-sm text-text-muted">Loading snapshot…</p>
     {:else if status === 'error' && !snapshot}
-      <p class="mt-3 text-sm text-danger-400">Could not load this player's profiling snapshot.</p>
+      <p class="mt-3 text-sm text-danger-ink">Could not load this player's profiling snapshot.</p>
     {:else if !hasFacts}
       <p class="mt-3 text-sm text-text-muted">No profiling numbers for this player yet.</p>
     {:else if snapshot}
@@ -149,7 +149,7 @@
               <img src={PROFILING_CARD_LOGOS.tf2} alt="" class="h-3.5 w-3.5 object-contain" />
               Hours in TF2
             </span>
-            <span class="shrink-0 font-semibold tabular-nums text-white">
+            <span class="shrink-0 font-semibold tabular-nums text-text-heading">
               {formatProfilingHours(snapshot.tf2Hours)}
             </span>
           </div>
@@ -169,12 +169,12 @@
               {#each steamRows as row (row.label)}
                 <div class="flex items-baseline justify-between gap-3 text-xs">
                   <dt class="text-text-body">{row.label}</dt>
-                  <dd class="shrink-0 font-semibold tabular-nums text-white">{row.value}</dd>
+                  <dd class="shrink-0 font-semibold tabular-nums text-text-heading">{row.value}</dd>
                 </div>
               {/each}
             </dl>
             {#if snapshot.profilePublic === false}
-              <p class="mt-1.5 text-xs text-warning-400">Steam profile is private</p>
+              <p class="mt-1.5 text-xs text-warning-ink">Steam profile is private</p>
             {/if}
           </section>
         {/if}
@@ -188,7 +188,9 @@
               {#each scoreRows as row (row.key)}
                 <li class="flex items-baseline justify-between gap-3 text-xs">
                   <span class="text-text-body">{row.label}</span>
-                  <span class="shrink-0 font-semibold tabular-nums text-white">{row.value}</span>
+                  <span class="shrink-0 font-semibold tabular-nums text-text-heading"
+                    >{row.value}</span
+                  >
                 </li>
               {/each}
             </ul>
@@ -211,7 +213,7 @@
                     />
                     logs.tf
                   </dt>
-                  <dd class="shrink-0 font-semibold tabular-nums text-white">
+                  <dd class="shrink-0 font-semibold tabular-nums text-text-heading">
                     {formatProfilingCount(snapshot.logsTfCount)}
                   </dd>
                 </div>
@@ -222,7 +224,7 @@
                     <img src={PROFILING_CARD_LOGOS.mge} alt="" class="h-3.5 w-3.5 object-contain" />
                     Hours on mge.tf
                   </dt>
-                  <dd class="shrink-0 font-semibold tabular-nums text-white">
+                  <dd class="shrink-0 font-semibold tabular-nums text-text-heading">
                     {formatProfilingHours(snapshot.mgeServerHours)}
                   </dd>
                 </div>

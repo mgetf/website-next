@@ -165,7 +165,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">User Management</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">User Management</h1>
     <p class="text-text-body">
       Manage user accounts, bans, and locks. Staff roles are assigned in Staff.
     </p>
@@ -230,7 +230,7 @@
           <div class="min-w-0">
             <a
               href="/users/{user.steamId}"
-              class="text-white text-sm font-medium hover:text-primary-400 block truncate"
+              class="text-text-heading text-sm font-medium hover:text-primary-ink block truncate"
             >
               {user.steamUsername}
             </a>
@@ -260,13 +260,13 @@
       {:else if col.key === 'discord'}
         {#if user.discordLinked && user.discordUsername}
           <span
-            class="text-success-400 text-xs truncate block max-w-[120px]"
+            class="text-success-ink text-xs truncate block max-w-[120px]"
             title={user.discordUsername}
           >
             {user.discordUsername}
           </span>
         {:else if user.discordLinked}
-          <span class="text-success-400 text-xs">✓</span>
+          <span class="text-success-ink text-xs">✓</span>
         {:else}
           <span class="text-text-muted text-xs">—</span>
         {/if}
@@ -374,13 +374,13 @@
         <div class="flex items-center justify-between p-3 bg-surface-input rounded-lg mb-4">
           <div class="flex items-center gap-2">
             <DiscordIcon size={16} />
-            <span class="text-success-400 text-sm">{editingUser.discordUsername || 'Linked'}</span>
+            <span class="text-success-ink text-sm">{editingUser.discordUsername || 'Linked'}</span>
           </div>
           <button
             type="button"
             onclick={() => (unlinkingDiscordUser = editingUser)}
             disabled={isSubmitting}
-            class="text-xs text-danger-400 hover:text-danger-300 hover:underline transition-colors disabled:opacity-50"
+            class="text-xs text-danger-ink hover:text-danger-300 hover:underline transition-colors disabled:opacity-50"
           >
             Unlink
           </button>
@@ -432,7 +432,7 @@
 {#if unlinkingDiscordUser}
   <Dialog open={true} title="Unlink Discord Account" onClose={() => (unlinkingDiscordUser = null)}>
     <p class="text-text-body mb-4">
-      Are you sure you want to unlink <span class="text-white font-medium"
+      Are you sure you want to unlink <span class="text-text-heading font-medium"
         >{unlinkingDiscordUser.steamUsername}</span
       >'s Discord account?
     </p>
@@ -440,7 +440,7 @@
     <div class="bg-surface-input border border-border-input rounded-lg p-4 mb-4">
       <div class="flex items-center gap-2">
         <DiscordIcon size={16} />
-        <span class="text-success-400 text-sm"
+        <span class="text-success-ink text-sm"
           >{unlinkingDiscordUser.discordUsername || 'Linked'}</span
         >
       </div>
@@ -500,7 +500,7 @@
           </div>
         {/if}
         <div>
-          <p class="text-white font-medium">{banningUser.steamUsername}</p>
+          <p class="text-text-heading font-medium">{banningUser.steamUsername}</p>
           <p class="text-sm text-text-body font-mono">{banningUser.steamId}</p>
         </div>
       </div>
@@ -518,7 +518,7 @@
 
     {#if isStaffPermission(banningUser.permissionLevel)}
       <div class="p-4 bg-warning-500/20 border border-warning-500/50 rounded-lg mb-6">
-        <p class="text-warning-400 text-sm">
+        <p class="text-warning-ink text-sm">
           Demote this user from /admin/staff before punishing them.
         </p>
       </div>
@@ -564,7 +564,7 @@
 
         <div class="mb-6">
           <label for="ban-reason" class="block text-sm font-medium text-text-label mb-2">
-            Reason <span class="text-danger-400">*</span>
+            Reason <span class="text-danger-ink">*</span>
           </label>
           <textarea
             id="ban-reason"
@@ -572,13 +572,13 @@
             rows="4"
             required
             placeholder="Explain why this user is being punished..."
-            class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
+            class="w-full px-4 py-3 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors resize-none"
           ></textarea>
           <p class="mt-1 text-xs text-text-muted">The player will be able to read this reason.</p>
         </div>
 
         <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-6">
-          <p class="text-danger-400 text-sm">
+          <p class="text-danger-ink text-sm">
             This will create a punishment record and update the user's status.
           </p>
         </div>

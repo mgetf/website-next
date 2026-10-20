@@ -273,7 +273,7 @@
   <Card padding="sm" class="shrink-0">
     <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 class="text-xl font-bold text-white">Division Placement</h1>
+        <h1 class="text-xl font-bold text-text-heading">Division Placement</h1>
         <p class="mt-0.5 text-sm text-text-body">
           {#if data.seasonNum != null}
             Season {data.seasonNum}
@@ -381,7 +381,7 @@
                 {#if regionFlagCode}
                   <FlagIcon code={regionFlagCode} class="h-4 w-6 rounded-sm" />
                 {/if}
-                <h2 class="truncate text-lg font-bold text-white">{column.name}</h2>
+                <h2 class="truncate text-lg font-bold text-text-heading">{column.name}</h2>
               </div>
               <Badge color={isFreeDivision(column.signupCost) ? 'zinc' : 'green'}
                 >{costLabel(column.signupCost)}</Badge
@@ -442,7 +442,7 @@
                 <div class="min-w-0 flex-1">
                   <a
                     href={cardHref(entry)}
-                    class="block truncate text-xs leading-tight text-white hover:text-primary-400"
+                    class="block truncate text-xs leading-tight text-text-heading hover:text-primary-ink"
                     title={entry.acronym ? `${entry.name} [${entry.acronym}]` : entry.name}
                     onpointerdown={stopDrag}
                   >
@@ -470,7 +470,7 @@
                         >
                           <a
                             href="/users/{player.steamId}"
-                            class="block truncate text-[10px] leading-tight text-text-muted hover:text-white"
+                            class="block truncate text-[10px] leading-tight text-text-muted hover:text-text-heading"
                             title={player.steamUsername}
                             onpointerdown={stopDrag}
                           >
@@ -535,14 +535,14 @@
     <ul class="max-h-64 space-y-3 overflow-y-auto text-sm">
       {#each moves as move (move.teamId)}
         <li>
-          <p class="font-medium text-white">
+          <p class="font-medium text-text-heading">
             {move.teamName}
             <span class="font-normal text-text-body">
               {move.fromDivisionName} → {move.toDivisionName}
             </span>
           </p>
           {#if effectLabel(move.effect)}
-            <p class="mt-0.5 text-xs text-warning-400">{effectLabel(move.effect)}</p>
+            <p class="mt-0.5 text-xs text-warning-ink">{effectLabel(move.effect)}</p>
           {/if}
         </li>
       {/each}

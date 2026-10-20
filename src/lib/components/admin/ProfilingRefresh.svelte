@@ -50,6 +50,6 @@
     {loading ? 'Reloading…' : 'Reload'}
   </Button>
   {#if error}
-    <p class="text-xs text-danger-400">{error}</p>
+    <p class="text-xs text-danger-ink">{error}</p>
   {/if}
 </div>

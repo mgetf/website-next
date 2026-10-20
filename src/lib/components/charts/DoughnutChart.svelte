@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
+  import { theme, themeChartColors } from '#lib/state/theme.svelte.js';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -12,10 +13,35 @@
   let canvasElement: HTMLCanvasElement;
   let chart: Chart | null = null;
 
+  function sliceColors(colors: ReturnType<typeof themeChartColors>) {
+    return [colors.success, colors.danger, colors.info];
+  }
+
+  function paint(instance: Chart) {
+    const colors = themeChartColors();
+    const slices = sliceColors(colors);
+    const dataset = instance.data.datasets[0];
+    if (dataset) {
+      dataset.backgroundColor = slices;
+      dataset.borderColor = slices;
+    }
+    const legend = instance.options.plugins?.legend?.labels;
+    if (legend) legend.color = colors.textLabel;
+    const tooltip = instance.options.plugins?.tooltip;
+    if (tooltip) {
+      tooltip.backgroundColor = colors.surfacePage;
+      tooltip.titleColor = colors.textHeading;
+      tooltip.bodyColor = colors.textHeading;
+      tooltip.borderColor = colors.borderDefault;
+    }
+  }
+
   onMount(() => {
     const ctx = canvasElement.getContext('2d');
     if (!ctx) return;
 
+    const colors = themeChartColors();
+    const slices = sliceColors(colors);
     chart = new Chart(ctx, {
       type: 'doughnut',
       data: {
@@ -23,12 +49,8 @@
         datasets: [
           {
             data,
-            backgroundColor: [
-              'rgba(34, 197, 94, 0.8)',
-              'rgba(239, 68, 68, 0.8)',
-              'rgba(59, 130, 246, 0.8)',
-            ],
-            borderColor: ['rgba(34, 197, 94, 1)', 'rgba(239, 68, 68, 1)', 'rgba(59, 130, 246, 1)'],
+            backgroundColor: slices,
+            borderColor: slices,
             borderWidth: 1,
           },
         ],
@@ -40,7 +62,7 @@
           legend: {
             position: 'bottom',
             labels: {
-              color: '#d4d4d8', // zinc-300 (text-label approximate)
+              color: colors.textLabel,
               padding: 15,
               font: {
                 size: 12,
@@ -48,10 +70,10 @@
             },
           },
           tooltip: {
-            backgroundColor: 'rgba(9, 9, 11, 0.95)', // surface-page
-            titleColor: '#fff',
-            bodyColor: '#fff',
-            borderColor: 'rgba(39, 39, 42, 0.8)', // border-default
+            backgroundColor: colors.surfacePage,
+            titleColor: colors.textHeading,
+            bodyColor: colors.textHeading,
+            borderColor: colors.borderDefault,
             borderWidth: 1,
           },
         },
@@ -64,11 +86,12 @@
   });
 
   $effect(() => {
-    if (chart) {
-      chart.data.labels = labels;
-      chart.data.datasets[0].data = data;
-      chart.update();
-    }
+    theme.current;
+    if (!chart) return;
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+    paint(chart);
+    chart.update();
   });
 </script>
 

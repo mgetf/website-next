@@ -27,11 +27,11 @@
     <div class="mb-8">
       <a
         href="/signup"
-        class="inline-flex items-center text-text-body hover:text-white mb-4 transition-colors"
+        class="inline-flex items-center text-text-body hover:text-text-heading mb-4 transition-colors"
       >
         ← Back to Signup Options
       </a>
-      <h1 class="mb-2 flex items-center gap-3 text-4xl font-bold text-white">
+      <h1 class="mb-2 flex items-center gap-3 text-4xl font-bold text-text-heading">
         <FormatIcon name={data.format.name} src={data.format.iconUrl} size="lg" />
         {data.format.name} League Signup
       </h1>
@@ -49,7 +49,9 @@
       <!-- Unavailable Message -->
       <Card padding="none" class="p-12 text-center">
         <div class="text-6xl mb-4">🚫</div>
-        <h2 class="text-2xl font-bold text-white mb-4">{data.format.name} Signup Unavailable</h2>
+        <h2 class="text-2xl font-bold text-text-heading mb-4">
+          {data.format.name} Signup Unavailable
+        </h2>
         <p class="text-text-body text-lg mb-6">
           {data.disabledReason}
         </p>
@@ -74,7 +76,7 @@
               </div>
             {/if}
             <div>
-              <p class="text-xl font-bold text-white">{data.user.steamUsername}</p>
+              <p class="text-xl font-bold text-text-heading">{data.user.steamUsername}</p>
               <p class="text-sm text-text-muted">
                 Your name and avatar will be frozen for this season
               </p>
@@ -130,7 +132,7 @@
               />
               <span class="text-sm text-text-label">
                 I agree to follow the
-                <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-400">
+                <a href="/rulebook" target="_blank" class="text-primary-500 hover:text-primary-ink">
                   League Rules
                 </a>
               </span>

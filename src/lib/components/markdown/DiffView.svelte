@@ -7,9 +7,9 @@
   function lineClass(type: DiffLineType): string {
     switch (type) {
       case 'added':
-        return 'bg-success-600/15 text-success-400';
+        return 'bg-success-600/15 text-success-ink';
       case 'removed':
-        return 'bg-danger-600/15 text-danger-400';
+        return 'bg-danger-600/15 text-danger-ink';
       default:
         return 'text-text-muted';
     }

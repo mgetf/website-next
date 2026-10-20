@@ -109,14 +109,14 @@
   >
     <div class="flex items-center justify-between border-b border-border-default px-5 py-4">
       <div>
-        <h2 id="staff-tools-title" class="text-lg font-bold text-white">Staff tools</h2>
+        <h2 id="staff-tools-title" class="text-lg font-bold text-text-heading">Staff tools</h2>
         <p class="text-xs text-text-muted">
           Identity and moderation. 1v1 league controls stay on the 1v1 tab.
         </p>
       </div>
       <button
         type="button"
-        class="rounded-lg p-1.5 text-text-body transition-colors hover:bg-surface-hover hover:text-white"
+        class="rounded-lg p-1.5 text-text-body transition-colors hover:bg-surface-hover hover:text-text-heading"
         aria-label="Close"
         onclick={close}
       >
@@ -132,12 +132,12 @@
           class="size-10 rounded-lg object-cover"
         />
         <div class="min-w-0">
-          <p class="font-medium text-white">{player.name}</p>
+          <p class="font-medium text-text-heading">{player.name}</p>
           <p class="font-mono text-xs text-text-muted">{player.steamId}</p>
         </div>
         {#if player.nameOverride === 1}
           <span
-            class="ml-auto shrink-0 rounded border border-primary-500/30 bg-primary-500/20 px-2 py-0.5 text-[10px] font-bold text-primary-400"
+            class="ml-auto shrink-0 rounded border border-primary-500/30 bg-primary-500/20 px-2 py-0.5 text-[10px] font-bold text-primary-ink"
           >
             LOCKED
           </span>
@@ -302,7 +302,7 @@
 
       {#if isStaffPlayer}
         <div class="rounded-lg border border-warning-500/30 bg-warning-500/10 p-3">
-          <p class="text-xs text-warning-400">
+          <p class="text-xs text-warning-ink">
             Demote this user from /admin/staff before punishing them.
           </p>
         </div>
@@ -321,11 +321,11 @@
             {#each punishments as row (row.id)}
               <li class="rounded-lg border border-border-default bg-surface-input p-2.5">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-xs font-medium text-white"
+                  <span class="text-xs font-medium text-text-heading"
                     >{punishmentStatusLabel(row.status ?? '')}</span
                   >
                   {#if row.active}
-                    <span class="text-[10px] font-semibold uppercase text-danger-400">Active</span>
+                    <span class="text-[10px] font-semibold uppercase text-danger-ink">Active</span>
                   {:else}
                     <span class="text-[10px] uppercase text-text-muted">Inactive</span>
                   {/if}
@@ -401,7 +401,7 @@
               required
               bind:value={punishReason}
               placeholder="Explain why this user is being punished..."
-              class="w-full resize-none rounded-lg border border-border-input bg-surface-input px-4 py-3 text-white placeholder-text-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+              class="w-full resize-none rounded-lg border border-border-input bg-surface-input px-4 py-3 text-text-heading placeholder-text-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
             ></textarea>
             <p class="mt-1 text-xs text-text-muted">The player will be able to read this reason.</p>
           </div>
@@ -457,13 +457,14 @@
       <div class="border-t border-border-default pt-4">
         <p class="mb-2 text-sm font-medium text-text-label">Discord</p>
         {#if player.discordLinked}
-          <p class="mb-3 inline-flex items-center gap-1.5 text-sm text-info-400">
+          <p class="mb-3 inline-flex items-center gap-1.5 text-sm text-info-ink">
             <DiscordIcon size={14} />
             {player.discordUsername || 'Linked'}
           </p>
           {#if confirmUnlink}
             <p class="mb-3 text-sm text-text-body">
-              Unlink <span class="font-medium text-white">{player.name}</span>'s Discord account?
+              Unlink <span class="font-medium text-text-heading">{player.name}</span>'s Discord
+              account?
             </p>
             <div class="mb-4 flex gap-2">
               <form

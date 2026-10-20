@@ -86,7 +86,7 @@
         {#if match.matchId}
           <a
             href={resolve('/matches/[id]', { id: String(match.matchId) })}
-            class="text-sm font-medium text-primary-400 transition-colors hover:text-primary-300"
+            class="text-sm font-medium text-primary-ink transition-colors hover:text-primary-300"
           >
             {match.week}
           </a>
@@ -129,7 +129,7 @@
         {:else if match.opponentId && match.opponent}
           <a
             href={resolve('/teams/[id]', { id: String(match.opponentId) })}
-            class="inline-flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-primary-400"
+            class="inline-flex items-center gap-2 text-sm font-medium text-text-heading transition-colors hover:text-primary-ink"
           >
             <img
               src={match.opponentAvatar || DEFAULT_AVATAR}
@@ -151,7 +151,7 @@
     <Card padding="none" class="overflow-hidden">
       {#snippet header()}
         <div class="px-5 py-3">
-          <h2 class="text-sm font-semibold text-white">
+          <h2 class="text-sm font-semibold text-text-heading">
             Current roster
             <span class="ml-1 font-normal text-text-muted"
               >({currentRoster.length}/{maxRosterSize})</span
@@ -174,7 +174,9 @@
                 />
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span class="truncate text-sm font-semibold text-white">{player.name}</span>
+                    <span class="truncate text-sm font-semibold text-text-heading"
+                      >{player.name}</span
+                    >
                     {#if player.isLeader}
                       <Badge color="yellow">{teamRoleName(player.permissionLevel)}</Badge>
                     {/if}
@@ -184,7 +186,7 @@
                   </div>
                   <p class="mt-0.5 text-xs text-text-muted">Joined {formatDate(player.joinedAt)}</p>
                   {#if player.restrictedClasses.length > 0}
-                    <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-warning-400">
+                    <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-warning-ink">
                       <span>Cannot play</span>
                       {#each player.restrictedClasses as tfClass (tfClass.id)}
                         {@const icon = classIcon(tfClass.name)}
@@ -213,14 +215,14 @@
     <Card padding="none" class="overflow-hidden">
       {#snippet header()}
         <div class="px-5 py-3">
-          <h2 class="text-sm font-semibold text-white">Achievements</h2>
+          <h2 class="text-sm font-semibold text-text-heading">Achievements</h2>
         </div>
       {/snippet}
       {#if achievements.length > 0}
         <div class="divide-y divide-border-default/50">
           {#each achievements as achievement (`${achievement.id}:${achievement.name}`)}
             <div class="px-5 py-3">
-              <p class="text-sm text-white">
+              <p class="text-sm text-text-heading">
                 <span class="font-bold {placementClass(achievement.placement)}"
                   >{achievement.placement}</span
                 >
@@ -244,7 +246,7 @@
     <Card padding="none" class="overflow-hidden">
       {#snippet header()}
         <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-          <h2 class="text-sm font-semibold text-white">Match history</h2>
+          <h2 class="text-sm font-semibold text-text-heading">Match history</h2>
           {#if matchesBySeason.length > 1}
             <div class="flex flex-wrap gap-1" role="group" aria-label="Season">
               {#each matchesBySeason as seasonData (seasonData.seasonId)}
@@ -252,7 +254,7 @@
                   type="button"
                   class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors {selectedSeasonId ===
                   String(seasonData.seasonId)
-                    ? 'border-primary-500 bg-primary-500/15 text-white'
+                    ? 'border-primary-500 bg-primary-500/15 text-text-heading'
                     : 'border-border-input bg-surface-input text-text-body hover:bg-surface-hover'}"
                   aria-pressed={selectedSeasonId === String(seasonData.seasonId)}
                   onclick={() => (selectedSeasonId = String(seasonData.seasonId))}
@@ -272,7 +274,7 @@
     <Card padding="none" class="overflow-hidden">
       {#snippet header()}
         <div class="px-5 py-3">
-          <h2 class="text-sm font-semibold text-white">Match history</h2>
+          <h2 class="text-sm font-semibold text-text-heading">Match history</h2>
         </div>
       {/snippet}
       <div class="px-5 py-8 text-center">
@@ -287,7 +289,7 @@
   <Card padding="none" class="overflow-hidden">
     {#snippet header()}
       <div class="px-5 py-3">
-        <h2 class="text-sm font-semibold text-white">Past roster</h2>
+        <h2 class="text-sm font-semibold text-text-heading">Past roster</h2>
       </div>
     {/snippet}
     {#if pastRoster.length > 0}
@@ -303,7 +305,7 @@
               class="size-10 shrink-0 rounded-lg object-cover opacity-60"
             />
             <div class="min-w-0">
-              <p class="truncate text-sm font-medium text-white">{player.name}</p>
+              <p class="truncate text-sm font-medium text-text-heading">{player.name}</p>
               <p class="text-xs text-text-muted">
                 {formatDate(player.joinedAt)} – {formatDate(player.leftAt)}
               </p>

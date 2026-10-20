@@ -344,8 +344,10 @@
 
 <div class="max-w-4xl mx-auto space-y-6">
   <div>
-    <a href="/admin/matches" class="text-sm text-text-muted hover:text-white">← Match Management</a>
-    <h1 class="text-3xl font-bold text-white mt-2 mb-2">
+    <a href="/admin/matches" class="text-sm text-text-muted hover:text-text-heading"
+      >← Match Management</a
+    >
+    <h1 class="text-3xl font-bold text-text-heading mt-2 mb-2">
       {data.draft ? 'Edit Match Set Draft' : 'Create Match Set'}
     </h1>
     <p class="text-text-body">
@@ -409,10 +411,10 @@
           {#if currentSeason}
             <p class="text-sm text-text-body">
               Current season:
-              <span class="font-semibold text-white">Season {currentSeason.seasonNum}</span>
+              <span class="font-semibold text-text-heading">Season {currentSeason.seasonNum}</span>
             </p>
           {:else}
-            <p class="text-sm text-warning-400">
+            <p class="text-sm text-warning-ink">
               No current season for this format and region. Set the active season in Global
               settings.
             </p>
@@ -480,7 +482,7 @@
               min="1"
               max={currentSeason?.numWeeks || 999}
               disabled={!selectedSeasonId}
-              class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full bg-surface-input border border-border-input text-text-heading rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder={currentSeason
                 ? `Enter week (1-${currentSeason.numWeeks})`
                 : 'No current season'}
@@ -581,7 +583,7 @@
             type="datetime-local"
             name="matchDateTime"
             bind:value={matchDateTime}
-            class="w-full bg-surface-input border border-border-input text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500"
+            class="w-full bg-surface-input border border-border-input text-text-heading rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500"
           />
           <p class="text-xs text-text-muted mt-1">
             Optional: Default scheduled time (enter in the timezone selected below)
@@ -617,12 +619,12 @@
   <!-- Preview Section -->
   {#if showPreview}
     <Card padding="lg">
-      <h2 class="text-2xl font-bold text-white mb-4">Match Preview</h2>
+      <h2 class="text-2xl font-bold text-text-heading mb-4">Match Preview</h2>
 
       {#if weekLabel && !isPlayoff}
         <div class="mb-4 p-3 bg-info-500/10 border border-info-500/30 rounded-lg">
           <p class="text-info-300 text-sm">
-            This will create <strong class="text-white">Week {weekLabel}</strong>
+            This will create <strong class="text-text-heading">Week {weekLabel}</strong>
             {#if existingMatchSetsCount > 0}
               ({existingMatchSetsCount} existing match set{existingMatchSetsCount === 1 ? '' : 's'} for
               this week)
@@ -660,7 +662,7 @@
 
           <div class="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
             <p class="text-purple-300 text-sm">
-              <strong class="text-white"
+              <strong class="text-text-heading"
                 >Playoff Round {playoffRound && playoffRound > 0
                   ? playoffRound
                   : `Lower ${Math.abs(playoffRound || 0)}`}</strong
@@ -670,8 +672,8 @@
           </div>
 
           <p class="text-text-label mb-4">
-            <span class="font-semibold text-white">{playoffSelections.length} matches</span> in this draft.
-            Select teams for each matchup:
+            <span class="font-semibold text-text-heading">{playoffSelections.length} matches</span> in
+            this draft. Select teams for each matchup:
           </p>
 
           <MatchSetOmissions {omissions} />
@@ -680,7 +682,7 @@
           <div class="space-y-4">
             {#each playoffSelections as selection, i (i)}
               <div class="bg-surface-input/50 border border-border-input rounded-lg p-4">
-                <h4 class="text-white font-semibold mb-3">Match {i + 1}</h4>
+                <h4 class="text-text-heading font-semibold mb-3">Match {i + 1}</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <FormSelect
@@ -722,7 +724,7 @@
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <p class="text-text-label">
-              <span class="font-semibold text-white"
+              <span class="font-semibold text-text-heading"
                 >{previewPairs.length} match{previewPairs.length === 1 ? '' : 'es'}</span
               >
               in this draft. Drag teams to change pairings or home/away sides.
@@ -767,9 +769,9 @@
                       Bye week
                     </div>
                   {:else if isHome}
-                    <div class="text-xs font-medium text-primary-400 mb-0.5">Match {matchNum}</div>
+                    <div class="text-xs font-medium text-primary-ink mb-0.5">Match {matchNum}</div>
                   {/if}
-                  <div class="text-white font-semibold truncate">{team.name}</div>
+                  <div class="text-text-heading font-semibold truncate">{team.name}</div>
                   <div class="text-xs text-text-body">
                     #{team.seed} · {team.wins}W-{team.losses}L
                   </div>
@@ -782,7 +784,7 @@
           </div>
 
           {#if previewByeTeam}
-            <p class="text-xs text-warning-400">
+            <p class="text-xs text-warning-ink">
               Drag {previewByeTeam.name} into any match position to give them an opponent.
             </p>
           {/if}
@@ -827,7 +829,7 @@
       ></div>
 
       <div class="text-center">
-        <p class="text-xl font-semibold text-white">
+        <p class="text-xl font-semibold text-text-heading">
           {pendingAction === 'publish' ? 'Publishing matches...' : 'Saving draft...'}
         </p>
         <p class="text-sm text-text-body mt-2">

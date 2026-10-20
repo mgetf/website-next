@@ -21,7 +21,7 @@
 </script>
 
 <section
-  class="relative py-12 px-6 bg-gradient-to-b from-zinc-950/80 to-zinc-900/60 backdrop-blur-sm{border
+  class="relative py-12 px-6 bg-gradient-to-b from-surface-page/80 to-surface-card/60 backdrop-blur-sm{border
     ? ' border-b border-border-default'
     : ''} {extraClass}"
 >
@@ -29,7 +29,7 @@
     {#if children}
       {@render children()}
     {:else}
-      <h1 class="text-5xl font-black text-white mb-2">{title}</h1>
+      <h1 class="text-5xl font-black text-text-heading mb-2">{title}</h1>
       {#if subtitle}
         <p class="text-xl text-text-body">{subtitle}</p>
       {/if}

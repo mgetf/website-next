@@ -62,13 +62,13 @@
   {#if hint && !error}
     <p
       class={hintVariant === 'warning'
-        ? 'text-xs font-semibold text-warning-400/90 mt-1.5'
+        ? 'text-xs font-semibold text-warning-ink/90 mt-1.5'
         : 'text-xs text-text-muted mt-1'}
     >
       {hint}
     </p>
   {/if}
   {#if error}
-    <p class="text-xs text-danger-400 mt-1">{error}</p>
+    <p class="text-xs text-danger-ink mt-1">{error}</p>
   {/if}
 </div>

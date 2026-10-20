@@ -27,7 +27,7 @@
   const contentClass =
     'z-50 max-h-72 min-w-[var(--bits-select-anchor-width)] overflow-hidden rounded-lg border border-border-default bg-surface-card p-1 shadow-xl outline-none';
   const itemClass =
-    'flex cursor-pointer select-none items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs text-text-label outline-none data-highlighted:bg-surface-input data-highlighted:text-white';
+    'flex cursor-pointer select-none items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs text-text-label outline-none data-highlighted:bg-surface-input data-highlighted:text-text-heading';
 </script>
 
 <Select.Root
@@ -40,7 +40,7 @@
 >
   <Select.Trigger
     aria-label={ariaLabel}
-    class="inline-flex items-center gap-1.5 rounded-lg border border-primary-500 bg-primary-500/15 px-2.5 py-1 text-xs font-medium text-white"
+    class="inline-flex items-center gap-1.5 rounded-lg border border-primary-500 bg-primary-500/15 px-2.5 py-1 text-xs font-medium text-text-heading"
   >
     {#if selected}
       {#if itemPrefix}
@@ -68,7 +68,7 @@
                 <span class="truncate">{item.label}</span>
               </span>
               {#if isSelected}
-                <Check class="size-3.5 shrink-0 text-primary-400" />
+                <Check class="size-3.5 shrink-0 text-primary-ink" />
               {/if}
             {/snippet}
           </Select.Item>

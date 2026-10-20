@@ -91,7 +91,7 @@
 
 <div class="max-w-7xl mx-auto space-y-6">
   <div>
-    <h1 class="text-3xl font-bold text-white mb-2">Pending Players</h1>
+    <h1 class="text-3xl font-bold text-text-heading mb-2">Pending Players</h1>
     <p class="text-text-body">
       Approve or deny roster join requests and ready-ups awaiting admin review.
     </p>
@@ -130,7 +130,7 @@
   <Card padding="none" class="divide-y divide-border-default">
     {#if filteredItems.length === 0}
       <div class="py-12 text-center">
-        <div class="mb-4 flex justify-center text-success-400">
+        <div class="mb-4 flex justify-center text-success-ink">
           <CircleCheck class="size-16" />
         </div>
         <p class="text-text-body">
@@ -167,18 +167,18 @@
                   {#if item.playerSteamId}
                     <a
                       href="/users/{item.playerSteamId}"
-                      class="text-white font-semibold hover:text-primary-400 transition-colors"
+                      class="text-text-heading font-semibold hover:text-primary-ink transition-colors"
                     >
                       {item.playerUsername}
                     </a>
                   {:else}
-                    <span class="text-white font-semibold">{item.playerUsername}</span>
+                    <span class="text-text-heading font-semibold">{item.playerUsername}</span>
                   {/if}
                   {#if item.kind === 'JOIN_REQUEST'}
                     <span class="text-text-muted">→</span>
                     <a
                       href="/teams/{item.teamId}"
-                      class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                      class="text-primary-ink hover:text-primary-300 font-medium transition-colors"
                     >
                       {item.teamName}
                     </a>
@@ -186,7 +186,7 @@
                     <span class="text-text-muted">·</span>
                     <a
                       href="/teams/{item.teamId}"
-                      class="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                      class="text-primary-ink hover:text-primary-300 font-medium transition-colors"
                     >
                       {item.teamName}
                     </a>
@@ -301,7 +301,7 @@
                     bind:value={declineReasons[item.key]}
                     placeholder="Reason..."
                     required
-                    class="px-3 py-2 bg-surface-input border border-border-input rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
+                    class="px-3 py-2 bg-surface-input border border-border-input rounded-md text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-32"
                   />
                   <Button type="submit" variant="danger" size="sm" disabled={isSubmitting}>
                     Confirm
@@ -354,12 +354,12 @@
     left: 50%;
     transform: translateX(-50%);
     padding: 4px 8px;
-    background: #18181b;
-    border: 1px solid #3f3f46;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-input);
     border-radius: 4px;
     font-size: 11px;
     font-weight: 500;
-    color: #e4e4e7;
+    color: var(--color-text-heading);
     white-space: nowrap;
     opacity: 0;
     visibility: hidden;

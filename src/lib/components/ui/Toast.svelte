@@ -16,22 +16,22 @@
   const typeStyles: Record<ToastType, { border: string; icon: string; iconColor: string }> = {
     success: {
       border: 'border-l-success-400',
-      iconColor: 'text-success-400',
+      iconColor: 'text-success-ink',
       icon: '✓',
     },
     error: {
       border: 'border-l-danger-400',
-      iconColor: 'text-danger-400',
+      iconColor: 'text-danger-ink',
       icon: '✕',
     },
     info: {
       border: 'border-l-info-400',
-      iconColor: 'text-info-400',
+      iconColor: 'text-info-ink',
       icon: 'ℹ',
     },
     warning: {
       border: 'border-l-warning-400',
-      iconColor: 'text-warning-400',
+      iconColor: 'text-warning-ink',
       icon: '⚠',
     },
   };
@@ -40,11 +40,11 @@
 </script>
 
 <div
-  class="flex items-center gap-3 border-l-[3px] {style.border} bg-surface-card/95 backdrop-blur-sm rounded-lg shadow-lg shadow-black/20 ring-1 ring-white/[0.06] max-w-sm px-4 py-3 animate-slide-up"
+  class="flex items-center gap-3 border-l-[3px] {style.border} bg-surface-card/95 backdrop-blur-sm rounded-lg shadow-lg shadow-black/20 ring-1 ring-border-default max-w-sm px-4 py-3 animate-slide-up"
   role="alert"
 >
   <span class="{style.iconColor} text-base flex-shrink-0 leading-none">{style.icon}</span>
-  <p class="text-white flex-1 text-sm font-medium leading-snug">{message}</p>
+  <p class="text-text-heading flex-1 text-sm font-medium leading-snug">{message}</p>
   {#if dismissible && onDismiss}
     <button
       onclick={onDismiss}

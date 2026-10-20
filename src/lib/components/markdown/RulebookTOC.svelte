@@ -58,7 +58,7 @@
   function getFontClass(level: number): string {
     switch (level) {
       case 1:
-        return 'font-bold text-white';
+        return 'font-bold text-text-heading';
       case 2:
         return 'font-semibold text-text-label';
       default:
@@ -70,7 +70,7 @@
 <div class="toc-container bg-surface-card border border-border-default rounded-lg overflow-hidden">
   <!-- Header -->
   <div class="p-4 border-b border-border-default flex items-center justify-between">
-    <h3 class="font-bold text-white">Table of Contents</h3>
+    <h3 class="font-bold text-text-heading">Table of Contents</h3>
     <button
       onclick={() => (isCollapsed = !isCollapsed)}
       class="lg:hidden p-1 hover:bg-surface-input rounded transition"
@@ -94,7 +94,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Search..."
-        class="w-full bg-surface-input border border-border-input rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        class="w-full bg-surface-input border border-border-input rounded-lg px-3 py-2 pl-9 text-sm text-text-heading placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
       />
       <svg
         class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
@@ -128,7 +128,7 @@
               class="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-surface-input transition-colors {getIndentClass(
                 item.level,
               )} {getFontClass(item.level)} {activeId === item.id
-                ? 'bg-blue-500/20 text-blue-400'
+                ? 'bg-blue-500/20 text-info-ink'
                 : ''}"
             >
               {item.text}

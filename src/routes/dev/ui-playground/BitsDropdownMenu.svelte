@@ -14,7 +14,7 @@
   const contentClass =
     'z-50 min-w-52 rounded-lg border border-border-default bg-surface-card p-1 shadow-xl outline-none';
   const itemClass =
-    'flex cursor-pointer select-none items-center gap-2 rounded-md px-3 py-2 text-sm text-text-label outline-none data-highlighted:bg-surface-input data-highlighted:text-white data-disabled:cursor-not-allowed data-disabled:opacity-50';
+    'flex cursor-pointer select-none items-center gap-2 rounded-md px-3 py-2 text-sm text-text-label outline-none data-highlighted:bg-surface-input data-highlighted:text-text-heading data-disabled:cursor-not-allowed data-disabled:opacity-50';
 
   function select(action: string) {
     lastAction = action;
@@ -57,7 +57,7 @@
       <DropdownMenu.Separator class="my-1 h-px bg-border-default" />
 
       <DropdownMenu.Item
-        class="{itemClass} text-danger-400 data-highlighted:text-danger-300"
+        class="{itemClass} text-danger-ink data-highlighted:text-danger-300"
         onSelect={() => select('Sign out')}
       >
         <LogOut class="size-4 shrink-0" />

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
+  import { enhance, type SubmitFunction } from '$app/forms';
   import { TF_CLASSES_DISPLAY_ORDER } from '#lib/constants/tfClasses.js';
   import Badge from '#lib/components/ui/Badge.svelte';
   import Button from '#lib/components/ui/Button.svelte';
@@ -64,6 +64,12 @@
       ? [...selectedClassIds, id]
       : selectedClassIds.filter((current) => current !== id);
   }
+
+  const keepPlace: SubmitFunction = () => {
+    return async ({ update }) => {
+      await update({ navigate: false });
+    };
+  };
 </script>
 
 <Card padding="md">
@@ -72,7 +78,7 @@
   {/snippet}
 
   <div class="space-y-8">
-    <form method="POST" action="?/updateStatus" use:enhance class="max-w-lg">
+    <form method="POST" action="?/updateStatus" use:enhance={keepPlace} class="max-w-lg">
       <FormSelect
         label="Team Status"
         name="status"
@@ -91,7 +97,7 @@
     <hr class="border-border-default" />
 
     {#if divisions.length > 0 || divisionId != null}
-      <form method="POST" action="?/changeDivision" use:enhance class="max-w-lg">
+      <form method="POST" action="?/changeDivision" use:enhance={keepPlace} class="max-w-lg">
         <FormSelect
           label="Division"
           name="divisionId"
@@ -143,7 +149,7 @@
       {#if players.length === 0}
         <p class="text-sm text-text-muted">No active players to restrict.</p>
       {:else}
-        <form method="POST" action="?/setClassRestriction" use:enhance class="max-w-lg">
+        <form method="POST" action="?/setClassRestriction" use:enhance={keepPlace} class="max-w-lg">
           <FormSelect
             label="Player"
             name="playerSteamId"

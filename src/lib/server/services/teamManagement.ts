@@ -6,6 +6,7 @@
 import { prisma } from '#lib/server/db.js';
 import type { Prisma } from '#prisma/client.js';
 import { hasInvalidClassId, orderedRestrictedClassIds } from '#lib/utils/classRestriction.js';
+import { isTeamRoleLevel, type TeamRoleLevel } from '#lib/utils/team.js';
 import { notFound, badRequest } from '#lib/server/utils/errors.js';
 import { uploadToR2, saveTempFile, deleteTempFile, validateUploadedFile } from '../utils/r2Upload';
 import path from 'path';
@@ -303,6 +304,51 @@ export async function removePlayer(teamId: number, playerSteamId: string): Promi
   if (team?.division && team.division.signupCost > 0) {
     await syncTeamPaymentStatus(prisma, teamId, team.format.requiredPaidPlayers);
   }
+}
+
+/**
+ * Staff override of a player's team role.
+ * 0 = member, 1 = co-leader, 2 = leader. More than one leader is allowed.
+ */
+export async function setPlayerRole(
+  teamId: number,
+  playerSteamId: string,
+  permissionLevel: TeamRoleLevel,
+): Promise<{ previousLevel: number }> {
+  if (!isTeamRoleLevel(permissionLevel)) {
+    badRequest('Invalid team role');
+  }
+
+  const player = await prisma.playerInTeam.findUnique({
+    where: {
+      playerSteamId_teamId: {
+        playerSteamId,
+        teamId,
+      },
+    },
+  });
+
+  if (!player || player.active !== 1) {
+    notFound('Player not found in team');
+  }
+
+  if (player.permissionLevel === permissionLevel) {
+    badRequest('Player already has that role');
+  }
+
+  await prisma.playerInTeam.update({
+    where: {
+      playerSteamId_teamId: {
+        playerSteamId,
+        teamId,
+      },
+    },
+    data: {
+      permissionLevel,
+    },
+  });
+
+  return { previousLevel: player.permissionLevel };
 }
 
 /**

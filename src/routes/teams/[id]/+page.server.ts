@@ -26,6 +26,7 @@ import {
   removePlayer,
   promotePlayer,
   demotePlayer,
+  setPlayerRole,
   invitePlayerBySteamId,
   disbandTeam,
   setPlayerClassRestriction,
@@ -49,10 +50,16 @@ import { getErrorMessage } from '#lib/server/utils/errors.js';
 import { optionalDivisionIdSchema } from '#lib/server/utils/validation.js';
 import { getByeWeeksForTeam } from '#lib/server/services/byeWeeks.js';
 import { buildPageSeo } from '#lib/utils/seo.js';
+import { teamRoleName, type TeamRoleLevel } from '#lib/utils/team.js';
 import type { TeamMatchRow } from '#lib/types/team.js';
 
 const playerSteamIdSchema = z.object({
   playerSteamId: z.string().min(1, 'Player Steam ID is required'),
+});
+
+const setPlayerRoleSchema = z.object({
+  playerSteamId: z.string().min(1, 'Player Steam ID is required'),
+  permissionLevel: z.enum(['0', '1', '2']).transform((value) => Number(value) as TeamRoleLevel),
 });
 
 const updateStatusSchema = z.object({
@@ -894,6 +901,45 @@ export const actions: Actions = {
       return { success: true, message: 'Player promoted successfully' };
     } catch (err) {
       return formError(getErrorMessage(err, 'Failed to promote player'), 400);
+    }
+  },
+
+  setPlayerRole: async ({ request, params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    requireAdmin(locals.user);
+    const teamId = parseInt(params.id);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, setPlayerRoleSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const { previousLevel } = await setPlayerRole(
+        teamId,
+        validation.data.playerSteamId,
+        validation.data.permissionLevel,
+      );
+      const nextLevel = validation.data.permissionLevel;
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.ROSTER,
+        action:
+          nextLevel > previousLevel ? AuditAction.PLAYER_PROMOTED : AuditAction.PLAYER_DEMOTED,
+        targetType: 'Team',
+        targetId: String(teamId),
+        metadata: {
+          playerSteamId: validation.data.playerSteamId,
+          roleBefore: teamRoleName(previousLevel),
+          roleAfter: teamRoleName(nextLevel),
+        },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: `Player is now ${teamRoleName(nextLevel)}` };
+    } catch (err) {
+      return formError(getErrorMessage(err, 'Failed to update team role'), 400);
     }
   },
 

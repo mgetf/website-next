@@ -30,7 +30,9 @@
   const pastRoster = $derived(data.pastRoster);
   const matchesBySeason = $derived(data.matchesBySeason);
   const canManage = $derived(data.canManageTeam);
-  const tab = $derived(parseTeamTab(page.url.searchParams.get('tab'), canManage));
+  const tab = $derived(
+    parseTeamTab(page.url.searchParams.get('tab'), canManage, data.isGlobalAdmin),
+  );
   const teamPath = $derived(resolve('/teams/[id]', { id: String(team.id) }));
 
   let lastFormResult: ActionData = null;
@@ -55,6 +57,7 @@
   const tabs = $derived.by(() => {
     const items: { id: TeamPageTab; label: string }[] = [{ id: 'overview', label: 'Overview' }];
     if (canManage) items.push({ id: 'management', label: 'Management' });
+    if (data.isGlobalAdmin) items.push({ id: 'admin', label: 'Admin' });
     return items;
   });
 
@@ -146,8 +149,8 @@
         return;
       }
       submittingAction = action;
-      return async ({ update }: { update: () => Promise<void> }) => {
-        await update();
+      return async ({ update }: { update: (opts?: { navigate?: boolean }) => Promise<void> }) => {
+        await update({ navigate: false });
         submittingAction = null;
       };
     };
@@ -412,26 +415,8 @@
         onDisband={() => (showDisbandDialog = true)}
       />
     </div>
-  {:else}
-    <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
-      <TeamOverviewPanel
-        teamName={team.name}
-        teamAvatar={team.avatar}
-        {currentRoster}
-        {pastRoster}
-        {matchesBySeason}
-        achievements={data.achievements}
-        maxRosterSize={team.maxRosterSize}
-        showPaymentBadges={(data.isOnTeam || canManage) && !data.isFreeDivision}
-        currentUserSteamId={data.currentUserSteamId}
-        canLeave={data.isOnTeam && !data.isOwner && !data.rosterLocked}
-        onLeaveTeam={() => (showLeaveDialog = true)}
-      />
-    </div>
-  {/if}
-
-  {#if data.isGlobalAdmin}
-    <div class="mt-6">
+  {:else if tab === 'admin' && data.isGlobalAdmin}
+    <div id="panel-admin" role="tabpanel" aria-labelledby="tab-admin">
       <TeamAdminPanel
         teamStatus={team.status}
         divisionId={team.divisionId}
@@ -449,6 +434,22 @@
           unmarkPaidTarget = player;
           showUnmarkPaidDialog = true;
         }}
+      />
+    </div>
+  {:else}
+    <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+      <TeamOverviewPanel
+        teamName={team.name}
+        teamAvatar={team.avatar}
+        {currentRoster}
+        {pastRoster}
+        {matchesBySeason}
+        achievements={data.achievements}
+        maxRosterSize={team.maxRosterSize}
+        showPaymentBadges={(data.isOnTeam || canManage) && !data.isFreeDivision}
+        currentUserSteamId={data.currentUserSteamId}
+        canLeave={data.isOnTeam && !data.isOwner && !data.rosterLocked}
+        onLeaveTeam={() => (showLeaveDialog = true)}
       />
     </div>
   {/if}

@@ -1,4 +1,4 @@
-export type TeamPageTab = 'overview' | 'management';
+export type TeamPageTab = 'overview' | 'management' | 'admin';
 
 export type TeamAchievement = {
   id: number;

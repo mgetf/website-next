@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
+  import { enhance, type SubmitFunction } from '$app/forms';
   import { page } from '$app/state';
   import Button from '#lib/components/ui/Button.svelte';
   import Card from '#lib/components/ui/Card.svelte';
   import FormInput from '#lib/components/ui/form/FormInput.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
   import type { TeamManagementData, TeamRosterPlayer } from '#lib/types/team.js';
-  import { teamRoleName } from '#lib/utils/team.js';
+  import { TEAM_ROLE_LEVELS, teamRoleName } from '#lib/utils/team.js';
   import Check from '~icons/lucide/check';
   import Lock from '~icons/lucide/lock';
 
@@ -79,6 +79,17 @@
 
   const inviteLink = $derived(`${page.url.origin}${management.inviteUrl}`);
   const busy = $derived(submittingAction !== null);
+  const staffRoleLevels = [...TEAM_ROLE_LEVELS].reverse();
+
+  function canEditRosterRow(permissionLevel: number): boolean {
+    return isGlobalAdmin || (permissionLevel !== 2 && !rosterLocked);
+  }
+
+  const keepPlace: SubmitFunction = () => {
+    return async ({ update }) => {
+      await update({ navigate: false });
+    };
+  };
 
   const sections = $derived.by((): { id: ManageSection; label: string }[] => [
     { id: 'info', label: 'Team Info' },
@@ -390,6 +401,11 @@
           {/if}
         </div>
       {:else if section === 'roster'}
+        {#if isGlobalAdmin}
+          <p class="mb-4 text-sm text-text-muted">
+            Set each player to leader, co-leader, or member. A team can have more than one leader.
+          </p>
+        {/if}
         {#if management.players.length === 0}
           <p class="py-8 text-center text-sm text-text-muted">No active players</p>
         {:else}
@@ -407,9 +423,26 @@
                     <p class="text-sm text-text-body">{teamRoleName(player.permissionLevel)}</p>
                   </div>
                 </div>
-                {#if player.permissionLevel !== 2 && (!rosterLocked || isGlobalAdmin)}
+                {#if canEditRosterRow(player.permissionLevel)}
                   <div class="flex flex-wrap gap-2">
-                    {#if player.permissionLevel === 0}
+                    {#if isGlobalAdmin}
+                      {#each staffRoleLevels as level (level)}
+                        {#if level !== player.permissionLevel}
+                          <form method="POST" action="?/setPlayerRole" use:enhance={keepPlace}>
+                            <input type="hidden" name="playerSteamId" value={player.steamId} />
+                            <input type="hidden" name="permissionLevel" value={level} />
+                            <Button
+                              type="submit"
+                              variant={level > player.permissionLevel ? 'ghost' : 'warning'}
+                              size="sm"
+                              disabled={busy}
+                            >
+                              Make {teamRoleName(level).toLowerCase()}
+                            </Button>
+                          </form>
+                        {/if}
+                      {/each}
+                    {:else if player.permissionLevel === 0}
                       <form method="POST" action="?/promotePlayer" use:enhance>
                         <input type="hidden" name="playerSteamId" value={player.steamId} />
                         <Button type="submit" variant="ghost" size="sm" disabled={busy}
@@ -424,14 +457,17 @@
                         >
                       </form>
                     {/if}
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      disabled={busy}
-                      onclick={() => onRemovePlayer({ steamId: player.steamId, name: player.name })}
-                    >
-                      Remove
-                    </Button>
+                    {#if player.permissionLevel !== 2}
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        disabled={busy}
+                        onclick={() =>
+                          onRemovePlayer({ steamId: player.steamId, name: player.name })}
+                      >
+                        Remove
+                      </Button>
+                    {/if}
                   </div>
                 {/if}
               </div>

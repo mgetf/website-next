@@ -21,6 +21,7 @@
   import { hasMetPaidPlayerRequirement, paidPlayersNeeded } from '#lib/utils/rosterPayments.js';
   import { hasMetMinRosterSize } from '#lib/utils/rosterSize.js';
   import Settings from '~icons/lucide/settings';
+  import Shield from '~icons/lucide/shield';
   import TriangleAlert from '~icons/lucide/triangle-alert';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -55,11 +56,14 @@
   let disbandFormEl: HTMLFormElement | undefined = $state();
 
   const tabs = $derived.by(() => {
-    const items: { id: TeamPageTab; label: string }[] = [{ id: 'overview', label: 'Overview' }];
+    const items: { id: TeamPageTab; label: string; staff?: boolean }[] = [
+      { id: 'overview', label: 'Overview' },
+    ];
     if (canManage) items.push({ id: 'management', label: 'Management' });
-    if (data.isGlobalAdmin) items.push({ id: 'admin', label: 'Admin' });
+    if (data.isGlobalAdmin) items.push({ id: 'admin', label: 'Admin', staff: true });
     return items;
   });
+  const firstStaffTab = $derived(tabs.find((item) => item.staff)?.id);
 
   const rosterStepComplete = $derived(
     hasMetMinRosterSize(currentRoster.length, team.minRosterSize),
@@ -314,11 +318,17 @@
           aria-selected={tab === item.id}
           aria-controls="panel-{item.id}"
           data-sveltekit-reset="false"
-          class="inline-flex items-center border-b-2 px-4 py-3 text-sm font-medium transition-colors {tab ===
-          item.id
+          aria-label={item.staff ? `${item.label}, staff only` : undefined}
+          class="inline-flex shrink-0 items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors {item.id ===
+          firstStaffTab
+            ? 'ml-auto'
+            : ''} {tab === item.id
             ? 'border-primary-500 text-text-heading'
             : 'border-transparent text-text-muted hover:text-text-label'}"
         >
+          {#if item.staff}
+            <Shield class="size-3.5" aria-hidden="true" />
+          {/if}
           {item.label}
         </a>
       {/each}

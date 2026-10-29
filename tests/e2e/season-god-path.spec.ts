@@ -326,7 +326,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
 
   // Promote teammate → Demote → Captain Remove invitee
   await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
-  await homeCaptain.page.getByRole('button', { name: /Roster/ }).click();
+  await homeCaptain.page.getByRole('tab', { name: /Roster/ }).click();
   await Promise.all([
     homeCaptain.page.waitForLoadState('networkidle'),
     homeCaptain.page.getByRole('button', { name: 'Promote' }).first().click(),
@@ -355,7 +355,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
 
   // Free a roster slot (captain removes link joiner) then steam-invite decline + cancel
   await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
-  await homeCaptain.page.getByRole('button', { name: /Roster/ }).click();
+  await homeCaptain.page.getByRole('tab', { name: /Roster/ }).click();
   await captainRemovePlayer(homeCaptain.page, E2E_USERS.homeLinkJoiner.username);
 
   await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
@@ -456,8 +456,9 @@ test('admin creates week match; chat, deny/accept reschedule, edit schedule/aren
   expect(homeWins + awayWins).toBeGreaterThanOrEqual(1);
   await homeCaptain.page.goto('/leagues/2v2');
   await homeCaptain.page.getByRole('button', { name: 'Standings' }).click();
-  await expect(homeCaptain.page.getByText(HOME_TEAM_NAME)).toBeVisible();
-  await expect(homeCaptain.page.getByText(AWAY_TEAM_NAME)).toBeVisible();
+  // Team names also appear inside match-score links ("A 1–0 B"), so take the first (team card) match.
+  await expect(homeCaptain.page.getByText(HOME_TEAM_NAME).first()).toBeVisible();
+  await expect(homeCaptain.page.getByText(AWAY_TEAM_NAME).first()).toBeVisible();
 });
 
 test('admin creates playoff; map bans; Bo3 scores', async () => {
@@ -513,6 +514,7 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   expect(await getPlayerPaymentStatus(paidTeamId, E2E_USERS.paidCaptain.steamId)).toBe(0);
   await admin.page.goto(`/teams/${paidTeamId}`);
   await expect(admin.page.getByText(PAID_TEAM_NAME)).toBeVisible();
+  await admin.page.getByRole('tab', { name: /admin/i }).click();
   await expect(admin.page.getByText('Mark Player as Paid')).toBeVisible();
   await adminMarkPlayerPaid(admin.page, E2E_USERS.paidCaptain.username);
   expect(await getPlayerPaymentStatus(paidTeamId, E2E_USERS.paidCaptain.steamId)).toBe(1);
@@ -535,7 +537,8 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   ]);
 
   await solo1v1.page.goto(`/users/${E2E_USERS.solo1v1.steamId}`);
-  await expect(solo1v1.page.getByText('1v1 Management')).toBeVisible();
+  await solo1v1.page.getByRole('tab', { name: '1v1', exact: true }).click();
+  await expect(solo1v1.page.getByText('Current entry')).toBeVisible();
   await solo1v1.page.getByRole('button', { name: 'Ready Up' }).first().click();
   await expect(solo1v1.page.getByText(/Mark your 1v1 entry as ready/i)).toBeVisible();
   await Promise.all([
@@ -544,13 +547,15 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   ]);
 
   await admin.page.goto(`/users/${E2E_USERS.solo1v1.steamId}`);
-  await selectControlled(admin.page, '#admin-1v1-status', { value: 'READY' });
+  await admin.page.getByRole('tab', { name: '1v1', exact: true }).click();
+  await selectControlled(admin.page, '#profile-1v1-status', { value: 'READY' });
   await Promise.all([
     admin.page.waitForLoadState('networkidle'),
-    admin.page.getByRole('button', { name: 'Update Status' }).click(),
+    admin.page.getByRole('button', { name: 'Update status' }).click(),
   ]);
 
   await solo1v1.page.goto(`/users/${E2E_USERS.solo1v1.steamId}`);
+  await solo1v1.page.getByRole('tab', { name: '1v1', exact: true }).click();
   await solo1v1.page.getByRole('button', { name: 'Withdraw from League' }).click();
   await expect(
     solo1v1.page.getByRole('heading', { name: 'Withdraw from 1v1 League' }),

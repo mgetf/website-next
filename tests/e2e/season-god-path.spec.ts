@@ -286,6 +286,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
   expect(await getTeamStatus(homeTeamId)).toBe('PENDING');
 
   await admin.page.goto(`/teams/${homeTeamId}`);
+  await admin.page.getByRole('tab', { name: /admin/i }).click();
   await selectControlled(admin.page, '#status', { value: 'READY' });
   await Promise.all([
     admin.page.waitForLoadState('networkidle'),

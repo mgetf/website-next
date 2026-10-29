@@ -6,11 +6,11 @@ export function winPct(wins: number, losses: number): string {
   return String(Math.round((wins / total) * 100));
 }
 
-export function statusLabel(status: string): string {
+export function statusLabel(status: string, opts?: { individual?: boolean }): string {
   if (status === 'READY' || status === 'PLACEMENT') return 'Active';
   if (status === 'PENDING') return 'Pending';
   if (status === 'UNREADY') return 'Unready';
-  if (status === 'DEAD') return 'Withdrawn';
+  if (status === 'DEAD') return opts?.individual ? 'Withdrawn' : 'Disbanded';
   return status;
 }
 

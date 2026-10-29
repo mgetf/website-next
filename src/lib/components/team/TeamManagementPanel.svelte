@@ -36,6 +36,7 @@
     canToggleReady,
     management,
     submittingAction,
+    isIndividual = false,
     onReady,
     onRemovePlayer,
     onDisband,
@@ -61,6 +62,7 @@
     canToggleReady: boolean;
     management: TeamManagementData;
     submittingAction: string | null;
+    isIndividual?: boolean;
     onReady: () => void;
     onRemovePlayer: (player: { steamId: string; name: string }) => void;
     onDisband: () => void;
@@ -416,9 +418,13 @@
             <div>
               <h3 class="mb-2 text-lg font-bold text-text-heading">Danger zone</h3>
               <p class="mb-4 text-sm text-text-muted">
-                Disbanding marks the team as dead. This cannot be undone.
+                {isIndividual
+                  ? 'Withdrawing removes the entry from the league. This cannot be undone.'
+                  : 'Disbanding removes the team from the league. This cannot be undone.'}
               </p>
-              <Button type="button" variant="danger" onclick={onDisband}>Disband Team</Button>
+              <Button type="button" variant="danger" onclick={onDisband}
+                >{isIndividual ? 'Withdraw Entry' : 'Disband Team'}</Button
+              >
             </div>
           {/if}
         </div>

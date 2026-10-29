@@ -163,16 +163,18 @@
   function getStatusBadgeColor(status: string): 'green' | 'blue' | 'yellow' | 'red' | 'zinc' {
     if (status === 'ACTIVE') return 'green';
     if (status === 'READY') return 'blue';
+    if (status === 'PENDING') return 'yellow';
     if (status === 'UNREADY') return 'yellow';
-    if (status === 'DISBANDED') return 'red';
+    if (status === 'DEAD') return 'red';
     return 'zinc';
   }
 
   function getStatusLabel(status: string) {
     if (status === 'ACTIVE') return 'Active';
     if (status === 'READY') return 'Ready';
+    if (status === 'PENDING') return 'Pending';
     if (status === 'UNREADY') return 'Not Ready';
-    if (status === 'DISBANDED') return 'Disbanded';
+    if (status === 'DEAD') return 'Disbanded';
     return status;
   }
 </script>

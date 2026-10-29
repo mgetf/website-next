@@ -558,7 +558,7 @@
         class="space-y-4"
       >
         <div class="space-y-3">
-          {#each [{ value: 'READY', label: 'Ready', description: 'Team has completed signup and is confirmed', colorClass: 'bg-success-500' }, { value: 'PENDING', label: 'Pending', description: 'Team has submitted signup, awaiting admin approval', colorClass: 'bg-warning-500' }, { value: 'UNREADY', label: 'Unready', description: 'Team has signed up but is not ready yet', colorClass: 'bg-danger-500' }, { value: 'PLACEMENT', label: 'Placement', description: 'Team is in placement matches', colorClass: 'bg-info-500' }, { value: 'DEAD', label: 'Dead / Withdrawn', description: 'Team has disbanded or withdrawn (only shown if they played matches)', colorClass: 'bg-text-muted' }] as statusOption}
+          {#each [{ value: 'READY', label: 'Ready', description: 'Team has completed signup and is confirmed', colorClass: 'bg-success-500' }, { value: 'PENDING', label: 'Pending', description: 'Team has submitted signup, awaiting admin approval', colorClass: 'bg-warning-500' }, { value: 'UNREADY', label: 'Unready', description: 'Team has signed up but is not ready yet', colorClass: 'bg-danger-500' }, { value: 'PLACEMENT', label: 'Placement', description: 'Team is in placement matches', colorClass: 'bg-info-500' }, { value: 'DEAD', label: 'Disbanded / Withdrawn', description: 'Team has disbanded or withdrawn (only shown if they played matches)', colorClass: 'bg-text-muted' }] as statusOption}
             <label class="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"

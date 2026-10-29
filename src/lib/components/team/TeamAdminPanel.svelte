@@ -87,7 +87,7 @@
           { value: 'UNREADY', label: 'Unready' },
           { value: 'PENDING', label: 'Pending' },
           { value: 'READY', label: 'Ready' },
-          { value: 'DEAD', label: 'Dead' },
+          { value: 'DEAD', label: 'Disbanded / Withdrawn' },
           { value: 'PLACEMENT', label: 'Placement' },
         ]}
       />

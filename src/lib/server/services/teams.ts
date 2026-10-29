@@ -460,6 +460,7 @@ export async function getTeamById(id: number) {
           code: true,
           themeKey: true,
           iconUrl: true,
+          isIndividual: true,
           requiredPaidPlayers: true,
           minRosterSize: true,
           maxRosterSize: true,

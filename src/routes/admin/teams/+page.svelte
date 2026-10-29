@@ -109,7 +109,7 @@
     { value: '2', label: 'Ready' },
     { value: '1', label: 'Pending' },
     { value: '0', label: 'Unready' },
-    { value: '3', label: 'Dead' },
+    { value: '3', label: 'Disbanded / Withdrawn' },
   ];
 
   const paymentFilterOptions = [
@@ -202,7 +202,7 @@
     UNREADY: 'Unready',
     PENDING: 'Pending',
     READY: 'Ready',
-    DEAD: 'Dead',
+    DEAD: 'Disbanded / Withdrawn',
   };
 
   const paymentNames: Record<number, string> = {
@@ -396,7 +396,7 @@
               size="sm"
               title={team.formatId === FORMAT_1V1
                 ? 'Withdraw player from 1v1 league'
-                : 'Disband team (mark as dead and remove all players)'}
+                : 'Disband team and remove all players'}
               onclick={() => (disbandingTeam = team)}
             >
               {team.formatId === FORMAT_1V1 ? 'Withdraw' : 'Disband'}
@@ -452,7 +452,7 @@
       ...editModalDivisionOptions.map((d) => ({ value: String(d.id), label: d.name })),
     ]}
     {@const statusOptions = [
-      { value: '-1', label: 'Dead' },
+      { value: '-1', label: 'Disbanded / Withdrawn' },
       { value: '0', label: 'Unready' },
       { value: '1', label: 'Pending' },
       { value: '2', label: 'Ready' },

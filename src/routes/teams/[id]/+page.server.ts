@@ -46,7 +46,12 @@ import {
   acceptTeamInvite,
   declineInvitation,
 } from '#lib/server/services/teamJoin.js';
-import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
+import {
+  logAudit,
+  AuditCategory,
+  AuditAction,
+  getTeamDisbandReason,
+} from '#lib/server/services/auditLog.js';
 import { getErrorMessage } from '#lib/server/utils/errors.js';
 import { optionalDivisionIdSchema } from '#lib/server/utils/validation.js';
 import { getByeWeeksForTeam } from '#lib/server/services/byeWeeks.js';
@@ -304,6 +309,17 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     : null;
   const isOnTeam = !!currentUserInTeam;
   const isOwner = currentUserInTeam?.permissionLevel === 2;
+  // Disbanded teams deactivate the roster, so ex-members fail the active
+  // check above — include anyone who was ever on the roster.
+  const wasRosterMember = currentUserSteamId
+    ? team.players.some((p) => p.playerSteamId === currentUserSteamId)
+    : false;
+
+  // Disband reason is visible to (ex-)members and team managers only.
+  let disbandReason: string | null = null;
+  if (team.status === 'DEAD' && (isOnTeam || wasRosterMember || canManageTeam)) {
+    disbandReason = await getTeamDisbandReason(teamId);
+  }
 
   const pendingStatus =
     currentUserSteamId && !isOnTeam
@@ -409,6 +425,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     isAuthenticated: !!locals.user,
     isOnTeam,
     isOwner,
+    wasRosterMember,
+    disbandReason,
     pendingStatus,
     hasPendingRequestElsewhere,
     rosterLocked,

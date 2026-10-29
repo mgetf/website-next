@@ -219,6 +219,13 @@
           {statusLabel(team.status)}
         </Badge>
       </div>
+      {#if team.status === 'DEAD' && data.disbandReason}
+        <div class="mt-3 rounded-lg border border-border-input bg-surface-input p-3">
+          <p class="text-sm text-text-body">
+            <span class="font-semibold text-text-heading">Admin note: </span>{data.disbandReason}
+          </p>
+        </div>
+      {/if}
     </div>
 
     <div class="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">

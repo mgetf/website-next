@@ -330,6 +330,24 @@ export async function getAuditLogs(filters: AuditLogFilters = {}) {
 }
 
 /**
+ * Latest disband reason recorded for a team (from TEAM_DISBANDED audit
+ * metadata), or null when the team was removed without a reason.
+ */
+export async function getTeamDisbandReason(teamId: number): Promise<string | null> {
+  const entry = await prisma.auditLog.findFirst({
+    where: {
+      targetType: 'Team',
+      targetId: String(teamId),
+      action: AuditAction.TEAM_DISBANDED,
+    },
+    orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
+    select: { metadata: true },
+  });
+  const reason = (entry?.metadata as Record<string, unknown> | null)?.reason;
+  return typeof reason === 'string' && reason.trim() ? reason : null;
+}
+
+/**
  * Count of logs per category for the admin dashboard.
  */
 export async function getAuditLogStats() {

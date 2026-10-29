@@ -612,6 +612,17 @@
         class="flex-1"
       >
         <input type="hidden" name="teamId" value={disbandingTeam!.id} />
+        <label for="disband-reason" class="block text-sm font-medium text-text-body mb-2 text-left">
+          Reason (optional — shown to the roster in their notifications)
+        </label>
+        <textarea
+          id="disband-reason"
+          name="reason"
+          rows="2"
+          maxlength="500"
+          placeholder="e.g. Removed: 0/4 weeks played after Week 3, medal-ineligible (Rule 11.2)"
+          class="w-full bg-surface-input border border-border-input rounded-lg p-3 mb-3 text-text-heading text-sm"
+        ></textarea>
         <Button type="submit" variant="danger" disabled={isDisbanding} class="w-full">
           {#if isDisbanding}
             {disbandingTeam!.formatId === FORMAT_1V1 ? 'Withdrawing...' : 'Disbanding...'}

@@ -346,7 +346,7 @@ export async function captainRemovePlayer(page: Page, playerName: string): Promi
 
 /** Read invite link from team edit → Invite Players tab. */
 export async function readInviteLink(page: Page): Promise<string> {
-  await page.getByRole('button', { name: 'Invite Players' }).click();
+  await page.getByRole('tab', { name: 'Invite Players' }).click();
   const input = page.locator('input[readonly]').first();
   const value = await input.inputValue();
   if (!value.includes('/i/')) {
@@ -374,7 +374,7 @@ export async function declineSteamInvitation(page: Page, teamName: string): Prom
 }
 
 export async function cancelPendingInvite(page: Page, username: string): Promise<void> {
-  await page.getByRole('button', { name: /Pending/ }).click();
+  await page.getByRole('tab', { name: /Pending/ }).click();
   await expect(page.getByText(username)).toBeVisible();
   await Promise.all([
     page.waitForLoadState('networkidle'),

@@ -296,7 +296,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
 
   // Invite by Steam ID
   await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
-  await homeCaptain.page.getByRole('button', { name: 'Invite Players' }).click();
+  await homeCaptain.page.getByRole('tab', { name: 'Invite Players' }).click();
   await homeCaptain.page.locator('#steamId').fill(E2E_USERS.homeInvitee.steamId);
   await Promise.all([
     homeCaptain.page.waitForLoadState('networkidle'),
@@ -359,7 +359,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
   await captainRemovePlayer(homeCaptain.page, E2E_USERS.homeLinkJoiner.username);
 
   await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
-  await homeCaptain.page.getByRole('button', { name: 'Invite Players' }).click();
+  await homeCaptain.page.getByRole('tab', { name: 'Invite Players' }).click();
   await homeCaptain.page.locator('#steamId').fill(E2E_USERS.homeInviteDecliner.steamId);
   await Promise.all([
     homeCaptain.page.waitForLoadState('networkidle'),
@@ -369,7 +369,7 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
 
   // Invite declined user for cancel-invite coverage
   await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
-  await homeCaptain.page.getByRole('button', { name: 'Invite Players' }).click();
+  await homeCaptain.page.getByRole('tab', { name: 'Invite Players' }).click();
   await homeCaptain.page.locator('#steamId').fill(E2E_USERS.homeDeclined.steamId);
   await Promise.all([
     homeCaptain.page.waitForLoadState('networkidle'),

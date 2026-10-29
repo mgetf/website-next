@@ -36,6 +36,7 @@
     canToggleReady,
     management,
     submittingAction,
+    isIndividual = false,
     onReady,
     onRemovePlayer,
     onDisband,
@@ -61,6 +62,7 @@
     canToggleReady: boolean;
     management: TeamManagementData;
     submittingAction: string | null;
+    isIndividual?: boolean;
     onReady: () => void;
     onRemovePlayer: (player: { steamId: string; name: string }) => void;
     onDisband: () => void;
@@ -333,7 +335,7 @@
     <div class="p-4 sm:p-6">
       {#if section === 'info'}
         <div class="space-y-8">
-          <form method="POST" action="?/updateInfo" use:enhance>
+          <form method="POST" action="?/updateInfo" use:enhance={keepPlace}>
             <h3 class="mb-4 text-lg font-bold text-text-heading">Team information</h3>
             <FormInput
               label="Team Name"
@@ -357,7 +359,12 @@
 
           <hr class="border-border-default" />
 
-          <form method="POST" action="?/updateAvatar" enctype="multipart/form-data" use:enhance>
+          <form
+            method="POST"
+            action="?/updateAvatar"
+            enctype="multipart/form-data"
+            use:enhance={keepPlace}
+          >
             <h3 class="mb-4 text-lg font-bold text-text-heading">Team avatar</h3>
             <div class="flex items-center gap-4">
               {#if avatarPreview}
@@ -391,7 +398,7 @@
 
           <hr class="border-border-default" />
 
-          <form method="POST" action="?/updatePassword" use:enhance>
+          <form method="POST" action="?/updatePassword" use:enhance={keepPlace}>
             <h3 class="mb-4 text-lg font-bold text-text-heading">Join password</h3>
             <FormInput
               label="Join Password"
@@ -411,9 +418,13 @@
             <div>
               <h3 class="mb-2 text-lg font-bold text-text-heading">Danger zone</h3>
               <p class="mb-4 text-sm text-text-muted">
-                Disbanding marks the team as dead. This cannot be undone.
+                {isIndividual
+                  ? 'Withdrawing removes the entry from the league. This cannot be undone.'
+                  : 'Disbanding removes the team from the league. This cannot be undone.'}
               </p>
-              <Button type="button" variant="danger" onclick={onDisband}>Disband Team</Button>
+              <Button type="button" variant="danger" onclick={onDisband}
+                >{isIndividual ? 'Withdraw Entry' : 'Disband Team'}</Button
+              >
             </div>
           {/if}
         </div>
@@ -430,6 +441,8 @@
             {#each management.players as player (player.steamId)}
               <div
                 class="flex flex-col gap-3 rounded-lg bg-surface-input p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
+                data-testid="roster-player-row"
+                data-player-steam-id={player.steamId}
               >
                 <div class="flex min-w-0 items-center gap-3">
                   <img
@@ -462,14 +475,14 @@
                         {/if}
                       {/each}
                     {:else if player.permissionLevel === 0}
-                      <form method="POST" action="?/promotePlayer" use:enhance>
+                      <form method="POST" action="?/promotePlayer" use:enhance={keepPlace}>
                         <input type="hidden" name="playerSteamId" value={player.steamId} />
                         <Button type="submit" variant="ghost" size="sm" disabled={busy}
                           >Promote</Button
                         >
                       </form>
                     {:else if player.permissionLevel === 1}
-                      <form method="POST" action="?/demotePlayer" use:enhance>
+                      <form method="POST" action="?/demotePlayer" use:enhance={keepPlace}>
                         <input type="hidden" name="playerSteamId" value={player.steamId} />
                         <Button type="submit" variant="warning" size="sm" disabled={busy}
                           >Demote</Button
@@ -516,7 +529,7 @@
                         <p class="text-sm text-text-body">Awaiting player response</p>
                       </div>
                     </div>
-                    <form method="POST" action="?/cancelInvite" use:enhance>
+                    <form method="POST" action="?/cancelInvite" use:enhance={keepPlace}>
                       <input type="hidden" name="playerSteamId" value={invite.steamId} />
                       <Button type="submit" variant="secondary" size="sm" disabled={busy}
                         >Cancel</Button
@@ -552,7 +565,7 @@
                         </span>
                       </div>
                     </div>
-                    <form method="POST" action="?/cancelInvite" use:enhance>
+                    <form method="POST" action="?/cancelInvite" use:enhance={keepPlace}>
                       <input type="hidden" name="playerSteamId" value={invite.steamId} />
                       <Button type="submit" variant="secondary" size="sm" disabled={busy}
                         >Cancel</Button
@@ -590,7 +603,7 @@
             action="?/invitePlayer"
             use:enhance={() => {
               return async ({ update, result }) => {
-                await update();
+                await update({ navigate: false });
                 if (result.type === 'success') inviteSteamId = '';
               };
             }}

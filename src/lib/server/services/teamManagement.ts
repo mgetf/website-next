@@ -5,6 +5,7 @@
 
 import { prisma } from '#lib/server/db.js';
 import type { Prisma } from '#prisma/client.js';
+import { NotificationType } from '#prisma/client.js';
 import { hasInvalidClassId, orderedRestrictedClassIds } from '#lib/utils/classRestriction.js';
 import { isTeamRoleLevel, type TeamRoleLevel } from '#lib/utils/team.js';
 import { notFound, badRequest } from '#lib/server/utils/errors.js';
@@ -496,9 +497,32 @@ export async function invitePlayerBySteamId(
 }
 
 /**
- * Disband team (mark as DEAD and deactivate all players)
+ * Disband team (mark as DEAD and deactivate all players).
+ * When `opts.reason` is provided, every active roster member gets an
+ * ADMIN_ACTION notification with that message (visible on next login),
+ * attributed to `opts.actorSteamId`.
  */
-export async function disbandTeam(teamId: number): Promise<void> {
+export async function disbandTeam(
+  teamId: number,
+  opts?: { reason?: string; actorSteamId?: string },
+): Promise<void> {
+  const reason = opts?.reason?.trim() || null;
+
+  // Snapshot the roster + team label before deactivating, for notifications.
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: {
+      name: true,
+      players: {
+        where: { active: 1 },
+        select: { playerSteamId: true },
+      },
+    },
+  });
+  const memberSteamIds = (team?.players ?? []).map((p) => p.playerSteamId);
+  // The actor already knows what they did — only tell everyone else.
+  const notifySteamIds = memberSteamIds.filter((id) => id !== opts?.actorSteamId);
+
   // Mark team as DEAD
   await prisma.team.update({
     where: { id: teamId },
@@ -524,6 +548,19 @@ export async function disbandTeam(teamId: number): Promise<void> {
   await prisma.pendingPlayer.deleteMany({
     where: { teamId },
   });
+
+  // Tell the roster why (surfaces in the notification bell on next login).
+  if (reason) {
+    for (const steamId of notifySteamIds) {
+      await createNotificationForUser(
+        steamId,
+        NotificationType.ADMIN_ACTION,
+        `/teams/${teamId}`,
+        reason,
+        opts?.actorSteamId,
+      );
+    }
+  }
 }
 
 /**

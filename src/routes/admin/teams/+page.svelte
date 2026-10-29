@@ -109,7 +109,7 @@
     { value: '2', label: 'Ready' },
     { value: '1', label: 'Pending' },
     { value: '0', label: 'Unready' },
-    { value: '3', label: 'Dead' },
+    { value: '3', label: 'Disbanded / Withdrawn' },
   ];
 
   const paymentFilterOptions = [
@@ -202,7 +202,7 @@
     UNREADY: 'Unready',
     PENDING: 'Pending',
     READY: 'Ready',
-    DEAD: 'Dead',
+    DEAD: 'Disbanded / Withdrawn',
   };
 
   const paymentNames: Record<number, string> = {
@@ -396,7 +396,7 @@
               size="sm"
               title={team.formatId === FORMAT_1V1
                 ? 'Withdraw player from 1v1 league'
-                : 'Disband team (mark as dead and remove all players)'}
+                : 'Disband team and remove all players'}
               onclick={() => (disbandingTeam = team)}
             >
               {team.formatId === FORMAT_1V1 ? 'Withdraw' : 'Disband'}
@@ -452,7 +452,7 @@
       ...editModalDivisionOptions.map((d) => ({ value: String(d.id), label: d.name })),
     ]}
     {@const statusOptions = [
-      { value: '-1', label: 'Dead' },
+      { value: '-1', label: 'Disbanded / Withdrawn' },
       { value: '0', label: 'Unready' },
       { value: '1', label: 'Pending' },
       { value: '2', label: 'Ready' },
@@ -612,6 +612,17 @@
         class="flex-1"
       >
         <input type="hidden" name="teamId" value={disbandingTeam!.id} />
+        <label for="disband-reason" class="block text-sm font-medium text-text-body mb-2 text-left">
+          Reason (optional — shown to the roster in their notifications)
+        </label>
+        <textarea
+          id="disband-reason"
+          name="reason"
+          rows="2"
+          maxlength="500"
+          placeholder="e.g. Removed: 0/4 weeks played after Week 3, medal-ineligible (Rule 11.2)"
+          class="w-full bg-surface-input border border-border-input rounded-lg p-3 mb-3 text-text-heading text-sm"
+        ></textarea>
         <Button type="submit" variant="danger" disabled={isDisbanding} class="w-full">
           {#if isDisbanding}
             {disbandingTeam!.formatId === FORMAT_1V1 ? 'Withdrawing...' : 'Disbanding...'}

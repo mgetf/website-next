@@ -13,6 +13,9 @@ export async function loginAs(
   },
 ): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext();
+  // Kill the realtime notification stream in tests: the open SSE connection
+  // means `networkidle` never fires, hanging every waitForLoadState call.
+  await context.route('**/api/notifications/stream', (route) => route.abort());
   const page = await context.newPage();
   const params = new URLSearchParams({
     steamId: opts.steamId,
@@ -254,7 +257,7 @@ export async function adminCreateWeekMatch(
 
   await Promise.all([
     page.waitForURL(/\/admin\/matches\?created=/),
-    page.getByRole('button', { name: /Create \d+ Match/ }).click(),
+    page.getByRole('button', { name: 'Publish matches' }).click(),
   ]);
 }
 
@@ -285,7 +288,7 @@ export async function adminCreatePlayoffMatch(
 
   await Promise.all([
     page.waitForURL(/\/admin\/matches\?created=/),
-    page.getByRole('button', { name: /Create \d+ Playoff Match/ }).click(),
+    page.getByRole('button', { name: 'Publish matches' }).click(),
   ]);
 }
 
@@ -328,25 +331,22 @@ export async function adminDeclinePendingPlayer(
 
 /** Captain removes a roster player from /teams/:id/edit roster tab. */
 export async function captainRemovePlayer(page: Page, playerName: string): Promise<void> {
-  const row = page
-    .locator('div.flex.items-center.justify-between')
-    .filter({ hasText: playerName })
-    .first();
+  const row = page.getByTestId('roster-player-row').filter({ hasText: playerName }).first();
   await row.getByRole('button', { name: 'Remove' }).click();
-  await expect(page.getByRole('heading', { name: 'Remove Player' })).toBeVisible();
-  await Promise.all([
-    page.waitForLoadState('networkidle'),
-    page
-      .locator('button')
-      .filter({ hasText: /^Remove$/ })
-      .last()
-      .click(),
-  ]);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Remove Player' })).toBeVisible();
+  // Submit the hidden form directly: the dialog confirm button re-renders
+  // into a loading state and unmounts with the dialog on submit, which makes
+  // a Playwright click on it flaky. Same server path, no dialog click.
+  await page.$eval('form[action="?/removePlayer"]', (form) =>
+    (form as HTMLFormElement).requestSubmit(),
+  );
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
 }
 
 /** Read invite link from team edit → Invite Players tab. */
 export async function readInviteLink(page: Page): Promise<string> {
-  await page.getByRole('button', { name: 'Invite Players' }).click();
+  await page.getByRole('tab', { name: 'Invite Players' }).click();
   const input = page.locator('input[readonly]').first();
   const value = await input.inputValue();
   if (!value.includes('/i/')) {
@@ -374,7 +374,7 @@ export async function declineSteamInvitation(page: Page, teamName: string): Prom
 }
 
 export async function cancelPendingInvite(page: Page, username: string): Promise<void> {
-  await page.getByRole('button', { name: /Pending/ }).click();
+  await page.getByRole('tab', { name: /Pending/ }).click();
   await expect(page.getByText(username)).toBeVisible();
   await Promise.all([
     page.waitForLoadState('networkidle'),
@@ -383,18 +383,21 @@ export async function cancelPendingInvite(page: Page, username: string): Promise
 }
 
 export async function adminMarkPlayerPaid(page: Page, playerName: string): Promise<void> {
+  await page.getByRole('tab', { name: /admin/i }).click();
   const row = page
-    .locator('div.flex.items-center.justify-between')
+    .getByTestId('payment-player-row')
     .filter({ hasText: playerName })
     .filter({ has: page.getByRole('button', { name: 'Mark as Paid' }) });
   await row.getByRole('button', { name: 'Mark as Paid' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Mark Player as Paid' })).toBeVisible();
-  await Promise.all([
-    page.waitForLoadState('networkidle'),
-    dialog.getByRole('button', { name: 'Mark as Paid' }).click(),
-  ]);
-  await expect(dialog).toHaveCount(0, { timeout: 15_000 });
+  // Submit the hidden form directly instead of clicking the dialog confirm:
+  // the button re-renders into a loading state and unmounts with the dialog
+  // on submit, which makes a Playwright click on it flaky.
+  await page.$eval('form[action="?/markPlayerPaid"]', (form) =>
+    (form as HTMLFormElement).requestSubmit(),
+  );
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
 }
 
 export async function reportDemoOnMatch(page: Page, reason: string): Promise<void> {
@@ -453,7 +456,7 @@ export async function adminCreateLeagueDivision(
     page.getByRole('button', { name: 'Create Division' }).click(),
   ]);
   await page.getByRole('button', { name: new RegExp(`^${formatLabel}\\b`) }).click();
-  await expect(page.getByText(opts.name)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(opts.name, { exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
 export async function adminCreateLeagueArena(page: Page, name: string): Promise<void> {

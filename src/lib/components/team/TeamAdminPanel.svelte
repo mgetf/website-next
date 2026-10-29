@@ -87,7 +87,7 @@
           { value: 'UNREADY', label: 'Unready' },
           { value: 'PENDING', label: 'Pending' },
           { value: 'READY', label: 'Ready' },
-          { value: 'DEAD', label: 'Dead' },
+          { value: 'DEAD', label: 'Disbanded / Withdrawn' },
           { value: 'PLACEMENT', label: 'Placement' },
         ]}
       />
@@ -201,7 +201,11 @@
             <h3 class="mb-4 text-lg font-bold text-text-heading">Mark Player as Paid</h3>
             <div class="space-y-2">
               {#each unpaidPlayers as player (player.steamId)}
-                <div class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3">
+                <div
+                  class="flex items-center justify-between rounded-lg bg-surface-page/50 p-3"
+                  data-testid="payment-player-row"
+                  data-player-steam-id={player.steamId}
+                >
                   <div class="flex items-center gap-3">
                     <img
                       src={player.avatar || DEFAULT_AVATAR}

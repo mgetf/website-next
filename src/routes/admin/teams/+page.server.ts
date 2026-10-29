@@ -37,6 +37,7 @@ const updateTeamSchema = z.object({
 // Zod schema for team disband form
 const disbandTeamSchema = z.object({
   teamId: z.coerce.number().int().positive('Invalid team ID'),
+  reason: z.string().trim().max(500, 'Reason too long').optional().default(''),
 });
 
 const hardDeleteTeamSchema = z.object({
@@ -314,11 +315,14 @@ export const actions: Actions = {
       return validationError(validation.errors, 'Invalid form data');
     }
 
-    const { teamId } = validation.data;
+    const { teamId, reason } = validation.data;
 
     try {
       const before = await getTeamAuditSnapshot(teamId);
-      await disbandTeam(teamId);
+      await disbandTeam(teamId, {
+        reason: reason || undefined,
+        actorSteamId: locals.user?.steamId,
+      });
       const after = await getTeamAuditSnapshot(teamId);
 
       await logAudit({
@@ -337,6 +341,7 @@ export const actions: Actions = {
           divisionNameBefore: before?.divisionName ?? null,
           regionIdBefore: before?.regionId ?? null,
           regionNameBefore: before?.regionName ?? null,
+          reason: reason || null,
         },
         ipAddress: getClientAddress(),
       });

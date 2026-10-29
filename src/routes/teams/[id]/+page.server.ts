@@ -411,6 +411,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       formatName: team.format.name,
       formatThemeKey: team.format.themeKey,
       formatIconUrl: team.format.iconUrl,
+      isIndividual: team.format.isIndividual,
       minRosterSize: team.format.minRosterSize,
       maxRosterSize: team.format.maxRosterSize,
     },
@@ -1045,7 +1046,7 @@ export const actions: Actions = {
     }
   },
 
-  disbandTeam: async ({ params, locals, getClientAddress }) => {
+  disbandTeam: async ({ request, params, locals, getClientAddress }) => {
     requireAuth(locals.user);
     const teamId = parseInt(params.id);
 
@@ -1056,8 +1057,14 @@ export const actions: Actions = {
       return formError('Only the team leader or a site admin can disband the team', 403);
     }
 
+    const formData = await request.formData();
+    const reason =
+      String(formData.get('reason') ?? '')
+        .trim()
+        .slice(0, 500) || undefined;
+
     const before = await getTeamAuditSnapshot(teamId);
-    await disbandTeam(teamId);
+    await disbandTeam(teamId, { reason, actorSteamId: locals.user.steamId });
     const after = await getTeamAuditSnapshot(teamId);
 
     await logAudit({
@@ -1076,6 +1083,7 @@ export const actions: Actions = {
         divisionNameBefore: before?.divisionName ?? null,
         regionIdBefore: before?.regionId ?? null,
         regionNameBefore: before?.regionName ?? null,
+        reason: reason ?? null,
       },
       ipAddress: getClientAddress(),
     });

@@ -520,6 +520,8 @@ export async function disbandTeam(
     },
   });
   const memberSteamIds = (team?.players ?? []).map((p) => p.playerSteamId);
+  // The actor already knows what they did — only tell everyone else.
+  const notifySteamIds = memberSteamIds.filter((id) => id !== opts?.actorSteamId);
 
   // Mark team as DEAD
   await prisma.team.update({
@@ -549,7 +551,7 @@ export async function disbandTeam(
 
   // Tell the roster why (surfaces in the notification bell on next login).
   if (reason) {
-    for (const steamId of memberSteamIds) {
+    for (const steamId of notifySteamIds) {
       await createNotificationForUser(
         steamId,
         NotificationType.ADMIN_ACTION,

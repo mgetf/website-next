@@ -27,6 +27,7 @@
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   const team = $derived(data.team);
+  const isIndividual = $derived(team.isIndividual ?? false);
   const currentRoster = $derived(data.currentRoster);
   const pastRoster = $derived(data.pastRoster);
   const matchesBySeason = $derived(data.matchesBySeason);
@@ -47,6 +48,7 @@
   let unmarkPaidTarget: { steamId: string; name: string } | null = $state(null);
   let showReadyDialog = $state(false);
   let showDisbandDialog = $state(false);
+  let disbandReasonInput = $state('');
 
   let leaveFormEl: HTMLFormElement | undefined = $state();
   let removeFormEl: HTMLFormElement | undefined = $state();
@@ -113,7 +115,7 @@
       toast.success('Join request submitted! An admin will review it shortly.');
       void goto(teamPath, { replace: true });
     } else if (disbanded === '1') {
-      toast.success('Team has been disbanded.');
+      toast.success(isIndividual ? 'Entry withdrawn from the league.' : 'Team has been disbanded.');
       void goto(teamPath, { replace: true });
     }
   });
@@ -130,6 +132,7 @@
       unmarkPaidTarget = null;
       showReadyDialog = false;
       showDisbandDialog = false;
+      disbandReasonInput = '';
       if (form.success && form.message) {
         toast.success(form.message);
       } else if (form.error) {
@@ -169,7 +172,9 @@
       case 'READY':
         return 'Team has been approved and is active for the season';
       case 'DEAD':
-        return 'Team has been disbanded';
+        return isIndividual
+          ? 'Entry has been withdrawn from the league'
+          : 'Team has been disbanded';
       default:
         return '';
     }
@@ -216,7 +221,7 @@
       <div class="mt-2 flex flex-wrap items-center gap-2">
         <SeasonScope region={team.region} seasonNum={team.seasonNum} division={team.division} />
         <Badge color={statusColor(team.status)} tooltip={getStatusTooltip(team.status)}>
-          {statusLabel(team.status)}
+          {statusLabel(team.status, { individual: isIndividual })}
         </Badge>
       </div>
       {#if team.status === 'DEAD' && data.disbandReason}
@@ -434,6 +439,7 @@
         {canToggleReady}
         management={data.management}
         {submittingAction}
+        isIndividual={team.isIndividual ?? false}
         onReady={() => (showReadyDialog = true)}
         onRemovePlayer={(player) => {
           removeTarget = player;
@@ -537,7 +543,9 @@
   action="?/disbandTeam"
   use:enhance={makeEnhance('disbandTeam')}
   class="hidden"
-></form>
+>
+  <input type="hidden" name="reason" value={disbandReasonInput} />
+</form>
 
 <ConfirmDialog
   open={showLeaveDialog}
@@ -613,12 +621,33 @@
 
 <ConfirmDialog
   open={showDisbandDialog}
-  title="Disband Team"
-  description="Disband {team.name}? This action cannot be undone. The team will be marked as disbanded."
-  confirmLabel="Disband Team"
-  loadingLabel="Disbanding..."
+  title={isIndividual ? 'Withdraw Entry' : 'Disband Team'}
+  description={isIndividual
+    ? `Withdraw ${team.name} from the league? This action cannot be undone.`
+    : `Disband ${team.name}? This action cannot be undone. The team will be marked as disbanded.`}
+  confirmLabel={isIndividual ? 'Withdraw' : 'Disband Team'}
+  loadingLabel={isIndividual ? 'Withdrawing...' : 'Disbanding...'}
   variant="danger"
   isLoading={submittingAction === 'disbandTeam'}
   onConfirm={() => disbandFormEl?.requestSubmit()}
-  onCancel={() => (showDisbandDialog = false)}
-/>
+  onCancel={() => {
+    showDisbandDialog = false;
+    disbandReasonInput = '';
+  }}
+>
+  {#snippet preview()}
+    <label for="disband-reason" class="block text-sm font-medium text-text-body mb-2 text-left">
+      Reason (optional — shown to the rest of the roster in their notifications)
+    </label>
+    <textarea
+      id="disband-reason"
+      rows="2"
+      maxlength="500"
+      placeholder={isIndividual
+        ? 'e.g. Withdrawing: only 1/4 weeks played, medal-ineligible (Rule 11.2)'
+        : 'e.g. Removed: 0/4 weeks played, medal-ineligible (Rule 11.2)'}
+      bind:value={disbandReasonInput}
+      class="w-full bg-surface-input border border-border-input rounded-lg p-3 text-text-heading text-sm"
+    ></textarea>
+  {/snippet}
+</ConfirmDialog>

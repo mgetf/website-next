@@ -95,6 +95,9 @@ const gameScoreEntrySchema = z.object({
   arenaId: z.coerce.number().int().positive().optional(),
 });
 
+const MAX_DEMO_SIZE_BYTES = 200 * 1024 * 1024;
+const MAX_DEMOS_PER_UPLOAD = 10;
+
 const uploadDemoFieldsSchema = z.object({
   playerSteamId: z.string().min(1, 'Player selection is required'),
   description: z.string().optional().default(''),
@@ -731,10 +734,18 @@ export const actions: Actions = {
 
     try {
       const formData = await request.formData();
-      const file = formData.get('file');
+      const files = formData
+        .getAll('file')
+        .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-      if (!(file instanceof File) || file.size === 0) {
+      if (files.length === 0) {
         return fail(400, { error: 'File is required' });
+      }
+
+      if (files.length > MAX_DEMOS_PER_UPLOAD) {
+        return fail(400, {
+          error: `You can upload at most ${MAX_DEMOS_PER_UPLOAD} demos at once.`,
+        });
       }
 
       const fieldValidation = validateForm(formData, uploadDemoFieldsSchema);
@@ -742,17 +753,18 @@ export const actions: Actions = {
 
       const { playerSteamId, description } = fieldValidation.data;
 
-      // Validate file extension
-      if (!file.name.toLowerCase().endsWith('.dem')) {
-        return fail(400, {
-          error: 'Invalid file type. Only .dem files are allowed.',
-        });
-      }
+      for (const file of files) {
+        if (!file.name.toLowerCase().endsWith('.dem')) {
+          return fail(400, {
+            error: `Invalid file type for "${file.name}". Only .dem files are allowed.`,
+          });
+        }
 
-      // Validate file size (200MB max)
-      const maxSize = 200 * 1024 * 1024;
-      if (file.size > maxSize) {
-        return fail(400, { error: 'File too large. Maximum size is 200MB.' });
+        if (file.size > MAX_DEMO_SIZE_BYTES) {
+          return fail(400, {
+            error: `"${file.name}" is too large. Maximum size is 200MB.`,
+          });
+        }
       }
 
       const match = await getMatchDetails(matchId);
@@ -783,37 +795,44 @@ export const actions: Actions = {
 
       const tempDir = join(tmpdir(), 'mge-demos');
       await mkdir(tempDir, { recursive: true });
-      // Never put the client filename on disk — path traversal risk
-      const tempBasename = assertSafeBasename(safeDemoStorageName(file.name));
-      const tempPath = join(tempDir, tempBasename);
 
-      const arrayBuffer = await file.arrayBuffer();
-      await writeFile(tempPath, Buffer.from(arrayBuffer));
+      for (const file of files) {
+        // Never put the client filename on disk — path traversal risk
+        const tempBasename = assertSafeBasename(safeDemoStorageName(file.name));
+        const tempPath = join(tempDir, tempBasename);
 
-      await uploadDemo({
-        file: {
-          filepath: tempPath,
-          originalFilename: file.name.toLowerCase().endsWith('.dem') ? 'upload.dem' : file.name,
-          size: file.size,
-        },
-        playerSteamId,
-        submittedBy: locals.user.steamId,
-        matchId,
-        description: description || undefined,
-      });
+        const arrayBuffer = await file.arrayBuffer();
+        await writeFile(tempPath, Buffer.from(arrayBuffer));
 
-      await logAudit({
-        actorId: locals.user.steamId,
-        actorRole: locals.user.permissionLevel,
-        category: AuditCategory.DEMO,
-        action: AuditAction.DEMO_UPLOADED,
-        targetType: 'Match',
-        targetId: String(matchId),
-        metadata: { playerSteamId, filename: file.name, size: file.size },
-        ipAddress: getClientAddress(),
-      });
+        await uploadDemo({
+          file: {
+            filepath: tempPath,
+            originalFilename: file.name.toLowerCase().endsWith('.dem') ? 'upload.dem' : file.name,
+            size: file.size,
+          },
+          playerSteamId,
+          submittedBy: locals.user.steamId,
+          matchId,
+          description: description || undefined,
+        });
 
-      return { success: true, message: 'Demo uploaded successfully' };
+        await logAudit({
+          actorId: locals.user.steamId,
+          actorRole: locals.user.permissionLevel,
+          category: AuditCategory.DEMO,
+          action: AuditAction.DEMO_UPLOADED,
+          targetType: 'Match',
+          targetId: String(matchId),
+          metadata: { playerSteamId, filename: file.name, size: file.size },
+          ipAddress: getClientAddress(),
+        });
+      }
+
+      const message =
+        files.length === 1
+          ? 'Demo uploaded successfully'
+          : `${files.length} demos uploaded successfully`;
+      return { success: true, message };
     } catch (err) {
       console.error(`[Demo Upload] Error for match ${matchId}:`, err);
       if (err instanceof Error) {

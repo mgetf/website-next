@@ -61,6 +61,8 @@
   let showAdminEditSchedule = $state(false);
   let showAdminEditArenas = $state(false);
   let showAdminConfirmDelete = $state(false);
+  let showAdminConfirmReset = $state(false);
+  let isResettingMatch = $state(false);
   let showAdminEditScores = $state(false);
   let isDeletingMatch = $state(false);
   let isEditingSchedule = $state(false);
@@ -846,6 +848,11 @@
             Edit Arenas
           </Button>
           <Button variant="secondary" size="sm" onclick={openAdminEditScores}>Edit Scores</Button>
+          {#if !isUnplayed}
+            <Button variant="secondary" size="sm" onclick={() => (showAdminConfirmReset = true)}>
+              Mark as Unplayed (Rerun)
+            </Button>
+          {/if}
           {#if isUnplayed}
             <Button variant="danger" size="sm" onclick={() => (showAdminConfirmDelete = true)}>
               Delete Match
@@ -1715,6 +1722,42 @@
     </div>
   </form>
 </Dialog>
+
+<!-- Admin: Reset Match to Unplayed Confirmation -->
+<ConfirmDialog
+  open={showAdminConfirmReset}
+  title="Mark Match as Unplayed"
+  description="This clears the result and game scores for match #{match.id}, reverses the team standings it added, and posts a note to match chat so the teams can rerun it. Playoff matches that already advanced the bracket must be reset from the later match first."
+  variant="danger"
+  confirmLabel="Mark as Unplayed"
+  isLoading={isResettingMatch}
+  onConfirm={() => {
+    const resetForm = document.getElementById('adminResetMatchForm') as HTMLFormElement | null;
+    resetForm?.requestSubmit();
+  }}
+  onCancel={() => (showAdminConfirmReset = false)}
+/>
+
+<form
+  id="adminResetMatchForm"
+  method="POST"
+  action="?/resetToUnplayed"
+  class="hidden"
+  use:enhance={() => {
+    isResettingMatch = true;
+    return async ({ result, update }) => {
+      isResettingMatch = false;
+      showAdminConfirmReset = false;
+      if (result.type === 'success') {
+        toast.success('Match reset to unplayed');
+      } else if (result.type === 'failure') {
+        const d = result.data as { error?: string } | undefined;
+        toast.error(d?.error || 'Failed to reset match');
+      }
+      await update();
+    };
+  }}
+></form>
 
 <!-- Admin: Delete Match Confirmation -->
 <ConfirmDialog

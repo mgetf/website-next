@@ -6,7 +6,7 @@
 import { prisma } from '#lib/server/db.js';
 import type { Team } from '#prisma/client.js';
 import { MatchStatus, TeamStatus } from '#prisma/client.js';
-import { notFound, badRequest } from '#lib/server/utils/errors.js';
+import { notFound, badRequest, conflict } from '#lib/server/utils/errors.js';
 import {
   calculateWinLossRatio,
   calculatePointsPerGame,
@@ -724,6 +724,100 @@ export async function updateMatchStatus(matchId: number, status: MatchStatus) {
   return await prisma.match.update({
     where: { id: matchId },
     data: { status },
+  });
+}
+
+/**
+ * Reset a played or disputed match back to UNPLAYED so it can be rerun.
+ * Reverses the team stats the played result added, clears the result, and
+ * blanks game scores. Playoff matches whose result already advanced a bracket
+ * slot are refused, since the downstream match would be left with stale teams.
+ */
+export async function resetMatchToUnplayed(matchId: number) {
+  return await prisma.$transaction(async (tx) => {
+    const match = await tx.match.findUnique({
+      where: { id: matchId },
+      include: { games: true, playoffSlot: true },
+    });
+
+    if (!match) {
+      notFound('Match not found');
+    }
+    if (match.status === MatchStatus.UNPLAYED) {
+      badRequest('Match is already unplayed');
+    }
+
+    if (match.playoffSlot) {
+      const source = match.playoffSlot;
+      const nextSlotIds = [source.winnerNextSlotId, source.loserNextSlotId].filter(
+        (id): id is number => id != null,
+      );
+      if (nextSlotIds.length > 0) {
+        const advanced = await tx.playoffSlot.findFirst({
+          where: { id: { in: nextSlotIds }, matchId: { not: null } },
+          select: { id: true },
+        });
+        if (advanced) {
+          conflict(
+            'This playoff result has already advanced to a later bracket match. Reset that match first.',
+          );
+        }
+      }
+    }
+
+    if (match.winnerId) {
+      const homeWins = match.games.filter(
+        (g) =>
+          g.homeTeamScore != null && g.awayTeamScore != null && g.homeTeamScore > g.awayTeamScore,
+      ).length;
+      const awayWins = match.games.filter(
+        (g) =>
+          g.homeTeamScore != null && g.awayTeamScore != null && g.awayTeamScore > g.homeTeamScore,
+      ).length;
+      const homePoints = match.games.reduce((sum, g) => sum + (g.homeTeamScore || 0), 0);
+      const awayPoints = match.games.reduce((sum, g) => sum + (g.awayTeamScore || 0), 0);
+
+      await tx.team.update({
+        where: { id: match.homeTeamId },
+        data: {
+          wins: { decrement: match.winnerId === match.homeTeamId ? 1 : 0 },
+          losses: { decrement: match.winnerId === match.awayTeamId ? 1 : 0 },
+          gamesWon: { decrement: homeWins },
+          gamesLost: { decrement: awayWins },
+          pointsScored: { decrement: homePoints },
+          pointsScoredAgainst: { decrement: awayPoints },
+        },
+      });
+
+      await tx.team.update({
+        where: { id: match.awayTeamId },
+        data: {
+          wins: { decrement: match.winnerId === match.awayTeamId ? 1 : 0 },
+          losses: { decrement: match.winnerId === match.homeTeamId ? 1 : 0 },
+          gamesWon: { decrement: awayWins },
+          gamesLost: { decrement: homeWins },
+          pointsScored: { decrement: awayPoints },
+          pointsScoredAgainst: { decrement: homePoints },
+        },
+      });
+    }
+
+    await tx.game.updateMany({
+      where: { matchId },
+      data: { homeTeamScore: null, awayTeamScore: null },
+    });
+
+    return await tx.match.update({
+      where: { id: matchId },
+      data: {
+        status: MatchStatus.UNPLAYED,
+        winnerId: null,
+        winnerScore: null,
+        loserScore: null,
+        submittedBy: null,
+        submittedAt: null,
+      },
+    });
   });
 }
 

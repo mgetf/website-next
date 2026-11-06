@@ -43,6 +43,7 @@ import {
   adminUpdateMatchArenas,
   adminDeleteMatch as deleteMatchRecord,
   adminUpdateScores,
+  resetMatchToUnplayed,
 } from '#lib/server/services/adminMatches.js';
 import { getArenas } from '#lib/server/services/arenas.js';
 import { getContent, getDefaultContent, CONTENT_KEYS } from '#lib/server/services/siteContent.js';
@@ -1032,6 +1033,58 @@ export const actions: Actions = {
     } catch (err) {
       if (isRedirect(err)) throw err;
       return fail(400, { error: getErrorMessage(err, 'Failed to delete match') });
+    }
+  },
+
+  /**
+   * Admin or moderator: reset a played or disputed match to UNPLAYED so it can be rerun.
+   */
+  resetToUnplayed: async ({ params, locals, getClientAddress, request }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    await request.formData();
+
+    const previousStatus = match.status;
+
+    try {
+      await resetMatchToUnplayed(matchId);
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      await createAdminActionComm(
+        matchId,
+        locals.user.steamId,
+        `${roleLabel} ${locals.user.steamUsername} reset this match to unplayed. It needs to be rerun.`,
+      );
+      await createNotificationForMatch(
+        matchId,
+        'An admin reset this match to unplayed',
+        locals.user.steamId,
+      );
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_STATUS_CHANGED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { newStatus: 'UNPLAYED', previousStatus },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Match reset to unplayed' };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to reset match') });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to reset match') });
     }
   },
 

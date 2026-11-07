@@ -61,6 +61,8 @@
   let showAdminEditSchedule = $state(false);
   let showAdminEditArenas = $state(false);
   let showAdminConfirmDelete = $state(false);
+  let showAdminConfirmReset = $state(false);
+  let isResettingMatch = $state(false);
   let showAdminEditScores = $state(false);
   let isDeletingMatch = $state(false);
   let isEditingSchedule = $state(false);
@@ -186,7 +188,7 @@
   });
 
   // Demo upload state
-  let selectedDemoFile = $state<File | null>(null);
+  let selectedDemoFiles = $state<File[]>([]);
   let demoUploadError = $state<string | null>(null);
   let demoUploadProgress = $state<string>('Preparing upload...');
 
@@ -464,37 +466,63 @@
   // Demo modal functions
   const openDemoUploadModal = () => {
     showDemoUploadModal = true;
-    selectedDemoFile = null;
+    selectedDemoFiles = [];
     demoUploadError = null;
     demoUploadProgress = 'Preparing upload...';
   };
 
   const closeDemoUploadModal = () => {
     showDemoUploadModal = false;
-    selectedDemoFile = null;
+    selectedDemoFiles = [];
     demoUploadError = null;
   };
+
+  const MAX_DEMO_FILES = 10;
+  const MAX_DEMO_SIZE = 200 * 1024 * 1024; // 200MB
 
   const handleDemoFileSelect = (event: Event) => {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] || null;
-    selectedDemoFile = file;
+    const picked = Array.from(input.files ?? []);
     demoUploadError = null;
 
-    // Client-side validation
-    if (file) {
-      const maxSize = 200 * 1024 * 1024; // 200MB
-      if (file.size > maxSize) {
-        demoUploadError = `File too large (${formatFileSize(file.size)}). Maximum size is 200MB.`;
-        selectedDemoFile = null;
-        input.value = '';
-      } else if (!file.name.toLowerCase().endsWith('.dem')) {
-        demoUploadError = 'Invalid file type. Only .dem files are allowed.';
-        selectedDemoFile = null;
-        input.value = '';
-      }
+    if (picked.length > MAX_DEMO_FILES) {
+      demoUploadError = `You can upload at most ${MAX_DEMO_FILES} demos at once.`;
+      selectedDemoFiles = [];
+      input.value = '';
+      return;
+    }
+
+    const invalid = picked.find((file) => !file.name.toLowerCase().endsWith('.dem'));
+    if (invalid) {
+      demoUploadError = `Invalid file type for "${invalid.name}". Only .dem files are allowed.`;
+      selectedDemoFiles = [];
+      input.value = '';
+      return;
+    }
+
+    const tooLarge = picked.find((file) => file.size > MAX_DEMO_SIZE);
+    if (tooLarge) {
+      demoUploadError = `"${tooLarge.name}" is too large (${formatFileSize(tooLarge.size)}). Maximum size is 200MB.`;
+      selectedDemoFiles = [];
+      input.value = '';
+      return;
+    }
+
+    selectedDemoFiles = picked;
+  };
+
+  const removeDemoFile = (index: number) => {
+    selectedDemoFiles = selectedDemoFiles.filter((_, i) => i !== index);
+    // The native input is what gets submitted, so keep it in sync with the list
+    const input = document.getElementById('demoFile') as HTMLInputElement | null;
+    if (input) {
+      const transfer = new DataTransfer();
+      selectedDemoFiles.forEach((file) => transfer.items.add(file));
+      input.files = transfer.files;
     }
   };
+
+  const totalDemoSize = $derived(selectedDemoFiles.reduce((sum, file) => sum + file.size, 0));
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
@@ -820,6 +848,11 @@
             Edit Arenas
           </Button>
           <Button variant="secondary" size="sm" onclick={openAdminEditScores}>Edit Scores</Button>
+          {#if !isUnplayed}
+            <Button variant="secondary" size="sm" onclick={() => (showAdminConfirmReset = true)}>
+              Mark as Unplayed (Rerun)
+            </Button>
+          {/if}
           {#if isUnplayed}
             <Button variant="danger" size="sm" onclick={() => (showAdminConfirmDelete = true)}>
               Delete Match
@@ -1690,6 +1723,42 @@
   </form>
 </Dialog>
 
+<!-- Admin: Reset Match to Unplayed Confirmation -->
+<ConfirmDialog
+  open={showAdminConfirmReset}
+  title="Mark Match as Unplayed"
+  description="This clears the result and game scores for match #{match.id}, reverses the team standings it added, and posts a note to match chat so the teams can rerun it. Playoff matches that already advanced the bracket must be reset from the later match first."
+  variant="danger"
+  confirmLabel="Mark as Unplayed"
+  isLoading={isResettingMatch}
+  onConfirm={() => {
+    const resetForm = document.getElementById('adminResetMatchForm') as HTMLFormElement | null;
+    resetForm?.requestSubmit();
+  }}
+  onCancel={() => (showAdminConfirmReset = false)}
+/>
+
+<form
+  id="adminResetMatchForm"
+  method="POST"
+  action="?/resetToUnplayed"
+  class="hidden"
+  use:enhance={() => {
+    isResettingMatch = true;
+    return async ({ result, update }) => {
+      isResettingMatch = false;
+      showAdminConfirmReset = false;
+      if (result.type === 'success') {
+        toast.success('Match reset to unplayed');
+      } else if (result.type === 'failure') {
+        const d = result.data as { error?: string } | undefined;
+        toast.error(d?.error || 'Failed to reset match');
+      }
+      await update();
+    };
+  }}
+></form>
+
 <!-- Admin: Delete Match Confirmation -->
 <ConfirmDialog
   open={showAdminConfirmDelete}
@@ -1975,13 +2044,21 @@
           ></div>
         </div>
 
-        <p class="text-text-heading font-medium mb-2">Uploading Demo...</p>
+        <p class="text-text-heading font-medium mb-2">
+          Uploading {selectedDemoFiles.length === 1
+            ? 'Demo'
+            : `${selectedDemoFiles.length} Demos`}...
+        </p>
         <p class="text-text-body text-sm mb-4">{demoUploadProgress}</p>
 
-        {#if selectedDemoFile}
-          <div class="bg-surface-hover/50 rounded-lg px-4 py-2 text-sm">
-            <span class="text-text-label">{selectedDemoFile.name}</span>
-            <span class="text-text-muted ml-2">({formatFileSize(selectedDemoFile.size)})</span>
+        {#if selectedDemoFiles.length > 0}
+          <div class="bg-surface-hover/50 rounded-lg px-4 py-2 text-sm max-h-40 overflow-y-auto">
+            {#each selectedDemoFiles as file (file.name + file.size + file.lastModified)}
+              <div>
+                <span class="text-text-label">{file.name}</span>
+                <span class="text-text-muted ml-2">({formatFileSize(file.size)})</span>
+              </div>
+            {/each}
           </div>
         {/if}
 
@@ -2038,13 +2115,14 @@
 
       <div class="mb-6">
         <label for="demoFile" class="block text-sm font-medium text-text-label mb-2">
-          Demo File (.dem) <span class="text-danger-500">*</span>
+          Demo Files (.dem) <span class="text-danger-500">*</span>
         </label>
         <input
           type="file"
           id="demoFile"
           name="file"
           accept=".dem"
+          multiple
           required
           onchange={handleDemoFileSelect}
           class="w-full text-sm text-text-heading
@@ -2056,26 +2134,45 @@
 					   cursor-pointer"
         />
 
-        {#if selectedDemoFile}
-          <div class="mt-2 p-2 bg-surface-hover/50 rounded flex items-center gap-2">
-            <svg
-              class="w-5 h-5 text-success-ink"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span class="text-text-heading text-sm">{selectedDemoFile.name}</span>
-            <span class="text-text-muted text-xs">({formatFileSize(selectedDemoFile.size)})</span>
-          </div>
+        {#if selectedDemoFiles.length > 0}
+          <ul class="mt-2 space-y-1">
+            {#each selectedDemoFiles as file, index (file.name + file.size + file.lastModified)}
+              <li class="p-2 bg-surface-hover/50 rounded flex items-center gap-2">
+                <svg
+                  class="w-5 h-5 text-success-ink shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span class="text-text-heading text-sm truncate">{file.name}</span>
+                <span class="text-text-muted text-xs shrink-0">({formatFileSize(file.size)})</span>
+                <button
+                  type="button"
+                  class="ml-auto text-xs text-text-muted hover:text-text-heading shrink-0"
+                  onclick={() => removeDemoFile(index)}
+                  disabled={isUploadingDemo}
+                  aria-label={`Remove ${file.name}`}
+                >
+                  Remove
+                </button>
+              </li>
+            {/each}
+          </ul>
+          <p class="text-xs text-text-muted mt-2">
+            {selectedDemoFiles.length}
+            {selectedDemoFiles.length === 1 ? 'file' : 'files'} · {formatFileSize(totalDemoSize)} total
+          </p>
         {:else}
-          <p class="text-xs text-text-muted mt-1">Maximum file size: 200MB</p>
+          <p class="text-xs text-text-muted mt-1">
+            Up to {MAX_DEMO_FILES} files, 200MB each
+          </p>
         {/if}
       </div>
 
@@ -2127,7 +2224,11 @@
         >
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={!selectedDemoFile || !!demoUploadError}>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={selectedDemoFiles.length === 0 || !!demoUploadError}
+        >
           Upload Demo
         </Button>
       </div>

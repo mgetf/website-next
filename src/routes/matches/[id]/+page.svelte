@@ -877,15 +877,15 @@
 
     <!-- Forfeit banner (public) -->
     {#if match.forfeitType === 'SINGLE'}
-      <div class="mt-6 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
-        <p class="text-sm font-medium text-amber-200">
+      <div class="mt-6 rounded-lg border border-border-default bg-surface-card px-4 py-3">
+        <p class="text-sm font-medium text-text-heading">
           Forfeit win — no games were played, so this result counts for W/L only and is
           excluded from point averages.
         </p>
       </div>
     {:else if match.forfeitType === 'MUTUAL'}
-      <div class="mt-6 rounded-lg border border-zinc-500/40 bg-zinc-500/10 px-4 py-3">
-        <p class="text-sm font-medium text-zinc-300">
+      <div class="mt-6 rounded-lg border border-border-default bg-surface-card px-4 py-3">
+        <p class="text-sm font-medium text-text-heading">
           Void — both teams agreed not to play (no-contest). No win, loss, or points recorded.
         </p>
       </div>

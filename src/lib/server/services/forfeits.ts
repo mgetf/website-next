@@ -30,6 +30,10 @@ export interface ForfeitOptions {
   ticketRef?: string | null;
   approvedBy: string;
   ipAddress?: string;
+  /** Private reason string (participants + staff only). */
+  reason?: string | null;
+  /** Evidence: LLM judgement + ticket channel link (participants + staff only). */
+  evidence?: string | null;
 }
 
 /**
@@ -128,6 +132,8 @@ export async function approveSingleForfeit(
         forfeitTicketRef: opts.ticketRef ?? null,
         forfeitApprovedBy: opts.approvedBy,
         forfeitApprovedAt: new Date(),
+        forfeitReason: opts.reason ?? null,
+        forfeitEvidence: opts.evidence ?? null,
       },
     });
   });
@@ -138,7 +144,8 @@ export async function approveSingleForfeit(
     action: AuditAction.MATCH_FORFEIT_APPROVED,
     targetType: 'Match',
     targetId: String(matchId),
-    metadata: { winnerTeamId, ticketRef: opts.ticketRef ?? null, scoreline: '20-0' },
+    metadata: { winnerTeamId, ticketRef: opts.ticketRef ?? null, scoreline: '20-0',
+      hasReason: !!opts.reason, hasEvidence: !!opts.evidence },
     ipAddress: opts.ipAddress,
   });
 
@@ -174,6 +181,8 @@ export async function voidMutualForfeit(matchId: number, opts: ForfeitOptions) {
         forfeitTicketRef: opts.ticketRef ?? null,
         forfeitApprovedBy: opts.approvedBy,
         forfeitApprovedAt: new Date(),
+        forfeitReason: opts.reason ?? null,
+        forfeitEvidence: opts.evidence ?? null,
       },
     });
   });
@@ -184,7 +193,8 @@ export async function voidMutualForfeit(matchId: number, opts: ForfeitOptions) {
     action: AuditAction.MATCH_FORFEIT_VOIDED,
     targetType: 'Match',
     targetId: String(matchId),
-    metadata: { ticketRef: opts.ticketRef ?? null },
+    metadata: { ticketRef: opts.ticketRef ?? null,
+      hasReason: !!opts.reason, hasEvidence: !!opts.evidence },
     ipAddress: opts.ipAddress,
   });
 

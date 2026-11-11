@@ -62,6 +62,11 @@
   let showAdminEditArenas = $state(false);
   let showAdminConfirmDelete = $state(false);
   let showAdminConfirmReset = $state(false);
+  let showForfeitDialog = $state(false);
+  let showMutualForfeitDialog = $state(false);
+  let isRecordingForfeit = $state(false);
+  let isVoidingMatch = $state(false);
+  let forfeitWinnerId = $state('');
   let isResettingMatch = $state(false);
   let showAdminEditScores = $state(false);
   let isDeletingMatch = $state(false);
@@ -858,7 +863,49 @@
               Delete Match
             </Button>
           {/if}
+          {#if isUnplayed || isDisputed}
+            <Button variant="secondary" size="sm" onclick={() => (showForfeitDialog = true)}>
+              Record Forfeit
+            </Button>
+            <Button variant="secondary" size="sm" onclick={() => (showMutualForfeitDialog = true)}>
+              Void (Mutual FF)
+            </Button>
+          {/if}
         </div>
+      </div>
+    {/if}
+
+    <!-- Forfeit banner (public) -->
+    {#if match.forfeitType === 'SINGLE'}
+      <div class="mt-6 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+        <p class="text-sm font-medium text-amber-200">
+          Forfeit win — no games were played, so this result counts for W/L only and is
+          excluded from point averages.
+        </p>
+      </div>
+    {:else if match.forfeitType === 'MUTUAL'}
+      <div class="mt-6 rounded-lg border border-zinc-500/40 bg-zinc-500/10 px-4 py-3">
+        <p class="text-sm font-medium text-zinc-300">
+          Void — both teams agreed not to play (no-contest). No win, loss, or points recorded.
+        </p>
+      </div>
+    {/if}
+
+    <!-- Forfeit details (private: participants + staff only, stripped server-side otherwise) -->
+    {#if data.canViewForfeitDetails && (match.forfeitReason || match.forfeitEvidence || match.forfeitTicketRef)}
+      <div class="mt-4 rounded-lg border border-border-default px-4 py-3">
+        <p class="text-xs text-text-muted uppercase tracking-wide mb-2">
+          Forfeit details (only visible to teams and staff)
+        </p>
+        {#if match.forfeitTicketRef}
+          <p class="text-sm text-text-body">Ticket: {match.forfeitTicketRef}</p>
+        {/if}
+        {#if match.forfeitReason}
+          <p class="text-sm text-text-body mt-1">Reason: {match.forfeitReason}</p>
+        {/if}
+        {#if match.forfeitEvidence}
+          <p class="text-sm text-text-body mt-1 whitespace-pre-wrap">Evidence: {match.forfeitEvidence}</p>
+        {/if}
       </div>
     {/if}
   </Card>
@@ -1758,6 +1805,177 @@
     };
   }}
 ></form>
+
+<!-- Admin: Record Forfeit -->
+<Dialog
+  open={showForfeitDialog}
+  title="Record Forfeit Win"
+  onClose={() => (showForfeitDialog = false)}
+>
+  <form
+    method="POST"
+    action="?/approveForfeit"
+    use:enhance={() => {
+      isRecordingForfeit = true;
+      return async ({ result, update }) => {
+        isRecordingForfeit = false;
+        if (result.type === 'success') {
+          showForfeitDialog = false;
+          toast.success('Forfeit recorded');
+        } else if (result.type === 'failure') {
+          const d = result.data as { error?: string } | undefined;
+          toast.error(d?.error || 'Failed to record forfeit');
+        }
+        await update();
+      };
+    }}
+  >
+    <p class="text-sm text-text-body mb-4">
+      The winner gets the W only — no games or points are counted, so point averages are
+      unaffected. Stored as 20-0. Only unplayed or disputed matches.
+    </p>
+    <FormSelect
+      label="Forfeit winner"
+      name="winnerTeamId"
+      bind:value={forfeitWinnerId}
+      options={[
+        { value: '', label: '— Select team —' },
+        { value: String(match.homeTeamId), label: match.homeTeam.name },
+        { value: String(match.awayTeamId), label: match.awayTeam.name },
+      ]}
+    />
+    <div class="mt-4">
+      <label for="forfeitTicketRef" class="block text-sm font-medium text-text-label mb-2">
+        Ticket ref (e.g. closed-0856, log channel id, transcript URL)
+      </label>
+      <input
+        id="forfeitTicketRef"
+        type="text"
+        name="ticketRef"
+        maxlength="255"
+        placeholder="closed-0856"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      />
+    </div>
+    <div class="mt-4">
+      <label for="forfeitReason" class="block text-sm font-medium text-text-label mb-2">
+        Reason (private: teams + staff only)
+      </label>
+      <textarea
+        id="forfeitReason"
+        name="reason"
+        rows="2"
+        maxlength="2000"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      ></textarea>
+    </div>
+    <div class="mt-4">
+      <label for="forfeitEvidence" class="block text-sm font-medium text-text-label mb-2">
+        Evidence: LLM judgement + ticket channel link (private)
+      </label>
+      <textarea
+        id="forfeitEvidence"
+        name="evidence"
+        rows="3"
+        maxlength="5000"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      ></textarea>
+    </div>
+    <div class="flex justify-end gap-3 mt-4">
+      <Button
+        type="button"
+        variant="secondary"
+        onclick={() => (showForfeitDialog = false)}
+        disabled={isRecordingForfeit}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" variant="primary" disabled={isRecordingForfeit}>
+        {isRecordingForfeit ? 'Saving...' : 'Record Forfeit'}
+      </Button>
+    </div>
+  </form>
+</Dialog>
+
+<!-- Admin: Void (Mutual Forfeit) -->
+<Dialog
+  open={showMutualForfeitDialog}
+  title="Void Match (Mutual Forfeit)"
+  onClose={() => (showMutualForfeitDialog = false)}
+>
+  <form
+    method="POST"
+    action="?/voidMutualForfeit"
+    use:enhance={() => {
+      isVoidingMatch = true;
+      return async ({ result, update }) => {
+        isVoidingMatch = false;
+        if (result.type === 'success') {
+          showMutualForfeitDialog = false;
+          toast.success('Match voided');
+        } else if (result.type === 'failure') {
+          const d = result.data as { error?: string } | undefined;
+          toast.error(d?.error || 'Failed to void match');
+        }
+        await update();
+      };
+    }}
+  >
+    <p class="text-sm text-text-body mb-4">
+      No-contest: both teams agreed not to play. No win, loss, games, or points are recorded.
+    </p>
+    <div>
+      <label for="mutualTicketRef" class="block text-sm font-medium text-text-label mb-2">
+        Ticket ref (e.g. closed-0856, log channel id, transcript URL)
+      </label>
+      <input
+        id="mutualTicketRef"
+        type="text"
+        name="ticketRef"
+        maxlength="255"
+        placeholder="closed-0856"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      />
+    </div>
+    <div class="mt-4">
+      <label for="mutualReason" class="block text-sm font-medium text-text-label mb-2">
+        Reason (private: teams + staff only)
+      </label>
+      <textarea
+        id="mutualReason"
+        name="reason"
+        rows="2"
+        maxlength="2000"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      ></textarea>
+    </div>
+    <div class="mt-4">
+      <label for="mutualEvidence" class="block text-sm font-medium text-text-label mb-2">
+        Evidence: LLM judgement + ticket channel link (private)
+      </label>
+      <textarea
+        id="mutualEvidence"
+        name="evidence"
+        rows="3"
+        maxlength="5000"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      ></textarea>
+    </div>
+    <div class="flex justify-end gap-3 mt-4">
+      <Button
+        type="button"
+        variant="secondary"
+        onclick={() => (showMutualForfeitDialog = false)}
+        disabled={isVoidingMatch}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" variant="primary" disabled={isVoidingMatch}>
+        {isVoidingMatch ? 'Saving...' : 'Void Match'}
+      </Button>
+    </div>
+  </form>
+</Dialog>
 
 <!-- Admin: Delete Match Confirmation -->
 <ConfirmDialog

@@ -821,6 +821,8 @@ export async function resetMatchToUnplayed(matchId: number) {
         forfeitTicketRef: null,
         forfeitApprovedBy: null,
         forfeitApprovedAt: null,
+        forfeitReason: null,
+        forfeitEvidence: null,
       },
     });
   });

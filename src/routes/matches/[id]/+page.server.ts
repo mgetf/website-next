@@ -128,14 +128,18 @@ const adminUpdateScoresSchema = z.object({
 
 // Mod-approved forfeit: ticketRef links to the evidence (ticket number like
 // "closed-0856", ticket log channel id, or transcript URL — see the discord
-// tool's fetch_transcript.py).
+// tool's fetch_transcript.py). reason/evidence are private (match + staff only).
 const forfeitSchema = z.object({
   winnerTeamId: z.coerce.number().int().positive('Winner team is required'),
   ticketRef: z.string().max(255).optional().default(''),
+  reason: z.string().max(2000).optional().default(''),
+  evidence: z.string().max(5000).optional().default(''),
 });
 
 const mutualForfeitSchema = z.object({
   ticketRef: z.string().max(255).optional().default(''),
+  reason: z.string().max(2000).optional().default(''),
+  evidence: z.string().max(5000).optional().default(''),
 });
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -229,6 +233,22 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       awayRoster.some((p) => p.steamId === user.steamId)
     : false;
 
+  // Forfeit reason/evidence are private: match participants (managers, roster)
+  // and mods/admins only. Strip for everyone else (including logged-out).
+  const canViewForfeitDetails = user
+    ? permissions.isHomeManager ||
+      permissions.isAwayManager ||
+      permissions.isAdmin ||
+      homeRoster.some((p) => p.steamId === user.steamId) ||
+      awayRoster.some((p) => p.steamId === user.steamId)
+    : false;
+
+  if (!canViewForfeitDetails) {
+    match.forfeitReason = null;
+    match.forfeitEvidence = null;
+    match.forfeitTicketRef = null;
+  }
+
   // Get user's demo reports for all demos in this match
   let userDemoReports: Record<number, any[]> = {};
   if (user && match.demos) {
@@ -293,6 +313,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     canReschedule: canRequestReschedule(match),
     allRoster,
     canUploadDemo,
+    canViewForfeitDetails,
     userDemoReports,
     user,
     arenas,
@@ -1224,6 +1245,8 @@ export const actions: Actions = {
         ticketRef: ticketRef || null,
         approvedBy: locals.user.steamId,
         ipAddress: getClientAddress(),
+        reason: validation.data.reason || null,
+        evidence: validation.data.evidence || null,
       });
 
       const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
@@ -1270,6 +1293,8 @@ export const actions: Actions = {
         ticketRef: ticketRef || null,
         approvedBy: locals.user.steamId,
         ipAddress: getClientAddress(),
+        reason: validation.data.reason || null,
+        evidence: validation.data.evidence || null,
       });
 
       const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';

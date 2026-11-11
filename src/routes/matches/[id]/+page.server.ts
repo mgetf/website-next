@@ -45,6 +45,10 @@ import {
   adminUpdateScores,
   resetMatchToUnplayed,
 } from '#lib/server/services/adminMatches.js';
+import {
+  approveSingleForfeit,
+  voidMutualForfeit,
+} from '#lib/server/services/forfeits.js';
 import { getArenas } from '#lib/server/services/arenas.js';
 import { getContent, getDefaultContent, CONTENT_KEYS } from '#lib/server/services/siteContent.js';
 import { buildPageSeo } from '#lib/utils/seo.js';
@@ -120,6 +124,18 @@ const adminUpdateScoresSchema = z.object({
     .number()
     .int()
     .refine((n) => [1, 3, 5, 7].includes(n), 'Best of must be 1, 3, 5, or 7'),
+});
+
+// Mod-approved forfeit: ticketRef links to the evidence (ticket number like
+// "closed-0856", ticket log channel id, or transcript URL — see the discord
+// tool's fetch_transcript.py).
+const forfeitSchema = z.object({
+  winnerTeamId: z.coerce.number().int().positive('Winner team is required'),
+  ticketRef: z.string().max(255).optional().default(''),
+});
+
+const mutualForfeitSchema = z.object({
+  ticketRef: z.string().max(255).optional().default(''),
 });
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -1181,6 +1197,99 @@ export const actions: Actions = {
         return fail(err.status, { error: getErrorMessage(err, 'Failed to update scores') });
       }
       return fail(500, { error: getErrorMessage(err, 'Failed to update scores') });
+    }
+  },
+
+  /**
+   * Admin/mod: approve a single-team forfeit. Winner gets the W (no points
+   * counted); decision linked to a ticket via ticketRef.
+   */
+  approveForfeit: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, forfeitSchema);
+    if (!validation.success) return validationError(validation.errors, 'Invalid form data');
+    const { winnerTeamId, ticketRef } = validation.data;
+
+    try {
+      await approveSingleForfeit(matchId, winnerTeamId, {
+        ticketRef: ticketRef || null,
+        approvedBy: locals.user.steamId,
+        ipAddress: getClientAddress(),
+      });
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      await createAdminActionComm(
+        matchId,
+        locals.user.steamId,
+        `${roleLabel} ${locals.user.steamUsername} approved a forfeit win${ticketRef ? ` (ticket: ${ticketRef})` : ''}.`,
+      );
+      await createNotificationForMatch(
+        matchId,
+        'An admin recorded a forfeit result',
+        locals.user.steamId,
+      );
+
+      return { success: true, message: 'Forfeit recorded' };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to record forfeit') });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to record forfeit') });
+    }
+  },
+
+  /**
+   * Admin/mod: record a mutual forfeit as void / no-contest. No standings changes.
+   */
+  voidMutualForfeit: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, mutualForfeitSchema);
+    if (!validation.success) return validationError(validation.errors, 'Invalid form data');
+    const { ticketRef } = validation.data;
+
+    try {
+      await voidMutualForfeit(matchId, {
+        ticketRef: ticketRef || null,
+        approvedBy: locals.user.steamId,
+        ipAddress: getClientAddress(),
+      });
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      await createAdminActionComm(
+        matchId,
+        locals.user.steamId,
+        `${roleLabel} ${locals.user.steamUsername} voided this match as a mutual forfeit (no-contest)${ticketRef ? ` (ticket: ${ticketRef})` : ''}.`,
+      );
+      await createNotificationForMatch(
+        matchId,
+        'An admin voided this match (mutual forfeit)',
+        locals.user.steamId,
+      );
+
+      return { success: true, message: 'Match voided (mutual forfeit)' };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to void match') });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to void match') });
     }
   },
 };

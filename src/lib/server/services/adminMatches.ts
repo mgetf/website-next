@@ -5,7 +5,7 @@
 
 import { prisma } from '#lib/server/db.js';
 import type { Team } from '#prisma/client.js';
-import { MatchStatus, TeamStatus } from '#prisma/client.js';
+import { MatchStatus, ForfeitType, TeamStatus } from '#prisma/client.js';
 import { notFound, badRequest, conflict } from '#lib/server/utils/errors.js';
 import {
   calculateWinLossRatio,
@@ -816,6 +816,11 @@ export async function resetMatchToUnplayed(matchId: number) {
         loserScore: null,
         submittedBy: null,
         submittedAt: null,
+        forfeitType: ForfeitType.NONE,
+        forfeitWinnerId: null,
+        forfeitTicketRef: null,
+        forfeitApprovedBy: null,
+        forfeitApprovedAt: null,
       },
     });
   });

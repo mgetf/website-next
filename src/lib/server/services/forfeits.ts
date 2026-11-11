@@ -40,6 +40,8 @@ export interface ForfeitOptions {
  * Historical triage helper: 20-0 PLAYED matches with no forfeit flag and no
  * mod/admin score override in the audit log. These are the "unaccounted for"
  * sweeps that need a human (or a ticket transcript) to classify.
+ *
+ * @lintignore consumed by the external ffw backfill review flow, not a route (yet)
  */
 export async function findUnaccountedSweeps(limit = 200) {
   const sweeps = await prisma.match.findMany({

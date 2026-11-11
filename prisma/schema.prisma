@@ -40,6 +40,15 @@ enum MatchStatus {
   DISPUTE // 2
 }
 
+// How a match result came to be. SINGLE = one team forfeited (winner gets the
+// W, no points counted for either side so point averages are unaffected).
+// MUTUAL = both teams agreed not to play: void / no-contest, no W/L, no points.
+enum ForfeitType {
+  NONE
+  SINGLE
+  MUTUAL
+}
+
 enum MatchSetDraftStatus {
   DRAFT
   PUBLISHED
@@ -808,6 +817,7 @@ model Team {
   homeMatches         Match[]            @relation("HomeTeam")
   awayMatches         Match[]            @relation("AwayTeam")
   wonMatches          Match[]            @relation("WinnerTeam")
+  wonForfeits         Match[]            @relation("ForfeitWinner")
   history             TeamHistory[]
   nameHistory         TeamNameHistory[]
   players             PlayerInTeam[]
@@ -875,9 +885,22 @@ model Match {
   submittedBy   String?     @map("submitted_by")
   submittedAt   DateTime?   @map("submitted_at")
 
+  // Mod-approved forfeit handling. ticketRef links the decision to its source:
+  // a ticket number (e.g. "closed-0856"), ticket log channel id, or transcript URL.
+  forfeitType       ForfeitType @default(NONE) @map("forfeit_type")
+  forfeitWinnerId   Int?        @map("forfeit_winner_id")
+  forfeitTicketRef  String?     @map("forfeit_ticket_ref")
+  forfeitApprovedBy String?     @map("forfeit_approved_by")
+  forfeitApprovedAt DateTime?   @map("forfeit_approved_at")
+  // Private: only visible to match participants (roster/managers) and mods/admins.
+  // Evidence = LLM judgement + ticket channel link. Reason = human reason string.
+  forfeitReason   String? @map("forfeit_reason")
+  forfeitEvidence String? @map("forfeit_evidence")
+
   homeTeam     Team          @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam     Team          @relation("AwayTeam", fields: [awayTeamId], references: [id])
   winner       Team?         @relation("WinnerTeam", fields: [winnerId], references: [id])
+  forfeitWinner Team?        @relation("ForfeitWinner", fields: [forfeitWinnerId], references: [id])
   season       Season        @relation(fields: [seasonId], references: [id])
   playoff      Playoff?      @relation(fields: [playoffId], references: [id])
   submitter    User?         @relation(fields: [submittedBy], references: [steamId])

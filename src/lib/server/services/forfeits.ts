@@ -173,13 +173,14 @@ export async function approveSingleForfeit(
   winnerTeamId: number,
   opts: ForfeitOptions,
 ) {
+  let previousStatus = 'UNKNOWN';
   const result = await prisma.$transaction(async (tx) => {
     const match = await tx.match.findUnique({ where: { id: matchId } });
     if (!match) notFound('Match not found');
     if (match.forfeitType !== ForfeitType.NONE) {
       badRequest('Match already has a forfeit recorded');
     }
-    const previousStatus: string = match.status;
+    previousStatus = match.status;
     if (match.status === MatchStatus.PLAYED) {
       // Reclassifying an old result: reverse its standings effects first so the
       // forfeit W/L replaces (not stacks on) the previous outcome.
@@ -250,13 +251,14 @@ export async function approveSingleForfeit(
  * (an existing played result is reversed first).
  */
 export async function voidMutualForfeit(matchId: number, opts: ForfeitOptions) {
+  let previousStatus = 'UNKNOWN';
   const result = await prisma.$transaction(async (tx) => {
     const match = await tx.match.findUnique({ where: { id: matchId } });
     if (!match) notFound('Match not found');
     if (match.forfeitType !== ForfeitType.NONE) {
       badRequest('Match already has a forfeit recorded');
     }
-    const previousStatus: string = match.status;
+    previousStatus = match.status;
     if (match.status === MatchStatus.PLAYED) {
       await reversePlayedResult(tx, match);
     } else if (match.status !== MatchStatus.UNPLAYED && match.status !== MatchStatus.DISPUTE) {

@@ -21,7 +21,7 @@
 
 import { prisma } from '#lib/server/db.js';
 import { ForfeitType, MatchStatus } from '#prisma/client.js';
-import { badRequest, notFound } from '#lib/server/utils/errors.js';
+import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import { logAudit, AuditAction, AuditCategory } from '#lib/server/services/auditLog.js';
 
 export const FORFEIT_SCORELINE = { winnerScore: 20, loserScore: 0 } as const;
@@ -87,7 +87,86 @@ export async function findUnaccountedSweeps(limit = 200) {
 }
 
 /**
- * Approve a single-team forfeit. Match must be UNPLAYED or DISPUTE.
+ * Reverse a PLAYED result's standings effects (W/L, games, points) and clear
+ * game scores — the same accounting resetMatchToUnplayed performs, minus the
+ * status flip (callers set their own outcome). Refuses when the result already
+ * advanced a playoff bracket, for the same reason.
+ */
+async function reversePlayedResult(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  match: { id: number; homeTeamId: number; awayTeamId: number; winnerId: number | null },
+) {
+  const full = await tx.match.findUnique({
+    where: { id: match.id },
+    include: { games: true, playoffSlot: true },
+  });
+  if (!full) notFound('Match not found');
+
+  if (full.playoffSlot) {
+    const source = full.playoffSlot;
+    const nextSlotIds = [source.winnerNextSlotId, source.loserNextSlotId].filter(
+      (id): id is number => id != null,
+    );
+    if (nextSlotIds.length > 0) {
+      const advanced = await tx.playoffSlot.findFirst({
+        where: { id: { in: nextSlotIds }, matchId: { not: null } },
+        select: { id: true },
+      });
+      if (advanced) {
+        conflict(
+          'This playoff result has already advanced to a later bracket match. Reset that match first.',
+        );
+      }
+    }
+  }
+
+  if (full.winnerId) {
+    const homeWins = full.games.filter(
+      (g) =>
+        g.homeTeamScore != null && g.awayTeamScore != null && g.homeTeamScore > g.awayTeamScore,
+    ).length;
+    const awayWins = full.games.filter(
+      (g) =>
+        g.homeTeamScore != null && g.awayTeamScore != null && g.awayTeamScore > g.homeTeamScore,
+    ).length;
+    const homePoints = full.games.reduce((sum, g) => sum + (g.homeTeamScore || 0), 0);
+    const awayPoints = full.games.reduce((sum, g) => sum + (g.awayTeamScore || 0), 0);
+
+    await tx.team.update({
+      where: { id: full.homeTeamId },
+      data: {
+        wins: { decrement: full.winnerId === full.homeTeamId ? 1 : 0 },
+        losses: { decrement: full.winnerId === full.awayTeamId ? 1 : 0 },
+        gamesWon: { decrement: homeWins },
+        gamesLost: { decrement: awayWins },
+        pointsScored: { decrement: homePoints },
+        pointsScoredAgainst: { decrement: awayPoints },
+      },
+    });
+
+    await tx.team.update({
+      where: { id: full.awayTeamId },
+      data: {
+        wins: { decrement: full.winnerId === full.awayTeamId ? 1 : 0 },
+        losses: { decrement: full.winnerId === full.homeTeamId ? 1 : 0 },
+        gamesWon: { decrement: awayWins },
+        gamesLost: { decrement: homeWins },
+        pointsScored: { decrement: awayPoints },
+        pointsScoredAgainst: { decrement: homePoints },
+      },
+    });
+  }
+
+  await tx.game.updateMany({
+    where: { matchId: full.id },
+    data: { homeTeamScore: null, awayTeamScore: null },
+  });
+}
+
+/**
+ * Approve a single-team forfeit. Works on UNPLAYED, DISPUTE, and PLAYED
+ * matches (an existing played result is reversed first, so old 20-0s can be
+ * reclassified without a manual reset round-trip).
  */
 export async function approveSingleForfeit(
   matchId: number,
@@ -100,8 +179,13 @@ export async function approveSingleForfeit(
     if (match.forfeitType !== ForfeitType.NONE) {
       badRequest('Match already has a forfeit recorded');
     }
-    if (match.status !== MatchStatus.UNPLAYED && match.status !== MatchStatus.DISPUTE) {
-      badRequest('Only unplayed or disputed matches can be marked as forfeit');
+    const previousStatus: string = match.status;
+    if (match.status === MatchStatus.PLAYED) {
+      // Reclassifying an old result: reverse its standings effects first so the
+      // forfeit W/L replaces (not stacks on) the previous outcome.
+      await reversePlayedResult(tx, match);
+    } else if (match.status !== MatchStatus.UNPLAYED && match.status !== MatchStatus.DISPUTE) {
+      badRequest('Only unplayed, disputed, or played matches can be marked as forfeit');
     }
     if (winnerTeamId !== match.homeTeamId && winnerTeamId !== match.awayTeamId) {
       badRequest('Forfeit winner must be one of the match teams');
@@ -150,6 +234,7 @@ export async function approveSingleForfeit(
       winnerTeamId,
       ticketRef: opts.ticketRef ?? null,
       scoreline: '20-0',
+      previousStatus,
       hasReason: !!opts.reason,
       hasEvidence: !!opts.evidence,
     },
@@ -161,7 +246,8 @@ export async function approveSingleForfeit(
 
 /**
  * Record a mutual forfeit (both teams agree not to play) as void/no-contest.
- * No standings changes at all. Match must be UNPLAYED or DISPUTE.
+ * No standings changes at all. Works on UNPLAYED, DISPUTE, and PLAYED matches
+ * (an existing played result is reversed first).
  */
 export async function voidMutualForfeit(matchId: number, opts: ForfeitOptions) {
   const result = await prisma.$transaction(async (tx) => {
@@ -170,8 +256,11 @@ export async function voidMutualForfeit(matchId: number, opts: ForfeitOptions) {
     if (match.forfeitType !== ForfeitType.NONE) {
       badRequest('Match already has a forfeit recorded');
     }
-    if (match.status !== MatchStatus.UNPLAYED && match.status !== MatchStatus.DISPUTE) {
-      badRequest('Only unplayed or disputed matches can be voided');
+    const previousStatus: string = match.status;
+    if (match.status === MatchStatus.PLAYED) {
+      await reversePlayedResult(tx, match);
+    } else if (match.status !== MatchStatus.UNPLAYED && match.status !== MatchStatus.DISPUTE) {
+      badRequest('Only unplayed, disputed, or played matches can be voided');
     }
 
     return await tx.match.update({
@@ -202,6 +291,7 @@ export async function voidMutualForfeit(matchId: number, opts: ForfeitOptions) {
     targetId: String(matchId),
     metadata: {
       ticketRef: opts.ticketRef ?? null,
+      previousStatus,
       hasReason: !!opts.reason,
       hasEvidence: !!opts.evidence,
     },

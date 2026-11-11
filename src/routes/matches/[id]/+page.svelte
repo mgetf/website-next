@@ -863,7 +863,7 @@
               Delete Match
             </Button>
           {/if}
-          {#if isUnplayed || isDisputed}
+          {#if isUnplayed || isDisputed || (isPlayed && match.forfeitType === 'NONE')}
             <Button variant="secondary" size="sm" onclick={() => (showForfeitDialog = true)}>
               Record Forfeit
             </Button>

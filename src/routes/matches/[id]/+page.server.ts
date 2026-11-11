@@ -45,10 +45,7 @@ import {
   adminUpdateScores,
   resetMatchToUnplayed,
 } from '#lib/server/services/adminMatches.js';
-import {
-  approveSingleForfeit,
-  voidMutualForfeit,
-} from '#lib/server/services/forfeits.js';
+import { approveSingleForfeit, voidMutualForfeit } from '#lib/server/services/forfeits.js';
 import { getArenas } from '#lib/server/services/arenas.js';
 import { getContent, getDefaultContent, CONTENT_KEYS } from '#lib/server/services/siteContent.js';
 import { buildPageSeo } from '#lib/utils/seo.js';

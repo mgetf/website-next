@@ -879,8 +879,8 @@
     {#if match.forfeitType === 'SINGLE'}
       <div class="mt-6 rounded-lg border border-border-default bg-surface-card px-4 py-3">
         <p class="text-sm font-medium text-text-heading">
-          Forfeit win — no games were played, so this result counts for W/L only and is
-          excluded from point averages.
+          Forfeit win — no games were played, so this result counts for W/L only and is excluded
+          from point averages.
         </p>
       </div>
     {:else if match.forfeitType === 'MUTUAL'}
@@ -904,7 +904,9 @@
           <p class="text-sm text-text-body mt-1">Reason: {match.forfeitReason}</p>
         {/if}
         {#if match.forfeitEvidence}
-          <p class="text-sm text-text-body mt-1 whitespace-pre-wrap">Evidence: {match.forfeitEvidence}</p>
+          <p class="text-sm text-text-body mt-1 whitespace-pre-wrap">
+            Evidence: {match.forfeitEvidence}
+          </p>
         {/if}
       </div>
     {/if}
@@ -1831,8 +1833,8 @@
     }}
   >
     <p class="text-sm text-text-body mb-4">
-      The winner gets the W only — no games or points are counted, so point averages are
-      unaffected. Stored as 20-0. Only unplayed or disputed matches.
+      The winner gets the W only — no games or points are counted, so point averages are unaffected.
+      Stored as 20-0. Only unplayed or disputed matches.
     </p>
     <FormSelect
       label="Forfeit winner"

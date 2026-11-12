@@ -823,7 +823,6 @@ export async function resetMatchToUnplayed(matchId: number) {
         forfeitApprovedBy: null,
         forfeitApprovedAt: null,
         forfeitReason: null,
-        forfeitEvidence: null,
       },
     });
   });

@@ -134,10 +134,11 @@ test.beforeAll(async ({ browser }) => {
   });
   await adminCreateWeekMatch(admin.page, league, { weekNo: 1, boSeries: 1 });
   ffMatchId = await getLatestMatchId({ weekNo: 1 });
-  await adminCreateWeekMatch(admin.page, league, { weekNo: 2, boSeries: 3 });
-  revokeMatchId = await getLatestMatchId({ weekNo: 2 });
-  await adminCreateWeekMatch(admin.page, league, { weekNo: 3, boSeries: 1 });
-  voidMatchId = await getLatestMatchId({ weekNo: 3 });
+  await adminCreateWeekMatch(admin.page, league, { weekNo: 1, boSeries: 3 });
+  revokeMatchId = await getLatestMatchId({ weekNo: 1 });
+  if (revokeMatchId === ffMatchId) throw new Error('expected a new match row');
+  await adminCreateWeekMatch(admin.page, league, { weekNo: 1, boSeries: 1 });
+  voidMatchId = await getLatestMatchId({ weekNo: 1 });
 
   moderator = await loginAs(browser, {
     steamId: E2E_USERS.homeTeammate.steamId,

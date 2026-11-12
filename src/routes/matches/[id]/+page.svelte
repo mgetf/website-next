@@ -68,13 +68,6 @@
   let isVoidingMatch = $state(false);
   let isRevokingScores = $state(false);
   let forfeitWinnerId = $state('');
-
-  const scoredGameNums = $derived(
-    match.games
-      .filter((g) => g.homeTeamScore != null && g.awayTeamScore != null)
-      .map((g) => g.gameNum)
-      .sort((a, b) => a - b),
-  );
   let isResettingMatch = $state(false);
   let showAdminEditScores = $state(false);
   let isDeletingMatch = $state(false);
@@ -325,6 +318,13 @@
       : forfeitWinnerSide === 'away'
         ? getAwayName()
         : '',
+  );
+
+  const scoredGameNums = $derived(
+    match.games
+      .filter((g) => g.homeTeamScore != null && g.awayTeamScore != null)
+      .map((g) => g.gameNum)
+      .sort((a, b) => a - b),
   );
 
   // Get unique arenas with full data (id, name, avatar)

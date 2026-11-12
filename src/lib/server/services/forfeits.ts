@@ -30,10 +30,9 @@ export interface ForfeitOptions {
   ticketRef?: string | null;
   approvedBy: string;
   ipAddress?: string;
-  /** Private reason string (participants + staff only). */
+  /** Private reason (participants + staff only): human reason + evidence
+   * (LLM judgement + ticket channel link). */
   reason?: string | null;
-  /** Evidence: LLM judgement + ticket channel link (participants + staff only). */
-  evidence?: string | null;
 }
 
 /**
@@ -220,7 +219,6 @@ export async function approveSingleForfeit(
         forfeitApprovedBy: opts.approvedBy,
         forfeitApprovedAt: new Date(),
         forfeitReason: opts.reason ?? null,
-        forfeitEvidence: opts.evidence ?? null,
       },
     });
   });
@@ -237,7 +235,6 @@ export async function approveSingleForfeit(
       scoreline: '20-0',
       previousStatus,
       hasReason: !!opts.reason,
-      hasEvidence: !!opts.evidence,
     },
     ipAddress: opts.ipAddress,
   });
@@ -280,7 +277,6 @@ export async function voidMutualForfeit(matchId: number, opts: ForfeitOptions) {
         forfeitApprovedBy: opts.approvedBy,
         forfeitApprovedAt: new Date(),
         forfeitReason: opts.reason ?? null,
-        forfeitEvidence: opts.evidence ?? null,
       },
     });
   });
@@ -295,7 +291,6 @@ export async function voidMutualForfeit(matchId: number, opts: ForfeitOptions) {
       ticketRef: opts.ticketRef ?? null,
       previousStatus,
       hasReason: !!opts.reason,
-      hasEvidence: !!opts.evidence,
     },
     ipAddress: opts.ipAddress,
   });

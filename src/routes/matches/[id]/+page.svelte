@@ -892,7 +892,7 @@
     {/if}
 
     <!-- Forfeit details (private: participants + staff only, stripped server-side otherwise) -->
-    {#if data.canViewForfeitDetails && (match.forfeitReason || match.forfeitEvidence || match.forfeitTicketRef)}
+    {#if data.canViewForfeitDetails && (match.forfeitReason || match.forfeitTicketRef)}
       <div class="mt-4 rounded-lg border border-border-default px-4 py-3">
         <p class="text-xs text-text-muted uppercase tracking-wide mb-2">
           Forfeit details (only visible to teams and staff)
@@ -901,11 +901,8 @@
           <p class="text-sm text-text-body">Ticket: {match.forfeitTicketRef}</p>
         {/if}
         {#if match.forfeitReason}
-          <p class="text-sm text-text-body mt-1">Reason: {match.forfeitReason}</p>
-        {/if}
-        {#if match.forfeitEvidence}
           <p class="text-sm text-text-body mt-1 whitespace-pre-wrap">
-            Evidence: {match.forfeitEvidence}
+            Reason: {match.forfeitReason}
           </p>
         {/if}
       </div>
@@ -1861,24 +1858,12 @@
     </div>
     <div class="mt-4">
       <label for="forfeitReason" class="block text-sm font-medium text-text-label mb-2">
-        Reason (private: teams + staff only)
+        Reason, incl. evidence (LLM judgement + ticket link). Private: teams + staff only.
       </label>
       <textarea
         id="forfeitReason"
         name="reason"
-        rows="2"
-        maxlength="2000"
-        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-      ></textarea>
-    </div>
-    <div class="mt-4">
-      <label for="forfeitEvidence" class="block text-sm font-medium text-text-label mb-2">
-        Evidence: LLM judgement + ticket channel link (private)
-      </label>
-      <textarea
-        id="forfeitEvidence"
-        name="evidence"
-        rows="3"
+        rows="4"
         maxlength="5000"
         class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
       ></textarea>
@@ -1941,24 +1926,12 @@
     </div>
     <div class="mt-4">
       <label for="mutualReason" class="block text-sm font-medium text-text-label mb-2">
-        Reason (private: teams + staff only)
+        Reason, incl. evidence (LLM judgement + ticket link). Private: teams + staff only.
       </label>
       <textarea
         id="mutualReason"
         name="reason"
-        rows="2"
-        maxlength="2000"
-        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
-      ></textarea>
-    </div>
-    <div class="mt-4">
-      <label for="mutualEvidence" class="block text-sm font-medium text-text-label mb-2">
-        Evidence: LLM judgement + ticket channel link (private)
-      </label>
-      <textarea
-        id="mutualEvidence"
-        name="evidence"
-        rows="3"
+        rows="4"
         maxlength="5000"
         class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
       ></textarea>

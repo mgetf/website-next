@@ -893,9 +893,8 @@ model Match {
   forfeitApprovedBy String?     @map("forfeit_approved_by")
   forfeitApprovedAt DateTime?   @map("forfeit_approved_at")
   // Private: only visible to match participants (roster/managers) and mods/admins.
-  // Evidence = LLM judgement + ticket channel link. Reason = human reason string.
-  forfeitReason   String? @map("forfeit_reason")
-  forfeitEvidence String? @map("forfeit_evidence")
+  // Holds the human reason plus the evidence (LLM judgement + ticket channel link).
+  forfeitReason   String? @map("forfeit_reason") @db.Text
 
   homeTeam     Team          @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam     Team          @relation("AwayTeam", fields: [awayTeamId], references: [id])

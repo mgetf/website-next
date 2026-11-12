@@ -23,7 +23,10 @@ import { prisma } from '#lib/server/db.js';
 import { ForfeitType, MatchStatus } from '#prisma/client.js';
 import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import { logAudit, AuditAction, AuditCategory } from '#lib/server/services/auditLog.js';
-import { advancePlayoffFromMatch, notifyNewPlayoffMatches } from '#lib/server/services/playoffSlots.js';
+import {
+  advancePlayoffFromMatch,
+  notifyNewPlayoffMatches,
+} from '#lib/server/services/playoffSlots.js';
 
 export const FORFEIT_SCORELINE = { winnerScore: 20, loserScore: 0 } as const;
 

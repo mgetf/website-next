@@ -66,7 +66,15 @@
   let showMutualForfeitDialog = $state(false);
   let isRecordingForfeit = $state(false);
   let isVoidingMatch = $state(false);
+  let isRevokingScores = $state(false);
   let forfeitWinnerId = $state('');
+
+  const scoredGameNums = $derived(
+    match.games
+      .filter((g) => g.homeTeamScore != null && g.awayTeamScore != null)
+      .map((g) => g.gameNum)
+      .sort((a, b) => a - b),
+  );
   let isResettingMatch = $state(false);
   let showAdminEditScores = $state(false);
   let isDeletingMatch = $state(false);
@@ -2267,6 +2275,49 @@
       </Button>
     </div>
   </form>
+
+  {#if scoredGameNums.length > 0}
+    <form
+      method="POST"
+      action="?/revokeGameScores"
+      class="mt-4 pt-4 border-t border-border-input"
+      use:enhance={() => {
+        isRevokingScores = true;
+        return async ({ result, update }) => {
+          isRevokingScores = false;
+          if (result.type === 'success') {
+            showAdminEditScores = false;
+            const d = result.data as { message?: string } | undefined;
+            toast.success(d?.message || 'Scores revoked');
+          } else if (result.type === 'failure') {
+            const d = result.data as { error?: string } | undefined;
+            toast.error(d?.error || 'Failed to revoke scores');
+          }
+          await update();
+        };
+      }}
+    >
+      <p class="text-sm font-medium text-text-label mb-2">Revoke rounds that never took place</p>
+      <div class="flex flex-wrap gap-2 mb-3">
+        {#each scoredGameNums as gameNum (gameNum)}
+          <label class="flex items-center gap-1.5 text-sm text-text-body cursor-pointer">
+            <input
+              type="checkbox"
+              name="gameNums"
+              value={gameNum}
+              class="w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
+            />
+            Game {gameNum}
+          </label>
+        {/each}
+      </div>
+      <div class="flex justify-end">
+        <Button type="submit" variant="danger" size="sm" disabled={isRevokingScores}>
+          {isRevokingScores ? 'Revoking...' : 'Revoke selected'}
+        </Button>
+      </div>
+    </form>
+  {/if}
 </Dialog>
 
 <!-- Demo Upload Modal -->

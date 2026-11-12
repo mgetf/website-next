@@ -44,6 +44,7 @@ import {
   adminDeleteMatch as deleteMatchRecord,
   adminUpdateScores,
   resetMatchToUnplayed,
+  revokeGameScores as revokeMatchGameScores,
 } from '#lib/server/services/adminMatches.js';
 import { approveSingleForfeit, voidMutualForfeit } from '#lib/server/services/forfeits.js';
 import { getArenas } from '#lib/server/services/arenas.js';
@@ -135,6 +136,10 @@ const forfeitSchema = z.object({
 const mutualForfeitSchema = z.object({
   ticketRef: z.string().max(255).optional().default(''),
   reason: z.string().max(5000).optional().default(''),
+});
+
+const revokeGameScoresSchema = z.object({
+  gameNums: z.array(z.coerce.number().int().positive()).min(1, 'Select at least one game'),
 });
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -1307,6 +1312,66 @@ export const actions: Actions = {
         return fail(err.status, { error: getErrorMessage(err, 'Failed to void match') });
       }
       return fail(500, { error: getErrorMessage(err, 'Failed to void match') });
+    }
+  },
+
+  /**
+   * Admin/mod: revoke scores for games that never took place. Standings are
+   * recomputed from the remaining scored games; empty result -> UNPLAYED.
+   */
+  revokeGameScores: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, revokeGameScoresSchema);
+    if (!validation.success) return validationError(validation.errors, 'Invalid form data');
+    const { gameNums } = validation.data;
+
+    try {
+      const updated = await revokeMatchGameScores(matchId, gameNums);
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      await createAdminActionComm(
+        matchId,
+        locals.user.steamId,
+        `${roleLabel} ${locals.user.steamUsername} revoked scores for game(s) ${[...gameNums].sort((a, b) => a - b).join(', ')} (rounds did not take place).`,
+      );
+      await createNotificationForMatch(
+        matchId,
+        'An admin revoked scores for unplayed games',
+        locals.user.steamId,
+      );
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_SCORES_OVERRIDDEN,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { revokedGames: gameNums, previousStatus: match.status },
+        ipAddress: getClientAddress(),
+      });
+
+      return {
+        success: true,
+        message:
+          updated.status === 'UNPLAYED'
+            ? 'Scores revoked — no scored games remain, match is unplayed'
+            : `Scores revoked for game(s) ${gameNums.join(', ')}`,
+      };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to revoke scores') });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to revoke scores') });
     }
   },
 };

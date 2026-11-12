@@ -12,6 +12,7 @@ import {
   calculatePointsPerGame,
   localDatetimeToUtc,
 } from '#lib/server/utils/matchHelpers.js';
+import { calculateMatchWinner } from '#lib/server/utils/matchScoring.js';
 import { createNotificationForRoster } from './notifications';
 import { advancePlayoffFromMatch, notifyNewPlayoffMatches } from './playoffSlots';
 import { formatPlayoffRound } from '#lib/utils/playoffs.js';
@@ -1084,6 +1085,150 @@ export async function adminUpdateScores(
 
   await notifyNewPlayoffMatches(createdMatches);
   return updated;
+}
+
+/**
+ * Revoke submitted scores for specific games that never took place
+ * (wrong game reported, phantom rounds). Reverses the match's full standings
+ * effects, clears those games, then recomputes the result from the remaining
+ * scored games. If nothing scored remains, the match returns to UNPLAYED.
+ * Refuses forfeit results (reset those instead) and playoff-advanced brackets.
+ */
+export async function revokeGameScores(matchId: number, gameNums: number[]) {
+  if (gameNums.length === 0) badRequest('No games selected');
+
+  return await prisma.$transaction(async (tx) => {
+    const match = await tx.match.findUnique({
+      where: { id: matchId },
+      include: { games: { orderBy: { gameNum: 'asc' } }, playoffSlot: true },
+    });
+
+    if (!match) notFound('Match not found');
+    if (match.forfeitType !== ForfeitType.NONE) {
+      badRequest('Forfeit result — reset the match instead of revoking games');
+    }
+    if (match.status !== MatchStatus.PLAYED && match.status !== MatchStatus.DISPUTE) {
+      badRequest('Only played or disputed matches have scores to revoke');
+    }
+
+    const targets = match.games.filter((g) => gameNums.includes(g.gameNum));
+    if (targets.length !== gameNums.length) badRequest('Unknown game number');
+    if (targets.every((g) => g.homeTeamScore == null && g.awayTeamScore == null)) {
+      badRequest('Selected games have no scores');
+    }
+
+    // Same guard as match reset: a changed winner must not corrupt an
+    // already-advanced playoff bracket.
+    if (match.playoffSlot) {
+      const source = match.playoffSlot;
+      const nextSlotIds = [source.winnerNextSlotId, source.loserNextSlotId].filter(
+        (id): id is number => id != null,
+      );
+      if (nextSlotIds.length > 0) {
+        const advanced = await tx.playoffSlot.findFirst({
+          where: { id: { in: nextSlotIds }, matchId: { not: null } },
+          select: { id: true },
+        });
+        if (advanced) {
+          conflict(
+            'This playoff result has already advanced to a later bracket match. Reset that match first.',
+          );
+        }
+      }
+    }
+
+    if (match.winnerId) {
+      const previousHomeWins = match.games.filter(
+        (g) =>
+          g.homeTeamScore != null && g.awayTeamScore != null && g.homeTeamScore > g.awayTeamScore,
+      ).length;
+      const previousAwayWins = match.games.filter(
+        (g) =>
+          g.homeTeamScore != null && g.awayTeamScore != null && g.awayTeamScore > g.homeTeamScore,
+      ).length;
+      const previousHomePoints = match.games.reduce((sum, g) => sum + (g.homeTeamScore || 0), 0);
+      const previousAwayPoints = match.games.reduce((sum, g) => sum + (g.awayTeamScore || 0), 0);
+
+      await tx.team.update({
+        where: { id: match.homeTeamId },
+        data: {
+          wins: { decrement: match.winnerId === match.homeTeamId ? 1 : 0 },
+          losses: { decrement: match.winnerId === match.awayTeamId ? 1 : 0 },
+          gamesWon: { decrement: previousHomeWins },
+          gamesLost: { decrement: previousAwayWins },
+          pointsScored: { decrement: previousHomePoints },
+          pointsScoredAgainst: { decrement: previousAwayPoints },
+        },
+      });
+
+      await tx.team.update({
+        where: { id: match.awayTeamId },
+        data: {
+          wins: { decrement: match.winnerId === match.awayTeamId ? 1 : 0 },
+          losses: { decrement: match.winnerId === match.homeTeamId ? 1 : 0 },
+          gamesWon: { decrement: previousAwayWins },
+          gamesLost: { decrement: previousHomeWins },
+          pointsScored: { decrement: previousAwayPoints },
+          pointsScoredAgainst: { decrement: previousHomePoints },
+        },
+      });
+    }
+
+    await tx.game.updateMany({
+      where: { matchId, gameNum: { in: gameNums } },
+      data: { homeTeamScore: null, awayTeamScore: null },
+    });
+
+    const remaining = match.games
+      .filter(
+        (g) => !gameNums.includes(g.gameNum) && g.homeTeamScore != null && g.awayTeamScore != null,
+      )
+      .map((g) => ({
+        gameNum: g.gameNum,
+        homeScore: g.homeTeamScore!,
+        awayScore: g.awayTeamScore!,
+      }));
+
+    const calc = calculateMatchWinner(match.homeTeamId, match.awayTeamId, remaining, match.boGames);
+
+    const homeWins = remaining.filter((g) => g.homeScore > g.awayScore).length;
+    const awayWins = remaining.filter((g) => g.awayScore > g.homeScore).length;
+
+    await tx.team.update({
+      where: { id: match.homeTeamId },
+      data: {
+        wins: { increment: calc.winnerId === match.homeTeamId ? 1 : 0 },
+        losses: { increment: calc.winnerId === match.awayTeamId ? 1 : 0 },
+        gamesWon: { increment: homeWins },
+        gamesLost: { increment: awayWins },
+        pointsScored: { increment: calc.homePointsScored },
+        pointsScoredAgainst: { increment: calc.awayPointsScored },
+      },
+    });
+
+    await tx.team.update({
+      where: { id: match.awayTeamId },
+      data: {
+        wins: { increment: calc.winnerId === match.awayTeamId ? 1 : 0 },
+        losses: { increment: calc.winnerId === match.homeTeamId ? 1 : 0 },
+        gamesWon: { increment: awayWins },
+        gamesLost: { increment: homeWins },
+        pointsScored: { increment: calc.awayPointsScored },
+        pointsScoredAgainst: { increment: calc.homePointsScored },
+      },
+    });
+
+    const hasResult = calc.winnerId != null;
+    return await tx.match.update({
+      where: { id: matchId },
+      data: {
+        winnerId: calc.winnerId,
+        winnerScore: hasResult ? calc.winnerScore : null,
+        loserScore: hasResult ? calc.loserScore : null,
+        status: hasResult ? MatchStatus.PLAYED : MatchStatus.UNPLAYED,
+      },
+    });
+  });
 }
 
 /**

@@ -1097,7 +1097,7 @@ export async function adminUpdateScores(
 export async function revokeGameScores(matchId: number, gameNums: number[]) {
   if (gameNums.length === 0) badRequest('No games selected');
 
-  return await prisma.$transaction(async (tx) => {
+  const { updated, createdMatches } = await prisma.$transaction(async (tx) => {
     const match = await tx.match.findUnique({
       where: { id: matchId },
       include: { games: { orderBy: { gameNum: 'asc' } }, playoffSlot: true },

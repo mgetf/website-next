@@ -439,6 +439,8 @@
   };
 
   const getStatusLabel = (status: string) => {
+    if (match.forfeitType === 'SINGLE') return 'Forfeit';
+    if (match.forfeitType === 'MUTUAL') return 'Void';
     if (status === 'UNPLAYED') return 'Unplayed';
     if (status === 'PLAYED') return 'Played';
     if (status === 'DISPUTE') return 'Disputed';

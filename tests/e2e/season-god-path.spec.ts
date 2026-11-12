@@ -583,7 +583,7 @@ test('paid mark-as-paid; 1v1; ban/clear; announcement; league CMS; browse smoke'
   await admin.page.getByText('Status:').click();
   await Promise.all([
     admin.page.waitForLoadState('networkidle'),
-    admin.page.getByRole('button', { name: 'Clear Punishment' }).click(),
+    admin.page.getByRole('button', { name: 'End Ban' }).click(),
   ]);
   expect(await getUserBanStatus(E2E_USERS.homeInvitee.steamId)).toBe('NONE');
 

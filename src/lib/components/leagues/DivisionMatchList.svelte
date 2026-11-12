@@ -43,6 +43,7 @@
     'https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg';
 
   function sideClass(match: LeagueDivisionMatch, side: 'home' | 'away'): string {
+    if (match.forfeitType === 'MUTUAL') return 'text-text-muted';
     if (match.homeScore == null || match.awayScore == null) return 'text-text-heading';
     if (isLeagueMatchSideWinner(match, side)) return 'text-text-heading font-semibold';
     if (match.homeScore === match.awayScore) return 'text-text-heading';

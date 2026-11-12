@@ -80,6 +80,7 @@ export async function getLeagueMatchesByDivision(
         winnerId: true,
         winnerScore: true,
         loserScore: true,
+        forfeitType: true,
         homeTeamId: true,
         homeTeam: { select: teamSelect },
         awayTeam: { select: teamSelect },
@@ -118,6 +119,7 @@ export async function getLeagueMatchesByDivision(
       homeTeamId: row.homeTeamId,
       winnerScore: row.winnerScore,
       loserScore: row.loserScore,
+      forfeitType: row.forfeitType as 'NONE' | 'SINGLE' | 'MUTUAL',
     });
 
     (grouped[divisionId] ??= []).push(match);

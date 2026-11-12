@@ -28,6 +28,7 @@ function match(
     away: { id: 2, name: 'Away', avatar: null, href: '/teams/2' },
     homeScore: null,
     awayScore: null,
+    forfeitType: 'NONE',
     ...partial,
   };
 }
@@ -72,6 +73,19 @@ describe('formatLeagueMatchScore', () => {
 
   it('returns null when the match has no score yet', () => {
     expect(formatLeagueMatchScore(match({ id: 1, weekNo: 1 }))).toBeNull();
+  });
+
+  it('returns FF for single forfeits and Void for mutual forfeits', () => {
+    expect(
+      formatLeagueMatchScore(
+        match({ id: 1, weekNo: 1, homeScore: 20, awayScore: 0, forfeitType: 'SINGLE' }),
+      ),
+    ).toBe('FF');
+    expect(
+      formatLeagueMatchScore(
+        match({ id: 2, weekNo: 1, homeScore: 0, awayScore: 0, forfeitType: 'MUTUAL' }),
+      ),
+    ).toBe('Void');
   });
 });
 
@@ -161,6 +175,7 @@ describe('toLeagueDivisionMatch', () => {
       homeTeamId: 1,
       winnerScore: 2,
       loserScore: 1,
+      forfeitType: 'NONE',
     });
 
     expect(row).toEqual({
@@ -174,6 +189,7 @@ describe('toLeagueDivisionMatch', () => {
       away: { id: 2, name: 'Away', avatar: null, href: '/teams/2' },
       homeScore: 2,
       awayScore: 1,
+      forfeitType: 'NONE',
     });
   });
 });

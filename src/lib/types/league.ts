@@ -56,6 +56,7 @@ export interface LeagueDivisionMatch {
   away: LeagueMatchSide;
   homeScore: number | null;
   awayScore: number | null;
+  forfeitType: 'NONE' | 'SINGLE' | 'MUTUAL';
 }
 
 /** A team with no opponent that week. Shown in the same list as matches. */

@@ -300,6 +300,25 @@
   const getAwayName = () =>
     match.is1v1 && match.awayPlayer ? match.awayPlayer.steamUsername : match.awayTeam.name;
 
+  // Forfeit winner: side + display name (player-aware for 1v1, where team
+  // names like "Ask about our deals" may not match either player's name).
+  const forfeitWinnerSide = $derived(
+    match.forfeitType === 'SINGLE'
+      ? match.winnerId === match.homeTeamId
+        ? 'home'
+        : match.winnerId === match.awayTeamId
+          ? 'away'
+          : null
+      : null,
+  );
+  const forfeitWinnerName = $derived(
+    forfeitWinnerSide === 'home'
+      ? getHomeName()
+      : forfeitWinnerSide === 'away'
+        ? getAwayName()
+        : '',
+  );
+
   // Get unique arenas with full data (id, name, avatar)
   const matchArenas = $derived(() => {
     const seen = new Set<number>();
@@ -621,6 +640,9 @@
           <div>
             <div class="font-semibold text-lg text-text-heading">
               {match.homePlayer.steamUsername}
+              {#if forfeitWinnerSide === 'home'}
+                <Badge color="green" size="sm" class="ml-2">Winner</Badge>
+              {/if}
             </div>
             <div class="text-sm text-text-body">
               {match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
@@ -639,7 +661,12 @@
             class="w-16 h-16 rounded-full object-cover"
           />
           <div>
-            <div class="font-semibold text-lg text-text-heading">{match.homeTeam.name}</div>
+            <div class="font-semibold text-lg text-text-heading">
+              {match.homeTeam.name}
+              {#if forfeitWinnerSide === 'home'}
+                <Badge color="green" size="sm" class="ml-2">Winner</Badge>
+              {/if}
+            </div>
             <div class="text-sm text-text-body">
               {match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
             </div>
@@ -652,9 +679,7 @@
         {#if match.forfeitType === 'SINGLE'}
           <div class="text-4xl font-bold text-text-heading">FF</div>
           <div class="text-sm text-text-body mt-2">
-            Forfeit win — {match.winnerId === match.homeTeamId
-              ? match.homeTeam.name
-              : match.awayTeam.name} advances, no games played
+            Forfeit win — {forfeitWinnerName} gets the win, no games played
           </div>
         {:else if match.forfeitType === 'MUTUAL'}
           <div class="text-4xl font-bold text-text-heading">Void</div>
@@ -685,6 +710,9 @@
           <div class="text-right">
             <div class="font-semibold text-lg text-text-heading">
               {match.awayPlayer.steamUsername}
+              {#if forfeitWinnerSide === 'away'}
+                <Badge color="green" size="sm" class="ml-2">Winner</Badge>
+              {/if}
             </div>
             <div class="text-sm text-text-body">
               {match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
@@ -703,7 +731,12 @@
           class="flex items-center space-x-4 hover:bg-surface-input p-4 rounded-lg transition justify-end"
         >
           <div class="text-right">
-            <div class="font-semibold text-lg text-text-heading">{match.awayTeam.name}</div>
+            <div class="font-semibold text-lg text-text-heading">
+              {match.awayTeam.name}
+              {#if forfeitWinnerSide === 'away'}
+                <Badge color="green" size="sm" class="ml-2">Winner</Badge>
+              {/if}
+            </div>
             <div class="text-sm text-text-body">
               {match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
             </div>
@@ -891,10 +924,8 @@
     {#if match.forfeitType === 'SINGLE'}
       <div class="mt-6 rounded-lg border border-border-default bg-surface-card px-4 py-3">
         <p class="text-sm font-medium text-text-heading">
-          Forfeit win for {match.winnerId === match.homeTeamId
-            ? match.homeTeam.name
-            : match.awayTeam.name} — no games were played, so this result counts for W/L only and is excluded
-          from point averages.
+          Forfeit win for {forfeitWinnerName} — no games were played, so this result counts for W/L only
+          and is excluded from point averages.
         </p>
       </div>
     {:else if match.forfeitType === 'MUTUAL'}

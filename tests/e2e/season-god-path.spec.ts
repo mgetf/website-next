@@ -327,14 +327,13 @@ test('join approve ready; decline pending; invite/promote/remove; link join; dec
   // Promote teammate → Demote → Captain Remove invitee
   await homeCaptain.page.goto(`/teams/${homeTeamId}/edit`);
   await homeCaptain.page.getByRole('tab', { name: /Roster/ }).click();
-  await Promise.all([
-    homeCaptain.page.waitForLoadState('networkidle'),
-    homeCaptain.page.getByRole('button', { name: 'Promote' }).first().click(),
-  ]);
-  await Promise.all([
-    homeCaptain.page.waitForLoadState('networkidle'),
-    homeCaptain.page.getByRole('button', { name: 'Demote' }).first().click(),
-  ]);
+  // Wait for each action's data refresh to apply (not just network idle: when
+  // the page is already idle, waitForLoadState resolves before the POST is
+  // even sent, so a racing remove submits with a stale/empty target).
+  await homeCaptain.page.getByRole('button', { name: 'Promote' }).first().click();
+  await expect(homeCaptain.page.getByRole('button', { name: 'Demote' }).first()).toBeVisible();
+  await homeCaptain.page.getByRole('button', { name: 'Demote' }).first().click();
+  await expect(homeCaptain.page.getByRole('button', { name: 'Promote' })).toHaveCount(2);
   await captainRemovePlayer(homeCaptain.page, E2E_USERS.homeInvitee.username);
 
   // Invite-link join

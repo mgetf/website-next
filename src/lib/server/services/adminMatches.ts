@@ -1219,7 +1219,7 @@ export async function revokeGameScores(matchId: number, gameNums: number[]) {
     });
 
     const hasResult = calc.winnerId != null;
-    return await tx.match.update({
+    const updated = await tx.match.update({
       where: { id: matchId },
       data: {
         winnerId: calc.winnerId,
@@ -1228,7 +1228,13 @@ export async function revokeGameScores(matchId: number, gameNums: number[]) {
         status: hasResult ? MatchStatus.PLAYED : MatchStatus.UNPLAYED,
       },
     });
+    const createdMatches =
+      hasResult && calc.winnerId ? await advancePlayoffFromMatch(tx, matchId) : [];
+    return { updated, createdMatches };
   });
+
+  await notifyNewPlayoffMatches(createdMatches);
+  return updated;
 }
 
 /**

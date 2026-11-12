@@ -23,6 +23,8 @@ import { prisma } from '#lib/server/db.js';
 import { ForfeitType, MatchStatus } from '#prisma/client.js';
 import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import { logAudit, AuditAction, AuditCategory } from '#lib/server/services/auditLog.js';
+import { advancePlayoffFromMatch } from '#lib/server/services/playoffSlots.js';
+import { notifyNewPlayoffMatches } from '#lib/server/services/notifications.js';
 
 export const FORFEIT_SCORELINE = { winnerScore: 20, loserScore: 0 } as const;
 
@@ -222,6 +224,14 @@ export async function approveSingleForfeit(
       },
     });
   });
+
+  // Outside the transaction: playoff bracket advancement + notifications,
+  // mirroring submitMatchScores. Void (mutual) forfeits have no winner, so
+  // nothing advances — the bracket slot stays empty by design.
+  const createdMatches = await prisma.$transaction(async (tx) =>
+    advancePlayoffFromMatch(tx, matchId),
+  );
+  await notifyNewPlayoffMatches(createdMatches);
 
   logAudit({
     actorId: opts.approvedBy,

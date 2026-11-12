@@ -162,6 +162,7 @@ test('a moderator can record a single forfeit: W/L only, no points', async () =>
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Record Forfeit', exact: true }).last().click(),
   ]);
+  await expect(page.getByText('Forfeit recorded')).toBeVisible({ timeout: 20_000 });
 
   const ff = await getMatchForfeit(ffMatchId);
   expect(ff.status).toBe('PLAYED');
@@ -221,11 +222,12 @@ test('a moderator can revoke scores for rounds that never took place', async () 
   await page.goto(`/matches/${revokeMatchId}`);
   await page.getByRole('button', { name: 'Edit Scores' }).click();
   await page.getByText('Revoke rounds that never took place').waitFor();
-  await page.getByText('Game 2', { exact: true }).click();
+  await page.locator('form[action="?/revokeGameScores"] input[name="gameNums"][value="2"]').check();
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Revoke selected' }).click(),
   ]);
+  await expect(page.getByText(/Scores revoked|is unplayed/)).toBeVisible({ timeout: 20_000 });
 
   const games = await getGameScores(revokeMatchId);
   expect(games.find((g) => g.gameNum === 2)).toMatchObject({
@@ -254,6 +256,7 @@ test('a moderator can void a mutual forfeit with no standings changes', async ()
     page.waitForLoadState('networkidle'),
     page.getByRole('button', { name: 'Void Match', exact: true }).last().click(),
   ]);
+  await expect(page.getByText('Match voided')).toBeVisible({ timeout: 20_000 });
 
   const ff = await getMatchForfeit(voidMatchId);
   expect(ff.status).toBe('PLAYED');

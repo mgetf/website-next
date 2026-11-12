@@ -1330,7 +1330,7 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const validation = validateForm(formData, revokeGameScoresSchema);
+    const validation = validateForm(formData, revokeGameScoresSchema, ['gameNums']);
     if (!validation.success) return validationError(validation.errors, 'Invalid form data');
     const { gameNums } = validation.data;
 

@@ -108,7 +108,10 @@ function teamPerspectiveScore(
   isDraw: boolean,
   winnerScore: number | null,
   loserScore: number | null,
+  forfeitType?: string | null,
 ): string | null {
+  if (forfeitType === 'SINGLE') return 'FF';
+  if (forfeitType === 'MUTUAL') return 'Void';
   if (winnerScore == null || loserScore == null) return null;
   if (isDraw || isWin) return `${winnerScore} - ${loserScore}`;
   return `${loserScore} - ${winnerScore}`;
@@ -217,6 +220,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const isWin = match.winnerId === teamId;
     const isDraw = match.winnerId === null && match.status.toString() === 'PLAYED';
+    const isVoid = match.forfeitType === 'MUTUAL';
 
     // Calculate week label with proper suffix (1a, 1b, etc.) for multiple match sets
     let weekLabel = 'TBD';
@@ -244,8 +248,22 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       opponent: match.opponent.name,
       opponentId: match.opponent.id,
       opponentAvatar: match.opponent.avatar,
-      result: isDraw ? 'D' : isWin ? 'W' : match.status.toString() === 'PLAYED' ? 'L' : 'TBD',
-      score: teamPerspectiveScore(isWin, isDraw, match.winnerScore, match.loserScore),
+      result: isVoid
+        ? 'V'
+        : isDraw
+          ? 'D'
+          : isWin
+            ? 'W'
+            : match.status.toString() === 'PLAYED'
+              ? 'L'
+              : 'TBD',
+      score: teamPerspectiveScore(
+        isWin,
+        isDraw,
+        match.winnerScore,
+        match.loserScore,
+        match.forfeitType?.toString(),
+      ),
       matchId: match.id,
       arenas: uniqueMatchArenas(match.games),
     });

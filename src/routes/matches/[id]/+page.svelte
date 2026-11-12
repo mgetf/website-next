@@ -647,7 +647,17 @@
 
       <!-- Score -->
       <div class="text-center">
-        {#if isPlayed || isDisputed}
+        {#if match.forfeitType === 'SINGLE'}
+          <div class="text-4xl font-bold text-text-heading">FF</div>
+          <div class="text-sm text-text-body mt-2">
+            Forfeit win — {match.winnerId === match.homeTeamId
+              ? match.homeTeam.name
+              : match.awayTeam.name} advances, no games played
+          </div>
+        {:else if match.forfeitType === 'MUTUAL'}
+          <div class="text-4xl font-bold text-text-heading">Void</div>
+          <div class="text-sm text-text-body mt-2">Mutual forfeit — no-contest</div>
+        {:else if isPlayed || isDisputed}
           <div class="text-4xl font-bold text-text-heading">
             {match.winnerId === match.homeTeamId ? match.winnerScore : match.loserScore}
             <span class="text-text-body">-</span>
@@ -879,7 +889,9 @@
     {#if match.forfeitType === 'SINGLE'}
       <div class="mt-6 rounded-lg border border-border-default bg-surface-card px-4 py-3">
         <p class="text-sm font-medium text-text-heading">
-          Forfeit win — no games were played, so this result counts for W/L only and is excluded
+          Forfeit win for {match.winnerId === match.homeTeamId
+            ? match.homeTeam.name
+            : match.awayTeam.name} — no games were played, so this result counts for W/L only and is excluded
           from point averages.
         </p>
       </div>

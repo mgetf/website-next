@@ -97,15 +97,17 @@
     return 'Guest';
   }
 
-  function getBanBadgeColor(status: string): 'red' | 'orange' | null {
+  function getBanBadgeColor(status: string): 'red' | 'orange' | 'yellow' | null {
     if (status === 'BANNED') return 'red';
-    if (status === 'TEMP_BANNED') return 'orange';
+    if (status === 'SUSPENDED') return 'orange';
+    if (status === 'WARNING') return 'yellow';
     return null;
   }
 
   function getBanLabel(status: string) {
     if (status === 'BANNED') return 'Banned';
-    if (status === 'TEMP_BANNED') return 'Temp Banned';
+    if (status === 'SUSPENDED') return 'Suspended';
+    if (status === 'WARNING') return 'Warning';
     return '';
   }
 </script>

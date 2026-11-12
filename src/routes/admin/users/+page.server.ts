@@ -11,13 +11,13 @@ import {
   getUserBySteamId,
   unlinkDiscord,
   linkDiscordAccountById,
-  clearPunishment,
+  endBan as endUserBan,
   lockUserName,
   unlockUserName,
   lockUserAvatar,
   unlockUserAvatar,
 } from '#lib/server/services/users.js';
-import { toPunishmentNotice } from '#lib/utils/punishment.js';
+import { toPunishmentNotice, mapPunishmentRecord } from '#lib/utils/punishment.js';
 import { getFormatsForFilter } from '#lib/server/services/formats.js';
 import { mapStaffAssignmentForDisplay } from '#lib/server/services/staffAssignments.js';
 import { getErrorMessage } from '#lib/server/utils/errors.js';
@@ -63,12 +63,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const search = url.searchParams.get('search') || '';
   const permissionLevelFilter = url.searchParams.get('permissionLevel');
   const banStatusFilter = url.searchParams.get('banStatus');
+  const everPunishedFilter = url.searchParams.get('everPunished') === '1';
 
   // Get total count for pagination
   const totalUsers = await countUsers({
     search,
     permissionLevel: permissionLevelFilter || undefined,
     banStatus: banStatusFilter || undefined,
+    everPunished: everPunishedFilter || undefined,
   });
 
   // Fetch users with pagination, divisions, regions and formats for staff assignment
@@ -77,6 +79,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       search,
       permissionLevel: permissionLevelFilter || undefined,
       banStatus: banStatusFilter || undefined,
+      everPunished: everPunishedFilter || undefined,
       page,
       pageSize,
     }),
@@ -96,6 +99,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       discordUsername: user.discord?.discordUsername,
       staffAssignments: user.staffAssignments.map(mapStaffAssignmentForDisplay),
       activePunishment: toPunishmentNotice(user.banStatus, user.punishmentsReceived[0] ?? null),
+      punishmentCount: user._count.punishmentsReceived,
+      latestPunishment:
+        user.punishmentsReceived[0] != null
+          ? mapPunishmentRecord(user.punishmentsReceived[0])
+          : null,
     })),
     formats: formats.map((f) => ({
       id: f.id,
@@ -112,6 +120,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       search,
       permissionLevel: permissionLevelFilter || '',
       banStatus: banStatusFilter || '',
+      everPunished: everPunishedFilter,
     },
   };
 };
@@ -187,7 +196,7 @@ export const actions: Actions = {
     }
   },
 
-  clearPunishment: async ({ request, locals, getClientAddress }) => {
+  endBan: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
     const formData = await request.formData();
@@ -197,7 +206,7 @@ export const actions: Actions = {
     const { steamId } = validation.data;
 
     try {
-      await clearPunishment(steamId, locals.user.steamId);
+      await endUserBan(steamId, locals.user.steamId);
 
       await logAudit({
         actorId: locals.user.steamId,
@@ -209,11 +218,11 @@ export const actions: Actions = {
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: 'Punishment cleared successfully!' };
+      return { success: true, message: 'Ban ended. Past punishments stay in history.' };
     } catch (error) {
-      console.error('Error clearing punishment:', error);
+      console.error('Error ending ban:', error);
       return fail(400, {
-        error: error instanceof Error ? error.message : 'Failed to clear punishment',
+        error: error instanceof Error ? error.message : 'Failed to end ban',
       });
     }
   },

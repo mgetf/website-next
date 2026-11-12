@@ -441,15 +441,18 @@
         >
           Apply Punishment
         </Button>
-        {#if hasActivePunishment && isStrictAdmin}
+        {#if hasActivePunishment}
           <Button
             type="submit"
             form="form-clear-punishment"
             variant="success"
             size="sm"
-            disabled={submitting}
+            disabled={submitting || !isStrictAdmin}
+            title={isStrictAdmin
+              ? 'End this ban. Past punishments stay in history.'
+              : 'Only admins can end bans.'}
           >
-            Clear Punishment
+            End Ban
           </Button>
         {/if}
       </div>

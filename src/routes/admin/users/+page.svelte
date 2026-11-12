@@ -8,6 +8,7 @@
   import SearchInput from '#lib/components/ui/SearchInput.svelte';
   import SelectFilter from '#lib/components/ui/SelectFilter.svelte';
   import Dialog from '#lib/components/ui/Dialog.svelte';
+  import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import Badge from '#lib/components/ui/Badge.svelte';
   import FormSelect from '#lib/components/ui/form/FormSelect.svelte';
@@ -67,8 +68,15 @@
   });
 
   const hasActiveFilters = $derived(
-    !!(data.filters.search || data.filters.permissionLevel || data.filters.banStatus),
+    !!(
+      data.filters.search ||
+      data.filters.permissionLevel ||
+      data.filters.banStatus ||
+      data.filters.everPunished
+    ),
   );
+
+  let showEndBanConfirm = $state(false);
 
   function handleSearch() {
     updateFilters({ search: searchInput });
@@ -155,6 +163,7 @@
 
   function closeBanModal() {
     banningUser = null;
+    showEndBanConfirm = false;
   }
 
   function isStaffPermission(level: string) {
@@ -199,6 +208,18 @@
           allLabel="All Status"
           onChange={(v) => updateFilters({ banStatus: v })}
         />
+      </div>
+
+      <div class="md:w-48 flex items-end pb-1">
+        <label class="flex items-center gap-2 text-sm text-text-body cursor-pointer">
+          <input
+            type="checkbox"
+            checked={data.filters.everPunished}
+            onchange={(e) => updateFilters({ everPunished: e.currentTarget.checked ? '1' : '' })}
+            class="w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
+          />
+          Ever punished
+        </label>
       </div>
     {/snippet}
   </FilterBar>
@@ -285,6 +306,15 @@
               title={displayPunishmentReason(user.activePunishment?.reason)}
             >
               {displayPunishmentReason(user.activePunishment?.reason)}
+            </p>
+          {:else if user.punishmentCount > 0}
+            <p
+              class="mt-1 max-w-[180px] truncate text-xs text-text-muted"
+              title="Ban ended — {user.punishmentCount} past punishment(s). Latest: {displayPunishmentReason(
+                user.latestPunishment?.reason,
+              )}"
+            >
+              Ended ({user.punishmentCount} on record)
             </p>
           {/if}
         </div>
@@ -509,6 +539,10 @@
     {#if banningUser.activePunishment}
       <div class="mb-6">
         <PunishmentNoticeCard notice={banningUser.activePunishment} />
+        <p class="mt-2 text-xs text-text-muted">
+          Applying a new punishment will replace this active one (the old record stays in history).
+          To simply end it, use End Ban instead.
+        </p>
       </div>
     {:else if banningUser.banStatus !== 'NONE'}
       <p class="mb-6 text-sm text-text-muted">
@@ -585,14 +619,17 @@
 
         <div class="flex gap-3 justify-end">
           <Button type="button" variant="secondary" onclick={closeBanModal}>Cancel</Button>
-          {#if banningUser.banStatus !== 'NONE' && data.isStrictAdmin}
+          {#if banningUser.banStatus !== 'NONE'}
             <Button
-              type="submit"
-              form="form-clear-punishment"
-              variant="success"
-              disabled={isSubmitting}
+              type="button"
+              variant={data.isStrictAdmin ? 'success' : 'secondary'}
+              disabled={isSubmitting || !data.isStrictAdmin}
+              title={data.isStrictAdmin
+                ? 'End this ban. Past punishments stay in history.'
+                : 'Only admins can end bans.'}
+              onclick={() => (showEndBanConfirm = true)}
             >
-              Clear Punishment
+              End Ban
             </Button>
           {/if}
           <Button type="submit" variant="danger" disabled={isSubmitting}>
@@ -601,14 +638,16 @@
         </div>
       </form>
       <form
-        id="form-clear-punishment"
+        id="form-end-ban"
         method="POST"
-        action="?/clearPunishment"
+        action="?/endBan"
+        class="hidden"
         use:enhance={() => {
           isSubmitting = true;
           return async ({ update, result }) => {
             await update();
             isSubmitting = false;
+            showEndBanConfirm = false;
             if (result.type === 'success') {
               closeBanModal();
             }
@@ -617,6 +656,21 @@
       >
         <input type="hidden" name="steamId" value={banningUser.steamId} />
       </form>
+      <ConfirmDialog
+        open={showEndBanConfirm}
+        title="End ban for {banningUser.steamUsername}?"
+        description="This clears their current {banStatusNames[
+          banningUser.banStatus
+        ].toLowerCase()} status. Past punishments stay in history."
+        variant="info"
+        confirmLabel="End Ban"
+        isLoading={isSubmitting}
+        onConfirm={() => {
+          const endForm = document.getElementById('form-end-ban') as HTMLFormElement | null;
+          endForm?.requestSubmit();
+        }}
+        onCancel={() => (showEndBanConfirm = false)}
+      />
     {/if}
   </Dialog>
 {/if}

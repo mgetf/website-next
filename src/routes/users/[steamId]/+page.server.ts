@@ -11,7 +11,7 @@ import {
   lockUserAvatar,
   unlockUserAvatar,
   banUser,
-  clearPunishment,
+  endBan as endUserBan,
   getTradeOfferUrl,
   listPlayerPunishments,
   getActivePunishmentNotice,
@@ -581,7 +581,7 @@ export const actions: Actions = {
 
       if (severity === 'NONE') {
         requireStrictAdmin(locals.user);
-        await clearPunishment(steamId, locals.user.steamId);
+        await endUserBan(steamId, locals.user.steamId);
 
         await logAudit({
           actorId: locals.user.steamId,
@@ -593,7 +593,7 @@ export const actions: Actions = {
           ipAddress: getClientAddress(),
         });
 
-        return { success: true, message: 'Punishment cleared' };
+        return { success: true, message: 'Ban ended. Past punishments stay in history.' };
       }
 
       if (!reason.trim()) {

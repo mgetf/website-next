@@ -18,6 +18,11 @@ import {
   setTradeOfferUrl,
 } from '#lib/server/services/users.js';
 import {
+  getPlayerFlags,
+  createFlag,
+  resolveFlag as resolvePlayerFlag,
+} from '#lib/server/services/playerFlags.js';
+import {
   withdraw1v1Entry,
   toggle1v1Ready,
   change1v1Status,
@@ -204,10 +209,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         : `${resolvedProfile.player.name}'s player profile on MGE.tf`
       : `${resolvedProfile.player.name} has played on MGE.tf servers but is not registered on the website.`;
 
-    const [classRatingsWithRanks, punishments, ownPunishment] = await Promise.all([
+    const [classRatingsWithRanks, punishments, ownPunishment, flags] = await Promise.all([
       withClasseloRanks(classRatings),
       isUserAdmin ? listPlayerPunishments(steamId) : Promise.resolve([]),
       isOwnProfile ? getActivePunishmentNotice(steamId) : Promise.resolve(null),
+      isUserAdmin ? getPlayerFlags(steamId) : Promise.resolve([]),
     ]);
 
     return {
@@ -232,6 +238,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       isAdmin: isUserAdmin,
       isStrictAdmin: isUserStrictAdmin,
       punishments,
+      flags,
       ownPunishment,
       signupSuccess,
       divisions1v1,
@@ -619,6 +626,60 @@ export const actions: Actions = {
     } catch (err) {
       console.error('Error updating punishment:', err);
       return fail(400, { error: getErrorMessage(err, 'Failed to update punishment') });
+    }
+  },
+
+  flagPlayer: async ({ request, params, locals, getClientAddress }) => {
+    const { steamId } = params;
+    const formData = await request.formData();
+    const validation = validateForm(
+      formData,
+      z.object({ body: z.string().trim().min(1, 'Note text is required').max(5000) }),
+    );
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const targetUser = await getUserBySteamId(steamId);
+      if (!targetUser) return fail(404, { error: 'User not found' });
+      requireCanModerateUser(locals.user, targetUser.permissionLevel);
+
+      await createFlag(steamId, validation.data.body, {
+        actorSteamId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Flag added' };
+    } catch (err) {
+      if (isHttpError(err)) return fail(err.status, { error: getErrorMessage(err) });
+      return fail(400, { error: getErrorMessage(err, 'Failed to add flag') });
+    }
+  },
+
+  resolveFlag: async ({ request, params, locals, getClientAddress }) => {
+    const { steamId } = params;
+    const formData = await request.formData();
+    const validation = validateForm(
+      formData,
+      z.object({ flagId: z.coerce.number().int().positive('Invalid flag') }),
+    );
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const targetUser = await getUserBySteamId(steamId);
+      if (!targetUser) return fail(404, { error: 'User not found' });
+      requireCanModerateUser(locals.user, targetUser.permissionLevel);
+
+      await resolvePlayerFlag(validation.data.flagId, {
+        actorSteamId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Flag resolved' };
+    } catch (err) {
+      if (isHttpError(err)) return fail(err.status, { error: getErrorMessage(err) });
+      return fail(400, { error: getErrorMessage(err, 'Failed to resolve flag') });
     }
   },
 

@@ -79,6 +79,14 @@
     isAdmin: boolean;
     isStrictAdmin: boolean;
     punishments: PunishmentHistoryEntry[];
+    flags: {
+      id: number;
+      body: string;
+      createdAt: string | Date;
+      resolvedAt: string | Date | null;
+      creator: { steamId: string; steamUsername: string } | null;
+      resolver: { steamId: string; steamUsername: string } | null;
+    }[];
     ownPunishment: PunishmentNotice | null;
     currentTeams: TeamWithMatches[];
     teamHistory: TeamWithMatches[];
@@ -712,6 +720,14 @@
     bind:open={staffOpen}
     {player}
     punishments={data.punishments}
+    flags={data.flags.map((f) => ({
+      id: f.id,
+      body: f.body,
+      createdAt: f.createdAt,
+      resolvedAt: f.resolvedAt,
+      creatorName: f.creator?.steamUsername ?? null,
+      resolverName: f.resolver?.steamUsername ?? null,
+    }))}
     isStrictAdmin={data.isStrictAdmin}
   />
 {/if}

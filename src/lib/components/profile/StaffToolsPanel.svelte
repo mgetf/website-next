@@ -32,11 +32,20 @@
     open = $bindable(false),
     player,
     punishments = [],
+    flags = [],
     isStrictAdmin = false,
   }: {
     open: boolean;
     player: StaffToolsPlayer;
     punishments?: PunishmentHistoryEntry[];
+    flags?: {
+      id: number;
+      body: string;
+      createdAt: string | Date;
+      resolvedAt: string | Date | null;
+      creatorName?: string | null;
+      resolverName?: string | null;
+    }[];
     isStrictAdmin?: boolean;
   } = $props();
 
@@ -54,6 +63,7 @@
   let punishSeverity = $state('');
   let punishDuration = $state('');
   let punishReason = $state('');
+  let flagBody = $state('');
   let linkDiscordId = $state('');
   let linkDiscordError = $state('');
   let confirmUnlink = $state(false);
@@ -441,17 +451,130 @@
         >
           Apply Punishment
         </Button>
-        {#if hasActivePunishment && isStrictAdmin}
+        {#if hasActivePunishment}
           <Button
             type="submit"
             form="form-clear-punishment"
             variant="success"
             size="sm"
-            disabled={submitting}
+            disabled={submitting || !isStrictAdmin}
+            title={isStrictAdmin
+              ? 'End this ban. Past punishments stay in history.'
+              : 'Only admins can end bans.'}
           >
-            Clear Punishment
+            End Ban
           </Button>
         {/if}
+      </div>
+
+      <div class="border-t border-border-default pt-4">
+        <div class="mb-2 flex items-center gap-2">
+          <p class="text-sm font-medium text-text-heading">Staff flags</p>
+          <span
+            class="rounded bg-danger-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-danger-ink"
+            title="Only moderators and admins can see this section. Never visible to the player."
+          >
+            Mods only
+          </span>
+        </div>
+        {#if flags.length > 0}
+          <ul class="mb-3 max-h-48 space-y-2 overflow-y-auto">
+            {#each flags as flag (flag.id)}
+              <li class="rounded-lg border border-border-default bg-surface-input p-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  {#if flag.resolvedAt}
+                    <span class="text-[10px] font-semibold uppercase text-text-muted">Resolved</span
+                    >
+                  {:else}
+                    <span class="text-[10px] font-semibold uppercase text-warning-ink">Open</span>
+                  {/if}
+                  {#if !flag.resolvedAt}
+                    <form
+                      method="POST"
+                      action="?/resolveFlag"
+                      use:enhance={() => {
+                        submitting = true;
+                        return async ({ update, result }) => {
+                          await update();
+                          submitting = false;
+                          if (result.type === 'success') {
+                            toast.success('Flag resolved');
+                          } else if (result.type === 'failure') {
+                            toast.error(actionError(result, 'Failed to resolve flag'));
+                          }
+                        };
+                      }}
+                    >
+                      <input type="hidden" name="flagId" value={flag.id} />
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        class="text-[11px] font-medium text-primary-ink hover:underline disabled:opacity-50"
+                      >
+                        Resolve
+                      </button>
+                    </form>
+                  {/if}
+                </div>
+                <p class="mt-1 text-xs text-text-label whitespace-pre-wrap">{flag.body}</p>
+                <p class="mt-0.5 text-[11px] text-text-muted">
+                  {flag.creatorName ?? 'staff'} ·
+                  {new Date(flag.createdAt).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                  {#if flag.resolvedAt}
+                    · resolved by {flag.resolverName ?? 'staff'}
+                  {/if}
+                </p>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="mb-3 text-xs text-text-muted">No flags on this player.</p>
+        {/if}
+        <form
+          method="POST"
+          action="?/flagPlayer"
+          use:enhance={() => {
+            submitting = true;
+            return async ({ update, result }) => {
+              await update();
+              submitting = false;
+              if (result.type === 'success') {
+                toast.success('Flag added');
+                flagBody = '';
+              } else if (result.type === 'failure') {
+                toast.error(actionError(result, 'Failed to add flag'));
+              }
+            };
+          }}
+        >
+          <label for="staff-flag-body" class="mb-2 block text-sm font-medium text-text-label">
+            Add flag
+          </label>
+          <textarea
+            id="staff-flag-body"
+            name="body"
+            rows="2"
+            required
+            maxlength="5000"
+            bind:value={flagBody}
+            placeholder="e.g. suspicious, needs to submit demo, 1st strike"
+            class="w-full resize-none rounded-lg border border-border-input bg-surface-input px-3 py-2 text-sm text-text-heading placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+          ></textarea>
+          <div class="mt-2 flex justify-end">
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              disabled={submitting || !flagBody.trim()}
+            >
+              {submitting ? 'Adding...' : 'Add Flag'}
+            </Button>
+          </div>
+        </form>
       </div>
 
       <div class="border-t border-border-default pt-4">

@@ -675,10 +675,11 @@ export async function getUsers(options: {
   search?: string;
   permissionLevel?: string;
   banStatus?: string;
+  everPunished?: boolean;
   page?: number;
   pageSize?: number;
 }) {
-  const { search, permissionLevel, banStatus, page = 1, pageSize = 20 } = options;
+  const { search, permissionLevel, banStatus, everPunished, page = 1, pageSize = 20 } = options;
 
   const where: any = {};
 
@@ -700,6 +701,11 @@ export async function getUsers(options: {
     where.banStatus = banStatus;
   }
 
+  // Ever punished: anyone with at least one punishment row, active or cleared
+  if (everPunished) {
+    where.punishmentsReceived = { some: {} };
+  }
+
   return await prisma.user.findMany({
     where,
     include: {
@@ -707,9 +713,9 @@ export async function getUsers(options: {
       staffAssignments: {
         include: staffAssignmentInclude,
       },
+      _count: { select: { punishmentsReceived: true } },
       punishmentsReceived: {
-        where: { status: 1 },
-        orderBy: [{ startDateTime: 'desc' }, { id: 'desc' }],
+        orderBy: [{ status: 'desc' }, { startDateTime: 'desc' }, { id: 'desc' }],
         take: 1,
         select: {
           id: true,
@@ -718,6 +724,8 @@ export async function getUsers(options: {
           startDateTime: true,
           duration: true,
           status: true,
+          punishedBy: true,
+          punisher: { select: { steamId: true, steamUsername: true } },
         },
       },
     },
@@ -734,8 +742,9 @@ export async function countUsers(options: {
   search?: string;
   permissionLevel?: string;
   banStatus?: string;
+  everPunished?: boolean;
 }) {
-  const { search, permissionLevel, banStatus } = options;
+  const { search, permissionLevel, banStatus, everPunished } = options;
 
   const where: any = {};
 
@@ -757,12 +766,16 @@ export async function countUsers(options: {
     where.banStatus = banStatus;
   }
 
+  if (everPunished) {
+    where.punishmentsReceived = { some: {} };
+  }
+
   return await prisma.user.count({ where });
 }
 
 /**
  * Update user's permission level, name lock, and staff assignment.
- * Ban status changes go through banUser / clearPunishment.
+ * Ban status changes go through banUser / endBan.
  */
 export async function updateUser(
   steamId: string,
@@ -816,12 +829,13 @@ export async function updateUser(
  * Ban a user with a reason
  */
 /**
- * Clear a user's punishment status and deactivate active punishment records
+ * End a user's ban/warning: clear current status and deactivate all active
+ * punishment records. History rows are kept (status 0) so past bans stay visible.
  */
-export async function clearPunishment(steamId: string, clearedBy: string) {
+export async function endBan(steamId: string, endedBy: string) {
   const user = await prisma.user.findUnique({ where: { steamId } });
   if (!user) throw new Error('User not found');
-  void clearedBy;
+  void endedBy;
 
   await prisma.user.update({
     where: { steamId },

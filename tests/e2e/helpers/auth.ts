@@ -335,6 +335,13 @@ export async function captainRemovePlayer(page: Page, playerName: string): Promi
   await row.getByRole('button', { name: 'Remove' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Remove Player' })).toBeVisible();
+  // The dialog confirm submits a shared hidden form bound to the selected
+  // target: wait until the target is bound before submitting. Submitting with
+  // an empty playerSteamId 400s ("Player Steam ID is required") and the row
+  // stays in place.
+  await expect(
+    page.locator('form[action="?/removePlayer"] input[name="playerSteamId"]'),
+  ).not.toHaveValue('');
   // Submit the hidden form directly: the dialog confirm button re-renders
   // into a loading state and unmounts with the dialog on submit, which makes
   // a Playwright click on it flaky. Same server path, no dialog click.

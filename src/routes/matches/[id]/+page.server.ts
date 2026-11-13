@@ -43,7 +43,10 @@ import {
   adminUpdateMatchArenas,
   adminDeleteMatch as deleteMatchRecord,
   adminUpdateScores,
+  resetMatchToUnplayed,
+  revokeGameScores as revokeMatchGameScores,
 } from '#lib/server/services/adminMatches.js';
+import { approveSingleForfeit, voidMutualForfeit } from '#lib/server/services/forfeits.js';
 import { getArenas } from '#lib/server/services/arenas.js';
 import { getContent, getDefaultContent, CONTENT_KEYS } from '#lib/server/services/siteContent.js';
 import { buildPageSeo } from '#lib/utils/seo.js';
@@ -95,6 +98,9 @@ const gameScoreEntrySchema = z.object({
   arenaId: z.coerce.number().int().positive().optional(),
 });
 
+const MAX_DEMO_SIZE_BYTES = 200 * 1024 * 1024;
+const MAX_DEMOS_PER_UPLOAD = 10;
+
 const uploadDemoFieldsSchema = z.object({
   playerSteamId: z.string().min(1, 'Player selection is required'),
   description: z.string().optional().default(''),
@@ -116,6 +122,24 @@ const adminUpdateScoresSchema = z.object({
     .number()
     .int()
     .refine((n) => [1, 3, 5, 7].includes(n), 'Best of must be 1, 3, 5, or 7'),
+});
+
+// Mod-approved forfeit: ticketRef links to the evidence (ticket number like
+// "closed-0856", ticket log channel id, or transcript URL — see the discord
+// tool's fetch_transcript.py). reason is private (match + staff only).
+const forfeitSchema = z.object({
+  winnerTeamId: z.coerce.number().int().positive('Winner team is required'),
+  ticketRef: z.string().max(255).optional().default(''),
+  reason: z.string().max(5000).optional().default(''),
+});
+
+const mutualForfeitSchema = z.object({
+  ticketRef: z.string().max(255).optional().default(''),
+  reason: z.string().max(5000).optional().default(''),
+});
+
+const revokeGameScoresSchema = z.object({
+  gameNums: z.array(z.coerce.number().int().positive()).min(1, 'Select at least one game'),
 });
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -209,6 +233,21 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       awayRoster.some((p) => p.steamId === user.steamId)
     : false;
 
+  // Forfeit reason is private: match participants (managers, roster)
+  // and mods/admins only. Strip for everyone else (including logged-out).
+  const canViewForfeitDetails = user
+    ? permissions.isHomeManager ||
+      permissions.isAwayManager ||
+      permissions.isAdmin ||
+      homeRoster.some((p) => p.steamId === user.steamId) ||
+      awayRoster.some((p) => p.steamId === user.steamId)
+    : false;
+
+  if (!canViewForfeitDetails) {
+    match.forfeitReason = null;
+    match.forfeitTicketRef = null;
+  }
+
   // Get user's demo reports for all demos in this match
   let userDemoReports: Record<number, any[]> = {};
   if (user && match.demos) {
@@ -273,6 +312,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     canReschedule: canRequestReschedule(match),
     allRoster,
     canUploadDemo,
+    canViewForfeitDetails,
     userDemoReports,
     user,
     arenas,
@@ -731,10 +771,18 @@ export const actions: Actions = {
 
     try {
       const formData = await request.formData();
-      const file = formData.get('file');
+      const files = formData
+        .getAll('file')
+        .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-      if (!(file instanceof File) || file.size === 0) {
+      if (files.length === 0) {
         return fail(400, { error: 'File is required' });
+      }
+
+      if (files.length > MAX_DEMOS_PER_UPLOAD) {
+        return fail(400, {
+          error: `You can upload at most ${MAX_DEMOS_PER_UPLOAD} demos at once.`,
+        });
       }
 
       const fieldValidation = validateForm(formData, uploadDemoFieldsSchema);
@@ -742,17 +790,18 @@ export const actions: Actions = {
 
       const { playerSteamId, description } = fieldValidation.data;
 
-      // Validate file extension
-      if (!file.name.toLowerCase().endsWith('.dem')) {
-        return fail(400, {
-          error: 'Invalid file type. Only .dem files are allowed.',
-        });
-      }
+      for (const file of files) {
+        if (!file.name.toLowerCase().endsWith('.dem')) {
+          return fail(400, {
+            error: `Invalid file type for "${file.name}". Only .dem files are allowed.`,
+          });
+        }
 
-      // Validate file size (200MB max)
-      const maxSize = 200 * 1024 * 1024;
-      if (file.size > maxSize) {
-        return fail(400, { error: 'File too large. Maximum size is 200MB.' });
+        if (file.size > MAX_DEMO_SIZE_BYTES) {
+          return fail(400, {
+            error: `"${file.name}" is too large. Maximum size is 200MB.`,
+          });
+        }
       }
 
       const match = await getMatchDetails(matchId);
@@ -783,37 +832,44 @@ export const actions: Actions = {
 
       const tempDir = join(tmpdir(), 'mge-demos');
       await mkdir(tempDir, { recursive: true });
-      // Never put the client filename on disk — path traversal risk
-      const tempBasename = assertSafeBasename(safeDemoStorageName(file.name));
-      const tempPath = join(tempDir, tempBasename);
 
-      const arrayBuffer = await file.arrayBuffer();
-      await writeFile(tempPath, Buffer.from(arrayBuffer));
+      for (const file of files) {
+        // Never put the client filename on disk — path traversal risk
+        const tempBasename = assertSafeBasename(safeDemoStorageName(file.name));
+        const tempPath = join(tempDir, tempBasename);
 
-      await uploadDemo({
-        file: {
-          filepath: tempPath,
-          originalFilename: file.name.toLowerCase().endsWith('.dem') ? 'upload.dem' : file.name,
-          size: file.size,
-        },
-        playerSteamId,
-        submittedBy: locals.user.steamId,
-        matchId,
-        description: description || undefined,
-      });
+        const arrayBuffer = await file.arrayBuffer();
+        await writeFile(tempPath, Buffer.from(arrayBuffer));
 
-      await logAudit({
-        actorId: locals.user.steamId,
-        actorRole: locals.user.permissionLevel,
-        category: AuditCategory.DEMO,
-        action: AuditAction.DEMO_UPLOADED,
-        targetType: 'Match',
-        targetId: String(matchId),
-        metadata: { playerSteamId, filename: file.name, size: file.size },
-        ipAddress: getClientAddress(),
-      });
+        await uploadDemo({
+          file: {
+            filepath: tempPath,
+            originalFilename: file.name.toLowerCase().endsWith('.dem') ? 'upload.dem' : file.name,
+            size: file.size,
+          },
+          playerSteamId,
+          submittedBy: locals.user.steamId,
+          matchId,
+          description: description || undefined,
+        });
 
-      return { success: true, message: 'Demo uploaded successfully' };
+        await logAudit({
+          actorId: locals.user.steamId,
+          actorRole: locals.user.permissionLevel,
+          category: AuditCategory.DEMO,
+          action: AuditAction.DEMO_UPLOADED,
+          targetType: 'Match',
+          targetId: String(matchId),
+          metadata: { playerSteamId, filename: file.name, size: file.size },
+          ipAddress: getClientAddress(),
+        });
+      }
+
+      const message =
+        files.length === 1
+          ? 'Demo uploaded successfully'
+          : `${files.length} demos uploaded successfully`;
+      return { success: true, message };
     } catch (err) {
       console.error(`[Demo Upload] Error for match ${matchId}:`, err);
       if (err instanceof Error) {
@@ -1017,6 +1073,58 @@ export const actions: Actions = {
   },
 
   /**
+   * Admin or moderator: reset a played or disputed match to UNPLAYED so it can be rerun.
+   */
+  resetToUnplayed: async ({ params, locals, getClientAddress, request }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    await request.formData();
+
+    const previousStatus = match.status;
+
+    try {
+      await resetMatchToUnplayed(matchId);
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      await createAdminActionComm(
+        matchId,
+        locals.user.steamId,
+        `${roleLabel} ${locals.user.steamUsername} reset this match to unplayed. It needs to be rerun.`,
+      );
+      await createNotificationForMatch(
+        matchId,
+        'An admin reset this match to unplayed',
+        locals.user.steamId,
+      );
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_STATUS_CHANGED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { newStatus: 'UNPLAYED', previousStatus },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Match reset to unplayed' };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to reset match') });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to reset match') });
+    }
+  },
+
+  /**
    * Admin: override match scores (works on UNPLAYED, PLAYED, and DISPUTE matches)
    */
   adminUpdateScores: async ({ params, request, locals, getClientAddress }) => {
@@ -1109,6 +1217,161 @@ export const actions: Actions = {
         return fail(err.status, { error: getErrorMessage(err, 'Failed to update scores') });
       }
       return fail(500, { error: getErrorMessage(err, 'Failed to update scores') });
+    }
+  },
+
+  /**
+   * Admin/mod: approve a single-team forfeit. Winner gets the W (no points
+   * counted); decision linked to a ticket via ticketRef.
+   */
+  approveForfeit: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, forfeitSchema);
+    if (!validation.success) return validationError(validation.errors, 'Invalid form data');
+    const { winnerTeamId, ticketRef } = validation.data;
+
+    try {
+      await approveSingleForfeit(matchId, winnerTeamId, {
+        ticketRef: ticketRef || null,
+        approvedBy: locals.user.steamId,
+        ipAddress: getClientAddress(),
+        reason: validation.data.reason || null,
+      });
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      await createAdminActionComm(
+        matchId,
+        locals.user.steamId,
+        `${roleLabel} ${locals.user.steamUsername} approved a forfeit win${ticketRef ? ` (ticket: ${ticketRef})` : ''}.`,
+      );
+      await createNotificationForMatch(
+        matchId,
+        'An admin recorded a forfeit result',
+        locals.user.steamId,
+      );
+
+      return { success: true, message: 'Forfeit recorded' };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to record forfeit') });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to record forfeit') });
+    }
+  },
+
+  /**
+   * Admin/mod: record a mutual forfeit as void / no-contest. No standings changes.
+   */
+  voidMutualForfeit: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, mutualForfeitSchema);
+    if (!validation.success) return validationError(validation.errors, 'Invalid form data');
+    const { ticketRef } = validation.data;
+
+    try {
+      await voidMutualForfeit(matchId, {
+        ticketRef: ticketRef || null,
+        approvedBy: locals.user.steamId,
+        ipAddress: getClientAddress(),
+        reason: validation.data.reason || null,
+      });
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      await createAdminActionComm(
+        matchId,
+        locals.user.steamId,
+        `${roleLabel} ${locals.user.steamUsername} voided this match as a mutual forfeit (no-contest)${ticketRef ? ` (ticket: ${ticketRef})` : ''}.`,
+      );
+      await createNotificationForMatch(
+        matchId,
+        'An admin voided this match (mutual forfeit)',
+        locals.user.steamId,
+      );
+
+      return { success: true, message: 'Match voided (mutual forfeit)' };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to void match') });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to void match') });
+    }
+  },
+
+  /**
+   * Admin/mod: revoke scores for games that never took place. Standings are
+   * recomputed from the remaining scored games; empty result -> UNPLAYED.
+   */
+  revokeGameScores: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const match = await getMatchDetails(matchId);
+    const permissions = canUserManageMatch(locals.user, match);
+    if (!permissions.isAdmin) {
+      return fail(403, { error: 'Admin access required' });
+    }
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, revokeGameScoresSchema, ['gameNums']);
+    if (!validation.success) return validationError(validation.errors, 'Invalid form data');
+    const { gameNums } = validation.data;
+
+    try {
+      const updated = await revokeMatchGameScores(matchId, gameNums);
+
+      const roleLabel = locals.user.permissionLevel === 'ADMIN' ? 'Admin' : 'Moderator';
+      await createAdminActionComm(
+        matchId,
+        locals.user.steamId,
+        `${roleLabel} ${locals.user.steamUsername} revoked scores for game(s) ${[...gameNums].sort((a, b) => a - b).join(', ')} (rounds did not take place).`,
+      );
+      await createNotificationForMatch(
+        matchId,
+        'An admin revoked scores for unplayed games',
+        locals.user.steamId,
+      );
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_SCORES_OVERRIDDEN,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { revokedGames: gameNums, previousStatus: match.status },
+        ipAddress: getClientAddress(),
+      });
+
+      return {
+        success: true,
+        message:
+          updated.status === 'UNPLAYED'
+            ? 'Scores revoked — no scored games remain, match is unplayed'
+            : `Scores revoked for game(s) ${gameNums.join(', ')}`,
+      };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { error: getErrorMessage(err, 'Failed to revoke scores') });
+      }
+      return fail(500, { error: getErrorMessage(err, 'Failed to revoke scores') });
     }
   },
 };

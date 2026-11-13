@@ -37,6 +37,8 @@ export function groupLeagueMatchesByWeek(matches: LeagueScheduleRow[]): LeagueMa
 }
 
 export function formatLeagueMatchScore(match: LeagueDivisionMatch): string | null {
+  if (match.forfeitType === 'SINGLE') return 'FF';
+  if (match.forfeitType === 'MUTUAL') return 'Void';
   if (match.homeScore == null || match.awayScore == null) return null;
   return `${match.homeScore}–${match.awayScore}`;
 }
@@ -127,6 +129,7 @@ export function toLeagueDivisionMatch(input: {
   homeTeamId: number;
   winnerScore: number | null;
   loserScore: number | null;
+  forfeitType: 'NONE' | 'SINGLE' | 'MUTUAL';
 }): LeagueDivisionMatch {
   const scores = scoresForLeagueMatch(input);
   return {
@@ -140,6 +143,7 @@ export function toLeagueDivisionMatch(input: {
     away: input.away,
     homeScore: scores.homeScore,
     awayScore: scores.awayScore,
+    forfeitType: input.forfeitType,
   };
 }
 

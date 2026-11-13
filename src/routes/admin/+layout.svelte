@@ -17,6 +17,7 @@
   import Map from '~icons/lucide/map';
   import Gavel from '~icons/lucide/gavel';
   import User from '~icons/lucide/user';
+  import Flag from '~icons/lucide/flag';
   import Search from '~icons/lucide/search';
   import UserCog from '~icons/lucide/user-cog';
   import Globe from '~icons/lucide/globe';
@@ -52,6 +53,7 @@
       | '/admin/teams'
       | '/admin/pending-players'
       | '/admin/users'
+      | '/admin/flags'
       | '/admin/investigate'
       | '/admin/staff'
       | '/admin/global'
@@ -97,6 +99,7 @@
           adminOnly: false,
         },
         { name: 'Users', path: '/admin/users', icon: User, adminOnly: false },
+        { name: 'Flags', path: '/admin/flags', icon: Flag, adminOnly: false },
         { name: 'Investigate', path: '/admin/investigate', icon: Search, adminOnly: false },
         { name: 'Staff', path: '/admin/staff', icon: UserCog, adminOnly: true },
       ],

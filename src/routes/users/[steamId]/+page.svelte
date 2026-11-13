@@ -34,6 +34,7 @@
   import { steamId32FromSteamId64 } from '#lib/utils/steamid.js';
   import Settings from '~icons/lucide/settings';
   import Shield from '~icons/lucide/shield';
+  import Flag from '~icons/lucide/flag';
   import X from '~icons/lucide/x';
 
   interface TeamWithMatches {
@@ -79,6 +80,14 @@
     isAdmin: boolean;
     isStrictAdmin: boolean;
     punishments: PunishmentHistoryEntry[];
+    flags: {
+      id: number;
+      body: string;
+      createdAt: string | Date;
+      resolvedAt: string | Date | null;
+      creator: { steamId: string; steamUsername: string } | null;
+      resolver: { steamId: string; steamUsername: string } | null;
+    }[];
     ownPunishment: PunishmentNotice | null;
     currentTeams: TeamWithMatches[];
     teamHistory: TeamWithMatches[];
@@ -138,6 +147,7 @@
   const mgeRatings = $derived(data.ratings);
   const isOwnProfile = $derived(data.isOwnProfile);
   const isAdmin = $derived(data.isAdmin);
+  const openFlagCount = $derived(data.flags.filter((f) => !f.resolvedAt).length);
   const entries1v1 = $derived(data.entries1v1);
   const activeEntry = $derived(entries1v1.find((e) => e.active) ?? null);
   const profileTeams = $derived<ProfileTeam[]>([
@@ -196,6 +206,8 @@
   let unlinkDiscordFormEl: HTMLFormElement | undefined = $state();
   let statusFormEl: HTMLFormElement | undefined = $state();
   let divisionFormEl: HTMLFormElement | undefined = $state();
+  let heroFlagBody = $state('');
+  let heroFlagAdding = $state(false);
 
   const profilePath = $derived(resolve('/users/[steamId]', { steamId: player.steamId }));
 
@@ -385,6 +397,19 @@
               >
             {/if}
           </button>
+          <button
+            type="button"
+            data-testid="hero-flag-button"
+            class="inline-flex items-center gap-1 rounded px-2.5 py-1 text-[11px] transition-colors {openFlagCount >
+            0
+              ? 'bg-danger-500/20 text-danger-ink hover:bg-danger-500/30'
+              : 'bg-surface-input/60 text-text-body hover:bg-surface-hover/60'}"
+            onclick={() => (staffOpen = true)}
+            title="Staff flags (mods only)"
+          >
+            <Flag class="size-3.5" aria-hidden="true" />
+            Flags{openFlagCount > 0 ? ` (${openFlagCount})` : ''}
+          </button>
         </div>
         <Button
           variant="secondary"
@@ -397,6 +422,120 @@
       </div>
     {/if}
   </div>
+
+  {#if isAdmin}
+    {@const heroOpenFlags = data.flags.filter((f) => !f.resolvedAt)}
+    {@const heroResolvedFlags = data.flags.filter((f) => f.resolvedAt)}
+    {#if heroOpenFlags.length > 0}
+      <div class="mx-auto max-w-7xl px-4 pb-6 sm:px-6" data-testid="player-hero-flags">
+        <div class="rounded-xl border border-danger-500/30 bg-danger-500/10 p-4">
+          <div class="mb-2 flex flex-wrap items-center gap-2">
+            <Flag class="size-4 text-danger-ink" aria-hidden="true" />
+            <span class="text-sm font-bold text-text-heading">
+              {heroOpenFlags.length > 0
+                ? `${heroOpenFlags.length} open flag${heroOpenFlags.length === 1 ? '' : 's'}`
+                : 'No open flags'}
+            </span>
+            <span
+              class="rounded bg-danger-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-danger-ink"
+            >
+              Mods only
+            </span>
+            {#if heroResolvedFlags.length > 0}
+              <span class="text-xs text-text-muted">
+                · {heroResolvedFlags.length} resolved
+              </span>
+            {/if}
+          </div>
+          {#if heroOpenFlags.length > 0}
+            <ul class="mb-3 space-y-2">
+              {#each heroOpenFlags as flag (flag.id)}
+                <li class="rounded-lg border border-border-default bg-surface-input p-2.5">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[10px] font-semibold uppercase text-warning-ink">Open</span>
+                    <form
+                      method="POST"
+                      action="?/resolveFlag"
+                      use:enhance={() => {
+                        return async ({ update, result }) => {
+                          await update({ reset: false });
+                          if (result.type === 'success') {
+                            toast.success('Flag resolved');
+                          } else if (result.type === 'failure') {
+                            toast.error(
+                              (result.data as { error?: string } | undefined)?.error ||
+                                'Failed to resolve flag',
+                            );
+                          }
+                        };
+                      }}
+                    >
+                      <input type="hidden" name="flagId" value={flag.id} />
+                      <button
+                        type="submit"
+                        class="text-[11px] font-medium text-primary-ink hover:underline"
+                      >
+                        Resolve
+                      </button>
+                    </form>
+                  </div>
+                  <p class="mt-1 text-xs text-text-label whitespace-pre-wrap">{flag.body}</p>
+                  <p class="mt-0.5 text-[11px] text-text-muted">
+                    {flag.creator?.steamUsername ?? 'staff'} ·
+                    {new Date(flag.createdAt).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </p>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          <form
+            method="POST"
+            action="?/flagPlayer"
+            use:enhance={() => {
+              heroFlagAdding = true;
+              return async ({ update, result }) => {
+                await update({ reset: false });
+                heroFlagAdding = false;
+                if (result.type === 'success') {
+                  toast.success('Flag added');
+                  heroFlagBody = '';
+                } else if (result.type === 'failure') {
+                  toast.error(
+                    (result.data as { error?: string } | undefined)?.error || 'Failed to add flag',
+                  );
+                }
+              };
+            }}
+            class="flex gap-2"
+          >
+            <label for="hero-flag-body" class="sr-only">Add flag for {player.name}</label>
+            <input
+              id="hero-flag-body"
+              name="body"
+              type="text"
+              required
+              maxlength="5000"
+              bind:value={heroFlagBody}
+              placeholder={`Add flag for ${player.name} — mods only`}
+              class="min-w-0 flex-1 rounded-lg border border-border-input bg-surface-input px-3 py-2 text-sm text-text-heading placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              disabled={heroFlagAdding || !heroFlagBody.trim()}
+            >
+              {heroFlagAdding ? 'Adding...' : 'Add flag'}
+            </Button>
+          </form>
+        </div>
+      </div>
+    {/if}
+  {/if}
   {#if isOwnProfile && data.ownPunishment}
     <div class="mx-auto max-w-7xl px-4 pb-6 sm:px-6">
       <PunishmentNoticeCard notice={data.ownPunishment} />
@@ -712,6 +851,14 @@
     bind:open={staffOpen}
     {player}
     punishments={data.punishments}
+    flags={data.flags.map((f) => ({
+      id: f.id,
+      body: f.body,
+      createdAt: f.createdAt,
+      resolvedAt: f.resolvedAt,
+      creatorName: f.creator?.steamUsername ?? null,
+      resolverName: f.resolver?.steamUsername ?? null,
+    }))}
     isStrictAdmin={data.isStrictAdmin}
   />
 {/if}

@@ -40,6 +40,15 @@ enum MatchStatus {
   DISPUTE // 2
 }
 
+// How a match result came to be. SINGLE = one team forfeited (winner gets the
+// W, no points counted for either side so point averages are unaffected).
+// MUTUAL = both teams agreed not to play: void / no-contest, no W/L, no points.
+enum ForfeitType {
+  NONE
+  SINGLE
+  MUTUAL
+}
+
 enum MatchSetDraftStatus {
   DRAFT
   PUBLISHED
@@ -520,6 +529,9 @@ model User {
   discord                    Discord?
   punishmentsReceived        Punishment[]       @relation("PunishedPlayer")
   punishmentsGiven           Punishment[]       @relation("Punisher")
+  flagsReceived              PlayerFlag[]       @relation("FlaggedPlayer")
+  flagsCreated               PlayerFlag[]       @relation("FlagCreator")
+  flagsResolved              PlayerFlag[]       @relation("FlagResolver")
   threads                    Thread[]
   posts                      Post[]
   activities                 Activity[]
@@ -594,6 +606,29 @@ model Punishment {
   punisher User? @relation("Punisher", fields: [punishedBy], references: [steamId])
 
   @@map("punishment")
+}
+
+// Mod-only staff notes on a player ("flags"): e.g. "suspicious, needs to
+// submit demo, 1st strike". Visible only to mods/admins (profile staff
+// section + admin Flags tab). Full history via audit log; resolved flags
+// stay listed with their resolution.
+model PlayerFlag {
+  id            Int       @id @default(autoincrement())
+  playerSteamId String    @map("player_steam_id")
+  body          String    @db.Text
+  createdBy     String?   @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  resolvedAt    DateTime? @map("resolved_at")
+  resolvedBy    String?   @map("resolved_by")
+
+  player   User  @relation("FlaggedPlayer", fields: [playerSteamId], references: [steamId], onDelete: Cascade)
+  creator  User? @relation("FlagCreator", fields: [createdBy], references: [steamId])
+  resolver User? @relation("FlagResolver", fields: [resolvedBy], references: [steamId])
+
+  @@index([playerSteamId])
+  @@index([resolvedAt])
+  @@map("player_flags")
 }
 
 model Thread {
@@ -808,6 +843,7 @@ model Team {
   homeMatches         Match[]            @relation("HomeTeam")
   awayMatches         Match[]            @relation("AwayTeam")
   wonMatches          Match[]            @relation("WinnerTeam")
+  wonForfeits         Match[]            @relation("ForfeitWinner")
   history             TeamHistory[]
   nameHistory         TeamNameHistory[]
   players             PlayerInTeam[]
@@ -875,9 +911,21 @@ model Match {
   submittedBy   String?     @map("submitted_by")
   submittedAt   DateTime?   @map("submitted_at")
 
+  // Mod-approved forfeit handling. ticketRef links the decision to its source:
+  // a ticket number (e.g. "closed-0856"), ticket log channel id, or transcript URL.
+  forfeitType       ForfeitType @default(NONE) @map("forfeit_type")
+  forfeitWinnerId   Int?        @map("forfeit_winner_id")
+  forfeitTicketRef  String?     @map("forfeit_ticket_ref")
+  forfeitApprovedBy String?     @map("forfeit_approved_by")
+  forfeitApprovedAt DateTime?   @map("forfeit_approved_at")
+  // Private: only visible to match participants (roster/managers) and mods/admins.
+  // Holds the human reason plus the evidence (LLM judgement + ticket channel link).
+  forfeitReason   String? @map("forfeit_reason") @db.Text
+
   homeTeam     Team          @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam     Team          @relation("AwayTeam", fields: [awayTeamId], references: [id])
   winner       Team?         @relation("WinnerTeam", fields: [winnerId], references: [id])
+  forfeitWinner Team?        @relation("ForfeitWinner", fields: [forfeitWinnerId], references: [id])
   season       Season        @relation(fields: [seasonId], references: [id])
   playoff      Playoff?      @relation(fields: [playoffId], references: [id])
   submitter    User?         @relation(fields: [submittedBy], references: [steamId])

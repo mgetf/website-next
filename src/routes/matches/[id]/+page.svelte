@@ -61,6 +61,14 @@
   let showAdminEditSchedule = $state(false);
   let showAdminEditArenas = $state(false);
   let showAdminConfirmDelete = $state(false);
+  let showAdminConfirmReset = $state(false);
+  let showForfeitDialog = $state(false);
+  let showMutualForfeitDialog = $state(false);
+  let isRecordingForfeit = $state(false);
+  let isVoidingMatch = $state(false);
+  let isRevokingScores = $state(false);
+  let forfeitWinnerId = $state('');
+  let isResettingMatch = $state(false);
   let showAdminEditScores = $state(false);
   let isDeletingMatch = $state(false);
   let isEditingSchedule = $state(false);
@@ -186,7 +194,7 @@
   });
 
   // Demo upload state
-  let selectedDemoFile = $state<File | null>(null);
+  let selectedDemoFiles = $state<File[]>([]);
   let demoUploadError = $state<string | null>(null);
   let demoUploadProgress = $state<string>('Preparing upload...');
 
@@ -292,6 +300,32 @@
     match.is1v1 && match.homePlayer ? match.homePlayer.steamUsername : match.homeTeam.name;
   const getAwayName = () =>
     match.is1v1 && match.awayPlayer ? match.awayPlayer.steamUsername : match.awayTeam.name;
+
+  // Forfeit winner: side + display name (player-aware for 1v1, where team
+  // names like "Ask about our deals" may not match either player's name).
+  const forfeitWinnerSide = $derived(
+    match.forfeitType === 'SINGLE'
+      ? match.winnerId === match.homeTeamId
+        ? 'home'
+        : match.winnerId === match.awayTeamId
+          ? 'away'
+          : null
+      : null,
+  );
+  const forfeitWinnerName = $derived(
+    forfeitWinnerSide === 'home'
+      ? getHomeName()
+      : forfeitWinnerSide === 'away'
+        ? getAwayName()
+        : '',
+  );
+
+  const scoredGameNums = $derived(
+    match.games
+      .filter((g) => g.homeTeamScore != null && g.awayTeamScore != null)
+      .map((g) => g.gameNum)
+      .sort((a, b) => a - b),
+  );
 
   // Get unique arenas with full data (id, name, avatar)
   const matchArenas = $derived(() => {
@@ -432,6 +466,8 @@
   };
 
   const getStatusLabel = (status: string) => {
+    if (match.forfeitType === 'SINGLE') return 'Forfeit';
+    if (match.forfeitType === 'MUTUAL') return 'Void';
     if (status === 'UNPLAYED') return 'Unplayed';
     if (status === 'PLAYED') return 'Played';
     if (status === 'DISPUTE') return 'Disputed';
@@ -464,37 +500,63 @@
   // Demo modal functions
   const openDemoUploadModal = () => {
     showDemoUploadModal = true;
-    selectedDemoFile = null;
+    selectedDemoFiles = [];
     demoUploadError = null;
     demoUploadProgress = 'Preparing upload...';
   };
 
   const closeDemoUploadModal = () => {
     showDemoUploadModal = false;
-    selectedDemoFile = null;
+    selectedDemoFiles = [];
     demoUploadError = null;
   };
+
+  const MAX_DEMO_FILES = 10;
+  const MAX_DEMO_SIZE = 200 * 1024 * 1024; // 200MB
 
   const handleDemoFileSelect = (event: Event) => {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] || null;
-    selectedDemoFile = file;
+    const picked = Array.from(input.files ?? []);
     demoUploadError = null;
 
-    // Client-side validation
-    if (file) {
-      const maxSize = 200 * 1024 * 1024; // 200MB
-      if (file.size > maxSize) {
-        demoUploadError = `File too large (${formatFileSize(file.size)}). Maximum size is 200MB.`;
-        selectedDemoFile = null;
-        input.value = '';
-      } else if (!file.name.toLowerCase().endsWith('.dem')) {
-        demoUploadError = 'Invalid file type. Only .dem files are allowed.';
-        selectedDemoFile = null;
-        input.value = '';
-      }
+    if (picked.length > MAX_DEMO_FILES) {
+      demoUploadError = `You can upload at most ${MAX_DEMO_FILES} demos at once.`;
+      selectedDemoFiles = [];
+      input.value = '';
+      return;
+    }
+
+    const invalid = picked.find((file) => !file.name.toLowerCase().endsWith('.dem'));
+    if (invalid) {
+      demoUploadError = `Invalid file type for "${invalid.name}". Only .dem files are allowed.`;
+      selectedDemoFiles = [];
+      input.value = '';
+      return;
+    }
+
+    const tooLarge = picked.find((file) => file.size > MAX_DEMO_SIZE);
+    if (tooLarge) {
+      demoUploadError = `"${tooLarge.name}" is too large (${formatFileSize(tooLarge.size)}). Maximum size is 200MB.`;
+      selectedDemoFiles = [];
+      input.value = '';
+      return;
+    }
+
+    selectedDemoFiles = picked;
+  };
+
+  const removeDemoFile = (index: number) => {
+    selectedDemoFiles = selectedDemoFiles.filter((_, i) => i !== index);
+    // The native input is what gets submitted, so keep it in sync with the list
+    const input = document.getElementById('demoFile') as HTMLInputElement | null;
+    if (input) {
+      const transfer = new DataTransfer();
+      selectedDemoFiles.forEach((file) => transfer.items.add(file));
+      input.files = transfer.files;
     }
   };
+
+  const totalDemoSize = $derived(selectedDemoFiles.reduce((sum, file) => sum + file.size, 0));
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
@@ -586,6 +648,9 @@
           <div>
             <div class="font-semibold text-lg text-text-heading">
               {match.homePlayer.steamUsername}
+              {#if forfeitWinnerSide === 'home'}
+                <Badge color="green" size="sm" class="ml-2">Winner</Badge>
+              {/if}
             </div>
             <div class="text-sm text-text-body">
               {match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
@@ -604,7 +669,12 @@
             class="w-16 h-16 rounded-full object-cover"
           />
           <div>
-            <div class="font-semibold text-lg text-text-heading">{match.homeTeam.name}</div>
+            <div class="font-semibold text-lg text-text-heading">
+              {match.homeTeam.name}
+              {#if forfeitWinnerSide === 'home'}
+                <Badge color="green" size="sm" class="ml-2">Winner</Badge>
+              {/if}
+            </div>
             <div class="text-sm text-text-body">
               {match.homeTeam.division?.name} &bull; {match.homeTeam.region?.name}
             </div>
@@ -614,7 +684,15 @@
 
       <!-- Score -->
       <div class="text-center">
-        {#if isPlayed || isDisputed}
+        {#if match.forfeitType === 'SINGLE'}
+          <div class="text-4xl font-bold text-text-heading">FF</div>
+          <div class="text-sm text-text-body mt-2">
+            Forfeit win — {forfeitWinnerName} gets the win, no games played
+          </div>
+        {:else if match.forfeitType === 'MUTUAL'}
+          <div class="text-4xl font-bold text-text-heading">Void</div>
+          <div class="text-sm text-text-body mt-2">Mutual forfeit — no-contest</div>
+        {:else if isPlayed || isDisputed}
           <div class="text-4xl font-bold text-text-heading">
             {match.winnerId === match.homeTeamId ? match.winnerScore : match.loserScore}
             <span class="text-text-body">-</span>
@@ -640,6 +718,9 @@
           <div class="text-right">
             <div class="font-semibold text-lg text-text-heading">
               {match.awayPlayer.steamUsername}
+              {#if forfeitWinnerSide === 'away'}
+                <Badge color="green" size="sm" class="ml-2">Winner</Badge>
+              {/if}
             </div>
             <div class="text-sm text-text-body">
               {match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
@@ -658,7 +739,12 @@
           class="flex items-center space-x-4 hover:bg-surface-input p-4 rounded-lg transition justify-end"
         >
           <div class="text-right">
-            <div class="font-semibold text-lg text-text-heading">{match.awayTeam.name}</div>
+            <div class="font-semibold text-lg text-text-heading">
+              {match.awayTeam.name}
+              {#if forfeitWinnerSide === 'away'}
+                <Badge color="green" size="sm" class="ml-2">Winner</Badge>
+              {/if}
+            </div>
             <div class="text-sm text-text-body">
               {match.awayTeam.division?.name} &bull; {match.awayTeam.region?.name}
             </div>
@@ -820,12 +906,58 @@
             Edit Arenas
           </Button>
           <Button variant="secondary" size="sm" onclick={openAdminEditScores}>Edit Scores</Button>
+          {#if !isUnplayed}
+            <Button variant="secondary" size="sm" onclick={() => (showAdminConfirmReset = true)}>
+              Mark as Unplayed (Rerun)
+            </Button>
+          {/if}
           {#if isUnplayed}
             <Button variant="danger" size="sm" onclick={() => (showAdminConfirmDelete = true)}>
               Delete Match
             </Button>
           {/if}
+          {#if isUnplayed || isDisputed || (isPlayed && match.forfeitType === 'NONE')}
+            <Button variant="secondary" size="sm" onclick={() => (showForfeitDialog = true)}>
+              Record Forfeit
+            </Button>
+            <Button variant="secondary" size="sm" onclick={() => (showMutualForfeitDialog = true)}>
+              Void (Mutual FF)
+            </Button>
+          {/if}
         </div>
+      </div>
+    {/if}
+
+    <!-- Forfeit banner (public) -->
+    {#if match.forfeitType === 'SINGLE'}
+      <div class="mt-6 rounded-lg border border-border-default bg-surface-card px-4 py-3">
+        <p class="text-sm font-medium text-text-heading">
+          Forfeit win for {forfeitWinnerName} — no games were played, so this result counts for W/L only
+          and is excluded from point averages.
+        </p>
+      </div>
+    {:else if match.forfeitType === 'MUTUAL'}
+      <div class="mt-6 rounded-lg border border-border-default bg-surface-card px-4 py-3">
+        <p class="text-sm font-medium text-text-heading">
+          Void — both teams agreed not to play (no-contest). No win, loss, or points recorded.
+        </p>
+      </div>
+    {/if}
+
+    <!-- Forfeit details (private: participants + staff only, stripped server-side otherwise) -->
+    {#if data.canViewForfeitDetails && (match.forfeitReason || match.forfeitTicketRef)}
+      <div class="mt-4 rounded-lg border border-border-default px-4 py-3">
+        <p class="text-xs text-text-muted uppercase tracking-wide mb-2">
+          Forfeit details (only visible to teams and staff)
+        </p>
+        {#if match.forfeitTicketRef}
+          <p class="text-sm text-text-body">Ticket: {match.forfeitTicketRef}</p>
+        {/if}
+        {#if match.forfeitReason}
+          <p class="text-sm text-text-body mt-1 whitespace-pre-wrap">
+            Reason: {match.forfeitReason}
+          </p>
+        {/if}
       </div>
     {/if}
   </Card>
@@ -1690,6 +1822,189 @@
   </form>
 </Dialog>
 
+<!-- Admin: Reset Match to Unplayed Confirmation -->
+<ConfirmDialog
+  open={showAdminConfirmReset}
+  title="Mark Match as Unplayed"
+  description="This clears the result and game scores for match #{match.id}, reverses the team standings it added, and posts a note to match chat so the teams can rerun it. Playoff matches that already advanced the bracket must be reset from the later match first."
+  variant="danger"
+  confirmLabel="Mark as Unplayed"
+  isLoading={isResettingMatch}
+  onConfirm={() => {
+    const resetForm = document.getElementById('adminResetMatchForm') as HTMLFormElement | null;
+    resetForm?.requestSubmit();
+  }}
+  onCancel={() => (showAdminConfirmReset = false)}
+/>
+
+<form
+  id="adminResetMatchForm"
+  method="POST"
+  action="?/resetToUnplayed"
+  class="hidden"
+  use:enhance={() => {
+    isResettingMatch = true;
+    return async ({ result, update }) => {
+      isResettingMatch = false;
+      showAdminConfirmReset = false;
+      if (result.type === 'success') {
+        toast.success('Match reset to unplayed');
+      } else if (result.type === 'failure') {
+        const d = result.data as { error?: string } | undefined;
+        toast.error(d?.error || 'Failed to reset match');
+      }
+      await update();
+    };
+  }}
+></form>
+
+<!-- Admin: Record Forfeit -->
+<Dialog
+  open={showForfeitDialog}
+  title="Record Forfeit Win"
+  onClose={() => (showForfeitDialog = false)}
+>
+  <form
+    method="POST"
+    action="?/approveForfeit"
+    use:enhance={() => {
+      isRecordingForfeit = true;
+      return async ({ result, update }) => {
+        isRecordingForfeit = false;
+        if (result.type === 'success') {
+          showForfeitDialog = false;
+          toast.success('Forfeit recorded');
+        } else if (result.type === 'failure') {
+          const d = result.data as { error?: string } | undefined;
+          toast.error(d?.error || 'Failed to record forfeit');
+        }
+        await update();
+      };
+    }}
+  >
+    <p class="text-sm text-text-body mb-4">
+      The winner gets the W only — no games or points are counted, so point averages are unaffected.
+      Stored as 20-0. Only unplayed or disputed matches.
+    </p>
+    <FormSelect
+      label="Forfeit winner"
+      name="winnerTeamId"
+      bind:value={forfeitWinnerId}
+      options={[
+        { value: '', label: '— Select team —' },
+        { value: String(match.homeTeamId), label: match.homeTeam.name },
+        { value: String(match.awayTeamId), label: match.awayTeam.name },
+      ]}
+    />
+    <div class="mt-4">
+      <label for="forfeitTicketRef" class="block text-sm font-medium text-text-label mb-2">
+        Ticket ref (e.g. closed-0856, log channel id, transcript URL)
+      </label>
+      <input
+        id="forfeitTicketRef"
+        type="text"
+        name="ticketRef"
+        maxlength="255"
+        placeholder="closed-0856"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      />
+    </div>
+    <div class="mt-4">
+      <label for="forfeitReason" class="block text-sm font-medium text-text-label mb-2">
+        Reason, incl. evidence (LLM judgement + ticket link). Private: teams + staff only.
+      </label>
+      <textarea
+        id="forfeitReason"
+        name="reason"
+        rows="4"
+        maxlength="5000"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      ></textarea>
+    </div>
+    <div class="flex justify-end gap-3 mt-4">
+      <Button
+        type="button"
+        variant="secondary"
+        onclick={() => (showForfeitDialog = false)}
+        disabled={isRecordingForfeit}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" variant="primary" disabled={isRecordingForfeit}>
+        {isRecordingForfeit ? 'Saving...' : 'Record Forfeit'}
+      </Button>
+    </div>
+  </form>
+</Dialog>
+
+<!-- Admin: Void (Mutual Forfeit) -->
+<Dialog
+  open={showMutualForfeitDialog}
+  title="Void Match (Mutual Forfeit)"
+  onClose={() => (showMutualForfeitDialog = false)}
+>
+  <form
+    method="POST"
+    action="?/voidMutualForfeit"
+    use:enhance={() => {
+      isVoidingMatch = true;
+      return async ({ result, update }) => {
+        isVoidingMatch = false;
+        if (result.type === 'success') {
+          showMutualForfeitDialog = false;
+          toast.success('Match voided');
+        } else if (result.type === 'failure') {
+          const d = result.data as { error?: string } | undefined;
+          toast.error(d?.error || 'Failed to void match');
+        }
+        await update();
+      };
+    }}
+  >
+    <p class="text-sm text-text-body mb-4">
+      No-contest: both teams agreed not to play. No win, loss, games, or points are recorded.
+    </p>
+    <div>
+      <label for="mutualTicketRef" class="block text-sm font-medium text-text-label mb-2">
+        Ticket ref (e.g. closed-0856, log channel id, transcript URL)
+      </label>
+      <input
+        id="mutualTicketRef"
+        type="text"
+        name="ticketRef"
+        maxlength="255"
+        placeholder="closed-0856"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      />
+    </div>
+    <div class="mt-4">
+      <label for="mutualReason" class="block text-sm font-medium text-text-label mb-2">
+        Reason, incl. evidence (LLM judgement + ticket link). Private: teams + staff only.
+      </label>
+      <textarea
+        id="mutualReason"
+        name="reason"
+        rows="4"
+        maxlength="5000"
+        class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      ></textarea>
+    </div>
+    <div class="flex justify-end gap-3 mt-4">
+      <Button
+        type="button"
+        variant="secondary"
+        onclick={() => (showMutualForfeitDialog = false)}
+        disabled={isVoidingMatch}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" variant="primary" disabled={isVoidingMatch}>
+        {isVoidingMatch ? 'Saving...' : 'Void Match'}
+      </Button>
+    </div>
+  </form>
+</Dialog>
+
 <!-- Admin: Delete Match Confirmation -->
 <ConfirmDialog
   open={showAdminConfirmDelete}
@@ -1960,6 +2275,49 @@
       </Button>
     </div>
   </form>
+
+  {#if scoredGameNums.length > 0}
+    <form
+      method="POST"
+      action="?/revokeGameScores"
+      class="mt-4 pt-4 border-t border-border-input"
+      use:enhance={() => {
+        isRevokingScores = true;
+        return async ({ result, update }) => {
+          isRevokingScores = false;
+          if (result.type === 'success') {
+            showAdminEditScores = false;
+            const d = result.data as { message?: string } | undefined;
+            toast.success(d?.message || 'Scores revoked');
+          } else if (result.type === 'failure') {
+            const d = result.data as { error?: string } | undefined;
+            toast.error(d?.error || 'Failed to revoke scores');
+          }
+          await update();
+        };
+      }}
+    >
+      <p class="text-sm font-medium text-text-label mb-2">Revoke rounds that never took place</p>
+      <div class="flex flex-wrap gap-2 mb-3">
+        {#each scoredGameNums as gameNum (gameNum)}
+          <label class="flex items-center gap-1.5 text-sm text-text-body cursor-pointer">
+            <input
+              type="checkbox"
+              name="gameNums"
+              value={gameNum}
+              class="w-4 h-4 rounded border-border-input bg-surface-input text-primary-600 focus:ring-primary-500"
+            />
+            Game {gameNum}
+          </label>
+        {/each}
+      </div>
+      <div class="flex justify-end">
+        <Button type="submit" variant="danger" size="sm" disabled={isRevokingScores}>
+          {isRevokingScores ? 'Revoking...' : 'Revoke selected'}
+        </Button>
+      </div>
+    </form>
+  {/if}
 </Dialog>
 
 <!-- Demo Upload Modal -->
@@ -1975,13 +2333,21 @@
           ></div>
         </div>
 
-        <p class="text-text-heading font-medium mb-2">Uploading Demo...</p>
+        <p class="text-text-heading font-medium mb-2">
+          Uploading {selectedDemoFiles.length === 1
+            ? 'Demo'
+            : `${selectedDemoFiles.length} Demos`}...
+        </p>
         <p class="text-text-body text-sm mb-4">{demoUploadProgress}</p>
 
-        {#if selectedDemoFile}
-          <div class="bg-surface-hover/50 rounded-lg px-4 py-2 text-sm">
-            <span class="text-text-label">{selectedDemoFile.name}</span>
-            <span class="text-text-muted ml-2">({formatFileSize(selectedDemoFile.size)})</span>
+        {#if selectedDemoFiles.length > 0}
+          <div class="bg-surface-hover/50 rounded-lg px-4 py-2 text-sm max-h-40 overflow-y-auto">
+            {#each selectedDemoFiles as file (file.name + file.size + file.lastModified)}
+              <div>
+                <span class="text-text-label">{file.name}</span>
+                <span class="text-text-muted ml-2">({formatFileSize(file.size)})</span>
+              </div>
+            {/each}
           </div>
         {/if}
 
@@ -2038,13 +2404,14 @@
 
       <div class="mb-6">
         <label for="demoFile" class="block text-sm font-medium text-text-label mb-2">
-          Demo File (.dem) <span class="text-danger-500">*</span>
+          Demo Files (.dem) <span class="text-danger-500">*</span>
         </label>
         <input
           type="file"
           id="demoFile"
           name="file"
           accept=".dem"
+          multiple
           required
           onchange={handleDemoFileSelect}
           class="w-full text-sm text-text-heading
@@ -2056,26 +2423,45 @@
 					   cursor-pointer"
         />
 
-        {#if selectedDemoFile}
-          <div class="mt-2 p-2 bg-surface-hover/50 rounded flex items-center gap-2">
-            <svg
-              class="w-5 h-5 text-success-ink"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span class="text-text-heading text-sm">{selectedDemoFile.name}</span>
-            <span class="text-text-muted text-xs">({formatFileSize(selectedDemoFile.size)})</span>
-          </div>
+        {#if selectedDemoFiles.length > 0}
+          <ul class="mt-2 space-y-1">
+            {#each selectedDemoFiles as file, index (file.name + file.size + file.lastModified)}
+              <li class="p-2 bg-surface-hover/50 rounded flex items-center gap-2">
+                <svg
+                  class="w-5 h-5 text-success-ink shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span class="text-text-heading text-sm truncate">{file.name}</span>
+                <span class="text-text-muted text-xs shrink-0">({formatFileSize(file.size)})</span>
+                <button
+                  type="button"
+                  class="ml-auto text-xs text-text-muted hover:text-text-heading shrink-0"
+                  onclick={() => removeDemoFile(index)}
+                  disabled={isUploadingDemo}
+                  aria-label={`Remove ${file.name}`}
+                >
+                  Remove
+                </button>
+              </li>
+            {/each}
+          </ul>
+          <p class="text-xs text-text-muted mt-2">
+            {selectedDemoFiles.length}
+            {selectedDemoFiles.length === 1 ? 'file' : 'files'} · {formatFileSize(totalDemoSize)} total
+          </p>
         {:else}
-          <p class="text-xs text-text-muted mt-1">Maximum file size: 200MB</p>
+          <p class="text-xs text-text-muted mt-1">
+            Up to {MAX_DEMO_FILES} files, 200MB each
+          </p>
         {/if}
       </div>
 
@@ -2127,7 +2513,11 @@
         >
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={!selectedDemoFile || !!demoUploadError}>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={selectedDemoFiles.length === 0 || !!demoUploadError}
+        >
           Upload Demo
         </Button>
       </div>

@@ -477,10 +477,25 @@ async function getMatchesByTeamIds(
       const isHome = match.homeTeamId === teamId;
       const opponent = isHome ? match.awayTeam : match.homeTeam;
       const won = match.winnerId === teamId;
-      const matchResult: 'W' | 'L' | 'TBD' = match.winnerId ? (won ? 'W' : 'L') : 'TBD';
+      const forfeitType = match.forfeitType?.toString() ?? 'NONE';
+      const isVoid = forfeitType === 'MUTUAL';
+      const isDraw = match.winnerId === null && match.status?.toString() === 'PLAYED';
+      const matchResult: ProfileMatch['result'] = isVoid
+        ? 'V'
+        : isDraw
+          ? 'D'
+          : match.winnerId
+            ? won
+              ? 'W'
+              : 'L'
+            : 'TBD';
 
       let score = 'TBD';
-      if (match.winnerScore !== null && match.loserScore !== null) {
+      if (forfeitType === 'SINGLE') {
+        score = 'FF';
+      } else if (isVoid) {
+        score = 'Void';
+      } else if (match.winnerScore !== null && match.loserScore !== null) {
         score = won
           ? `${match.winnerScore}-${match.loserScore}`
           : `${match.loserScore}-${match.winnerScore}`;

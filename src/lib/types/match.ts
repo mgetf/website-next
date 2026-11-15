@@ -6,7 +6,7 @@ export interface ProfileMatch {
   opponentName: string;
   opponentId: number;
   opponentAvatar?: string | null;
-  result: 'W' | 'L' | 'TBD';
+  result: 'W' | 'L' | 'D' | 'V' | 'TBD';
   score: string;
   arenas: TeamMatchArena[];
 }

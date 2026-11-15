@@ -24,6 +24,7 @@ export function statusColor(status: string): 'green' | 'yellow' | 'zinc' | 'red'
 export function resultClass(result: string): string {
   if (result === 'W') return 'text-success-ink';
   if (result === 'L') return 'text-danger-ink';
+  if (result === 'V' || result === 'D') return 'text-text-muted';
   return 'text-text-body';
 }
 

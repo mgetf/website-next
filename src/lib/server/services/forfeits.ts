@@ -95,7 +95,7 @@ export async function findUnaccountedSweeps(limit = 200) {
  * status flip (callers set their own outcome). Refuses when the result already
  * advanced a playoff bracket, for the same reason.
  */
-async function reversePlayedResult(
+export async function reversePlayedResult(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   match: { id: number; homeTeamId: number; awayTeamId: number; winnerId: number | null },
 ) {

@@ -5,7 +5,7 @@ import { updateItemRefundFromOffer } from '#lib/server/services/refunds.js';
 import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 export const POST: RequestHandler = async ({ request }) => {
-  const auth = await requireRateLimitedApiKey(request);
+  const auth = await requireRateLimitedApiKey(request, { write: true });
   if (auth instanceof Response) return auth;
 
   let body: { tradeOfferId?: string; outcome?: string; error?: string };

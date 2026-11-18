@@ -78,6 +78,7 @@ const backgroundSettingsSchema = z.object({
 
 const apiKeyNameSchema = z.object({
   name: z.string().min(1, 'API key name is required'),
+  scope: z.enum(['READ', 'WRITE']).default('WRITE'),
 });
 
 const apiKeyToggleSchema = z.object({
@@ -359,16 +360,20 @@ export const actions: Actions = {
     const name = validation.data.name.trim();
 
     try {
-      const apiKey = await createApiKey(name, locals.user.steamId);
+      const apiKey = await createApiKey(name, locals.user.steamId, validation.data.scope);
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
         category: AuditCategory.SITE,
         action: AuditAction.API_KEY_CREATED,
-        metadata: { name, keyId: apiKey.id },
+        metadata: { name, keyId: apiKey.id, scope: apiKey.scope },
         ipAddress: getClientAddress(),
       });
-      return { success: true, message: `API key "${name}" created`, newKey: apiKey.key };
+      return {
+        success: true,
+        message: `API key "${name}" created (${apiKey.scope})`,
+        newKey: apiKey.key,
+      };
     } catch (error) {
       console.error('Error creating API key:', error);
       return fail(500, { error: 'Failed to create API key' });

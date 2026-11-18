@@ -6,7 +6,7 @@ import { uploadMatchLog, getLogPublicUrl, ParseError } from '#lib/server/service
 const MAX_BODY_BYTES = 600 * 1024;
 
 export const POST: RequestHandler = async ({ request }) => {
-  const auth = await requireRateLimitedApiKey(request);
+  const auth = await requireRateLimitedApiKey(request, { write: true });
   if (auth instanceof Response) return auth;
 
   let body: { matchid?: unknown; log?: unknown; hostname?: unknown };

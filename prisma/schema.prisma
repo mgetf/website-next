@@ -175,6 +175,11 @@ enum InvoiceStatus {
   REFUNDED
 }
 
+enum ApiKeyScope {
+  READ
+  WRITE
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Steam Item Catalog
 // ═══════════════════════════════════════════════════════════════════
@@ -1600,10 +1605,11 @@ model MapFile {
 
 // API Key Management
 model ApiKey {
-  id         Int       @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   name       String
-  key        String    @unique
-  active     Boolean   @default(true)
+  key        String      @unique
+  scope      ApiKeyScope @default(WRITE)
+  active     Boolean     @default(true)
   createdAt  DateTime  @default(now()) @map("created_at")
   lastUsedAt DateTime? @map("last_used_at")
   createdBy  String    @map("created_by")

@@ -38,9 +38,19 @@ export async function requireApiKey(request: Request): Promise<ApiKeyRecord> {
 /**
  * Validate the API key and enforce the shared /api/v1 rate limit (per key).
  * Returns a 429 Response when the limit is exceeded; otherwise the key record.
+ *
+ * Pass `{ write: true }` on mutating (POST) handlers: READ-scoped keys get
+ * 403 there, while WRITE keys (the pre-scope default) keep full access.
+ * GET handlers call this without the flag and accept either scope.
  */
-export async function requireRateLimitedApiKey(request: Request): Promise<ApiKeyRecord | Response> {
+export async function requireRateLimitedApiKey(
+  request: Request,
+  opts: { write?: boolean } = {},
+): Promise<ApiKeyRecord | Response> {
   const record = await requireApiKey(request);
+  if (opts.write && record.scope === 'READ') {
+    throw error(403, 'Read-only API key cannot call write endpoints');
+  }
   const { allowed, response } = checkRateLimit(apiRateLimiter, `apikey:${record.id}`);
   if (!allowed) return response!;
   return record;

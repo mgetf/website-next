@@ -558,6 +558,19 @@
                 class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-2 text-text-heading focus:ring-2 focus:ring-primary-500 focus:outline-none"
               />
             </div>
+            <div class="max-w-xs">
+              <label for="apiKeyScope" class="block text-sm font-medium text-text-label mb-2"
+                >Scope</label
+              >
+              <select
+                id="apiKeyScope"
+                name="scope"
+                class="w-full bg-surface-input border border-border-input rounded-lg px-4 py-2 text-text-heading focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              >
+                <option value="WRITE">Read + Write</option>
+                <option value="READ">Read-only (GET endpoints only)</option>
+              </select>
+            </div>
             <Button
               type="submit"
               variant="primary"
@@ -578,6 +591,7 @@
                 <tr class="text-left text-text-body border-b border-border-default">
                   <th class="pb-3 pr-4 font-medium">Name</th>
                   <th class="pb-3 pr-4 font-medium">Key</th>
+                  <th class="pb-3 pr-4 font-medium">Scope</th>
                   <th class="pb-3 pr-4 font-medium">Status</th>
                   <th class="pb-3 pr-4 font-medium">Created by</th>
                   <th class="pb-3 pr-4 font-medium">Last used</th>
@@ -591,6 +605,11 @@
                     <td class="py-3 pr-4 font-medium text-text-heading">{apiKey.name}</td>
                     <td class="py-3 pr-4">
                       <code class="font-mono text-xs text-text-body">{apiKey.keyPreview}</code>
+                    </td>
+                    <td class="py-3 pr-4">
+                      <Badge color={apiKey.scope === 'READ' ? 'zinc' : 'green'}>
+                        {apiKey.scope === 'READ' ? 'Read-only' : 'Read + Write'}
+                      </Badge>
                     </td>
                     <td class="py-3 pr-4">
                       {#if apiKey.active}

@@ -7,10 +7,13 @@
 import { randomBytes } from 'crypto';
 import { prisma } from '#lib/server/db.js';
 
+export type ApiKeyScope = 'READ' | 'WRITE';
+
 export type ApiKeyRecord = {
   id: number;
   name: string;
   key: string;
+  scope: ApiKeyScope;
   active: boolean;
   createdAt: Date;
   lastUsedAt: Date | null;
@@ -23,6 +26,7 @@ export type ApiKeyListItem = {
   id: number;
   name: string;
   keyPreview: string;
+  scope: ApiKeyScope;
   active: boolean;
   createdAt: Date;
   lastUsedAt: Date | null;
@@ -41,11 +45,16 @@ function maskApiKey(key: string): string {
 /**
  * Generate and store a new API key.
  * Keys use the format: mge_<64 random hex chars>
+ * READ keys may call GET endpoints only; WRITE keys may call GET and POST.
  */
-export async function createApiKey(name: string, createdBy: string): Promise<ApiKeyRecord> {
+export async function createApiKey(
+  name: string,
+  createdBy: string,
+  scope: ApiKeyScope = 'WRITE',
+): Promise<ApiKeyRecord> {
   const key = `mge_${randomBytes(32).toString('hex')}`;
   return await prisma.apiKey.create({
-    data: { name, key, createdBy },
+    data: { name, key, scope, createdBy },
     include: { creator: { select: { steamUsername: true } } },
   });
 }

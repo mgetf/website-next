@@ -141,6 +141,7 @@ interface ScheduleRegularMatchParams {
   awayTeamId: number;
   seasonId: number;
   seasonNo: number;
+  divisionId?: number;
   weekNo?: number;
   boSeries: number;
   arenaId?: number;
@@ -156,6 +157,7 @@ async function scheduleRegularMatch(params: ScheduleRegularMatchParams) {
       awayTeamId: params.awayTeamId,
       seasonId: params.seasonId,
       seasonNo: params.seasonNo,
+      divisionId: params.divisionId,
       weekNo: params.weekNo,
       boSeries: params.boSeries,
       matchDateTime: params.matchDateTime
@@ -298,6 +300,7 @@ export async function createMatchSet(
       awayTeamId: awayTeam.id,
       seasonId,
       seasonNo,
+      divisionId,
       weekNo,
       boSeries,
       arenaId,

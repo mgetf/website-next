@@ -5,7 +5,7 @@ import { failItemRefund } from '#lib/server/services/refunds.js';
 import { getErrorMessage } from '#lib/server/utils/errors.js';
 
 export const POST: RequestHandler = async ({ request }) => {
-  const auth = await requireRateLimitedApiKey(request);
+  const auth = await requireRateLimitedApiKey(request, { write: true });
   if (auth instanceof Response) return auth;
 
   let body: { refundId?: number; error?: string };

@@ -5,7 +5,7 @@ import { confirmItemPayment } from '#lib/server/services/item-payments.js';
 import { logAudit, AuditCategory, AuditAction } from '#lib/server/services/auditLog.js';
 
 export const POST: RequestHandler = async ({ request }) => {
-  const auth = await requireRateLimitedApiKey(request);
+  const auth = await requireRateLimitedApiKey(request, { write: true });
   if (auth instanceof Response) return auth;
 
   let body: {

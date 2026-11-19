@@ -591,12 +591,11 @@ function toMatch(match: MatchRow, detailed: boolean) {
     away: toMatchSide(match.awayTeam),
     // Never surface the internal 20-0 forfeit scoreline as a headline score:
     // it is not a frag/game series result. Consumers should read forfeitType.
-    score:
-      isForfeit
+    score: isForfeit
+      ? null
+      : scores.homeScore == null || scores.awayScore == null
         ? null
-        : scores.homeScore == null || scores.awayScore == null
-          ? null
-          : { home: scores.homeScore, away: scores.awayScore },
+        : { home: scores.homeScore, away: scores.awayScore },
     winnerId: match.winnerId,
   };
 

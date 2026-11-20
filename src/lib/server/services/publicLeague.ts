@@ -529,6 +529,11 @@ const matchSelect = {
   playoffId: true,
   matchDateTime: true,
   matchTimezone: true,
+  submittedAt: true,
+  submittedBy: true,
+  forfeitType: true,
+  divisionId: true,
+  division: { select: { id: true, name: true } },
   winnerId: true,
   winnerScore: true,
   loserScore: true,
@@ -557,12 +562,20 @@ function toMatch(match: MatchRow, detailed: boolean) {
     loserScore: match.loserScore,
   });
 
+  // The match's filing division is the one captured at scheduling time.
+  // Fall back to the home team's current division for pre-column rows.
+  const division = match.division ?? match.homeTeam.division;
+  const forfeitType = lower(match.forfeitType);
+  const isForfeit = match.forfeitType !== 'NONE';
+
   const body = {
     id: match.id,
     status: lower(match.status),
     week: match.weekNo,
     playoffRound: match.playoffId != null ? match.playoffRound : null,
     scheduledAt: match.matchDateTime?.toISOString() ?? null,
+    submittedAt: match.submittedAt?.toISOString() ?? null,
+    submittedBy: match.submittedBy ?? null,
     timezone: match.matchTimezone,
     season: {
       id: match.season.id,
@@ -570,11 +583,17 @@ function toMatch(match: MatchRow, detailed: boolean) {
       region: match.season.region,
       format: toFormat(match.season.format),
     },
-    division: match.homeTeam.division,
+    division,
+    homeDivision: match.homeTeam.division,
+    awayDivision: match.awayTeam.division,
+    forfeitType,
     home: toMatchSide(match.homeTeam),
     away: toMatchSide(match.awayTeam),
-    score:
-      scores.homeScore == null || scores.awayScore == null
+    // Never surface the internal 20-0 forfeit scoreline as a headline score:
+    // it is not a frag/game series result. Consumers should read forfeitType.
+    score: isForfeit
+      ? null
+      : scores.homeScore == null || scores.awayScore == null
         ? null
         : { home: scores.homeScore, away: scores.awayScore },
     winnerId: match.winnerId,
@@ -585,7 +604,13 @@ function toMatch(match: MatchRow, detailed: boolean) {
 }
 
 function visibleMatchWhere(): Prisma.MatchWhereInput {
-  return { season: { region: { hidden: 0 } } };
+  return {
+    season: { region: { hidden: 0 } },
+    // Excludes playoff/bracket placeholder fixtures (team id 0) whose
+    // missing relations crashed toMatch (seasons 1 & 5).
+    homeTeamId: { gt: 0 },
+    awayTeamId: { gt: 0 },
+  };
 }
 
 export async function listPublicMatches(query: MatchListQuery) {
@@ -603,10 +628,12 @@ export async function listPublicMatches(query: MatchListQuery) {
     and.push({ OR: [{ homeTeam: roster }, { awayTeam: roster }] });
   }
   if (query.divisionId != null) {
+    // Filter by the match's filing division where captured; fall back to
+    // the home team's current division for pre-column historical rows.
     and.push({
       OR: [
-        { homeTeam: { divisionId: query.divisionId } },
-        { awayTeam: { divisionId: query.divisionId } },
+        { divisionId: query.divisionId },
+        { AND: [{ divisionId: null }, { homeTeam: { divisionId: query.divisionId } }] },
       ],
     });
   }

@@ -80,6 +80,18 @@
   <!-- Hero Section -->
   <section class="relative py-20 px-6 text-center">
     <div class="max-w-4xl mx-auto">
+      <a
+        href="https://rawdm.net"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-block cursor-pointer"
+      >
+        <img
+          src="/download.png"
+          alt="RAW-DM"
+          class="mx-auto mb-6 w-full max-w-xl h-auto rounded-xl cursor-pointer"
+        />
+      </a>
       <h1 class="flex items-center justify-center gap-4 mb-6">
         <img src="/mge_transparent_logo.png" alt="MGE Logo" class="h-24 w-auto" />
         <span class="text-7xl font-black text-text-heading drop-shadow-2xl">MGE</span>

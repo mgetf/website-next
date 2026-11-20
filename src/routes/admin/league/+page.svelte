@@ -331,10 +331,12 @@
     { value: 'DOUBLE_ELIM', label: 'Double elimination' },
   ];
   const playoffSeriesOptions = [
+    { value: '1', label: 'Best of 1' },
     { value: '3', label: 'Best of 3' },
     { value: '5', label: 'Best of 5' },
     { value: '7', label: 'Best of 7' },
   ];
+  const playoffLengthValues = [1, 3, 5, 7];
 
   const playoffDivisions = $derived(
     showPlayoffModal
@@ -356,8 +358,8 @@
         return {
           divisionId: division.id,
           format: format === 'SINGLE_ELIM' || format === 'DOUBLE_ELIM' ? format : null,
-          series: series === 3 || series === 5 || series === 7 ? series : null,
-          arenaGames: arenaGames === 3 || arenaGames === 5 || arenaGames === 7 ? arenaGames : null,
+          series: playoffLengthValues.includes(series) ? series : null,
+          arenaGames: playoffLengthValues.includes(arenaGames) ? arenaGames : null,
         };
       }),
     ),
@@ -391,7 +393,7 @@
 
   function selectedPlayoffSeries(divisionId: number) {
     const series = Number(divisionSeries[divisionId]);
-    return series === 3 || series === 5 || series === 7 ? series : null;
+    return playoffLengthValues.includes(series) ? series : null;
   }
 
   function savedArenaGames(divisionId: number) {
@@ -403,7 +405,7 @@
 
   function selectedArenaGames(divisionId: number) {
     const arenaGames = Number(divisionArenaGames[divisionId]);
-    return arenaGames === 3 || arenaGames === 5 || arenaGames === 7 ? arenaGames : null;
+    return playoffLengthValues.includes(arenaGames) ? arenaGames : null;
   }
 
   function canGenerateDivision(divisionId: number) {
@@ -2803,7 +2805,7 @@
       Choose the playoff format, the number of arenas, and the length of each arena for every
       division in Season {showPlayoffModal.seasonNum} ({showPlayoffModal.region},
       {showPlayoffModal.format}). Leave a division unset until you decide. Both lengths are best of
-      3, 5, or 7.
+      1, 3, 5, or 7.
     </p>
 
     <form

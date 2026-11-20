@@ -22,7 +22,7 @@ const PLAYOFF_SERIES = 3;
 const PLAYOFF_GAMES_PER_ARENA = 3;
 
 function isPlayoffLength(length: number): boolean {
-  return length === 3 || length === 5 || length === 7;
+  return length === 1 || length === 3 || length === 5 || length === 7;
 }
 
 export type GeneratedPlayoffBracket = {
@@ -97,7 +97,7 @@ export async function generateDivisionPlayoffBracket(
   });
   if (!choice) badRequest('Choose a playoff format for this division before generating it');
   if (!isPlayoffLength(choice.series) || !isPlayoffLength(choice.arenaGames)) {
-    badRequest('Choose a series and an arena length of 3, 5, or 7 before generating');
+    badRequest('Choose a series and an arena length of 1, 3, 5, or 7 before generating');
   }
 
   const existing = await prisma.playoffSlot.count({ where: { seasonId, divisionId } });

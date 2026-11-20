@@ -746,9 +746,9 @@ model SeasonDivisionPlayoff {
   seasonId   Int           @map("season_id")
   divisionId Int           @map("division_id")
   format     PlayoffFormat
-  /// Arenas in each playoff match for this division: 3, 5, or 7.
+  /// Arenas in each playoff match for this division: 1, 3, 5, or 7.
   series     Int
-  /// Games on each arena: 3, 5, or 7.
+  /// Games on each arena: 1, 3, 5, or 7.
   arenaGames Int           @map("arena_games")
 
   season   Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)

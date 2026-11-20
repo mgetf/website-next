@@ -35,7 +35,15 @@ describe('parseDivisionPlayoffChoices', () => {
     ).toBeNull();
   });
 
-  it('rejects a series that is not 3, 5, or 7', () => {
+  it('accepts best of 1 for series and arena length', () => {
+    expect(
+      parseDivisionPlayoffChoices(
+        JSON.stringify([{ divisionId: 4, format: 'SINGLE_ELIM', series: 1, arenaGames: 1 }]),
+      ),
+    ).toEqual([{ divisionId: 4, format: 'SINGLE_ELIM', series: 1, arenaGames: 1 }]);
+  });
+
+  it('rejects a series that is not 1, 3, 5, or 7', () => {
     expect(
       parseDivisionPlayoffChoices(
         JSON.stringify([{ divisionId: 4, format: 'SINGLE_ELIM', series: 4, arenaGames: 3 }]),
@@ -43,10 +51,10 @@ describe('parseDivisionPlayoffChoices', () => {
     ).toBeNull();
   });
 
-  it('rejects an arena length that is not 3, 5, or 7', () => {
+  it('rejects an arena length that is not 1, 3, 5, or 7', () => {
     expect(
       parseDivisionPlayoffChoices(
-        JSON.stringify([{ divisionId: 4, format: 'SINGLE_ELIM', series: 3, arenaGames: 1 }]),
+        JSON.stringify([{ divisionId: 4, format: 'SINGLE_ELIM', series: 3, arenaGames: 2 }]),
       ),
     ).toBeNull();
   });

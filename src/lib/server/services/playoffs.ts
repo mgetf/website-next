@@ -7,7 +7,7 @@ export const DIVISION_PLAYOFF_FORMATS = ['SINGLE_ELIM', 'DOUBLE_ELIM'] as const;
 export type DivisionPlayoffFormat = (typeof DIVISION_PLAYOFF_FORMATS)[number];
 
 /** Best-of length for a playoff series or for the games on one arena. */
-export const PLAYOFF_SERIES_LENGTHS = [3, 5, 7] as const;
+export const PLAYOFF_SERIES_LENGTHS = [1, 3, 5, 7] as const;
 export type PlayoffSeriesLength = (typeof PLAYOFF_SERIES_LENGTHS)[number];
 
 export type DivisionPlayoffChoice = {
@@ -17,7 +17,9 @@ export type DivisionPlayoffChoice = {
   arenaGames: PlayoffSeriesLength | null;
 };
 
-const playoffLengthSchema = z.union([z.literal(3), z.literal(5), z.literal(7)]).nullable();
+const playoffLengthSchema = z
+  .union([z.literal(1), z.literal(3), z.literal(5), z.literal(7)])
+  .nullable();
 
 const divisionPlayoffChoiceSchema = z.object({
   divisionId: z.number().int().positive(),
@@ -128,8 +130,8 @@ export async function listSeasonDivisionPlayoffs(): Promise<SeasonDivisionPlayof
 }
 
 function playoffLength(length: number): PlayoffSeriesLength {
-  if (length === 3 || length === 5 || length === 7) return length;
-  badRequest('Playoff length must be best of 3, 5, or 7');
+  if (length === 1 || length === 3 || length === 5 || length === 7) return length;
+  badRequest('Playoff length must be best of 1, 3, 5, or 7');
 }
 
 /**

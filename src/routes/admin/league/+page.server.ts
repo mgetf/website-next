@@ -56,6 +56,7 @@ import {
 import {
   generateDivisionPlayoffBracket,
   listGeneratedPlayoffDivisions,
+  listPlayoffCandidates,
 } from '#lib/server/services/playoffSlots.js';
 import {
   getFormats,
@@ -95,6 +96,8 @@ const updateSeasonSchema = createSeasonSchema.extend({
 const updateRegionSchema = regionIdSchema.extend({
   name: z.string().min(1, 'Region name is required'),
   currencyCode: z.string().optional().default(''),
+  discordPlayoffsChannelId: z.string().optional().default(''),
+  discordStaffChannelId: z.string().optional().default(''),
 });
 
 const createDivisionSchema = z.object({
@@ -163,7 +166,16 @@ const generatePlayoffSchema = z.object({
   seasonId: z.coerce.number().int().positive(),
   divisionId: z.coerce.number().int().positive(),
   mapBanPoolId: z.coerce.number().int().positive(),
+  /** JSON list of team ids to seed. Empty means every team that has not withdrawn. */
+  teamIds: z.string().optional().default(''),
 });
+
+const playoffFieldSchema = z.object({
+  seasonId: z.coerce.number().int().positive(),
+  divisionId: z.coerce.number().int().positive(),
+});
+
+const teamIdListSchema = z.array(z.number().int().positive()).max(256);
 
 const boolFromCheckbox = z.preprocess(
   (v) => v === 'true' || v === 'on' || v === true || v === '1',
@@ -275,6 +287,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       hidden: r.hidden,
       currencySymbol: r.currencySymbol,
       currencyCode: r.currencyCode,
+      discordPlayoffsChannelId: r.discordPlayoffsChannelId,
+      discordStaffChannelId: r.discordStaffChannelId,
       seasons: r._count.seasons,
       teams: r._count.teams,
     })),
@@ -429,12 +443,15 @@ export const actions: Actions = {
     const formData = await request.formData();
     const validation = validateForm(formData, updateRegionSchema);
     if (!validation.success) return validationError(validation.errors);
-    const { regionId, name, currencyCode } = validation.data;
+    const { regionId, name, currencyCode, discordPlayoffsChannelId, discordStaffChannelId } =
+      validation.data;
 
     try {
       await updateRegion(regionId, {
         name,
         currencyCode: currencyCode || 'USD',
+        discordPlayoffsChannelId,
+        discordStaffChannelId,
       });
       await logAudit({
         actorId: locals.user?.steamId,
@@ -443,7 +460,7 @@ export const actions: Actions = {
         action: AuditAction.REGION_CREATED,
         targetType: 'Region',
         targetId: String(regionId),
-        metadata: { name, currencyCode },
+        metadata: { name, currencyCode, discordPlayoffsChannelId, discordStaffChannelId },
         ipAddress: getClientAddress(),
       });
       return { success: true, message: 'Region updated successfully!' };
@@ -1102,6 +1119,25 @@ export const actions: Actions = {
     }
   },
 
+  /** The teams an admin can pick from for one division's bracket, in seed order. */
+  playoffField: async ({ request, locals }) => {
+    requireStrictAdmin(locals.user);
+
+    const validation = validateForm(await request.formData(), playoffFieldSchema);
+    if (!validation.success) return validationError(validation.errors);
+
+    try {
+      const field = await listPlayoffCandidates(
+        validation.data.seasonId,
+        validation.data.divisionId,
+      );
+      return { field };
+    } catch (error) {
+      if (isHttpError(error)) return formError(String(error.body.message), error.status);
+      return formError('Failed to load the teams for this bracket', 500);
+    }
+  },
+
   generatePlayoff: async ({ request, locals, getClientAddress }) => {
     requireStrictAdmin(locals.user);
 
@@ -1110,8 +1146,26 @@ export const actions: Actions = {
     if (!validation.success) return validationError(validation.errors);
     const { seasonId, divisionId, mapBanPoolId } = validation.data;
 
+    let teamIds: number[] | null = null;
+    if (validation.data.teamIds) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(validation.data.teamIds);
+      } catch {
+        return formError('The team selection could not be read', 400);
+      }
+      const list = teamIdListSchema.safeParse(parsed);
+      if (!list.success) return formError('The team selection could not be read', 400);
+      teamIds = [...new Set(list.data)];
+    }
+
     try {
-      const generated = await generateDivisionPlayoffBracket(seasonId, divisionId, mapBanPoolId);
+      const generated = await generateDivisionPlayoffBracket(
+        seasonId,
+        divisionId,
+        mapBanPoolId,
+        teamIds,
+      );
       await logAudit({
         actorId: locals.user?.steamId,
         actorRole: locals.user?.permissionLevel,
@@ -1122,6 +1176,7 @@ export const actions: Actions = {
         metadata: {
           seasonId,
           mapBanPoolId,
+          teamIds,
           format: generated.format,
           teamCount: generated.teamCount,
           slotCount: generated.slotCount,

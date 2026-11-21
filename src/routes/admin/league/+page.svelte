@@ -326,6 +326,11 @@
   let generatePoolId = $state('');
   let generateTarget = $state<{ divisionId: number; divisionName: string } | null>(null);
   let generatePlayoffForm = $state<HTMLFormElement | null>(null);
+  let deletingPlayoff = $state<{
+    seasonId: number;
+    divisionId: number;
+    divisionName: string;
+  } | null>(null);
 
   type FieldTeam = {
     id: number;
@@ -2988,15 +2993,35 @@
                 </p>
               {/if}
             </div>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              disabled={!canGenerateDivision(division.id) || isSubmitting}
-              onclick={() => openFieldPicker(showPlayoffModal.id, division.id, division.name)}
-            >
-              Choose teams
-            </Button>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              {#if generatedDivisionIds.has(division.id)}
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  disabled={isSubmitting}
+                  onclick={() => {
+                    deleteConfirmText = '';
+                    deletingPlayoff = {
+                      seasonId: showPlayoffModal.id,
+                      divisionId: division.id,
+                      divisionName: division.name,
+                    };
+                  }}
+                >
+                  Delete bracket
+                </Button>
+              {/if}
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                disabled={!canGenerateDivision(division.id) || isSubmitting}
+                onclick={() => openFieldPicker(showPlayoffModal.id, division.id, division.name)}
+              >
+                Choose teams
+              </Button>
+            </div>
           </div>
         {/each}
 
@@ -3054,6 +3079,74 @@
         {isSubmitting ? 'Generating…' : `Generate with ${pickedIds.length} teams`}
       </Button>
     </div>
+  </Dialog>
+{/if}
+
+{#if deletingPlayoff}
+  <Dialog open={true} title="Delete Playoff Bracket" onClose={() => (deletingPlayoff = null)}>
+    <div class="mb-6">
+      <p class="text-text-label mb-4">
+        Are you sure you want to delete the <strong class="text-text-heading"
+          >{deletingPlayoff.divisionName}</strong
+        > playoff bracket? Its slots, matches, and placements will be removed so the bracket can be generated
+        again. The saved format stays.
+      </p>
+
+      <div class="p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg mb-4">
+        <p class="text-danger-ink text-sm">This action cannot be undone.</p>
+      </div>
+
+      <div>
+        <label for="playoffDeleteConfirm" class="block text-sm text-text-body mb-1">
+          Type
+          <strong class="text-text-heading">DELETE</strong>
+          to confirm
+        </label>
+
+        <input
+          id="playoffDeleteConfirm"
+          type="text"
+          bind:value={deleteConfirmText}
+          placeholder="DELETE"
+          class="w-full px-3 py-2 bg-surface-input border border-border-input rounded-lg text-text-heading placeholder-text-muted focus:outline-none focus:border-danger-500"
+        />
+      </div>
+    </div>
+
+    {#snippet footer()}
+      <form
+        method="POST"
+        action="?/deletePlayoffBracket"
+        use:enhance={() => {
+          isSubmitting = true;
+          return async ({ update, result }) => {
+            await update();
+            isSubmitting = false;
+            if (result.type === 'success') {
+              deletingPlayoff = null;
+            }
+          };
+        }}
+        class="flex gap-3"
+      >
+        <input type="hidden" name="seasonId" value={deletingPlayoff?.seasonId} />
+        <input type="hidden" name="divisionId" value={deletingPlayoff?.divisionId} />
+
+        <button
+          type="button"
+          onclick={() => (deletingPlayoff = null)}
+          class="px-4 py-2 bg-surface-input text-text-label hover:bg-surface-hover rounded-lg transition-colors"
+        >
+          Cancel
+        </button>
+        <Button
+          type="submit"
+          variant="danger"
+          disabled={isSubmitting || deleteConfirmText !== 'DELETE'}
+          >{isSubmitting ? 'Deleting...' : 'Delete Bracket'}</Button
+        >
+      </form>
+    {/snippet}
   </Dialog>
 {/if}
 

@@ -26,6 +26,7 @@
   import Settings from '~icons/lucide/settings';
   import ClipboardList from '~icons/lucide/clipboard-list';
   import Menu from '~icons/lucide/menu';
+  import MessageSquare from '~icons/lucide/message-square';
 
   let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -60,6 +61,7 @@
       | '/admin/blog'
       | '/admin/item-payments'
       | '/admin/site'
+      | '/admin/discord'
       | '/admin/audit-logs';
     icon: Icon;
     adminOnly: boolean;
@@ -112,6 +114,7 @@
         { name: 'Blog', path: '/admin/blog', icon: Newspaper, adminOnly: false },
         { name: 'Item Orders', path: '/admin/item-payments', icon: Package, adminOnly: false },
         { name: 'Site', path: '/admin/site', icon: Settings, adminOnly: false },
+        { name: 'Discord', path: '/admin/discord', icon: MessageSquare, adminOnly: true },
         { name: 'Audit Logs', path: '/admin/audit-logs', icon: ClipboardList, adminOnly: true },
       ],
     },

@@ -16,6 +16,7 @@ import type { RequestHandler } from './$types';
 
 import { requireApiKey } from '#lib/server/auth/apiKey.js';
 import { autoConfirmDueSubmissions } from '#lib/server/services/matches.js';
+import { touchBotStatus } from '#lib/server/services/discordAdmin.js';
 import { enqueueDueMatchReminders } from '#lib/server/services/matchReminders.js';
 import { claimOutboxEvents } from '#lib/server/services/outbox.js';
 
@@ -38,5 +39,8 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   const events = await claimOutboxEvents(limit);
+  await touchBotStatus(events.length).catch((err) =>
+    console.error('[outbox] bot status update failed:', err),
+  );
   return Response.json({ events });
 };

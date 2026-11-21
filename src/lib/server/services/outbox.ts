@@ -132,6 +132,8 @@ export async function ackOutboxEvent(
   id: number,
   result: OutboxAckResult,
   error?: string,
+  /** The Discord message that was sent, so a reply to it can be tied back to this event. */
+  discordMessageId?: string,
 ): Promise<boolean> {
   const row = await prisma.outboxEvent.findUnique({
     where: { id },
@@ -143,7 +145,12 @@ export async function ackOutboxEvent(
   if (result === 'delivered') {
     await prisma.outboxEvent.update({
       where: { id },
-      data: { status: OutboxStatus.DELIVERED, deliveredAt: new Date(), lastError },
+      data: {
+        status: OutboxStatus.DELIVERED,
+        deliveredAt: new Date(),
+        lastError,
+        ...(discordMessageId ? { discordMessageId } : {}),
+      },
     });
   } else if (result === 'dead' || row.attempts >= OUTBOX_MAX_ATTEMPTS) {
     await prisma.outboxEvent.update({

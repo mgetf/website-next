@@ -21,6 +21,11 @@ import { ackOutboxEvent } from '#lib/server/services/outbox.js';
 const ackSchema = z.object({
   result: z.enum(['delivered', 'retry', 'dead']),
   error: z.string().optional(),
+  /** The Discord message that was sent, so a reply to it can be tied back. */
+  messageId: z
+    .string()
+    .regex(/^\d{5,25}$/)
+    .optional(),
 });
 
 export const POST: RequestHandler = async ({ params, request }) => {
@@ -36,7 +41,12 @@ export const POST: RequestHandler = async ({ params, request }) => {
     return Response.json({ error: 'Invalid body' }, { status: 400 });
   }
 
-  const acked = await ackOutboxEvent(id, parsed.data.result, parsed.data.error);
+  const acked = await ackOutboxEvent(
+    id,
+    parsed.data.result,
+    parsed.data.error,
+    parsed.data.messageId,
+  );
   if (!acked) {
     return Response.json({ error: 'Event is not claimed' }, { status: 409 });
   }

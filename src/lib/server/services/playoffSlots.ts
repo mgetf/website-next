@@ -3,6 +3,7 @@ import { badRequest, conflict, notFound } from '#lib/server/utils/errors.js';
 import {
   buildPlayoffBracket,
   rankPlayoffField,
+  selectPlayoffField,
   type PlayoffBracketFormat,
   type PlayoffSlotDraft,
 } from '#lib/server/utils/playoffBracket.js';
@@ -17,12 +18,27 @@ import { saveDivisionPlayoffPlacements } from '#lib/server/services/playoffPlace
 import { createNotificationForRoster } from '#lib/server/services/notifications.js';
 import { BracketSection, MatchStatus, PlayoffFormat, Prisma, TeamStatus } from '#prisma/client.js';
 import { formatPlayoffSlotLabel, type PlayoffSlotSection } from '#lib/utils/playoffs.js';
+import {
+  discordRecipients,
+  enqueueOutbox,
+  regionChannels,
+  siteUrl,
+} from '#lib/server/services/outbox.js';
+import {
+  bracketCompleteItems,
+  eliminatedTeamId,
+  matchCreatedItems,
+  scoreConfirmedItems,
+  teamEliminatedItems,
+  type OutboxItem,
+} from '#lib/server/utils/playoffEvents.js';
+import type { OutboxChannelIds } from '#lib/server/utils/outboxEvents.js';
 
 const PLAYOFF_SERIES = 3;
 const PLAYOFF_GAMES_PER_ARENA = 3;
 
 function isPlayoffLength(length: number): boolean {
-  return length === 3 || length === 5 || length === 7;
+  return length === 1 || length === 3 || length === 5 || length === 7;
 }
 
 export type GeneratedPlayoffBracket = {
@@ -58,6 +74,111 @@ export async function getPlayoffMatchLabel(matchId: number): Promise<string | nu
   );
 }
 
+type RankedTeam = {
+  id: number;
+  status: TeamStatus;
+  wins: number;
+  losses: number;
+  points: number;
+};
+
+/** Teams that could be in a division's bracket, best seed first. Withdrawn teams are left out. */
+async function loadRankedField(
+  seasonId: number,
+  divisionId: number,
+  season: { regionId: number; formatId: number },
+): Promise<RankedTeam[]> {
+  const teams = await prisma.team.findMany({
+    where: {
+      seasonId,
+      divisionId,
+      regionId: season.regionId,
+      formatId: season.formatId,
+      status: { not: TeamStatus.DEAD },
+    },
+    select: {
+      id: true,
+      status: true,
+      wins: true,
+      losses: true,
+      gamesWon: true,
+      gamesLost: true,
+      pointsScored: true,
+    },
+  });
+
+  return rankPlayoffField(
+    teams.map((team) => {
+      const played = team.gamesWon + team.gamesLost;
+      return {
+        id: team.id,
+        status: team.status,
+        wins: team.wins,
+        losses: team.losses,
+        points: played > 0 ? team.pointsScored / played : 0,
+      };
+    }),
+  );
+}
+
+export type PlayoffCandidate = {
+  id: number;
+  /** Team name, or the player's name in a 1v1 format. */
+  label: string;
+  status: TeamStatus;
+  wins: number;
+  losses: number;
+  /** Seed if every candidate is picked. */
+  seed: number;
+};
+
+/** The pick list for the bracket picker: every eligible team in seed order. */
+export async function listPlayoffCandidates(
+  seasonId: number,
+  divisionId: number,
+): Promise<PlayoffCandidate[]> {
+  const season = await prisma.season.findUnique({
+    where: { id: seasonId },
+    select: { regionId: true, formatId: true },
+  });
+  if (!season) notFound('Season not found');
+
+  const division = await prisma.division.findFirst({
+    where: { id: divisionId, regionId: season.regionId, formatId: season.formatId },
+    select: { id: true },
+  });
+  if (!division) badRequest('That division is not part of this season');
+
+  const ranked = await loadRankedField(seasonId, divisionId, season);
+  const details = await prisma.team.findMany({
+    where: { id: { in: ranked.map((team) => team.id) } },
+    select: {
+      id: true,
+      name: true,
+      format: { select: { isIndividual: true } },
+      players: {
+        where: { active: 1 },
+        take: 1,
+        select: { player: { select: { steamUsername: true } } },
+      },
+    },
+  });
+  const byId = new Map(details.map((team) => [team.id, team]));
+
+  return ranked.map((team, index) => {
+    const detail = byId.get(team.id);
+    const solo = detail?.format.isIndividual ? detail.players[0]?.player.steamUsername : null;
+    return {
+      id: team.id,
+      label: solo || detail?.name || `Team ${team.id}`,
+      status: team.status,
+      wins: team.wins,
+      losses: team.losses,
+      seed: index + 1,
+    };
+  });
+}
+
 /** Divisions that already have a generated playoff tree. */
 export async function listGeneratedPlayoffDivisions(): Promise<
   Array<{ seasonId: number; divisionId: number }>
@@ -78,6 +199,8 @@ export async function generateDivisionPlayoffBracket(
   seasonId: number,
   divisionId: number,
   mapBanPoolId: number,
+  /** The teams to seed, or null for every team that has not withdrawn. */
+  teamIds: number[] | null = null,
 ): Promise<GeneratedPlayoffBracket> {
   const season = await prisma.season.findUnique({
     where: { id: seasonId },
@@ -97,7 +220,7 @@ export async function generateDivisionPlayoffBracket(
   });
   if (!choice) badRequest('Choose a playoff format for this division before generating it');
   if (!isPlayoffLength(choice.series) || !isPlayoffLength(choice.arenaGames)) {
-    badRequest('Choose a series and an arena length of 3, 5, or 7 before generating');
+    badRequest('Choose a series and an arena length of 1, 3, 5, or 7 before generating');
   }
 
   const existing = await prisma.playoffSlot.count({ where: { seasonId, divisionId } });
@@ -110,39 +233,15 @@ export async function generateDivisionPlayoffBracket(
   if (!pool || !pool.isActive) badRequest('Choose an active map ban pool');
   if (pool._count.mapsInPool === 0) badRequest('That map ban pool has no maps');
 
-  const teams = await prisma.team.findMany({
-    where: {
-      seasonId,
-      divisionId,
-      regionId: season.regionId,
-      formatId: season.formatId,
-      status: { not: TeamStatus.DEAD },
-    },
-    select: {
-      id: true,
-      status: true,
-      wins: true,
-      losses: true,
-      gamesWon: true,
-      gamesLost: true,
-      pointsScored: true,
-    },
-  });
-
-  const ranked = rankPlayoffField(
-    teams.map((team) => {
-      const played = team.gamesWon + team.gamesLost;
-      return {
-        id: team.id,
-        status: team.status,
-        wins: team.wins,
-        losses: team.losses,
-        points: played > 0 ? team.pointsScored / played : 0,
-      };
-    }),
-  );
+  const field = await loadRankedField(seasonId, divisionId, season);
+  let ranked;
+  try {
+    ranked = selectPlayoffField(field, teamIds);
+  } catch (err) {
+    badRequest(err instanceof Error ? err.message : 'Invalid team selection');
+  }
   if (ranked.length < 2) {
-    badRequest('This division needs at least two teams that have not withdrawn');
+    badRequest('Choose at least two teams for the bracket');
   }
 
   const format: PlayoffBracketFormat =
@@ -152,6 +251,8 @@ export async function generateDivisionPlayoffBracket(
     seasonId,
     seasonNo: season.seasonNum,
     divisionId,
+    regionId: season.regionId,
+    divisionName: division.name,
     format: choice.format,
     mapBanPoolId,
     boSeries: choice.series,
@@ -182,6 +283,8 @@ async function persistBracket(input: {
   seasonId: number;
   seasonNo: number;
   divisionId: number;
+  regionId: number;
+  divisionName: string;
   format: PlayoffFormat;
   mapBanPoolId: number;
   boSeries: number;
@@ -223,6 +326,11 @@ async function persistBracket(input: {
       });
     }
 
+    const highestRound = new Map<string, number>();
+    for (const draft of input.drafts) {
+      highestRound.set(draft.section, Math.max(highestRound.get(draft.section) ?? 0, draft.round));
+    }
+    const createdInputs: Array<MatchCreatedInput> = [];
     const matches: Array<{ id: number; homeTeamId: number; awayTeamId: number }> = [];
     for (const draft of input.drafts) {
       if (draft.isBye || draft.team1Id == null || draft.team2Id == null) continue;
@@ -242,7 +350,28 @@ async function persistBracket(input: {
         data: { matchId: match.id },
       });
       matches.push({ id: match.id, homeTeamId: draft.team1Id, awayTeamId: draft.team2Id });
+      createdInputs.push({
+        id: match.id,
+        homeTeamId: draft.team1Id,
+        awayTeamId: draft.team2Id,
+        round: formatPlayoffSlotLabel(
+          draft.section as PlayoffSlotSection,
+          draft.round,
+          highestRound.get(draft.section) ?? draft.round,
+        ),
+      });
     }
+
+    await enqueueOutbox(
+      tx,
+      await matchCreatedOutbox(tx, {
+        matches: createdInputs,
+        channels: await regionChannels(tx, input.regionId),
+        division: input.divisionName,
+        bestOf: input.boSeries,
+        arenaGames: input.boGames,
+      }),
+    );
 
     return matches;
   });
@@ -263,12 +392,17 @@ export type AdvancedPlayoffMatch = {
 export async function advancePlayoffFromMatch(
   tx: Prisma.TransactionClient,
   matchId: number,
+  options: { auto?: boolean } = {},
 ): Promise<AdvancedPlayoffMatch[]> {
   const match = await tx.match.findUnique({
     where: { id: matchId },
     select: {
       id: true,
       winnerId: true,
+      winnerScore: true,
+      loserScore: true,
+      homeTeamId: true,
+      awayTeamId: true,
       status: true,
       seasonId: true,
       seasonNo: true,
@@ -293,7 +427,7 @@ export async function advancePlayoffFromMatch(
   });
   const division = await tx.division.findUnique({
     where: { id: source.divisionId },
-    select: { name: true },
+    select: { name: true, regionId: true },
   });
   const divisionName = division?.name ?? 'Playoffs';
   const pool = await tx.matchMapBan.findFirst({
@@ -322,6 +456,20 @@ export async function advancePlayoffFromMatch(
   }
 
   const created: AdvancedPlayoffMatch[] = [];
+  const createdInputs: MatchCreatedInput[] = [];
+  const highestBySection = new Map<string, number>();
+  for (const row of rows) {
+    highestBySection.set(row.section, Math.max(highestBySection.get(row.section) ?? 0, row.round));
+  }
+  const labelFor = (slotId: number): string | null => {
+    const row = rows.find((candidate) => candidate.id === slotId);
+    if (!row) return null;
+    return formatPlayoffSlotLabel(
+      row.section as PlayoffSlotSection,
+      row.round,
+      highestBySection.get(row.section) ?? row.round,
+    );
+  };
   const series = match.boSeries && match.boSeries > 0 ? match.boSeries : PLAYOFF_SERIES;
   const gamesPerArena =
     match.boGames && match.boGames > 0 ? match.boGames : PLAYOFF_GAMES_PER_ARENA;
@@ -345,6 +493,12 @@ export async function advancePlayoffFromMatch(
       homeTeamId: next.homeTeamId,
       awayTeamId: next.awayTeamId,
       divisionName,
+    });
+    createdInputs.push({
+      id: createdMatch.id,
+      homeTeamId: next.homeTeamId,
+      awayTeamId: next.awayTeamId,
+      round: labelFor(next.slotId),
     });
   }
 
@@ -381,30 +535,56 @@ export async function advancePlayoffFromMatch(
       awayTeamId: plan.reset.team2Id,
       divisionName,
     });
+    createdInputs.push({
+      id: resetMatch.id,
+      homeTeamId: plan.reset.team1Id,
+      awayTeamId: plan.reset.team2Id,
+      round: formatPlayoffSlotLabel('GRAND_FINAL', 2, 2),
+    });
   }
 
   const refreshed = await tx.playoffSlot.findMany({
     where: { seasonId: source.seasonId, divisionId: source.divisionId },
     include: { match: { select: { winnerId: true, status: true } } },
   });
-  await saveDivisionPlayoffPlacements(
+  const podium = planPlayoffPodium(
+    refreshed.map((row) => ({
+      id: row.id,
+      format: row.format === PlayoffFormat.DOUBLE_ELIM ? 'DOUBLE_ELIM' : 'SINGLE_ELIM',
+      section: row.section as AdvanceSection,
+      round: row.round,
+      position: row.position,
+      team1Id: row.team1Id,
+      team2Id: row.team2Id,
+      isBye: row.isBye,
+      winnerNextSlotId: row.winnerNextSlotId,
+      winnerId: row.match?.status === MatchStatus.PLAYED ? row.match.winnerId : null,
+    })),
+  );
+  await saveDivisionPlayoffPlacements(tx, source.seasonId, source.divisionId, podium);
+
+  await enqueueOutbox(
     tx,
-    source.seasonId,
-    source.divisionId,
-    planPlayoffPodium(
-      refreshed.map((row) => ({
-        id: row.id,
-        format: row.format === PlayoffFormat.DOUBLE_ELIM ? 'DOUBLE_ELIM' : 'SINGLE_ELIM',
-        section: row.section as AdvanceSection,
-        round: row.round,
-        position: row.position,
-        team1Id: row.team1Id,
-        team2Id: row.team2Id,
-        isBye: row.isBye,
-        winnerNextSlotId: row.winnerNextSlotId,
-        winnerId: row.match?.status === MatchStatus.PLAYED ? row.match.winnerId : null,
-      })),
-    ),
+    await advanceOutbox(tx, {
+      matchId,
+      divisionName,
+      channels: division ? await regionChannels(tx, division.regionId) : undefined,
+      divisionId: source.divisionId,
+      seasonId: source.seasonId,
+      homeTeamId: match.homeTeamId,
+      awayTeamId: match.awayTeamId,
+      winnerId: match.winnerId,
+      winnerScore: match.winnerScore ?? 0,
+      loserScore: match.loserScore ?? 0,
+      round: labelFor(source.id),
+      auto: options.auto === true,
+      hasLoserArrow: source.loserNextSlotId != null,
+      resetCreated: plan.reset != null,
+      createdMatches: createdInputs,
+      bestOf: series,
+      arenaGames: gamesPerArena,
+      podium: podium.map((place) => ({ teamId: place.teamId, place: place.place })),
+    }),
   );
 
   return created;
@@ -501,4 +681,176 @@ async function insertPlayoffMatch(
     });
   }
   return match;
+}
+
+type MatchCreatedInput = {
+  id: number;
+  homeTeamId: number;
+  awayTeamId: number;
+  round: string | null;
+};
+
+async function teamNames(tx: Prisma.TransactionClient, teamIds: number[]) {
+  const teams = await tx.team.findMany({
+    where: { id: { in: [...new Set(teamIds)] } },
+    select: { id: true, name: true },
+  });
+  return new Map(teams.map((team) => [team.id, team.name]));
+}
+
+/** Outbox rows telling both rosters (and the playoffs channel) about new matches. */
+async function matchCreatedOutbox(
+  tx: Prisma.TransactionClient,
+  input: {
+    matches: MatchCreatedInput[];
+    division: string;
+    channels: OutboxChannelIds;
+    bestOf: number;
+    arenaGames: number;
+  },
+): Promise<OutboxItem[]> {
+  if (input.matches.length === 0) return [];
+  const names = await teamNames(
+    tx,
+    input.matches.flatMap((match) => [match.homeTeamId, match.awayTeamId]),
+  );
+  const recipients = await discordRecipients(
+    tx,
+    input.matches.flatMap((match) => [match.homeTeamId, match.awayTeamId]),
+  );
+
+  return input.matches.flatMap((match) =>
+    matchCreatedItems(
+      {
+        id: match.id,
+        division: input.division,
+        round: match.round,
+        home: { id: match.homeTeamId, name: names.get(match.homeTeamId) ?? 'TBD' },
+        away: { id: match.awayTeamId, name: names.get(match.awayTeamId) ?? 'TBD' },
+        url: siteUrl(`/matches/${match.id}`),
+        channels: input.channels,
+        bestOf: input.bestOf,
+        arenaGames: input.arenaGames,
+      },
+      recipients.filter(
+        (recipient) =>
+          recipient.teamId === match.homeTeamId || recipient.teamId === match.awayTeamId,
+      ),
+    ),
+  );
+}
+
+/** Everything Discord should hear about after one playoff match is decided. */
+async function advanceOutbox(
+  tx: Prisma.TransactionClient,
+  input: {
+    matchId: number;
+    divisionName: string;
+    channels?: OutboxChannelIds;
+    divisionId: number;
+    seasonId: number;
+    homeTeamId: number;
+    awayTeamId: number;
+    winnerId: number;
+    winnerScore: number;
+    loserScore: number;
+    round: string | null;
+    auto: boolean;
+    hasLoserArrow: boolean;
+    resetCreated: boolean;
+    createdMatches: MatchCreatedInput[];
+    bestOf: number;
+    arenaGames: number;
+    podium: Array<{ teamId: number; place: number }>;
+  },
+): Promise<OutboxItem[]> {
+  const loserId = input.winnerId === input.homeTeamId ? input.awayTeamId : input.homeTeamId;
+  const names = await teamNames(tx, [
+    input.homeTeamId,
+    input.awayTeamId,
+    ...input.podium.map((place) => place.teamId),
+  ]);
+  const nameOf = (id: number) => names.get(id) ?? 'TBD';
+  const url = siteUrl(`/matches/${input.matchId}`);
+  const items: OutboxItem[] = [];
+
+  const managers = await discordRecipients(tx, [input.homeTeamId, input.awayTeamId], {
+    managersOnly: true,
+  });
+  items.push(
+    ...scoreConfirmedItems(
+      {
+        id: input.matchId,
+        division: input.divisionName,
+        round: input.round,
+        channels: input.channels,
+        home: { id: input.homeTeamId, name: nameOf(input.homeTeamId) },
+        away: { id: input.awayTeamId, name: nameOf(input.awayTeamId) },
+        url,
+      },
+      {
+        winnerName: nameOf(input.winnerId),
+        loserName: nameOf(loserId),
+        score: `${input.winnerScore}-${input.loserScore}`,
+        auto: input.auto,
+      },
+      input.winnerId,
+      managers,
+    ),
+  );
+
+  items.push(
+    ...(await matchCreatedOutbox(tx, {
+      matches: input.createdMatches,
+      division: input.divisionName,
+      channels: input.channels ?? { playoffs: null, staff: null },
+      bestOf: input.bestOf,
+      arenaGames: input.arenaGames,
+    })),
+  );
+
+  const out = eliminatedTeamId({
+    loserId,
+    hasLoserArrow: input.hasLoserArrow,
+    resetCreated: input.resetCreated,
+  });
+  if (out != null) {
+    items.push(
+      ...teamEliminatedItems(
+        {
+          matchId: input.matchId,
+          teamId: out,
+          teamName: nameOf(out),
+          eliminatedBy: nameOf(input.winnerId),
+          division: input.divisionName,
+          url,
+          channels: input.channels,
+        },
+        await discordRecipients(tx, [out]),
+      ),
+    );
+  }
+
+  if (input.podium.some((place) => place.place === 1)) {
+    items.push(
+      ...bracketCompleteItems(
+        {
+          seasonId: input.seasonId,
+          divisionId: input.divisionId,
+          division: input.divisionName,
+          url,
+          channels: input.channels,
+          podium: [...input.podium]
+            .sort((a, b) => a.place - b.place)
+            .map((place) => ({ place: place.place, name: nameOf(place.teamId) })),
+        },
+        await discordRecipients(
+          tx,
+          input.podium.map((place) => place.teamId),
+        ),
+      ),
+    );
+  }
+
+  return items;
 }

@@ -447,9 +447,9 @@
 
   const canSubmitScores = $derived(
     isUnplayed &&
-      (data.permissions.isHomeManager ||
-        data.permissions.isAwayManager ||
-        data.permissions.isAdmin),
+      (data.permissions.isAdmin ||
+        ((data.permissions.isHomeManager || data.permissions.isAwayManager) &&
+          !data.pendingScore?.canAnswerAsTeam)),
   );
 
   const canDispute = $derived(
@@ -961,6 +961,71 @@
       </div>
     {/if}
   </Card>
+
+  <!-- Reported score waiting on the other team -->
+  {#if data.pendingScore}
+    {@const pending = data.pendingScore}
+    <Card class="shadow-md mb-6">
+      <h2 class="text-2xl font-bold text-text-heading mb-1">Score waiting for confirmation</h2>
+      <p class="text-text-muted mb-4">
+        {pending.reportedBy} reported <strong class="text-text-heading">{pending.summary}</strong>.
+        It confirms itself on
+        {new Date(pending.autoConfirmAt).toLocaleString()} if nobody answers.
+      </p>
+      {#if pending.canAnswer}
+        <div class="flex flex-wrap items-start gap-3">
+          <form
+            method="POST"
+            action="?/confirmScore"
+            use:enhance={() => {
+              return async ({ result, update }) => {
+                if (result.type === 'failure') {
+                  toast.error(
+                    (result.data as { error?: string } | undefined)?.error ||
+                      'Failed to confirm score',
+                  );
+                } else if (result.type === 'success') {
+                  toast.success('Score confirmed');
+                }
+                await update();
+              };
+            }}
+          >
+            <Button type="submit" variant="primary" size="lg">Confirm score</Button>
+          </form>
+          <form
+            method="POST"
+            action="?/disputeScore"
+            class="flex min-w-64 flex-1 flex-col gap-2"
+            use:enhance={() => {
+              return async ({ result, update }) => {
+                if (result.type === 'failure') {
+                  toast.error(
+                    (result.data as { error?: string } | undefined)?.error ||
+                      'Failed to dispute score',
+                  );
+                } else if (result.type === 'success') {
+                  toast.success('Score disputed');
+                }
+                await update();
+              };
+            }}
+          >
+            <textarea
+              name="reason"
+              rows="2"
+              required
+              placeholder="Why is this score wrong?"
+              class="w-full bg-surface-input border border-border-input text-text-heading rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            ></textarea>
+            <Button type="submit" variant="danger" size="lg">Dispute score</Button>
+          </form>
+        </div>
+      {:else}
+        <p class="text-sm text-text-muted">Waiting for the other team to confirm or dispute.</p>
+      {/if}
+    </Card>
+  {/if}
 
   <!-- Score Submission Form -->
   {#if canSubmitScores}

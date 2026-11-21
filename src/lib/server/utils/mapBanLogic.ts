@@ -6,7 +6,7 @@
 /**
  * Determine next action type (ban or pick) based on action count and BO series
  * @param actionCount - Number of actions already taken
- * @param boSeries - Best of series (3, 5, or 7)
+ * @param boSeries - Best of series (1, 3, 5, or 7)
  * @returns 'ban', 'pick', or '' if complete
  */
 export function determineNextAction(actionCount: number, boSeries: number): 'ban' | 'pick' | '' {
@@ -84,7 +84,7 @@ export function determineNextAction(actionCount: number, boSeries: number): 'ban
 /**
  * Determine if turn should switch after an action
  * @param actionCount - Number of actions already taken (before this action)
- * @param boSeries - Best of series (3, 5, or 7)
+ * @param boSeries - Best of series (1, 3, 5, or 7)
  * @returns true if turn should switch to other team
  */
 export function shouldSwitchTurn(actionCount: number, boSeries: number): boolean {

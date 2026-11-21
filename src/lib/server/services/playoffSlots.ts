@@ -6,7 +6,7 @@ import {
   selectPlayoffField,
   type PlayoffBracketFormat,
   type PlayoffSlotDraft,
-} from '#lib/server/utils/playoffBracket.js';
+} from '#lib/utils/playoffBracket.js';
 import {
   planPlayoffAdvance,
   PlayoffAdvanceError,

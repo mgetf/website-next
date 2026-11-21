@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlayoffBracket } from './playoffBracket';
+import { buildPlayoffBracket } from '#lib/utils/playoffBracket.js';
 import {
   buildLeaguePlayoffDivisions,
   buildLeagueSlotBracket,

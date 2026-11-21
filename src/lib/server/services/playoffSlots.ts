@@ -16,7 +16,14 @@ import {
 import { planPlayoffPodium } from '#lib/server/utils/playoffPodium.js';
 import { saveDivisionPlayoffPlacements } from '#lib/server/services/playoffPlacements.js';
 import { createNotificationForRoster } from '#lib/server/services/notifications.js';
-import { BracketSection, MatchStatus, PlayoffFormat, Prisma, TeamStatus } from '#prisma/client.js';
+import {
+  BracketSection,
+  MatchStatus,
+  OutboxStatus,
+  PlayoffFormat,
+  Prisma,
+  TeamStatus,
+} from '#prisma/client.js';
 import { formatPlayoffSlotLabel, type PlayoffSlotSection } from '#lib/utils/playoffs.js';
 import {
   discordRecipients,
@@ -853,4 +860,146 @@ async function advanceOutbox(
   }
 
   return items;
+}
+
+/** True when an outbox dedupe key names one of these playoff matches or bracket. */
+export function isBracketOutboxKey(
+  dedupeKey: string,
+  seasonId: number,
+  divisionId: number,
+  matchIds: number[],
+): boolean {
+  if (dedupeKey.startsWith(`playoff.bracket_complete:${seasonId}:${divisionId}:`)) return true;
+  for (const matchId of matchIds) {
+    if (dedupeKey.startsWith(`playoff.match_created:${matchId}:`)) return true;
+    if (dedupeKey.startsWith(`playoff.score_confirmed:${matchId}:`)) return true;
+    if (dedupeKey.startsWith('playoff.team_eliminated:') && dedupeKey.includes(`:${matchId}:`)) {
+      return true;
+    }
+    if (dedupeKey.startsWith(`match.reminder:${matchId}:`)) return true;
+  }
+  return false;
+}
+
+export type DeletedPlayoffBracket = {
+  divisionId: number;
+  divisionName: string;
+  slotCount: number;
+  matchCount: number;
+  placementCount: number;
+};
+
+/**
+ * Remove one division's generated playoff tree: its slots, the matches linked
+ * from them, and those matches' games, map bans, comms, demos, notifications
+ * and placements. The saved format choice stays, so the bracket can be
+ * generated again right away. Regular-season matches are never touched: the
+ * match list comes only from the slots.
+ *
+ * Refuses when any linked match has a reported score. Confirming a playoff
+ * score updates the team table, so wiping it would leave the standings
+ * wrong. Pending Discord notices for the matches are cancelled; messages
+ * already delivered cannot be recalled.
+ */
+export async function deleteDivisionPlayoffBracket(
+  seasonId: number,
+  divisionId: number,
+): Promise<DeletedPlayoffBracket> {
+  const season = await prisma.season.findUnique({
+    where: { id: seasonId },
+    select: { regionId: true, formatId: true },
+  });
+  if (!season) notFound('Season not found');
+
+  const division = await prisma.division.findFirst({
+    where: { id: divisionId, regionId: season.regionId, formatId: season.formatId },
+    select: { id: true, name: true },
+  });
+  if (!division) badRequest('That division is not part of this season');
+
+  const slots = await prisma.playoffSlot.findMany({
+    where: { seasonId, divisionId },
+    select: { id: true, matchId: true },
+  });
+  if (slots.length === 0) badRequest('This division has no playoff bracket to delete');
+
+  const matchIds = [
+    ...new Set(slots.flatMap((slot) => (slot.matchId != null ? [slot.matchId] : []))),
+  ];
+  const linkedMatches =
+    matchIds.length > 0
+      ? await prisma.match.findMany({
+          where: { id: { in: matchIds } },
+          select: { id: true, status: true },
+        })
+      : [];
+  if (linkedMatches.some((match) => match.status !== MatchStatus.UNPLAYED)) {
+    badRequest('This bracket has matches with reported scores and cannot be deleted');
+  }
+  const placementCount = await prisma.playoffPlacement.count({ where: { seasonId, divisionId } });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.playoffPlacement.deleteMany({ where: { seasonId, divisionId } });
+    await tx.playoffSlot.updateMany({
+      where: { seasonId, divisionId },
+      data: { matchId: null, winnerNextSlotId: null, loserNextSlotId: null },
+    });
+
+    if (matchIds.length > 0) {
+      const bans = await tx.matchMapBan.findMany({
+        where: { matchId: { in: matchIds } },
+        select: { id: true },
+      });
+      const banIds = bans.map((ban) => ban.id);
+      if (banIds.length > 0) {
+        await tx.mapBanAction.deleteMany({ where: { matchMapBanId: { in: banIds } } });
+      }
+      await tx.matchMapBan.deleteMany({ where: { matchId: { in: matchIds } } });
+      await tx.game.deleteMany({ where: { matchId: { in: matchIds } } });
+      await tx.matchComm.deleteMany({ where: { matchId: { in: matchIds } } });
+
+      const demos = await tx.demo.findMany({
+        where: { matchId: { in: matchIds } },
+        select: { id: true },
+      });
+      const demoIds = demos.map((demo) => demo.id);
+      if (demoIds.length > 0) {
+        await tx.demoReport.deleteMany({ where: { demoId: { in: demoIds } } });
+      }
+      await tx.demo.deleteMany({ where: { matchId: { in: matchIds } } });
+
+      await tx.notification.deleteMany({
+        where: { url: { in: matchIds.map((matchId) => `/matches/${matchId}`) } },
+      });
+
+      const pending = await tx.outboxEvent.findMany({
+        where: {
+          status: OutboxStatus.PENDING,
+          OR: [
+            { dedupeKey: { startsWith: 'playoff.' } },
+            { dedupeKey: { startsWith: 'match.reminder:' } },
+          ],
+        },
+        select: { id: true, dedupeKey: true },
+      });
+      const cancelIds = pending
+        .filter((row) => isBracketOutboxKey(row.dedupeKey, seasonId, divisionId, matchIds))
+        .map((row) => row.id);
+      if (cancelIds.length > 0) {
+        await tx.outboxEvent.deleteMany({ where: { id: { in: cancelIds } } });
+      }
+
+      await tx.match.deleteMany({ where: { id: { in: matchIds } } });
+    }
+
+    await tx.playoffSlot.deleteMany({ where: { seasonId, divisionId } });
+  });
+
+  return {
+    divisionId,
+    divisionName: division.name,
+    slotCount: slots.length,
+    matchCount: matchIds.length,
+    placementCount,
+  };
 }

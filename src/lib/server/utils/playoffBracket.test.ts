@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlayoffBracket, rankPlayoffField, type PlayoffSlotDraft } from './playoffBracket';
+import {
+  buildPlayoffBracket,
+  rankPlayoffField,
+  selectPlayoffField,
+  type PlayoffSlotDraft,
+} from './playoffBracket';
 
 function seeds(count: number) {
   return Array.from({ length: count }, (_, index) => ({ id: index + 1 }));
@@ -141,5 +146,29 @@ describe('buildPlayoffBracket', () => {
     });
     expect(slot(slots, 'WINNERS-1-1').loserNextKey).toBeNull();
     expect(slot(slots, 'GRAND_FINAL-1-1').winnerNextKey).toBeNull();
+  });
+});
+
+describe('selectPlayoffField', () => {
+  const ranked = [{ id: 7 }, { id: 3 }, { id: 9 }, { id: 4 }];
+
+  it('keeps the whole field when nothing is chosen', () => {
+    expect(selectPlayoffField(ranked, null)).toEqual(ranked);
+    expect(selectPlayoffField(ranked, undefined)).toEqual(ranked);
+  });
+
+  it('keeps only the chosen teams, in seed order rather than click order', () => {
+    expect(selectPlayoffField(ranked, [4, 7, 9])).toEqual([{ id: 7 }, { id: 9 }, { id: 4 }]);
+  });
+
+  it('rejects a team that is not in the eligible field', () => {
+    expect(() => selectPlayoffField(ranked, [7, 99])).toThrow();
+  });
+
+  it('reseeds the chosen teams from 1', () => {
+    const field = selectPlayoffField(ranked, [9, 4]);
+    const slots = buildPlayoffBracket('SINGLE_ELIM', field);
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({ team1Id: 9, team2Id: 4 });
   });
 });

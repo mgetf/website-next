@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { enhance, type SubmitFunction } from '$app/forms';
+  import { deserialize, enhance, type SubmitFunction } from '$app/forms';
   import { refreshAll } from '$app/navigation';
   import { page } from '$app/state';
   import DataTable from '#lib/components/ui/DataTable.svelte';
@@ -325,6 +325,61 @@
   let generatePoolId = $state('');
   let generateTarget = $state<{ divisionId: number; divisionName: string } | null>(null);
   let generatePlayoffForm = $state<HTMLFormElement | null>(null);
+
+  type FieldTeam = {
+    id: number;
+    label: string;
+    wins: number;
+    losses: number;
+    seed: number;
+  };
+  let fieldTeams = $state<FieldTeam[]>([]);
+  let fieldSelected = $state<Record<number, boolean>>({});
+  let fieldLoading = $state(false);
+  let fieldError = $state<string | null>(null);
+
+  const pickedTeams = $derived(fieldTeams.filter((team) => fieldSelected[team.id]));
+  const pickedTeamIds = $derived(JSON.stringify(pickedTeams.map((team) => team.id)));
+
+  function seedOf(teamId: number): number | null {
+    const index = pickedTeams.findIndex((team) => team.id === teamId);
+    return index === -1 ? null : index + 1;
+  }
+
+  function setAllTeams(picked: boolean) {
+    fieldSelected = Object.fromEntries(fieldTeams.map((team) => [team.id, picked]));
+  }
+
+  async function openFieldPicker(seasonId: number, divisionId: number, divisionName: string) {
+    generateTarget = { divisionId, divisionName };
+    fieldTeams = [];
+    fieldSelected = {};
+    fieldError = null;
+    fieldLoading = true;
+    try {
+      const body = new FormData();
+      body.set('seasonId', String(seasonId));
+      body.set('divisionId', String(divisionId));
+      const response = await fetch('?/playoffField', {
+        method: 'POST',
+        body,
+        headers: { 'x-sveltekit-action': 'true' },
+      });
+      const result = deserialize(await response.text());
+      if (result.type === 'success' && result.data) {
+        fieldTeams = result.data.field as FieldTeam[];
+        setAllTeams(true);
+      } else {
+        const data = (result.type === 'failure' ? result.data : undefined) as
+          { error?: string } | undefined;
+        fieldError = data?.error ?? 'Could not load the teams for this bracket.';
+      }
+    } catch {
+      fieldError = 'Could not load the teams for this bracket.';
+    } finally {
+      fieldLoading = false;
+    }
+  }
 
   const playoffFormatOptions = [
     { value: 'SINGLE_ELIM', label: 'Single elimination' },
@@ -2026,6 +2081,20 @@
         hint="The currency used for PayPal charges and displaying signup costs in this region."
       />
 
+      <FormInput
+        label="Playoffs Discord channel ID"
+        name="discordPlayoffsChannelId"
+        value={editingRegion.discordPlayoffsChannelId ?? ''}
+        hint="Where the bot posts new playoff matches, results, and the final podium for this region. Leave empty to use the bot's default channel."
+      />
+
+      <FormInput
+        label="Staff Discord channel ID"
+        name="discordStaffChannelId"
+        value={editingRegion.discordStaffChannelId ?? ''}
+        hint="Where the bot posts score disputes for this region. Leave empty to use the bot's default channel."
+      />
+
       <div class="flex gap-3 justify-end">
         <Button type="button" variant="secondary" onclick={() => (editingRegion = null)}
           >Cancel</Button
@@ -2888,8 +2957,9 @@
       <div class="mt-8 border-t border-border-default pt-6">
         <h2 class="text-sm font-semibold text-text-heading mb-2">Generate brackets</h2>
         <p class="text-text-body text-sm mb-4">
-          Uses the saved format, series, and arena length, and every team in that division that has
-          not withdrawn. Matches are created where both teams are already known.
+          Uses the saved format, series, and arena length. You pick which teams from that division
+          are in the bracket; they are seeded by their regular season record. Matches are created
+          where both teams are already known.
         </p>
 
         <FormSelect
@@ -2927,10 +2997,9 @@
               variant="primary"
               size="sm"
               disabled={!canGenerateDivision(division.id) || isSubmitting}
-              onclick={() =>
-                (generateTarget = { divisionId: division.id, divisionName: division.name })}
+              onclick={() => openFieldPicker(showPlayoffModal.id, division.id, division.name)}
             >
-              Generate
+              Choose teams
             </Button>
           </div>
         {/each}
@@ -2952,23 +3021,70 @@
           <input type="hidden" name="seasonId" value={showPlayoffModal.id} />
           <input type="hidden" name="divisionId" value={generateTarget?.divisionId ?? ''} />
           <input type="hidden" name="mapBanPoolId" value={generatePoolId} />
+          <input type="hidden" name="teamIds" value={pickedTeamIds} />
         </form>
       </div>
     {/if}
   </Dialog>
 
-  <ConfirmDialog
+  <Dialog
     open={generateTarget !== null}
-    title="Generate playoff bracket"
-    description={generateTarget
-      ? `Create the ${generateTarget.divisionName} bracket from every team that has not withdrawn? Matches with both teams known are scheduled now.`
-      : ''}
-    confirmLabel="Generate"
-    variant="info"
-    isLoading={isSubmitting}
-    onConfirm={() => generatePlayoffForm?.requestSubmit()}
-    onCancel={() => (generateTarget = null)}
-  />
+    title={generateTarget ? `${generateTarget.divisionName} bracket teams` : 'Bracket teams'}
+    maxWidth="xl"
+    onClose={() => (generateTarget = null)}
+  >
+    {#if fieldLoading}
+      <p class="text-sm text-text-muted">Loading teams…</p>
+    {:else if fieldError}
+      <p class="text-sm text-danger-ink">{fieldError}</p>
+    {:else}
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <p class="text-sm text-text-body">
+          {pickedTeams.length} of {fieldTeams.length} teams in the bracket. Seeds follow the regular season
+          table.
+        </p>
+        <div class="flex gap-2">
+          <Button type="button" variant="secondary" size="sm" onclick={() => setAllTeams(true)}
+            >All</Button
+          >
+          <Button type="button" variant="secondary" size="sm" onclick={() => setAllTeams(false)}
+            >None</Button
+          >
+        </div>
+      </div>
+      <ul
+        class="max-h-96 divide-y divide-border-default overflow-y-auto rounded-md border border-border-default"
+      >
+        {#each fieldTeams as team (team.id)}
+          {@const seed = seedOf(team.id)}
+          <li>
+            <label class="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-surface-card">
+              <input type="checkbox" bind:checked={fieldSelected[team.id]} class="h-4 w-4" />
+              <span class="w-10 text-right text-xs tabular-nums text-text-muted">
+                {seed ? `#${seed}` : '–'}
+              </span>
+              <span class="flex-1 truncate text-sm text-text-heading">{team.label}</span>
+              <span class="text-xs tabular-nums text-text-muted">{team.wins}-{team.losses}</span>
+            </label>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    <div class="mt-4 flex justify-end gap-3">
+      <Button type="button" variant="secondary" onclick={() => (generateTarget = null)}
+        >Cancel</Button
+      >
+      <Button
+        type="button"
+        variant="primary"
+        disabled={fieldLoading || fieldError !== null || pickedTeams.length < 2 || isSubmitting}
+        onclick={() => generatePlayoffForm?.requestSubmit()}
+      >
+        {isSubmitting ? 'Generating…' : `Generate with ${pickedTeams.length} teams`}
+      </Button>
+    </div>
+  </Dialog>
 {/if}
 
 {#if deletingSeason}

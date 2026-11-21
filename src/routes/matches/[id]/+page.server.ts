@@ -18,7 +18,12 @@ import {
   validateScoreSubmission,
   submitMatchScores,
   disputeMatch,
+  confirmMatchScore,
+  disputeScoreSubmission,
+  getPendingScoreSubmission,
+  calculateMatchWinner,
   getMatchWeekLabel,
+  type GameResult,
 } from '#lib/server/services/matches.js';
 import {
   createMatchComm,
@@ -289,7 +294,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     .filter(Boolean)
     .join(' · ');
 
+  const pendingScore = await loadPendingScore(match, permissions);
+
   return {
+    pendingScore,
     seo: buildPageSeo(url.origin, {
       title: `${homeName} vs ${awayName} | MGE.tf`,
       description: matchSeoDescription || `${homeName} vs ${awayName} on MGE.tf`,
@@ -320,6 +328,36 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       matchCreatedMessageContent ?? getDefaultContent(CONTENT_KEYS.MATCH_CREATED_MESSAGE),
   };
 };
+
+/** The report waiting on the other team, shaped for the page. */
+async function loadPendingScore(
+  match: Awaited<ReturnType<typeof getMatchDetails>>,
+  permissions: ReturnType<typeof canUserManageMatch>,
+) {
+  if (match.status !== MatchStatus.UNPLAYED) return null;
+  const submission = await getPendingScoreSubmission(match.id);
+  if (!submission) return null;
+
+  const { winnerId, winnerScore, loserScore } = calculateMatchWinner(
+    match.homeTeamId,
+    match.awayTeamId,
+    submission.gameResults as unknown as GameResult[],
+    match.boGames,
+  );
+  const reportedByHome = submission.submittedByTeam === match.homeTeamId;
+  const winnerName = winnerId === match.homeTeamId ? match.homeTeam.name : match.awayTeam.name;
+
+  return {
+    reportedBy: reportedByHome ? match.homeTeam.name : match.awayTeam.name,
+    summary: `${winnerName} ${winnerScore}-${loserScore}`,
+    autoConfirmAt: submission.autoConfirmAt.toISOString(),
+    /** This person leads the team that has to answer. */
+    canAnswerAsTeam: reportedByHome ? permissions.isAwayManager : permissions.isHomeManager,
+    canAnswer:
+      permissions.isAdmin ||
+      (reportedByHome ? permissions.isAwayManager : permissions.isHomeManager),
+  };
+}
 
 export const actions: Actions = {
   /**
@@ -462,11 +500,13 @@ export const actions: Actions = {
     }
 
     try {
-      await submitMatchScores(matchId, gameResults, locals.user.steamId);
+      const submitted = await submitMatchScores(matchId, gameResults, locals.user.steamId);
 
       await createNotificationForMatch(
         matchId,
-        'Match scores have been submitted',
+        submitted.pending
+          ? 'A score was reported and needs confirmation'
+          : 'Match scores have been submitted',
         locals.user.steamId,
       );
 
@@ -481,9 +521,75 @@ export const actions: Actions = {
         ipAddress: getClientAddress(),
       });
 
-      return { success: true, message: 'Scores submitted successfully' };
+      return {
+        success: true,
+        message: submitted.pending
+          ? 'Score reported. The other team has to confirm it before the bracket moves.'
+          : 'Scores submitted successfully',
+      };
     } catch (err) {
       return fail(500, { error: getErrorMessage(err, 'Failed to submit scores') });
+    }
+  },
+
+  /**
+   * Confirm the other team's reported score. This advances the bracket.
+   */
+  confirmScore: async ({ params, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    try {
+      const { confirmed } = await confirmMatchScore(matchId, locals.user.steamId);
+
+      if (confirmed) {
+        await logAudit({
+          actorId: locals.user.steamId,
+          actorRole: locals.user.permissionLevel,
+          category: AuditCategory.MATCH,
+          action: AuditAction.MATCH_SCORES_SUBMITTED,
+          targetType: 'Match',
+          targetId: String(matchId),
+          metadata: { confirmed: true },
+          ipAddress: getClientAddress(),
+        });
+      }
+
+      return { success: true, message: 'Score confirmed' };
+    } catch (err) {
+      return fail(400, { error: getErrorMessage(err, 'Failed to confirm score') });
+    }
+  },
+
+  /**
+   * Reject the other team's reported score. Staff take it from here.
+   */
+  disputeScore: async ({ params, request, locals, getClientAddress }) => {
+    requireAuth(locals.user);
+    const matchId = parseInt(params.id);
+
+    const validation = validateForm(await request.formData(), disputeSchema);
+    if (!validation.success) {
+      return validationError(validation.errors, 'Invalid form data');
+    }
+
+    try {
+      await disputeScoreSubmission(matchId, locals.user.steamId, validation.data.reason);
+
+      await logAudit({
+        actorId: locals.user.steamId,
+        actorRole: locals.user.permissionLevel,
+        category: AuditCategory.MATCH,
+        action: AuditAction.MATCH_DISPUTED,
+        targetType: 'Match',
+        targetId: String(matchId),
+        metadata: { reason: validation.data.reason, pendingScore: true },
+        ipAddress: getClientAddress(),
+      });
+
+      return { success: true, message: 'Score disputed. Staff will review it.' };
+    } catch (err) {
+      return fail(400, { error: getErrorMessage(err, 'Failed to dispute score') });
     }
   },
 

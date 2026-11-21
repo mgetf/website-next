@@ -944,6 +944,7 @@ model Match {
   games        Game[]
   matchMapBans MatchMapBan[]
   playoffSlot  PlayoffSlot?
+  scoreSubmissions MatchScoreSubmission[]
 
   @@map("matches")
 }
@@ -1114,6 +1115,10 @@ model Region {
   hidden         Int    @default(0)
   currencySymbol String @default("€") @map("currency_symbol")
   currencyCode   String @default("EUR") @map("currency_code")
+  /// Discord channel for this region's public playoff posts. Empty falls back to the bot's default.
+  discordPlayoffsChannelId String? @map("discord_playoffs_channel_id")
+  /// Discord channel for this region's staff alerts (score disputes). Empty falls back to the bot's default.
+  discordStaffChannelId    String? @map("discord_staff_channel_id")
 
   seasons                Season[]
   teams                  Team[]
@@ -1661,4 +1666,61 @@ model MatchLog {
 
   @@index([uploadedAt(sort: Desc)])
   @@map("match_logs")
+}
+
+enum ScoreSubmissionStatus {
+  PENDING // waiting for the opposing team to confirm
+  CONFIRMED // applied to the match
+  DISPUTED // rejected by the opposing team, staff must resolve
+  SUPERSEDED // replaced by an admin override
+}
+
+// A score report for a playoff match that is waiting on the other team.
+// The match stays UNPLAYED until this is confirmed, so standings and the
+// bracket never see an unconfirmed result.
+model MatchScoreSubmission {
+  id              Int                   @id @default(autoincrement())
+  matchId         Int                   @map("match_id")
+  submittedBy     String                @map("submitted_by")
+  submittedByTeam Int                   @map("submitted_by_team_id")
+  gameResults     Json                  @map("game_results")
+  status          ScoreSubmissionStatus @default(PENDING)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  autoConfirmAt   DateTime              @map("auto_confirm_at")
+  resolvedAt      DateTime?             @map("resolved_at")
+  resolvedBy      String?               @map("resolved_by")
+  autoConfirmed   Boolean               @default(false) @map("auto_confirmed")
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, status])
+  @@index([status, autoConfirmAt])
+  @@map("match_score_submissions")
+}
+
+enum OutboxStatus {
+  PENDING
+  CLAIMED
+  DELIVERED
+  DEAD
+}
+
+// Messages the Discord bot should deliver. Rows are written in the same
+// transaction as the change that caused them, so a bracket never advances
+// without its notifications. The bot claims, sends, then acks.
+model OutboxEvent {
+  id            Int          @id @default(autoincrement())
+  kind          String
+  dedupeKey     String       @unique @map("dedupe_key")
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now()) @map("next_attempt_at")
+  claimedAt     DateTime?    @map("claimed_at")
+  deliveredAt   DateTime?    @map("delivered_at")
+  lastError     String?      @map("last_error")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@map("outbox_events")
 }

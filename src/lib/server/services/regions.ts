@@ -101,7 +101,28 @@ function currencySymbolFromCode(code: string): string {
  * - Region must exist
  * - New name must not conflict with another region (case-insensitive)
  */
-export async function updateRegion(id: number, data: { name: string; currencyCode?: string }) {
+/** Discord snowflake, or empty to clear. Throws on anything else. */
+export function parseDiscordChannelId(
+  value: string | null | undefined,
+  label: string,
+): string | null {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return null;
+  if (!/^\d{15,25}$/.test(trimmed)) {
+    throw new Error(`${label} must be a Discord channel ID (digits only)`);
+  }
+  return trimmed;
+}
+
+export async function updateRegion(
+  id: number,
+  data: {
+    name: string;
+    currencyCode?: string;
+    discordPlayoffsChannelId?: string | null;
+    discordStaffChannelId?: string | null;
+  },
+) {
   const trimmedName = data.name.trim();
 
   if (!trimmedName) {
@@ -135,6 +156,22 @@ export async function updateRegion(id: number, data: { name: string; currencyCod
       name: trimmedName,
       currencyCode,
       currencySymbol,
+      ...(data.discordPlayoffsChannelId !== undefined
+        ? {
+            discordPlayoffsChannelId: parseDiscordChannelId(
+              data.discordPlayoffsChannelId,
+              'Playoffs channel',
+            ),
+          }
+        : {}),
+      ...(data.discordStaffChannelId !== undefined
+        ? {
+            discordStaffChannelId: parseDiscordChannelId(
+              data.discordStaffChannelId,
+              'Staff channel',
+            ),
+          }
+        : {}),
     },
   });
 }

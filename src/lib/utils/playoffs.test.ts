@@ -3,6 +3,7 @@ import {
   compareMatchHistoryOrder,
   formatPlayoffRound,
   formatPlayoffSlotLabel,
+  playoffLengthLabel,
   playoffRoundSortKey,
 } from './playoffs';
 
@@ -56,5 +57,19 @@ describe('compareMatchHistoryOrder', () => {
 
     const sorted = [...entries].sort(compareMatchHistoryOrder);
     expect(sorted.map((e) => e.id)).toEqual([1, 3, 2, 10, 11]);
+  });
+});
+
+describe('playoffLengthLabel', () => {
+  it('reads one arena with winning rounds first', () => {
+    expect(playoffLengthLabel(1, 7)).toBe('1 arena, first to 4 rounds (bo7)');
+  });
+
+  it('names the arena count when there is more than one', () => {
+    expect(playoffLengthLabel(3, 3)).toBe('Best of 3 arenas, first to 2 rounds (bo3)');
+  });
+
+  it('states a single round per arena plainly', () => {
+    expect(playoffLengthLabel(5, 1)).toBe('Best of 5 arenas, 1 round each (bo1)');
   });
 });

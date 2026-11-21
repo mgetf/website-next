@@ -16,7 +16,7 @@
   import MarkdownRenderer from '#lib/components/markdown/MarkdownRenderer.svelte';
   import MarkdownEditor from '#lib/components/markdown/MarkdownEditor.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
-  import { formatPlayoffRound } from '#lib/utils/playoffs.js';
+  import { formatPlayoffRound, playoffLengthLabel } from '#lib/utils/playoffs.js';
   import { standardTimezoneOptions } from '#lib/utils/timezones.js';
   import Trophy from '~icons/lucide/trophy';
   import Calendar from '~icons/lucide/calendar';
@@ -699,12 +699,16 @@
             {match.winnerId === match.awayTeamId ? match.winnerScore : match.loserScore}
           </div>
           <div class="text-sm text-text-body mt-2">
-            Best of {match.boSeries}
+            {playoffBoGames > 1
+              ? playoffLengthLabel(match.boSeries || 3, playoffBoGames)
+              : `Best of ${match.boSeries}`}
           </div>
         {:else}
           <div class="text-2xl text-text-body">VS</div>
           <div class="text-sm text-text-body mt-2">
-            Best of {match.boSeries}
+            {playoffBoGames > 1
+              ? playoffLengthLabel(match.boSeries || 3, playoffBoGames)
+              : `Best of ${match.boSeries}`}
           </div>
         {/if}
       </div>

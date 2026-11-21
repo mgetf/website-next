@@ -95,14 +95,5 @@
 <style>
   .league-playoff-bracket {
     --bracket-match-width: 9.5rem;
-    --bracket-round-gap: 1.25rem;
-    --bracket-stage-gap: 1.25rem;
-    --bracket-font-size: 0.75rem;
-    --bracket-match-pad-x: 0.375rem;
-    --bracket-match-pad-y: 0.25rem;
-  }
-
-  .league-playoff-bracket :global(.bracket-scroll-container) {
-    padding-right: 1.5rem;
   }
 </style>

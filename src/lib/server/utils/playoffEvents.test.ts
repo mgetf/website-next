@@ -3,6 +3,8 @@ import {
   bracketCompleteItems,
   eliminatedTeamId,
   matchCreatedItems,
+  matchReminderItems,
+  reminderStage,
   scoreConfirmedItems,
   scoreDisputedItems,
   scoreSubmittedItems,
@@ -178,5 +180,48 @@ describe('outboxRetryDelaySeconds', () => {
     expect(outboxRetryDelaySeconds(2)).toBe(20);
     expect(outboxRetryDelaySeconds(3)).toBe(40);
     expect(outboxRetryDelaySeconds(20)).toBe(1800);
+  });
+});
+
+describe('reminderStage', () => {
+  const now = new Date('2026-11-21T12:00:00Z');
+  const at = (hours: number) => new Date(now.getTime() + hours * 3600_000);
+
+  it('is the day-ahead reminder between an hour and a day out', () => {
+    expect(reminderStage(at(23), now)).toBe('24h');
+    expect(reminderStage(at(24), now)).toBe('24h');
+    expect(reminderStage(at(1.5), now)).toBe('24h');
+  });
+
+  it('is the hour reminder inside the last hour', () => {
+    expect(reminderStage(at(1), now)).toBe('1h');
+    expect(reminderStage(at(0.25), now)).toBe('1h');
+  });
+
+  it('is nothing when further out than a day or already started', () => {
+    expect(reminderStage(at(25), now)).toBeNull();
+    expect(reminderStage(at(0), now)).toBeNull();
+    expect(reminderStage(at(-2), now)).toBeNull();
+  });
+});
+
+describe('matchReminderItems', () => {
+  const startsAt = new Date('2026-11-21T20:00:00Z');
+
+  it('DMs each person with no channel fallback', () => {
+    const items = matchReminderItems(match, { startsAt, stage: '1h' }, [alice, bob]);
+    expect(items.map((item) => item.dedupeKey)).toEqual([
+      'match.reminder:42:1h:2026-11-21T20:00:00.000Z:dm:d-alice',
+      'match.reminder:42:1h:2026-11-21T20:00:00.000Z:dm:d-bob',
+    ]);
+    expect(items[0].payload).toMatchObject({ stage: '1h', recipientSide: 'home' });
+    expect(items[0].payload).not.toHaveProperty('fallbackChannel');
+  });
+
+  it('sends a fresh reminder when the match moves', () => {
+    const moved = new Date('2026-11-21T21:00:00Z');
+    const a = matchReminderItems(match, { startsAt, stage: '1h' }, [alice]);
+    const b = matchReminderItems(match, { startsAt: moved, stage: '1h' }, [alice]);
+    expect(a[0].dedupeKey).not.toBe(b[0].dedupeKey);
   });
 });

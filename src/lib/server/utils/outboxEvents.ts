@@ -82,7 +82,17 @@ export type BracketCompletePayload = Base & {
   podium: Array<{ place: number; name: string }>;
 };
 
+export type MatchReminderPayload = Base &
+  MatchFields & {
+    /** ISO time the match is scheduled for. */
+    startsAt: string;
+    /** How close the match is: roughly a day out, or within the hour. */
+    stage: '24h' | '1h';
+    recipientSide: 'home' | 'away';
+  };
+
 export const OUTBOX_KINDS = {
+  matchReminder: 'match.reminder',
   matchCreated: 'playoff.match_created',
   scoreSubmitted: 'playoff.score_submitted',
   scoreConfirmed: 'playoff.score_confirmed',
@@ -94,6 +104,7 @@ export const OUTBOX_KINDS = {
 export type OutboxKind = (typeof OUTBOX_KINDS)[keyof typeof OUTBOX_KINDS];
 
 export type OutboxPayloadByKind = {
+  'match.reminder': MatchReminderPayload;
   'playoff.match_created': MatchCreatedPayload;
   'playoff.score_submitted': ScoreSubmittedPayload;
   'playoff.score_confirmed': ScoreConfirmedPayload;

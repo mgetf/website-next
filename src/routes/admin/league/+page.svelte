@@ -18,6 +18,7 @@
   import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
   import DivisionCatalogList from '#lib/components/admin/DivisionCatalogList.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
+  import { playoffLengthLabel } from '#lib/utils/playoffs.js';
   import { FORMAT_THEME_KEYS } from '#lib/constants/formats.js';
   import Trophy from '~icons/lucide/trophy';
   import Globe from '~icons/lucide/globe';
@@ -869,8 +870,10 @@
                         <ul class="space-y-0.5">
                           {#each season.divisionPlayoffs as row (row.divisionId)}
                             <li class="text-sm text-text-label">
-                              {row.divisionName} · {playoffFormatLabel(row.format)} · Best of {row.series},
-                              each arena best of {row.arenaGames}
+                              {row.divisionName} · {playoffFormatLabel(row.format)} · {playoffLengthLabel(
+                                row.series,
+                                row.arenaGames,
+                              )}
                               {#if season.generatedDivisionIds.includes(row.divisionId)}
                                 <span class="text-text-muted"> · Bracket ready</span>
                               {/if}

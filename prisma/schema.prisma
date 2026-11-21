@@ -1720,7 +1720,41 @@ model OutboxEvent {
   deliveredAt   DateTime?    @map("delivered_at")
   lastError     String?      @map("last_error")
   createdAt     DateTime     @default(now()) @map("created_at")
+  /// The Discord message the bot sent, so a reply to it can be tied back to this event.
+  discordMessageId String?   @map("discord_message_id")
 
   @@index([status, nextAttemptAt])
+  @@index([discordMessageId])
   @@map("outbox_events")
+}
+
+// One row: when the bot last polled the outbox. Tells admins whether it is alive.
+model BotStatus {
+  id             Int      @id
+  lastPollAt     DateTime @map("last_poll_at")
+  lastPollEvents Int      @default(0) @map("last_poll_events")
+
+  @@map("bot_status")
+}
+
+// A direct message someone sent to the Discord bot, forwarded by the bot.
+model DiscordInboxMessage {
+  id               Int       @id @default(autoincrement())
+  discordMessageId String    @unique @map("discord_message_id")
+  discordUserId    String    @map("discord_user_id")
+  discordUsername  String    @map("discord_username")
+  /// The mge.tf account linked to that Discord user, when there is one.
+  steamId          String?   @map("steam_id")
+  content          String
+  attachments      Json?
+  /// The bot message this was a reply to, and the outbox event that message was.
+  replyToMessageId String?   @map("reply_to_message_id")
+  outboxEventId    Int?      @map("outbox_event_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  handledAt        DateTime? @map("handled_at")
+  handledBy        String?   @map("handled_by")
+
+  @@index([handledAt, createdAt])
+  @@index([discordUserId])
+  @@map("discord_inbox_messages")
 }

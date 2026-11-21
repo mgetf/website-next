@@ -2,6 +2,7 @@ import {
   OUTBOX_KINDS,
   type BracketCompletePayload,
   type MatchCreatedPayload,
+  type MatchReminderPayload,
   type OutboxChannel,
   type OutboxChannelIds,
   type OutboxKind,
@@ -55,6 +56,7 @@ function dmItems<K extends OutboxKind>(
     recipient: PlayoffRecipient,
   ) => Omit<OutboxPayloadByKind[K], 'target' | 'fallbackChannel'>,
   channels: OutboxChannelIds = NO_CHANNELS,
+  withFallback = true,
 ): OutboxItem[] {
   const seen = new Set<string>();
   const items: OutboxItem[] = [];
@@ -67,8 +69,9 @@ function dmItems<K extends OutboxKind>(
       payload: {
         ...build(recipient),
         target: { type: 'dm', discordId: recipient.discordId, steamId: recipient.steamId },
-        fallbackChannel: FALLBACK,
-        fallbackChannelId: channels[FALLBACK],
+        ...(withFallback
+          ? { fallbackChannel: FALLBACK, fallbackChannelId: channels[FALLBACK] }
+          : {}),
       } as unknown as OutboxPayloadByKind[K],
     });
   }
@@ -281,4 +284,46 @@ export function eliminatedTeamId(input: {
 }): number | null {
   if (input.hasLoserArrow || input.resetCreated) return null;
   return input.loserId;
+}
+
+const HOUR_MS = 3600 * 1000;
+
+/**
+ * Which reminder a match is due for: "1h" inside the last hour, "24h" inside the
+ * last day, nothing if it is further out or has started. A match scheduled
+ * with under an hour to go skips the day-ahead one.
+ */
+export function reminderStage(startsAt: Date, now: Date): MatchReminderPayload['stage'] | null {
+  const untilStart = startsAt.getTime() - now.getTime();
+  if (untilStart <= 0) return null;
+  if (untilStart <= HOUR_MS) return '1h';
+  if (untilStart <= 24 * HOUR_MS) return '24h';
+  return null;
+}
+
+/**
+ * DM both rosters before a match. Keyed by stage and start time, so moving the
+ * match sends a fresh reminder and an unchanged one never repeats. Reminders
+ * are DM only: a closed DM is not worth a channel mention.
+ */
+export function matchReminderItems(
+  match: Omit<Match, 'channels'>,
+  schedule: { startsAt: Date; stage: MatchReminderPayload['stage'] },
+  recipients: PlayoffRecipient[],
+): OutboxItem[] {
+  const key = `match.reminder:${match.id}:${schedule.stage}:${schedule.startsAt.toISOString()}`;
+  return dmItems(
+    OUTBOX_KINDS.matchReminder,
+    key,
+    recipients,
+    (recipient) =>
+      ({
+        ...matchFields(match),
+        startsAt: schedule.startsAt.toISOString(),
+        stage: schedule.stage,
+        recipientSide: (recipient.teamId === match.home.id ? 'home' : 'away') as 'home' | 'away',
+      }) satisfies Omit<MatchReminderPayload, 'target' | 'fallbackChannel'>,
+    NO_CHANNELS,
+    false,
+  );
 }

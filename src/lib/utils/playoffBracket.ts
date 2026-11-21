@@ -41,23 +41,27 @@ export function rankPlayoffField<T extends StandingsRecord & { id: number }>(tea
 }
 
 /**
- * Keep only the teams an admin chose, in seed order. Every chosen team must be in
- * the eligible field, so a withdrawn or foreign team cannot slip in.
- * `null` or `undefined` means the whole field.
+ * The teams an admin chose, in the order they chose: that order is the seeding,
+ * best seed first. Every chosen team must be in the eligible field, so a
+ * withdrawn or foreign team cannot slip in. `null` or `undefined` means the
+ * whole field in standings order.
  */
 export function selectPlayoffField<T extends { id: number }>(
   ranked: T[],
   teamIds: number[] | null | undefined,
 ): T[] {
   if (teamIds == null) return ranked;
-  const wanted = new Set(teamIds);
-  const eligible = new Set(ranked.map((team) => team.id));
-  for (const id of wanted) {
-    if (!eligible.has(id)) {
-      throw new Error('A chosen team is not in this division or has withdrawn');
-    }
+  const eligible = new Map(ranked.map((team) => [team.id, team]));
+  const seen = new Set<number>();
+  const field: T[] = [];
+  for (const id of teamIds) {
+    if (seen.has(id)) continue;
+    const team = eligible.get(id);
+    if (!team) throw new Error('A chosen team is not in this division or has withdrawn');
+    seen.add(id);
+    field.push(team);
   }
-  return ranked.filter((team) => wanted.has(team.id));
+  return field;
 }
 
 export function buildPlayoffBracket(

@@ -152,22 +152,25 @@ describe('buildPlayoffBracket', () => {
 describe('selectPlayoffField', () => {
   const ranked = [{ id: 7 }, { id: 3 }, { id: 9 }, { id: 4 }];
 
-  it('keeps the whole field when nothing is chosen', () => {
+  it('keeps the whole field in standings order when nothing is chosen', () => {
     expect(selectPlayoffField(ranked, null)).toEqual(ranked);
     expect(selectPlayoffField(ranked, undefined)).toEqual(ranked);
   });
 
-  it('keeps only the chosen teams, in seed order rather than click order', () => {
-    expect(selectPlayoffField(ranked, [4, 7, 9])).toEqual([{ id: 7 }, { id: 9 }, { id: 4 }]);
+  it('uses the order given as the seeding', () => {
+    expect(selectPlayoffField(ranked, [4, 7, 9])).toEqual([{ id: 4 }, { id: 7 }, { id: 9 }]);
+  });
+
+  it('ignores a team named twice', () => {
+    expect(selectPlayoffField(ranked, [9, 9, 3])).toEqual([{ id: 9 }, { id: 3 }]);
   });
 
   it('rejects a team that is not in the eligible field', () => {
     expect(() => selectPlayoffField(ranked, [7, 99])).toThrow();
   });
 
-  it('reseeds the chosen teams from 1', () => {
-    const field = selectPlayoffField(ranked, [9, 4]);
-    const slots = buildPlayoffBracket('SINGLE_ELIM', field);
+  it('seeds the first team given as number one', () => {
+    const slots = buildPlayoffBracket('SINGLE_ELIM', selectPlayoffField(ranked, [9, 4]));
     expect(slots).toHaveLength(1);
     expect(slots[0]).toMatchObject({ team1Id: 9, team2Id: 4 });
   });

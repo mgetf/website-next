@@ -54,6 +54,7 @@ import {
   saveSeasonDivisionPlayoffs,
 } from '#lib/server/services/playoffs.js';
 import {
+  deleteDivisionPlayoffBracket,
   generateDivisionPlayoffBracket,
   listGeneratedPlayoffDivisions,
   listPlayoffCandidates,
@@ -171,6 +172,11 @@ const generatePlayoffSchema = z.object({
 });
 
 const playoffFieldSchema = z.object({
+  seasonId: z.coerce.number().int().positive(),
+  divisionId: z.coerce.number().int().positive(),
+});
+
+const deletePlayoffBracketSchema = z.object({
   seasonId: z.coerce.number().int().positive(),
   divisionId: z.coerce.number().int().positive(),
 });
@@ -1199,6 +1205,44 @@ export const actions: Actions = {
         return formError(message, error.status);
       }
       return formError('Failed to generate the playoff bracket', 500);
+    }
+  },
+
+  deletePlayoffBracket: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, deletePlayoffBracketSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { seasonId, divisionId } = validation.data;
+
+    try {
+      const deleted = await deleteDivisionPlayoffBracket(seasonId, divisionId);
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.PLAYOFF_BRACKET_DELETED,
+        targetType: 'Division',
+        targetId: String(divisionId),
+        metadata: { seasonId, ...deleted },
+        ipAddress: getClientAddress(),
+      });
+      return {
+        success: true,
+        message: `${deleted.divisionName} bracket deleted: ${deleted.slotCount} slots, ${deleted.matchCount} matches`,
+      };
+    } catch (error) {
+      console.error('Error deleting playoff bracket:', error);
+      if (isHttpError(error)) {
+        const body = error.body;
+        const message =
+          typeof body === 'object' && body && 'message' in body && typeof body.message === 'string'
+            ? body.message
+            : 'Failed to delete the playoff bracket';
+        return formError(message, error.status);
+      }
+      return formError('Failed to delete the playoff bracket', 500);
     }
   },
 

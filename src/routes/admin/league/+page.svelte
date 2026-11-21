@@ -6,6 +6,7 @@
   import DataTable from '#lib/components/ui/DataTable.svelte';
   import Dialog from '#lib/components/ui/Dialog.svelte';
   import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+  import PlayoffFieldPicker from '#lib/components/leagues/PlayoffFieldPicker.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import Badge from '#lib/components/ui/Badge.svelte';
   import Card from '#lib/components/ui/Card.svelte';
@@ -334,26 +335,22 @@
     seed: number;
   };
   let fieldTeams = $state<FieldTeam[]>([]);
-  let fieldSelected = $state<Record<number, boolean>>({});
   let fieldLoading = $state(false);
   let fieldError = $state<string | null>(null);
+  /** The teams in the bracket, best seed first, as the picker has them. */
+  let pickedIds = $state<number[]>([]);
 
-  const pickedTeams = $derived(fieldTeams.filter((team) => fieldSelected[team.id]));
-  const pickedTeamIds = $derived(JSON.stringify(pickedTeams.map((team) => team.id)));
-
-  function seedOf(teamId: number): number | null {
-    const index = pickedTeams.findIndex((team) => team.id === teamId);
-    return index === -1 ? null : index + 1;
-  }
-
-  function setAllTeams(picked: boolean) {
-    fieldSelected = Object.fromEntries(fieldTeams.map((team) => [team.id, picked]));
-  }
+  const pickedTeamIds = $derived(JSON.stringify(pickedIds));
+  const generateFormat = $derived(
+    generateTarget
+      ? (selectedPlayoffFormat(generateTarget.divisionId) ?? 'SINGLE_ELIM')
+      : 'SINGLE_ELIM',
+  );
 
   async function openFieldPicker(seasonId: number, divisionId: number, divisionName: string) {
     generateTarget = { divisionId, divisionName };
     fieldTeams = [];
-    fieldSelected = {};
+    pickedIds = [];
     fieldError = null;
     fieldLoading = true;
     try {
@@ -368,7 +365,6 @@
       const result = deserialize(await response.text());
       if (result.type === 'success' && result.data) {
         fieldTeams = result.data.field as FieldTeam[];
-        setAllTeams(true);
       } else {
         const data = (result.type === 'failure' ? result.data : undefined) as
           { error?: string } | undefined;
@@ -2958,8 +2954,8 @@
         <h2 class="text-sm font-semibold text-text-heading mb-2">Generate brackets</h2>
         <p class="text-text-body text-sm mb-4">
           Uses the saved format, series, and arena length. You pick which teams from that division
-          are in the bracket; they are seeded by their regular season record. Matches are created
-          where both teams are already known.
+          are in the bracket and drag them into seed order; it starts from the regular season table.
+          Matches are created where both teams are already known.
         </p>
 
         <FormSelect
@@ -3029,8 +3025,8 @@
 
   <Dialog
     open={generateTarget !== null}
-    title={generateTarget ? `${generateTarget.divisionName} bracket teams` : 'Bracket teams'}
-    maxWidth="xl"
+    title={generateTarget ? `${generateTarget.divisionName} bracket` : 'Bracket teams'}
+    maxWidth="6xl"
     onClose={() => (generateTarget = null)}
   >
     {#if fieldLoading}
@@ -3038,37 +3034,11 @@
     {:else if fieldError}
       <p class="text-sm text-danger-ink">{fieldError}</p>
     {:else}
-      <div class="mb-3 flex items-center justify-between gap-3">
-        <p class="text-sm text-text-body">
-          {pickedTeams.length} of {fieldTeams.length} teams in the bracket. Seeds follow the regular season
-          table.
-        </p>
-        <div class="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onclick={() => setAllTeams(true)}
-            >All</Button
-          >
-          <Button type="button" variant="secondary" size="sm" onclick={() => setAllTeams(false)}
-            >None</Button
-          >
-        </div>
-      </div>
-      <ul
-        class="max-h-96 divide-y divide-border-default overflow-y-auto rounded-md border border-border-default"
-      >
-        {#each fieldTeams as team (team.id)}
-          {@const seed = seedOf(team.id)}
-          <li>
-            <label class="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-surface-card">
-              <input type="checkbox" bind:checked={fieldSelected[team.id]} class="h-4 w-4" />
-              <span class="w-10 text-right text-xs tabular-nums text-text-muted">
-                {seed ? `#${seed}` : '–'}
-              </span>
-              <span class="flex-1 truncate text-sm text-text-heading">{team.label}</span>
-              <span class="text-xs tabular-nums text-text-muted">{team.wins}-{team.losses}</span>
-            </label>
-          </li>
-        {/each}
-      </ul>
+      <PlayoffFieldPicker
+        teams={fieldTeams}
+        format={generateFormat}
+        onchange={(ids) => (pickedIds = ids)}
+      />
     {/if}
 
     <div class="mt-4 flex justify-end gap-3">
@@ -3078,10 +3048,10 @@
       <Button
         type="button"
         variant="primary"
-        disabled={fieldLoading || fieldError !== null || pickedTeams.length < 2 || isSubmitting}
+        disabled={fieldLoading || fieldError !== null || pickedIds.length < 2 || isSubmitting}
         onclick={() => generatePlayoffForm?.requestSubmit()}
       >
-        {isSubmitting ? 'Generating…' : `Generate with ${pickedTeams.length} teams`}
+        {isSubmitting ? 'Generating…' : `Generate with ${pickedIds.length} teams`}
       </Button>
     </div>
   </Dialog>

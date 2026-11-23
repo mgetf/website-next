@@ -348,6 +348,9 @@ export async function updatePlayoffBracketSettings(
 
       const totalGames = nextSeries * nextArenaGames;
       for (const match of matches) {
+        // Safe to rebuild blank: boResizeBlocker above guarantees no ban/pick
+        // has started, and arena assignments are only written by picks, so
+        // these game rows carry no arena to lose.
         await tx.match.update({
           where: { id: match.id },
           data: { boSeries: nextSeries, boGames: nextArenaGames },
@@ -368,6 +371,10 @@ export async function updatePlayoffBracketSettings(
         where: {
           matchMapBan: { matchId: { in: poolTargets } },
         },
+      });
+      await tx.game.updateMany({
+        where: { matchId: { in: poolTargets } },
+        data: { arenaId: null },
       });
       await tx.matchMapBan.updateMany({
         where: { matchId: { in: poolTargets } },

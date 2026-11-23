@@ -60,6 +60,10 @@ import {
   listPlayoffCandidates,
 } from '#lib/server/services/playoffSlots.js';
 import {
+  listPlayoffBracketSettings,
+  updatePlayoffBracketSettings,
+} from '#lib/server/services/playoffSettings.js';
+import {
   getFormats,
   createFormat,
   updateFormat,
@@ -181,6 +185,14 @@ const deletePlayoffBracketSchema = z.object({
   divisionId: z.coerce.number().int().positive(),
 });
 
+const updatePlayoffBracketSchema = z.object({
+  seasonId: z.coerce.number().int().positive(),
+  divisionId: z.coerce.number().int().positive(),
+  series: z.coerce.number().int().positive().optional(),
+  arenaGames: z.coerce.number().int().positive().optional(),
+  mapBanPoolId: z.coerce.number().int().positive().optional(),
+});
+
 const teamIdListSchema = z.array(z.number().int().positive()).max(256);
 
 const boolFromCheckbox = z.preprocess(
@@ -230,6 +242,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const divisionPlayoffRows = await listSeasonDivisionPlayoffs();
   const generatedPlayoffRows = await listGeneratedPlayoffDivisions();
+  const playoffSettings = await listPlayoffBracketSettings();
   const divisionPlayoffsBySeason = new Map<number, typeof divisionPlayoffRows>();
   for (const row of divisionPlayoffRows) {
     const existing = divisionPlayoffsBySeason.get(row.seasonId) ?? [];
@@ -316,6 +329,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         : null,
     })),
     steamItems,
+    playoffSettings,
     arenas: allArenas.map((a) => ({
       id: a.id,
       name: a.name,
@@ -1243,6 +1257,60 @@ export const actions: Actions = {
         return formError(message, error.status);
       }
       return formError('Failed to delete the playoff bracket', 500);
+    }
+  },
+
+  updatePlayoffBracket: async ({ request, locals, getClientAddress }) => {
+    requireStrictAdmin(locals.user);
+
+    const formData = await request.formData();
+    const validation = validateForm(formData, updatePlayoffBracketSchema);
+    if (!validation.success) return validationError(validation.errors);
+    const { seasonId, divisionId, series, arenaGames, mapBanPoolId } = validation.data;
+
+    try {
+      const result = await updatePlayoffBracketSettings(seasonId, divisionId, {
+        series,
+        arenaGames,
+        mapBanPoolId,
+      });
+      await logAudit({
+        actorId: locals.user?.steamId,
+        actorRole: locals.user?.permissionLevel,
+        category: AuditCategory.LEAGUE_CONFIG,
+        action: AuditAction.PLAYOFF_BRACKET_SETTINGS_UPDATED,
+        targetType: 'Division',
+        targetId: String(divisionId),
+        metadata: { seasonId, divisionId, series, arenaGames, mapBanPoolId, ...result },
+        ipAddress: getClientAddress(),
+      });
+      const notes: string[] = [];
+      if (result.seriesChangedMatches > 0) {
+        notes.push(`lengths updated on ${result.seriesChangedMatches} matches`);
+      }
+      if (result.poolChangedMatches > 0) {
+        notes.push(`pool changed on ${result.poolChangedMatches} matches`);
+      }
+      if (result.keptPoolMatches > 0) {
+        notes.push(
+          `${result.keptPoolMatches} matches kept their pool (ban finished or score reported)`,
+        );
+      }
+      return {
+        success: true,
+        message: notes.length > 0 ? `Bracket updated: ${notes.join('; ')}` : 'Bracket updated',
+      };
+    } catch (error) {
+      console.error('Error updating playoff bracket settings:', error);
+      if (isHttpError(error)) {
+        const body = error.body;
+        const message =
+          typeof body === 'object' && body && 'message' in body && typeof body.message === 'string'
+            ? body.message
+            : 'Failed to update the playoff bracket';
+        return formError(message, error.status);
+      }
+      return formError('Failed to update the playoff bracket', 500);
     }
   },
 

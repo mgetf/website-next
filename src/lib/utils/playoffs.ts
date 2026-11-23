@@ -88,3 +88,18 @@ export function compareMatchHistoryOrder(
   if (weekDiff !== 0) return weekDiff;
   return (a.id ?? 0) - (b.id ?? 0);
 }
+
+/**
+ * Plain-language length of a playoff match. `series` is the number of arenas
+ * in the match, `arenaGames` is the number of rounds played on each arena, so
+ * "Best of 1, 7 per arena" becomes "1 arena, first to 4 rounds (bo7)".
+ */
+export function playoffLengthLabel(series: number, arenaGames: number): string {
+  const arenaPart = series === 1 ? '1 arena' : `Best of ${series} arenas`;
+  const firstTo = Math.ceil((arenaGames || 1) / 2);
+  const roundsPart =
+    arenaGames <= 1
+      ? `1 round each (bo${arenaGames || 1})`
+      : `first to ${firstTo} rounds (bo${arenaGames})`;
+  return `${arenaPart}, ${roundsPart}`;
+}

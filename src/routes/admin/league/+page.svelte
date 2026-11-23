@@ -18,8 +18,10 @@
   import FormatIcon from '#lib/components/ui/FormatIcon.svelte';
   import DivisionCatalogList from '#lib/components/admin/DivisionCatalogList.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
+  import { playoffLengthLabel } from '#lib/utils/playoffs.js';
   import { FORMAT_THEME_KEYS } from '#lib/constants/formats.js';
   import Trophy from '~icons/lucide/trophy';
+  import Swords from '~icons/lucide/swords';
   import Globe from '~icons/lucide/globe';
   import Layers from '~icons/lucide/layers';
   import Map from '~icons/lucide/map';
@@ -86,13 +88,14 @@
   ]);
 
   // Get initial tab from URL query param, default to 'seasons'
-  const validTabs = ['seasons', 'regions', 'divisions', 'arenas', 'formats'] as const;
+  const validTabs = ['seasons', 'regions', 'divisions', 'arenas', 'formats', 'playoffs'] as const;
 
   const urlTab = page.url.searchParams.get('tab');
   const initialTab = validTabs.includes(urlTab as any)
     ? (urlTab as (typeof validTabs)[number])
     : 'seasons';
-  let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' | 'formats' = $state(initialTab);
+  let activeTab: 'seasons' | 'regions' | 'divisions' | 'arenas' | 'formats' | 'playoffs' =
+    $state(initialTab);
   let isSubmitting = $state(false);
   let createSeasonRegionId = $state('');
   let createSeasonFormatId = $state('');
@@ -669,6 +672,16 @@
         <Gamepad2 class="size-4 shrink-0" />
         Formats
       </button>
+      <button
+        onclick={() => setTab('playoffs')}
+        class="flex flex-1 items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors {activeTab ===
+        'playoffs'
+          ? 'bg-primary-600 text-white font-medium'
+          : 'text-text-body hover:text-text-heading hover:bg-surface-input'}"
+      >
+        <Swords class="size-4 shrink-0" />
+        Playoffs
+      </button>
     </div>
   </Card>
 
@@ -869,8 +882,10 @@
                         <ul class="space-y-0.5">
                           {#each season.divisionPlayoffs as row (row.divisionId)}
                             <li class="text-sm text-text-label">
-                              {row.divisionName} · {playoffFormatLabel(row.format)} · Best of {row.series},
-                              each arena best of {row.arenaGames}
+                              {row.divisionName} · {playoffFormatLabel(row.format)} · {playoffLengthLabel(
+                                row.series,
+                                row.arenaGames,
+                              )}
                               {#if season.generatedDivisionIds.includes(row.divisionId)}
                                 <span class="text-text-muted"> · Bracket ready</span>
                               {/if}
@@ -1874,6 +1889,98 @@
             {/if}
           {/snippet}
         </DataTable>
+      {/if}
+    </div>
+  {:else if activeTab === 'playoffs'}
+    <!-- PLAYOFFS TAB -->
+    <div>
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold text-text-heading">Playoff Brackets</h3>
+      </div>
+      <p class="text-text-body text-sm mb-6">
+        The effective settings of every generated bracket: the map pool actually bound to its
+        matches, and the series and arena-length saved for the division. Lengths apply to the saved
+        choice and every unplayed match; played matches keep their results and lengths. A pool
+        change only flips matches whose ban phase has not finished.
+      </p>
+
+      {#if data.playoffSettings.length === 0}
+        <p class="text-sm text-text-muted">No playoff brackets have been generated yet.</p>
+      {:else}
+        <div class="space-y-4">
+          {#each data.playoffSettings as bracket (`${bracket.seasonId}:${bracket.divisionId}`)}
+            <section class="rounded-lg border border-border-default p-4">
+              <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h4 class="text-sm font-semibold text-text-heading">
+                  {bracket.regionName}
+                  {bracket.formatName} Season {bracket.seasonNum} · {bracket.divisionName}
+                </h4>
+                <span class="text-xs text-text-muted">
+                  {bracket.format === 'DOUBLE_ELIM' ? 'Double elimination' : 'Single elimination'} ·
+                  {bracket.slotCount} slots · {bracket.matchCount} matches ({bracket.playedCount} played,
+                  {bracket.unplayedCount} unplayed)
+                </span>
+              </div>
+
+              <p class="text-sm text-text-label mt-2">
+                Effective pool: {#if bracket.pools.length > 0}
+                  {bracket.pools.map((pool) => `${pool.name} (${pool.matchCount})`).join(' · ')}
+                {:else}
+                  No matches yet
+                {/if}
+              </p>
+              {#if bracket.hasCompletedBan}
+                <p class="text-xs text-warning-ink mt-1">
+                  Some matches already finished their ban phase and will keep their pool.
+                </p>
+              {/if}
+
+              {#if data.isStrictAdmin}
+                <form
+                  method="POST"
+                  action="?/updatePlayoffBracket"
+                  use:enhance={() => {
+                    isSubmitting = true;
+                    return async ({ update }) => {
+                      await update();
+                      isSubmitting = false;
+                    };
+                  }}
+                  class="mt-4 grid grid-cols-1 gap-x-6 sm:grid-cols-4"
+                >
+                  <input type="hidden" name="seasonId" value={bracket.seasonId} />
+                  <input type="hidden" name="divisionId" value={bracket.divisionId} />
+                  <FormSelect
+                    label="Series"
+                    name="series"
+                    options={playoffSeriesOptions}
+                    value={String(bracket.series)}
+                    hint="Number of arenas."
+                  />
+                  <FormSelect
+                    label="Each arena"
+                    name="arenaGames"
+                    options={playoffSeriesOptions}
+                    value={String(bracket.arenaGames)}
+                    hint="Games on each arena."
+                  />
+                  <FormSelect
+                    label="Map ban pool"
+                    name="mapBanPoolId"
+                    options={playoffPoolOptions}
+                    value={String(bracket.pools[0]?.id ?? '')}
+                    placeholder="Keep current pool"
+                  />
+                  <div class="flex items-end">
+                    <Button type="submit" variant="primary" disabled={isSubmitting}>
+                      {isSubmitting ? 'Saving...' : 'Save settings'}
+                    </Button>
+                  </div>
+                </form>
+              {/if}
+            </section>
+          {/each}
+        </div>
       {/if}
     </div>
   {/if}

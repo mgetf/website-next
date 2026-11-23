@@ -16,7 +16,7 @@
   import MarkdownRenderer from '#lib/components/markdown/MarkdownRenderer.svelte';
   import MarkdownEditor from '#lib/components/markdown/MarkdownEditor.svelte';
   import { toast } from '#lib/state/toast.svelte.js';
-  import { formatPlayoffRound } from '#lib/utils/playoffs.js';
+  import { formatPlayoffRound, playoffLengthLabel } from '#lib/utils/playoffs.js';
   import { standardTimezoneOptions } from '#lib/utils/timezones.js';
   import Trophy from '~icons/lucide/trophy';
   import Calendar from '~icons/lucide/calendar';
@@ -699,12 +699,16 @@
             {match.winnerId === match.awayTeamId ? match.winnerScore : match.loserScore}
           </div>
           <div class="text-sm text-text-body mt-2">
-            Best of {match.boSeries}
+            {playoffBoGames > 1
+              ? playoffLengthLabel(match.boSeries || 3, playoffBoGames)
+              : `Best of ${match.boSeries}`}
           </div>
         {:else}
           <div class="text-2xl text-text-body">VS</div>
           <div class="text-sm text-text-body mt-2">
-            Best of {match.boSeries}
+            {playoffBoGames > 1
+              ? playoffLengthLabel(match.boSeries || 3, playoffBoGames)
+              : `Best of ${match.boSeries}`}
           </div>
         {/if}
       </div>
@@ -1416,6 +1420,61 @@
           </Button>
         </div>
       </form>
+    </Card>
+  {/if}
+
+  <!-- Admin map pool banner (staff only) -->
+  {#if data.permissions.isAdmin}
+    {@const bannerStatus = data.mapBanStatus}
+    <Card class="shadow-md mb-6">
+      <h2 class="text-lg font-bold text-text-heading mb-3">Map Pool</h2>
+      {#if !bannerStatus}
+        <p class="text-sm text-text-muted">No map pool is attached to this match.</p>
+      {:else}
+        <p class="text-sm text-text-label mb-2">
+          Pool: <span class="font-semibold text-text-heading"
+            >{bannerStatus.matchMapBan.pool?.name ?? 'Unknown'}</span
+          >
+          · Phase:
+          {#if bannerStatus.isComplete}
+            complete
+          {:else if isUnplayed}
+            in progress — turn {bannerStatus.matchMapBan.currentTurn === 0
+              ? getHomeName()
+              : getAwayName()}
+          {:else}
+            in progress
+          {/if}
+        </p>
+        {#if bannerStatus.matchMapBan.pool?.mapsInPool?.length}
+          <p class="text-xs text-text-muted mb-3">
+            {bannerStatus.matchMapBan.pool.mapsInPool.map((m) => m.arena.name).join(' · ')}
+          </p>
+        {/if}
+        {#if bannerStatus.matchMapBan.actions?.length}
+          <h3 class="font-semibold text-text-heading mb-2 text-sm">Ban/Pick History</h3>
+          <div class="space-y-2">
+            {#each bannerStatus.matchMapBan.actions as action}
+              <div class="flex items-center space-x-3 p-2 bg-surface-input rounded-lg text-sm">
+                <span
+                  class="px-2 py-1 rounded text-xs font-semibold {action.actionType === 'BAN'
+                    ? 'bg-danger-500/10 text-danger-300'
+                    : 'bg-success-500/10 text-success-300'}"
+                >
+                  {action.actionType}
+                </span>
+                <span class="font-medium">{action.team?.name || 'Unknown'}</span>
+                <span class="text-text-label"
+                  >{action.actionType === 'BAN' ? 'banned' : 'picked'}</span
+                >
+                <span class="font-semibold">{action.arena?.name || 'Unknown'}</span>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <p class="text-xs text-text-muted">No bans or picks yet.</p>
+        {/if}
+      {/if}
     </Card>
   {/if}
 
